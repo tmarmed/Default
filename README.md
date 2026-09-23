@@ -22,6 +22,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 2. Menu **Extensions › Apps Script**. Remplacez le contenu de `Code.gs` par celui de
    [`google-apps-script/Code.gs`](google-apps-script/Code.gs), puis enregistrez.
 3. Dans la liste des fonctions, choisissez **`installer`** puis **Exécuter**. Acceptez les autorisations.
+   Si l'onglet est vide, 2 exemples sont ajoutés (un rendez-vous et une mission). Un modèle
+   à importer est aussi disponible : [`modele/Taches.xlsx`](modele/Taches.xlsx).
    Le **journal d'exécution** affiche la **clé d'accès** : copiez-la.
    L'onglet `Taches` est créé avec les colonnes :
    `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le`

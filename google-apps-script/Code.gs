@@ -17,7 +17,8 @@ var STATUTS = ['a_faire', 'en_cours', 'termine'];
 
 /** À lancer une fois depuis l'éditeur : crée l'onglet et génère la clé d'accès. */
 function installer() {
-  getSheet_();
+  var sheet = getSheet_();
+  if (sheet.getLastRow() < 2) ajouterExemples_();
   var props = PropertiesService.getScriptProperties();
   var key = props.getProperty('API_KEY');
   if (!key) {
@@ -25,6 +26,25 @@ function installer() {
     props.setProperty('API_KEY', key);
   }
   Logger.log('Clé d\'accès à saisir dans l\'application : ' + key);
+}
+
+/** Deux exemples pour voir le fonctionnement ; supprimez-les quand vous voulez. */
+function ajouterExemples_() {
+  var d = new Date();
+  var tz = Session.getScriptTimeZone();
+  var jour = function (n) {
+    return Utilities.formatDate(new Date(d.getFullYear(), d.getMonth(), d.getDate() + n), tz, 'yyyy-MM-dd');
+  };
+  createItem_({
+    titre: 'Rendez-vous client Dupont', type: 'rendez-vous', date: jour(2), heure: '10:30',
+    lieu: '12 rue de Paris, Lyon', description: 'Présenter le devis et prendre les mesures',
+    priorite: 'haute', statut: 'a_faire'
+  });
+  createItem_({
+    titre: 'Préparer le rapport de mission', type: 'mission', date: jour(3),
+    description: 'Rassembler les photos et les heures du chantier',
+    priorite: 'normale', statut: 'en_cours'
+  });
 }
 
 function doGet(e) {
