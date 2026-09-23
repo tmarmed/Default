@@ -1,23 +1,31 @@
-import {
-  GoogleSignin,
-  isErrorWithCode,
-  isSuccessResponse,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
 import { GOOGLE_AUTH, GOOGLE_IOS_CLIENT_ID, GOOGLE_WEB_CLIENT_ID } from './config';
 
-if (GOOGLE_AUTH) {
-  GoogleSignin.configure({
-    // L'idToken est émis pour l'ID client « Web » : c'est lui que vérifie le script.
-    webClientId: GOOGLE_WEB_CLIENT_ID,
-    ...(GOOGLE_IOS_CLIENT_ID ? { iosClientId: GOOGLE_IOS_CLIENT_ID } : {}),
-  });
+type GoogleSigninModule = typeof import('@react-native-google-signin/google-signin');
+
+let lib: GoogleSigninModule | null = null;
+
+/**
+ * Chargée seulement si la connexion Google est activée : le module natif n'existe pas
+ * dans Expo Go, et l'importer au démarrage ferait planter l'application en mode clé.
+ */
+function google(): GoogleSigninModule {
+  if (!GOOGLE_AUTH) throw new Error('Connexion Google non configurée.');
+  if (!lib) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    lib = require('@react-native-google-signin/google-signin') as GoogleSigninModule;
+    lib.GoogleSignin.configure({
+      // L'idToken est émis pour l'ID client « Web » : c'est lui que vérifie le script.
+      webClientId: GOOGLE_WEB_CLIENT_ID,
+      ...(GOOGLE_IOS_CLIENT_ID ? { iosClientId: GOOGLE_IOS_CLIENT_ID } : {}),
+    });
+  }
+  return lib;
 }
 
 /** Compte déjà connecté sur ce téléphone, sans rien demander (au démarrage). */
 export async function restoreSession(): Promise<string | null> {
   try {
-    const res = await GoogleSignin.signInSilently();
+    const res = await google().GoogleSignin.signInSilently();
     return res.type === 'success' ? res.data.user.email : null;
   } catch {
     return null;
@@ -26,6 +34,7 @@ export async function restoreSession(): Promise<string | null> {
 
 /** Fenêtre de connexion Google. Renvoie l'e-mail, ou null si l'utilisateur a annulé. */
 export async function signIn(): Promise<string | null> {
+  const { GoogleSignin, isErrorWithCode, isSuccessResponse, statusCodes } = google();
   try {
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     const res = await GoogleSignin.signIn();
@@ -43,7 +52,7 @@ export async function signIn(): Promise<string | null> {
 
 export async function signOut(): Promise<void> {
   try {
-    await GoogleSignin.signOut();
+    if (GOOGLE_AUTH) await google().GoogleSignin.signOut();
   } catch {
     // Déjà déconnecté.
   }
@@ -54,6 +63,7 @@ export async function signOut(): Promise<void> {
  * Google la renouvelle tout seul (elle expire au bout d'une heure).
  */
 export async function getIdToken(forceRefresh = false): Promise<string> {
+  const { GoogleSignin } = google();
   if (!forceRefresh) {
     try {
       const { idToken } = await GoogleSignin.getTokens();
