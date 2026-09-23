@@ -102,6 +102,19 @@ function getSheet_() {
     sheet.setFrozenRows(1);
     // Tout en texte brut pour que Sheets ne transforme pas les dates / heures.
     sheet.getRange(2, 1, sheet.getMaxRows() - 1, HEADERS.length).setNumberFormat('@');
+  } else if (sheet.getLastRow() === 0) {
+    // Onglet existant mais vide : on ajoute seulement la ligne d'en-têtes.
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  } else {
+    // Onglet existant avec des données : on ne touche à rien si les colonnes
+    // ne sont pas celles attendues, pour ne jamais écrire dans la mauvaise colonne.
+    var actual = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0]
+      .map(function (h) { return String(h).trim(); });
+    if (actual.join('|') !== HEADERS.join('|')) {
+      throw new Error('L\'onglet « ' + SHEET_NAME + ' » existe déjà avec d\'autres colonnes. ' +
+        'Rien n\'a été modifié. Colonnes attendues en ligne 1 : ' + HEADERS.join(', '));
+    }
   }
   return sheet;
 }
