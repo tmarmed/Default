@@ -33,6 +33,8 @@ export interface Item {
   fin: string;
   /** Périodes faites, séparées par « ; » (ex. « 2026-08;2026-09 ») */
   faits: string;
+  /** Epic à laquelle la tâche appartient (id), vide = aucune */
+  epic: string;
 
   // --- Champs calculés par l'application (non enregistrés) ---
   /** Occurrence affichée d'un élément répété : clé de sa période */
@@ -53,7 +55,27 @@ export type ItemInput = Omit<
 >;
 
 /** Champs ajoutés avec la répétition : valeurs par défaut pour les anciennes données. */
-export const RECURRENCE_DEFAUTS = { periodicite: '', echeance: '', debut: '', fin: '', faits: '' } as const;
+export const RECURRENCE_DEFAUTS = { periodicite: '', echeance: '', debut: '', fin: '', faits: '', epic: '' } as const;
+
+/** Une ligne de l'onglet « Epics » : grand projet affiché dans la roadmap. */
+export interface Epic {
+  id: string;
+  titre: string;
+  description: string;
+  /** AAAA-MM-JJ */
+  debut: string;
+  /** AAAA-MM-JJ */
+  fin: string;
+  /** #RRGGBB */
+  couleur: string;
+  cree_le: string;
+  modifie_le: string;
+}
+
+export type EpicInput = Omit<Epic, 'id' | 'cree_le' | 'modifie_le'>;
+
+/** Couleurs proposées pour les epics. */
+export const EPIC_COULEURS = ['#1A73E8', '#8E24AA', '#E37400', '#188038', '#D93025', '#00897B', '#5E35B1', '#C2185B'];
 
 export interface Settings {
   /** URL de l'application Web Apps Script (…/exec) */

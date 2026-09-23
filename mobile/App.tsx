@@ -11,9 +11,11 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as api from './src/api';
 import { Chips } from './src/components/Chips';
+import { EpicForm } from './src/components/EpicForm';
+import { Roadmap } from './src/components/Roadmap';
 import { LoginScreen } from './src/components/LoginScreen';
 import { SettingsScreen } from './src/components/SettingsScreen';
 import { TaskForm } from './src/components/TaskForm';
@@ -36,10 +38,19 @@ import {
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { API_URL, GOOGLE_AUTH } from './src/config';
 import { DEMO, demoApi } from './src/demo';
-import { clearSettings, loadCache, loadSettings, saveCache, saveSettings } from './src/storage';
+import { EpicsContext } from './src/epicsContext';
+import {
+  clearSettings,
+  loadCache,
+  loadEpicsCache,
+  loadSettings,
+  saveCache,
+  saveEpicsCache,
+  saveSettings,
+} from './src/storage';
 import { colors } from './src/theme';
 import { expandRange, listEntries, toggleDone } from './src/recurrence';
-import { Item, ItemInput, ItemType, Settings, TYPE_LABELS } from './src/types';
+import { Epic, EpicInput, Item, ItemInput, ItemType, Settings, TYPE_LABELS } from './src/types';
 
 type Filter = 'tous' | ItemType | 'recurrents';
 type Mode = 'liste' | 'jour' | 'semaine' | 'mois';
@@ -80,12 +91,18 @@ function Main() {
   const [booting, setBooting] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
+  const [epics, setEpics] = useState<Epic[]>([]);
+  const epicMap = useMemo(() => new Map(epics.map((e) => [e.id, e])), [epics]);
+  const [tab, setTab] = useState<'taches' | 'roadmap'>('taches');
+  const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
+  const [epicFormOpen, setEpicFormOpen] = useState(false);
+  const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
   const [offline, setOffline] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_REPETITION);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_EPICS);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -102,6 +119,7 @@ function Main() {
     await signOut();
     await clearSettings();
     setItems([]);
+    setEpics([]);
     setSettings(null);
   }, []);
 
@@ -109,8 +127,10 @@ function Main() {
     async (s: Settings) => {
       setRefreshing(true);
       try {
-        const { items: list, version } = await api.listItems(s);
+        const { items: list, epics: epicList, version } = await api.listItems(s);
         updateItems(list);
+        setEpics(epicList);
+        saveEpicsCache(epicList).catch(() => {});
         setApiVersion(version);
         setOffline(null);
       } catch (e) {
@@ -130,13 +150,14 @@ function Main() {
 
   useEffect(() => {
     (async () => {
-      const [stored, cache] = await Promise.all([loadSettings(), loadCache()]);
+      const [stored, cache, cachedEpics] = await Promise.all([loadSettings(), loadCache(), loadEpicsCache()]);
       let s = stored;
       if (GOOGLE_AUTH) {
         const email = await restoreSession();
         s = email ? { url: API_URL, googleEmail: email } : null;
       }
       if (cache && s) setItems(cache.items.map(api.normalize));
+      if (s) setEpics(cachedEpics);
       setSettings(s);
       setBooting(false);
       if (s) refresh(s);
@@ -243,6 +264,9 @@ function Main() {
 
   const save = async (input: ItemInput) => {
     if (!settings) return;
+    if (input.epic && apiVersion < api.API_VERSION_EPICS) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour les epics. Recollez le nouveau Code.gs et déployez une nouvelle version.");
+    }
     if (input.periodicite && apiVersion < api.API_VERSION_REPETITION) {
       throw new Error(
         "le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.",
@@ -263,6 +287,41 @@ function Main() {
     await api.deleteItem(settings, item.id);
     updateItems(items.filter((i) => i.id !== item.id));
     setFormOpen(false);
+  };
+
+  const openEpic = (epic: Epic | null) => {
+    setEditingEpic(epic);
+    setEpicFormOpen(true);
+  };
+
+  const saveEpic = async (input: EpicInput) => {
+    if (!settings) return;
+    if (apiVersion < api.API_VERSION_EPICS) {
+      throw new Error("le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.");
+    }
+    if (editingEpic) {
+      const saved = await api.updateEpic(settings, { ...input, id: editingEpic.id });
+      const list = epics.map((e) => (e.id === saved.id ? saved : e));
+      setEpics(list);
+      saveEpicsCache(list).catch(() => {});
+    } else {
+      const created = await api.createEpic(settings, input);
+      const list = [...epics, created];
+      setEpics(list);
+      saveEpicsCache(list).catch(() => {});
+    }
+    setEpicFormOpen(false);
+  };
+
+  const removeEpic = async (epic: Epic) => {
+    if (!settings) return;
+    await api.deleteEpic(settings, epic.id);
+    const list = epics.filter((e) => e.id !== epic.id);
+    setEpics(list);
+    saveEpicsCache(list).catch(() => {});
+    // Les tâches de l'epic sont conservées, sans epic.
+    updateItems(items.map((i) => (i.epic === epic.id ? { ...i, epic: '' } : i)));
+    setEpicFormOpen(false);
   };
 
   if (booting) {
@@ -321,10 +380,13 @@ function Main() {
 
   const refreshControl = <RefreshControl refreshing={refreshing} onRefresh={() => refresh(settings)} />;
 
+  const TAB_BAR = 58;
+
   return (
+    <EpicsContext.Provider value={epicMap}>
     <View style={styles.flex}>
       <View style={styles.header}>
-        <Text style={styles.title}>Mes tâches</Text>
+        <Text style={styles.title}>{tab === 'roadmap' ? 'Roadmap' : 'Mes tâches'}</Text>
         {!DEMO && (
           <Pressable onPress={openAccount} hitSlop={10} accessibilityLabel="Réglages">
             <Text style={styles.gear}>⚙︎</Text>
@@ -336,25 +398,36 @@ function Main() {
           <Text style={styles.demoText}>
             Démo : données d'exemple, gardées dans ce navigateur, sans lien avec Google Sheets.
           </Text>
-          <Pressable onPress={async () => updateItems(await demoApi.reset())} hitSlop={8}>
+          <Pressable
+            onPress={async () => {
+              const r = await demoApi.reset();
+              updateItems(r.items);
+              setEpics(r.epics);
+            }}
+            hitSlop={8}
+          >
             <Text style={styles.demoReset}>Réinitialiser</Text>
           </Pressable>
         </View>
       )}
-      <View style={styles.filters}>
-        <Segmented options={MODES} value={mode} onChange={setMode} />
-        <Chips options={FILTERS} value={filter} onChange={setFilter} compact />
-      </View>
+      {tab === 'taches' && (
+        <View style={styles.filters}>
+          <Segmented options={MODES} value={mode} onChange={setMode} />
+          <Chips options={FILTERS} value={filter} onChange={setFilter} compact />
+        </View>
+      )}
+      {tab === 'roadmap' && <View style={styles.spacer} />}
       {notice && (
         <Pressable style={styles.notice} onPress={() => setNotice(null)} accessibilityLabel="Fermer le message">
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_REPETITION && (
+      {apiVersion < api.API_VERSION_EPICS && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
-            Le script du Google Sheet n'est pas à jour : la répétition ne sera pas enregistrée. Recollez le nouveau
-            Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
+            Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition et ' : ''}
+            les epics ne seront pas enregistrées. Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements ›
+            Nouvelle version.
           </Text>
         </View>
       )}
@@ -364,7 +437,11 @@ function Main() {
         </Pressable>
       )}
 
-      {mode !== 'liste' && (
+      {tab === 'roadmap' && (
+        <Roadmap epics={epics} items={items} onOpenEpic={openEpic} refreshControl={refreshControl} />
+      )}
+
+      {tab === 'taches' && mode !== 'liste' && (
         <>
           <PeriodHeader
             title={periodTitle}
@@ -405,7 +482,7 @@ function Main() {
         </>
       )}
 
-      {mode === 'liste' && <SectionList
+      {tab === 'taches' && mode === 'liste' && <SectionList
         sections={visible}
         keyExtractor={(i) => i.id}
         renderItem={({ item }) => <TaskItem item={item} onPress={openForm} onToggle={toggle} />}
@@ -437,13 +514,33 @@ function Main() {
       />}
 
       <Pressable
-        style={styles.fab}
-        onPress={() => openForm(null)}
+        style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 18 }]}
+        onPress={() => (tab === 'roadmap' ? openEpic(null) : openForm(null))}
         accessibilityRole="button"
-        accessibilityLabel="Ajouter"
+        accessibilityLabel={tab === 'roadmap' ? 'Nouvelle epic' : 'Ajouter'}
       >
         <Text style={styles.fabText}>+</Text>
       </Pressable>
+
+      <View style={[styles.tabBar, { height: TAB_BAR + insets.bottom, paddingBottom: insets.bottom }]}>
+        {(
+          [
+            ['taches', '✓', 'Tâches'],
+            ['roadmap', '▤', 'Roadmap'],
+          ] as const
+        ).map(([key, icon, label]) => (
+          <Pressable
+            key={key}
+            style={styles.tabBtn}
+            onPress={() => setTab(key)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === key }}
+          >
+            <Text style={[styles.tabIcon, tab === key && styles.tabOn]}>{icon}</Text>
+            <Text style={[styles.tabLabel, tab === key && styles.tabOn]}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
 
       <TaskForm
         visible={formOpen}
@@ -454,7 +551,21 @@ function Main() {
         onSave={save}
         onDelete={remove}
       />
+
+      <EpicForm
+        visible={epicFormOpen}
+        epic={editingEpic}
+        items={items}
+        onClose={() => setEpicFormOpen(false)}
+        onSave={saveEpic}
+        onDelete={removeEpic}
+        onOpenTask={(t) => {
+          setEpicFormOpen(false);
+          openForm(t);
+        }}
+      />
     </View>
+    </EpicsContext.Provider>
   );
 }
 
@@ -507,6 +618,17 @@ const styles = StyleSheet.create({
   empty: { textAlign: 'center', color: colors.muted, marginTop: 60, fontSize: 15, lineHeight: 22 },
   doneToggle: { alignItems: 'center', paddingVertical: 16 },
   doneToggleText: { color: colors.primary, fontSize: 15 },
+  spacer: { height: 12 },
+  tabBar: {
+    flexDirection: 'row',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  tabBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  tabIcon: { fontSize: 18, color: colors.muted },
+  tabLabel: { fontSize: 12, fontWeight: '600', color: colors.muted },
+  tabOn: { color: colors.primary },
   fab: {
     position: 'absolute',
     right: 20,

@@ -27,6 +27,7 @@ import {
 import { Chips } from './Chips';
 import { DateField } from './DateField';
 import { checkRecurrence, RecurrenceFields } from './RecurrenceFields';
+import { useEpics } from '../epicsContext';
 
 interface Props {
   visible: boolean;
@@ -54,6 +55,7 @@ const empty = (type: ItemType, date: string): ItemInput => ({
   debut: '',
   fin: '',
   faits: '',
+  epic: '',
 });
 
 /** Seulement les champs enregistrés (pas ceux calculés pour l'affichage). */
@@ -71,6 +73,7 @@ const toInput = (i: Item): ItemInput => ({
   debut: i.debut,
   fin: i.fin,
   faits: i.faits,
+  epic: i.epic,
 });
 
 const TYPES = (Object.keys(TYPE_LABELS) as ItemType[]).map((t) => ({
@@ -90,6 +93,13 @@ export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onS
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const epics = useEpics();
+  const epicOptions = [
+    { value: '', label: 'Aucune' },
+    ...[...epics.values()]
+      .sort((a, b) => a.debut.localeCompare(b.debut))
+      .map((e) => ({ value: e.id, label: e.titre, color: e.couleur })),
+  ];
 
   useEffect(() => {
     if (visible) {
@@ -200,6 +210,13 @@ export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onS
 
             <Text style={styles.label}>Heure</Text>
             <DateField mode="time" value={form.heure} onChange={(v) => set('heure', v)} placeholder="Choisir une heure" />
+
+            {epics.size > 0 && (
+              <>
+                <Text style={styles.label}>Epic</Text>
+                <Chips options={epicOptions} value={epics.has(form.epic) ? form.epic : ''} onChange={(v) => set('epic', v)} />
+              </>
+            )}
 
             <Text style={styles.label}>Lieu</Text>
             <TextInput

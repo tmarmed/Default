@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import { AuthError, getIdToken } from './auth';
 import { DEMO, demoApi } from './demo';
-import { Item, ItemInput, RECURRENCE_DEFAUTS, Settings } from './types';
+import { Epic, EpicInput, Item, ItemInput, RECURRENCE_DEFAUTS, Settings } from './types';
 
 type ApiResponse<T> = ({ ok: true } & T) | { ok: false; error: string; code?: string };
 
@@ -65,16 +65,36 @@ export async function ping(settings: Settings): Promise<void> {
 
 /** Version du script à partir de laquelle la répétition est enregistrée. */
 export const API_VERSION_REPETITION = 2;
+/** Version du script à partir de laquelle les epics sont enregistrées. */
+export const API_VERSION_EPICS = 3;
 
 /** Complète les éléments venant d'un ancien script (sans colonnes de répétition). */
 export function normalize(item: Item): Item {
   return { ...RECURRENCE_DEFAUTS, ...item };
 }
 
-export async function listItems(settings: Settings): Promise<{ items: Item[]; version: number }> {
-  if (DEMO) return { items: (await demoApi.list()).map(normalize), version: API_VERSION_REPETITION };
-  const data = await post<{ items: Item[]; version?: number }>(settings, { action: 'list' });
-  return { items: data.items.map(normalize), version: data.version ?? 1 };
+export async function listItems(settings: Settings): Promise<{ items: Item[]; epics: Epic[]; version: number }> {
+  if (DEMO) {
+    return { items: (await demoApi.list()).map(normalize), epics: await demoApi.listEpics(), version: API_VERSION_EPICS };
+  }
+  const data = await post<{ items: Item[]; epics?: Epic[]; version?: number }>(settings, { action: 'list' });
+  return { items: data.items.map(normalize), epics: data.epics ?? [], version: data.version ?? 1 };
+}
+
+export async function createEpic(settings: Settings, epic: EpicInput): Promise<Epic> {
+  if (DEMO) return demoApi.createEpic(epic);
+  return (await post<{ epic: Epic }>(settings, { action: 'createEpic', epic })).epic;
+}
+
+export async function updateEpic(settings: Settings, epic: Partial<Epic> & { id: string }): Promise<Epic> {
+  if (DEMO) return demoApi.updateEpic(epic);
+  return (await post<{ epic: Epic }>(settings, { action: 'updateEpic', epic })).epic;
+}
+
+/** Supprime l'epic ; ses tâches sont conservées et détachées. Renvoie leur nombre. */
+export async function deleteEpic(settings: Settings, id: string): Promise<number> {
+  if (DEMO) return demoApi.deleteEpic(id);
+  return (await post<{ detached: number }>(settings, { action: 'deleteEpic', id })).detached;
 }
 
 export async function createItem(settings: Settings, item: ItemInput): Promise<Item> {

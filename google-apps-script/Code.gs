@@ -18,12 +18,15 @@ var USERS_SHEET_NAME = 'Utilisateurs';
 var HEADERS = [
   'id', 'titre', 'type', 'date', 'heure', 'lieu',
   'description', 'priorite', 'statut', 'cree_le', 'modifie_le',
-  'periodicite', 'echeance', 'debut', 'fin', 'faits'
+  'periodicite', 'echeance', 'debut', 'fin', 'faits',
+  'epic'
 ];
-/** Colonnes de la première version : un onglet ainsi est complété automatiquement. */
-var HEADERS_V1 = HEADERS.slice(0, 11);
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 2;
+var API_VERSION = 3;
+
+/** Onglet des epics (grands projets de la roadmap). */
+var EPICS_SHEET_NAME = 'Epics';
+var EPIC_HEADERS = ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le'];
 var PERIODICITES = ['', 'hebdomadaire', 'mensuelle', 'trimestrielle', 'annuelle'];
 var TYPES = ['tache', 'mission', 'rendez-vous'];
 var PRIORITES = ['basse', 'normale', 'haute'];
@@ -38,6 +41,7 @@ function installer() {
   var sheet = getSheet_();
   if (sheet.getLastRow() < 2) ajouterExemples_();
   var users = getUsersSheet_();
+  getEpicsSheet_();
   var props = PropertiesService.getScriptProperties();
 
   if (GOOGLE_WEB_CLIENT_ID) {
@@ -106,7 +110,7 @@ function doGet(e) {
     checkAuth_({ key: e.parameter.key });
     var action = e.parameter.action || 'list';
     if (action === 'ping') return { ok: true };
-    if (action === 'list') return { ok: true, version: API_VERSION, items: listItems_() };
+    if (action === 'list') return { ok: true, version: API_VERSION, items: listItems_(), epics: listEpics_() };
     throw new Error('Action inconnue : ' + action);
   });
 }
@@ -117,7 +121,7 @@ function doPost(e) {
     checkAuth_(body);
     // Lecture : pas besoin de verrou.
     if (body.action === 'ping') return { ok: true, version: API_VERSION };
-    if (body.action === 'list') return { ok: true, version: API_VERSION, items: listItems_() };
+    if (body.action === 'list') return { ok: true, version: API_VERSION, items: listItems_(), epics: listEpics_() };
     var lock = LockService.getScriptLock();
     lock.waitLock(20000);
     try {
@@ -125,6 +129,9 @@ function doPost(e) {
         case 'create': return { ok: true, item: createItem_(body.item || {}) };
         case 'update': return { ok: true, item: updateItem_(body.item || {}) };
         case 'delete': deleteItem_(body.id); return { ok: true };
+        case 'createEpic': return { ok: true, epic: createEpic_(body.epic || {}) };
+        case 'updateEpic': return { ok: true, epic: updateEpic_(body.epic || {}) };
+        case 'deleteEpic': return { ok: true, detached: deleteEpic_(body.id) };
         default: throw new Error('Action inconnue : ' + body.action);
       }
     } finally {
@@ -223,13 +230,15 @@ function getSheet_() {
     }
     var actual = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0]
       .map(function (h) { return String(h).trim(); });
-    var v1 = HEADERS_V1.concat(HEADERS.slice(HEADERS_V1.length).map(function () { return ''; }));
-    if (actual.join('|') === v1.join('|')) {
-      // Onglet de la première version : on ajoute les colonnes de répétition à la fin,
-      // sans toucher aux données existantes.
-      var extra = HEADERS.slice(HEADERS_V1.length);
-      sheet.getRange(1, HEADERS_V1.length + 1, 1, extra.length).setValues([extra]).setFontWeight('bold');
-      sheet.getRange(2, HEADERS_V1.length + 1, sheet.getMaxRows() - 1, extra.length).setNumberFormat('@');
+    // Onglet d'une version précédente (colonnes de début identiques, suivantes vides) :
+    // on ajoute les nouvelles colonnes à la fin, sans toucher aux données existantes.
+    var known = 0;
+    while (known < HEADERS.length && actual[known] === HEADERS[known]) known++;
+    var restEmpty = actual.slice(known).every(function (h) { return h === ''; });
+    if (known >= 11 && known < HEADERS.length && restEmpty) {
+      var extra = HEADERS.slice(known);
+      sheet.getRange(1, known + 1, 1, extra.length).setValues([extra]).setFontWeight('bold');
+      sheet.getRange(2, known + 1, sheet.getMaxRows() - 1, extra.length).setNumberFormat('@');
       actual = HEADERS.slice();
     }
     if (actual.join('|') !== HEADERS.join('|')) {
@@ -292,6 +301,7 @@ function sanitize_(item, base) {
   if (out.debut && !/^\d{4}-\d{2}-\d{2}$/.test(out.debut)) throw new Error('Date de début invalide (AAAA-MM-JJ).');
   if (out.fin && !/^\d{4}-\d{2}-\d{2}$/.test(out.fin)) throw new Error('Date de fin invalide (AAAA-MM-JJ).');
   if (!/^[0-9A-Za-z;\-]*$/.test(out.faits)) throw new Error('Liste des périodes faites invalide.');
+  if (!/^[0-9A-Za-z\-]*$/.test(out.epic)) throw new Error('Epic invalide.');
   if (!out.periodicite) {
     out.echeance = '';
     out.debut = '';
@@ -341,4 +351,123 @@ function deleteItem_(id) {
   var row = findRow_(sheet, id);
   if (row < 0) throw new Error('Élément introuvable (peut-être déjà supprimé).');
   sheet.deleteRow(row);
+}
+
+
+// ---------------------------------------------------------------------------
+// Epics : grands projets avec une date de début et de fin, affichés dans la roadmap.
+// ---------------------------------------------------------------------------
+
+function getEpicsSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(EPICS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(EPICS_SHEET_NAME);
+    sheet.getRange(1, 1, 1, EPIC_HEADERS.length).setValues([EPIC_HEADERS]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    sheet.getRange(2, 1, sheet.getMaxRows() - 1, EPIC_HEADERS.length).setNumberFormat('@');
+  } else if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, EPIC_HEADERS.length).setValues([EPIC_HEADERS]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  } else {
+    var actual = sheet.getRange(1, 1, 1, EPIC_HEADERS.length).getValues()[0]
+      .map(function (h) { return String(h).trim(); });
+    if (actual.join('|') !== EPIC_HEADERS.join('|')) {
+      throw new Error('L\'onglet « ' + EPICS_SHEET_NAME + ' » existe déjà avec d\'autres colonnes. ' +
+        'Rien n\'a été modifié. Colonnes attendues en ligne 1 : ' + EPIC_HEADERS.join(', '));
+    }
+  }
+  return sheet;
+}
+
+function listEpics_() {
+  var sheet = getEpicsSheet_();
+  var last = sheet.getLastRow();
+  if (last < 2) return [];
+  var tz = Session.getScriptTimeZone();
+  return sheet.getRange(2, 1, last - 1, EPIC_HEADERS.length).getValues()
+    .filter(function (row) { return row[0] !== ''; })
+    .map(function (row) {
+      var epic = {};
+      EPIC_HEADERS.forEach(function (h, i) {
+        var v = row[i];
+        if (v instanceof Date) {
+          v = Utilities.formatDate(v, tz, h === 'debut' || h === 'fin' ? 'yyyy-MM-dd' : "yyyy-MM-dd'T'HH:mm:ss");
+        }
+        epic[h] = String(v);
+      });
+      return epic;
+    });
+}
+
+function sanitizeEpic_(epic, base) {
+  var out = {};
+  EPIC_HEADERS.forEach(function (h) {
+    var v = epic[h] !== undefined ? epic[h] : (base ? base[h] : '');
+    out[h] = v === null || v === undefined ? '' : String(v).slice(0, 5000);
+  });
+  if (!out.titre.trim()) throw new Error('Le titre de l\'epic est obligatoire.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(out.debut)) throw new Error('Date de début de l\'epic invalide (AAAA-MM-JJ).');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(out.fin)) throw new Error('Date de fin de l\'epic invalide (AAAA-MM-JJ).');
+  if (out.fin < out.debut) throw new Error('La fin de l\'epic est avant son début.');
+  if (!/^#[0-9A-Fa-f]{6}$/.test(out.couleur)) out.couleur = '#1A73E8';
+  return out;
+}
+
+function epicToRow_(epic) {
+  return EPIC_HEADERS.map(function (h) { return epic[h]; });
+}
+
+function createEpic_(input) {
+  var sheet = getEpicsSheet_();
+  var now = new Date().toISOString();
+  var epic = sanitizeEpic_(input);
+  epic.id = Utilities.getUuid();
+  epic.cree_le = now;
+  epic.modifie_le = now;
+  var range = sheet.getRange(sheet.getLastRow() + 1, 1, 1, EPIC_HEADERS.length);
+  range.setNumberFormat('@');
+  range.setValues([epicToRow_(epic)]);
+  return epic;
+}
+
+function updateEpic_(input) {
+  var sheet = getEpicsSheet_();
+  var row = findRow_(sheet, input.id);
+  if (row < 0) throw new Error('Epic introuvable (peut-être supprimée).');
+  var range = sheet.getRange(row, 1, 1, EPIC_HEADERS.length);
+  var current = {};
+  var values = range.getValues()[0];
+  EPIC_HEADERS.forEach(function (h, i) { current[h] = values[i]; });
+  var epic = sanitizeEpic_(input, current);
+  epic.id = String(current.id);
+  epic.cree_le = String(current.cree_le);
+  epic.modifie_le = new Date().toISOString();
+  range.setNumberFormat('@');
+  range.setValues([epicToRow_(epic)]);
+  return epic;
+}
+
+/** Supprime l'epic et détache ses tâches (elles sont conservées). Renvoie le nombre de tâches détachées. */
+function deleteEpic_(id) {
+  var sheet = getEpicsSheet_();
+  var row = findRow_(sheet, id);
+  if (row < 0) throw new Error('Epic introuvable (peut-être déjà supprimée).');
+  sheet.deleteRow(row);
+
+  var tasks = getSheet_();
+  var last = tasks.getLastRow();
+  if (last < 2) return 0;
+  var col = HEADERS.indexOf('epic') + 1;
+  var range = tasks.getRange(2, col, last - 1, 1);
+  var values = range.getValues();
+  var count = 0;
+  values.forEach(function (r) {
+    if (String(r[0]) === String(id)) {
+      r[0] = '';
+      count++;
+    }
+  });
+  if (count) range.setValues(values);
+  return count;
 }

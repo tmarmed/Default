@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useEpics } from '../epicsContext';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { isOverdue } from '../dates';
 import { colors, prioriteColors, typeColors } from '../theme';
@@ -12,6 +13,7 @@ interface Props {
 
 export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Props) {
   const done = item.statut === 'termine';
+  const epic = useEpics().get(item.epic);
   const late = isOverdue(item);
   return (
     <Pressable style={styles.card} onPress={() => onPress(item)}>
@@ -43,6 +45,11 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Prop
           {!!item.periodicite && !item.retards && (
             <Text style={styles.metaText} numberOfLines={1}>
               🔁 {item.periodeLabel ?? ''}
+            </Text>
+          )}
+          {epic && (
+            <Text style={[styles.epic, { color: epic.couleur, borderColor: epic.couleur }]} numberOfLines={1}>
+              {epic.titre}
             </Text>
           )}
           {item.statut === 'en_cours' && <Text style={styles.enCours}>{STATUT_LABELS.en_cours}</Text>}
@@ -92,6 +99,15 @@ const styles = StyleSheet.create({
   meta: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   metaText: { fontSize: 13, color: colors.muted, flexShrink: 1 },
   badge: { fontSize: 13, fontWeight: '600' },
+  epic: {
+    fontSize: 12,
+    fontWeight: '600',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    overflow: 'hidden',
+    maxWidth: 160,
+  },
   enCours: { fontSize: 13, color: colors.primary, fontWeight: '600' },
   late: { fontSize: 13, color: colors.danger, fontWeight: '600' },
   prio: { width: 8, height: 8, borderRadius: 4, marginRight: 14 },

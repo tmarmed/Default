@@ -18,6 +18,10 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 - **Répétition** chaque semaine, mois, trimestre ou année, à jour précis ou « dans la période »,
   avec date de début et de fin. Cocher valide la période en cours ; l'élément revient à la suivante.
   Les périodes oubliées restent à rattraper, regroupées sur une ligne « En retard ».
+- **Roadmap** (onglet en bas) : les **epics** (grands projets avec début, fin, couleur, description)
+  sur un schéma à barres, échelle **3 ans / Année / Trimestre / Mois**, glisser pour changer de période,
+  trait « aujourd'hui » et avancement (tâches terminées / total). Chaque tâche peut être rattachée à une
+  epic ; supprimer une epic conserve ses tâches, sans epic.
 - Tirer vers le bas pour synchroniser avec le Google Sheet
 - Dernière copie gardée sur le téléphone : la liste reste lisible sans réseau
 
@@ -31,7 +35,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    à importer est aussi disponible : [`modele/Taches.xlsx`](modele/Taches.xlsx).
    Le **journal d'exécution** affiche la **clé d'accès** : copiez-la.
    L'onglet `Taches` est créé avec les colonnes :
-   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits`
+   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic`
+   et un onglet `Epics` : `id | titre | description | debut | fin | couleur | cree_le | modifie_le`
 4. **Déployer › Nouveau déploiement** → type **Application Web** :
    - *Exécuter en tant que* : **Moi**
    - *Qui a accès* : **Tout le monde**
@@ -45,8 +50,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 > Nouvelle version** pour garder la même URL.
 
 > **Mise à jour depuis une ancienne version** : recollez `Code.gs`, puis **Déployer › Gérer les déploiements
-> › Modifier › Nouvelle version**. Les colonnes de répétition sont ajoutées automatiquement à la fin de
-> l'onglet `Taches`, sans toucher aux données.
+> › Modifier › Nouvelle version**. Les nouvelles colonnes (répétition, epic) sont ajoutées automatiquement
+> à la fin de l'onglet `Taches` et l'onglet `Epics` est créé, sans toucher aux données.
 
 Valeurs acceptées dans la feuille si vous saisissez à la main :
 `type` = `tache` / `mission` / `rendez-vous` · `priorite` = `basse` / `normale` / `haute` ·
@@ -54,7 +59,8 @@ Valeurs acceptées dans la feuille si vous saisissez à la main :
 `periodicite` = vide / `hebdomadaire` / `mensuelle` / `trimestrielle` / `annuelle` ·
 `echeance` = semaine `1` (lundi) à `7`, mois `1` à `31`, trimestre `m` ou `m-j`, année `MM` ou `MM-JJ`
 (vide = « dans la période ») · `debut` / `fin` = `AAAA-MM-JJ` · `faits` = périodes cochées,
-ex. `2026-08;2026-09` (mois), `2026-T3` (trimestre), `2026` (année), `2026-09-21` (semaine du lundi 21).
+ex. `2026-08;2026-09` (mois), `2026-T3` (trimestre), `2026` (année), `2026-09-21` (semaine du lundi 21) ·
+`epic` = `id` d'une ligne de l'onglet `Epics` (vide = aucune). Epics : `couleur` = `#RRGGBB`.
 Chaque ligne doit avoir un `id` unique : le plus simple est de créer les lignes depuis l'application.
 
 ## Connexion avec Google (optionnel)
