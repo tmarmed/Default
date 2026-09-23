@@ -16,12 +16,34 @@ import { Chips } from './src/components/Chips';
 import { SettingsScreen } from './src/components/SettingsScreen';
 import { TaskForm } from './src/components/TaskForm';
 import { TaskItem } from './src/components/TaskItem';
-import { groupItems } from './src/dates';
+import { DayView, MonthView, WeekView } from './src/components/PeriodViews';
+import { PeriodHeader } from './src/components/PeriodHeader';
+import { Segmented } from './src/components/Segmented';
+import { Swipe } from './src/components/Swipe';
+import {
+  addDays,
+  addMonths,
+  formatDate,
+  formatMonth,
+  formatWeek,
+  groupItems,
+  itemsByDate,
+  startOfWeek,
+  toDateString,
+} from './src/dates';
 import { clearSettings, loadCache, loadSettings, saveCache, saveSettings } from './src/storage';
 import { colors } from './src/theme';
 import { Item, ItemInput, ItemType, Settings, TYPE_LABELS } from './src/types';
 
 type Filter = 'tous' | ItemType;
+type Mode = 'liste' | 'jour' | 'semaine' | 'mois';
+
+const MODES: { value: Mode; label: string }[] = [
+  { value: 'liste', label: 'Liste' },
+  { value: 'jour', label: 'Jour' },
+  { value: 'semaine', label: 'Semaine' },
+  { value: 'mois', label: 'Mois' },
+];
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: 'tous', label: 'Tous' },
@@ -52,6 +74,8 @@ function Main() {
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>('liste');
+  const [anchor, setAnchor] = useState(() => new Date());
 
   const updateItems = useCallback((next: Item[]) => {
     setItems(next);
@@ -94,6 +118,18 @@ function Main() {
     () => items.filter((i) => i.statut === 'termine' && (filter === 'tous' || i.type === filter)).length,
     [items, filter],
   );
+
+  // Vues Jour / Semaine / Mois : tous les éléments datés du type choisi, terminés compris.
+  const byDate = useMemo(
+    () => itemsByDate(items.filter((i) => filter === 'tous' || i.type === filter)),
+    [items, filter],
+  );
+
+  const step = (n: number) =>
+    setAnchor((d) => (mode === 'mois' ? addMonths(d, n) : addDays(d, mode === 'semaine' ? 7 * n : n)));
+  const periodTitle =
+    mode === 'mois' ? formatMonth(anchor) : mode === 'semaine' ? formatWeek(anchor) : formatDate(toDateString(anchor));
+  const pageKey = periodKeyOf(mode, anchor);
 
   const openForm = useCallback((item: Item | null) => {
     setEditing(item);
@@ -169,6 +205,8 @@ function Main() {
     );
   }
 
+  const refreshControl = <RefreshControl refreshing={refreshing} onRefresh={() => refresh(settings)} />;
+
   return (
     <View style={styles.flex}>
       <View style={styles.header}>
@@ -178,7 +216,8 @@ function Main() {
         </Pressable>
       </View>
       <View style={styles.filters}>
-        <Chips options={FILTERS} value={filter} onChange={setFilter} />
+        <Segmented options={MODES} value={mode} onChange={setMode} />
+        <Chips options={FILTERS} value={filter} onChange={setFilter} compact />
       </View>
       {offline && (
         <Pressable style={styles.offline} onPress={() => refresh(settings)}>
@@ -186,7 +225,46 @@ function Main() {
         </Pressable>
       )}
 
-      <SectionList
+      {mode !== 'liste' && (
+        <>
+          <PeriodHeader
+            title={periodTitle}
+            onPrev={() => step(-1)}
+            onNext={() => step(1)}
+            onToday={pageKey === periodKeyOf(mode, new Date()) ? undefined : () => setAnchor(new Date())}
+          />
+          <Swipe pageKey={`${mode}:${pageKey}`} onPrev={() => step(-1)} onNext={() => step(1)}>
+            {mode === 'jour' && (
+              <DayView date={anchor} byDate={byDate} onPress={openForm} onToggle={toggle} refreshControl={refreshControl} />
+            )}
+            {mode === 'semaine' && (
+              <WeekView
+                date={anchor}
+                byDate={byDate}
+                onPress={openForm}
+                onToggle={toggle}
+                refreshControl={refreshControl}
+                onOpenDay={(d) => {
+                  setAnchor(d);
+                  setMode('jour');
+                }}
+              />
+            )}
+            {mode === 'mois' && (
+              <MonthView
+                date={anchor}
+                byDate={byDate}
+                onPress={openForm}
+                onToggle={toggle}
+                refreshControl={refreshControl}
+                onSelect={setAnchor}
+              />
+            )}
+          </Swipe>
+        </>
+      )}
+
+      {mode === 'liste' && <SectionList
         sections={visible}
         keyExtractor={(i) => i.id}
         renderItem={({ item }) => <TaskItem item={item} onPress={openForm} onToggle={toggle} />}
@@ -196,7 +274,7 @@ function Main() {
           </Text>
         )}
         stickySectionHeadersEnabled={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => refresh(settings)} />}
+        refreshControl={refreshControl}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           !refreshing ? (
@@ -215,7 +293,7 @@ function Main() {
             </Pressable>
           ) : null
         }
-      />
+      />}
 
       <Pressable
         style={styles.fab}
@@ -230,12 +308,18 @@ function Main() {
         visible={formOpen}
         item={editing}
         defaultType={filter === 'tous' ? 'tache' : filter}
+        defaultDate={mode === 'jour' || mode === 'mois' ? toDateString(anchor) : ''}
         onClose={() => setFormOpen(false)}
         onSave={save}
         onDelete={remove}
       />
     </View>
   );
+}
+
+function periodKeyOf(mode: Mode, d: Date): string {
+  if (mode === 'mois') return `${d.getFullYear()}-${d.getMonth()}`;
+  return toDateString(mode === 'semaine' ? startOfWeek(d) : d);
 }
 
 const styles = StyleSheet.create({
@@ -250,7 +334,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 30, fontWeight: '700', color: colors.text },
   gear: { fontSize: 26, color: colors.muted },
-  filters: { paddingHorizontal: 16, paddingVertical: 12 },
+  filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   offline: { marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, backgroundColor: '#FEF7E0' },
   offlineText: { color: '#7A4F01', fontSize: 13 },
   list: { paddingBottom: 110 },

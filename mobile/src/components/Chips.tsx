@@ -5,12 +5,14 @@ interface Props<T extends string> {
   options: { value: T; label: string; color?: string }[];
   value: T;
   onChange: (value: T) => void;
+  /** Version resserrée sur une seule ligne */
+  compact?: boolean;
 }
 
 /** Rangée de boutons à choix unique. */
-export function Chips<T extends string>({ options, value, onChange }: Props<T>) {
+export function Chips<T extends string>({ options, value, onChange, compact }: Props<T>) {
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, compact && styles.rowCompact]}>
       {options.map((o) => {
         const active = o.value === value;
         const color = o.color ?? colors.primary;
@@ -20,9 +22,9 @@ export function Chips<T extends string>({ options, value, onChange }: Props<T>) 
             onPress={() => onChange(o.value)}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            style={[styles.chip, active && { backgroundColor: color, borderColor: color }]}
+            style={[styles.chip, compact && styles.chipCompact, active && { backgroundColor: color, borderColor: color }]}
           >
-            <Text style={[styles.label, active && styles.labelActive]}>{o.label}</Text>
+            <Text style={[styles.label, compact && styles.labelCompact, active && styles.labelActive]}>{o.label}</Text>
           </Pressable>
         );
       })}
@@ -40,6 +42,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.card,
   },
+  rowCompact: { flexWrap: 'nowrap', gap: 6 },
+  chipCompact: { paddingHorizontal: 11, paddingVertical: 6 },
   label: { color: colors.text, fontSize: 14 },
+  labelCompact: { fontSize: 13 },
   labelActive: { color: '#fff', fontWeight: '600' },
 });

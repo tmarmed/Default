@@ -9,7 +9,9 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 
 ## Fonctionnalités
 
-- Liste regroupée par jour : *En retard*, *Aujourd'hui*, *Demain*, dates suivantes, *Sans date*
+- 4 vues : **Liste** (En retard, Aujourd'hui, Demain, dates suivantes, Sans date), **Jour**, **Semaine**, **Mois**
+- Glisser le doigt à gauche / à droite pour passer au jour, à la semaine ou au mois suivant / précédent ;
+  bouton « Aujourd'hui » pour revenir à la période en cours
 - Filtres : Tous / Tâches / Missions / Rendez-vous
 - Ajout, modification, suppression ; titre, type, date, heure, lieu, priorité, statut, notes
 - Case à cocher pour marquer « terminé » ; les terminés sont masqués (affichables en bas de liste)

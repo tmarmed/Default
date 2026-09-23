@@ -32,15 +32,17 @@ interface Props {
   /** Élément à modifier ; absent pour une création. */
   item: Item | null;
   defaultType: ItemType;
+  /** Date proposée pour un nouvel élément (jour affiché), AAAA-MM-JJ ou vide */
+  defaultDate: string;
   onClose: () => void;
   onSave: (input: ItemInput) => Promise<void>;
   onDelete: (item: Item) => Promise<void>;
 }
 
-const empty = (type: ItemType): ItemInput => ({
+const empty = (type: ItemType, date: string): ItemInput => ({
   titre: '',
   type,
-  date: '',
+  date,
   heure: '',
   lieu: '',
   description: '',
@@ -60,13 +62,15 @@ const PRIORITES = (Object.keys(PRIORITE_LABELS) as Priorite[]).map((p) => ({
 }));
 const STATUTS = (Object.keys(STATUT_LABELS) as Statut[]).map((s) => ({ value: s, label: STATUT_LABELS[s] }));
 
-export function TaskForm({ visible, item, defaultType, onClose, onSave, onDelete }: Props) {
-  const [form, setForm] = useState<ItemInput>(empty(defaultType));
+export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onSave, onDelete }: Props) {
+  const [form, setForm] = useState<ItemInput>(empty(defaultType, defaultDate));
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (visible) setForm(item ? { ...item } : empty(defaultType));
-  }, [visible, item, defaultType]);
+    if (visible) setForm(item ? { ...item } : empty(defaultType, defaultDate));
+    // Réinitialiser seulement à l'ouverture, pas si la date affichée change derrière.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, item]);
 
   const set = <K extends keyof ItemInput>(key: K, value: ItemInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
