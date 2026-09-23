@@ -71,7 +71,10 @@ Au premier lancement, collez l'**URL** et la **clé d'accès**, puis *Se connect
 
 La même application fonctionne dans un navigateur (connexion par clé d'accès).
 
-**Hébergement gratuit sur Netlify, mis à jour automatiquement :**
+**En ligne : <https://tmarmed.github.io/Default/>** — publiée automatiquement par GitHub Pages
+à chaque modification (voir [`.github/workflows/publier-web.yml`](.github/workflows/publier-web.yml)).
+
+**Autre hébergement possible, Netlify, mis à jour automatiquement :**
 1. Créez un compte sur <https://app.netlify.com> (gratuit).
 2. **Add new site › Import an existing project › GitHub** et choisissez ce dépôt et la branche.
    Le fichier [`netlify.toml`](netlify.toml) règle tout (compilation dans `mobile`, dossier `dist`).

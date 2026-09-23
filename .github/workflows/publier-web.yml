@@ -1,0 +1,51 @@
+# Compile la version web et la publie sur GitHub Pages à chaque modification.
+# Adresse : https://tmarmed.github.io/Default/
+name: Publier la version web
+
+on:
+  push:
+    branches: [claude/mobile-task-management-app-q8jysq]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  compiler:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - name: Compiler la version web
+        run: npx expo export --platform web --clear
+        env:
+          # Le site est servi dans le sous-dossier /Default de github.io.
+          EXPO_BASE_URL: /${{ github.event.repository.name }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: mobile/dist
+
+  publier:
+    needs: compiler
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - id: deploiement
+        uses: actions/deploy-pages@v4
