@@ -1,10 +1,12 @@
+import { Platform } from 'react-native';
 import { AuthError, getIdToken } from './auth';
 import { DEMO, demoApi } from './demo';
 import type { Item, ItemInput, Settings } from './types';
 
 type ApiResponse<T> = ({ ok: true } & T) | { ok: false; error: string; code?: string };
 
-const TIMEOUT_MS = 20000;
+// Apps Script peut mettre plus de 20 s à répondre au premier appel (script « endormi »).
+const TIMEOUT_MS = 60000;
 
 async function send<T>(settings: Settings, body: object): Promise<ApiResponse<T>> {
   const controller = new AbortController();
@@ -24,8 +26,10 @@ async function send<T>(settings: Settings, body: object): Promise<ApiResponse<T>
   } catch {
     throw new Error(
       controller.signal.aborted
-        ? 'Le Google Sheet ne répond pas (délai dépassé).'
-        : 'Pas de connexion au Google Sheet. Vérifiez votre réseau.',
+        ? "Le Google Sheet n'a pas répondu en 60 secondes. Réessayez ; si ça persiste, ouvrez l'URL du script dans un onglet pour voir son message."
+        : Platform.OS === 'web'
+          ? "Le script n'a pas renvoyé de réponse lisible. Vérifiez le déploiement (Qui a accès : Tout le monde, nouvelle version déployée) et ouvrez l'URL dans un onglet pour voir son message."
+          : 'Pas de connexion au Google Sheet. Vérifiez votre réseau.',
     );
   } finally {
     clearTimeout(timer);
