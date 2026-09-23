@@ -1,0 +1,45 @@
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors } from '../theme';
+
+interface Props<T extends string> {
+  options: { value: T; label: string; color?: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}
+
+/** Rangée de boutons à choix unique. */
+export function Chips<T extends string>({ options, value, onChange }: Props<T>) {
+  return (
+    <View style={styles.row}>
+      {options.map((o) => {
+        const active = o.value === value;
+        const color = o.color ?? colors.primary;
+        return (
+          <Pressable
+            key={o.value}
+            onPress={() => onChange(o.value)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            style={[styles.chip, active && { backgroundColor: color, borderColor: color }]}
+          >
+            <Text style={[styles.label, active && styles.labelActive]}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  label: { color: colors.text, fontSize: 14 },
+  labelActive: { color: '#fff', fontWeight: '600' },
+});
