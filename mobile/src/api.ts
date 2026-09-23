@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import { AuthError, getIdToken } from './auth';
 import { DEMO, demoApi } from './demo';
-import type { Item, ItemInput, Settings } from './types';
+import { Item, ItemInput, RECURRENCE_DEFAUTS, Settings } from './types';
 
 type ApiResponse<T> = ({ ok: true } & T) | { ok: false; error: string; code?: string };
 
@@ -63,19 +63,28 @@ export async function ping(settings: Settings): Promise<void> {
   await post(settings, { action: 'ping' });
 }
 
-export async function listItems(settings: Settings): Promise<Item[]> {
-  if (DEMO) return demoApi.list();
-  return (await post<{ items: Item[] }>(settings, { action: 'list' })).items;
+/** Version du script à partir de laquelle la répétition est enregistrée. */
+export const API_VERSION_REPETITION = 2;
+
+/** Complète les éléments venant d'un ancien script (sans colonnes de répétition). */
+export function normalize(item: Item): Item {
+  return { ...RECURRENCE_DEFAUTS, ...item };
+}
+
+export async function listItems(settings: Settings): Promise<{ items: Item[]; version: number }> {
+  if (DEMO) return { items: (await demoApi.list()).map(normalize), version: API_VERSION_REPETITION };
+  const data = await post<{ items: Item[]; version?: number }>(settings, { action: 'list' });
+  return { items: data.items.map(normalize), version: data.version ?? 1 };
 }
 
 export async function createItem(settings: Settings, item: ItemInput): Promise<Item> {
   if (DEMO) return demoApi.create(item);
-  return (await post<{ item: Item }>(settings, { action: 'create', item })).item;
+  return normalize((await post<{ item: Item }>(settings, { action: 'create', item })).item);
 }
 
 export async function updateItem(settings: Settings, item: Partial<Item> & { id: string }): Promise<Item> {
   if (DEMO) return demoApi.update(item);
-  return (await post<{ item: Item }>(settings, { action: 'update', item })).item;
+  return normalize((await post<{ item: Item }>(settings, { action: 'update', item })).item);
 }
 
 export async function deleteItem(settings: Settings, id: string): Promise<void> {

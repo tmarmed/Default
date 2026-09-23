@@ -55,8 +55,17 @@ export function groupItems(items: Item[], now = new Date()): Section[] {
     else groups.set(key, [item]);
   };
 
+  // Éléments répétés « dans la période » : juste après Aujourd'hui.
+  const FENETRES = { semaine: [1, 'Cette semaine'], mois: [2, 'Ce mois-ci'], trimestre: [3, 'Ce trimestre'], annee: [4, 'Cette année'] } as const;
+  const fenetreTitles = new Map<string, string>();
+
   for (const item of [...items].sort(compareItems)) {
-    if (item.statut === 'termine') add('~z_done', item);
+    if (item.fenetre && item.statut !== 'termine') {
+      const [order, title] = FENETRES[item.fenetre];
+      const key = `${today}~${order}`;
+      fenetreTitles.set(key, title);
+      add(key, item);
+    } else if (item.statut === 'termine') add('~z_done', item);
     else if (!item.date) add('~a_none', item);
     else if (item.date < today) add('!late', item);
     else add(item.date, item);
@@ -65,7 +74,8 @@ export function groupItems(items: Item[], now = new Date()): Section[] {
   const keys = [...groups.keys()].sort();
   return keys.map((key) => {
     let title: string;
-    if (key === '!late') title = 'En retard';
+    if (fenetreTitles.has(key)) title = fenetreTitles.get(key)!;
+    else if (key === '!late') title = 'En retard';
     else if (key === '~a_none') title = 'Sans date';
     else if (key === '~z_done') title = 'Terminés';
     else if (key === today) title = "Aujourd'hui";

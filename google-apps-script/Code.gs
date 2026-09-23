@@ -17,8 +17,14 @@ var SHEET_NAME = 'Taches';
 var USERS_SHEET_NAME = 'Utilisateurs';
 var HEADERS = [
   'id', 'titre', 'type', 'date', 'heure', 'lieu',
-  'description', 'priorite', 'statut', 'cree_le', 'modifie_le'
+  'description', 'priorite', 'statut', 'cree_le', 'modifie_le',
+  'periodicite', 'echeance', 'debut', 'fin', 'faits'
 ];
+/** Colonnes de la première version : un onglet ainsi est complété automatiquement. */
+var HEADERS_V1 = HEADERS.slice(0, 11);
+/** Version de l'API, lue par l'application pour savoir si le script est à jour. */
+var API_VERSION = 2;
+var PERIODICITES = ['', 'hebdomadaire', 'mensuelle', 'trimestrielle', 'annuelle'];
 var TYPES = ['tache', 'mission', 'rendez-vous'];
 var PRIORITES = ['basse', 'normale', 'haute'];
 var STATUTS = ['a_faire', 'en_cours', 'termine'];
@@ -100,7 +106,7 @@ function doGet(e) {
     checkAuth_({ key: e.parameter.key });
     var action = e.parameter.action || 'list';
     if (action === 'ping') return { ok: true };
-    if (action === 'list') return { ok: true, items: listItems_() };
+    if (action === 'list') return { ok: true, version: API_VERSION, items: listItems_() };
     throw new Error('Action inconnue : ' + action);
   });
 }
@@ -110,8 +116,8 @@ function doPost(e) {
     var body = JSON.parse((e.postData && e.postData.contents) || '{}');
     checkAuth_(body);
     // Lecture : pas besoin de verrou.
-    if (body.action === 'ping') return { ok: true };
-    if (body.action === 'list') return { ok: true, items: listItems_() };
+    if (body.action === 'ping') return { ok: true, version: API_VERSION };
+    if (body.action === 'list') return { ok: true, version: API_VERSION, items: listItems_() };
     var lock = LockService.getScriptLock();
     lock.waitLock(20000);
     try {
@@ -212,8 +218,20 @@ function getSheet_() {
   } else {
     // Onglet existant avec des données : on ne touche à rien si les colonnes
     // ne sont pas celles attendues, pour ne jamais écrire dans la mauvaise colonne.
+    if (sheet.getMaxColumns() < HEADERS.length) {
+      sheet.insertColumnsAfter(sheet.getMaxColumns(), HEADERS.length - sheet.getMaxColumns());
+    }
     var actual = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0]
       .map(function (h) { return String(h).trim(); });
+    var v1 = HEADERS_V1.concat(HEADERS.slice(HEADERS_V1.length).map(function () { return ''; }));
+    if (actual.join('|') === v1.join('|')) {
+      // Onglet de la première version : on ajoute les colonnes de répétition à la fin,
+      // sans toucher aux données existantes.
+      var extra = HEADERS.slice(HEADERS_V1.length);
+      sheet.getRange(1, HEADERS_V1.length + 1, 1, extra.length).setValues([extra]).setFontWeight('bold');
+      sheet.getRange(2, HEADERS_V1.length + 1, sheet.getMaxRows() - 1, extra.length).setNumberFormat('@');
+      actual = HEADERS.slice();
+    }
     if (actual.join('|') !== HEADERS.join('|')) {
       throw new Error('L\'onglet « ' + SHEET_NAME + ' » existe déjà avec d\'autres colonnes. ' +
         'Rien n\'a été modifié. Colonnes attendues en ligne 1 : ' + HEADERS.join(', '));
@@ -235,7 +253,11 @@ function listItems_() {
         var v = row[i];
         // Valeurs saisies à la main dans la feuille : Sheets les convertit en Date.
         if (v instanceof Date) {
-          v = Utilities.formatDate(v, tz, h === 'heure' ? 'HH:mm' : (h === 'date' ? 'yyyy-MM-dd' : "yyyy-MM-dd'T'HH:mm:ss"));
+          var fmt = "yyyy-MM-dd'T'HH:mm:ss";
+          if (h === 'heure') fmt = 'HH:mm';
+          else if (h === 'date' || h === 'debut' || h === 'fin') fmt = 'yyyy-MM-dd';
+          else if (h === 'echeance') fmt = 'MM-dd';
+          v = Utilities.formatDate(v, tz, fmt);
         }
         item[h] = String(v);
       });
@@ -265,6 +287,17 @@ function sanitize_(item, base) {
   if (STATUTS.indexOf(out.statut) < 0) out.statut = 'a_faire';
   if (out.date && !/^\d{4}-\d{2}-\d{2}$/.test(out.date)) throw new Error('Date invalide (AAAA-MM-JJ).');
   if (out.heure && !/^\d{2}:\d{2}$/.test(out.heure)) throw new Error('Heure invalide (HH:MM).');
+  if (PERIODICITES.indexOf(out.periodicite) < 0) out.periodicite = '';
+  if (out.echeance && !/^\d{1,2}(-\d{1,2})?$/.test(out.echeance)) throw new Error('Échéance invalide.');
+  if (out.debut && !/^\d{4}-\d{2}-\d{2}$/.test(out.debut)) throw new Error('Date de début invalide (AAAA-MM-JJ).');
+  if (out.fin && !/^\d{4}-\d{2}-\d{2}$/.test(out.fin)) throw new Error('Date de fin invalide (AAAA-MM-JJ).');
+  if (!/^[0-9A-Za-z;\-]*$/.test(out.faits)) throw new Error('Liste des périodes faites invalide.');
+  if (!out.periodicite) {
+    out.echeance = '';
+    out.debut = '';
+    out.fin = '';
+    out.faits = '';
+  }
   return out;
 }
 

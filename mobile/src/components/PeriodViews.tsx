@@ -18,6 +18,17 @@ function Empty({ text }: { text: string }) {
   return <Text style={styles.empty}>{text}</Text>;
 }
 
+/** Éléments répétés « dans la période » (sans jour précis). */
+function Band({ items, title, onPress, onToggle }: { items: Item[]; title: string } & Pick<Common, 'onPress' | 'onToggle'>) {
+  if (!items.length) return null;
+  return (
+    <View style={styles.band}>
+      <Text style={styles.bandTitle}>🔁 {title}</Text>
+      <ItemList items={items} onPress={onPress} onToggle={onToggle} />
+    </View>
+  );
+}
+
 function ItemList({ items, onPress, onToggle }: { items: Item[] } & Pick<Common, 'onPress' | 'onToggle'>) {
   return (
     <>
@@ -45,11 +56,20 @@ export function DayView({ date, byDate, onPress, onToggle, refreshControl }: Com
 
 // ---------- Semaine ----------
 
-export function WeekView({ date, byDate, onPress, onToggle, refreshControl, onOpenDay }: Common & { onOpenDay: (d: Date) => void }) {
+export function WeekView({
+  date,
+  byDate,
+  onPress,
+  onToggle,
+  refreshControl,
+  onOpenDay,
+  band,
+}: Common & { onOpenDay: (d: Date) => void; band: Item[] }) {
   const today = toDateString(new Date());
   const start = startOfWeek(date);
   return (
     <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
+      <Band items={band} title="À faire sur la période" onPress={onPress} onToggle={onToggle} />
       {Array.from({ length: 7 }, (_, i) => {
         const d = addDays(start, i);
         const key = toDateString(d);
@@ -78,7 +98,15 @@ export function WeekView({ date, byDate, onPress, onToggle, refreshControl, onOp
 
 // ---------- Mois ----------
 
-export function MonthView({ date, byDate, onPress, onToggle, refreshControl, onSelect }: Common & { onSelect: (d: Date) => void }) {
+export function MonthView({
+  date,
+  byDate,
+  onPress,
+  onToggle,
+  refreshControl,
+  onSelect,
+  band,
+}: Common & { onSelect: (d: Date) => void; band: Item[] }) {
   const today = toDateString(new Date());
   const selected = toDateString(date);
   const first = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -89,6 +117,7 @@ export function MonthView({ date, byDate, onPress, onToggle, refreshControl, onS
 
   return (
     <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
+      <Band items={band} title="À faire ce mois-ci" onPress={onPress} onToggle={onToggle} />
       <View style={styles.grid}>
         <View style={styles.week}>
           {JOURS_COURTS.map((j) => (
@@ -155,6 +184,15 @@ export function MonthView({ date, byDate, onPress, onToggle, refreshControl, onS
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: 110 },
+  band: { marginTop: 4, marginBottom: 8 },
+  bandTitle: {
+    marginHorizontal: 16,
+    marginBottom: 6,
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.muted,
+    textTransform: 'uppercase',
+  },
   empty: { textAlign: 'center', color: colors.muted, marginTop: 40, fontSize: 15 },
   none: { marginHorizontal: 28, marginBottom: 6, color: colors.border, fontSize: 15 },
   dayHeader: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 12, marginBottom: 6, gap: 8 },

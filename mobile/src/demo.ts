@@ -17,7 +17,7 @@ function sample(): Item[] {
   const stamp = now.toISOString();
   const mk = (id: string, titre: string, type: Item['type'], date: string, heure: string, extra: Partial<Item> = {}): Item => ({
     id, titre, type, date, heure, lieu: '', description: '', priorite: 'normale', statut: 'a_faire',
-    cree_le: stamp, modifie_le: stamp, ...extra,
+    cree_le: stamp, modifie_le: stamp, periodicite: '', echeance: '', debut: '', fin: '', faits: '', ...extra,
   });
   return [
     mk('d1', 'Rendez-vous client Dupont', 'rendez-vous', d(2), '10:30', {
@@ -34,6 +34,17 @@ function sample(): Item[] {
     mk('d8', 'Dentiste', 'rendez-vous', d(15), '17:30'),
     mk('d9', 'Commander le matériel', 'tache', d(1), '', { priorite: 'haute' }),
     mk('d10', 'Relancer le devis Bernard', 'tache', '', ''),
+    // Éléments répétés (débutent il y a deux mois pour montrer les retards à rattraper)
+    mk('d11', 'Payer le loyer', 'tache', '', '', {
+      periodicite: 'mensuelle', echeance: '5', priorite: 'haute', debut: toDateString(new Date(now.getFullYear(), now.getMonth() - 2, 1)),
+      faits: toDateString(new Date(now.getFullYear(), now.getMonth() - 2, 1)).slice(0, 7),
+    }),
+    mk('d12', 'Faire les comptes du mois', 'tache', '', '', { periodicite: 'mensuelle' }),
+    mk('d13', 'Point hebdo équipe', 'rendez-vous', '', '10:00', { periodicite: 'hebdomadaire', echeance: '1', lieu: 'Visio' }),
+    mk('d14', 'Déclaration de TVA', 'mission', '', '', { periodicite: 'trimestrielle' }),
+    mk('d15', 'Renouveler l\'assurance', 'tache', '', '', {
+      periodicite: 'annuelle', echeance: String(now.getMonth() + 1).padStart(2, '0'),
+    }),
   ];
 }
 

@@ -15,6 +15,9 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 - Filtres : Tous / Tâches / Missions / Rendez-vous
 - Ajout, modification, suppression ; titre, type, date, heure, lieu, priorité, statut, notes
 - Case à cocher pour marquer « terminé » ; les terminés sont masqués (affichables en bas de liste)
+- **Répétition** chaque semaine, mois, trimestre ou année, à jour précis ou « dans la période »,
+  avec date de début et de fin. Cocher valide la période en cours ; l'élément revient à la suivante.
+  Les périodes oubliées restent à rattraper, regroupées sur une ligne « En retard ».
 - Tirer vers le bas pour synchroniser avec le Google Sheet
 - Dernière copie gardée sur le téléphone : la liste reste lisible sans réseau
 
@@ -28,7 +31,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    à importer est aussi disponible : [`modele/Taches.xlsx`](modele/Taches.xlsx).
    Le **journal d'exécution** affiche la **clé d'accès** : copiez-la.
    L'onglet `Taches` est créé avec les colonnes :
-   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le`
+   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits`
 4. **Déployer › Nouveau déploiement** → type **Application Web** :
    - *Exécuter en tant que* : **Moi**
    - *Qui a accès* : **Tout le monde**
@@ -41,9 +44,17 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 > Après toute modification de `Code.gs`, faites **Déployer › Gérer les déploiements › Modifier ›
 > Nouvelle version** pour garder la même URL.
 
+> **Mise à jour depuis une ancienne version** : recollez `Code.gs`, puis **Déployer › Gérer les déploiements
+> › Modifier › Nouvelle version**. Les colonnes de répétition sont ajoutées automatiquement à la fin de
+> l'onglet `Taches`, sans toucher aux données.
+
 Valeurs acceptées dans la feuille si vous saisissez à la main :
 `type` = `tache` / `mission` / `rendez-vous` · `priorite` = `basse` / `normale` / `haute` ·
-`statut` = `a_faire` / `en_cours` / `termine` · `date` = `AAAA-MM-JJ` · `heure` = `HH:MM`.
+`statut` = `a_faire` / `en_cours` / `termine` · `date` = `AAAA-MM-JJ` · `heure` = `HH:MM` ·
+`periodicite` = vide / `hebdomadaire` / `mensuelle` / `trimestrielle` / `annuelle` ·
+`echeance` = semaine `1` (lundi) à `7`, mois `1` à `31`, trimestre `m` ou `m-j`, année `MM` ou `MM-JJ`
+(vide = « dans la période ») · `debut` / `fin` = `AAAA-MM-JJ` · `faits` = périodes cochées,
+ex. `2026-08;2026-09` (mois), `2026-T3` (trimestre), `2026` (année), `2026-09-21` (semaine du lundi 21).
 Chaque ligne doit avoir un `id` unique : le plus simple est de créer les lignes depuis l'application.
 
 ## Connexion avec Google (optionnel)

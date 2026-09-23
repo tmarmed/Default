@@ -7,12 +7,14 @@ interface Props<T extends string> {
   onChange: (value: T) => void;
   /** Version resserrée sur une seule ligne */
   compact?: boolean;
+  /** Avec compact : autoriser plusieurs lignes */
+  wrap?: boolean;
 }
 
 /** Rangée de boutons à choix unique. */
-export function Chips<T extends string>({ options, value, onChange, compact }: Props<T>) {
+export function Chips<T extends string>({ options, value, onChange, compact, wrap }: Props<T>) {
   return (
-    <View style={[styles.row, compact && styles.rowCompact]}>
+    <View style={[styles.row, compact && styles.rowCompact, wrap && styles.rowWrap]}>
       {options.map((o) => {
         const active = o.value === value;
         const color = o.color ?? colors.primary;
@@ -43,6 +45,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   rowCompact: { flexWrap: 'nowrap', gap: 6 },
+  rowWrap: { flexWrap: 'wrap' },
   chipCompact: { paddingHorizontal: 11, paddingVertical: 6 },
   label: { color: colors.text, fontSize: 14 },
   labelCompact: { fontSize: 13 },

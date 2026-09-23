@@ -40,8 +40,19 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Prop
               📍 {item.lieu}
             </Text>
           )}
+          {!!item.periodicite && !item.retards && (
+            <Text style={styles.metaText} numberOfLines={1}>
+              🔁 {item.periodeLabel ?? ''}
+            </Text>
+          )}
           {item.statut === 'en_cours' && <Text style={styles.enCours}>{STATUT_LABELS.en_cours}</Text>}
-          {late && <Text style={styles.late}>En retard</Text>}
+          {item.retards ? (
+            <Text style={styles.late}>
+              🔁 En retard : {item.retards.join(', ')}
+            </Text>
+          ) : (
+            late && <Text style={styles.late}>En retard</Text>
+          )}
         </View>
       </View>
       {item.priorite !== 'normale' && !done && (

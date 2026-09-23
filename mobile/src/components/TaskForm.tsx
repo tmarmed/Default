@@ -26,6 +26,7 @@ import {
 } from '../types';
 import { Chips } from './Chips';
 import { DateField } from './DateField';
+import { checkRecurrence, RecurrenceFields } from './RecurrenceFields';
 
 interface Props {
   visible: boolean;
@@ -48,6 +49,28 @@ const empty = (type: ItemType, date: string): ItemInput => ({
   description: '',
   priorite: 'normale',
   statut: 'a_faire',
+  periodicite: '',
+  echeance: '',
+  debut: '',
+  fin: '',
+  faits: '',
+});
+
+/** Seulement les champs enregistrés (pas ceux calculés pour l'affichage). */
+const toInput = (i: Item): ItemInput => ({
+  titre: i.titre,
+  type: i.type,
+  date: i.date,
+  heure: i.heure,
+  lieu: i.lieu,
+  description: i.description,
+  priorite: i.priorite,
+  statut: i.statut,
+  periodicite: i.periodicite,
+  echeance: i.echeance,
+  debut: i.debut,
+  fin: i.fin,
+  faits: i.faits,
 });
 
 const TYPES = (Object.keys(TYPE_LABELS) as ItemType[]).map((t) => ({
@@ -70,7 +93,7 @@ export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onS
 
   useEffect(() => {
     if (visible) {
-      setForm(item ? { ...item } : empty(defaultType, defaultDate));
+      setForm(item ? toInput(item) : empty(defaultType, defaultDate));
       setError(null);
       setConfirmDelete(false);
     }
@@ -86,10 +109,17 @@ export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onS
       setError('Donnez un titre à cet élément.');
       return;
     }
+    const recurrenceError = checkRecurrence(form);
+    if (recurrenceError) {
+      setError(recurrenceError);
+      return;
+    }
     setError(null);
     setBusy(true);
     try {
-      await onSave({ ...form, titre: form.titre.trim() });
+      // Un élément répété n'a pas de date unique : ses échéances sont calculées.
+      const input = form.periodicite ? { ...form, date: '', statut: 'a_faire' as const } : form;
+      await onSave({ ...input, titre: input.titre.trim() });
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
     } finally {
@@ -159,8 +189,14 @@ export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onS
             <Text style={styles.label}>Type</Text>
             <Chips options={TYPES} value={form.type} onChange={(v) => set('type', v)} />
 
-            <Text style={styles.label}>Date</Text>
-            <DateField mode="date" value={form.date} onChange={(v) => set('date', v)} placeholder="Choisir une date" />
+            <RecurrenceFields value={form} onChange={(patch) => setForm((f) => ({ ...f, ...patch }))} />
+
+            {!form.periodicite && (
+              <>
+                <Text style={styles.label}>Date</Text>
+                <DateField mode="date" value={form.date} onChange={(v) => set('date', v)} placeholder="Choisir une date" />
+              </>
+            )}
 
             <Text style={styles.label}>Heure</Text>
             <DateField mode="time" value={form.heure} onChange={(v) => set('heure', v)} placeholder="Choisir une heure" />
@@ -177,8 +213,12 @@ export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onS
             <Text style={styles.label}>Priorité</Text>
             <Chips options={PRIORITES} value={form.priorite} onChange={(v) => set('priorite', v)} />
 
-            <Text style={styles.label}>Statut</Text>
-            <Chips options={STATUTS} value={form.statut} onChange={(v) => set('statut', v)} />
+            {!form.periodicite && (
+              <>
+                <Text style={styles.label}>Statut</Text>
+                <Chips options={STATUTS} value={form.statut} onChange={(v) => set('statut', v)} />
+              </>
+            )}
 
             <Text style={styles.label}>Notes</Text>
             <TextInput

@@ -28,8 +28,8 @@ import {
   formatDate,
   formatMonth,
   formatWeek,
+  compareItems,
   groupItems,
-  itemsByDate,
   startOfWeek,
   toDateString,
 } from './src/dates';
@@ -38,9 +38,10 @@ import { API_URL, GOOGLE_AUTH } from './src/config';
 import { DEMO, demoApi } from './src/demo';
 import { clearSettings, loadCache, loadSettings, saveCache, saveSettings } from './src/storage';
 import { colors } from './src/theme';
+import { expandRange, listEntries, toggleDone } from './src/recurrence';
 import { Item, ItemInput, ItemType, Settings, TYPE_LABELS } from './src/types';
 
-type Filter = 'tous' | ItemType;
+type Filter = 'tous' | ItemType | 'recurrents';
 type Mode = 'liste' | 'jour' | 'semaine' | 'mois';
 
 const MODES: { value: Mode; label: string }[] = [
@@ -55,7 +56,11 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'tache', label: 'Tâches' },
   { value: 'mission', label: 'Missions' },
   { value: 'rendez-vous', label: 'Rendez-vous' },
+  { value: 'recurrents', label: '🔁' },
 ];
+
+const matches = (i: Item, filter: Filter) =>
+  filter === 'tous' || (filter === 'recurrents' ? !!i.periodicite : i.type === filter);
 
 export default function App() {
   return (
@@ -79,6 +84,8 @@ function Main() {
   const [offline, setOffline] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_REPETITION);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -102,7 +109,9 @@ function Main() {
     async (s: Settings) => {
       setRefreshing(true);
       try {
-        updateItems(await api.listItems(s));
+        const { items: list, version } = await api.listItems(s);
+        updateItems(list);
+        setApiVersion(version);
         setOffline(null);
       } catch (e) {
         if (e instanceof AuthError && s.googleEmail) {
@@ -127,30 +136,51 @@ function Main() {
         const email = await restoreSession();
         s = email ? { url: API_URL, googleEmail: email } : null;
       }
-      if (cache && s) setItems(cache.items);
+      if (cache && s) setItems(cache.items.map(api.normalize));
       setSettings(s);
       setBooting(false);
       if (s) refresh(s);
     })();
   }, [refresh]);
 
+  const today = toDateString(new Date());
   const visible = useMemo(
     () =>
       groupItems(
-        items.filter((i) => (filter === 'tous' || i.type === filter) && (showDone || i.statut !== 'termine')),
+        items
+          .filter((i) => matches(i, filter))
+          // Un élément répété devient ses lignes du moment : retards regroupés + échéance en cours.
+          .flatMap((i) => (i.periodicite ? listEntries(i, today) : [i]))
+          .filter((i) => showDone || i.statut !== 'termine'),
       ),
-    [items, filter, showDone],
+    [items, filter, showDone, today],
   );
   const doneCount = useMemo(
-    () => items.filter((i) => i.statut === 'termine' && (filter === 'tous' || i.type === filter)).length,
+    () => items.filter((i) => !i.periodicite && i.statut === 'termine' && matches(i, filter)).length,
     [items, filter],
   );
 
-  // Vues Jour / Semaine / Mois : tous les éléments datés du type choisi, terminés compris.
-  const byDate = useMemo(
-    () => itemsByDate(items.filter((i) => filter === 'tous' || i.type === filter)),
-    [items, filter],
-  );
+  // Vues Jour / Semaine / Mois : éléments datés et échéances des éléments répétés,
+  // sur les 6 semaines de la grille du mois affiché (qui contient aussi le jour et la semaine).
+  const { byDate, fenetres } = useMemo(() => {
+    const gridStart = startOfWeek(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
+    const range = expandRange(
+      items.filter((i) => matches(i, filter)),
+      toDateString(gridStart),
+      toDateString(addDays(gridStart, 41)),
+      today,
+    );
+    for (const list of range.byDate.values()) list.sort(compareItems);
+    return range;
+  }, [items, filter, anchor, today]);
+  const weekStart = toDateString(startOfWeek(anchor));
+  const weekEnd = toDateString(addDays(startOfWeek(anchor), 6));
+  const monthStart = toDateString(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
+  const monthEnd = toDateString(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0));
+  const weekBand = fenetres.filter((f) => f.start <= weekEnd && f.end >= weekStart).map((f) => f.entry);
+  const monthBand = fenetres
+    .filter((f) => f.entry.fenetre !== 'semaine' && f.start <= monthEnd && f.end >= monthStart)
+    .map((f) => f.entry);
 
   const step = (n: number) =>
     setAnchor((d) => (mode === 'mois' ? addMonths(d, n) : addDays(d, mode === 'semaine' ? 7 * n : n)));
@@ -158,14 +188,41 @@ function Main() {
     mode === 'mois' ? formatMonth(anchor) : mode === 'semaine' ? formatWeek(anchor) : formatDate(toDateString(anchor));
   const pageKey = periodKeyOf(mode, anchor);
 
-  const openForm = useCallback((item: Item | null) => {
-    setEditing(item);
-    setFormOpen(true);
-  }, []);
+  const openForm = useCallback(
+    (item: Item | null) => {
+      // Une échéance affichée ouvre l'élément répété d'origine.
+      setEditing(item?.baseId ? (items.find((i) => i.id === item.baseId) ?? null) : item);
+      setFormOpen(true);
+    },
+    [items],
+  );
 
   const toggle = useCallback(
     async (item: Item) => {
       if (!settings) return;
+      if (item.baseId && item.occurrence) {
+        // Échéance d'un élément répété : on coche / décoche sa période.
+        const base = items.find((i) => i.id === item.baseId);
+        if (!base) return;
+        if (apiVersion < api.API_VERSION_REPETITION) {
+          setNotice("Mettez à jour le script du Google Sheet pour enregistrer les éléments répétés.");
+          return;
+        }
+        const faits = toggleDone(base, item.occurrence);
+        setItems((prev) => prev.map((i) => (i.id === base.id ? { ...i, faits } : i)));
+        try {
+          const saved = await api.updateItem(settings, { id: base.id, faits });
+          setItems((prev) => {
+            const next = prev.map((i) => (i.id === saved.id ? saved : i));
+            saveCache(next).catch(() => {});
+            return next;
+          });
+        } catch (e) {
+          setItems((prev) => prev.map((i) => (i.id === base.id ? base : i)));
+          setNotice(`Modification non enregistrée : ${(e as Error).message}`);
+        }
+        return;
+      }
       const statut = item.statut === 'termine' ? 'a_faire' : 'termine';
       // Mise à jour immédiate à l'écran, annulée si le Google Sheet refuse.
       setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, statut } : i)));
@@ -181,11 +238,16 @@ function Main() {
         setNotice(`Modification non enregistrée : ${(e as Error).message}`);
       }
     },
-    [settings],
+    [settings, items, apiVersion],
   );
 
   const save = async (input: ItemInput) => {
     if (!settings) return;
+    if (input.periodicite && apiVersion < api.API_VERSION_REPETITION) {
+      throw new Error(
+        "le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.",
+      );
+    }
     if (editing) {
       const saved = await api.updateItem(settings, { ...input, id: editing.id });
       updateItems(items.map((i) => (i.id === saved.id ? saved : i)));
@@ -288,6 +350,14 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
+      {apiVersion < api.API_VERSION_REPETITION && (
+        <View style={styles.offline}>
+          <Text style={styles.offlineText}>
+            Le script du Google Sheet n'est pas à jour : la répétition ne sera pas enregistrée. Recollez le nouveau
+            Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
+          </Text>
+        </View>
+      )}
       {offline && (
         <Pressable style={styles.offline} onPress={() => refresh(settings)}>
           <Text style={styles.offlineText}>{offline} Données affichées : dernière copie. Touchez pour réessayer.</Text>
@@ -308,6 +378,7 @@ function Main() {
             )}
             {mode === 'semaine' && (
               <WeekView
+                band={weekBand}
                 date={anchor}
                 byDate={byDate}
                 onPress={openForm}
@@ -321,6 +392,7 @@ function Main() {
             )}
             {mode === 'mois' && (
               <MonthView
+                band={monthBand}
                 date={anchor}
                 byDate={byDate}
                 onPress={openForm}
@@ -349,7 +421,7 @@ function Main() {
           !refreshing ? (
             <Text style={styles.empty}>
               Rien à faire pour le moment.{'\n'}Touchez + pour ajouter{' '}
-              {filter === 'tous' ? 'une tâche' : TYPE_LABELS[filter].toLowerCase()}.
+              {filter === 'tous' || filter === 'recurrents' ? 'un élément' : TYPE_LABELS[filter].toLowerCase()}.
             </Text>
           ) : null
         }
@@ -376,7 +448,7 @@ function Main() {
       <TaskForm
         visible={formOpen}
         item={editing}
-        defaultType={filter === 'tous' ? 'tache' : filter}
+        defaultType={filter === 'tous' || filter === 'recurrents' ? 'tache' : filter}
         defaultDate={mode === 'jour' || mode === 'mois' ? toDateString(anchor) : ''}
         onClose={() => setFormOpen(false)}
         onSave={save}
