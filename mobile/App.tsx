@@ -13,6 +13,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as api from './src/api';
 import { Chips } from './src/components/Chips';
+import { LoginScreen } from './src/components/LoginScreen';
 import { SettingsScreen } from './src/components/SettingsScreen';
 import { TaskForm } from './src/components/TaskForm';
 import { TaskItem } from './src/components/TaskItem';
@@ -31,6 +32,8 @@ import {
   startOfWeek,
   toDateString,
 } from './src/dates';
+import { AuthError, restoreSession, signOut } from './src/auth';
+import { API_URL, GOOGLE_AUTH } from './src/config';
 import { DEMO, demoApi } from './src/demo';
 import { clearSettings, loadCache, loadSettings, saveCache, saveSettings } from './src/storage';
 import { colors } from './src/theme';
@@ -71,6 +74,7 @@ function Main() {
   const [items, setItems] = useState<Item[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [offline, setOffline] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -83,6 +87,13 @@ function Main() {
     saveCache(next).catch(() => {});
   }, []);
 
+  const logout = useCallback(async () => {
+    await signOut();
+    await clearSettings();
+    setItems([]);
+    setSettings(null);
+  }, []);
+
   const refresh = useCallback(
     async (s: Settings) => {
       setRefreshing(true);
@@ -90,18 +101,29 @@ function Main() {
         updateItems(await api.listItems(s));
         setOffline(null);
       } catch (e) {
+        if (e instanceof AuthError && s.googleEmail) {
+          // Compte retiré de l'onglet « Utilisateurs » ou session Google terminée.
+          await logout();
+          setLoginError(e.message);
+          return;
+        }
         setOffline((e as Error).message);
       } finally {
         setRefreshing(false);
       }
     },
-    [updateItems],
+    [updateItems, logout],
   );
 
   useEffect(() => {
     (async () => {
-      const [s, cache] = await Promise.all([loadSettings(), loadCache()]);
-      if (cache) setItems(cache.items);
+      const [stored, cache] = await Promise.all([loadSettings(), loadCache()]);
+      let s = stored;
+      if (GOOGLE_AUTH) {
+        const email = await restoreSession();
+        s = email ? { url: API_URL, googleEmail: email } : null;
+      }
+      if (cache && s) setItems(cache.items);
       setSettings(s);
       setBooting(false);
       if (s) refresh(s);
@@ -181,6 +203,31 @@ function Main() {
     return <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />;
   }
 
+  if (GOOGLE_AUTH && !settings) {
+    return (
+      <LoginScreen
+        initialError={loginError}
+        onSignedIn={(email) => {
+          const s = { url: API_URL, googleEmail: email };
+          setLoginError(null);
+          setSettings(s);
+          refresh(s);
+        }}
+      />
+    );
+  }
+
+  const openAccount = () => {
+    if (!settings?.googleEmail) {
+      setShowSettings(true);
+      return;
+    }
+    Alert.alert('Compte Google', `Connecté avec ${settings.googleEmail}`, [
+      { text: 'Fermer', style: 'cancel' },
+      { text: 'Se déconnecter', style: 'destructive', onPress: logout },
+    ]);
+  };
+
   if (!settings || showSettings) {
     return (
       <SettingsScreen
@@ -213,7 +260,7 @@ function Main() {
       <View style={styles.header}>
         <Text style={styles.title}>Mes tâches</Text>
         {!DEMO && (
-          <Pressable onPress={() => setShowSettings(true)} hitSlop={10} accessibilityLabel="Réglages">
+          <Pressable onPress={openAccount} hitSlop={10} accessibilityLabel="Réglages">
             <Text style={styles.gear}>⚙︎</Text>
           </Pressable>
         )}

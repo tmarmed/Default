@@ -6,7 +6,15 @@
  * missions et rendez-vous dans l'onglet « Taches » du classeur.
  */
 
+/**
+ * Connexion Google : collez ici l'« ID client » de type « Application Web »
+ * créé dans Google Cloud Console (se termine par .apps.googleusercontent.com).
+ * Laissé vide, l'application utilise la clé d'accès.
+ */
+var GOOGLE_WEB_CLIENT_ID = '';
+
 var SHEET_NAME = 'Taches';
+var USERS_SHEET_NAME = 'Utilisateurs';
 var HEADERS = [
   'id', 'titre', 'type', 'date', 'heure', 'lieu',
   'description', 'priorite', 'statut', 'cree_le', 'modifie_le'
@@ -15,17 +23,57 @@ var TYPES = ['tache', 'mission', 'rendez-vous'];
 var PRIORITES = ['basse', 'normale', 'haute'];
 var STATUTS = ['a_faire', 'en_cours', 'termine'];
 
-/** À lancer une fois depuis l'éditeur : crée l'onglet et génère la clé d'accès. */
+/**
+ * À lancer depuis l'éditeur (sans risque de relancer : rien n'est écrasé).
+ * Crée les onglets « Taches » et « Utilisateurs », puis prépare la connexion :
+ * par compte Google si GOOGLE_WEB_CLIENT_ID est rempli, sinon par clé d'accès.
+ */
 function installer() {
   var sheet = getSheet_();
   if (sheet.getLastRow() < 2) ajouterExemples_();
+  var users = getUsersSheet_();
   var props = PropertiesService.getScriptProperties();
+
+  if (GOOGLE_WEB_CLIENT_ID) {
+    // Vérifie tout de suite que le script a le droit d'appeler Google (autorisation demandée ici).
+    UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=test', { muteHttpExceptions: true });
+    Logger.log('Connexion Google activée. Comptes autorisés (onglet « ' + USERS_SHEET_NAME + ' ») : ' +
+      allowedEmails_(users).join(', '));
+    if (props.getProperty('API_KEY')) {
+      Logger.log('La clé d\'accès fonctionne encore. Quand la connexion Google marche, supprimez la ' +
+        'propriété API_KEY (Paramètres du projet > Propriétés du script) pour la désactiver.');
+    }
+    return;
+  }
+
   var key = props.getProperty('API_KEY');
   if (!key) {
     key = Utilities.getUuid().replace(/-/g, '');
     props.setProperty('API_KEY', key);
   }
   Logger.log('Clé d\'accès à saisir dans l\'application : ' + key);
+}
+
+/** Onglet des comptes Google autorisés ; créé avec le compte qui lance « installer ». */
+function getUsersSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(USERS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(USERS_SHEET_NAME);
+    sheet.getRange(1, 1).setValue('email').setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    var me = Session.getEffectiveUser().getEmail();
+    if (me) sheet.getRange(2, 1).setValue(me);
+  }
+  return sheet;
+}
+
+function allowedEmails_(sheet) {
+  var last = sheet.getLastRow();
+  if (last < 2) return [];
+  return sheet.getRange(2, 1, last - 1, 1).getValues()
+    .map(function (r) { return String(r[0]).trim().toLowerCase(); })
+    .filter(function (e) { return e; });
 }
 
 /** Deux exemples pour voir le fonctionnement ; supprimez-les quand vous voulez. */
@@ -49,7 +97,7 @@ function ajouterExemples_() {
 
 function doGet(e) {
   return handle_(function () {
-    checkKey_(e.parameter.key);
+    checkAuth_({ key: e.parameter.key });
     var action = e.parameter.action || 'list';
     if (action === 'ping') return { ok: true };
     if (action === 'list') return { ok: true, items: listItems_() };
@@ -60,7 +108,10 @@ function doGet(e) {
 function doPost(e) {
   return handle_(function () {
     var body = JSON.parse((e.postData && e.postData.contents) || '{}');
-    checkKey_(body.key);
+    checkAuth_(body);
+    // Lecture : pas besoin de verrou.
+    if (body.action === 'ping') return { ok: true };
+    if (body.action === 'list') return { ok: true, items: listItems_() };
     var lock = LockService.getScriptLock();
     lock.waitLock(20000);
     try {
@@ -82,15 +133,67 @@ function handle_(fn) {
     result = fn();
   } catch (err) {
     result = { ok: false, error: String(err && err.message ? err.message : err) };
+    if (err && err.auth) result.code = 'auth';
   }
   return ContentService.createTextOutput(JSON.stringify(result))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-function checkKey_(key) {
+/** Accepte une preuve de connexion Google (idToken) ou, si elle existe encore, la clé d'accès. */
+/** Erreur de connexion : l'application la reconnaît (code « auth ») pour renouveler la session. */
+function authError_(message) {
+  var e = new Error(message);
+  e.auth = true;
+  return e;
+}
+
+function checkAuth_(creds) {
+  if (creds.idToken) {
+    var email = verifyGoogleToken_(creds.idToken);
+    if (allowedEmails_(getUsersSheet_()).indexOf(email) < 0) {
+      throw authError_('Le compte ' + email + ' n\'est pas autorisé. Ajoutez-le dans l\'onglet « ' +
+        USERS_SHEET_NAME + ' » du Google Sheet.');
+    }
+    return email;
+  }
   var expected = PropertiesService.getScriptProperties().getProperty('API_KEY');
-  if (!expected) throw new Error('API non installée : lancez la fonction « installer ».');
-  if (key !== expected) throw new Error('Clé d\'accès invalide.');
+  if (!expected) {
+    throw authError_(GOOGLE_WEB_CLIENT_ID
+      ? 'Connectez-vous avec votre compte Google.'
+      : 'API non installée : lancez la fonction « installer ».');
+  }
+  if (creds.key !== expected) throw authError_('Clé d\'accès invalide.');
+  return null;
+}
+
+/**
+ * Vérifie auprès de Google que l'idToken est authentique, récent et destiné à cette application.
+ * Renvoie l'adresse e-mail du compte. Le résultat est gardé en cache jusqu'à expiration du jeton.
+ */
+function verifyGoogleToken_(idToken) {
+  if (!GOOGLE_WEB_CLIENT_ID) throw new Error('Connexion Google non configurée dans le script.');
+  var cache = CacheService.getScriptCache();
+  var cacheKey = 'tok:' + Utilities.base64EncodeWebSafe(
+    Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, idToken));
+  var cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  var res = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' +
+    encodeURIComponent(idToken), { muteHttpExceptions: true });
+  if (res.getResponseCode() !== 200) throw authError_('Session Google expirée : reconnectez-vous.');
+  var info = JSON.parse(res.getContentText());
+  var now = Math.floor(Date.now() / 1000);
+  var valid =
+    info.aud === GOOGLE_WEB_CLIENT_ID &&
+    (info.iss === 'accounts.google.com' || info.iss === 'https://accounts.google.com') &&
+    String(info.email_verified) === 'true' &&
+    Number(info.exp) > now;
+  if (!valid || !info.email) throw authError_('Connexion Google refusée : jeton invalide.');
+
+  var email = String(info.email).toLowerCase();
+  var ttl = Math.min(Number(info.exp) - now, 3600);
+  if (ttl > 30) cache.put(cacheKey, email, ttl);
+  return email;
 }
 
 function getSheet_() {

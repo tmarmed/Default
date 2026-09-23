@@ -1,19 +1,27 @@
+import { AuthError, getIdToken } from './auth';
 import { DEMO, demoApi } from './demo';
 import type { Item, ItemInput, Settings } from './types';
 
-type ApiResponse<T> = ({ ok: true } & T) | { ok: false; error: string };
+type ApiResponse<T> = ({ ok: true } & T) | { ok: false; error: string; code?: string };
 
 const TIMEOUT_MS = 20000;
 
-async function request<T>(settings: Settings, init: RequestInit & { query?: string }): Promise<T> {
+async function send<T>(settings: Settings, body: object): Promise<ApiResponse<T>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const url = settings.url.trim() + (init.query ?? '');
   let res: Response;
   try {
+    // Tout passe en POST : la preuve de connexion n'apparaît jamais dans l'URL.
     // Apps Script répond par une redirection vers googleusercontent.com : fetch la suit.
-    res = await fetch(url, { ...init, redirect: 'follow', signal: controller.signal });
-  } catch (e) {
+    res = await fetch(settings.url.trim(), {
+      method: 'POST',
+      // text/plain : format accepté par Apps Script sans requête préalable.
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body),
+      redirect: 'follow',
+      signal: controller.signal,
+    });
+  } catch {
     throw new Error(
       controller.signal.aborted
         ? 'Le Google Sheet ne répond pas (délai dépassé).'
@@ -23,38 +31,37 @@ async function request<T>(settings: Settings, init: RequestInit & { query?: stri
     clearTimeout(timer);
   }
   const text = await res.text();
-  let data: ApiResponse<T>;
   try {
-    data = JSON.parse(text);
+    return JSON.parse(text);
   } catch {
     // Page HTML = mauvaise URL ou déploiement non accessible à « Tout le monde ».
     throw new Error("Réponse inattendue du serveur. Vérifiez l'URL et le déploiement du script.");
   }
-  if (!data.ok) throw new Error(data.error);
-  return data;
 }
 
-function post<T>(settings: Settings, body: object): Promise<T> {
-  return request<T>(settings, {
-    method: 'POST',
-    // text/plain : format accepté par Apps Script sans requête préalable.
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ ...body, key: settings.key }),
-  });
+async function post<T>(settings: Settings, body: object): Promise<T> {
+  if (!settings.googleEmail) {
+    const data = await send<T>(settings, { ...body, key: settings.key });
+    if (!data.ok) throw new Error(data.error);
+    return data;
+  }
+  let data = await send<T>(settings, { ...body, idToken: await getIdToken() });
+  if (!data.ok && data.code === 'auth') {
+    // Jeton refusé (souvent expiré) : on le renouvelle et on réessaie une fois.
+    data = await send<T>(settings, { ...body, idToken: await getIdToken(true) });
+  }
+  if (!data.ok) throw data.code === 'auth' ? new AuthError(data.error) : new Error(data.error);
+  return data;
 }
 
 export async function ping(settings: Settings): Promise<void> {
   if (DEMO) return;
-  await request(settings, { method: 'GET', query: `?action=ping&key=${encodeURIComponent(settings.key)}` });
+  await post(settings, { action: 'ping' });
 }
 
 export async function listItems(settings: Settings): Promise<Item[]> {
   if (DEMO) return demoApi.list();
-  const data = await request<{ items: Item[] }>(settings, {
-    method: 'GET',
-    query: `?action=list&key=${encodeURIComponent(settings.key)}`,
-  });
-  return data.items;
+  return (await post<{ items: Item[] }>(settings, { action: 'list' })).items;
 }
 
 export async function createItem(settings: Settings, item: ItemInput): Promise<Item> {

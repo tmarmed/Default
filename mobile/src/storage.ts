@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GOOGLE_AUTH } from './config';
 import { DEMO } from './demo';
 import type { Item, Settings } from './types';
 
@@ -7,6 +8,8 @@ const CACHE_KEY = 'mes-taches:cache';
 
 export async function loadSettings(): Promise<Settings | null> {
   if (DEMO) return { url: 'demo', key: 'demo' };
+  // Avec la connexion Google, l'URL est intégrée à l'application et rien n'est saisi.
+  if (GOOGLE_AUTH) return null;
   const raw = await AsyncStorage.getItem(SETTINGS_KEY);
   if (!raw) return null;
   try {

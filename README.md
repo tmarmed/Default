@@ -46,6 +46,12 @@ Valeurs acceptées dans la feuille si vous saisissez à la main :
 `statut` = `a_faire` / `en_cours` / `termine` · `date` = `AAAA-MM-JJ` · `heure` = `HH:MM`.
 Chaque ligne doit avoir un `id` unique : le plus simple est de créer les lignes depuis l'application.
 
+## Connexion avec Google (optionnel)
+
+Pour remplacer l'URL et la clé d'accès par un simple bouton **« Se connecter avec Google »**,
+suivez le guide [`docs/connexion-google.md`](docs/connexion-google.md). Seuls les comptes
+listés dans l'onglet `Utilisateurs` du Google Sheet peuvent se connecter.
+
 ## 2. Lancer l'application
 
 Prérequis : Node.js 20+ et l'app **Expo Go** sur le téléphone (App Store / Play Store).
@@ -57,6 +63,8 @@ npx expo start
 ```
 
 Scannez le QR code avec l'appareil photo (iPhone) ou avec Expo Go (Android).
+Expo Go fonctionne avec la clé d'accès ; la connexion Google demande une version de développement
+(voir le guide ci-dessus).
 Au premier lancement, collez l'**URL** et la **clé d'accès**, puis *Se connecter*.
 
 ### Version web et démo

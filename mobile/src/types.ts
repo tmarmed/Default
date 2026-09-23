@@ -22,8 +22,12 @@ export interface Item {
 export type ItemInput = Omit<Item, 'id' | 'cree_le' | 'modifie_le'>;
 
 export interface Settings {
+  /** URL de l'application Web Apps Script (…/exec) */
   url: string;
-  key: string;
+  /** Clé d'accès (connexion sans compte Google) */
+  key?: string;
+  /** Connexion par compte Google : e-mail du compte */
+  googleEmail?: string;
 }
 
 export const TYPE_LABELS: Record<ItemType, string> = {
