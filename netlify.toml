@@ -1,0 +1,9 @@
+# Hébergement de la version web sur Netlify (gratuit).
+# Relié au dépôt GitHub, Netlify recompile et republie à chaque modification.
+[build]
+  base = "mobile"
+  command = "npx expo export --platform web"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"

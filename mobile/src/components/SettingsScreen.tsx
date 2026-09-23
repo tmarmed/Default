@@ -27,23 +27,27 @@ export function SettingsScreen({ initial, onSaved, onCancel, onDisconnect }: Pro
   const [url, setUrl] = useState(initial?.url ?? '');
   const [key, setKey] = useState(initial?.key ?? '');
   const [busy, setBusy] = useState(false);
+  // Messages affichés dans la page : le navigateur n'affiche pas les boîtes de dialogue.
+  const [error, setError] = useState<string | null>(null);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   const connect = async () => {
     const settings = { url: url.trim(), key: key.trim() };
     if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(settings.url)) {
-      Alert.alert('URL invalide', "L'URL doit commencer par https://script.google.com/ et finir par /exec.");
+      setError("URL invalide : elle doit commencer par https://script.google.com/ et finir par /exec.");
       return;
     }
     if (!settings.key) {
-      Alert.alert('Clé manquante', "Saisissez la clé d'accès affichée par la fonction « installer ».");
+      setError("Clé manquante : saisissez la clé d'accès affichée par la fonction « installer ».");
       return;
     }
+    setError(null);
     setBusy(true);
     try {
       await ping(settings);
       onSaved(settings);
     } catch (e) {
-      Alert.alert('Connexion impossible', (e as Error).message);
+      setError(`Connexion impossible : ${(e as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -58,6 +62,8 @@ export function SettingsScreen({ initial, onSaved, onCancel, onDisconnect }: Pro
           puis Déployer › Nouveau déploiement › Application Web (accès : Tout le monde). Copiez ici l'URL
           obtenue et la clé d'accès affichée dans le journal.
         </Text>
+
+        {error && <Text style={styles.error}>{error}</Text>}
 
         <Text style={styles.label}>URL de l'application Web</Text>
         <TextInput
@@ -95,15 +101,22 @@ export function SettingsScreen({ initial, onSaved, onCancel, onDisconnect }: Pro
           )}
           {onDisconnect && (
             <Pressable
-              onPress={() =>
+              onPress={() => {
+                if (Platform.OS === 'web') {
+                  if (confirmDisconnect) onDisconnect();
+                  else setConfirmDisconnect(true);
+                  return;
+                }
                 Alert.alert('Se déconnecter ?', "Les réglages et la copie locale seront effacés de l'appareil.", [
                   { text: 'Annuler', style: 'cancel' },
                   { text: 'Déconnecter', style: 'destructive', onPress: onDisconnect },
-                ])
-              }
+                ]);
+              }}
               hitSlop={10}
             >
-              <Text style={[styles.link, { color: colors.danger }]}>Se déconnecter</Text>
+              <Text style={[styles.link, { color: colors.danger }]}>
+                {confirmDisconnect ? 'Cliquer encore pour confirmer' : 'Se déconnecter'}
+              </Text>
             </Pressable>
           )}
         </View>
@@ -117,6 +130,15 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingTop: 32 },
   title: { fontSize: 24, fontWeight: '700', color: colors.text },
   help: { marginTop: 12, fontSize: 14, lineHeight: 20, color: colors.muted },
+  error: {
+    marginTop: 18,
+    color: colors.danger,
+    backgroundColor: '#FCE8E6',
+    padding: 10,
+    borderRadius: 8,
+    fontSize: 14,
+    lineHeight: 20,
+  },
   label: { marginTop: 22, marginBottom: 8, fontSize: 13, fontWeight: '600', color: colors.muted },
   input: {
     borderWidth: 1,

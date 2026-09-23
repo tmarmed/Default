@@ -67,13 +67,26 @@ Expo Go fonctionne avec la clé d'accès ; la connexion Google demande une versi
 (voir le guide ci-dessus).
 Au premier lancement, collez l'**URL** et la **clé d'accès**, puis *Se connecter*.
 
-### Version web et démo
+### Version web (PC, Mac, tablette)
 
-```bash
-cd mobile
-npx expo start --web                                   # version web reliée au Google Sheet
-EXPO_PUBLIC_DEMO=1 npx expo export --platform web      # démo avec données d'exemple, sans Google Sheet
-```
+La même application fonctionne dans un navigateur (connexion par clé d'accès).
+
+**Hébergement gratuit sur Netlify, mis à jour automatiquement :**
+1. Créez un compte sur <https://app.netlify.com> (gratuit).
+2. **Add new site › Import an existing project › GitHub** et choisissez ce dépôt et la branche.
+   Le fichier [`netlify.toml`](netlify.toml) règle tout (compilation dans `mobile`, dossier `dist`).
+3. Netlify donne une adresse `https://….netlify.app`. Chaque modification poussée sur GitHub
+   est republiée toute seule.
+
+**Ou à la main (Netlify Drop) :** `cd mobile && npx expo export --platform web --clear`, puis
+glissez le dossier `mobile/dist` sur <https://app.netlify.com/drop>.
+
+Sur le PC, dans Edge : **⋯ › Applications › Installer ce site en tant qu'application** (icône dans le
+menu Démarrer). Dans Chrome : **⋯ › Caster, enregistrer et partager › Installer la page en tant
+qu'application**.
+
+Démo sans Google Sheet (données d'exemple) :
+`EXPO_PUBLIC_DEMO=1 npx expo export --platform web --clear`
 
 ## 3. Installer l'application pour de bon (App Store / Play Store ou installation directe)
 

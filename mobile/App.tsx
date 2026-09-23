@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   RefreshControl,
   SectionList,
@@ -60,9 +61,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <Main />
-      </SafeAreaView>
+      <View style={styles.page}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+          <Main />
+        </SafeAreaView>
+      </View>
     </SafeAreaProvider>
   );
 }
@@ -75,6 +78,7 @@ function Main() {
   const [refreshing, setRefreshing] = useState(false);
   const [offline, setOffline] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -174,7 +178,7 @@ function Main() {
         });
       } catch (e) {
         setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
-        Alert.alert('Modification non enregistrée', (e as Error).message);
+        setNotice(`Modification non enregistrée : ${(e as Error).message}`);
       }
     },
     [settings],
@@ -279,6 +283,11 @@ function Main() {
         <Segmented options={MODES} value={mode} onChange={setMode} />
         <Chips options={FILTERS} value={filter} onChange={setFilter} compact />
       </View>
+      {notice && (
+        <Pressable style={styles.notice} onPress={() => setNotice(null)} accessibilityLabel="Fermer le message">
+          <Text style={styles.noticeText}>{notice} ✕</Text>
+        </Pressable>
+      )}
       {offline && (
         <Pressable style={styles.offline} onPress={() => refresh(settings)}>
           <Text style={styles.offlineText}>{offline} Données affichées : dernière copie. Touchez pour réessayer.</Text>
@@ -383,7 +392,9 @@ function periodKeyOf(mode: Mode, d: Date): string {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  // Sur ordinateur (navigateur), l'application garde une largeur de téléphone, centrée.
+  page: { flex: 1, backgroundColor: Platform.OS === 'web' ? '#DDE3EC' : colors.bg, alignItems: 'center' },
+  container: { flex: 1, width: '100%', maxWidth: Platform.OS === 'web' ? 480 : undefined, backgroundColor: colors.bg },
   flex: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -407,6 +418,8 @@ const styles = StyleSheet.create({
   },
   demoText: { flex: 1, color: '#174EA6', fontSize: 12.5, lineHeight: 17 },
   demoReset: { color: colors.primary, fontSize: 13, fontWeight: '700' },
+  notice: { marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, backgroundColor: '#FCE8E6' },
+  noticeText: { color: colors.danger, fontSize: 13 },
   offline: { marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, backgroundColor: '#FEF7E0' },
   offlineText: { color: '#7A4F01', fontSize: 13 },
   list: { paddingBottom: 110 },
