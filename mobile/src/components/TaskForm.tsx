@@ -65,9 +65,15 @@ const STATUTS = (Object.keys(STATUT_LABELS) as Statut[]).map((s) => ({ value: s,
 export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onSave, onDelete }: Props) {
   const [form, setForm] = useState<ItemInput>(empty(defaultType, defaultDate));
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
-    if (visible) setForm(item ? { ...item } : empty(defaultType, defaultDate));
+    if (visible) {
+      setForm(item ? { ...item } : empty(defaultType, defaultDate));
+      setError(null);
+      setConfirmDelete(false);
+    }
     // Réinitialiser seulement à l'ouverture, pas si la date affichée change derrière.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, item]);
@@ -77,14 +83,27 @@ export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onS
 
   const save = async () => {
     if (!form.titre.trim()) {
-      Alert.alert('Titre manquant', 'Donnez un titre à cet élément.');
+      setError('Donnez un titre à cet élément.');
       return;
     }
+    setError(null);
     setBusy(true);
     try {
       await onSave({ ...form, titre: form.titre.trim() });
     } catch (e) {
-      Alert.alert("Échec de l'enregistrement", (e as Error).message);
+      setError(`Échec de l'enregistrement : ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doDelete = async () => {
+    if (!item) return;
+    setBusy(true);
+    try {
+      await onDelete(item);
+    } catch (e) {
+      setError(`Échec de la suppression : ${(e as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -92,21 +111,18 @@ export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onS
 
   const remove = () => {
     if (!item) return;
+    // Le navigateur n'affiche pas les boîtes de dialogue : confirmation par un 2e appui.
+    if (Platform.OS === 'web') {
+      if (confirmDelete) doDelete();
+      else setConfirmDelete(true);
+      return;
+    }
     Alert.alert('Supprimer ?', `« ${item.titre} » sera supprimé du Google Sheet.`, [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Supprimer',
         style: 'destructive',
-        onPress: async () => {
-          setBusy(true);
-          try {
-            await onDelete(item);
-          } catch (e) {
-            Alert.alert('Échec de la suppression', (e as Error).message);
-          } finally {
-            setBusy(false);
-          }
-        },
+        onPress: doDelete,
       },
     ]);
   };
@@ -129,6 +145,7 @@ export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onS
         </View>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            {error && <Text style={styles.error}>{error}</Text>}
             <TextInput
               style={[styles.input, styles.titleInput]}
               placeholder="Titre"
@@ -176,7 +193,9 @@ export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onS
 
             {item && (
               <Pressable style={styles.deleteBtn} onPress={remove} disabled={busy}>
-                <Text style={styles.deleteText}>Supprimer</Text>
+                <Text style={styles.deleteText}>
+                  {confirmDelete ? 'Toucher encore pour confirmer' : 'Supprimer'}
+                </Text>
               </Pressable>
             )}
           </ScrollView>
@@ -221,6 +240,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     backgroundColor: '#FCE8E6',
+  },
+  error: {
+    color: colors.danger,
+    backgroundColor: '#FCE8E6',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+    fontSize: 14,
   },
   deleteText: { color: colors.danger, fontSize: 16, fontWeight: '600' },
 });

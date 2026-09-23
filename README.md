@@ -59,6 +59,14 @@ npx expo start
 Scannez le QR code avec l'appareil photo (iPhone) ou avec Expo Go (Android).
 Au premier lancement, collez l'**URL** et la **clé d'accès**, puis *Se connecter*.
 
+### Version web et démo
+
+```bash
+cd mobile
+npx expo start --web                                   # version web reliée au Google Sheet
+EXPO_PUBLIC_DEMO=1 npx expo export --platform web      # démo avec données d'exemple, sans Google Sheet
+```
+
 ## 3. Installer l'application pour de bon (App Store / Play Store ou installation directe)
 
 Avec [EAS Build](https://docs.expo.dev/build/introduction/) (compilation dans le cloud, pas besoin de Mac pour Android) :

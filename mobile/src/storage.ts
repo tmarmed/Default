@@ -1,10 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DEMO } from './demo';
 import type { Item, Settings } from './types';
 
 const SETTINGS_KEY = 'mes-taches:settings';
 const CACHE_KEY = 'mes-taches:cache';
 
 export async function loadSettings(): Promise<Settings | null> {
+  if (DEMO) return { url: 'demo', key: 'demo' };
   const raw = await AsyncStorage.getItem(SETTINGS_KEY);
   if (!raw) return null;
   try {

@@ -1,3 +1,4 @@
+import { DEMO, demoApi } from './demo';
 import type { Item, ItemInput, Settings } from './types';
 
 type ApiResponse<T> = ({ ok: true } & T) | { ok: false; error: string };
@@ -43,10 +44,12 @@ function post<T>(settings: Settings, body: object): Promise<T> {
 }
 
 export async function ping(settings: Settings): Promise<void> {
+  if (DEMO) return;
   await request(settings, { method: 'GET', query: `?action=ping&key=${encodeURIComponent(settings.key)}` });
 }
 
 export async function listItems(settings: Settings): Promise<Item[]> {
+  if (DEMO) return demoApi.list();
   const data = await request<{ items: Item[] }>(settings, {
     method: 'GET',
     query: `?action=list&key=${encodeURIComponent(settings.key)}`,
@@ -55,13 +58,16 @@ export async function listItems(settings: Settings): Promise<Item[]> {
 }
 
 export async function createItem(settings: Settings, item: ItemInput): Promise<Item> {
+  if (DEMO) return demoApi.create(item);
   return (await post<{ item: Item }>(settings, { action: 'create', item })).item;
 }
 
 export async function updateItem(settings: Settings, item: Partial<Item> & { id: string }): Promise<Item> {
+  if (DEMO) return demoApi.update(item);
   return (await post<{ item: Item }>(settings, { action: 'update', item })).item;
 }
 
 export async function deleteItem(settings: Settings, id: string): Promise<void> {
+  if (DEMO) return demoApi.remove(id);
   await post(settings, { action: 'delete', id });
 }

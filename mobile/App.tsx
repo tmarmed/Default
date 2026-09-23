@@ -31,6 +31,7 @@ import {
   startOfWeek,
   toDateString,
 } from './src/dates';
+import { DEMO, demoApi } from './src/demo';
 import { clearSettings, loadCache, loadSettings, saveCache, saveSettings } from './src/storage';
 import { colors } from './src/theme';
 import { Item, ItemInput, ItemType, Settings, TYPE_LABELS } from './src/types';
@@ -211,10 +212,22 @@ function Main() {
     <View style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.title}>Mes tâches</Text>
-        <Pressable onPress={() => setShowSettings(true)} hitSlop={10} accessibilityLabel="Réglages">
-          <Text style={styles.gear}>⚙︎</Text>
-        </Pressable>
+        {!DEMO && (
+          <Pressable onPress={() => setShowSettings(true)} hitSlop={10} accessibilityLabel="Réglages">
+            <Text style={styles.gear}>⚙︎</Text>
+          </Pressable>
+        )}
       </View>
+      {DEMO && (
+        <View style={styles.demo}>
+          <Text style={styles.demoText}>
+            Démo : données d'exemple, gardées dans ce navigateur, sans lien avec Google Sheets.
+          </Text>
+          <Pressable onPress={async () => updateItems(await demoApi.reset())} hitSlop={8}>
+            <Text style={styles.demoReset}>Réinitialiser</Text>
+          </Pressable>
+        </View>
+      )}
       <View style={styles.filters}>
         <Segmented options={MODES} value={mode} onChange={setMode} />
         <Chips options={FILTERS} value={filter} onChange={setFilter} compact />
@@ -335,6 +348,18 @@ const styles = StyleSheet.create({
   title: { fontSize: 30, fontWeight: '700', color: colors.text },
   gear: { fontSize: 26, color: colors.muted },
   filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
+  demo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#E8F0FE',
+  },
+  demoText: { flex: 1, color: '#174EA6', fontSize: 12.5, lineHeight: 17 },
+  demoReset: { color: colors.primary, fontSize: 13, fontWeight: '700' },
   offline: { marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, backgroundColor: '#FEF7E0' },
   offlineText: { color: '#7A4F01', fontSize: 13 },
   list: { paddingBottom: 110 },
