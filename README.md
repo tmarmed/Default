@@ -83,7 +83,9 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
     toutes les sous-tâches faites (terminer la tâche) ; démarche : date de fin dépassée (terminer ; remplace
     l'alerte « en retard », et « toutes les sous-tâches faites » s'il y a lieu), date de fin dans 3 jours au plus (rappel), date prévue après la date de fin (ramener), sous-tâche prévue après la
     date de fin de sa démarche (ramener). Un report (« Reporter à demain », « Tout reporter », fin d'itération) ne
-    dépasse jamais une date de fin pas encore passée : « Reporter à aujourd'hui (date de fin) ».
+    dépasse jamais une date de fin pas encore passée : « Reporter à aujourd'hui (date de fin) ». Deuxième choix partout où la
+    date de fin bloque : la repousser (« Repousser la date de fin au … et reporter à demain », « Décaler au … en
+    repoussant la date de fin de … », « Repousser la date de fin… » pour une date de fin dépassée, qui ouvre la fiche).
   - **Itération** (l'itération affichée, nommée dans la carte) : surcharge ; points du parent ≠ sous-tâches ;
     retard sur le burndown ; fin d'itération avec des tâches non faites, hors rendez-vous (une tâche et ses sous-tâches comptent pour une ; reporter les non datées dans
     l'itération suivante, décaler les datées) ; tâches sans points (hors rendez-vous et appels, et hors

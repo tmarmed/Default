@@ -101,6 +101,28 @@ function limiteDe(t: Item, items: Item[]): string {
   const p = t.parent ? items.find((x) => x.id === t.parent) : undefined;
   return p && aDateFin(p.type) && p.date_fin ? p.date_fin : '';
 }
+/** Élément qui porte la date limite : la démarche elle-même, ou la démarche parente d'une sous-tâche. */
+function porteurLimite(t: Item, items: Item[]): Item | undefined {
+  if (aDateFin(t.type) && t.date_fin) return t;
+  const p = t.parent ? items.find((x) => x.id === t.parent) : undefined;
+  return p && aDateFin(p.type) && p.date_fin ? p : undefined;
+}
+/**
+ * Reporter des éléments à une date en repoussant, si besoin, la date de fin qui les bloque
+ * (patches fusionnés par élément : la démarche peut être à la fois reportée et repoussée).
+ */
+function reporterEtRepousser(ts: { t: Item; date: string }[], items: Item[]): (Partial<Item> & { id: string })[] {
+  const m = new Map<string, Partial<Item> & { id: string }>();
+  const ajoute = (id: string, patch: Partial<Item>) => m.set(id, { ...(m.get(id) ?? { id }), ...patch });
+  for (const { t, date } of ts) {
+    const porteur = porteurLimite(t, items);
+    if (porteur && porteur.date_fin < date) ajoute(porteur.id, { date_fin: date });
+    ajoute(t.id, { date });
+  }
+  return [...m.values()];
+}
+const titresPorteurs = (ts: Item[], items: Item[]) => [...new Set(ts.map((t) => porteurLimite(t, items)?.titre).filter(Boolean))];
+
 /** Nouvelle date d'un report, sans dépasser la date limite (sauf si elle est déjà passée). */
 function borne(t: Item, cible: string, items: Item[], today: string): string {
   const l = limiteDe(t, items);
@@ -190,6 +212,15 @@ export function checksTaches(
             action: { kind: 'task', id: t.id, patch: { date: report(t) } },
             principal: true,
           },
+          // Date de fin qui bloque : on peut aussi la repousser
+          ...(report(t) !== demain
+            ? [
+                {
+                  label: `Repousser la date de fin au ${court(demain)} et reporter à demain`,
+                  action: { kind: 'tasks', patches: reporterEtRepousser([{ t, date: demain }], items) } as Action,
+                },
+              ]
+            : []),
           { label: 'Choisir une date', action: { kind: 'open', target: 'task', id: t.id } },
         ],
       });
@@ -204,6 +235,14 @@ export function checksTaches(
         : `${sous.length} sous-tâche${sous.length > 1 ? 's' : ''} de ${nom} ${sous.length > 1 ? 'sont' : 'est'} en retard : ${sous.map((t) => `« ${t.titre} »`).join(', ')}.`,
       actions: [
         { label: libelleTout(groupe), action: { kind: 'tasks', patches: groupe.map((t) => ({ id: t.id, date: report(t) })) }, principal: true },
+        ...(groupe.some((t) => report(t) !== demain)
+          ? [
+              {
+                label: `Repousser la date de fin au ${court(demain)} et tout reporter à demain`,
+                action: { kind: 'tasks', patches: reporterEtRepousser(groupe.map((t) => ({ t, date: demain })), items) } as Action,
+              },
+            ]
+          : []),
         ...(parent ? [{ label: `Ouvrir « ${parent.titre} »`, action: { kind: 'open', target: 'task', id: parent.id } as Action }] : []),
       ],
     });
@@ -335,7 +374,11 @@ export function checksTaches(
         icone: '⏳',
         // (sous-tâches toutes faites : une seule alerte, pas en plus « toutes les sous-tâches sont faites »)
         message: `${maj(mot(t))} « ${t.titre} » a dépassé sa date de fin (${court(t.date_fin)})${toutFait(t) ? ' et toutes ses sous-tâches sont faites' : ''}.`,
-        actions: [{ label: `Terminer « ${t.titre} »`, action: { kind: 'task', id: t.id, patch: { statut: 'termine' } }, principal: true }, ouvrir],
+        actions: [
+          { label: `Terminer « ${t.titre} »`, action: { kind: 'task', id: t.id, patch: { statut: 'termine' } }, principal: true },
+          // Nouvelle date de fin à choisir dans la fiche (impossible de deviner le délai)
+          { label: 'Repousser la date de fin…', action: { kind: 'open', target: 'task', id: t.id } },
+        ],
       });
     else if (t.date_fin <= dans3)
       out.push({
@@ -351,7 +394,11 @@ export function checksTaches(
         key: `dapres:${t.id}`,
         icone: '⏳',
         message: `${maj(mot(t))} « ${t.titre} » est prévue le ${court(t.date)}, après sa date de fin (${court(t.date_fin)}).`,
-        actions: [{ label: `Ramener au ${court(t.date_fin)}`, action: { kind: 'task', id: t.id, patch: { date: t.date_fin } }, principal: true }, ouvrir],
+        actions: [
+          { label: `Ramener au ${court(t.date_fin)}`, action: { kind: 'task', id: t.id, patch: { date: t.date_fin } }, principal: true },
+          { label: `Repousser la date de fin au ${court(t.date)}`, action: { kind: 'task', id: t.id, patch: { date_fin: t.date } } },
+          ouvrir,
+        ],
       });
   }
 
@@ -365,6 +412,7 @@ export function checksTaches(
       message: `La sous-tâche « ${k.titre} » est prévue le ${court(k.date)}, après la date de fin de ${mot(p)} « ${p.titre} » (${court(p.date_fin)}).`,
       actions: [
         { label: `Ramener au ${court(p.date_fin)}`, action: { kind: 'task', id: k.id, patch: { date: p.date_fin } }, principal: true },
+        { label: `Repousser la date de fin de « ${p.titre} » au ${court(k.date)}`, action: { kind: 'task', id: p.id, patch: { date_fin: k.date } } },
         { label: 'Ouvrir', action: { kind: 'open', target: 'task', id: k.id } },
       ],
     });
@@ -457,6 +505,8 @@ export function checksIteration(
     // Une tâche et ses sous-tâches comptent pour une (comme partout ailleurs)
     const nbFamilles = new Set(nonFaites.map((t) => t.parent || t.id)).size;
     const nbSous = nonFaites.filter((t) => t.parent).length;
+    const bloquees = datees.filter((t) => borneAu(t) !== nouvelleDate);
+    const porteurs = titresPorteurs(bloquees, h.items);
     const lesTaches = (n: number, datee = false) => (n > 1 ? `les ${n} tâches${datee ? ' datées' : ''}` : `la tâche${datee ? ' datée' : ''}`);
     out.push({
       key: `fin:${itKey}`,
@@ -481,6 +531,15 @@ export function checksIteration(
                 action: { kind: 'tasks', patches: datees.map((t) => ({ id: t.id, date: borneAu(t) })) } as Action,
                 principal: !sansDate.length,
               },
+              // Des dates de fin bloquent : on peut aussi les repousser pour sortir ces tâches de l'itération
+              ...(bloquees.length
+                ? [
+                    {
+                      label: `Décaler au ${court(nouvelleDate)} en repoussant ${porteurs.length > 1 ? `${porteurs.length} dates de fin` : `la date de fin de « ${porteurs[0]} »`}`,
+                      action: { kind: 'tasks', patches: reporterEtRepousser(datees.map((t) => ({ t, date: nouvelleDate })), h.items) } as Action,
+                    },
+                  ]
+                : []),
             ]
           : []),
       ],
