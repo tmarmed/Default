@@ -71,7 +71,8 @@ export function AlertsCard({
       AsyncStorage.setItem(OUVERTES_KEY, JSON.stringify(ouvertes)).catch(() => {});
       return next;
     });
-  const [tout, setTout] = useState(false);
+  const [toutR, setToutR] = useState(false);
+  const [toutJ, setToutJ] = useState(false);
   const [voirIgnorees, setVoirIgnorees] = useState(false);
   const { ignorees: liste, ignorer, retablir } = useContext(IgnoreContext);
   const ignorees = [...checks, ...ignoreesEnPlus].filter((c) => estIgnoree(c, liste));
@@ -84,7 +85,8 @@ export function AlertsCard({
   const n = checks.filter((c) => !c.groupe && !estRappel(c)).length;
   const r = checks.filter(estRappel).length;
   const jaune = !n && r > 0;
-  const shown = tout ? checks : checks.slice(0, VISIBLES);
+  const rouges = checks.filter((c) => !estRappel(c));
+  const jaunes = checks.filter(estRappel);
   const entete = [
     n ? `⚠ ${n} alerte${n > 1 ? 's' : ''}` : '',
     r ? `${n ? '' : '🟡 '}${r} rappel${r > 1 ? 's' : ''}` : '',
@@ -102,39 +104,48 @@ export function AlertsCard({
       </Pressable>
       {open && (
         <>
-          {shown.map((c) => {
-            const j = estRappel(c);
+          {[rouges, jaunes].map((liste, k) => {
+            // Chaque couleur a ses 3 premières visibles et son « Voir les N autres »
+            const j = k === 1;
+            const tous = j ? toutJ : toutR;
+            const visibles = tous ? liste : liste.slice(0, VISIBLES);
             return (
-            <View key={c.key} style={[s.item, j && s.itemJaune]}>
-              <Text style={[s.msg, j && s.msgJaune]}>
-                {j ? '🟡 ' : ''}
-                {c.icone} {c.message}
-              </Text>
-              {c.actions.length > 0 && (
-                <View style={s.btns}>
-                  {c.actions.map((a) => (
-                    <Pressable
-                      key={a.label}
-                      style={[s.btn, a.principal ? (j ? s.btnMainJaune : s.btnMain) : j ? s.btnSecJaune : s.btnSec]}
-                      onPress={() => run(a.action)}
-                      accessibilityRole="button"
-                    >
-                      <Text style={[s.btnText, !a.principal && s.btnTextSec, j && (a.principal ? s.btnTextJaune : s.btnTextSecJaune)]}>{a.label}</Text>
+              <View key={j ? 'jaunes' : 'rouges'}>
+                {visibles.map((c) => (
+                  <View key={c.key} style={[s.item, j && s.itemJaune]}>
+                    <Text style={[s.msg, j && s.msgJaune]}>
+                      {j ? '🟡 ' : ''}
+                      {c.icone} {c.message}
+                    </Text>
+                    {c.actions.length > 0 && (
+                      <View style={s.btns}>
+                        {c.actions.map((a) => (
+                          <Pressable
+                            key={a.label}
+                            style={[s.btn, a.principal ? (j ? s.btnMainJaune : s.btnMain) : j ? s.btnSecJaune : s.btnSec]}
+                            onPress={() => run(a.action)}
+                            accessibilityRole="button"
+                          >
+                            <Text style={[s.btnText, !a.principal && s.btnTextSec, j && (a.principal ? s.btnTextJaune : s.btnTextSecJaune)]}>{a.label}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                    <Pressable onPress={() => ignorer(c)} hitSlop={6} style={s.ignorer} accessibilityRole="button" accessibilityLabel={`Ignorer : ${c.message}`}>
+                      <Text style={s.ignorerText}>Ignorer</Text>
                     </Pressable>
-                  ))}
-                </View>
-              )}
-              <Pressable onPress={() => ignorer(c)} hitSlop={6} style={s.ignorer} accessibilityRole="button" accessibilityLabel={`Ignorer : ${c.message}`}>
-                <Text style={s.ignorerText}>Ignorer</Text>
-              </Pressable>
-            </View>
+                  </View>
+                ))}
+                {liste.length > VISIBLES && (
+                  <Pressable onPress={() => (j ? setToutJ : setToutR)((v) => !v)} style={[s.more, j && s.itemJaune]} accessibilityRole="button">
+                    <Text style={[s.moreText, j && s.titleJaune]}>
+                      {tous ? 'Voir moins' : `Voir ${liste.length - VISIBLES > 1 ? `les ${liste.length - VISIBLES} autres` : "l'autre"} ${j ? 'rappel' : 'alerte'}${liste.length - VISIBLES > 1 ? 's' : ''}`}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
             );
           })}
-          {checks.length > VISIBLES && (
-            <Pressable onPress={() => setTout((v) => !v)} style={s.more} accessibilityRole="button">
-              <Text style={[s.moreText, jaune && s.titleJaune]}>{tout ? 'Voir moins' : `Voir les ${checks.length - VISIBLES} autres`}</Text>
-            </Pressable>
-          )}
           {ignorees.length > 0 && (
             <Pressable onPress={() => setVoirIgnorees((v) => !v)} style={s.more} accessibilityRole="button">
               <Text style={s.ignoreesText}>
