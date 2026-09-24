@@ -4,6 +4,8 @@ import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } fr
 import { Alerte, alertesEpic, alertesObjectif } from '../alerts';
 import { progressObjectif } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
+import { piLabel } from '../pi';
+import { useSafe } from '../safe';
 import { toDateString } from '../dates';
 import { barFor, formatEpicDates, positionOf, progress, roadmapWindow, shift, Window, Zoom } from '../roadmap';
 import { colors } from '../theme';
@@ -291,9 +293,12 @@ function EpicBar({
   onFix: (e: Epic, patch: Alerte['patch']) => void;
 }) {
   const hv = useHierarchy();
+  const safe = useSafe();
   const stats = progress(epic.id, items, hv.featureList);
+  const feats = safe.actif ? hv.featureList.filter((f) => f.epic === epic.id) : [];
   return (
     <BarRow
+      note={feats.length ? `🧩 ${feats.map((f) => f.titre + (f.pi ? ` (${piLabel(f.pi)})` : '')).join(' · ')}` : undefined}
       kind="epic"
       title={epic.titre}
       couleur={epic.couleur}
@@ -357,8 +362,11 @@ function BarRow({
   onPress,
   onFix,
   toggle,
+  note,
 }: {
   kind: 'objectif' | 'epic';
+  /** Ligne d'information sous les dates (ex. features de l'epic) */
+  note?: string;
   title: string;
   couleur: string;
   debut: string;
@@ -419,6 +427,11 @@ function BarRow({
         {late ? ' · en retard' : ''}
         {toggle && !toggle.open ? ` · ${toggle.count} epic${toggle.count > 1 ? 's' : ''} repliée${toggle.count > 1 ? 's' : ''}` : ''}
       </Text>
+      {!!note && (
+        <Text style={styles.note} numberOfLines={2}>
+          {note}
+        </Text>
+      )}
       {alertes.slice(0, 2).map((a) => (
         <View key={a.key} style={styles.alert}>
           <Text style={styles.alertText}>⚠ {a.message}</Text>
@@ -547,6 +560,7 @@ const styles = StyleSheet.create({
   arrow: { position: 'absolute', fontSize: 16, fontWeight: '700', top: -1 },
   arrowLeft: { left: 3 },
   arrowRight: { right: 3 },
+  note: { marginTop: 3, fontSize: 12, color: colors.text },
   rowDates: { marginTop: 5, fontSize: 12, color: colors.muted },
   none: { textAlign: 'center', color: colors.muted, paddingVertical: 24, fontSize: 14 },
   emptyBox: { marginHorizontal: 16, marginTop: 30, padding: 20, backgroundColor: colors.card, borderRadius: 14 },

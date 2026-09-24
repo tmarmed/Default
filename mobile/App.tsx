@@ -17,9 +17,12 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-
 import * as api from './src/api';
 import { Chips } from './src/components/Chips';
 import { EpicForm } from './src/components/EpicForm';
+import { FeatureForm } from './src/components/FeatureForm';
 import { IterationView } from './src/components/IterationView';
+import { ObjectifPIForm } from './src/components/ObjectifPIForm';
+import { PIView } from './src/components/PIView';
 import { Portfolio } from './src/components/Portfolio';
-import { iterationOf, iterationOfItem } from './src/pi';
+import { iterationOf, iterationOfItem, piOf } from './src/pi';
 import { Roadmap } from './src/components/Roadmap';
 import { LoginScreen } from './src/components/LoginScreen';
 import { SettingsScreen } from './src/components/SettingsScreen';
@@ -107,6 +110,7 @@ const SIMPLE_TABS = [
 const SAFE_TABS = [
   ['taches', '✓', 'Tâches'],
   ['iteration', '🏃', 'Itération'],
+  ['pi', '🗓️', 'PI'],
   ['roadmap', '▤', 'Roadmap'],
   ['portefeuille', '🧭', 'Portefeuille'],
 ] as const;
@@ -168,6 +172,11 @@ function Main() {
   /** Itération affichée dans l'écran Itération ; filtre « itération en cours » de la liste */
   const [itKey, setItKey] = useState(() => iterationOf(new Date()).key);
   const [itFilter, setItFilter] = useState(false);
+  const [piKey, setPiKey] = useState(() => piOf(new Date()));
+  const [editingFeature, setEditingFeature] = useState<Feature | null>(null);
+  const [featureFormOpen, setFeatureFormOpen] = useState(false);
+  const [editingOPI, setEditingOPI] = useState<ObjectifPI | null>(null);
+  const [opiFormOpen, setOpiFormOpen] = useState(false);
   const [editingObjectif, setEditingObjectif] = useState<Objectif | null>(null);
   const [objectifFormOpen, setObjectifFormOpen] = useState(false);
   const [editingDomaine, setEditingDomaine] = useState<Domaine | null>(null);
@@ -470,6 +479,8 @@ function Main() {
     setEpicFormOpen(false);
     setObjectifFormOpen(false);
     setDomaineFormOpen(false);
+    setFeatureFormOpen(false);
+    setOpiFormOpen(false);
     await refresh(settings);
     const n = counts.objectifs + counts.epics + counts.taches;
     setInfo(
@@ -656,6 +667,22 @@ function Main() {
         />
       )}
 
+      {tab === 'pi' && (
+        <PIView
+          piKey={piKey}
+          onChangePi={setPiKey}
+          onOpenFeature={(f) => {
+            setEditingFeature(f);
+            setFeatureFormOpen(true);
+          }}
+          onOpenObjectifPI={(o) => {
+            setEditingOPI(o);
+            setOpiFormOpen(true);
+          }}
+          refreshControl={refreshControl}
+        />
+      )}
+
       {tab === 'portefeuille' && (
         <Portfolio
           onOpenEpic={openEpic}
@@ -757,7 +784,7 @@ function Main() {
 
       <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 18 }]}
-        onPress={() => (tab === 'roadmap' || tab === 'portefeuille' ? setAddMenu(true) : openForm(null))}
+        onPress={() => (tab === 'roadmap' || tab === 'portefeuille' || tab === 'pi' ? setAddMenu(true) : openForm(null))}
         accessibilityRole="button"
         accessibilityLabel={tab === 'roadmap' ? 'Nouvelle epic' : 'Ajouter'}
       >
@@ -835,16 +862,51 @@ function Main() {
         }}
       />
 
+      <FeatureForm
+        visible={featureFormOpen}
+        feature={editingFeature}
+        defaultPi={piKey}
+        onClose={() => setFeatureFormOpen(false)}
+        onSave={async (input) => {
+          await saveEntity('feature', editingFeature, input);
+          setFeatureFormOpen(false);
+        }}
+        onDelete={(f, cascade) => deleteEntity('feature', f, cascade)}
+        onOpenTask={(t) => {
+          setFeatureFormOpen(false);
+          openForm(t);
+        }}
+      />
+
+      <ObjectifPIForm
+        visible={opiFormOpen}
+        objectif={editingOPI}
+        defaultPi={piKey}
+        onClose={() => setOpiFormOpen(false)}
+        onSave={async (input) => {
+          await saveEntity('objectifpi', editingOPI, input);
+          setOpiFormOpen(false);
+        }}
+        onDelete={(o, cascade) => deleteEntity('objectifpi', o, cascade)}
+      />
+
       <Modal visible={addMenu} transparent animationType="fade" onRequestClose={() => setAddMenu(false)}>
         <Pressable style={styles.menuBackdrop} onPress={() => setAddMenu(false)}>
           <View style={[styles.menu, { paddingBottom: 16 + insets.bottom }]}>
-            <Text style={styles.menuTitle}>Ajouter à la roadmap</Text>
-            {(
-              [
-                ['🗂️', 'Une epic', 'Un projet daté, avec ses tâches', () => openEpic(null)],
-                ['🎯', 'Un objectif', 'Un résultat à atteindre, avec échéance ou permanent', () => openObjectif(null)],
-                ['🏷️', 'Un domaine', 'Une grande catégorie : Pro, Perso…', () => openDomaine(null)],
-              ] as const
+            <Text style={styles.menuTitle}>{tab === 'pi' ? 'Ajouter au PI' : 'Ajouter'}</Text>
+            {(tab === 'pi'
+              ? ([
+                  ['🧩', 'Une feature', 'Une partie d’epic livrée dans ce PI', () => { setEditingFeature(null); setFeatureFormOpen(true); }],
+                  ['🤝', 'Un objectif du PI', 'Ce que je m’engage à livrer ce trimestre', () => { setEditingOPI(null); setOpiFormOpen(true); }],
+                ] as const)
+              : ([
+                  ['🗂️', 'Une epic', 'Un projet daté, avec ses tâches', () => openEpic(null)],
+                  ...(safe.actif
+                    ? ([['🧩', 'Une feature', 'Une partie d’epic (sous-epic), prévue dans un PI', () => { setEditingFeature(null); setFeatureFormOpen(true); }]] as const)
+                    : []),
+                  ['🎯', 'Un objectif', 'Un résultat à atteindre, avec échéance ou permanent', () => openObjectif(null)],
+                  ['🏷️', 'Un domaine', 'Une grande catégorie : Pro, Perso…', () => openDomaine(null)],
+                ] as const)
             ).map(([icon, title, sub, action]) => (
               <Pressable
                 key={title}

@@ -31,6 +31,17 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   cochée, tout ce qui est en dessous est supprimé ; décochée, les éléments sont conservés et remontent d'un
   niveau (tâches d'une epic → son objectif ou son domaine ; epics d'un objectif → son domaine).
 - **Alertes de dates** dans la roadmap et les fiches (voir règles ci-dessous).
+- **Mode SAFe** (sélecteur *Simple | SAFe* en haut, mémorisé sur l'appareil). Simple = Tâches + Roadmap ;
+  SAFe ajoute trois écrans, de l'exécution à la stratégie :
+  - **🏃 Itération** : Kanban À faire / En cours / Fait, charge face à la capacité, burndown ;
+  - **🗓️ PI** : objectifs du PI (engagés / bonus, valeur prévue → obtenue, prévisibilité), tableau des
+    features par itération, charge par itération ;
+  - **🧭 Portefeuille** : Kanban des epics (Idée → Analyse → Prêt → En cours → Terminé), objectifs,
+    répartition par domaine, alertes.
+  Pile : Domaine → Objectif → Epic → **Feature** (facultative) → Tâche. Un **PI** = un trimestre civil,
+  6 **itérations** de 14 jours à partir du 1er jour + semaine **IP** (innovation & planification).
+  Une tâche est dans l'itération de sa date, sinon dans celle choisie à la main. **Points** facultatifs
+  (« 1 point = 1 jour » en option), **capacité** de 10 par itération par défaut (réglable).
 
 ### Règles de gestion des dates (epics et objectifs)
 
@@ -58,8 +69,10 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    à importer est aussi disponible : [`modele/Taches.xlsx`](modele/Taches.xlsx).
    Le **journal d'exécution** affiche la **clé d'accès** : copiez-la.
    L'onglet `Taches` est créé avec les colonnes :
-   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine`
-   et les onglets `Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine`),
+   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature`
+   et les onglets `Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine | etat`),
+   `Features` (`id | titre | description | epic | pi | iteration | points | couleur | cree_le | modifie_le`),
+   `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le`),
    `Objectifs` (`id | titre | description | domaine | debut | fin | couleur | cible | actuel | unite | cree_le | modifie_le`)
    et `Domaines` (`id | nom | icone | couleur | cree_le | modifie_le`).
 4. **Déployer › Nouveau déploiement** → type **Application Web** :
@@ -85,7 +98,10 @@ Valeurs acceptées dans la feuille si vous saisissez à la main :
 `echeance` = semaine `1` (lundi) à `7`, mois `1` à `31`, trimestre `m` ou `m-j`, année `MM` ou `MM-JJ`
 (vide = « dans la période ») · `debut` / `fin` = `AAAA-MM-JJ` · `faits` = périodes cochées,
 ex. `2026-08;2026-09` (mois), `2026-T3` (trimestre), `2026` (année), `2026-09-21` (semaine du lundi 21) ·
-`epic` / `objectif` / `domaine` = `id` du rattachement (un seul, le plus précis). Epics : `couleur` = `#RRGGBB`, `fin` vide = epic sans fin.
+`feature` / `epic` / `objectif` / `domaine` = `id` du rattachement (un seul, le plus précis) ·
+`points` = nombre · `iteration` = `2026-T4-IT3` ou `2026-T4-IP`. Epics : `etat` = `idee` / `analyse` / `pret` /
+`en_cours` / `termine` (vide = déduit des dates). Features : `pi` = `2026-T4`. ObjectifsPI : `type` = `engage` /
+`bonus`, valeurs de 0 à 10. Epics : `couleur` = `#RRGGBB`, `fin` vide = epic sans fin.
 Chaque ligne doit avoir un `id` unique : le plus simple est de créer les lignes depuis l'application.
 
 ## Connexion avec Google (optionnel)
