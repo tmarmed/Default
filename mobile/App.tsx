@@ -79,7 +79,9 @@ import {
   Domaine,
   EntityKind,
   Epic,
+  dateRepere,
   Feature,
+  sansEnCours,
   Ignoree,
   Item,
   ItemInput,
@@ -354,7 +356,7 @@ function Main() {
             const shown = matches(i) ? kids : kids.filter((k) => matches(k));
             if (!matches(i) && !shown.length) return [];
             // Rangé à la date la plus proche : la sienne ou celle d'une sous-tâche pas encore faite
-            const dates = [i.statut !== 'termine' ? i.date : '', ...kids.filter((k) => k.statut !== 'termine').map((k) => k.date)].filter(Boolean);
+            const dates = [i.statut !== 'termine' ? dateRepere(i) : '', ...kids.filter((k) => k.statut !== 'termine').map((k) => k.date)].filter(Boolean);
             const date = dates.length ? dates.sort()[0] : i.date;
             return [
               {
@@ -516,7 +518,9 @@ function Main() {
       // Élément enregistré (la ligne affichée peut porter une autre date : parent de sous-tâches)
       const orig = items.find((i) => i.id === item.id) ?? item;
       // Statut d'avant : enregistré dans le Google Sheet (v14), sinon le souvenir de l'appareil (ancien script)
-      const avant = (orig.statut_avant as Statut) || statutAvant.current[orig.id] || 'a_faire';
+      const memo = (orig.statut_avant as Statut) || statutAvant.current[orig.id] || 'a_faire';
+      // (un rendez-vous ou un appel n'a pas d'« En cours »)
+      const avant = sansEnCours(orig.type) ? 'a_faire' : memo;
       const statut = orig.statut === 'termine' && voulu === 'a_faire' ? avant : voulu;
       if (statut === 'termine') {
         const kids = items.filter((k) => k.parent === orig.id && k.statut !== 'termine');

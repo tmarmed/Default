@@ -7,7 +7,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { formatDate, isOverdue, toDateString } from '../dates';
 import { callNumber } from '../phone';
 import { colors, prioriteColors, typeColors } from '../theme';
-import { Item, STATUT_LABELS, TYPE_ICONS, TYPE_LABELS } from '../types';
+import { finDepassee, Item, STATUT_LABELS, TYPE_ICONS, TYPE_LABELS } from '../types';
 
 interface Props {
   item: Item;
@@ -103,7 +103,7 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle, expand
               🔁 En retard : {item.retards.join(', ')}
             </Text>
           ) : (
-            late && <Text style={styles.late}>En retard</Text>
+            late && <Text style={styles.late}>{finDepassee(item, toDateString(new Date())) ? 'Date de fin dépassée' : 'En retard'}</Text>
           )}
         </View>
         {expanded && (

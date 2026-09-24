@@ -12,7 +12,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 - **8 types**, les mêmes en mode Simple et SAFe : ✓ Tâche, 📅 Rendez-vous et 🚩 Mission avec **heure de fin** (proposée 1 h
   après le début, et durée affichée), 📞 Appel (numéro + bouton
   **Appeler** dans la fiche et dans la liste), 🗂️ Démarche administrative (avec **date de fin** facultative =
-  date limite, affichée « ⏳ fin … » dans la liste, rouge si dépassée ; script v12), 🚩 Mission, 📖 User story,
+  date limite, affichée « ⏳ fin … » dans la liste, rouge si dépassée ; script v12 ; sans date, c'est sa date de fin
+  qui la range dans la liste, le calendrier et l'itération, avec l'étiquette « Date de fin dépassée » une fois passée), 🚩 Mission, 📖 User story,
   🔍 Exploration, 🐞 Bug. Filtre de la liste : « Tous » ou un type (liste déroulante, avec 🔁 Répétés).
 - **Statut unique** (`statut` dans le Google Sheet), le même dans les deux modes : cocher = « Terminé » =
   colonne « Terminé » du Kanban. Décocher remet le statut d'avant (« En cours » s'il l'était ; gardé par le
@@ -20,7 +21,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   « Terminer aussi les sous-tâches ? » (tout terminer / seulement le parent) ; même question dans la fiche
   quand on choisit « Terminé ». Un parent suit ses sous-tâches : une sous-tâche commencée ou finie fait passer
   un parent « À faire » en « En cours », une sous-tâche rouverte, ajoutée ou rattachée fait repasser un parent
-  « Terminé » en « En cours ». Les boutons « Terminer » / « Marquer fait » des alertes suivent les mêmes règles. Rendez-vous et appels n'ont pas d'« En cours » (À faire ⇄ Terminé). Le jour de fin réel est
+  « Terminé » en « En cours ». Les boutons « Terminer » / « Marquer fait » des alertes suivent les mêmes règles. Rendez-vous et appels n'ont pas d'« En cours » (À faire ⇄ Terminé ; passer une tâche « En cours » en
+  rendez-vous ou appel la remet « À faire »). Le jour de fin réel est
   noté par le script (colonne `termine_le`, v13) et sert au burndown et à « domaine délaissé ».
 - **Sous-tâches** (un seul niveau) pour les Story, Démarche, Mission et Exploration : chaque sous-tâche a son
   type, sa date, ses points, son statut et son itération, et le même rangement que son parent. Dans la

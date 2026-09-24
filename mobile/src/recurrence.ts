@@ -1,5 +1,5 @@
 import { addDays, addMonths, startOfWeek, toDateString } from './dates';
-import type { Item, Periodicite } from './types';
+import { dateRepere, type Item, type Periodicite } from './types';
 
 /** Une échéance d'un élément répété, dans une période donnée. */
 export interface Occurrence {
@@ -259,10 +259,12 @@ export function expandRange(
   const fenetres: { entry: Item; start: string; end: string }[] = [];
   for (const item of items) {
     if (!item.periodicite) {
-      if (!item.date) continue;
-      const list = byDate.get(item.date);
+      // (date, sinon date de fin d'une démarche)
+      const d = dateRepere(item);
+      if (!d) continue;
+      const list = byDate.get(d);
       if (list) list.push(item);
-      else byDate.set(item.date, [item]);
+      else byDate.set(d, [item]);
       continue;
     }
     const done = doneKeys(item);

@@ -1,4 +1,4 @@
-import type { Item } from './types';
+import { dateRepere, finDepassee, type Item } from './types';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -25,7 +25,7 @@ export function formatDate(date: string): string {
 }
 
 export function isOverdue(item: Item, today = toDateString(new Date())): boolean {
-  return item.statut !== 'termine' && !!item.date && item.date < today;
+  return (item.statut !== 'termine' && !!item.date && item.date < today) || finDepassee(item, today);
 }
 
 export interface Section {
@@ -37,7 +37,7 @@ const PRIO_ORDER = { haute: 0, normale: 1, basse: 2 } as const;
 
 export function compareItems(a: Item, b: Item): number {
   return (
-    (a.date || '9999').localeCompare(b.date || '9999') ||
+    (dateRepere(a) || '9999').localeCompare(dateRepere(b) || '9999') ||
     (a.heure || '99').localeCompare(b.heure || '99') ||
     PRIO_ORDER[a.priorite] - PRIO_ORDER[b.priorite] ||
     a.titre.localeCompare(b.titre)
@@ -66,9 +66,10 @@ export function groupItems(items: Item[], now = new Date()): Section[] {
       fenetreTitles.set(key, title);
       add(key, item);
     } else if (item.statut === 'termine') add('~z_done', item);
-    else if (!item.date) add('~a_none', item);
-    else if (item.date < today) add('!late', item);
-    else add(item.date, item);
+    // (date, sinon date de fin d'une démarche)
+    else if (!dateRepere(item)) add('~a_none', item);
+    else if (dateRepere(item) < today) add('!late', item);
+    else add(dateRepere(item), item);
   }
 
   const keys = [...groups.keys()].sort();
@@ -127,10 +128,11 @@ export function formatWeek(d: Date): string {
 export function itemsByDate(items: Item[]): Map<string, Item[]> {
   const map = new Map<string, Item[]>();
   for (const item of [...items].sort(compareItems)) {
-    if (!item.date) continue;
-    const list = map.get(item.date);
+    const d = dateRepere(item);
+    if (!d) continue;
+    const list = map.get(d);
     if (list) list.push(item);
-    else map.set(item.date, [item]);
+    else map.set(d, [item]);
   }
   return map;
 }

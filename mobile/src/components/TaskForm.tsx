@@ -342,7 +342,14 @@ export function TaskForm({
             )}
 
             <Text style={styles.label}>Type</Text>
-            <Chips options={TYPES} value={form.type} onChange={(v) => set('type', v)} compact wrap />
+            <Chips
+              options={TYPES}
+              value={form.type}
+              // Rendez-vous, appel : pas d'« En cours » (il redevient « À faire »)
+              onChange={(v) => setForm((f) => ({ ...f, type: v, statut: sansEnCours(v) && f.statut === 'en_cours' ? 'a_faire' : f.statut }))}
+              compact
+              wrap
+            />
 
             {form.type === 'appel' && (
               <>

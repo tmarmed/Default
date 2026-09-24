@@ -1,5 +1,5 @@
 import { addDays, toDateString } from './dates';
-import type { Item } from './types';
+import { aDateFin, type Item } from './types';
 
 /**
  * Calendrier SAFe : un PI = un trimestre civil, découpé en 6 itérations de 14 jours
@@ -91,6 +91,8 @@ export function shiftIteration(key: string, n: number): string {
 export function iterationOfItem(t: Item): string {
   if (t.periodicite) return '';
   if (t.date) return iterationOf(t.date).key;
+  // Démarche sans date ni itération choisie : l'itération de sa date de fin
+  if (!t.iteration && aDateFin(t.type) && t.date_fin) return iterationOf(t.date_fin).key;
   return t.iteration || '';
 }
 

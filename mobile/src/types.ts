@@ -8,6 +8,15 @@ export const aHeureFin = (type: ItemType) => AVEC_FIN.includes(type);
 export const sansEnCours = (type: ItemType) => type === 'rendez-vous' || type === 'appel';
 /** Types qui ont une date de fin (date limite) */
 export const aDateFin = (type: ItemType) => type === 'demarche';
+/**
+ * Date qui sert de repère (liste, calendrier, itération) : la date, sinon la date de fin d'une démarche
+ * (une démarche sans date mais avec une échéance n'est pas « sans date »).
+ */
+export const dateRepere = (t: Pick<Item, 'date' | 'date_fin' | 'type' | 'periodicite'>) =>
+  t.date || (aDateFin(t.type) && !t.periodicite ? (t.date_fin ?? '') : '');
+/** Démarche dont la date de fin est passée sans être terminée */
+export const finDepassee = (t: Pick<Item, 'date_fin' | 'type' | 'statut'>, today: string) =>
+  aDateFin(t.type) && !!t.date_fin && t.date_fin < today && t.statut !== 'termine';
 
 export const TYPES_V7: ItemType[] = ['appel', 'demarche', 'story', 'exploration', 'bug'];
 export type Priorite = 'basse' | 'normale' | 'haute';
