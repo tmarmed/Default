@@ -108,7 +108,7 @@ export function EpicForm({
   const kids = epic ? childrenOf('epic', epic.id, h.data) : null;
   const stats = epic ? progress(epic.id, items, h.featureList) : null;
   // Alertes calculées sur les dates en cours de saisie : le bouton ajuste les champs, puis on enregistre.
-  const alertes = epic && form.debut ? alertesEpic({ id: epic.id, debut: form.debut, fin: form.fin }, items, h.featureList) : [];
+  const alertes = epic && form.debut ? alertesEpic({ id: epic.id, titre: form.titre || epic.titre, debut: form.debut, fin: form.fin }, items, h.featureList) : [];
 
   const save = async () => {
     if (!form.titre.trim()) return setError("Donnez un titre à l'epic.");
@@ -370,9 +370,10 @@ const styles = StyleSheet.create({
   notes: { minHeight: 90 },
   alert: { marginBottom: 10, padding: 10, borderRadius: 10, backgroundColor: '#FCE8E6', gap: 8 },
   alertText: { color: '#A50E0E', fontSize: 13.5, lineHeight: 19 },
-  alertBtn: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, backgroundColor: colors.danger },
+  alertBtn: { maxWidth: '100%', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, backgroundColor: colors.danger },
   alertBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  alertBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  // Boutons l'un sous l'autre : leur texte (avec les noms) peut passer à la ligne
+  alertBtns: { gap: 8, alignItems: 'flex-start' },
   alertBtn2: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.danger },
   alertBtnText2: { color: colors.danger },
   hint: { marginTop: 6, fontSize: 12, lineHeight: 17, color: colors.muted },

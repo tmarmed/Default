@@ -192,9 +192,10 @@ const styles = StyleSheet.create({
   swatchOn: { borderWidth: 3, borderColor: colors.text },
   alert: { marginBottom: 10, padding: 10, borderRadius: 10, backgroundColor: '#FCE8E6', gap: 8 },
   alertText: { color: '#A50E0E', fontSize: 13.5, lineHeight: 19 },
-  alertBtn: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, backgroundColor: colors.danger },
+  alertBtn: { maxWidth: '100%', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, backgroundColor: colors.danger },
   alertBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  alertBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  // Boutons l'un sous l'autre : leur texte (avec les noms) peut passer à la ligne
+  alertBtns: { gap: 8, alignItems: 'flex-start' },
   alertBtn2: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.danger },
   alertBtnText2: { color: colors.danger },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 18 },

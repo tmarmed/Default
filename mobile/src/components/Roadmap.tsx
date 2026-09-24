@@ -535,6 +535,7 @@ const styles = StyleSheet.create({
   alert: { marginTop: 6, padding: 8, borderRadius: 8, backgroundColor: '#FCE8E6', gap: 6 },
   alertText: { color: '#A50E0E', fontSize: 12.5, lineHeight: 17 },
   alertBtn: {
+    maxWidth: '100%',
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -542,7 +543,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
   },
   alertBtnText: { color: '#fff', fontSize: 12.5, fontWeight: '700' },
-  alertBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  // Boutons l'un sous l'autre : leur texte (avec les noms) peut passer à la ligne
+  alertBtns: { gap: 6, alignItems: 'flex-start' },
   alertBtn2: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.danger },
   alertBtnText2: { color: colors.danger },
   alertMore: { marginTop: 4, fontSize: 12, color: colors.danger },

@@ -236,19 +236,23 @@ export function draftAlerts(draft: WNode[]): string[] {
     const b = period(p);
     if (!b) continue;
     const titre = n.titre.trim() || LEVEL_LABEL[n.level];
+    // On nomme toujours le type de l'élément et du parent : « La tâche « X » … l'epic « Y » »
+    const MOTS: Record<Level, string> = { domaine: 'le domaine', objectif: "l'objectif", epic: "l'epic", feature: 'la feature', tache: 'la tâche' };
+    const E = `${MOTS[n.level].charAt(0).toUpperCase()}${MOTS[n.level].slice(1)} « ${titre} »`;
+    const P = `${MOTS[p.level]} « ${p.titre} »`;
     if (n.level === 'feature') {
       // Une feature doit seulement chevaucher son epic
       if (!n.f.pi) continue;
       const [ps, pe] = [toDateString(piStart(n.f.pi)), toDateString(piEnd(n.f.pi))];
-      if (b[0] && pe < b[0]) out.push(`« ${titre} » est prévue dans un PI qui finit avant le début de « ${p.titre} » (${fmtDate(b[0])}).`);
-      if (b[1] && ps > b[1]) out.push(`« ${titre} » est prévue dans un PI qui commence après la fin de « ${p.titre} » (${fmtDate(b[1])}).`);
+      if (b[0] && pe < b[0]) out.push(`${E} est prévue dans un PI qui finit avant le début de ${P} (${fmtDate(b[0])}).`);
+      if (b[1] && ps > b[1]) out.push(`${E} est prévue dans un PI qui commence après la fin de ${P} (${fmtDate(b[1])}).`);
       continue;
     }
     const a = period(n);
     if (!a) continue;
-    if (b[0] && a[0] && a[0] < b[0]) out.push(`« ${titre} » commence avant « ${p.titre} » (début ${fmtDate(b[0])}).`);
+    if (b[0] && a[0] && a[0] < b[0]) out.push(`${E} commence avant le début de ${P} (${fmtDate(b[0])}).`);
     if (b[1] && (!a[1] || a[1] > b[1]))
-      out.push(`« ${titre} » ${a[1] ? 'finit' : 'n’a pas de fin et continue'} après « ${p.titre} » (fin ${fmtDate(b[1])}).`);
+      out.push(`${E} ${a[1] ? 'finit' : 'n’a pas de fin et continue'} après ${p.level === 'objectif' ? 'l’échéance' : 'la fin'} de ${P} (${fmtDate(b[1])}).`);
   }
   return out;
 }
