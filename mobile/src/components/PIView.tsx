@@ -9,7 +9,6 @@ import { colors } from '../theme';
 import type { Feature, Item, ObjectifPI } from '../types';
 import { DomainChips, inDomain, useDomainFilter } from './DomainFilter';
 import { PeriodHeader } from './PeriodHeader';
-import { Swipe } from './Swipe';
 
 interface Props {
   piKey: string;
@@ -100,224 +99,223 @@ export function PIView({
         onNext={() => step(1)}
         onToday={piKey === current ? undefined : () => onChangePi(current)}
       />
-      <Swipe pageKey={piKey} onPrev={() => step(-1)} onNext={() => step(1)}>
-        <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
-          <Text style={styles.dates}>
-            {court(piStart(piKey))} → {court(piEnd(piKey))} · 6 itérations + semaine IP
-          </Text>
-          <DomainChips style={styles.chips} />
+      {/* Pas de glissement entre PI : le tableau défile librement, on change de PI avec les flèches */}
+      <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
+        <Text style={styles.dates}>
+          {court(piStart(piKey))} → {court(piEnd(piKey))} · 6 itérations + semaine IP
+        </Text>
+        <DomainChips style={styles.chips} />
 
-          <View style={styles.card}>
-            <View style={styles.cardHead}>
-              <Text style={styles.cardTitle}>Objectifs du PI</Text>
-              {previsibilite !== null && (
-                <Text style={[styles.badge, { color: previsibilite >= 80 ? colors.success : colors.warning }]}>
-                  Prévisibilité{filtered ? ` ${domName}` : ''} {previsibilite} %
-                </Text>
-              )}
-            </View>
-            {objs.length === 0 && <Text style={styles.muted}>Ce que je m'engage à livrer ce trimestre.</Text>}
-            {objs.map((o) => (
-              <Pressable key={o.id} style={styles.objRow} onPress={() => onOpenObjectifPI(o)} accessibilityRole="button">
-                <Text style={[styles.type, o.type === 'engage' ? styles.engage : styles.bonus]}>{o.type === 'engage' ? 'Engagé' : 'Bonus'}</Text>
-                <Text style={styles.objTitle} numberOfLines={2}>
-                  {!filtered && o.domaine && h.domaines.get(o.domaine) ? `${h.domaines.get(o.domaine)!.icone} ` : ''}
-                  {o.titre}
-                </Text>
-                <Text style={styles.value}>
-                  {o.valeur_prevue || '—'}
-                  {o.valeur_obtenue ? ` → ${o.valeur_obtenue}` : ''}
-                </Text>
-              </Pressable>
-            ))}
-            <Pressable onPress={() => onOpenObjectifPI(null)} hitSlop={6}>
-              <Text style={styles.add}>+ Objectif du PI</Text>
+        <View style={styles.card}>
+          <View style={styles.cardHead}>
+            <Text style={styles.cardTitle}>Objectifs du PI</Text>
+            {previsibilite !== null && (
+              <Text style={[styles.badge, { color: previsibilite >= 80 ? colors.success : colors.warning }]}>
+                Prévisibilité{filtered ? ` ${domName}` : ''} {previsibilite} %
+              </Text>
+            )}
+          </View>
+          {objs.length === 0 && <Text style={styles.muted}>Ce que je m'engage à livrer ce trimestre.</Text>}
+          {objs.map((o) => (
+            <Pressable key={o.id} style={styles.objRow} onPress={() => onOpenObjectifPI(o)} accessibilityRole="button">
+              <Text style={[styles.type, o.type === 'engage' ? styles.engage : styles.bonus]}>{o.type === 'engage' ? 'Engagé' : 'Bonus'}</Text>
+              <Text style={styles.objTitle} numberOfLines={2}>
+                {!filtered && o.domaine && h.domaines.get(o.domaine) ? `${h.domaines.get(o.domaine)!.icone} ` : ''}
+                {o.titre}
+              </Text>
+              <Text style={styles.value}>
+                {o.valeur_prevue || '—'}
+                {o.valeur_obtenue ? ` → ${o.valeur_obtenue}` : ''}
+              </Text>
             </Pressable>
-          </View>
+          ))}
+          <Pressable onPress={() => onOpenObjectifPI(null)} hitSlop={6}>
+            <Text style={styles.add}>+ Objectif du PI</Text>
+          </Pressable>
+        </View>
 
-          <View style={styles.cardHead2}>
-            <Text style={styles.section}>Tableau du PI</Text>
-            <Text style={styles.muted}>
-              Features {fmt(featurePts)} · capacité {fmt(capaPi)}
-              {featurePts > capaPi ? ' ⚠' : ''}
-            </Text>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.boardPad}>
-            <View style={styles.board}>
-              <View style={styles.row}>
-                <Pressable style={[styles.nameCell, styles.headCell, styles.corner]} onPress={onOpenAdd} accessibilityRole="button" accessibilityLabel="Ajouter au PI">
-                  <Text style={styles.cornerPlus}>＋</Text>
-                  <Text style={styles.cornerText}>Ajouter</Text>
-                </Pressable>
-                {its.map((it) => (
-                  <Pressable
-                    key={it.key}
-                    style={[styles.cell, styles.headCell, it.key === currentIt && styles.nowCol]}
-                    onPress={() => onOpenIteration(it.key)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Ouvrir l'itération ${it.code}`}
-                  >
-                    <Text style={[styles.itCode, it.code === 'IP' && { color: colors.warning }]}>{it.code} ›</Text>
-                    <Text style={styles.itDates}>{it.label.split(' · ')[1].split(' → ')[0]}</Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              {groups.map((g) => (
-                <View key={g.epic?.id ?? 'none'}>
-                  <View style={[styles.row, styles.groupRow]}>
-                    <View style={[styles.nameCell, styles.groupName]}>
-                      <View style={[styles.dot, { backgroundColor: g.epic?.couleur ?? colors.muted }]} />
-                      <Text style={styles.epicName} numberOfLines={2}>
-                        {g.epic ? g.epic.titre : 'Sans epic'}
-                      </Text>
-                    </View>
-                    {its.map((it) => (
-                      <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]} />
-                    ))}
-                  </View>
-                  {g.features.map((f) => {
-                    const color = g.epic?.couleur ?? colors.primary;
-                    const tasks = h.items.filter((t) => t.feature === f.id);
-                    return (
-                      <View key={f.id} style={styles.row}>
-                        <Pressable style={styles.nameCell} onPress={() => onOpenFeature(f)} accessibilityRole="button">
-                          <Text style={styles.fName} numberOfLines={2}>
-                            {f.titre}
-                          </Text>
-                          <Text style={styles.fMeta}>
-                            {pointsOf(f) ? fmt(pointsOf(f)) : ''}
-                            {!f.iteration ? (pointsOf(f) ? ' · ' : '') + 'non planifiée' : ''}
-                          </Text>
-                        </Pressable>
-                        {its.map((it) => {
-                          const planned = f.iteration === it.key;
-                          const inIt = tasks.filter((t) => iterationOfItem(t) === it.key);
-                          const done = inIt.filter((t) => t.statut === 'termine').length;
-                          return (
-                            <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]}>
-                              {planned && (
-                                <Pressable style={[styles.block, { backgroundColor: color }]} onPress={() => onOpenFeature(f)}>
-                                  <Text style={styles.blockText} numberOfLines={1}>
-                                    {pointsOf(f) ? fmt(pointsOf(f)) : 'prévue'}
-                                  </Text>
-                                </Pressable>
-                              )}
-                              {inIt.length > 0 && (
-                                <Text style={[styles.tasks, { color }]}>
-                                  {done}/{inIt.length} tâche{inIt.length > 1 ? 's' : ''}
-                                </Text>
-                              )}
-                            </View>
-                          );
-                        })}
-                      </View>
-                    );
-                  })}
-                </View>
-              ))}
-              {features.length === 0 && (
-                <Text style={[styles.muted, styles.emptyBoard]}>Aucune feature prévue dans ce PI.</Text>
-              )}
-              <View style={[styles.row, styles.groupRow]}>
+        <View style={styles.cardHead2}>
+          <Text style={styles.section}>Tableau du PI</Text>
+          <Text style={styles.muted}>
+            Features {fmt(featurePts)} · capacité {fmt(capaPi)}
+            {featurePts > capaPi ? ' ⚠' : ''}
+          </Text>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.boardPad}>
+          <View style={styles.board}>
+            <View style={styles.row}>
+              <Pressable style={[styles.nameCell, styles.headCell, styles.corner]} onPress={onOpenAdd} accessibilityRole="button" accessibilityLabel="Ajouter au PI">
+                <Text style={styles.cornerPlus}>＋</Text>
+                <Text style={styles.cornerText}>Ajouter</Text>
+              </Pressable>
+              {its.map((it) => (
                 <Pressable
-                  style={[styles.nameCell, styles.groupName]}
-                  onPress={() => setHorsOpen((v) => !v)}
+                  key={it.key}
+                  style={[styles.cell, styles.headCell, it.key === currentIt && styles.nowCol]}
+                  onPress={() => onOpenIteration(it.key)}
                   accessibilityRole="button"
-                  accessibilityLabel="Replier les tâches hors feature"
+                  accessibilityLabel={`Ouvrir l'itération ${it.code}`}
                 >
-                  <View style={styles.flex}>
-                    <Text style={styles.epicName}>{horsOpen ? '▾' : '▸'} Tâches hors feature</Text>
-                    <Text style={styles.fMeta}>
-                      {allHors.length ? `${allHors.filter((t) => t.statut === 'termine').length}/${allHors.length} faites` : 'aucune'}
+                  <Text style={[styles.itCode, it.code === 'IP' && { color: colors.warning }]}>{it.code} ›</Text>
+                  <Text style={styles.itDates}>{it.label.split(' · ')[1].split(' → ')[0]}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {groups.map((g) => (
+              <View key={g.epic?.id ?? 'none'}>
+                <View style={[styles.row, styles.groupRow]}>
+                  <View style={[styles.nameCell, styles.groupName]}>
+                    <View style={[styles.dot, { backgroundColor: g.epic?.couleur ?? colors.muted }]} />
+                    <Text style={styles.epicName} numberOfLines={2}>
+                      {g.epic ? g.epic.titre : 'Sans epic'}
                     </Text>
                   </View>
-                </Pressable>
-                {its.map((it) => (
-                  <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]} />
-                ))}
-              </View>
-              {horsOpen &&
-                allHors.map((t) => {
-                  const done = t.statut === 'termine';
-                  const color = colorOf(t);
-                  return (
-                    <View key={t.id} style={styles.row}>
-                      <View style={[styles.nameCell, styles.taskName]}>
-                        <Pressable
-                          onPress={() => onToggleTask(t)}
-                          hitSlop={6}
-                          accessibilityRole="checkbox"
-                          accessibilityState={{ checked: done }}
-                          accessibilityLabel={`Terminer ${t.titre}`}
-                          style={[styles.check, done && styles.checkOn]}
-                        >
-                          {done && <Text style={styles.checkMark}>✓</Text>}
-                        </Pressable>
-                        <Pressable style={styles.flex} onPress={() => onOpenTask(t)} accessibilityRole="button">
-                          <Text style={[styles.fName, done && styles.done]} numberOfLines={2}>
-                            {t.titre}
-                          </Text>
-                          <Text style={styles.fMeta} numberOfLines={1}>
-                            {[t.statut === 'en_cours' ? 'en cours' : '', parentOf(t)].filter(Boolean).join(' · ')}
-                          </Text>
-                        </Pressable>
-                      </View>
-                      {its.map((it) => (
-                        <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]}>
-                          {iterationOfItem(t) === it.key && (
-                            <Pressable
-                              style={[styles.block, { backgroundColor: done ? colors.success : color }]}
-                              onPress={() => onOpenTask(t)}
-                              accessibilityLabel={`${t.titre} en ${it.code}`}
-                            >
-                              <Text style={styles.blockText} numberOfLines={1}>
-                                {done ? '✓ ' : ''}
-                                {pointsOf(t) ? fmt(pointsOf(t)) : t.date ? court(parseDate(t.date)) : '•'}
-                              </Text>
-                            </Pressable>
-                          )}
-                        </View>
-                      ))}
-                    </View>
-                  );
-                })}
-              <View style={[styles.row, styles.chargeRow]}>
-                <View style={styles.nameCell}>
-                  <Text style={styles.fName}>Charge</Text>
-                  <Text style={styles.fMeta}>{filtered ? `${domName} · total / capacité` : 'tâches / capacité'}</Text>
+                  {its.map((it) => (
+                    <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]} />
+                  ))}
                 </View>
-                {its.map((it, i) => {
-                  const cap = it.code === 'IP' ? 0 : safe.capacite;
-                  const over = cap > 0 && charge[i] > cap;
+                {g.features.map((f) => {
+                  const color = g.epic?.couleur ?? colors.primary;
+                  const tasks = h.items.filter((t) => t.feature === f.id);
                   return (
-                    <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]}>
-                      {filtered && <Text style={styles.charge}>{chargeDom[i] ? fmt(chargeDom[i]).replace(/ .*/, '') : '0'}</Text>}
-                      <Text style={[filtered ? styles.chargeSmall : styles.charge, over && { color: colors.danger }]}>
-                        {charge[i] ? fmt(charge[i]).replace(/ .*/, '') : '0'}
-                        {cap ? `/${cap}` : ''}
-                        {over ? ' ⚠' : ''}
-                      </Text>
+                    <View key={f.id} style={styles.row}>
+                      <Pressable style={styles.nameCell} onPress={() => onOpenFeature(f)} accessibilityRole="button">
+                        <Text style={styles.fName} numberOfLines={2}>
+                          {f.titre}
+                        </Text>
+                        <Text style={styles.fMeta}>
+                          {pointsOf(f) ? fmt(pointsOf(f)) : ''}
+                          {!f.iteration ? (pointsOf(f) ? ' · ' : '') + 'non planifiée' : ''}
+                        </Text>
+                      </Pressable>
+                      {its.map((it) => {
+                        const planned = f.iteration === it.key;
+                        const inIt = tasks.filter((t) => iterationOfItem(t) === it.key);
+                        const done = inIt.filter((t) => t.statut === 'termine').length;
+                        return (
+                          <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]}>
+                            {planned && (
+                              <Pressable style={[styles.block, { backgroundColor: color }]} onPress={() => onOpenFeature(f)}>
+                                <Text style={styles.blockText} numberOfLines={1}>
+                                  {pointsOf(f) ? fmt(pointsOf(f)) : 'prévue'}
+                                </Text>
+                              </Pressable>
+                            )}
+                            {inIt.length > 0 && (
+                              <Text style={[styles.tasks, { color }]}>
+                                {done}/{inIt.length} tâche{inIt.length > 1 ? 's' : ''}
+                              </Text>
+                            )}
+                          </View>
+                        );
+                      })}
                     </View>
                   );
                 })}
               </View>
-            </View>
-          </ScrollView>
-
-          {sansPi.length > 0 && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Features sans PI · {sansPi.length}</Text>
-              {sansPi.map((f) => (
-                <Pressable key={f.id} onPress={() => onOpenFeature(f)} style={styles.objRow}>
-                  <Text style={styles.objTitle}>🧩 {f.titre}</Text>
-                  <Text style={styles.muted}>{h.epics.get(f.epic)?.titre ?? ''}</Text>
-                </Pressable>
+            ))}
+            {features.length === 0 && (
+              <Text style={[styles.muted, styles.emptyBoard]}>Aucune feature prévue dans ce PI.</Text>
+            )}
+            <View style={[styles.row, styles.groupRow]}>
+              <Pressable
+                style={[styles.nameCell, styles.groupName]}
+                onPress={() => setHorsOpen((v) => !v)}
+                accessibilityRole="button"
+                accessibilityLabel="Replier les tâches hors feature"
+              >
+                <View style={styles.flex}>
+                  <Text style={styles.epicName}>{horsOpen ? '▾' : '▸'} Tâches hors feature</Text>
+                  <Text style={styles.fMeta}>
+                    {allHors.length ? `${allHors.filter((t) => t.statut === 'termine').length}/${allHors.length} faites` : 'aucune'}
+                  </Text>
+                </View>
+              </Pressable>
+              {its.map((it) => (
+                <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]} />
               ))}
             </View>
-          )}
+            {horsOpen &&
+              allHors.map((t) => {
+                const done = t.statut === 'termine';
+                const color = colorOf(t);
+                return (
+                  <View key={t.id} style={styles.row}>
+                    <View style={[styles.nameCell, styles.taskName]}>
+                      <Pressable
+                        onPress={() => onToggleTask(t)}
+                        hitSlop={6}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: done }}
+                        accessibilityLabel={`Terminer ${t.titre}`}
+                        style={[styles.check, done && styles.checkOn]}
+                      >
+                        {done && <Text style={styles.checkMark}>✓</Text>}
+                      </Pressable>
+                      <Pressable style={styles.flex} onPress={() => onOpenTask(t)} accessibilityRole="button">
+                        <Text style={[styles.fName, done && styles.done]} numberOfLines={2}>
+                          {t.titre}
+                        </Text>
+                        <Text style={styles.fMeta} numberOfLines={1}>
+                          {[t.statut === 'en_cours' ? 'en cours' : '', parentOf(t)].filter(Boolean).join(' · ')}
+                        </Text>
+                      </Pressable>
+                    </View>
+                    {its.map((it) => (
+                      <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]}>
+                        {iterationOfItem(t) === it.key && (
+                          <Pressable
+                            style={[styles.block, { backgroundColor: done ? colors.success : color }]}
+                            onPress={() => onOpenTask(t)}
+                            accessibilityLabel={`${t.titre} en ${it.code}`}
+                          >
+                            <Text style={styles.blockText} numberOfLines={1}>
+                              {done ? '✓ ' : ''}
+                              {pointsOf(t) ? fmt(pointsOf(t)) : t.date ? court(parseDate(t.date)) : '•'}
+                            </Text>
+                          </Pressable>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                );
+              })}
+            <View style={[styles.row, styles.chargeRow]}>
+              <View style={styles.nameCell}>
+                <Text style={styles.fName}>Charge</Text>
+                <Text style={styles.fMeta}>{filtered ? `${domName} · total / capacité` : 'tâches / capacité'}</Text>
+              </View>
+              {its.map((it, i) => {
+                const cap = it.code === 'IP' ? 0 : safe.capacite;
+                const over = cap > 0 && charge[i] > cap;
+                return (
+                  <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]}>
+                    {filtered && <Text style={styles.charge}>{chargeDom[i] ? fmt(chargeDom[i]).replace(/ .*/, '') : '0'}</Text>}
+                    <Text style={[filtered ? styles.chargeSmall : styles.charge, over && { color: colors.danger }]}>
+                      {charge[i] ? fmt(charge[i]).replace(/ .*/, '') : '0'}
+                      {cap ? `/${cap}` : ''}
+                      {over ? ' ⚠' : ''}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
         </ScrollView>
-      </Swipe>
+
+        {sansPi.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Features sans PI · {sansPi.length}</Text>
+            {sansPi.map((f) => (
+              <Pressable key={f.id} onPress={() => onOpenFeature(f)} style={styles.objRow}>
+                <Text style={styles.objTitle}>🧩 {f.titre}</Text>
+                <Text style={styles.muted}>{h.epics.get(f.epic)?.titre ?? ''}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
