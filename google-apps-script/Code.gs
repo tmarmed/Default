@@ -26,7 +26,7 @@ var HEADERS = [
   'heure_fin'
 ];
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 10;
+var API_VERSION = 11;
 
 /**
  * Niveaux au-dessus des tâches : Domaine > Objectif > Epic > Tâche.
@@ -44,10 +44,10 @@ var ENTITIES = {
     headers: ['id', 'titre', 'description', 'epic', 'pi', 'iteration', 'points', 'couleur', 'cree_le', 'modifie_le']
   },
   // SAFe : objectif du PI = engagement d'un trimestre (engagé ou bonus), valeur prévue / obtenue sur 10,
-  // rattaché ou non à un domaine (v6).
+  // rattaché ou non à un domaine (v6) et à une epic (v11).
   objectifpi: {
     sheet: 'ObjectifsPI', min: 8,
-    headers: ['id', 'titre', 'pi', 'type', 'valeur_prevue', 'valeur_obtenue', 'cree_le', 'modifie_le', 'domaine']
+    headers: ['id', 'titre', 'pi', 'type', 'valeur_prevue', 'valeur_obtenue', 'cree_le', 'modifie_le', 'domaine', 'epic']
   },
   objectif: {
     sheet: 'Objectifs', min: 12,
@@ -709,6 +709,16 @@ function planDeletion_(kind, self, cascade, data) {
       return c;
     });
   }
+
+  // Ni avec une epic : ils perdent l'epic supprimée (et gardent leur domaine).
+  var epicsPerdues = copy_(cascade ? epicIds : {});
+  if (kind === 'epic') epicsPerdues[id] = true;
+  out.objectifpi = out.objectifpi.map(function (o) {
+    if (!o.epic || !epicsPerdues[o.epic]) return o;
+    var c = copy_(o);
+    c.epic = '';
+    return c;
+  });
 
   if (cascade) {
     out.objectif = out.objectif.filter(function (o) { return !objIds[o.id]; });

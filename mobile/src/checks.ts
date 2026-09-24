@@ -533,16 +533,37 @@ export function checksPI(h: HierarchyValue, piKey: string, today: string, capaci
     if (c) out.push(c);
   }
 
-  // Objectif du PI engagé sans feature pour le porter (même domaine, ou aucune feature dans le PI)
-  const featDom = (fid: string) => domaineOf({ feature: fid }, h)?.id ?? '';
+  // Objectif du PI engagé sans rien pour le porter : aucune feature ni tâche de son epic (si elle est
+  // précisée), sinon de son domaine (sinon de n'importe quel domaine) n'est prévue dans ce PI.
+  // Tâche prévue dans le PI : datée ou rangée dans une de ses itérations, ou répétée avec une échéance dans le PI.
+  const [debutPI, finPI] = [toDateString(piStart(piKey)), toDateString(piEnd(piKey))];
+  const itsPI = new Set(its.map((it) => it.key));
+  const tachesPI = complet.items.filter((t) =>
+    t.periodicite
+      ? t.statut !== 'termine' && occurrencesBetween(t, debutPI, finPI, today).length > 0
+      : itsPI.has(iterationOfItem(t)),
+  );
+  const featuresPI = complet.featureList.filter((f) => f.pi === piKey);
+  const domDe = (x: { epic?: string; feature?: string }) => domaineOf(x, complet)?.id ?? '';
+  // Nouvelle tâche : dans l'itération en cours si elle est dans ce PI, sinon la première du PI
+  const itDuPI = itsPI.has(iterationOf(today).key) ? iterationOf(today).key : its[0].key;
   for (const o of h.objectifsPI.filter((x) => x.pi === piKey && x.type === 'engage')) {
-    const porteuses = features.filter((f) => !o.domaine || featDom(f.id) === o.domaine);
-    if (!porteuses.length)
+    const epic = o.epic ? complet.epics.get(o.epic) : undefined;
+    const porte = epic
+      ? featuresPI.some((f) => f.epic === epic.id) || tasksOfEpic(epic.id, tachesPI, complet.featureList).length > 0
+      : featuresPI.some((f) => !o.domaine || domDe({ epic: f.epic }) === o.domaine) ||
+        tachesPI.some((t) => !o.domaine || domDe(t) === o.domaine);
+    if (!porte)
       out.push({
         key: `opi:${o.id}`,
         icone: '🤝',
-        message: `L'objectif du PI « ${o.titre} » est engagé, mais aucune feature${o.domaine ? ` de son domaine` : ''} n'est prévue dans ce PI.`,
-        actions: [{ label: "Ouvrir l'objectif du PI", action: { kind: 'open', target: 'objectifpi', id: o.id } }],
+        message: `L'objectif du PI « ${o.titre} » est engagé, mais aucune feature ou tâche${epic ? ` de l'epic « ${epic.titre} »` : o.domaine ? ' de son domaine' : ''} n'est prévue dans ce PI.`,
+        actions: [
+          ...(epic
+            ? [{ label: `+ Tâche dans l'epic « ${epic.titre} »`, action: { kind: 'new', target: 'task', defaults: { epic: epic.id, iteration: itDuPI } } as Action, principal: true }]
+            : []),
+          { label: "Ouvrir l'objectif du PI", action: { kind: 'open', target: 'objectifpi', id: o.id } },
+        ],
       });
   }
 

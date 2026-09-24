@@ -245,7 +245,7 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_IGNOREES);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_EPIC_PI);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -669,6 +669,9 @@ function Main() {
     if (kind === 'ignoree' && apiVersion < api.API_VERSION_IGNOREES) {
       throw new Error("le script du Google Sheet n'est pas à jour pour ignorer des alertes. Recollez le nouveau Code.gs et déployez une nouvelle version.");
     }
+    if (kind === 'objectifpi' && !!input && !!(input as { epic?: string }).epic && apiVersion < api.API_VERSION_EPIC_PI) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour l'epic des objectifs du PI. Recollez le nouveau Code.gs et déployez une nouvelle version.");
+    }
     const needDomPi = kind === 'objectifpi' && !!input && !!(input as { domaine?: string }).domaine;
     if (apiVersion < (needDomPi ? api.API_VERSION_DOMAINE_PI : needSafe ? api.API_VERSION_SAFE : api.API_VERSION_HIERARCHIE)) {
       throw new Error("le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.");
@@ -1031,7 +1034,7 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_IGNOREES && (
+      {apiVersion < api.API_VERSION_EPIC_PI && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
             Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
@@ -1041,7 +1044,8 @@ function Main() {
             {apiVersion < api.API_VERSION_DOMAINE_PI ? 'le domaine des objectifs du PI, ' : ''}
             {apiVersion < api.API_VERSION_TYPES ? 'les nouveaux types (appel, démarche, story, exploration, bug), ' : ''}
             {apiVersion < api.API_VERSION_SOUS_TACHES ? 'les sous-tâches, ' : ''}
-            {apiVersion < api.API_VERSION_HEURE_FIN ? "l'heure de fin des rendez-vous, " : ''}les alertes ignorées ne seront pas
+            {apiVersion < api.API_VERSION_HEURE_FIN ? "l'heure de fin des rendez-vous, " : ''}
+            {apiVersion < api.API_VERSION_IGNOREES ? 'les alertes ignorées, ' : ''}l'epic des objectifs du PI ne seront pas
             enregistrés.
             Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
           </Text>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Text } from 'react-native';
+import { domaineOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
 import { piLabel, piOf, shiftPi } from '../pi';
 import type { ObjectifPI, ObjectifPIInput } from '../types';
@@ -23,7 +24,7 @@ const VALEURS = ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'].map((v) 
 /** Objectif du PI : engagement d'un trimestre, valeur prévue en début, valeur obtenue en fin (sur 10). */
 export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, onClose, onSave, onDelete }: Props) {
   const h = useHierarchy();
-  const empty = (): ObjectifPIInput => ({ titre: '', pi: defaultPi, type: 'engage', valeur_prevue: '', valeur_obtenue: '', domaine: defaultDomaine });
+  const empty = (): ObjectifPIInput => ({ titre: '', pi: defaultPi, type: 'engage', valeur_prevue: '', valeur_obtenue: '', domaine: defaultDomaine, epic: '' });
   const [form, setForm] = useState<ObjectifPIInput>(empty());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +33,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
     if (visible) {
       if (objectif) {
         const { id: _i, cree_le: _c, modifie_le: _m, ...rest } = objectif;
-        setForm({ ...rest, domaine: rest.domaine ?? '' });
+        setForm({ ...rest, domaine: rest.domaine ?? '', epic: rest.epic ?? '' });
       } else setForm(empty());
       setError(null);
     }
@@ -40,6 +41,9 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
   }, [visible, objectif]);
 
   const set = <K extends keyof ObjectifPIInput>(k: K, v: ObjectifPIInput[K]) => setForm((x) => ({ ...x, [k]: v }));
+  const domEpic = (id: string) => domaineOf({ epic: id }, h)?.id ?? '';
+  // Epics proposées : celles du domaine choisi (toutes sans domaine), sauf les terminées (garder celle déjà choisie)
+  const epics = h.epicList.filter((e) => (e.id === form.epic || e.etat !== 'termine') && (!form.domaine || domEpic(e.id) === form.domaine));
   const current = piOf(new Date());
   const pis = [-1, 0, 1, 2].map((n) => shiftPi(current, n));
   if (form.pi && !pis.includes(form.pi)) pis.push(form.pi);
@@ -72,10 +76,25 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
               ...h.domaineList.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })),
             ]}
             value={form.domaine}
-            onChange={(v) => set('domaine', v)}
+            // Un autre domaine : l'epic choisie n'en fait plus partie
+            onChange={(v) => setForm((x) => ({ ...x, domaine: v, epic: x.epic && v && domEpic(x.epic) !== v ? '' : x.epic }))}
             compact
             wrap
           />
+        </>
+      )}
+      {epics.length > 0 && (
+        <>
+          <Label>Epic</Label>
+          <Chips
+            options={[{ value: '', label: 'Aucune' }, ...epics.map((e) => ({ value: e.id, label: e.titre, color: e.couleur || undefined }))]}
+            value={form.epic}
+            // Choisir une epic range aussi l'objectif dans son domaine
+            onChange={(v) => setForm((x) => ({ ...x, epic: v, domaine: v ? domEpic(v) || x.domaine : x.domaine }))}
+            compact
+            wrap
+          />
+          <Text style={f.hint}>L'objectif est porté par les features et les tâches de cette epic prévues dans le PI.</Text>
         </>
       )}
       <Label>Type</Label>

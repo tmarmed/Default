@@ -139,10 +139,14 @@ export function planDeletion(kind: EntityKind, id: string, cascade: boolean, d: 
   let objectifs = not('objectif', d.objectifs);
   let domaines = not('domaine', d.domaines);
   let features = not('feature', d.features);
-  // Objectifs du PI : jamais supprimés avec un domaine, ils perdent leur domaine (comme dans le script)
-  const objectifsPI = not('objectifpi', d.objectifsPI).map((o) =>
-    kind === 'domaine' && o.domaine === id ? { ...o, domaine: '' } : o,
-  );
+  // Objectifs du PI : jamais supprimés avec un domaine ou une epic, ils perdent le rattachement supprimé
+  // (une epic supprimée : ils gardent leur domaine), comme dans le script
+  const epicsPerdues = new Set([...(cascade ? epicIds : []), ...(kind === 'epic' ? [id] : [])]);
+  const objectifsPI = not('objectifpi', d.objectifsPI).map((o) => {
+    let x = kind === 'domaine' && o.domaine === id ? { ...o, domaine: '' } : o;
+    if (x.epic && epicsPerdues.has(x.epic)) x = { ...x, epic: '' };
+    return x;
+  });
 
   if (cascade) {
     return {

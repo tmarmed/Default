@@ -71,7 +71,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
     sous-tâches dont le parent porte la charge).
   - **PI** : itération surchargée ; dates de la feature hors de son epic (étendre l'epic) ; feature sans itération ; feature en retard sur son plan (décaler la
     feature ou ramener ses tâches) ; points de la feature ≠ ses tâches ; points d'une tâche ≠ ses sous-tâches (toutes les itérations du PI) ; objectif du PI engagé sans feature
-    (de son domaine) ; PI terminé sans valeur obtenue notée.
+    ni tâche prévue dans le PI (de son epic si elle est choisie, sinon de son domaine ; tâche datée ou rangée
+    dans une itération du PI, ou répétée avec une échéance dans le PI), avec « + Tâche dans l'epic » ; PI terminé sans valeur obtenue notée.
   - **Roadmap** : alertes de dates (sur les barres) ; epic ou objectif en retard (repousser d'un mois,
     voir les tâches ouvertes) ; epic sans tâche, objectif sans epic.
   - **Portefeuille** : epic « Terminée » avec des tâches ouvertes, ou toutes ses tâches faites sans être
@@ -90,8 +91,9 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   **Filtre de domaine partagé** par tous les écrans (Tâches, Itération, PI, Roadmap, Portefeuille) et mémorisé :
   on ne voit que le domaine choisi, mais la **capacité reste commune** (charge du domaine + total / capacité ;
   dans l'Itération, les autres domaines en gris). Un **objectif du PI** peut être rattaché à un domaine : la
-  prévisibilité se calcule alors pour le domaine filtré. Supprimer un domaine ne supprime jamais ses objectifs
-  du PI (historique) : ils passent « sans domaine ».
+  prévisibilité se calcule alors pour le domaine filtré. Il peut aussi être rattaché à une **epic** (script v11) :
+  choisir l'epic range l'objectif dans son domaine. Supprimer un domaine ou une epic ne supprime jamais ses
+  objectifs du PI (historique) : ils passent « sans domaine » / perdent l'epic (en gardant le domaine).
   Dans le tableau du PI, les **tâches hors feature** ont chacune leur ligne (comme les features) avec un
   bloc dans la colonne de leur itération (cocher, ouvrir, groupe repliable). Un **seul « + »** (coin du
   tableau, ou bouton bleu) ouvre une fenêtre : on choisit l'**itération** (ou « Sans itération » pour une
@@ -149,7 +151,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone | parent | heure_fin`
    et les onglets `Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine | etat`),
    `Features` (`id | titre | description | epic | pi | iteration | points | couleur | cree_le | modifie_le`),
-   `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le | domaine`), `Ignorees` (`id | cle | signature | cree_le | modifie_le` : alertes ignorées),
+   `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le | domaine | epic`), `Ignorees` (`id | cle | signature | cree_le | modifie_le` : alertes ignorées),
    `Objectifs` (`id | titre | description | domaine | debut | fin | couleur | cible | actuel | unite | cree_le | modifie_le`)
    et `Domaines` (`id | nom | icone | couleur | cree_le | modifie_le`).
 4. **Déployer › Nouveau déploiement** → type **Application Web** :

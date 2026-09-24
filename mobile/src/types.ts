@@ -171,6 +171,8 @@ export interface ObjectifPI {
   modifie_le: string;
   /** Domaine (id), vide = tous domaines */
   domaine: string;
+  /** Epic (id), vide = aucune en particulier (v11) */
+  epic: string;
 }
 
 export type ObjectifPIInput = Omit<ObjectifPI, 'id' | 'cree_le' | 'modifie_le'>;

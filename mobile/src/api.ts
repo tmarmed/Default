@@ -100,13 +100,15 @@ export const API_VERSION_SOUS_TACHES = 8;
 export const API_VERSION_HEURE_FIN = 9;
 /** Version du script avec les alertes ignorées (onglet Ignorees). */
 export const API_VERSION_IGNOREES = 10;
+/** Version du script avec l'epic des objectifs du PI. */
+export const API_VERSION_EPIC_PI = 11;
 
 const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '', etat: e.etat ?? '' });
 
 export async function listItems(settings: Settings): Promise<Data & { version: number }> {
   if (DEMO) {
     const all = await demoApi.listAll();
-    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_IGNOREES };
+    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_EPIC_PI };
   }
   const data = await post<Partial<Data> & { items: Item[]; version?: number }>(settings, { action: 'list' });
   return {
@@ -115,7 +117,7 @@ export async function listItems(settings: Settings): Promise<Data & { version: n
     objectifs: data.objectifs ?? [],
     domaines: data.domaines ?? [],
     features: data.features ?? [],
-    objectifsPI: (data.objectifsPI ?? []).map((o) => ({ ...o, domaine: o.domaine ?? '' })),
+    objectifsPI: (data.objectifsPI ?? []).map((o) => ({ ...o, domaine: o.domaine ?? '', epic: o.epic ?? '' })),
     ignorees: data.ignorees ?? [],
     version: data.version ?? 1,
   };

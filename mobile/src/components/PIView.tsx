@@ -188,6 +188,7 @@ export function PIView({
               <Text style={styles.objTitle} numberOfLines={2}>
                 {!filtered && o.domaine && h.domaines.get(o.domaine) ? `${h.domaines.get(o.domaine)!.icone} ` : ''}
                 {o.titre}
+                {o.epic && h.epics.get(o.epic) ? <Text style={styles.objEpic}>{` · ${h.epics.get(o.epic)!.titre}`}</Text> : null}
               </Text>
               <Text style={styles.value}>
                 {o.valeur_prevue || '—'}
@@ -464,6 +465,7 @@ const styles = StyleSheet.create({
   type: { fontSize: 11, fontWeight: '800', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8, overflow: 'hidden' },
   engage: { color: '#fff', backgroundColor: colors.primary },
   bonus: { color: colors.text, backgroundColor: '#E4E8EF' },
+  objEpic: { color: colors.muted, fontWeight: '400' },
   objTitle: { flex: 1, fontSize: 14.5, color: colors.text, fontWeight: '600' },
   value: { fontSize: 13, fontWeight: '700', color: colors.text },
   add: { color: colors.primary, fontWeight: '700', fontSize: 14 },
