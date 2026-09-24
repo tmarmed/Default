@@ -30,8 +30,8 @@ import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
 import { cascadeLinks, pointsCheck, subtaskMap } from './src/subtasks';
 import type { Alignement } from './src/alerts';
-import { type Action, checksParEcran, nbAlertesDatesDomaine } from './src/checks';
-import { AlertsCard, CheckActionContext } from './src/components/AlertsCard';
+import { type Action, type Check, checksParEcran, nbAlertesDatesDomaine } from './src/checks';
+import { actives, AlertsCard, CheckActionContext, IgnoreContext } from './src/components/AlertsCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
 import { iterationOf, iterationOfItem, piOf } from './src/pi';
@@ -79,6 +79,7 @@ import {
   EntityKind,
   Epic,
   Feature,
+  Ignoree,
   Item,
   ItemInput,
   EpicInput,
@@ -129,8 +130,9 @@ type Hier = {
   domaines: Domaine[];
   features: Feature[];
   objectifsPI: ObjectifPI[];
+  ignorees: Ignoree[];
 };
-const EMPTY_HIER: Hier = { epics: [], objectifs: [], domaines: [], features: [], objectifsPI: [] };
+const EMPTY_HIER: Hier = { epics: [], objectifs: [], domaines: [], features: [], objectifsPI: [], ignorees: [] };
 
 /** Nouvelle sous-tâche : rangement du parent ; sans date, elle prend l'itération du parent. */
 const subtaskInput = (parent: Item, titre: string): ItemInput => ({
@@ -238,7 +240,7 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_HEURE_FIN);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_IGNOREES);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -265,7 +267,7 @@ function Main() {
       try {
         const { items: list, version, ...rest } = await api.listItems(s);
         updateItems(list);
-        updateHier(rest);
+        updateHier({ ...rest, ignorees: rest.ignorees ?? [] });
         setApiVersion(version);
         setOffline(null);
       } catch (e) {
@@ -638,10 +640,14 @@ function Main() {
     domaine: 'domaines',
     feature: 'features',
     objectifpi: 'objectifsPI',
+    ignoree: 'ignorees',
   } as const satisfies Record<EntityKind, keyof Hier>;
 
   const checkScript = (kind?: EntityKind, input?: object) => {
     const needSafe = kind === 'feature' || kind === 'objectifpi' || (!!input && 'etat' in input);
+    if (kind === 'ignoree' && apiVersion < api.API_VERSION_IGNOREES) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour ignorer des alertes. Recollez le nouveau Code.gs et déployez une nouvelle version.");
+    }
     const needDomPi = kind === 'objectifpi' && !!input && !!(input as { domaine?: string }).domaine;
     if (apiVersion < (needDomPi ? api.API_VERSION_DOMAINE_PI : needSafe ? api.API_VERSION_SAFE : api.API_VERSION_HIERARCHIE)) {
       throw new Error("le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.");
@@ -689,6 +695,25 @@ function Main() {
       setNotice(`Alignement impossible : ${(e as Error).message}`);
     }
   };
+
+  /** « Ignorer » une alerte : enregistrée dans le Google Sheet (onglet Ignorees), avec la situation du moment. */
+  const ignorer = (c: Check) => {
+    const deja = hier.ignorees.find((i) => i.cle === c.key);
+    (deja ? saveEntity('ignoree', deja, { signature: c.message }) : saveEntity('ignoree', null, { cle: c.key, signature: c.message }))
+      .then(() => setInfo('Alerte ignorée. Elle reviendra si la situation change.'))
+      .catch((e) => setNotice(`Impossible d'ignorer l'alerte : ${(e as Error).message}`));
+  };
+  const retablir = async (c: Check) => {
+    const deja = hier.ignorees.find((i) => i.cle === c.key);
+    if (!settings || !deja) return;
+    try {
+      await api.deleteEntity(settings, 'ignoree', deja.id, false);
+      updateHier({ ...hier, ignorees: hier.ignorees.filter((i) => i.id !== deja.id) });
+    } catch (e) {
+      setNotice(`Impossible de rétablir l'alerte : ${(e as Error).message}`);
+    }
+  };
+  const ignoreValue = { ignorees: hier.ignorees, ignorer, retablir };
 
   /** Boutons des alertes : modifier, ouvrir ou créer. */
   const runAction = (a: Action) => {
@@ -820,12 +845,14 @@ function Main() {
   // Les alertes suivent le filtre de domaine (la capacité reste commune)
   const checks = useMemo(() => checksParEcran(hv, today, safe.capacite, safe.actif, domFilter), [hv, today, safe.capacite, safe.actif, domFilter]);
   const nbDates = useMemo(() => nbAlertesDatesDomaine(hv, domFilter), [hv, domFilter]);
+  // Les alertes ignorées ne comptent pas
+  const ig = hier.ignorees;
   const badges: Record<Tab, number> = {
-    taches: checks.taches.length,
-    iteration: checks.iteration.length,
-    pi: checks.pi.length,
-    roadmap: checks.roadmap.length + nbDates,
-    portefeuille: checks.portefeuille.length,
+    taches: actives(checks.taches, ig).length,
+    iteration: actives(checks.iteration, ig).length,
+    pi: actives(checks.pi, ig).length,
+    roadmap: actives(checks.roadmap, ig).length + nbDates,
+    portefeuille: actives(checks.portefeuille, ig).length,
   };
 
   // Écran Tâches : les alertes défilent avec le contenu (en tête de liste / de calendrier)
@@ -894,6 +921,7 @@ function Main() {
     <HierarchyContext.Provider value={hv}>
     <DomainFilterContext.Provider value={domFilterValue}>
     <CheckActionContext.Provider value={runAction}>
+    <IgnoreContext.Provider value={ignoreValue}>
     <View style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.title} numberOfLines={1}>
@@ -929,7 +957,7 @@ function Main() {
               const r = await demoApi.reset();
               updateItems(r.items);
               const { items: _i, ...rest } = r;
-              updateHier(rest);
+              updateHier({ ...rest, ignorees: rest.ignorees ?? [] });
             }}
             hitSlop={8}
           >
@@ -978,7 +1006,7 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_HEURE_FIN && (
+      {apiVersion < api.API_VERSION_IGNOREES && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
             Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
@@ -987,7 +1015,8 @@ function Main() {
             {apiVersion < api.API_VERSION_SAFE ? 'les données SAFe (états, features, points, itérations), ' : ''}
             {apiVersion < api.API_VERSION_DOMAINE_PI ? 'le domaine des objectifs du PI, ' : ''}
             {apiVersion < api.API_VERSION_TYPES ? 'les nouveaux types (appel, démarche, story, exploration, bug), ' : ''}
-            {apiVersion < api.API_VERSION_SOUS_TACHES ? 'les sous-tâches, ' : ''}l'heure de fin des rendez-vous ne seront pas
+            {apiVersion < api.API_VERSION_SOUS_TACHES ? 'les sous-tâches, ' : ''}
+            {apiVersion < api.API_VERSION_HEURE_FIN ? "l'heure de fin des rendez-vous, " : ''}les alertes ignorées ne seront pas
             enregistrés.
             Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
           </Text>
@@ -1380,6 +1409,7 @@ function Main() {
         </Pressable>
       </Modal>
     </View>
+    </IgnoreContext.Provider>
     </CheckActionContext.Provider>
     </DomainFilterContext.Provider>
     </HierarchyContext.Provider>

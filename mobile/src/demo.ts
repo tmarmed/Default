@@ -3,7 +3,7 @@ import { addDays, toDateString } from './dates';
 import { cleanLinks, Data, DeletionCounts, planDeletion } from './hierarchy';
 import { iterationOf, piOf, shiftPi } from './pi';
 import { cascadeLinks, checkParent } from './subtasks';
-import type { Domaine, Epic, Feature, Item, ItemInput, Objectif, ObjectifPI } from './types';
+import type { Domaine, Epic, Feature, Ignoree, Item, ItemInput, Objectif, ObjectifPI } from './types';
 
 /**
  * Mode démo (EXPO_PUBLIC_DEMO=1) : données d'exemple enregistrées sur l'appareil,
@@ -32,6 +32,7 @@ function checkVersion(): Promise<void> {
         `${KEY}-domaine`,
         `${KEY}-feature`,
         `${KEY}-objectifpi`,
+        `${KEY}-ignoree`,
       ]);
       await AsyncStorage.setItem(VERSION_KEY, DEMO_DATA_VERSION);
     } catch {
@@ -117,6 +118,7 @@ function sampleEntities(): {
   domaine: Domaine[];
   feature: Feature[];
   objectifpi: ObjectifPI[];
+  ignoree: Ignoree[];
 } {
   const now = new Date();
   const m = (months: number, day = 1) => toDateString(new Date(now.getFullYear(), now.getMonth() + months, day));
@@ -173,10 +175,11 @@ function sampleEntities(): {
       opi('p5', 'Comptes du trimestre clôturés', pi, 'engage', '5', '5', 'dadmin'),
       opi('p6', 'Déclaration de TVA sans retard', pi2, 'engage', '6', '', 'dadmin'),
     ],
+    ignoree: [],
   };
 }
 
-type Kind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi';
+type Kind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'ignoree';
 type EntityOf<K extends Kind> = K extends 'epic'
   ? Epic
   : K extends 'objectif'
@@ -185,7 +188,9 @@ type EntityOf<K extends Kind> = K extends 'epic'
       ? Domaine
       : K extends 'feature'
         ? Feature
-        : ObjectifPI;
+        : K extends 'objectifpi'
+          ? ObjectifPI
+          : Ignoree;
 const entityMemory: Partial<Record<Kind, unknown[]>> = {};
 
 async function loadEntities<K extends Kind>(kind: K): Promise<EntityOf<K>[]> {
@@ -266,6 +271,7 @@ export const demoApi = {
     await storeEntities('domaine', e.domaine);
     await storeEntities('feature', e.feature);
     await storeEntities('objectifpi', e.objectifpi);
+    await storeEntities('ignoree', []);
     return {
       items: [...memory!],
       epics: e.epic,
@@ -273,6 +279,7 @@ export const demoApi = {
       domaines: e.domaine,
       features: e.feature,
       objectifsPI: e.objectifpi,
+      ignorees: [],
     };
   },
   async listAll(): Promise<Omit<Data, 'items'>> {
@@ -282,6 +289,7 @@ export const demoApi = {
       domaines: [...(await loadEntities('domaine'))],
       features: [...(await loadEntities('feature'))],
       objectifsPI: [...(await loadEntities('objectifpi'))],
+      ignorees: [...(await loadEntities('ignoree'))],
     };
   },
   async createEntity<K extends Kind>(kind: K, input: Omit<EntityOf<K>, 'id' | 'cree_le' | 'modifie_le'>): Promise<EntityOf<K>> {
@@ -306,6 +314,7 @@ export const demoApi = {
       domaines: await loadEntities('domaine'),
       features: await loadEntities('feature'),
       objectifsPI: await loadEntities('objectifpi'),
+      ignorees: await loadEntities('ignoree'),
     });
     await store(r.items);
     await storeEntities('epic', r.epics);
@@ -313,6 +322,7 @@ export const demoApi = {
     await storeEntities('domaine', r.domaines);
     await storeEntities('feature', r.features);
     await storeEntities('objectifpi', r.objectifsPI);
+    await storeEntities('ignoree', r.ignorees ?? []);
     return r.counts;
   },
 };

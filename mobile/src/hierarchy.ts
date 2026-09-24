@@ -1,4 +1,4 @@
-import type { Domaine, Epic, EntityKind, Feature, Item, Objectif, ObjectifPI } from './types';
+import type { Domaine, Epic, EntityKind, Feature, Ignoree, Item, Objectif, ObjectifPI } from './types';
 
 /**
  * Hiérarchie Domaine > Objectif > Epic > Feature > Tâche.
@@ -79,6 +79,8 @@ export interface Data {
   domaines: Domaine[];
   features: Feature[];
   objectifsPI: ObjectifPI[];
+  /** Alertes ignorées (v10) */
+  ignorees?: Ignoree[];
 }
 
 export interface DeletionCounts {
@@ -150,6 +152,7 @@ export function planDeletion(kind: EntityKind, id: string, cascade: boolean, d: 
       features: features.filter((f) => !featIds.has(f.id)),
       domaines,
       objectifsPI,
+      ignorees: not('ignoree', d.ignorees ?? []),
       counts,
     };
   }
@@ -176,7 +179,7 @@ export function planDeletion(kind: EntityKind, id: string, cascade: boolean, d: 
     epics = epics.map(clear);
     items = items.map(clear);
   }
-  return { items, epics, objectifs, domaines, features, objectifsPI, counts };
+  return { items, epics, objectifs, domaines, features, objectifsPI, ignorees: not('ignoree', d.ignorees ?? []), counts };
 }
 
 /** Tâches d'une epic : directes et celles de ses features. */

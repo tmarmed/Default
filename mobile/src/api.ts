@@ -7,6 +7,7 @@ import {
   EntityKind,
   Epic,
   Feature,
+  Ignoree,
   Item,
   ItemInput,
   Objectif,
@@ -97,13 +98,15 @@ export const API_VERSION_TYPES = 7;
 export const API_VERSION_SOUS_TACHES = 8;
 /** Version du script avec l'heure de fin des rendez-vous. */
 export const API_VERSION_HEURE_FIN = 9;
+/** Version du script avec les alertes ignorées (onglet Ignorees). */
+export const API_VERSION_IGNOREES = 10;
 
 const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '', etat: e.etat ?? '' });
 
 export async function listItems(settings: Settings): Promise<Data & { version: number }> {
   if (DEMO) {
     const all = await demoApi.listAll();
-    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_HEURE_FIN };
+    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_IGNOREES };
   }
   const data = await post<Partial<Data> & { items: Item[]; version?: number }>(settings, { action: 'list' });
   return {
@@ -113,11 +116,12 @@ export async function listItems(settings: Settings): Promise<Data & { version: n
     domaines: data.domaines ?? [],
     features: data.features ?? [],
     objectifsPI: (data.objectifsPI ?? []).map((o) => ({ ...o, domaine: o.domaine ?? '' })),
+    ignorees: data.ignorees ?? [],
     version: data.version ?? 1,
   };
 }
 
-type EntityMap = { epic: Epic; objectif: Objectif; domaine: Domaine; feature: Feature; objectifpi: ObjectifPI };
+type EntityMap = { epic: Epic; objectif: Objectif; domaine: Domaine; feature: Feature; objectifpi: ObjectifPI; ignoree: Ignoree };
 
 export async function createEntity<K extends EntityKind>(
   settings: Settings,

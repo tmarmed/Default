@@ -2,10 +2,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Action, Check } from '../checks';
+import type { Ignoree } from '../types';
 import { colors } from '../theme';
 
 /** Exécution des actions des alertes (fournie par l'application). */
 export const CheckActionContext = createContext<(a: Action) => void>(() => {});
+
+/**
+ * Alertes ignorées (enregistrées dans le Google Sheet) : une alerte reste ignorée tant que sa situation
+ * (son message) ne change pas ; si elle change, l'alerte revient.
+ */
+export interface IgnoreValue {
+  ignorees: Ignoree[];
+  ignorer: (c: Check) => void;
+  retablir: (c: Check) => void;
+}
+export const IgnoreContext = createContext<IgnoreValue>({ ignorees: [], ignorer: () => {}, retablir: () => {} });
+export const estIgnoree = (c: Check, ignorees: Ignoree[]) => ignorees.some((i) => i.cle === c.key && i.signature === c.message);
+/** Alertes à afficher et à compter (sans les ignorées). */
+export const actives = (checks: Check[], ignorees: Ignoree[]) => checks.filter((c) => !estIgnoree(c, ignorees));
 
 const VISIBLES = 3;
 
@@ -14,8 +29,9 @@ const OUVERTES_KEY = 'mes-taches:alertes-ouvertes';
 let ouvertes: Record<string, boolean> | null = null;
 
 /** Carte « ⚠ Alertes » en haut d'un écran : repliée sur une ligne par défaut ; dépliée, 3 premières visibles. */
-export function AlertsCard({ checks, style, ecran, titre }: { checks: Check[]; style?: object; ecran: string; /** ex. « IT4 · T4 2026 » */ titre?: string }) {
+export function AlertsCard({ checks: toutes, style, ecran, titre }: { checks: Check[]; style?: object; ecran: string; /** ex. « IT4 · T4 2026 » */ titre?: string }) {
   const run = useContext(CheckActionContext);
+  let checks = toutes;
   const [open, setOpenState] = useState(!!ouvertes?.[ecran]);
   useEffect(() => {
     if (ouvertes) return;
@@ -34,13 +50,17 @@ export function AlertsCard({ checks, style, ecran, titre }: { checks: Check[]; s
       return next;
     });
   const [tout, setTout] = useState(false);
-  if (!checks.length) return null;
+  const [voirIgnorees, setVoirIgnorees] = useState(false);
+  const { ignorees: liste, ignorer, retablir } = useContext(IgnoreContext);
+  const ignorees = checks.filter((c) => estIgnoree(c, liste));
+  checks = actives(checks, liste);
+  if (!checks.length && !ignorees.length) return null;
   const shown = tout ? checks : checks.slice(0, VISIBLES);
   return (
-    <View style={[s.card, style]}>
+    <View style={[s.card, !checks.length && s.cardCalme, style]}>
       <Pressable style={s.head} onPress={() => setOpen((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: open }}>
-        <Text style={s.title}>
-          ⚠ {checks.length} alerte{checks.length > 1 ? 's' : ''}
+        <Text style={[s.title, !checks.length && s.titleCalme]}>
+          {checks.length ? `⚠ ${checks.length} alerte${checks.length > 1 ? 's' : ''}` : `✓ Aucune alerte · ${ignorees.length} ignorée${ignorees.length > 1 ? 's' : ''}`}
           {titre ? ` · ${titre}` : ''}
         </Text>
         <Text style={s.chev}>{open ? '▾' : '▸'}</Text>
@@ -66,6 +86,9 @@ export function AlertsCard({ checks, style, ecran, titre }: { checks: Check[]; s
                   ))}
                 </View>
               )}
+              <Pressable onPress={() => ignorer(c)} hitSlop={6} style={s.ignorer} accessibilityRole="button" accessibilityLabel={`Ignorer : ${c.message}`}>
+                <Text style={s.ignorerText}>Ignorer</Text>
+              </Pressable>
             </View>
           ))}
           {checks.length > VISIBLES && (
@@ -73,6 +96,25 @@ export function AlertsCard({ checks, style, ecran, titre }: { checks: Check[]; s
               <Text style={s.moreText}>{tout ? 'Voir moins' : `Voir les ${checks.length - VISIBLES} autres`}</Text>
             </Pressable>
           )}
+          {ignorees.length > 0 && (
+            <Pressable onPress={() => setVoirIgnorees((v) => !v)} style={s.more} accessibilityRole="button">
+              <Text style={s.ignoreesText}>
+                {voirIgnorees ? '▾' : '▸'} {ignorees.length} alerte{ignorees.length > 1 ? 's' : ''} ignorée{ignorees.length > 1 ? 's' : ''}
+                {voirIgnorees ? '' : ' · les revoir'}
+              </Text>
+            </Pressable>
+          )}
+          {voirIgnorees &&
+            ignorees.map((c) => (
+              <View key={c.key} style={[s.item, s.itemIgnore]}>
+                <Text style={s.msgIgnore}>
+                  {c.icone} {c.message}
+                </Text>
+                <Pressable onPress={() => retablir(c)} hitSlop={6} style={s.ignorer} accessibilityRole="button" accessibilityLabel={`Ne plus ignorer : ${c.message}`}>
+                  <Text style={s.retablirText}>Ne plus ignorer</Text>
+                </Pressable>
+              </View>
+            ))}
         </>
       )}
     </View>
@@ -94,4 +136,12 @@ const s = StyleSheet.create({
   btnTextSec: { color: colors.danger },
   more: { paddingHorizontal: 12, paddingVertical: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F6C7C1' },
   moreText: { color: colors.danger, fontWeight: '700', fontSize: 13 },
+  cardCalme: { backgroundColor: colors.card, borderColor: colors.border },
+  titleCalme: { color: colors.muted, fontWeight: '700' },
+  ignorer: { alignSelf: 'flex-start', paddingVertical: 2 },
+  ignorerText: { color: colors.muted, fontSize: 12, textDecorationLine: 'underline' },
+  ignoreesText: { color: colors.muted, fontWeight: '700', fontSize: 13 },
+  itemIgnore: { backgroundColor: '#F4F6FA' },
+  msgIgnore: { fontSize: 13, lineHeight: 18, color: colors.muted },
+  retablirText: { color: colors.primary, fontSize: 12.5, fontWeight: '700' },
 });

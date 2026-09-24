@@ -4,7 +4,7 @@ import { domaineOf, progressObjectif, tasksOfEpic } from './hierarchy';
 import { makeHierarchyValue } from './hierarchyContext';
 import type { HierarchyValue } from './hierarchyContext';
 import { iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piStart, pointsOf, shiftIteration } from './pi';
-import { recurrenceState } from './recurrence';
+import { occurrencesBetween, recurrenceState } from './recurrence';
 import { etatEpic } from './safe';
 import { chargeOf, pointsCheck, subtaskMap } from './subtasks';
 import type { Item } from './types';
@@ -36,8 +36,21 @@ const court = (d: string) => {
   const [, m, j] = d.split('-').map(Number);
   return `${j === 1 ? '1er' : j} ${MOIS[m - 1]}`;
 };
-const mot = (t: Item) => (t.type === 'rendez-vous' ? 'le rendez-vous' : t.type === 'demarche' ? 'la démarche' : t.parent ? 'la sous-tâche' : 'la tâche');
+const mot = (t: Item) =>
+  t.type === 'rendez-vous'
+    ? 'le rendez-vous'
+    : t.type === 'appel'
+      ? "l'appel"
+      : t.type === 'mission'
+        ? 'la mission'
+        : t.type === 'demarche'
+          ? 'la démarche'
+          : t.parent
+            ? 'la sous-tâche'
+            : 'la tâche';
 const maj = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** Accord : « prévu / prévue », « commencé / commencée » */
+const e = (t: Item) => (t.type === 'appel' || t.type === 'rendez-vous' ? '' : 'e');
 /** 5.5 → « 5,5 » */
 const nb = (n: number) => String(+n.toFixed(1)).replace('.', ',');
 const ouvert = (t: Item) => t.statut !== 'termine' && !t.periodicite;
@@ -77,13 +90,21 @@ const avecPoints = (t: Item) => t.type !== 'rendez-vous' && t.type !== 'appel';
 // ---------------------------------------------------------------------------
 // 1. Tâches : « qu'est-ce qui cloche aujourd'hui ? »
 // ---------------------------------------------------------------------------
-export function checksTaches(h: HierarchyValue, today: string): Check[] {
+export function checksTaches(
+  h: HierarchyValue,
+  today: string,
+  opts: { safe?: boolean; complet?: HierarchyValue } = {},
+): Check[] {
   const out: Check[] = [];
   const items = h.items;
+  const complet = opts.complet ?? h;
   const demain = toDateString(addDays(parseDate(today), 1));
 
-  // En retard : reporter à demain, ou choisir une date
-  const retard = items.filter((t) => ouvert(t) && t.date && t.date < today).sort((a, b) => a.date.localeCompare(b.date));
+  // En retard. Rendez-vous passés à part (on ne « reporte » pas un rendez-vous qui a eu lieu) ;
+  // une tâche et ses sous-tâches en retard forment une seule alerte.
+  const enRetard = (t: Item) => ouvert(t) && !!t.date && t.date < today;
+  const rdvPasses = items.filter((t) => enRetard(t) && t.type === 'rendez-vous');
+  const retard = items.filter((t) => enRetard(t) && t.type !== 'rendez-vous').sort((a, b) => a.date.localeCompare(b.date));
   if (retard.length > 1)
     out.push({
       key: 'retard:tout',
@@ -91,14 +112,46 @@ export function checksTaches(h: HierarchyValue, today: string): Check[] {
       message: `${retard.length} tâches sont en retard.`,
       actions: [{ label: 'Tout reporter à demain', action: { kind: 'tasks', patches: retard.map((t) => ({ id: t.id, date: demain })) }, principal: true }],
     });
-  for (const t of retard)
+  const familles = new Map<string, Item[]>();
+  for (const t of retard) familles.set(t.parent || t.id, [...(familles.get(t.parent || t.id) ?? []), t]);
+  for (const [id, groupe] of familles) {
+    const parent = items.find((x) => x.id === id);
+    const parentEnRetard = groupe.some((t) => t.id === id);
+    const sous = groupe.filter((t) => t.id !== id);
+    if (!sous.length) {
+      const t = groupe[0];
+      out.push({
+        key: `retard:${t.id}`,
+        icone: '⏰',
+        message: `${maj(mot(t))} « ${t.titre} » est en retard (prévu${e(t)} le ${court(t.date)}).`,
+        actions: [
+          { label: 'Reporter à demain', action: { kind: 'task', id: t.id, patch: { date: demain } }, principal: true },
+          { label: 'Choisir une date', action: { kind: 'open', target: 'task', id: t.id } },
+        ],
+      });
+      continue;
+    }
+    const nom = parent ? `${mot(parent)} « ${parent.titre} »` : 'une tâche';
     out.push({
-      key: `retard:${t.id}`,
+      key: `retard:famille:${id}`,
       icone: '⏰',
-      message: `${maj(mot(t))} « ${t.titre} » est en retard (${t.type === 'rendez-vous' ? 'prévu' : 'prévue'} le ${court(t.date)}).`,
+      message: parentEnRetard
+        ? `${maj(nom)} et ${sous.length} de ses sous-tâches sont en retard.`
+        : `${sous.length} sous-tâche${sous.length > 1 ? 's' : ''} de ${nom} ${sous.length > 1 ? 'sont' : 'est'} en retard : ${sous.map((t) => `« ${t.titre} »`).join(', ')}.`,
       actions: [
-        { label: 'Reporter à demain', action: { kind: 'task', id: t.id, patch: { date: demain } }, principal: true },
-        { label: 'Choisir une date', action: { kind: 'open', target: 'task', id: t.id } },
+        { label: 'Tout reporter à demain', action: { kind: 'tasks', patches: groupe.map((t) => ({ id: t.id, date: demain })) }, principal: true },
+        ...(parent ? [{ label: `Ouvrir « ${parent.titre} »`, action: { kind: 'open', target: 'task', id: parent.id } as Action }] : []),
+      ],
+    });
+  }
+  for (const t of rdvPasses)
+    out.push({
+      key: `rdvpasse:${t.id}`,
+      icone: '📅',
+      message: `Le rendez-vous « ${t.titre} » du ${court(t.date)} est passé et n'est pas coché.`,
+      actions: [
+        { label: 'Marquer fait', action: { kind: 'task', id: t.id, patch: { statut: 'termine' } }, principal: true },
+        { label: 'Reprogrammer', action: { kind: 'open', target: 'task', id: t.id } },
       ],
     });
 
@@ -110,7 +163,7 @@ export function checksTaches(h: HierarchyValue, today: string): Check[] {
     out.push({
       key: `repete:${t.id}`,
       icone: '🔁',
-      message: `La tâche répétée « ${t.titre} » est en retard : ${missed.map((o) => o.label).join(', ')}.`,
+      message: `La tâche répétée « ${t.titre} » est en retard : ${missed.map((o) => o.label).join(', ')}.`.replace(/\.\.$/, '.'),
       actions: [
         { label: `Cocher ${missed[0].label}`, action: { kind: 'task', id: t.id, patch: { faits: faits([missed[0].key]) } }, principal: true },
         ...(missed.length > 1
@@ -120,63 +173,87 @@ export function checksTaches(h: HierarchyValue, today: string): Check[] {
     });
   }
 
-  // Rendez-vous qui se chevauchent : même jour, créneaux qui se recouvrent (sans heure de fin : 1 h estimée)
-  const rdv = items
-    .filter((t) => ouvert(t) && t.type === 'rendez-vous' && t.date >= today && t.heure)
-    .sort((a, b) => (a.date + a.heure).localeCompare(b.date + b.heure));
-  const debut = (t: Item) => minutes(t.heure);
-  const fin = (t: Item) => (t.heure_fin && t.heure_fin > t.heure ? minutes(t.heure_fin) : debut(t) + 60);
-  const creneau = (t: Item) => (t.heure_fin && t.heure_fin > t.heure ? `${t.heure} → ${t.heure_fin}` : `${t.heure}, fin non indiquée : 1 h estimée`);
-  for (let i = 0; i < rdv.length; i++)
-    for (let j = i + 1; j < rdv.length && rdv[j].date === rdv[i].date; j++) {
-      const [a, b] = [rdv[i], rdv[j]];
-      if (debut(b) >= fin(a)) continue;
-      const recouvre = Math.min(fin(a), fin(b)) - Math.max(debut(a), debut(b));
-      // Proposition : décaler le 2e rendez-vous juste après le 1er, en gardant sa durée
-      const duree = fin(b) - debut(b);
-      const nouveau = fin(a);
+  // Agenda : créneaux qui se recouvrent le même jour. On regarde TOUT l'agenda (le temps est commun à tous
+  // les domaines) : rendez-vous (fin indiquée, sinon 1 h), appels et missions avec une heure (30 min),
+  // rendez-vous répétés sur les 30 prochains jours. L'alerte s'affiche si l'un des deux est dans le domaine filtré.
+  const visibles = new Set(items.map((t) => t.id));
+  const dans30 = toDateString(addDays(parseDate(today), 30));
+  type Creneau = { t: Item; date: string; repete: boolean; debut: number; fin: number; estime: boolean };
+  const creneaux: Creneau[] = [];
+  const minutesDe = (t: Item) => {
+    const d = minutes(t.heure);
+    if (t.type === 'rendez-vous' && t.heure_fin && t.heure_fin > t.heure) return { debut: d, fin: minutes(t.heure_fin), estime: false };
+    return { debut: d, fin: d + (t.type === 'rendez-vous' ? 60 : 30), estime: true };
+  };
+  for (const t of complet.items) {
+    if (!t.heure || t.statut === 'termine' || !['rendez-vous', 'appel', 'mission'].includes(t.type)) continue;
+    if (!t.periodicite) {
+      if (t.date >= today) creneaux.push({ t, date: t.date, repete: false, ...minutesDe(t) });
+    } else if (t.type === 'rendez-vous') {
+      const faits = new Set(t.faits.split(';'));
+      for (const o of occurrencesBetween(t, today, dans30, today))
+        if (o.date && o.date >= today && !faits.has(o.key)) creneaux.push({ t, date: o.date, repete: true, ...minutesDe(t) });
+    }
+  }
+  creneaux.sort((a, b) => (a.date + hhmm(a.debut)).localeCompare(b.date + hhmm(b.debut)));
+  const libelle = (c: Creneau) =>
+    `${c.repete ? `${mot(c.t)} répété` : mot(c.t)} « ${c.t.titre} » (${hhmm(c.debut)}${c.estime ? `, fin non indiquée : ${c.fin - c.debut >= 60 ? '1 h' : '30 min'} estimée` : ` → ${hhmm(c.fin)}`})`;
+  for (let i = 0; i < creneaux.length; i++)
+    for (let j = i + 1; j < creneaux.length && creneaux[j].date === creneaux[i].date; j++) {
+      const [a, b] = [creneaux[i], creneaux[j]];
+      if (b.debut >= a.fin || a.t.id === b.t.id) continue;
+      if (!visibles.has(a.t.id) && !visibles.has(b.t.id)) continue;
+      const recouvre = Math.min(a.fin, b.fin) - Math.max(a.debut, b.debut);
+      // Proposition : décaler le 2e juste après le 1er (seulement s'il est ponctuel : décaler un répété changerait toutes ses dates)
+      const duree = b.fin - b.debut;
       const decaler =
-        nouveau + duree <= 23 * 60 + 59
+        !b.repete && a.fin + duree <= 23 * 60 + 59
           ? [
               {
-                label: `Décaler « ${b.titre} » à ${hhmm(nouveau)}`,
-                action: { kind: 'task', id: b.id, patch: { heure: hhmm(nouveau), heure_fin: hhmm(nouveau + duree) } } as Action,
+                label: `Décaler « ${b.t.titre} » à ${hhmm(a.fin)}`,
+                action: {
+                  kind: 'task',
+                  id: b.t.id,
+                  patch: { heure: hhmm(a.fin), ...(b.t.type === 'rendez-vous' ? { heure_fin: hhmm(a.fin + duree) } : {}) },
+                } as Action,
                 principal: true,
               },
             ]
           : [];
       out.push({
-        key: `rdv:${a.id}:${b.id}`,
+        key: `rdv:${a.t.id}:${b.t.id}:${a.date}`,
         icone: '📅',
         message:
-          recouvre === fin(b) - debut(b) && recouvre < fin(a) - debut(a)
-            ? `Le ${court(a.date)}, le rendez-vous « ${b.titre} » (${creneau(b)}) a lieu pendant le rendez-vous « ${a.titre} » (${creneau(a)}).`
-            : `Le ${court(a.date)}, le rendez-vous « ${a.titre} » (${creneau(a)}) et le rendez-vous « ${b.titre} » (${creneau(b)}) se chevauchent${recouvre < fin(b) - debut(b) || recouvre < fin(a) - debut(a) ? ` de ${dureeTxt(recouvre)}` : ''}.`,
+          recouvre === b.fin - b.debut && recouvre < a.fin - a.debut
+            ? `Le ${court(a.date)}, ${libelle(b)} a lieu pendant ${libelle(a)}.`
+            : `Le ${court(a.date)}, ${libelle(a)} et ${libelle(b)} se chevauchent${recouvre < b.fin - b.debut || recouvre < a.fin - a.debut ? ` de ${dureeTxt(recouvre)}` : ''}.`,
         actions: [
           ...decaler,
-          { label: `Ouvrir « ${a.titre} »`, action: { kind: 'open', target: 'task', id: a.id } },
-          { label: `Ouvrir « ${b.titre} »`, action: { kind: 'open', target: 'task', id: b.id } },
+          { label: `Ouvrir « ${a.t.titre} »`, action: { kind: 'open', target: 'task', id: a.t.id } },
+          { label: `Ouvrir « ${b.t.titre} »`, action: { kind: 'open', target: 'task', id: b.t.id } },
         ],
       });
     }
 
-  // Démarche ou tâche importante due dans moins de 3 jours et pas commencée
+  // Démarche ou tâche de priorité haute prévue dans 3 jours et pas commencée
+  // (pas les rendez-vous ; un parent est « commencé » dès qu'une de ses sous-tâches avance)
+  const subs = subtaskMap(items);
   const limite = toDateString(addDays(parseDate(today), 3));
-  for (const t of items)
-    // (pas les rendez-vous : ils ont lieu à leur date, on ne les « commence » pas)
-    if (t.statut === 'a_faire' && !t.periodicite && t.type !== 'rendez-vous' && t.date && t.date >= today && t.date <= limite && (t.type === 'demarche' || t.priorite === 'haute'))
+  for (const t of items) {
+    const commence = t.statut !== 'a_faire' || (subs.get(t.id) ?? []).some((k) => k.statut !== 'a_faire');
+    if (!commence && !t.periodicite && t.type !== 'rendez-vous' && t.date && t.date >= today && t.date <= limite && (t.type === 'demarche' || t.priorite === 'haute'))
       out.push({
         key: `bientot:${t.id}`,
         icone: '🗂️',
-        message: `${maj(mot(t))} « ${t.titre} »${t.priorite === 'haute' ? ' (priorité haute)' : ''} est prévue le ${court(t.date)} et n'est pas encore commencée.`,
+        message: `${maj(mot(t))} « ${t.titre} »${t.priorite === 'haute' ? ' (priorité haute)' : ''} est prévu${e(t)} le ${court(t.date)} et n'est pas encore commencé${e(t)}.`,
         actions: [
           { label: 'Commencer', action: { kind: 'task', id: t.id, patch: { statut: 'en_cours' } }, principal: true },
           { label: 'Ouvrir', action: { kind: 'open', target: 'task', id: t.id } },
         ],
       });
+  }
 
-  // Sous-tâches : tout est fait mais le parent ne l'est pas ; points incohérents
-  const subs = subtaskMap(items);
+  // Sous-tâches : tout est fait mais le parent ne l'est pas ; points incohérents (en mode SAFe, dans l'Itération)
   for (const [pid, kids] of subs) {
     const p = items.find((t) => t.id === pid);
     if (!p) continue;
@@ -188,7 +265,7 @@ export function checksTaches(h: HierarchyValue, today: string): Check[] {
         actions: [{ label: `Terminer « ${p.titre} »`, action: { kind: 'task', id: p.id, patch: { statut: 'termine' } }, principal: true }],
       });
     const c = pointsCheck(p, kids);
-    if (c.alerte)
+    if (c.alerte && !opts.safe)
       out.push({
         key: `points:${p.id}`,
         icone: '🔢',
@@ -450,7 +527,8 @@ export function checksRoadmap(h: HierarchyValue, today: string): Check[] {
         ],
       });
     // Epic sans tâche
-    if (!toutes.length && !terminee && (!e.fin || e.fin >= today))
+    const bientot = toDateString(addDays(parseDate(today), 30));
+    if (!toutes.length && !terminee && e.etat !== 'idee' && e.debut <= bientot && (!e.fin || e.fin >= today))
       out.push({
         key: `evide:${e.id}`,
         icone: '🕳️',
@@ -474,7 +552,7 @@ export function checksRoadmap(h: HierarchyValue, today: string): Check[] {
         ],
       });
     // Objectif sans epic (ni tâche directe)
-    if (!epics.length && !directes.length && (!o.fin || o.fin >= today))
+    if (!epics.length && !directes.length && (!o.debut || o.debut <= toDateString(addDays(parseDate(today), 30))) && (!o.fin || o.fin >= today))
       out.push({
         key: `ovide:${o.id}`,
         icone: '🕳️',
@@ -540,6 +618,8 @@ export function checksPortefeuille(h: HierarchyValue, today: string): Check[] {
   // Domaine délaissé : aucune epic en cours et aucune tâche terminée depuis 60 jours
   const il60 = toDateString(addDays(parseDate(today), -60));
   for (const d of h.domaineList) {
+    // Un domaine créé il y a moins de 2 mois n'est pas « délaissé »
+    if ((d.cree_le || '').slice(0, 10) > il60) continue;
     const epics = h.epicList.filter((e) => domaineOf({ epic: e.id }, h)?.id === d.id);
     const actif = epics.some((e) => etatEpic(e, today) === 'en_cours');
     const recent = h.items.some(
@@ -562,7 +642,7 @@ export function checksParEcran(complet: HierarchyValue, today: string, capacite:
   const it = iterationOf(today).key;
   const precedente = shiftIteration(it, -1);
   return {
-    taches: checksTaches(h, today),
+    taches: checksTaches(h, today, { safe, complet }),
     roadmap: checksRoadmap(h, today),
     iteration: safe
       ? [...checksIteration(h, precedente, today, capacite, complet).filter((c) => c.key.startsWith('fin:')), ...checksIteration(h, it, today, capacite, complet)]

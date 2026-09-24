@@ -205,7 +205,17 @@ export interface Domaine {
 
 export type DomaineInput = Omit<Domaine, 'id' | 'cree_le' | 'modifie_le'>;
 
-export type EntityKind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi';
+export type EntityKind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'ignoree';
+
+/** Alerte ignorée : sa clé, et la situation (son message) au moment où on l'a ignorée. */
+export interface Ignoree {
+  id: string;
+  cle: string;
+  signature: string;
+  cree_le: string;
+  modifie_le: string;
+}
+export type IgnoreeInput = Omit<Ignoree, 'id' | 'cree_le' | 'modifie_le'>;
 
 /** Icônes proposées pour les domaines. */
 export const DOMAINE_ICONES = ['💼', '🏠', '💶', '❤️', '🎓', '🛠️', '🌱', '✈️', '👪', '📦', '⚽', '🎨'];

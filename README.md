@@ -49,6 +49,14 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   par défaut (choix mémorisé par écran ; dépliée : 3 visibles, « voir les
   autres »), avec des boutons d'action, et un **chiffre rouge sur chaque onglet** (itération et PI en cours). Les alertes suivent le **filtre de domaine** ;
   la capacité reste commune. Rien n'est modifié tout seul.
+  **Ignorer** une alerte (lien discret sous chaque alerte) : elle disparaît de la carte et du chiffre de l'onglet,
+  enregistrée dans le Google Sheet (onglet `Ignorees`, partagé entre vos appareils) avec la situation du moment ;
+  si la situation change (dates, heures, nombre…), l'alerte revient. « N alertes ignorées · les revoir » →
+  « Ne plus ignorer ». Agenda : chevauchements calculés sur tout l'agenda (tous domaines), y compris rendez-vous
+  répétés (30 jours), appels et missions avec une heure (30 min estimées) ; rendez-vous passé non coché :
+  « Marquer fait » ou « Reprogrammer » ; une tâche et ses sous-tâches en retard = une seule alerte ; pas
+  d'alerte « vide » pour une epic à l'état Idée ou qui commence dans plus d'un mois, ni « délaissé » pour un
+  domaine de moins de 2 mois.
   - **Tâches** : en retard (reporter à demain, tout reporter, choisir une date) ; tâche répétée en retard
     (cocher la période, tout rattraper) ; rendez-vous qui se
     chevauchent (d'après l'heure de fin ; sans elle, 1 h estimée), avec « Décaler … juste après » ; démarche ou tâche de priorité haute prévue dans 3 jours et pas commencée (commencer) ;
@@ -136,7 +144,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone | parent | heure_fin`
    et les onglets `Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine | etat`),
    `Features` (`id | titre | description | epic | pi | iteration | points | couleur | cree_le | modifie_le`),
-   `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le | domaine`),
+   `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le | domaine`), `Ignorees` (`id | cle | signature | cree_le | modifie_le` : alertes ignorées),
    `Objectifs` (`id | titre | description | domaine | debut | fin | couleur | cible | actuel | unite | cree_le | modifie_le`)
    et `Domaines` (`id | nom | icone | couleur | cree_le | modifie_le`).
 4. **Déployer › Nouveau déploiement** → type **Application Web** :

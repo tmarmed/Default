@@ -26,7 +26,7 @@ var HEADERS = [
   'heure_fin'
 ];
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 9;
+var API_VERSION = 10;
 
 /**
  * Niveaux au-dessus des tâches : Domaine > Objectif > Epic > Tâche.
@@ -57,6 +57,11 @@ var ENTITIES = {
   domaine: {
     sheet: 'Domaines', min: 6,
     headers: ['id', 'nom', 'icone', 'couleur', 'cree_le', 'modifie_le']
+  },
+  // v10 : alertes ignorées (clé de l'alerte + situation au moment où on l'a ignorée)
+  ignoree: {
+    sheet: 'Ignorees', min: 5,
+    headers: ['id', 'cle', 'signature', 'cree_le', 'modifie_le']
   }
 };
 var PERIODICITES = ['', 'hebdomadaire', 'mensuelle', 'trimestrielle', 'annuelle'];
@@ -87,6 +92,7 @@ function installer() {
   entitySheet_('domaine');
   entitySheet_('feature');
   entitySheet_('objectifpi');
+  entitySheet_('ignoree');
   var props = PropertiesService.getScriptProperties();
 
   if (GOOGLE_WEB_CLIENT_ID) {
@@ -198,7 +204,8 @@ function listAll_() {
     objectifs: listEntities_('objectif'),
     domaines: listEntities_('domaine'),
     features: listEntities_('feature'),
-    objectifsPI: listEntities_('objectifpi')
+    objectifsPI: listEntities_('objectifpi'),
+    ignorees: listEntities_('ignoree')
   };
 }
 
@@ -547,6 +554,10 @@ function sanitizeEntity_(kind, data, base) {
   } else if (kind === 'feature') {
     if (!out.titre.trim()) throw new Error('Le titre est obligatoire.');
     checkSafe_(out);
+  } else if (kind === 'ignoree') {
+    if (!out.cle.trim()) throw new Error("La clé de l'alerte est obligatoire.");
+    out.cle = out.cle.slice(0, 300);
+    out.signature = out.signature.slice(0, 2000);
   } else if (kind === 'objectifpi') {
     if (!out.titre.trim()) throw new Error('Le titre est obligatoire.');
     if (!RE_PI.test(out.pi)) throw new Error('PI invalide (ex. 2026-T4).');
@@ -638,7 +649,7 @@ function writeTable_(sheet, headers, rows) {
  */
 function deleteEntity_(kind, id, cascade) {
   var tasksSheet = getSheet_();
-  var kinds = ['epic', 'objectif', 'domaine', 'feature', 'objectifpi'];
+  var kinds = ['epic', 'objectif', 'domaine', 'feature', 'objectifpi', 'ignoree'];
   var sheets = {};
   var data = { tache: readTable_(tasksSheet, HEADERS) };
   kinds.forEach(function (k) {
@@ -685,7 +696,7 @@ function planDeletion_(kind, self, cascade, data) {
   var counts = { objectifs: n(objIds), epics: n(epicIds), features: n(featIds), taches: n(taskIds), cascade: !!cascade };
 
   var out = {};
-  ['tache', 'epic', 'objectif', 'domaine', 'feature', 'objectifpi'].forEach(function (k) {
+  ['tache', 'epic', 'objectif', 'domaine', 'feature', 'objectifpi', 'ignoree'].forEach(function (k) {
     out[k] = data[k].filter(function (o) { return !(k === kind && o.id === id); });
   });
 
