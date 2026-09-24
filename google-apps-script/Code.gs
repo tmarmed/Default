@@ -408,8 +408,9 @@ function sanitizeEpic_(epic, base) {
   });
   if (!out.titre.trim()) throw new Error('Le titre de l\'epic est obligatoire.');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(out.debut)) throw new Error('Date de début de l\'epic invalide (AAAA-MM-JJ).');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(out.fin)) throw new Error('Date de fin de l\'epic invalide (AAAA-MM-JJ).');
-  if (out.fin < out.debut) throw new Error('La fin de l\'epic est avant son début.');
+  // Fin vide = epic sans fin (infinie).
+  if (out.fin && !/^\d{4}-\d{2}-\d{2}$/.test(out.fin)) throw new Error('Date de fin de l\'epic invalide (AAAA-MM-JJ).');
+  if (out.fin && out.fin < out.debut) throw new Error('La fin de l\'epic est avant son début.');
   if (!/^#[0-9A-Fa-f]{6}$/.test(out.couleur)) out.couleur = '#1A73E8';
   return out;
 }

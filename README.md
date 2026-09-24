@@ -22,6 +22,18 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   sur un schéma à barres, échelle **3 ans / Année / Trimestre / Mois**, glisser pour changer de période,
   trait « aujourd'hui » et avancement (tâches terminées / total). Chaque tâche peut être rattachée à une
   epic ; supprimer une epic conserve ses tâches, sans epic.
+- **Dates des epics élargies automatiquement** (voir règles ci-dessous).
+
+### Règles de gestion des dates d'epic
+
+1. L'epic **ne s'agrandit que si une de ses tâches en sort** ; sinon les dates saisies sont gardées.
+   Elle ne rétrécit jamais toute seule (on la raccourcit à la main, sans pouvoir exclure une tâche).
+2. **Début** avancé si une tâche commence avant ; **fin** repoussée si une tâche finit après.
+3. Une epic **sans date de fin est infinie** : sa fin n'est jamais modifiée.
+4. Une **tâche répétée sans date de fin** rend son epic **sans fin**.
+5. Dates retenues : tâche ponctuelle → sa date (sans date : ignorée) ; tâche répétée → son « À partir du »
+   (sinon sa création) pour le début, son « Jusqu'au » pour la fin. Les tâches terminées comptent.
+6. Appliqué à l'enregistrement d'une tâche rattachée ou de l'epic ; un message indique le changement.
 - Tirer vers le bas pour synchroniser avec le Google Sheet
 - Dernière copie gardée sur le téléphone : la liste reste lisible sans réseau
 
@@ -60,7 +72,7 @@ Valeurs acceptées dans la feuille si vous saisissez à la main :
 `echeance` = semaine `1` (lundi) à `7`, mois `1` à `31`, trimestre `m` ou `m-j`, année `MM` ou `MM-JJ`
 (vide = « dans la période ») · `debut` / `fin` = `AAAA-MM-JJ` · `faits` = périodes cochées,
 ex. `2026-08;2026-09` (mois), `2026-T3` (trimestre), `2026` (année), `2026-09-21` (semaine du lundi 21) ·
-`epic` = `id` d'une ligne de l'onglet `Epics` (vide = aucune). Epics : `couleur` = `#RRGGBB`.
+`epic` = `id` d'une ligne de l'onglet `Epics` (vide = aucune). Epics : `couleur` = `#RRGGBB`, `fin` vide = epic sans fin.
 Chaque ligne doit avoir un `id` unique : le plus simple est de créer les lignes depuis l'application.
 
 ## Connexion avec Google (optionnel)

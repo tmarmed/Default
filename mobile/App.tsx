@@ -38,6 +38,7 @@ import {
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { API_URL, GOOGLE_AUTH } from './src/config';
 import { DEMO, demoApi } from './src/demo';
+import { ajusterEpic } from './src/epicRules';
 import { EpicsContext } from './src/epicsContext';
 import {
   clearSettings,
@@ -101,6 +102,8 @@ function Main() {
   const [offline, setOffline] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** Information (ex. dates d'epic ajustées), en bleu */
+  const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
   const [apiVersion, setApiVersion] = useState(api.API_VERSION_EPICS);
   const [filter, setFilter] = useState<Filter>('tous');
@@ -272,14 +275,37 @@ function Main() {
         "le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.",
       );
     }
+    let next: Item[];
+    let saved: Item;
     if (editing) {
-      const saved = await api.updateItem(settings, { ...input, id: editing.id });
-      updateItems(items.map((i) => (i.id === saved.id ? saved : i)));
+      saved = await api.updateItem(settings, { ...input, id: editing.id });
+      next = items.map((i) => (i.id === saved.id ? saved : i));
     } else {
-      const created = await api.createItem(settings, input);
-      updateItems([...items, created]);
+      saved = await api.createItem(settings, input);
+      next = [...items, saved];
     }
+    updateItems(next);
     setFormOpen(false);
+    if (saved.epic) await elargirEpic(saved.epic, next);
+  };
+
+  /** Élargit l'epic si une de ses tâches en sort (règles dans epicRules.ts). */
+  const elargirEpic = async (epicId: string, allItems: Item[]) => {
+    const epic = epics.find((e) => e.id === epicId);
+    if (!epic || !settings) return;
+    const adj = ajusterEpic(epic, allItems.filter((i) => i.epic === epicId));
+    if (adj.debut === epic.debut && adj.fin === epic.fin) return;
+    try {
+      const updated = await api.updateEpic(settings, { id: epic.id, debut: adj.debut, fin: adj.fin });
+      setEpics((prev) => {
+        const list = prev.map((e) => (e.id === updated.id ? updated : e));
+        saveEpicsCache(list).catch(() => {});
+        return list;
+      });
+      setInfo(adj.messages.join(' '));
+    } catch (e) {
+      setNotice(`Dates de l'epic non mises à jour : ${(e as Error).message}`);
+    }
   };
 
   const remove = async (item: Item) => {
@@ -299,6 +325,12 @@ function Main() {
     if (apiVersion < api.API_VERSION_EPICS) {
       throw new Error("le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.");
     }
+    // Les dates saisies sont élargies si une tâche de l'epic en sort.
+    const adj = editingEpic
+      ? ajusterEpic(input, items.filter((i) => i.epic === editingEpic.id))
+      : { debut: input.debut, fin: input.fin, messages: [] };
+    input = { ...input, debut: adj.debut, fin: adj.fin };
+    if (adj.messages.length) setInfo(adj.messages.join(' '));
     if (editingEpic) {
       const saved = await api.updateEpic(settings, { ...input, id: editingEpic.id });
       const list = epics.map((e) => (e.id === saved.id ? saved : e));
@@ -417,6 +449,11 @@ function Main() {
         </View>
       )}
       {tab === 'roadmap' && <View style={styles.spacer} />}
+      {info && (
+        <Pressable style={styles.info} onPress={() => setInfo(null)} accessibilityLabel="Fermer le message">
+          <Text style={styles.infoText}>{info} ✕</Text>
+        </Pressable>
+      )}
       {notice && (
         <Pressable style={styles.notice} onPress={() => setNotice(null)} accessibilityLabel="Fermer le message">
           <Text style={styles.noticeText}>{notice} ✕</Text>
@@ -601,6 +638,8 @@ const styles = StyleSheet.create({
   },
   demoText: { flex: 1, color: '#174EA6', fontSize: 12.5, lineHeight: 17 },
   demoReset: { color: colors.primary, fontSize: 13, fontWeight: '700' },
+  info: { marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, backgroundColor: '#E8F0FE' },
+  infoText: { color: '#174EA6', fontSize: 13, lineHeight: 18 },
   notice: { marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, backgroundColor: '#FCE8E6' },
   noticeText: { color: colors.danger, fontSize: 13 },
   offline: { marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, backgroundColor: '#FEF7E0' },

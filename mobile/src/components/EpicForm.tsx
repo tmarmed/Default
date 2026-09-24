@@ -66,8 +66,8 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
 
   const save = async () => {
     if (!form.titre.trim()) return setError("Donnez un titre à l'epic.");
-    if (!form.debut || !form.fin) return setError('Choisissez une date de début et une date de fin.');
-    if (form.fin < form.debut) return setError('La date de fin est avant la date de début.');
+    if (!form.debut) return setError('Choisissez une date de début.');
+    if (form.fin && form.fin < form.debut) return setError('La date de fin est avant la date de début.');
     setError(null);
     setBusy(true);
     try {
@@ -132,7 +132,7 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
               <Text style={styles.previewTitle} numberOfLines={2}>
                 {form.titre || 'Titre de l’epic'}
               </Text>
-              {!!form.debut && !!form.fin && form.fin >= form.debut && (
+              {!!form.debut && (!form.fin || form.fin >= form.debut) && (
                 <Text style={styles.previewDates}>{formatEpicDates(form)}</Text>
               )}
             </View>
@@ -149,7 +149,11 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
             <Text style={styles.label}>Début</Text>
             <DateField mode="date" value={form.debut} onChange={(v) => set('debut', v)} placeholder="Date de début" />
             <Text style={styles.label}>Fin</Text>
-            <DateField mode="date" value={form.fin} onChange={(v) => set('fin', v)} placeholder="Date de fin" />
+            <DateField mode="date" value={form.fin} onChange={(v) => set('fin', v)} placeholder="Sans fin (epic infinie)" />
+            <Text style={styles.hint}>
+              Vide = epic sans fin. Les dates s'élargissent toutes seules si une tâche de l'epic en sort ; une tâche
+              répétée sans date de fin rend l'epic sans fin.
+            </Text>
 
             <Text style={styles.label}>Couleur</Text>
             <View style={styles.swatches}>
@@ -272,6 +276,7 @@ const styles = StyleSheet.create({
   },
   titleInput: { fontSize: 18, fontWeight: '500' },
   notes: { minHeight: 90 },
+  hint: { marginTop: 6, fontSize: 12, lineHeight: 17, color: colors.muted },
   swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   swatch: { width: 34, height: 34, borderRadius: 17 },
   swatchOn: { borderWidth: 3, borderColor: colors.text },

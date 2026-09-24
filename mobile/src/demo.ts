@@ -43,7 +43,7 @@ function sample(): Item[] {
       periodicite: 'mensuelle', echeance: '5', priorite: 'haute', debut: toDateString(new Date(now.getFullYear(), now.getMonth() - 2, 1)),
       faits: toDateString(new Date(now.getFullYear(), now.getMonth() - 2, 1)).slice(0, 7),
     }),
-    mk('d12', 'Faire les comptes du mois', 'tache', '', '', { periodicite: 'mensuelle' }),
+    mk('d12', 'Faire les comptes du mois', 'tache', '', '', { periodicite: 'mensuelle', epic: 'e5' }),
     mk('d13', 'Point hebdo équipe', 'rendez-vous', '', '10:00', { periodicite: 'hebdomadaire', echeance: '1', lieu: 'Visio' }),
     mk('d14', 'Déclaration de TVA', 'mission', '', '', { periodicite: 'trimestrielle' }),
     mk('d15', 'Renouveler l\'assurance', 'tache', '', '', {
@@ -62,8 +62,9 @@ function sampleEpics(): Epic[] {
   return [
     mk('e1', 'Refonte du site web', m(-1), m(4, 0), '#1A73E8', 'Nouveau site vitrine et prise de rendez-vous en ligne'),
     mk('e2', 'Salon professionnel', m(0, 15), m(2, 10), '#E37400', 'Stand, supports et rendez-vous clients'),
-    mk('e3', 'Déménagement de l\'entrepôt', m(-3), m(1, 0), '#8E24AA'),
+    mk('e3', 'Déménagement de l\'entrepôt', m(-3), m(1, 15), '#8E24AA'),
     mk('e4', 'Certification qualité', m(5), m(14, 0), '#188038', 'Audit, procédures et formation'),
+    mk('e5', 'Gestion courante', m(-2), '', '#00897B', 'Epic sans fin : tâches répétées du quotidien'),
   ];
 }
 

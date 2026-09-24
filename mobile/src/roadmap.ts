@@ -103,16 +103,25 @@ export interface Bar {
   /** L'epic commence avant / finit après la fenêtre */
   cutStart: boolean;
   cutEnd: boolean;
+  /** Epic sans fin : la barre va jusqu'au bout de la fenêtre */
+  infinite: boolean;
 }
 
 /** Position de la barre d'une epic dans la fenêtre, ou null si elle est en dehors. */
 export function barFor(epic: Pick<Epic, 'debut' | 'fin'>, win: Pick<Window, 'start' | 'end'>): Bar | null {
-  if (epic.fin < win.start || epic.debut > win.end) return null;
+  const infinite = !epic.fin;
+  if ((!infinite && epic.fin < win.start) || epic.debut > win.end) return null;
   const w0 = dayNumber(win.start);
   const total = dayNumber(win.end) - w0 + 1;
   const a = Math.max(dayNumber(epic.debut), w0);
-  const b = Math.min(dayNumber(epic.fin), dayNumber(win.end)) + 1;
-  return { left: (a - w0) / total, width: (b - a) / total, cutStart: epic.debut < win.start, cutEnd: epic.fin > win.end };
+  const b = (infinite ? dayNumber(win.end) : Math.min(dayNumber(epic.fin), dayNumber(win.end))) + 1;
+  return {
+    left: (a - w0) / total,
+    width: (b - a) / total,
+    cutStart: epic.debut < win.start,
+    cutEnd: infinite || epic.fin > win.end,
+    infinite,
+  };
 }
 
 /** Position d'un jour dans la fenêtre (pour le trait « aujourd'hui »), ou null. */
@@ -142,8 +151,9 @@ export function progress(epicId: string, items: Item[]): { done: number; total: 
 export function formatEpicDates(epic: Pick<Epic, 'debut' | 'fin'>): string {
   const f = (s: string) => {
     const [y, m, d] = s.split('-').map(Number);
-    return `${d} ${MOIS[m - 1]} ${y}`;
+    return `${d === 1 ? '1er' : d} ${MOIS[m - 1]} ${y}`;
   };
+  if (!epic.fin) return `${f(epic.debut)} → sans fin`;
   const days = dayNumber(epic.fin) - dayNumber(epic.debut) + 1;
   const duree =
     days < 14 ? `${days} j` : days < 28 ? `${Math.round(days / 7)} sem.` : `${Math.round(days / 30.44)} mois`;

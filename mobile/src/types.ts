@@ -64,7 +64,7 @@ export interface Epic {
   description: string;
   /** AAAA-MM-JJ */
   debut: string;
-  /** AAAA-MM-JJ */
+  /** AAAA-MM-JJ, vide = epic sans fin (infinie) */
   fin: string;
   /** #RRGGBB */
   couleur: string;

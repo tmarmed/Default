@@ -33,9 +33,12 @@ export function Roadmap({ epics, items, onOpenEpic, refreshControl }: Props) {
   const todayPos = positionOf(today, win);
   const isCurrent = todayPos !== null;
 
-  const sorted = useMemo(() => [...epics].sort((a, b) => a.debut.localeCompare(b.debut) || a.fin.localeCompare(b.fin)), [epics]);
+  const sorted = useMemo(
+    () => [...epics].sort((a, b) => a.debut.localeCompare(b.debut) || (a.fin || '9999').localeCompare(b.fin || '9999')),
+    [epics],
+  );
   const visible = sorted.filter((e) => barFor(e, win));
-  const before = sorted.filter((e) => e.fin < win.start);
+  const before = sorted.filter((e) => e.fin && e.fin < win.start);
   const after = sorted.filter((e) => e.debut > win.end);
 
   const step = (n: number) => setAnchor((d) => shift(zoom, d, n));
@@ -135,7 +138,7 @@ function EpicRow({
   const bar = barFor(epic, win)!;
   const stats = progress(epic.id, items);
   const ratio = stats.total ? stats.done / stats.total : 0;
-  const late = epic.fin < toDateString(new Date()) && stats.total > stats.done;
+  const late = !!epic.fin && epic.fin < toDateString(new Date()) && stats.total > stats.done;
 
   return (
     <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]} onPress={onPress} accessibilityRole="button">
@@ -168,7 +171,9 @@ function EpicRow({
           {/* Avancement : part des tâches terminées */}
           <View style={[styles.barFill, { width: pct(ratio), backgroundColor: epic.couleur }]} />
           {bar.cutStart && <Text style={[styles.arrow, styles.arrowLeft, { color: epic.couleur }]}>‹</Text>}
-          {bar.cutEnd && <Text style={[styles.arrow, styles.arrowRight, { color: epic.couleur }]}>›</Text>}
+          {bar.cutEnd && (
+            <Text style={[styles.arrow, styles.arrowRight, { color: epic.couleur }]}>{bar.infinite ? '∞' : '›'}</Text>
+          )}
         </View>
       </View>
       <Text style={styles.rowDates} numberOfLines={1}>
