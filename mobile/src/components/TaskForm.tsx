@@ -28,6 +28,7 @@ import { Chips } from './Chips';
 import { DateField } from './DateField';
 import { checkRecurrence, RecurrenceFields } from './RecurrenceFields';
 import { LinkPicker } from './LinkPicker';
+import { useHierarchy } from '../hierarchyContext';
 import { useSafe } from '../safe';
 import { iterationByKey, iterationOf, shiftIteration } from '../pi';
 import { toDateString } from '../dates';
@@ -41,6 +42,8 @@ interface Props {
   defaultDate: string;
   /** Itération proposée pour un nouvel élément sans date (écran Itération) */
   defaultIteration?: string;
+  /** Autres valeurs proposées pour un nouvel élément (ex. epic, feature) */
+  defaults?: Partial<ItemInput>;
   onClose: () => void;
   onSave: (input: ItemInput) => Promise<void>;
   onDelete: (item: Item) => Promise<void>;
@@ -103,12 +106,13 @@ const PRIORITES = (Object.keys(PRIORITE_LABELS) as Priorite[]).map((p) => ({
 }));
 const STATUTS = (Object.keys(STATUT_LABELS) as Statut[]).map((s) => ({ value: s, label: STATUT_LABELS[s] }));
 
-export function TaskForm({ visible, item, defaultType, defaultDate, defaultIteration, onClose, onSave, onDelete }: Props) {
+export function TaskForm({ visible, item, defaultType, defaultDate, defaultIteration, defaults, onClose, onSave, onDelete }: Props) {
   const [form, setForm] = useState<ItemInput>(empty(defaultType, defaultDate, defaultIteration));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const safe = useSafe();
+  const h = useHierarchy();
   // Itérations proposées pour une tâche sans date : la courante et les 5 suivantes
   const itCourante = iterationOf(toDateString(new Date())).key;
   const itOptions = [0, 1, 2, 3, 4, 5].map((n) => {
@@ -118,7 +122,7 @@ export function TaskForm({ visible, item, defaultType, defaultDate, defaultItera
 
   useEffect(() => {
     if (visible) {
-      setForm(item ? toInput(item) : empty(defaultType, defaultDate, defaultIteration));
+      setForm(item ? toInput(item) : { ...empty(defaultType, defaultDate, defaultIteration), ...defaults });
       setError(null);
       setConfirmDelete(false);
     }
@@ -262,7 +266,15 @@ export function TaskForm({ visible, item, defaultType, defaultDate, defaultItera
             <LinkPicker
               levels={safe.actif ? ['feature', 'epic', 'objectif', 'domaine'] : ['epic', 'objectif', 'domaine']}
               value={form}
-              onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+              onChange={(patch) =>
+                setForm((f) => {
+                  const next = { ...f, ...patch };
+                  // Tâche sans date rangée dans une feature : elle prend l'itération prévue de la feature
+                  const feat = patch.feature ? h.features.get(patch.feature) : undefined;
+                  if (feat?.iteration && !next.date && !next.periodicite && !f.iteration) next.iteration = feat.iteration;
+                  return next;
+                })
+              }
             />
 
             <Text style={styles.label}>Lieu</Text>

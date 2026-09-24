@@ -15,11 +15,12 @@ interface Props {
   onOpenObjectif: (o: Objectif) => void;
   onMoveEpic: (e: Epic, etat: EtatEpic) => void;
   onShowAlerts: () => void;
+  onOpenWizard?: () => void;
   refreshControl: ReactElement<RefreshControlProps>;
 }
 
 /** 🧭 Portefeuille (vision stratégique SAFe) : Kanban des epics, objectifs, répartition, alertes. */
-export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts, refreshControl }: Props) {
+export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts, refreshControl, onOpenWizard }: Props) {
   const h = useHierarchy();
   const today = toDateString(new Date());
   const [dom, setDom] = useState('tous');
@@ -44,6 +45,11 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
 
   return (
     <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
+      {h.epicList.length === 0 && onOpenWizard && (
+        <Pressable style={styles.wizard} onPress={onOpenWizard} accessibilityRole="button">
+          <Text style={styles.wizardText}>🚀 Aucune epic : lancer l’assistant projet</Text>
+        </Pressable>
+      )}
       {h.domaineList.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pad}>
           <Chips
@@ -173,6 +179,8 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: 130 },
+  wizard: { marginHorizontal: 16, marginBottom: 10, backgroundColor: colors.primary, borderRadius: 12, padding: 12 },
+  wizardText: { color: '#fff', fontWeight: '700', fontSize: 14.5 },
   pad: { paddingHorizontal: 16, paddingBottom: 8 },
   stats: { flexDirection: 'row', marginHorizontal: 16, backgroundColor: colors.card, borderRadius: 12, paddingVertical: 10 },
   stat: { flex: 1, alignItems: 'center' },

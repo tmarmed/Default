@@ -23,6 +23,7 @@ import { ETATS_EPIC } from '../types';
 import { Chips } from './Chips';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
+import { ChildActions } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { useHierarchy } from '../hierarchyContext';
 
@@ -35,6 +36,11 @@ interface Props {
   onSave: (input: EpicInput) => Promise<void>;
   onDelete: (epic: Epic, cascade: boolean) => Promise<void>;
   onOpenTask: (item: Item) => void;
+  /** Valeurs proposées pour une nouvelle epic (ex. objectif) */
+  defaults?: Partial<EpicInput>;
+  onAddFeature?: (e: Epic) => void;
+  onAddTask?: (e: Epic) => void;
+  onOpenWizard?: (e: Epic) => void;
 }
 
 const empty = (): EpicInput => {
@@ -52,7 +58,19 @@ const empty = (): EpicInput => {
 };
 
 /** Fiche d'une epic : dates, couleur, description, tâches rattachées. */
-export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOpenTask }: Props) {
+export function EpicForm({
+  visible,
+  epic,
+  items,
+  onClose,
+  onSave,
+  onDelete,
+  onOpenTask,
+  defaults,
+  onAddFeature,
+  onAddTask,
+  onOpenWizard,
+}: Props) {
   const [form, setForm] = useState<EpicInput>(empty());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,10 +93,11 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
               // État non choisi : on propose celui déduit des dates
               etat: etatEpic(epic, toDateString(new Date())),
             }
-          : empty(),
+          : { ...empty(), ...defaults },
       );
       setError(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, epic]);
 
   const set = <K extends keyof EpicInput>(key: K, value: EpicInput[K]) => setForm((f) => ({ ...f, [key]: value }));
@@ -268,6 +287,13 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
                   ))
                 )}
 
+                <ChildActions
+                  actions={[
+                    ...(safe.actif && onAddFeature ? [{ label: '+ Feature', onPress: () => onAddFeature(epic) }] : []),
+                    ...(onAddTask ? [{ label: '+ Tâche', onPress: () => onAddTask(epic) }] : []),
+                    ...(onOpenWizard ? [{ label: "🚀 Ouvrir dans l'assistant", onPress: () => onOpenWizard(epic), primary: true }] : []),
+                  ]}
+                />
                 <DeleteSection
                   label="Supprimer l'epic"
                   name={epic.titre}

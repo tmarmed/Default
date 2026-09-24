@@ -8,7 +8,7 @@ import { formatEpicDates } from '../roadmap';
 import { EPIC_COULEURS, Epic, Objectif, ObjectifInput } from '../types';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
-import { AlertList, ColorPicker, Field, FormSheet, formStyles as f, Label, Progress } from './FormSheet';
+import { AlertList, ChildActions, ColorPicker, Field, FormSheet, formStyles as f, Label, Progress } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { View } from 'react-native';
 
@@ -19,6 +19,10 @@ interface Props {
   onSave: (input: ObjectifInput) => Promise<void>;
   onDelete: (o: Objectif, cascade: boolean) => Promise<void>;
   onOpenEpic: (e: Epic) => void;
+  /** Valeurs proposées pour un nouvel objectif (ex. domaine) */
+  defaults?: Partial<ObjectifInput>;
+  onAddEpic?: (o: Objectif) => void;
+  onOpenWizard?: (o: Objectif) => void;
 }
 
 const empty = (): ObjectifInput => {
@@ -39,7 +43,7 @@ const empty = (): ObjectifInput => {
 const number = (t: string) => t.replace(/[^0-9.,-]/g, '');
 
 /** Fiche d'un objectif : échéance (ou permanent), indicateur, epics, alertes. */
-export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onOpenEpic }: Props) {
+export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onOpenEpic, defaults, onAddEpic, onOpenWizard }: Props) {
   const h = useHierarchy();
   const [form, setForm] = useState<ObjectifInput>(empty());
   const [busy, setBusy] = useState(false);
@@ -50,9 +54,10 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
       if (objectif) {
         const { id: _i, cree_le: _c, modifie_le: _m, ...rest } = objectif;
         setForm(rest);
-      } else setForm(empty());
+      } else setForm({ ...empty(), ...defaults });
       setError(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, objectif]);
 
   const set = <K extends keyof ObjectifInput>(k: K, v: ObjectifInput[K]) => setForm((x) => ({ ...x, [k]: v }));
@@ -151,6 +156,12 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
               </Pressable>
             ))
           )}
+          <ChildActions
+            actions={[
+              ...(onAddEpic ? [{ label: '+ Epic', onPress: () => onAddEpic(objectif) }] : []),
+              ...(onOpenWizard ? [{ label: "🚀 Ouvrir dans l'assistant", onPress: () => onOpenWizard(objectif), primary: true }] : []),
+            ]}
+          />
           <DeleteSection
             label="Supprimer l'objectif"
             name={objectif.titre}

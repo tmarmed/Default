@@ -26,6 +26,7 @@ interface Props {
   /** Boutons des alertes : ajustent les dates de l'epic / de l'objectif */
   onFixEpic: (epic: Epic, patch: Alerte['patch']) => void;
   onFixObjectif: (o: Objectif, patch: Alerte['patch']) => void;
+  onOpenWizard?: () => void;
   refreshControl: ReactElement<RefreshControlProps>;
 }
 
@@ -55,6 +56,7 @@ export function Roadmap({
   onFixEpic,
   onFixObjectif,
   refreshControl,
+  onOpenWizard,
 }: Props) {
   const [zoom, setZoom] = useState<Zoom>('annee');
   const [anchor, setAnchor] = useState(() => new Date());
@@ -182,8 +184,13 @@ export function Roadmap({
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>Roadmap vide pour l’instant</Text>
               <Text style={styles.emptyText}>
-                Organisez vos projets en domaines (Pro, Perso…), objectifs et epics. Touchez + pour créer le premier.
+                Organisez vos projets en domaines (Pro, Perso…), objectifs et epics. Touchez + pour créer le premier, ou laissez l’assistant vous guider.
               </Text>
+              {onOpenWizard && (
+                <Pressable style={styles.wizardBtn} onPress={onOpenWizard} accessibilityRole="button">
+                  <Text style={styles.wizardText}>🚀 Assistant projet</Text>
+                </Pressable>
+              )}
             </View>
           ) : (
             <View style={styles.chart}>
@@ -565,6 +572,8 @@ const styles = StyleSheet.create({
   none: { textAlign: 'center', color: colors.muted, paddingVertical: 24, fontSize: 14 },
   emptyBox: { marginHorizontal: 16, marginTop: 30, padding: 20, backgroundColor: colors.card, borderRadius: 14 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+  wizardBtn: { alignSelf: 'flex-start', marginTop: 14, backgroundColor: colors.primary, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9 },
+  wizardText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   emptyText: { marginTop: 8, fontSize: 14, lineHeight: 20, color: colors.muted },
   outside: { marginHorizontal: 16, marginTop: 18, gap: 14 },
   outsideGroup: { gap: 6 },

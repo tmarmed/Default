@@ -5,7 +5,7 @@ import { useHierarchy } from '../hierarchyContext';
 import { colors } from '../theme';
 import { DOMAINE_ICONES, Domaine, DomaineInput, EPIC_COULEURS, Objectif } from '../types';
 import { DeleteSection } from './DeleteSection';
-import { ColorPicker, Field, FormSheet, formStyles as f, Label } from './FormSheet';
+import { ChildActions, ColorPicker, Field, FormSheet, formStyles as f, Label } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -14,10 +14,13 @@ interface Props {
   onSave: (input: DomaineInput) => Promise<void>;
   onDelete: (d: Domaine, cascade: boolean) => Promise<void>;
   onOpenObjectif: (o: Objectif) => void;
+  /** + Objectif dans ce domaine */
+  onAddObjectif?: (d: Domaine) => void;
+  onOpenWizard?: (d: Domaine) => void;
 }
 
 /** Fiche d'un domaine (Pro, Perso…) : nom, icône, couleur, objectifs. */
-export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpenObjectif }: Props) {
+export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpenObjectif, onAddObjectif, onOpenWizard }: Props) {
   const h = useHierarchy();
   const [form, setForm] = useState<DomaineInput>({ nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0] });
   const [busy, setBusy] = useState(false);
@@ -87,6 +90,12 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
               </Pressable>
             ))
           )}
+          <ChildActions
+            actions={[
+              ...(onAddObjectif ? [{ label: '+ Objectif', onPress: () => onAddObjectif(domaine) }] : []),
+              ...(onOpenWizard ? [{ label: "🚀 Ouvrir dans l'assistant", onPress: () => onOpenWizard(domaine), primary: true }] : []),
+            ]}
+          />
           <DeleteSection
             label="Supprimer le domaine"
             name={domaine.nom}

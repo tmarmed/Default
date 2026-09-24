@@ -21,6 +21,8 @@ import { FeatureForm } from './src/components/FeatureForm';
 import { IterationView } from './src/components/IterationView';
 import { ObjectifPIForm } from './src/components/ObjectifPIForm';
 import { PIView } from './src/components/PIView';
+import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
+import { applyDraft } from './src/wizard';
 import { Portfolio } from './src/components/Portfolio';
 import { iterationOf, iterationOfItem, piOf } from './src/pi';
 import { Roadmap } from './src/components/Roadmap';
@@ -69,6 +71,10 @@ import {
   Feature,
   Item,
   ItemInput,
+  EpicInput,
+  FeatureInput,
+  ObjectifInput,
+  RECURRENCE_DEFAUTS,
   ItemType,
   Objectif,
   ObjectifPI,
@@ -182,6 +188,12 @@ function Main() {
   const [editingDomaine, setEditingDomaine] = useState<Domaine | null>(null);
   const [domaineFormOpen, setDomaineFormOpen] = useState(false);
   const [addMenu, setAddMenu] = useState(false);
+  /** Valeurs proposées pour une nouvelle fiche ouverte par « + niveau suivant » */
+  const [taskDefaults, setTaskDefaults] = useState<Partial<ItemInput> | undefined>();
+  const [objDefaults, setObjDefaults] = useState<Partial<ObjectifInput> | undefined>();
+  const [epicDefaults, setEpicDefaults] = useState<Partial<EpicInput> | undefined>();
+  const [featDefaults, setFeatDefaults] = useState<Partial<FeatureInput> | undefined>();
+  const [wizard, setWizard] = useState<{ open: boolean; start: WizardStart }>({ open: false, start: null });
   const [tab, setTab] = useState<Tab>('taches');
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
   const [epicFormOpen, setEpicFormOpen] = useState(false);
@@ -311,6 +323,7 @@ function Main() {
     (item: Item | null) => {
       // Une échéance affichée ouvre l'élément répété d'origine.
       setEditing(item?.baseId ? (items.find((i) => i.id === item.baseId) ?? null) : item);
+      setTaskDefaults(undefined);
       setFormOpen(true);
     },
     [items],
@@ -413,13 +426,63 @@ function Main() {
     setFormOpen(false);
   };
 
-  const openEpic = (epic: Epic | null) => {
+  const openEpic = (epic: Epic | null, defaults?: Partial<EpicInput>) => {
     setEditingEpic(epic);
+    setEpicDefaults(defaults);
     setEpicFormOpen(true);
   };
-  const openObjectif = (o: Objectif | null) => {
+  const openObjectif = (o: Objectif | null, defaults?: Partial<ObjectifInput>) => {
     setEditingObjectif(o);
+    setObjDefaults(defaults);
     setObjectifFormOpen(true);
+  };
+  const openFeature = (f: Feature | null, defaults?: Partial<FeatureInput>) => {
+    setEditingFeature(f);
+    setFeatDefaults(defaults);
+    setFeatureFormOpen(true);
+  };
+  /** Nouvelle tâche pré-rangée (epic, feature…) depuis une fiche. */
+  const openNewTask = (defaults: Partial<ItemInput>) => {
+    setEditing(null);
+    setTaskDefaults(defaults);
+    setFormOpen(true);
+  };
+  const closeFiches = () => {
+    setEpicFormOpen(false);
+    setObjectifFormOpen(false);
+    setDomaineFormOpen(false);
+    setFeatureFormOpen(false);
+  };
+  const openWizard = (start: WizardStart) => {
+    closeFiches();
+    setAddMenu(false);
+    setWizard({ open: true, start });
+  };
+
+  /** Saisie rapide dans une feature : tâche créée tout de suite, dans l'itération prévue de la feature. */
+  const quickAddTask = async (f: Feature, titre: string) => {
+    if (!settings) return;
+    if (apiVersion < api.API_VERSION_SAFE) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour le mode SAFe.");
+    }
+    const saved = await api.createItem(settings, {
+      ...RECURRENCE_DEFAUTS,
+      titre,
+      type: 'tache',
+      date: '',
+      heure: '',
+      lieu: '',
+      description: '',
+      priorite: 'normale',
+      statut: 'a_faire',
+      feature: f.id,
+      iteration: f.iteration,
+    });
+    setItems((prev) => {
+      const next = [...prev, saved];
+      saveCache(next).catch(() => {});
+      return next;
+    });
   };
   const openDomaine = (d: Domaine | null) => {
     setEditingDomaine(d);
@@ -468,6 +531,43 @@ function Main() {
       setInfo(`${kind === 'epic' ? 'Epic' : 'Objectif'} « ${x.titre} » mis(e) à jour.`);
     } catch (e) {
       setNotice(`Mise à jour impossible : ${(e as Error).message}`);
+    }
+  };
+
+  /** Assistant projet : enregistre le brouillon, puis recharge tout. */
+  const applyWizard = async (draft: Parameters<typeof applyDraft>[0], onProgress: (done: number, total: number) => void) => {
+    if (!settings) return;
+    checkScript(safe.actif ? 'feature' : undefined);
+    try {
+      const r = await applyDraft(
+        draft,
+        {
+          create: async (level, data) =>
+            level === 'tache'
+              ? (await api.createItem(settings, data as unknown as ItemInput)).id
+              : (await api.createEntity(settings, level, data as never)).id,
+          update: async (level, id, data) => {
+            if (level === 'tache') await api.updateItem(settings, { ...data, id } as never);
+            else await api.updateEntity(settings, level, { ...data, id } as never);
+          },
+          remove: async (level, id, cascade) => {
+            if (level === 'tache') await api.deleteItem(settings, id);
+            else await api.deleteEntity(settings, level, id, cascade);
+          },
+        },
+        onProgress,
+      );
+      setInfo(
+        `Projet enregistré : ${[
+          r.created && `${r.created} créé(s)`,
+          r.updated && `${r.updated} modifié(s)`,
+          r.deleted && `${r.deleted} supprimé(s)`,
+        ]
+          .filter(Boolean)
+          .join(', ')}.`,
+      );
+    } finally {
+      await refresh(settings);
     }
   };
 
@@ -671,9 +771,10 @@ function Main() {
         <PIView
           piKey={piKey}
           onChangePi={setPiKey}
-          onOpenFeature={(f) => {
-            setEditingFeature(f);
-            setFeatureFormOpen(true);
+          onOpenFeature={(f) => openFeature(f)}
+          onOpenIteration={(key) => {
+            setItKey(key);
+            setTab('iteration');
           }}
           onOpenObjectifPI={(o) => {
             setEditingOPI(o);
@@ -691,6 +792,7 @@ function Main() {
             saveEntity('epic', e, { etat }).catch((err) => setNotice(`Epic non déplacée : ${(err as Error).message}`))
           }
           onShowAlerts={() => setTab('roadmap')}
+          onOpenWizard={() => openWizard(null)}
           refreshControl={refreshControl}
         />
       )}
@@ -707,6 +809,7 @@ function Main() {
           onFixEpic={(e, p) => fixEntity('epic', e, p)}
           onFixObjectif={(o, p) => fixEntity('objectif', o, p)}
           refreshControl={refreshControl}
+          onOpenWizard={() => openWizard(null)}
         />
       )}
 
@@ -812,6 +915,7 @@ function Main() {
         defaultType={filter === 'tous' || filter === 'recurrents' ? 'tache' : filter}
         defaultDate={tab === 'taches' && (mode === 'jour' || mode === 'mois') ? toDateString(anchor) : ''}
         defaultIteration={tab === 'iteration' ? itKey : ''}
+        defaults={taskDefaults}
         onClose={() => setFormOpen(false)}
         onSave={save}
         onDelete={remove}
@@ -831,6 +935,16 @@ function Main() {
           setEpicFormOpen(false);
           openForm(t);
         }}
+        defaults={epicDefaults}
+        onAddFeature={(e) => {
+          setEpicFormOpen(false);
+          openFeature(null, { epic: e.id });
+        }}
+        onAddTask={(e) => {
+          setEpicFormOpen(false);
+          openNewTask({ epic: e.id });
+        }}
+        onOpenWizard={(e) => openWizard({ level: 'epic', id: e.id })}
       />
       <ObjectifForm
         visible={objectifFormOpen}
@@ -845,6 +959,12 @@ function Main() {
           setObjectifFormOpen(false);
           openEpic(e);
         }}
+        defaults={objDefaults}
+        onAddEpic={(o) => {
+          setObjectifFormOpen(false);
+          openEpic(null, { objectif: o.id, domaine: '' });
+        }}
+        onOpenWizard={(o) => openWizard({ level: 'objectif', id: o.id })}
       />
 
       <DomaineForm
@@ -860,6 +980,11 @@ function Main() {
           setDomaineFormOpen(false);
           openObjectif(o);
         }}
+        onAddObjectif={(d) => {
+          setDomaineFormOpen(false);
+          openObjectif(null, { domaine: d.id });
+        }}
+        onOpenWizard={(d) => openWizard({ level: 'domaine', id: d.id })}
       />
 
       <FeatureForm
@@ -876,6 +1001,16 @@ function Main() {
           setFeatureFormOpen(false);
           openForm(t);
         }}
+        defaults={featDefaults}
+        onQuickAddTask={quickAddTask}
+        onOpenWizard={(f) => openWizard({ level: 'feature', id: f.id })}
+      />
+
+      <ProjectWizard
+        visible={wizard.open}
+        start={wizard.start}
+        onClose={() => setWizard((w) => ({ ...w, open: false }))}
+        onApply={applyWizard}
       />
 
       <ObjectifPIForm
@@ -896,13 +1031,14 @@ function Main() {
             <Text style={styles.menuTitle}>{tab === 'pi' ? 'Ajouter au PI' : 'Ajouter'}</Text>
             {(tab === 'pi'
               ? ([
-                  ['🧩', 'Une feature', 'Une partie d’epic livrée dans ce PI', () => { setEditingFeature(null); setFeatureFormOpen(true); }],
+                  ['🧩', 'Une feature', 'Une partie d’epic livrée dans ce PI', () => openFeature(null)],
                   ['🤝', 'Un objectif du PI', 'Ce que je m’engage à livrer ce trimestre', () => { setEditingOPI(null); setOpiFormOpen(true); }],
                 ] as const)
               : ([
+                  ['🚀', 'Assistant projet', 'Créer ou modifier un projet, niveau par niveau', () => openWizard(null)],
                   ['🗂️', 'Une epic', 'Un projet daté, avec ses tâches', () => openEpic(null)],
                   ...(safe.actif
-                    ? ([['🧩', 'Une feature', 'Une partie d’epic (sous-epic), prévue dans un PI', () => { setEditingFeature(null); setFeatureFormOpen(true); }]] as const)
+                    ? ([['🧩', 'Une feature', 'Une partie d’epic (sous-epic), prévue dans un PI', () => openFeature(null)]] as const)
                     : []),
                   ['🎯', 'Un objectif', 'Un résultat à atteindre, avec échéance ou permanent', () => openObjectif(null)],
                   ['🏷️', 'Un domaine', 'Une grande catégorie : Pro, Perso…', () => openDomaine(null)],

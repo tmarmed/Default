@@ -42,6 +42,19 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   6 **itérations** de 14 jours à partir du 1er jour + semaine **IP** (innovation & planification).
   Une tâche est dans l'itération de sa date, sinon dans celle choisie à la main. **Points** facultatifs
   (« 1 point = 1 jour » en option), **capacité** de 10 par itération par défaut (réglable).
+  Dans l'écran PI, la ligne **Tâches hors feature** montre, par itération, les tâches sans feature
+  (faites / total) ; la toucher ouvre l'itération.
+- **🚀 Assistant projet** (modes Simple et SAFe ; bouton +, fiches « Ouvrir dans l'assistant », écrans vides) :
+  crée un **nouveau projet** (en partant de zéro ou d'un domaine / objectif existant) ou **complète / modifie**
+  un projet existant en entrant au niveau voulu (domaine, objectif, epic, feature). Étape par étape :
+  ajouter (titre + Entrée), modifier (✎ dates, état, PI, itération, points), **déplacer** (↪ ce qui est
+  dessous suit), **supprimer** (🗑 marqué « à supprimer », annulable, case « tout ce qui est rattaché »)
+  ou passer ; l'étape Features est facultative (on peut aussi mettre des tâches directement sur l'epic).
+  Rien n'est enregistré avant le **récapitulatif** (nouveau / modifié / déplacé / supprimé, alertes de
+  dates) et le bouton *Enregistrer les changements*.
+- **Raccourcis dans les fiches** : « + Objectif » (domaine), « + Epic » (objectif), « + Feature » et
+  « + Tâche » (epic) ouvrent une fiche déjà rangée. Dans une feature, **saisie rapide** de tâches
+  (titre + Entrée) ; une tâche sans date rangée dans une feature prend l'itération prévue de la feature.
 
 ### Règles de gestion des dates (epics et objectifs)
 

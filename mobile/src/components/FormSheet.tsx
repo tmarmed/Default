@@ -93,6 +93,19 @@ export function AlertList({ alertes, onFix }: { alertes: Alerte[]; onFix: (a: Al
   );
 }
 
+/** Boutons « + niveau suivant » et « Ouvrir dans l'assistant » d'une fiche existante. */
+export function ChildActions({ actions }: { actions: { label: string; onPress: () => void; primary?: boolean }[] }) {
+  return (
+    <View style={styles.actions}>
+      {actions.map((a) => (
+        <Pressable key={a.label} style={[styles.action, a.primary && styles.actionPrimary]} onPress={a.onPress} accessibilityRole="button">
+          <Text style={[styles.actionText, a.primary && styles.actionTextPrimary]}>{a.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 export function Progress({ ratio, color }: { ratio: number; color: string }) {
   return (
     <View style={styles.progressTrack}>
@@ -161,6 +174,11 @@ const styles = StyleSheet.create({
   alertText: { color: '#A50E0E', fontSize: 13.5, lineHeight: 19 },
   alertBtn: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, backgroundColor: colors.danger },
   alertBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 18 },
+  action: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, borderWidth: 1, borderColor: colors.primary },
+  actionPrimary: { backgroundColor: colors.primary },
+  actionText: { color: colors.primary, fontSize: 13.5, fontWeight: '700' },
+  actionTextPrimary: { color: '#fff' },
   progressTrack: { height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: 'hidden', marginVertical: 8 },
   progressFill: { height: 8, borderRadius: 4 },
 });

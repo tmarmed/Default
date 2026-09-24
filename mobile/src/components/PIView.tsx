@@ -15,6 +15,8 @@ interface Props {
   onOpenFeature: (f: Feature | null) => void;
   onOpenObjectifPI: (o: ObjectifPI | null) => void;
   refreshControl: ReactElement<RefreshControlProps>;
+  /** Ouvre l'écran Itération (tâches hors feature de cette itération) */
+  onOpenIteration: (key: string) => void;
 }
 
 const NAME_W = 140;
@@ -23,7 +25,7 @@ const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août'
 const court = (d: Date) => `${d.getDate() === 1 ? '1er' : d.getDate()} ${MOIS[d.getMonth()]}`;
 
 /** 🗓️ PI (vision tactique SAFe) : objectifs du PI, tableau features × itérations, charge. */
-export function PIView({ piKey, onChangePi, onOpenFeature, onOpenObjectifPI, refreshControl }: Props) {
+export function PIView({ piKey, onChangePi, onOpenFeature, onOpenObjectifPI, refreshControl, onOpenIteration }: Props) {
   const h = useHierarchy();
   const safe = useSafe();
   const fmt = (n: number) => fmtPoints(n, safe.pointsJours);
@@ -48,6 +50,8 @@ export function PIView({ piKey, onChangePi, onOpenFeature, onOpenObjectifPI, ref
 
   // Charge : points des tâches par itération
   const charge = its.map((it) => h.items.filter((t) => iterationOfItem(t) === it.key).reduce((n, t) => n + pointsOf(t), 0));
+  // Tâches hors feature, par itération
+  const horsFeature = its.map((it) => h.items.filter((t) => !t.feature && iterationOfItem(t) === it.key));
   const featurePts = features.reduce((n, f) => n + pointsOf(f), 0);
   const capaPi = safe.capacite * 6;
 
@@ -164,6 +168,30 @@ export function PIView({ piKey, onChangePi, onOpenFeature, onOpenObjectifPI, ref
               {features.length === 0 && (
                 <Text style={[styles.muted, styles.emptyBoard]}>Aucune feature prévue dans ce PI.</Text>
               )}
+
+              <View style={styles.row}>
+                <View style={styles.nameCell}>
+                  <Text style={styles.fName}>Tâches hors feature</Text>
+                  <Text style={styles.fMeta}>faites / total</Text>
+                </View>
+                {its.map((it, i) => {
+                  const list = horsFeature[i];
+                  const done = list.filter((t) => t.statut === 'termine').length;
+                  return (
+                    <Pressable
+                      key={it.key}
+                      style={[styles.cell, it.key === currentIt && styles.nowCol]}
+                      onPress={() => onOpenIteration(it.key)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Tâches hors feature ${it.code}`}
+                    >
+                      <Text style={[styles.tasks, { color: list.length ? colors.text : colors.muted }]}>
+                        {list.length ? `${done}/${list.length}` : '+'}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
 
               <View style={[styles.row, styles.chargeRow]}>
                 <View style={styles.nameCell}>

@@ -7,7 +7,7 @@ import { useSafe } from '../safe';
 import type { Feature, FeatureInput, Item } from '../types';
 import { Chips } from './Chips';
 import { DeleteSection } from './DeleteSection';
-import { Field, FormSheet, formStyles as f, Label, Progress } from './FormSheet';
+import { ChildActions, Field, FormSheet, formStyles as f, Label, Progress } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -18,23 +18,40 @@ interface Props {
   onSave: (input: FeatureInput) => Promise<void>;
   onDelete: (x: Feature, cascade: boolean) => Promise<void>;
   onOpenTask: (t: Item) => void;
+  defaults?: Partial<FeatureInput>;
+  /** Saisie rapide : crée une tâche dans la feature (avec son itération) */
+  onQuickAddTask?: (f: Feature, titre: string) => Promise<void>;
+  onOpenWizard?: (f: Feature) => void;
 }
 
 /** Fiche d'une feature (sous-epic) : epic, PI, itération prévue, points, tâches. */
-export function FeatureForm({ visible, feature, defaultPi, onClose, onSave, onDelete, onOpenTask }: Props) {
+export function FeatureForm({
+  visible,
+  feature,
+  defaultPi,
+  onClose,
+  onSave,
+  onDelete,
+  onOpenTask,
+  defaults,
+  onQuickAddTask,
+  onOpenWizard,
+}: Props) {
   const h = useHierarchy();
   const safe = useSafe();
   const empty = (): FeatureInput => ({ titre: '', description: '', epic: '', pi: defaultPi, iteration: '', points: '', couleur: '' });
   const [form, setForm] = useState<FeatureInput>(empty());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quick, setQuick] = useState('');
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     if (visible) {
       if (feature) {
         const { id: _i, cree_le: _c, modifie_le: _m, ...rest } = feature;
         setForm(rest);
-      } else setForm(empty());
+      } else setForm({ ...empty(), ...defaults });
       setError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -121,8 +138,31 @@ export function FeatureForm({ visible, feature, defaultPi, onClose, onSave, onDe
             {ptsTasks ? ` · ${fmtPoints(ptsTasks, safe.pointsJours)} estimés` : ''}
           </Label>
           {tasks.length > 0 && <Progress ratio={doneTasks.length / tasks.length} color={epic?.couleur ?? '#1A73E8'} />}
+          {onQuickAddTask && (
+            <Field
+              placeholder={adding ? 'Ajout…' : `+ Tâche (Entrée pour ajouter${feature.iteration ? `, en ${feature.iteration.split('-').pop()}` : ''})`}
+              value={quick}
+              onChangeText={setQuick}
+              editable={!adding}
+              returnKeyType="done"
+              blurOnSubmit={false}
+              onSubmitEditing={async () => {
+                const titre = quick.trim();
+                if (!titre) return;
+                setAdding(true);
+                try {
+                  await onQuickAddTask(feature, titre);
+                  setQuick('');
+                } catch (e) {
+                  setError(`Tâche non ajoutée : ${(e as Error).message}`);
+                } finally {
+                  setAdding(false);
+                }
+              }}
+            />
+          )}
           {tasks.length === 0 ? (
-            <Text style={f.muted}>Aucune tâche. Pour en rattacher une, ouvrez-la et choisissez cette feature.</Text>
+            <Text style={f.muted}>Aucune tâche pour l'instant.</Text>
           ) : (
             tasks.map((t) => (
               <Pressable key={t.id} style={f.link} onPress={() => onOpenTask(t)}>
@@ -134,6 +174,7 @@ export function FeatureForm({ visible, feature, defaultPi, onClose, onSave, onDe
               </Pressable>
             ))
           )}
+          {onOpenWizard && <ChildActions actions={[{ label: "🚀 Ouvrir dans l'assistant", onPress: () => onOpenWizard(feature), primary: true }]} />}
           <DeleteSection
             label="Supprimer la feature"
             name={feature.titre}
