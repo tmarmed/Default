@@ -17,7 +17,11 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 - **Statut unique** (`statut` dans le Google Sheet), le même dans les deux modes : cocher = « Terminé » =
   colonne « Terminé » du Kanban. Décocher remet le statut d'avant (« En cours » s'il l'était ; mémorisé sur
   l'appareil). Cocher (ou passer en « Terminé ») un parent dont des sous-tâches sont ouvertes demande :
-  « Terminer aussi les sous-tâches ? » (tout terminer / seulement le parent).
+  « Terminer aussi les sous-tâches ? » (tout terminer / seulement le parent) ; même question dans la fiche
+  quand on choisit « Terminé ». Un parent suit ses sous-tâches : une sous-tâche commencée ou finie fait passer
+  un parent « À faire » en « En cours », une sous-tâche rouverte fait repasser un parent « Terminé » en
+  « En cours ». Rendez-vous et appels n'ont pas d'« En cours » (À faire ⇄ Terminé). Le jour de fin réel est
+  noté par le script (colonne `termine_le`, v13) et sert au burndown et à « domaine délaissé ».
 - **Sous-tâches** (un seul niveau) pour les Story, Démarche, Mission et Exploration : chaque sous-tâche a son
   type, sa date, ses points, son statut et son itération, et le même rangement que son parent. Dans la
   **liste**, le parent se déplie (bouton ▸ 1/3, mémorisé ; déplié tout seul si une sous-tâche est due ou en
@@ -156,7 +160,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    à importer est aussi disponible : [`modele/Taches.xlsx`](modele/Taches.xlsx).
    Le **journal d'exécution** affiche la **clé d'accès** : copiez-la.
    L'onglet `Taches` est créé avec les colonnes :
-   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone | parent | heure_fin | date_fin`
+   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone | parent | heure_fin | date_fin | termine_le`
    et les onglets `Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine | etat`),
    `Features` (`id | titre | description | epic | pi | iteration | points | couleur | cree_le | modifie_le`),
    `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le | domaine | epic`), `Ignorees` (`id | cle | signature | cree_le | modifie_le` : alertes ignorées),
@@ -180,7 +184,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 
 Valeurs acceptées dans la feuille si vous saisissez à la main :
 `type` = `tache` / `rendez-vous` / `appel` / `demarche` / `mission` / `story` / `exploration` / `bug` ·
-`telephone` = numéro d'un appel · `parent` = id de la tâche parente (sous-tâche) · `heure_fin` = `HH:MM`, après `heure` (rendez-vous, mission) · `date_fin` = `AAAA-MM-JJ`, date limite d'une démarche · `priorite` = `basse` / `normale` / `haute` ·
+`telephone` = numéro d'un appel · `parent` = id de la tâche parente (sous-tâche) · `heure_fin` = `HH:MM`, après `heure` (rendez-vous, mission) · `date_fin` = `AAAA-MM-JJ`, date limite d'une démarche · `termine_le` = rempli par le script (ne pas saisir) · `priorite` = `basse` / `normale` / `haute` ·
 `statut` = `a_faire` / `en_cours` / `termine` · `date` = `AAAA-MM-JJ` · `heure` = `HH:MM` ·
 `periodicite` = vide / `hebdomadaire` / `mensuelle` / `trimestrielle` / `annuelle` ·
 `echeance` = semaine `1` (lundi) à `7`, mois `1` à `31`, trimestre `m` ou `m-j`, année `MM` ou `MM-JJ`

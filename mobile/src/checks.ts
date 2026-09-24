@@ -710,7 +710,7 @@ export function checksPortefeuille(h: HierarchyValue, today: string): Check[] {
     // Un domaine créé il y a moins de 2 mois n'est pas « délaissé »
     if ((d.cree_le || '').slice(0, 10) > il60) continue;
     const vivant = h.items.some(
-      (t) => domaineOf(t, h)?.id === d.id && (t.statut === 'termine' ? (t.modifie_le || '').slice(0, 10) >= il60 : prevue(t)),
+      (t) => domaineOf(t, h)?.id === d.id && (t.statut === 'termine' ? (t.termine_le || (t.modifie_le || '').slice(0, 10)) >= il60 : prevue(t)),
     );
     if (!vivant)
       out.push({

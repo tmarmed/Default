@@ -1,5 +1,5 @@
 import { pointsOf } from './pi';
-import type { Item, ItemType } from './types';
+import type { Item, ItemType, Statut } from './types';
 
 /**
  * Sous-tâches (même règle que le script, checkParent_) : un seul niveau ; parent de type story, démarche,
@@ -65,3 +65,27 @@ export function pointsCheck(parent: Item, enfants: Item[] = []) {
 /** Charge d'un élément : un parent dont les sous-tâches ont des points ne compte pas (ses sous-tâches comptent). */
 export const chargeOf = (t: Item, subs: Map<string, Item[]>) =>
   (subs.get(t.id) ?? []).some((c) => pointsOf(c) > 0) ? 0 : pointsOf(t);
+
+/**
+ * Statut d'un parent après le changement d'une de ses sous-tâches (null = inchangé) :
+ * - parent « Terminé » et une sous-tâche qui sort de « Terminé » → « En cours » (il reste du travail) ;
+ * - parent « À faire » et une sous-tâche commencée ou finie → « En cours ».
+ */
+export function statutParentApres(parent: Statut, sousAvant: Statut, sousApres: Statut): Statut | null {
+  if (parent === 'termine' && sousAvant === 'termine' && sousApres !== 'termine') return 'en_cours';
+  if (parent === 'a_faire' && sousApres !== 'a_faire') return 'en_cours';
+  return null;
+}
+
+/** Changements induits sur les parents par des changements de statut de sous-tâches (un par parent). */
+export function parentsLies(changes: { item: Item; statut: Statut }[], items: Item[]): { item: Item; statut: Statut }[] {
+  const dans = new Set(changes.map((c) => c.item.id));
+  const out = new Map<string, { item: Item; statut: Statut }>();
+  for (const { item, statut } of changes) {
+    const parent = item.parent ? items.find((p) => p.id === item.parent) : undefined;
+    if (!parent || dans.has(parent.id) || out.has(parent.id) || parent.periodicite) continue;
+    const s = statutParentApres(parent.statut, item.statut, statut);
+    if (s) out.set(parent.id, { item: parent, statut: s });
+  }
+  return [...out.values()];
+}

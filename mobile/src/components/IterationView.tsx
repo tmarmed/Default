@@ -6,7 +6,7 @@ import { useHierarchy } from '../hierarchyContext';
 import { fmtPoints, iterationByKey, iterationOf, iterationOfItem, piLabel, pointsOf, shiftIteration } from '../pi';
 import { useSafe } from '../safe';
 import { colors } from '../theme';
-import { TYPE_ICONS, type Item, type Statut } from '../types';
+import { sansEnCours, TYPE_ICONS, type Item, type Statut } from '../types';
 import { chargeOf, pointsCheck, subtaskMap } from '../subtasks';
 import { AlertsCard } from './AlertsCard';
 import { checksIteration, filtrerDomaine } from '../checks';
@@ -80,7 +80,8 @@ export function IterationView({
   // Burndown : points restants chaque jour (une tâche terminée compte à sa date de modification)
   const days: string[] = [];
   for (let d = new Date(it.start); toDateString(d) <= it.end; d = addDays(d, 1)) days.push(toDateString(d));
-  const doneDay = (t: Item) => (t.modifie_le ? toDateString(new Date(t.modifie_le)) : it.start);
+  // Jour de fin réel (« terminé le », script v13), sinon dernière modification (anciennes lignes)
+  const doneDay = (t: Item) => t.termine_le || (t.modifie_le ? toDateString(new Date(t.modifie_le)) : it.start);
   const remaining = days.map((d) =>
     d > today ? null : total - tasks.filter((t) => t.statut === 'termine' && doneDay(t) <= d).reduce((n, t) => n + chargeOf(t, subs), 0),
   );
@@ -195,8 +196,10 @@ export function IterationView({
                 {list.map((t) => {
                   const f = h.features.get(t.feature);
                   const e = f ? h.epics.get(f.epic) : h.epics.get(t.epic);
-                  const prev = COLONNES[ci - 1];
-                  const next = COLONNES[ci + 1];
+                  // Rendez-vous, appel : pas d'« En cours » (À faire ⇄ Terminé)
+                  const saute = (c: (typeof COLONNES)[number] | undefined) => (c && c.statut === 'en_cours' && sansEnCours(t.type) ? undefined : c);
+                  const prev = saute(COLONNES[ci - 1]) ?? (sansEnCours(t.type) ? COLONNES[ci - 2] : undefined);
+                  const next = saute(COLONNES[ci + 1]) ?? (sansEnCours(t.type) ? COLONNES[ci + 2] : undefined);
                   const kids = subs.get(t.id) ?? [];
                   const kidsDone = kids.filter((c) => c.statut === 'termine').length;
                   const open = ouverts[t.id] ?? kids.some((c) => tasks.includes(c) && c.statut !== 'termine');

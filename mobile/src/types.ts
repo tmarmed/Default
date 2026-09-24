@@ -4,6 +4,8 @@ export type ItemType = 'tache' | 'rendez-vous' | 'appel' | 'demarche' | 'mission
 /** Types qui ont une heure de fin (créneau dans l'agenda) */
 export const AVEC_FIN: ItemType[] = ['rendez-vous', 'mission'];
 export const aHeureFin = (type: ItemType) => AVEC_FIN.includes(type);
+/** Types sans « En cours » : un rendez-vous a lieu ou pas, un appel est passé ou pas */
+export const sansEnCours = (type: ItemType) => type === 'rendez-vous' || type === 'appel';
 /** Types qui ont une date de fin (date limite) */
 export const aDateFin = (type: ItemType) => type === 'demarche';
 
@@ -26,6 +28,8 @@ export interface Item {
   heure_fin: string;
   /** Date de fin (démarche) : date limite, AAAA-MM-JJ ou vide (v12) */
   date_fin: string;
+  /** Jour où la tâche est passée à « Terminé » (calculé par le script, v13), vide sinon */
+  termine_le: string;
   lieu: string;
   description: string;
   priorite: Priorite;
@@ -83,6 +87,7 @@ export type ItemInput = Omit<
   Item,
   | 'id'
   | 'cree_le'
+  | 'termine_le'
   | 'modifie_le'
   | 'occurrence'
   | 'baseId'
@@ -113,6 +118,7 @@ export const RECURRENCE_DEFAUTS = {
   parent: '',
   heure_fin: '',
   date_fin: '',
+  termine_le: '',
 } as const;
 
 /** Une ligne de l'onglet « Epics » : grand projet affiché dans la roadmap. */

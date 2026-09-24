@@ -24,10 +24,11 @@ var HEADERS = [
   'telephone',
   'parent',
   'heure_fin',
-  'date_fin'
+  'date_fin',
+  'termine_le'
 ];
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 12;
+var API_VERSION = 13;
 
 /**
  * Niveaux au-dessus des tâches : Domaine > Objectif > Epic > Tâche.
@@ -372,6 +373,12 @@ function sanitize_(item, base) {
   if (out.telephone && !/^[0-9+().\s\-]{3,30}$/.test(out.telephone)) throw new Error('Numéro de téléphone invalide.');
   if (PRIORITES.indexOf(out.priorite) < 0) out.priorite = 'normale';
   if (STATUTS.indexOf(out.statut) < 0) out.statut = 'a_faire';
+  // v13 : « terminé le » (jour réel de fin, pour le burndown), calculé ici : posé en passant à « Terminé »,
+  // gardé tant que la tâche reste terminée, vidé en sortant de « Terminé ».
+  var avant = base ? base.statut : '';
+  if (out.statut !== 'termine') out.termine_le = '';
+  else if (avant !== 'termine') out.termine_le = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  else out.termine_le = base.termine_le || '';
   if (out.date && !/^\d{4}-\d{2}-\d{2}$/.test(out.date)) throw new Error('Date invalide (AAAA-MM-JJ).');
   if (out.heure && !/^\d{2}:\d{2}$/.test(out.heure)) throw new Error('Heure invalide (HH:MM).');
   // v9 : heure de fin (rendez-vous), après l'heure de début

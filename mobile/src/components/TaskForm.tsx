@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, prioriteColors, typeColors } from '../theme';
 import {
   aDateFin,
+  sansEnCours,
   aHeureFin,
   Item,
   ItemInput,
@@ -54,7 +55,7 @@ interface Props {
   defaults?: Partial<ItemInput>;
   onClose: () => void;
   /** Enregistre ; `sousTaches` = titres des sous-tâches à créer avec une nouvelle tâche parente */
-  onSave: (input: ItemInput, sousTaches: string[]) => Promise<void>;
+  onSave: (input: ItemInput, sousTaches: string[], opts?: { terminerSousTaches?: boolean }) => Promise<void>;
   /** Supprime ; `cascade` = supprimer aussi les sous-tâches (sinon elles deviennent des tâches normales) */
   onDelete: (item: Item, cascade: boolean) => Promise<void>;
   /** Ouvre une autre fiche (sous-tâche ou parent) */
@@ -154,11 +155,18 @@ export function TaskForm({
   const [nouvelles, setNouvelles] = useState<string[]>([]);
   const [quick, setQuick] = useState('');
   const [picking, setPicking] = useState(false);
+  /** Passée à « Terminé » avec des sous-tâches ouvertes : les terminer aussi ? (null = pas encore répondu) */
+  const [terminerSous, setTerminerSous] = useState<boolean | null>(null);
   const enfants = item ? (subtaskMap(h.items).get(item.id) ?? []) : [];
   const parentItem = form.parent ? h.items.find((t) => t.id === form.parent) : undefined;
   const peutAvoir = canHaveSubtasks(form) && !(item && form.parent);
   const check = item ? pointsCheck({ ...item, points: form.points }, enfants) : { parent: 0, sous: 0, alerte: false };
   const tousFaits = enfants.length > 0 && enfants.every((t) => t.statut === 'termine');
+  // Même règle que la case à cocher : passer un parent à « Terminé » → terminer aussi ses sous-tâches ouvertes ?
+  const sousOuvertes = enfants.filter((t) => t.statut !== 'termine');
+  const passeTermine = !!item && item.statut !== 'termine' && form.statut === 'termine';
+  // Rendez-vous, appel : pas d'« En cours » (sauf s'il l'est déjà)
+  const statuts = STATUTS.filter((o) => o.value !== 'en_cours' || !sansEnCours(form.type) || form.statut === 'en_cours');
   // Parents possibles pour rattacher cette tâche
   const parentsPossibles = h.items
     .filter((t) => canHaveSubtasks(t) && t.id !== item?.id && t.id !== form.parent)
@@ -179,6 +187,7 @@ export function TaskForm({
       setNouvelles([]);
       setQuick('');
       setPicking(false);
+      setTerminerSous(null);
     }
     // Réinitialiser seulement à l'ouverture, pas si la date affichée change derrière.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -213,6 +222,10 @@ export function TaskForm({
       setError('Une tâche avec des sous-tâches ne peut pas être répétée.');
       return;
     }
+    if (sousOuvertes.length && passeTermine && terminerSous === null) {
+      setError('Répondez d’abord : terminer aussi les sous-tâches ? (sous « Statut »)');
+      return;
+    }
     setError(null);
     setBusy(true);
     try {
@@ -224,7 +237,7 @@ export function TaskForm({
         date_fin: aDateFin(form.type) && !form.periodicite ? form.date_fin : '',
       };
       const input = base.periodicite ? { ...base, date: '', statut: 'a_faire' as const } : base;
-      await onSave({ ...input, titre: input.titre.trim() }, peutAvoir ? nouvelles : []);
+      await onSave({ ...input, titre: input.titre.trim() }, peutAvoir ? nouvelles : [], { terminerSousTaches: passeTermine && !!terminerSous });
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
     } finally {
@@ -564,7 +577,23 @@ export function TaskForm({
             {!form.periodicite && (
               <>
                 <Text style={styles.label}>Statut</Text>
-                <Chips options={STATUTS} value={form.statut} onChange={(v) => set('statut', v)} />
+                <Chips options={statuts} value={form.statut} onChange={(v) => set('statut', v)} />
+                {passeTermine && sousOuvertes.length > 0 && (
+                  <View style={styles.askBox}>
+                    <Text style={styles.askText}>
+                      Terminer aussi {sousOuvertes.length > 1 ? `les ${sousOuvertes.length} sous-tâches non faites` : 'la sous-tâche non faite'} (
+                      {sousOuvertes.map((t) => `« ${t.titre} »`).join(', ')}) ?
+                    </Text>
+                    <Chips
+                      options={[
+                        { value: 'oui', label: 'Oui, tout terminer' },
+                        { value: 'non', label: 'Non, seulement la tâche' },
+                      ]}
+                      value={terminerSous === null ? '' : terminerSous ? 'oui' : 'non'}
+                      onChange={(v) => setTerminerSous(v === 'oui')}
+                    />
+                  </View>
+                )}
               </>
             )}
 
@@ -695,6 +724,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FCE8E6',
   },
   hint: { marginTop: 10, fontSize: 13, color: colors.muted },
+  askBox: { marginTop: 10, padding: 10, borderRadius: 10, backgroundColor: '#EEF3FE', gap: 8 },
+  askText: { fontSize: 14, lineHeight: 19, color: colors.text },
   error: {
     color: colors.danger,
     backgroundColor: '#FCE8E6',

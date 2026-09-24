@@ -28,7 +28,7 @@ import { inDomain } from './src/components/DomainFilter';
 import { DomainFilterContext, loadDomainFilter, saveDomainFilter } from './src/components/DomainFilter';
 import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
-import { cascadeLinks, pointsCheck, subtaskMap } from './src/subtasks';
+import { cascadeLinks, parentsLies, pointsCheck, subtaskMap } from './src/subtasks';
 import type { Alignement } from './src/alerts';
 import { type Action, type Check, checksDatesDomaine, checksParEcran, signaturesExistantes } from './src/checks';
 import { AlertsCard, CheckActionContext, IgnoreContext, nbAlertes } from './src/components/AlertsCard';
@@ -249,7 +249,7 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_DATE_FIN);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_TERMINE_LE);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -451,20 +451,38 @@ function Main() {
   /** Question « terminer aussi les sous-tâches ? » */
   const [askSubs, setAskSubs] = useState<{ parent: Item; kids: Item[] } | null>(null);
 
-  /** Enregistre des statuts (mise à jour immédiate à l'écran, annulée si le Google Sheet refuse). */
+  /** Mémorise le statut d'avant « Terminé » (« En cours ») des tâches qui changent de statut. */
+  const noterStatutAvant = useCallback((changes: { item: Item; statut: Statut }[]) => {
+    const avant = { ...statutAvant.current };
+    for (const { item, statut } of changes) {
+      if (statut === item.statut) continue;
+      if (statut === 'termine' && item.statut === 'en_cours') avant[item.id] = 'en_cours';
+      else delete avant[item.id];
+    }
+    statutAvant.current = avant;
+    AsyncStorage.setItem(STATUT_AVANT_KEY, JSON.stringify(avant)).catch(() => {});
+  }, []);
+
+  /**
+   * Enregistre des statuts (mise à jour immédiate à l'écran, annulée si le Google Sheet refuse),
+   * avec les parents qui suivent leurs sous-tâches (sous-tâche rouverte ou commencée → parent « En cours »).
+   */
   const enregistrerStatuts = useCallback(
-    async (changes: { item: Item; statut: Statut }[]) => {
-      if (!settings || !changes.length) return;
-      const avant = { ...statutAvant.current };
-      for (const { item, statut } of changes) {
-        if (statut === 'termine' && item.statut === 'en_cours') avant[item.id] = 'en_cours';
-        else delete avant[item.id];
-      }
-      statutAvant.current = avant;
-      AsyncStorage.setItem(STATUT_AVANT_KEY, JSON.stringify(avant)).catch(() => {});
+    async (demandes: { item: Item; statut: Statut }[]) => {
+      if (!settings || !demandes.length) return;
+      const changes = [...demandes, ...parentsLies(demandes, items)];
+      noterStatutAvant(changes);
       const voulu = new Map(changes.map((c) => [c.item.id, c.statut]));
       const now = new Date().toISOString();
-      setItems((prev) => prev.map((i) => (voulu.has(i.id) ? { ...i, statut: voulu.get(i.id)!, modifie_le: now } : i)));
+      const jour = toDateString(new Date());
+      setItems((prev) =>
+        prev.map((i) => {
+          if (!voulu.has(i.id)) return i;
+          const statut = voulu.get(i.id)!;
+          // « Terminé le » : posé en passant à Terminé, vidé en sortant (le script fait de même)
+          return { ...i, statut, modifie_le: now, termine_le: statut !== 'termine' ? '' : i.statut === 'termine' ? i.termine_le : jour };
+        }),
+      );
       for (const { item, statut } of changes) {
         try {
           const saved = await api.updateItem(settings, { id: item.id, statut });
@@ -479,7 +497,7 @@ function Main() {
         }
       }
     },
-    [settings],
+    [settings, items, noterStatutAvant],
   );
 
   /**
@@ -535,7 +553,7 @@ function Main() {
   /** Écran Itération : déplacer une carte du Kanban (statut). */
   const setStatut = (item: Item, statut: Item['statut']) => changerStatut(item, statut);
 
-  const save = async (input: ItemInput, sousTaches: string[] = []) => {
+  const save = async (input: ItemInput, sousTaches: string[] = [], opts: { terminerSousTaches?: boolean } = {}) => {
     if (!settings) return;
     if (input.date_fin && apiVersion < api.API_VERSION_DATE_FIN) {
       throw new Error("le script du Google Sheet n'est pas à jour pour la date de fin des démarches. Recollez le nouveau Code.gs et déployez une nouvelle version.");
@@ -565,6 +583,7 @@ function Main() {
     }
     let next: Item[];
     let saved: Item;
+    const ancien = editing ? (items.find((i) => i.id === editing.id) ?? editing) : null;
     if (editing) {
       saved = await api.updateItem(settings, { ...input, id: editing.id });
       next = items.map((i) => (i.id === saved.id ? saved : i));
@@ -577,6 +596,17 @@ function Main() {
     for (const titre of sousTaches) next = [...next, await api.createItem(settings, subtaskInput(saved, titre))];
     updateItems(next);
     setFormOpen(false);
+    // Statut changé dans la fiche : mêmes règles que la case à cocher et le Kanban
+    if (ancien && ancien.statut !== saved.statut) {
+      noterStatutAvant([{ item: ancien, statut: saved.statut }]);
+      const suite = [
+        ...parentsLies([{ item: ancien, statut: saved.statut }], next),
+        ...(opts.terminerSousTaches && saved.statut === 'termine'
+          ? next.filter((k) => k.parent === saved.id && k.statut !== 'termine').map((item) => ({ item, statut: 'termine' as const }))
+          : []),
+      ];
+      if (suite.length) await enregistrerStatuts(suite);
+    }
   };
 
   const remove = async (item: Item, cascade = false) => {
@@ -630,12 +660,19 @@ function Main() {
     if (apiVersion < api.API_VERSION_SAFE) {
       throw new Error("le script du Google Sheet n'est pas à jour pour le mode SAFe.");
     }
+    const ancien = items.find((i) => i.id === patch.id);
     const saved = await api.updateItem(settings, patch);
     setItems((prev) => {
       const next = cascadeLinks(saved, prev.map((i) => (i.id === saved.id ? saved : i)));
       saveCache(next).catch(() => {});
       return next;
     });
+    // Statut changé (bouton d'une alerte…) : mêmes règles que la case à cocher
+    if (ancien && patch.statut && patch.statut !== ancien.statut) {
+      noterStatutAvant([{ item: ancien, statut: patch.statut }]);
+      const lies = parentsLies([{ item: ancien, statut: patch.statut }], items);
+      if (lies.length) await enregistrerStatuts(lies);
+    }
   };
   /** Rattache une tâche existante à une feature (seul le lien le plus précis est gardé). */
   const linkTaskToFeature = (f: Feature, t: Item) =>
@@ -1074,7 +1111,7 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_DATE_FIN && (
+      {apiVersion < api.API_VERSION_TERMINE_LE && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
             Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
@@ -1086,7 +1123,8 @@ function Main() {
             {apiVersion < api.API_VERSION_SOUS_TACHES ? 'les sous-tâches, ' : ''}
             {apiVersion < api.API_VERSION_HEURE_FIN ? "l'heure de fin des rendez-vous, " : ''}
             {apiVersion < api.API_VERSION_IGNOREES ? 'les alertes ignorées, ' : ''}
-            {apiVersion < api.API_VERSION_EPIC_PI ? "l'epic des objectifs du PI, " : ''}la date de fin des démarches ne seront pas
+            {apiVersion < api.API_VERSION_EPIC_PI ? "l'epic des objectifs du PI, " : ''}
+            {apiVersion < api.API_VERSION_DATE_FIN ? 'la date de fin des démarches, ' : ''}le jour où une tâche est terminée ne seront pas
             enregistrés.
             Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
           </Text>
