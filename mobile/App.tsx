@@ -58,6 +58,7 @@ import {
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { API_URL, GOOGLE_AUTH } from './src/config';
 import { DEMO, demoApi } from './src/demo';
+import { ChoiceSheet } from './src/components/ChoiceSheet';
 import { DomaineForm } from './src/components/DomaineForm';
 import { ObjectifForm } from './src/components/ObjectifForm';
 import { domaineOf } from './src/hierarchy';
@@ -90,6 +91,7 @@ import {
   Objectif,
   ObjectifPI,
   Settings,
+  Statut,
   TYPE_LABELS,
 } from './src/types';
 
@@ -154,6 +156,8 @@ const subtaskInput = (parent: Item, titre: string): ItemInput => ({
 });
 
 const DEPLIES_KEY = 'mes-taches:deplies';
+/** Statut d'avant « Terminé » (« En cours »), pour décocher sans le perdre ; mémorisé sur l'appareil */
+const STATUT_AVANT_KEY = 'mes-taches:statut-avant';
 
 const matchesType = (i: Item, filter: Filter) =>
   filter === 'tous' || (filter === 'recurrents' ? !!i.periodicite : i.type === filter);
@@ -435,6 +439,68 @@ function Main() {
     [items],
   );
 
+  // Statut d'avant « Terminé » : décocher une tâche qui était « En cours » la remet « En cours »
+  const statutAvant = useRef<Record<string, Statut>>({});
+  useEffect(() => {
+    AsyncStorage.getItem(STATUT_AVANT_KEY)
+      .then((v) => {
+        if (v) statutAvant.current = JSON.parse(v);
+      })
+      .catch(() => {});
+  }, []);
+  /** Question « terminer aussi les sous-tâches ? » */
+  const [askSubs, setAskSubs] = useState<{ parent: Item; kids: Item[] } | null>(null);
+
+  /** Enregistre des statuts (mise à jour immédiate à l'écran, annulée si le Google Sheet refuse). */
+  const enregistrerStatuts = useCallback(
+    async (changes: { item: Item; statut: Statut }[]) => {
+      if (!settings || !changes.length) return;
+      const avant = { ...statutAvant.current };
+      for (const { item, statut } of changes) {
+        if (statut === 'termine' && item.statut === 'en_cours') avant[item.id] = 'en_cours';
+        else delete avant[item.id];
+      }
+      statutAvant.current = avant;
+      AsyncStorage.setItem(STATUT_AVANT_KEY, JSON.stringify(avant)).catch(() => {});
+      const voulu = new Map(changes.map((c) => [c.item.id, c.statut]));
+      const now = new Date().toISOString();
+      setItems((prev) => prev.map((i) => (voulu.has(i.id) ? { ...i, statut: voulu.get(i.id)!, modifie_le: now } : i)));
+      for (const { item, statut } of changes) {
+        try {
+          const saved = await api.updateItem(settings, { id: item.id, statut });
+          setItems((prev) => {
+            const next = prev.map((i) => (i.id === saved.id ? saved : i));
+            saveCache(next).catch(() => {});
+            return next;
+          });
+        } catch (e) {
+          setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+          setNotice(`Modification non enregistrée : ${(e as Error).message}`);
+        }
+      }
+    },
+    [settings],
+  );
+
+  /**
+   * Changer le statut d'une tâche (case à cocher, Kanban) : même règle partout.
+   * - « Terminé » d'un parent qui a des sous-tâches ouvertes → on demande s'il faut les terminer aussi ;
+   * - sortir de « Terminé » vers « À faire » → statut d'avant (« En cours » s'il l'était).
+   */
+  const changerStatut = useCallback(
+    (item: Item, voulu: Statut) => {
+      // Élément enregistré (la ligne affichée peut porter une autre date : parent de sous-tâches)
+      const orig = items.find((i) => i.id === item.id) ?? item;
+      const statut = orig.statut === 'termine' && voulu === 'a_faire' ? (statutAvant.current[orig.id] ?? 'a_faire') : voulu;
+      if (statut === 'termine') {
+        const kids = items.filter((k) => k.parent === orig.id && k.statut !== 'termine');
+        if (kids.length) return setAskSubs({ parent: orig, kids });
+      }
+      enregistrerStatuts([{ item: orig, statut }]);
+    },
+    [items, enregistrerStatuts],
+  );
+
   const toggle = useCallback(
     async (item: Item) => {
       if (!settings) return;
@@ -461,42 +527,13 @@ function Main() {
         }
         return;
       }
-      const statut = item.statut === 'termine' ? 'a_faire' : 'termine';
-      // Élément enregistré (la ligne affichée peut porter une autre date : parent de sous-tâches)
-      const orig = items.find((i) => i.id === item.id) ?? item;
-      // Mise à jour immédiate à l'écran, annulée si le Google Sheet refuse.
-      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, statut } : i)));
-      try {
-        const saved = await api.updateItem(settings, { id: item.id, statut });
-        setItems((prev) => {
-          const next = prev.map((i) => (i.id === saved.id ? saved : i));
-          saveCache(next).catch(() => {});
-          return next;
-        });
-      } catch (e) {
-        setItems((prev) => prev.map((i) => (i.id === item.id ? orig : i)));
-        setNotice(`Modification non enregistrée : ${(e as Error).message}`);
-      }
+      changerStatut(item, item.statut === 'termine' ? 'a_faire' : 'termine');
     },
-    [settings, items, apiVersion],
+    [settings, items, apiVersion, changerStatut],
   );
 
   /** Écran Itération : déplacer une carte du Kanban (statut). */
-  const setStatut = async (item: Item, statut: Item['statut']) => {
-    if (!settings) return;
-    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, statut, modifie_le: new Date().toISOString() } : i)));
-    try {
-      const saved = await api.updateItem(settings, { id: item.id, statut });
-      setItems((prev) => {
-        const next = prev.map((i) => (i.id === saved.id ? saved : i));
-        saveCache(next).catch(() => {});
-        return next;
-      });
-    } catch (e) {
-      setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
-      setNotice(`Modification non enregistrée : ${(e as Error).message}`);
-    }
-  };
+  const setStatut = (item: Item, statut: Item['statut']) => changerStatut(item, statut);
 
   const save = async (input: ItemInput, sousTaches: string[] = []) => {
     if (!settings) return;
@@ -1353,6 +1390,28 @@ function Main() {
         onOpenWizard={(f) => openWizard({ level: 'feature', id: f.id })}
       />
 
+      <ChoiceSheet
+        visible={!!askSubs}
+        title="Terminer aussi les sous-tâches ?"
+        message={
+          askSubs
+            ? `« ${askSubs.parent.titre} » a encore ${askSubs.kids.length} sous-tâche${askSubs.kids.length > 1 ? 's' : ''} non faite${askSubs.kids.length > 1 ? 's' : ''} : ${askSubs.kids.map((k) => `« ${k.titre} »`).join(', ')}.`
+            : undefined
+        }
+        choices={
+          askSubs
+            ? [
+                {
+                  label: `Oui, tout terminer (${askSubs.kids.length + 1})`,
+                  principal: true,
+                  onPress: () => enregistrerStatuts([askSubs.parent, ...askSubs.kids].map((item) => ({ item, statut: 'termine' as const }))),
+                },
+                { label: `Non, seulement « ${askSubs.parent.titre} »`, onPress: () => enregistrerStatuts([{ item: askSubs.parent, statut: 'termine' }]) },
+              ]
+            : []
+        }
+        onClose={() => setAskSubs(null)}
+      />
       <PIAddSheet
         visible={piAdd}
         piKey={piKey}

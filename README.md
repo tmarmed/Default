@@ -14,6 +14,10 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   **Appeler** dans la fiche et dans la liste), 🗂️ Démarche administrative (avec **date de fin** facultative =
   date limite, affichée « ⏳ fin … » dans la liste, rouge si dépassée ; script v12), 🚩 Mission, 📖 User story,
   🔍 Exploration, 🐞 Bug. Filtre de la liste : « Tous » ou un type (liste déroulante, avec 🔁 Répétés).
+- **Statut unique** (`statut` dans le Google Sheet), le même dans les deux modes : cocher = « Terminé » =
+  colonne « Terminé » du Kanban. Décocher remet le statut d'avant (« En cours » s'il l'était ; mémorisé sur
+  l'appareil). Cocher (ou passer en « Terminé ») un parent dont des sous-tâches sont ouvertes demande :
+  « Terminer aussi les sous-tâches ? » (tout terminer / seulement le parent).
 - **Sous-tâches** (un seul niveau) pour les Story, Démarche, Mission et Exploration : chaque sous-tâche a son
   type, sa date, ses points, son statut et son itération, et le même rangement que son parent. Dans la
   **liste**, le parent se déplie (bouton ▸ 1/3, mémorisé ; déplié tout seul si une sous-tâche est due ou en
@@ -83,7 +87,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
     « en cours » ne compte que par ses tâches).
 - **Mode SAFe** (sélecteur *Simple | SAFe* en haut, mémorisé sur l'appareil). Simple = Tâches + Roadmap ;
   SAFe ajoute trois écrans, de l'exécution à la stratégie :
-  - **🏃 Itération** : Kanban À faire / En cours / Fait, charge face à la capacité, burndown ;
+  - **🏃 Itération** : Kanban À faire / En cours / Terminé, charge face à la capacité, burndown ;
   - **🗓️ PI** : objectifs du PI (engagés / bonus, valeur prévue → obtenue, prévisibilité), tableau des
     features par itération, charge par itération ;
   - **🧭 Portefeuille** : Kanban des epics (Idée → Analyse → Prêt → En cours → Terminé), objectifs,

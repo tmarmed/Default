@@ -28,7 +28,7 @@ interface Props {
 const COLONNES: { statut: Statut; label: string; color: string }[] = [
   { statut: 'a_faire', label: 'À faire', color: colors.muted },
   { statut: 'en_cours', label: 'En cours', color: colors.primary },
-  { statut: 'termine', label: 'Fait', color: colors.success },
+  { statut: 'termine', label: 'Terminé', color: colors.success },
 ];
 
 /** 🏃 Itération (exécution SAFe) : Kanban, charge / capacité, burndown. */
