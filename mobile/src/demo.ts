@@ -10,6 +10,26 @@ import type { Domaine, Epic, Item, ItemInput, Objectif } from './types';
 export const DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
 
 const KEY = 'mes-taches:demo';
+/**
+ * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
+ * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
+ */
+const DEMO_DATA_VERSION = '4';
+const VERSION_KEY = `${KEY}-version`;
+let versionChecked: Promise<void> | null = null;
+
+function checkVersion(): Promise<void> {
+  versionChecked ??= (async () => {
+    try {
+      if ((await AsyncStorage.getItem(VERSION_KEY)) === DEMO_DATA_VERSION) return;
+      await AsyncStorage.multiRemove([KEY, `${KEY}-epics`, `${KEY}-epic`, `${KEY}-objectif`, `${KEY}-domaine`]);
+      await AsyncStorage.setItem(VERSION_KEY, DEMO_DATA_VERSION);
+    } catch {
+      // Stockage indisponible : la démo repart des exemples en mémoire.
+    }
+  })();
+  return versionChecked;
+}
 let memory: Item[] | null = null;
 
 function sample(): Item[] {
@@ -94,6 +114,7 @@ const entityMemory: Partial<Record<Kind, unknown[]>> = {};
 
 async function loadEntities<K extends Kind>(kind: K): Promise<EntityOf<K>[]> {
   if (entityMemory[kind]) return entityMemory[kind] as EntityOf<K>[];
+  await checkVersion();
   let list: EntityOf<K>[];
   try {
     const raw = await AsyncStorage.getItem(`${KEY}-${kind}`);
@@ -116,6 +137,7 @@ async function storeEntities<K extends Kind>(kind: K, list: EntityOf<K>[]): Prom
 
 async function load(): Promise<Item[]> {
   if (memory) return memory;
+  await checkVersion();
   try {
     const raw = await AsyncStorage.getItem(KEY);
     memory = raw ? JSON.parse(raw) : sample();
