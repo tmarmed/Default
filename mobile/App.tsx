@@ -17,7 +17,9 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-
 import * as api from './src/api';
 import { Chips } from './src/components/Chips';
 import { EpicForm } from './src/components/EpicForm';
+import { IterationView } from './src/components/IterationView';
 import { Portfolio } from './src/components/Portfolio';
+import { iterationOf, iterationOfItem } from './src/pi';
 import { Roadmap } from './src/components/Roadmap';
 import { LoginScreen } from './src/components/LoginScreen';
 import { SettingsScreen } from './src/components/SettingsScreen';
@@ -104,6 +106,7 @@ const SIMPLE_TABS = [
 /** Mode SAFe : de l'exécution à la stratégie */
 const SAFE_TABS = [
   ['taches', '✓', 'Tâches'],
+  ['iteration', '🏃', 'Itération'],
   ['roadmap', '▤', 'Roadmap'],
   ['portefeuille', '🧭', 'Portefeuille'],
 ] as const;
@@ -162,6 +165,9 @@ function Main() {
     saveHierarchyCache(next).catch(() => {});
   }, []);
   const [domFilter, setDomFilter] = useState<string>('tous');
+  /** Itération affichée dans l'écran Itération ; filtre « itération en cours » de la liste */
+  const [itKey, setItKey] = useState(() => iterationOf(new Date()).key);
+  const [itFilter, setItFilter] = useState(false);
   const [editingObjectif, setEditingObjectif] = useState<Objectif | null>(null);
   const [objectifFormOpen, setObjectifFormOpen] = useState(false);
   const [editingDomaine, setEditingDomaine] = useState<Domaine | null>(null);
@@ -244,8 +250,9 @@ function Main() {
   const matches = useCallback(
     (i: Item) =>
       matchesType(i, filter) &&
-      (domFilter === 'tous' || (domaineOf(i, hv)?.id ?? '') === domFilter),
-    [filter, domFilter, hv],
+      (domFilter === 'tous' || (domaineOf(i, hv)?.id ?? '') === domFilter) &&
+      (!safe.actif || !itFilter || iterationOfItem(i) === iterationOf(new Date()).key),
+    [filter, domFilter, hv, safe.actif, itFilter],
   );
   const visible = useMemo(
     () =>
@@ -343,6 +350,23 @@ function Main() {
     },
     [settings, items, apiVersion],
   );
+
+  /** Écran Itération : déplacer une carte du Kanban (statut). */
+  const setStatut = async (item: Item, statut: Item['statut']) => {
+    if (!settings) return;
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, statut, modifie_le: new Date().toISOString() } : i)));
+    try {
+      const saved = await api.updateItem(settings, { id: item.id, statut });
+      setItems((prev) => {
+        const next = prev.map((i) => (i.id === saved.id ? saved : i));
+        saveCache(next).catch(() => {});
+        return next;
+      });
+    } catch (e) {
+      setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+      setNotice(`Modification non enregistrée : ${(e as Error).message}`);
+    }
+  };
 
   const save = async (input: ItemInput) => {
     if (!settings) return;
@@ -565,9 +589,19 @@ function Main() {
         <View style={styles.filters}>
           <Segmented options={MODES} value={mode} onChange={setMode} />
           <Chips options={FILTERS} value={filter} onChange={setFilter} compact />
-          {domaines.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <Chips
+          {(domaines.length > 0 || safe.actif) && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
+              {safe.actif && (
+                <Pressable
+                  onPress={() => setItFilter((v) => !v)}
+                  style={[styles.itChip, itFilter && styles.itChipOn]}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: itFilter }}
+                >
+                  <Text style={[styles.itChipText, itFilter && styles.itChipTextOn]}>🏃 Itération en cours</Text>
+                </Pressable>
+              )}
+              {domaines.length > 0 && <Chips
                 options={[
                   { value: 'tous', label: 'Tous domaines' },
                   ...hv.domaineList.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })),
@@ -576,7 +610,7 @@ function Main() {
                 value={domFilter}
                 onChange={setDomFilter}
                 compact
-              />
+              />}
             </ScrollView>
           )}
         </View>
@@ -607,6 +641,19 @@ function Main() {
         <Pressable style={styles.offline} onPress={() => refresh(settings)}>
           <Text style={styles.offlineText}>{offline} Données affichées : dernière copie. Touchez pour réessayer.</Text>
         </Pressable>
+      )}
+
+      {tab === 'iteration' && (
+        <IterationView
+          itKey={itKey}
+          onChangeIteration={setItKey}
+          items={items}
+          onOpenTask={openForm}
+          onSetStatut={setStatut}
+          onChangeCapacite={(n) => updateSafe({ capacite: n })}
+          onTogglePointsJours={() => updateSafe({ pointsJours: !safe.pointsJours })}
+          refreshControl={refreshControl}
+        />
       )}
 
       {tab === 'portefeuille' && (
@@ -736,7 +783,8 @@ function Main() {
         visible={formOpen}
         item={editing}
         defaultType={filter === 'tous' || filter === 'recurrents' ? 'tache' : filter}
-        defaultDate={mode === 'jour' || mode === 'mois' ? toDateString(anchor) : ''}
+        defaultDate={tab === 'taches' && (mode === 'jour' || mode === 'mois') ? toDateString(anchor) : ''}
+        defaultIteration={tab === 'iteration' ? itKey : ''}
         onClose={() => setFormOpen(false)}
         onSave={save}
         onDelete={remove}
@@ -875,6 +923,11 @@ const styles = StyleSheet.create({
   doneToggle: { alignItems: 'center', paddingVertical: 16 },
   doneToggleText: { color: colors.primary, fontSize: 15 },
   spacer: { height: 12 },
+  filterLine: { gap: 6, alignItems: 'center' },
+  itChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 18, borderWidth: 1, borderColor: colors.primary },
+  itChipOn: { backgroundColor: colors.primary },
+  itChipText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
+  itChipTextOn: { color: '#fff' },
   menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', alignItems: 'center' },
   menu: {
     width: '100%',
