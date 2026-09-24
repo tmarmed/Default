@@ -22,10 +22,11 @@ var HEADERS = [
   'epic', 'objectif', 'domaine',
   'points', 'iteration', 'feature',
   'telephone',
-  'parent'
+  'parent',
+  'heure_fin'
 ];
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 8;
+var API_VERSION = 9;
 
 /**
  * Niveaux au-dessus des tâches : Domaine > Objectif > Epic > Tâche.
@@ -365,6 +366,9 @@ function sanitize_(item, base) {
   if (STATUTS.indexOf(out.statut) < 0) out.statut = 'a_faire';
   if (out.date && !/^\d{4}-\d{2}-\d{2}$/.test(out.date)) throw new Error('Date invalide (AAAA-MM-JJ).');
   if (out.heure && !/^\d{2}:\d{2}$/.test(out.heure)) throw new Error('Heure invalide (HH:MM).');
+  // v9 : heure de fin (rendez-vous), après l'heure de début
+  if (out.heure_fin && !/^\d{2}:\d{2}$/.test(out.heure_fin)) throw new Error('Heure de fin invalide (HH:MM).');
+  if (out.heure_fin && out.heure && out.heure_fin <= out.heure) throw new Error("L'heure de fin doit être après l'heure de début.");
   if (PERIODICITES.indexOf(out.periodicite) < 0) out.periodicite = '';
   if (out.echeance && !/^\d{1,2}(-\d{1,2})?$/.test(out.echeance)) throw new Error('Échéance invalide.');
   if (out.debut && !/^\d{4}-\d{2}-\d{2}$/.test(out.debut)) throw new Error('Date de début invalide (AAAA-MM-JJ).');

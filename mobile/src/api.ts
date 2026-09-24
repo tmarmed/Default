@@ -95,13 +95,15 @@ export const API_VERSION_DOMAINE_PI = 6;
 export const API_VERSION_TYPES = 7;
 /** Version du script avec les sous-tâches (colonne parent). */
 export const API_VERSION_SOUS_TACHES = 8;
+/** Version du script avec l'heure de fin des rendez-vous. */
+export const API_VERSION_HEURE_FIN = 9;
 
 const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '', etat: e.etat ?? '' });
 
 export async function listItems(settings: Settings): Promise<Data & { version: number }> {
   if (DEMO) {
     const all = await demoApi.listAll();
-    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_SOUS_TACHES };
+    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_HEURE_FIN };
   }
   const data = await post<Partial<Data> & { items: Item[]; version?: number }>(settings, { action: 'list' });
   return {

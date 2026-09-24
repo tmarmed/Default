@@ -67,6 +67,7 @@ const empty = (type: ItemType, date: string, defaultIteration = ''): ItemInput =
   type,
   date,
   heure: '',
+  heure_fin: '',
   lieu: '',
   description: '',
   priorite: 'normale',
@@ -92,6 +93,7 @@ const toInput = (i: Item): ItemInput => ({
   type: i.type,
   date: i.date,
   heure: i.heure,
+  heure_fin: i.heure_fin ?? '',
   lieu: i.lieu,
   description: i.description,
   priorite: i.priorite,
@@ -191,6 +193,10 @@ export function TaskForm({
       setError(recurrenceError);
       return;
     }
+    if (form.type === 'rendez-vous' && form.heure_fin && (!form.heure || form.heure_fin <= form.heure)) {
+      setError("L'heure de fin doit être après l'heure de début.");
+      return;
+    }
     if (enfants.length && !PARENT_TYPES.includes(form.type)) {
       setError('Cette tâche a des sous-tâches : gardez le type Story, Démarche, Mission ou Exploration.');
       return;
@@ -203,7 +209,8 @@ export function TaskForm({
     setBusy(true);
     try {
       // Un élément répété n'a pas de date unique : ses échéances sont calculées.
-      const input = form.periodicite ? { ...form, date: '', statut: 'a_faire' as const } : form;
+      const base = form.type === 'rendez-vous' ? form : { ...form, heure_fin: '' };
+      const input = base.periodicite ? { ...base, date: '', statut: 'a_faire' as const } : base;
       await onSave({ ...input, titre: input.titre.trim() }, peutAvoir ? nouvelles : []);
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
@@ -350,7 +357,28 @@ export function TaskForm({
             )}
 
             <Text style={styles.label}>Heure</Text>
-            <DateField mode="time" value={form.heure} onChange={(v) => set('heure', v)} placeholder="Choisir une heure" />
+            <DateField
+              mode="time"
+              value={form.heure}
+              onChange={(v) =>
+                setForm((f) => ({
+                  ...f,
+                  heure: v,
+                  // Rendez-vous : fin proposée une heure après le début (si pas encore choisie)
+                  heure_fin: f.type === 'rendez-vous' && v && (!f.heure_fin || f.heure_fin <= v) ? plusUneHeure(v) : f.heure_fin,
+                }))
+              }
+              placeholder="Choisir une heure"
+            />
+            {form.type === 'rendez-vous' && (
+              <>
+                <Text style={styles.label}>Heure de fin</Text>
+                <DateField mode="time" value={form.heure_fin} onChange={(v) => set('heure_fin', v)} placeholder="Choisir l'heure de fin" />
+                {!!form.heure && !!form.heure_fin && form.heure_fin > form.heure && (
+                  <Text style={styles.hint}>Durée : {duree(form.heure, form.heure_fin)}</Text>
+                )}
+              </>
+            )}
 
             {safe.actif && (
               <>
@@ -551,6 +579,19 @@ export function TaskForm({
       </SafeAreaView>
     </Modal>
   );
+}
+
+/** « 10:30 » → « 11:30 » (sans dépasser 23:59) */
+function plusUneHeure(h: string): string {
+  const [a, b] = h.split(':').map(Number);
+  const m = Math.min(a * 60 + b + 60, 23 * 60 + 59);
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+/** Durée lisible : « 1 h 30 », « 45 min » */
+export function duree(debut: string, fin: string): string {
+  const m = (h: string) => h.split(':').map(Number).reduce((x, y, i) => (i ? x + y : y * 60), 0);
+  const d = m(fin) - m(debut);
+  return d >= 60 ? `${Math.floor(d / 60)} h${d % 60 ? ` ${String(d % 60).padStart(2, '0')}` : ''}` : `${d} min`;
 }
 
 /** Points d'une sous-tâche, enregistrés en quittant le champ. */

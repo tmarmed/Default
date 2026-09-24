@@ -16,6 +16,8 @@ export interface Item {
   date: string;
   /** HH:MM ou vide */
   heure: string;
+  /** Heure de fin (rendez-vous), HH:MM ou vide */
+  heure_fin: string;
   lieu: string;
   description: string;
   priorite: Priorite;
@@ -101,6 +103,7 @@ export const RECURRENCE_DEFAUTS = {
   feature: '',
   telephone: '',
   parent: '',
+  heure_fin: '',
 } as const;
 
 /** Une ligne de l'onglet « Epics » : grand projet affiché dans la roadmap. */

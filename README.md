@@ -9,7 +9,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 
 ## Fonctionnalités
 
-- **8 types**, les mêmes en mode Simple et SAFe : ✓ Tâche, 📅 Rendez-vous, 📞 Appel (numéro + bouton
+- **8 types**, les mêmes en mode Simple et SAFe : ✓ Tâche, 📅 Rendez-vous (avec **heure de fin**, proposée 1 h
+  après le début, et durée affichée), 📞 Appel (numéro + bouton
   **Appeler** dans la fiche et dans la liste), 🗂️ Démarche administrative, 🚩 Mission, 📖 User story,
   🔍 Exploration, 🐞 Bug. Filtre de la liste : « Tous » ou un type (liste déroulante, avec 🔁 Répétés).
 - **Sous-tâches** (un seul niveau) pour les Story, Démarche, Mission et Exploration : chaque sous-tâche a son
@@ -50,7 +51,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   la capacité reste commune. Rien n'est modifié tout seul.
   - **Tâches** : en retard (reporter à demain, tout reporter, choisir une date) ; tâche répétée en retard
     (cocher la période, tout rattraper) ; rendez-vous qui se
-    chevauchent ; démarche ou tâche de priorité haute prévue dans 3 jours et pas commencée (commencer) ;
+    chevauchent (d'après l'heure de fin ; sans elle, 1 h estimée), avec « Décaler … juste après » ; démarche ou tâche de priorité haute prévue dans 3 jours et pas commencée (commencer) ;
     toutes les sous-tâches faites (terminer la tâche) ; points du parent ≠ sous-tâches.
   - **Itération** (l'itération affichée, nommée dans la carte) : surcharge ; points du parent ≠ sous-tâches ;
     retard sur le burndown ; fin d'itération avec des tâches non faites (les reporter dans
@@ -132,7 +133,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    à importer est aussi disponible : [`modele/Taches.xlsx`](modele/Taches.xlsx).
    Le **journal d'exécution** affiche la **clé d'accès** : copiez-la.
    L'onglet `Taches` est créé avec les colonnes :
-   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone | parent`
+   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone | parent | heure_fin`
    et les onglets `Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine | etat`),
    `Features` (`id | titre | description | epic | pi | iteration | points | couleur | cree_le | modifie_le`),
    `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le | domaine`),
@@ -156,7 +157,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 
 Valeurs acceptées dans la feuille si vous saisissez à la main :
 `type` = `tache` / `rendez-vous` / `appel` / `demarche` / `mission` / `story` / `exploration` / `bug` ·
-`telephone` = numéro d'un appel · `parent` = id de la tâche parente (sous-tâche) · `priorite` = `basse` / `normale` / `haute` ·
+`telephone` = numéro d'un appel · `parent` = id de la tâche parente (sous-tâche) · `heure_fin` = `HH:MM`, après `heure` (rendez-vous) · `priorite` = `basse` / `normale` / `haute` ·
 `statut` = `a_faire` / `en_cours` / `termine` · `date` = `AAAA-MM-JJ` · `heure` = `HH:MM` ·
 `periodicite` = vide / `hebdomadaire` / `mensuelle` / `trimestrielle` / `annuelle` ·
 `echeance` = semaine `1` (lundi) à `7`, mois `1` à `31`, trimestre `m` ou `m-j`, année `MM` ou `MM-JJ`

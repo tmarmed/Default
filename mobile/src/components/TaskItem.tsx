@@ -57,7 +57,12 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle, expand
               ↳ {item.parentTitre}
             </Text>
           )}
-          {!!item.heure && <Text style={styles.metaText}>🕒 {item.heure}</Text>}
+          {!!item.heure && (
+            <Text style={styles.metaText}>
+              🕒 {item.heure}
+              {item.heure_fin ? ` → ${item.heure_fin}` : ''}
+            </Text>
+          )}
           {item.type === 'appel' && !!item.telephone && (
             <Pressable onPress={() => callNumber(item.telephone)} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Appeler le ${item.telephone}`}>
               <Text style={styles.call}>📞 {item.telephone}</Text>

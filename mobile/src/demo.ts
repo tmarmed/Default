@@ -16,7 +16,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '9';
+const DEMO_DATA_VERSION = '10';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -48,12 +48,13 @@ function sample(): Item[] {
   const stamp = now.toISOString();
   const pi2 = shiftPi(piOf(now), 1);
   const mk = (id: string, titre: string, type: Item['type'], date: string, heure: string, extra: Partial<Item> = {}): Item => ({
-    id, titre, type, date, heure, lieu: '', description: '', priorite: 'normale', statut: 'a_faire',
+    id, titre, type, date, heure, heure_fin: '', lieu: '', description: '', priorite: 'normale', statut: 'a_faire',
     cree_le: stamp, modifie_le: stamp, periodicite: '', echeance: '', debut: '', fin: '', faits: '', epic: '', objectif: '', domaine: '',
     points: '', iteration: '', feature: '', telephone: '', parent: '', ...extra,
   });
   return [
     mk('d1', 'Rendez-vous client Dupont', 'rendez-vous', d(2), '10:30', {
+      heure_fin: '11:30',
       epic: 'e2',
       lieu: '12 rue de Paris, Lyon', description: 'Présenter le devis et prendre les mesures', priorite: 'haute',
     }),
@@ -84,12 +85,12 @@ function sample(): Item[] {
     mk('d24', 'Comparer 3 outils de prise de rendez-vous', 'exploration', '', '', { feature: 'f3', points: '1' }),
     mk('d25', 'Le formulaire de contact n’envoie rien', 'bug', d(1), '', { epic: 'e1', priorite: 'haute', points: '1' }),
     // Alerte « rendez-vous qui se chevauchent » : même jour que le RDV Dupont (10:30)
-    mk('d32', 'Rendez-vous banque', 'rendez-vous', d(2), '11:00', { domaine: 'dperso', lieu: 'Agence du centre' }),
-    mk('d4', 'Réunion équipe', 'rendez-vous', d(0), '14:00', { lieu: 'Bureau' }),
+    mk('d32', 'Rendez-vous banque', 'rendez-vous', d(2), '11:00', { heure_fin: '11:45', domaine: 'dperso', lieu: 'Agence du centre' }),
+    mk('d4', 'Réunion équipe', 'rendez-vous', d(0), '14:00', { heure_fin: '15:30', lieu: 'Bureau' }),
     mk('d5', 'Chantier Martin', 'mission', d(-1), '08:00', { lieu: 'Villeurbanne' }),
     mk('d6', 'Envoyer les factures', 'tache', d(-2), '', { statut: 'termine', epic: 'e1' }),
     mk('d7', 'Visite du dépôt', 'mission', d(8), '11:00', { epic: 'e3' }),
-    mk('d8', 'Dentiste', 'rendez-vous', d(15), '17:30', { domaine: 'dperso' }),
+    mk('d8', 'Dentiste', 'rendez-vous', d(15), '17:30', { heure_fin: '18:00', domaine: 'dperso' }),
     mk('d9', 'Commander le matériel', 'tache', d(1), '', { priorite: 'haute', epic: 'e3', points: '2' }),
     mk('d10', 'Relancer le devis Bernard', 'tache', '', '', { epic: 'e1' }),
     // Éléments répétés (débutent il y a deux mois pour montrer les retards à rattraper)
@@ -100,7 +101,7 @@ function sample(): Item[] {
     }),
     mk('d16', 'Mise en ligne du nouveau site', 'mission', d(110), '09:00', { epic: 'e1', priorite: 'haute' }),
     mk('d12', 'Faire les comptes du mois', 'tache', '', '', { periodicite: 'mensuelle', epic: 'e5' }),
-    mk('d13', 'Point hebdo équipe', 'rendez-vous', '', '10:00', { periodicite: 'hebdomadaire', echeance: '1', lieu: 'Visio', domaine: 'dpro' }),
+    mk('d13', 'Point hebdo équipe', 'rendez-vous', '', '10:00', { heure_fin: '10:30', periodicite: 'hebdomadaire', echeance: '1', lieu: 'Visio', domaine: 'dpro' }),
     mk('d17', 'Appeler 10 prospects', 'tache', d(5), '', { objectif: 'o1' }),
     mk('d14', 'Déclaration de TVA', 'mission', '', '', { periodicite: 'trimestrielle' }),
     mk('d15', 'Renouveler l\'assurance', 'tache', '', '', {

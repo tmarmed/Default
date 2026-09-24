@@ -43,6 +43,10 @@ const nb = (n: number) => String(+n.toFixed(1)).replace('.', ',');
 const ouvert = (t: Item) => t.statut !== 'termine' && !t.periodicite;
 /** Ordre des itérations : comparer leurs dates de début */
 const itStart = (key: string) => iterationByKey(key)?.start ?? '';
+/** 690 → « 11:30 » */
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+/** 30 → « 30 min », 90 → « 1 h 30 » */
+const dureeTxt = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${String(m % 60).padStart(2, '0')}` : ''}` : `${m} min`);
 const minutes = (h: string) => {
   const [a, b] = h.split(':').map(Number);
   return a * 60 + b;
@@ -116,19 +120,40 @@ export function checksTaches(h: HierarchyValue, today: string): Check[] {
     });
   }
 
-  // Rendez-vous qui se chevauchent (même jour, moins d'une heure d'écart)
+  // Rendez-vous qui se chevauchent : même jour, créneaux qui se recouvrent (sans heure de fin : 1 h estimée)
   const rdv = items
     .filter((t) => ouvert(t) && t.type === 'rendez-vous' && t.date >= today && t.heure)
     .sort((a, b) => (a.date + a.heure).localeCompare(b.date + b.heure));
+  const debut = (t: Item) => minutes(t.heure);
+  const fin = (t: Item) => (t.heure_fin && t.heure_fin > t.heure ? minutes(t.heure_fin) : debut(t) + 60);
+  const creneau = (t: Item) => (t.heure_fin && t.heure_fin > t.heure ? `${t.heure} → ${t.heure_fin}` : `${t.heure}, fin non indiquée : 1 h estimée`);
   for (let i = 0; i < rdv.length; i++)
     for (let j = i + 1; j < rdv.length && rdv[j].date === rdv[i].date; j++) {
-      if (minutes(rdv[j].heure) - minutes(rdv[i].heure) >= 60) break;
       const [a, b] = [rdv[i], rdv[j]];
+      if (debut(b) >= fin(a)) continue;
+      const recouvre = Math.min(fin(a), fin(b)) - Math.max(debut(a), debut(b));
+      // Proposition : décaler le 2e rendez-vous juste après le 1er, en gardant sa durée
+      const duree = fin(b) - debut(b);
+      const nouveau = fin(a);
+      const decaler =
+        nouveau + duree <= 23 * 60 + 59
+          ? [
+              {
+                label: `Décaler « ${b.titre} » à ${hhmm(nouveau)}`,
+                action: { kind: 'task', id: b.id, patch: { heure: hhmm(nouveau), heure_fin: hhmm(nouveau + duree) } } as Action,
+                principal: true,
+              },
+            ]
+          : [];
       out.push({
         key: `rdv:${a.id}:${b.id}`,
         icone: '📅',
-        message: `Le ${court(a.date)}, le rendez-vous « ${a.titre} » (${a.heure}) et le rendez-vous « ${b.titre} » (${b.heure}) se chevauchent.`,
+        message:
+          recouvre === fin(b) - debut(b) && recouvre < fin(a) - debut(a)
+            ? `Le ${court(a.date)}, le rendez-vous « ${b.titre} » (${creneau(b)}) a lieu pendant le rendez-vous « ${a.titre} » (${creneau(a)}).`
+            : `Le ${court(a.date)}, le rendez-vous « ${a.titre} » (${creneau(a)}) et le rendez-vous « ${b.titre} » (${creneau(b)}) se chevauchent${recouvre < fin(b) - debut(b) || recouvre < fin(a) - debut(a) ? ` de ${dureeTxt(recouvre)}` : ''}.`,
         actions: [
+          ...decaler,
           { label: `Ouvrir « ${a.titre} »`, action: { kind: 'open', target: 'task', id: a.id } },
           { label: `Ouvrir « ${b.titre} »`, action: { kind: 'open', target: 'task', id: b.id } },
         ],

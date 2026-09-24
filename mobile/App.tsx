@@ -238,7 +238,7 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_SOUS_TACHES);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_HEURE_FIN);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -477,6 +477,9 @@ function Main() {
 
   const save = async (input: ItemInput, sousTaches: string[] = []) => {
     if (!settings) return;
+    if (input.heure_fin && apiVersion < api.API_VERSION_HEURE_FIN) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour l'heure de fin des rendez-vous. Recollez le nouveau Code.gs et déployez une nouvelle version.");
+    }
     if ((input.parent || sousTaches.length) && apiVersion < api.API_VERSION_SOUS_TACHES) {
       throw new Error("le script du Google Sheet n'est pas à jour pour les sous-tâches. Recollez le nouveau Code.gs et déployez une nouvelle version.");
     }
@@ -975,7 +978,7 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_SOUS_TACHES && (
+      {apiVersion < api.API_VERSION_HEURE_FIN && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
             Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
@@ -983,8 +986,9 @@ function Main() {
             {apiVersion < api.API_VERSION_HIERARCHIE ? 'les domaines, les objectifs, ' : ''}
             {apiVersion < api.API_VERSION_SAFE ? 'les données SAFe (états, features, points, itérations), ' : ''}
             {apiVersion < api.API_VERSION_DOMAINE_PI ? 'le domaine des objectifs du PI, ' : ''}
-            {apiVersion < api.API_VERSION_TYPES ? 'les nouveaux types (appel, démarche, story, exploration, bug), ' : ''}les
-            sous-tâches ne seront pas enregistrés.
+            {apiVersion < api.API_VERSION_TYPES ? 'les nouveaux types (appel, démarche, story, exploration, bug), ' : ''}
+            {apiVersion < api.API_VERSION_SOUS_TACHES ? 'les sous-tâches, ' : ''}l'heure de fin des rendez-vous ne seront pas
+            enregistrés.
             Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
           </Text>
         </View>
