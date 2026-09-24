@@ -4,7 +4,7 @@ import { useHierarchy } from '../hierarchyContext';
 import { fmtPoints, pointsOf } from '../pi';
 import { useSafe } from '../safe';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { isOverdue } from '../dates';
+import { formatDate, isOverdue, toDateString } from '../dates';
 import { callNumber } from '../phone';
 import { colors, prioriteColors, typeColors } from '../theme';
 import { Item, STATUT_LABELS, TYPE_ICONS, TYPE_LABELS } from '../types';
@@ -61,6 +61,11 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle, expand
             <Text style={styles.metaText}>
               🕒 {item.heure}
               {item.heure_fin ? ` → ${item.heure_fin}` : ''}
+            </Text>
+          )}
+          {!!item.date_fin && (
+            <Text style={[styles.metaText, !done && item.date_fin < toDateString(new Date()) && { color: colors.danger }]}>
+              ⏳ fin {formatDate(item.date_fin)}
             </Text>
           )}
           {item.type === 'appel' && !!item.telephone && (

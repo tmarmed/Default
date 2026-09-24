@@ -16,7 +16,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '12';
+const DEMO_DATA_VERSION = '13';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -49,7 +49,7 @@ function sample(): Item[] {
   const stamp = now.toISOString();
   const pi2 = shiftPi(piOf(now), 1);
   const mk = (id: string, titre: string, type: Item['type'], date: string, heure: string, extra: Partial<Item> = {}): Item => ({
-    id, titre, type, date, heure, heure_fin: '', lieu: '', description: '', priorite: 'normale', statut: 'a_faire',
+    id, titre, type, date, heure, heure_fin: '', date_fin: '', lieu: '', description: '', priorite: 'normale', statut: 'a_faire',
     cree_le: stamp, modifie_le: stamp, periodicite: '', echeance: '', debut: '', fin: '', faits: '', epic: '', objectif: '', domaine: '',
     points: '', iteration: '', feature: '', telephone: '', parent: '', ...extra,
   });
@@ -72,7 +72,9 @@ function sample(): Item[] {
     mk('d21', 'Appeler le plombier', 'appel', d(0), '11:00', {
       telephone: '06 12 34 56 78', domaine: 'dperso', description: 'Fuite sous l’évier : demander un rendez-vous cette semaine',
     }),
+    // Date de fin (v12) : la carte expire dans 40 jours
     mk('d22', 'Renouveler la carte d’identité', 'demarche', d(10), '', {
+      date_fin: d(40),
       domaine: 'dadmin', description: 'Prendre rendez-vous en mairie, photo d’identité, justificatif de domicile',
     }),
     mk('d23', 'En tant que client, je vois les tarifs en ligne', 'story', '', '', { feature: 'f3', points: '3' }),

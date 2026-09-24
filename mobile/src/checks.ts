@@ -1,9 +1,9 @@
-import { alertesEpic, alertesObjectif, fmtDate } from './alerts';
+import { type Alerte, alertesEpic, alertesObjectif, fmtDate } from './alerts';
 import { addDays, addMonths, parseDate, toDateString } from './dates';
 import { domaineOf, progressObjectif, tasksOfEpic } from './hierarchy';
 import { makeHierarchyValue } from './hierarchyContext';
 import type { HierarchyValue } from './hierarchyContext';
-import { iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piStart, pointsOf, shiftIteration } from './pi';
+import { iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piStart, pointsOf, shiftIteration, shiftPi } from './pi';
 import { occurrencesBetween, recurrenceState } from './recurrence';
 import { etatEpic } from './safe';
 import { chargeOf, pointsCheck, subtaskMap } from './subtasks';
@@ -187,19 +187,34 @@ export function checksTaches(
       ],
     });
 
-  // Tâches répétées avec des périodes oubliées : cocher la plus ancienne, ou tout rattraper
+  // Éléments répétés avec des périodes oubliées : cocher la plus ancienne, ou tout rattraper.
+  // Un rendez-vous répété passé n'est pas « en retard » : il a eu lieu (ou pas), on le marque fait, comme un rendez-vous ponctuel.
   for (const t of items.filter((x) => x.periodicite && x.statut !== 'termine')) {
     const { missed } = recurrenceState(t, today);
     if (!missed.length) continue;
     const faits = (keys: string[]) => [...new Set([...t.faits.split(';').filter(Boolean), ...keys])].sort().join(';');
+    const rdv = t.type === 'rendez-vous';
+    const periodes = missed.map((o) => o.label).join(', ');
     out.push({
       key: `repete:${t.id}`,
       icone: '🔁',
-      message: `La tâche répétée « ${t.titre} » est en retard : ${missed.map((o) => o.label).join(', ')}.`.replace(/\.\.$/, '.'),
+      message: (rdv
+        ? `Le rendez-vous répété « ${t.titre} » n'est pas coché : ${periodes}.`
+        : `${maj(mot(t))} répété${e(t)} « ${t.titre} » est en retard : ${periodes}.`
+      ).replace(/\.\.$/, '.'),
       actions: [
-        { label: `Cocher ${missed[0].label}`, action: { kind: 'task', id: t.id, patch: { faits: faits([missed[0].key]) } }, principal: true },
+        {
+          label: `${rdv ? 'Marquer fait' : 'Cocher'} ${missed[0].label}`,
+          action: { kind: 'task', id: t.id, patch: { faits: faits([missed[0].key]) } },
+          principal: true,
+        },
         ...(missed.length > 1
-          ? [{ label: `Tout rattraper (${missed.length})`, action: { kind: 'task', id: t.id, patch: { faits: faits(missed.map((o) => o.key)) } } as Action }]
+          ? [
+              {
+                label: `${rdv ? 'Tout marquer fait' : 'Tout rattraper'} (${missed.length})`,
+                action: { kind: 'task', id: t.id, patch: { faits: faits(missed.map((o) => o.key)) } } as Action,
+              },
+            ]
           : []),
       ],
     });
@@ -271,23 +286,6 @@ export function checksTaches(
         ],
       });
     }
-
-  // Démarche ou tâche de priorité haute prévue dans 3 jours et pas commencée
-  // (pas les rendez-vous ; un parent est « commencé » dès qu'une de ses sous-tâches avance)
-  const limite = toDateString(addDays(parseDate(today), 3));
-  for (const t of items) {
-    const commence = t.statut !== 'a_faire' || (subs.get(t.id) ?? []).some((k) => k.statut !== 'a_faire');
-    if (!commence && !t.periodicite && t.type !== 'rendez-vous' && t.date && t.date >= today && t.date <= limite && (t.type === 'demarche' || t.priorite === 'haute'))
-      out.push({
-        key: `bientot:${t.id}`,
-        icone: '🗂️',
-        message: `${maj(mot(t))} « ${t.titre} »${t.priorite === 'haute' ? ' (priorité haute)' : ''} est prévu${e(t)} le ${court(t.date)} et n'est pas encore commencé${e(t)}.`,
-        actions: [
-          { label: 'Commencer', action: { kind: 'task', id: t.id, patch: { statut: 'en_cours' } }, principal: true },
-          { label: 'Ouvrir', action: { kind: 'open', target: 'task', id: t.id } },
-        ],
-      });
-  }
 
   // Sous-tâches : tout est fait mais le parent ne l'est pas (les points sont vérifiés dans l'Itération et le PI, en mode SAFe)
   for (const [pid, kids] of subs) {
@@ -361,7 +359,8 @@ export function checksIteration(
 
   // Fin d'itération (terminée, ou dans 2 jours au plus) avec des tâches non faites
   const bientotFinie = toDateString(addDays(parseDate(today), 2)) >= it.end;
-  const nonFaites = tasks.filter((t) => ouvert(t));
+  // (sans les rendez-vous : un rendez-vous passé a son alerte « passé et pas coché », on ne le déplace pas)
+  const nonFaites = tasks.filter((t) => ouvert(t) && t.type !== 'rendez-vous');
   if (bientotFinie && nonFaites.length) {
     const suivante = shiftIteration(itKey, 1);
     const code = iterationByKey(suivante)!.code;
@@ -639,10 +638,18 @@ export function checksRoadmap(h: HierarchyValue, today: string): Check[] {
   return out;
 }
 
-/** Nombre d'alertes de dates affichées sur les barres de la roadmap. */
-export const nbAlertesDates = (h: HierarchyValue) =>
-  h.epicList.reduce((n, e) => n + alertesEpic(e, h.items, h.featureList).length, 0) +
-  h.objectifList.reduce((n, o) => n + alertesObjectif(o, h.epicList, h.items).length, 0);
+/** Alerte de dates d'une barre de la roadmap, sous forme d'alerte (pour la compter et pouvoir l'ignorer). */
+export const dateCheck = (kind: 'epic' | 'objectif', parentId: string, a: Alerte): Check => ({
+  key: `dates:${kind}:${parentId}:${a.key}`,
+  icone: '📆',
+  message: a.message,
+  actions: [],
+});
+/** Toutes les alertes de dates affichées sur les barres de la roadmap. */
+export const checksDates = (h: HierarchyValue): Check[] => [
+  ...h.epicList.flatMap((e) => alertesEpic(e, h.items, h.featureList).map((a) => dateCheck('epic', e.id, a))),
+  ...h.objectifList.flatMap((o) => alertesObjectif(o, h.epicList, h.items).map((a) => dateCheck('objectif', o.id, a))),
+];
 
 // ---------------------------------------------------------------------------
 // 5. Portefeuille : « est-ce que je m'éparpille ? »
@@ -691,22 +698,29 @@ export function checksPortefeuille(h: HierarchyValue, today: string): Check[] {
       });
   }
 
-  // Domaine délaissé : aucune epic en cours et aucune tâche terminée depuis 60 jours
+  // Domaine délaissé : rien de fait depuis 2 mois et rien de prévu. Une epic « en cours » ne suffit pas :
+  // elle ne compte que par ses tâches (faites récemment ou prévues).
   const il60 = toDateString(addDays(parseDate(today), -60));
+  const itNow = itStart(iterationOf(today).key);
+  const prevue = (t: Item) =>
+    t.periodicite
+      ? !t.fin || t.fin >= today
+      : (!!t.date && t.date >= today) || (!!t.date_fin && t.date_fin >= today) || (!t.date && !!t.iteration && itStart(t.iteration) >= itNow);
   for (const d of h.domaineList) {
     // Un domaine créé il y a moins de 2 mois n'est pas « délaissé »
     if ((d.cree_le || '').slice(0, 10) > il60) continue;
-    const epics = h.epicList.filter((e) => domaineOf({ epic: e.id }, h)?.id === d.id);
-    const actif = epics.some((e) => etatEpic(e, today) === 'en_cours');
-    const recent = h.items.some(
-      (t) => domaineOf(t, h)?.id === d.id && (t.statut !== 'termine' ? !!t.date && t.date >= today : (t.modifie_le || '').slice(0, 10) >= il60),
+    const vivant = h.items.some(
+      (t) => domaineOf(t, h)?.id === d.id && (t.statut === 'termine' ? (t.modifie_le || '').slice(0, 10) >= il60 : prevue(t)),
     );
-    if (!actif && !recent)
+    if (!vivant)
       out.push({
         key: `domaine:${d.id}`,
         icone: '⚖️',
-        message: `Le domaine ${d.icone} ${d.nom} est délaissé : aucune epic en cours ni rien de fait depuis 2 mois.`,
-        actions: [{ label: '+ Epic dans ce domaine', action: { kind: 'new', target: 'epic', defaults: { domaine: d.id } }, principal: true }],
+        message: `Le domaine ${d.icone} ${d.nom} est délaissé : rien de fait depuis 2 mois et rien de prévu.`,
+        actions: [
+          { label: '+ Tâche dans ce domaine', action: { kind: 'new', target: 'task', defaults: { domaine: d.id } }, principal: true },
+          { label: '+ Epic dans ce domaine', action: { kind: 'new', target: 'epic', defaults: { domaine: d.id } } },
+        ],
       });
   }
   return out;
@@ -734,13 +748,19 @@ export function checksParEcran(
           ...checksIteration(h, it, today, capacite, complet, jours),
         ]
       : [],
-    pi: safe ? checksPI(h, iterationOf(today).pi, today, capacite, complet, jours) : [],
+    // PI : celui d'aujourd'hui, plus « noter la valeur obtenue » du PI qui vient de finir
+    pi: safe
+      ? [
+          ...checksPI(h, shiftPi(iterationOf(today).pi, -1), today, capacite, complet, jours).filter((c) => c.key.startsWith('note:')),
+          ...checksPI(h, iterationOf(today).pi, today, capacite, complet, jours),
+        ]
+      : [],
     portefeuille: safe ? checksPortefeuille(h, today) : [],
   };
 }
 
-/** Nombre d'alertes de dates des barres de la roadmap, dans le domaine filtré. */
-export const nbAlertesDatesDomaine = (complet: HierarchyValue, dom = 'tous') => nbAlertesDates(filtrerDomaine(complet, dom));
+/** Alertes de dates des barres de la roadmap, dans le domaine filtré. */
+export const checksDatesDomaine = (complet: HierarchyValue, dom = 'tous') => checksDates(filtrerDomaine(complet, dom));
 
 /**
  * Toutes les alertes qui existent aujourd'hui (clé + message), pour nettoyer les alertes ignorées dont la
@@ -751,13 +771,14 @@ export function signaturesExistantes(complet: HierarchyValue, today: string, cap
   const out = new Set<string>();
   const add = (cs: Check[]) => cs.forEach((c) => out.add(`${c.key}\u0000${c.message}`));
   const pi = iterationOf(today).pi;
-  const pis = [pi, iterationOf(toDateString(addDays(piEnd(pi), 1))).pi];
+  const pis = [shiftPi(pi, -1), pi, shiftPi(pi, 1)];
   const its = [shiftIteration(iterationOf(today).key, -1), ...pis.flatMap((p) => iterationsOf(p).map((it) => it.key))];
   for (const dom of ['tous', '', ...complet.domaineList.map((d) => d.id)]) {
     const h = filtrerDomaine(complet, dom);
     add(checksTaches(h, today, { complet }));
     add(checksRoadmap(h, today));
     add(checksPortefeuille(h, today));
+    add(checksDates(h));
     for (const p of pis) add(checksPI(h, p, today, capacite, complet, jours));
     for (const k of its) add(checksIteration(h, k, today, capacite, complet, jours));
   }

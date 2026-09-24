@@ -102,13 +102,15 @@ export const API_VERSION_HEURE_FIN = 9;
 export const API_VERSION_IGNOREES = 10;
 /** Version du script avec l'epic des objectifs du PI. */
 export const API_VERSION_EPIC_PI = 11;
+/** Version du script avec la date de fin des démarches. */
+export const API_VERSION_DATE_FIN = 12;
 
 const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '', etat: e.etat ?? '' });
 
 export async function listItems(settings: Settings): Promise<Data & { version: number }> {
   if (DEMO) {
     const all = await demoApi.listAll();
-    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_EPIC_PI };
+    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_DATE_FIN };
   }
   const data = await post<Partial<Data> & { items: Item[]; version?: number }>(settings, { action: 'list' });
   return {

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ReactElement, useEffect, useMemo, useState } from 'react';
+import { ReactElement, useContext, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Alerte, alertesEpic, alertesObjectif, Alignement } from '../alerts';
 import { progressObjectif } from '../hierarchy';
@@ -11,8 +11,8 @@ import { barFor, formatEpicDates, positionOf, progress, roadmapWindow, shift, Wi
 import { colors } from '../theme';
 import type { Domaine, Epic, Item, Objectif } from '../types';
 import { DomainChips, useDomainFilter } from './DomainFilter';
-import { AlertsCard } from './AlertsCard';
-import { checksRoadmap, filtrerDomaine } from '../checks';
+import { AlertsCard, estIgnoree, IgnoreContext } from './AlertsCard';
+import { checksRoadmap, dateCheck, filtrerDomaine } from '../checks';
 import { PeriodHeader } from './PeriodHeader';
 import { Segmented } from './Segmented';
 import { Swipe } from './Swipe';
@@ -92,11 +92,25 @@ export function Roadmap({
     a.debut.localeCompare(b.debut) || (a.fin || '9999').localeCompare(b.fin || '9999');
 
   const hv = useHierarchy();
+  // Alertes de dates des barres, sans les ignorées (listées dans la carte « ⚠ Alertes » pour « Ne plus ignorer »)
+  const { ignorees } = useContext(IgnoreContext);
+  const toutesEpic = useMemo(() => new Map(epics.map((e) => [e.id, alertesEpic(e, items, hv.featureList)])), [epics, items, hv.featureList]);
+  const toutesObj = useMemo(() => new Map(objectifs.map((o) => [o.id, alertesObjectif(o, epics, items)])), [objectifs, epics, items]);
   const epicAlerts = useMemo(
-    () => new Map(epics.map((e) => [e.id, alertesEpic(e, items, hv.featureList)])),
-    [epics, items, hv.featureList],
+    () => new Map([...toutesEpic].map(([id, as]) => [id, as.filter((a) => !estIgnoree(dateCheck('epic', id, a), ignorees))])),
+    [toutesEpic, ignorees],
   );
-  const objAlerts = useMemo(() => new Map(objectifs.map((o) => [o.id, alertesObjectif(o, epics, items)])), [objectifs, epics, items]);
+  const objAlerts = useMemo(
+    () => new Map([...toutesObj].map(([id, as]) => [id, as.filter((a) => !estIgnoree(dateCheck('objectif', id, a), ignorees))])),
+    [toutesObj, ignorees],
+  );
+  const datesChecks = useMemo(
+    () => [
+      ...[...toutesEpic].flatMap(([id, as]) => as.map((a) => dateCheck('epic', id, a))),
+      ...[...toutesObj].flatMap(([id, as]) => as.map((a) => dateCheck('objectif', id, a))),
+    ],
+    [toutesEpic, toutesObj],
+  );
   const nbAlertes =
     [...epicAlerts.values()].reduce((n, a) => n + a.length, 0) + [...objAlerts.values()].reduce((n, a) => n + a.length, 0);
 
@@ -178,7 +192,12 @@ export function Roadmap({
       />
       <Swipe pageKey={`${zoom}:${win.start}`} onPrev={() => step(-1)} onNext={() => step(1)}>
         <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
-          <AlertsCard ecran="roadmap" checks={checksRoadmap(filtrerDomaine(hv, domaineFiltre), toDateString(new Date()))} style={{ marginTop: 8 }} />
+          <AlertsCard
+            ecran="roadmap"
+            checks={checksRoadmap(filtrerDomaine(hv, domaineFiltre), toDateString(new Date()))}
+            ignoreesEnPlus={datesChecks}
+            style={{ marginTop: 8 }}
+          />
           {empty ? (
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>Roadmap vide pour l’instant</Text>
@@ -236,6 +255,7 @@ export function Roadmap({
                             <View key={oKey}>
                               <BarRow
                                 kind="objectif"
+                                parentId={o.id}
                                 title={o.titre}
                                 couleur={o.couleur}
                                 debut={o.debut}
@@ -309,6 +329,7 @@ function EpicBar({
     <BarRow
       note={feats.length ? `🧩 ${feats.map((f) => f.titre + (f.pi ? ` (${piLabel(f.pi)})` : '')).join(' · ')}` : undefined}
       kind="epic"
+      parentId={epic.id}
       title={epic.titre}
       couleur={epic.couleur}
       debut={epic.debut}
@@ -361,6 +382,7 @@ function Grid({ win, todayPos }: { win: Window; todayPos: number | null }) {
 /** Ligne de la roadmap (objectif ou epic) : titre, barre de début à fin, avancement, alertes et leurs boutons. */
 function BarRow({
   kind,
+  parentId,
   title,
   couleur,
   debut,
@@ -376,6 +398,7 @@ function BarRow({
   note,
 }: {
   kind: 'objectif' | 'epic';
+  parentId: string;
   /** Ligne d'information sous les dates (ex. features de l'epic) */
   note?: string;
   title: string;
@@ -391,6 +414,7 @@ function BarRow({
   onAlign: (a: Alignement) => void;
   toggle?: { open: boolean; count: number; onPress: () => void };
 }) {
+  const { ignorer } = useContext(IgnoreContext);
   const bar = barFor({ debut, fin }, win);
   const late = !!fin && fin < toDateString(new Date()) && prog.ratio < 1 && !!prog.label;
   const big = kind === 'objectif';
@@ -457,6 +481,15 @@ function BarRow({
               </Pressable>
             )}
           </View>
+          <Pressable
+            onPress={() => ignorer(dateCheck(kind, parentId, a))}
+            hitSlop={6}
+            style={styles.ignorer}
+            accessibilityRole="button"
+            accessibilityLabel={`Ignorer : ${a.message}`}
+          >
+            <Text style={styles.ignorerText}>Ignorer</Text>
+          </Pressable>
         </View>
       ))}
       {alertes.length > 2 && (
@@ -550,6 +583,8 @@ const styles = StyleSheet.create({
   alertBtns: { gap: 6, alignItems: 'flex-start' },
   alertBtn2: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.danger },
   alertBtnText2: { color: colors.danger },
+  ignorer: { alignSelf: 'flex-start', paddingVertical: 2, marginTop: 4 },
+  ignorerText: { color: colors.muted, fontSize: 12, textDecorationLine: 'underline' },
   alertMore: { marginTop: 4, fontSize: 12, color: colors.danger },
   scroll: { paddingBottom: 130 },
   chart: { marginHorizontal: 12, backgroundColor: colors.card, borderRadius: 14, paddingHorizontal: 12, paddingBottom: 8 },

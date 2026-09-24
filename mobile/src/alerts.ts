@@ -84,7 +84,9 @@ export function periodeTache(t: Item): Periode {
       src: { kind: 'tache', id: t.id, repetee: true },
     };
   }
-  return { nom: t.titre, debut: t.date || null, fin: t.date || null, src: { kind: 'tache', id: t.id, sous: !!t.parent } };
+  // Démarche avec une date de fin : elle court de sa date (sinon sa date de fin) à sa date de fin
+  const fin = t.date_fin || t.date;
+  return { nom: t.titre, debut: t.date || fin || null, fin: fin || null, src: { kind: 'tache', id: t.id, sous: !!t.parent } };
 }
 
 /** Dates d'une epic (ou d'un objectif) vue comme enfant. */

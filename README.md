@@ -11,7 +11,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 
 - **8 types**, les mêmes en mode Simple et SAFe : ✓ Tâche, 📅 Rendez-vous et 🚩 Mission avec **heure de fin** (proposée 1 h
   après le début, et durée affichée), 📞 Appel (numéro + bouton
-  **Appeler** dans la fiche et dans la liste), 🗂️ Démarche administrative, 🚩 Mission, 📖 User story,
+  **Appeler** dans la fiche et dans la liste), 🗂️ Démarche administrative (avec **date de fin** facultative =
+  date limite, affichée « ⏳ fin … » dans la liste, rouge si dépassée ; script v12), 🚩 Mission, 📖 User story,
   🔍 Exploration, 🐞 Bug. Filtre de la liste : « Tous » ou un type (liste déroulante, avec 🔁 Répétés).
 - **Sous-tâches** (un seul niveau) pour les Story, Démarche, Mission et Exploration : chaque sous-tâche a son
   type, sa date, ses points, son statut et son itération, et le même rangement que son parent. Dans la
@@ -51,7 +52,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   la capacité reste commune. Rien n'est modifié tout seul.
   **Ignorer** une alerte (lien discret sous chaque alerte) : elle disparaît de la carte et du chiffre de l'onglet,
   enregistrée dans le Google Sheet (onglet `Ignorees`, partagé entre vos appareils) avec la situation du moment ;
-  si la situation change (dates, heures, nombre…), l'alerte revient. Nettoyage automatique : à chaque chargement depuis le Google Sheet, les alertes ignorées dont la situation n'existe plus (problème corrigé ou situation changée) sont effacées de l'onglet `Ignorees` — calculé sur tous les domaines, les deux modes, les itérations du PI en cours et du suivant, pour ne rien effacer à tort. « N alertes ignorées · les revoir » →
+  si la situation change (dates, heures, nombre…), l'alerte revient. Nettoyage automatique : à chaque chargement depuis le Google Sheet, les alertes ignorées dont la situation n'existe plus (problème corrigé ou situation changée) sont effacées de l'onglet `Ignorees` — calculé sur tous les domaines, les deux modes, les itérations et PI précédent, en cours et suivant, pour ne rien effacer à tort. Les alertes de dates
+  des barres de la Roadmap s'ignorent aussi (lien « Ignorer » sous l'alerte ; « Ne plus ignorer » dans la carte). « N alertes ignorées · les revoir » →
   « Ne plus ignorer ». Agenda : chevauchements calculés sur tout l'agenda (tous domaines), y compris rendez-vous
   répétés (30 jours), rendez-vous et missions (heure de fin, sinon 1 h estimée), appels avec une heure (30 min
   estimées), sans les créneaux d'aujourd'hui déjà finis ; rendez-vous passé non coché :
@@ -61,22 +63,24 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   capacité s'affichent dans l'unité choisie (j ou pts) ; pas
   d'alerte « vide » pour une epic à l'état Idée ou qui commence dans plus d'un mois, ni « délaissé » pour un
   domaine de moins de 2 mois.
-  - **Tâches** : en retard (reporter à demain, tout reporter, choisir une date) ; tâche répétée en retard
-    (cocher la période, tout rattraper) ; rendez-vous et missions qui se
-    chevauchent (d'après l'heure de fin ; sans elle, 1 h estimée), avec « Décaler … juste après » ; démarche ou tâche de priorité haute prévue dans 3 jours et pas commencée (commencer) ;
+  - **Tâches** : en retard (reporter à demain, tout reporter, choisir une date) ; élément répété en retard
+    (cocher la période, tout rattraper ; rendez-vous répété : « n'est pas coché », marquer fait) ; rendez-vous et missions qui se
+    chevauchent (d'après l'heure de fin ; sans elle, 1 h estimée), avec « Décaler … juste après » ;
     toutes les sous-tâches faites (terminer la tâche).
   - **Itération** (l'itération affichée, nommée dans la carte) : surcharge ; points du parent ≠ sous-tâches ;
-    retard sur le burndown ; fin d'itération avec des tâches non faites (reporter les non datées dans
+    retard sur le burndown ; fin d'itération avec des tâches non faites, hors rendez-vous (reporter les non datées dans
     l'itération suivante, décaler les datées) ; tâches sans points (hors rendez-vous et appels, et hors
     sous-tâches dont le parent porte la charge).
   - **PI** : itération surchargée ; dates de la feature hors de son epic (étendre l'epic) ; feature sans itération ; feature en retard sur son plan (décaler la
     feature ou ramener ses tâches) ; points de la feature ≠ ses tâches ; points d'une tâche ≠ ses sous-tâches (toutes les itérations du PI) ; objectif du PI engagé sans feature
     ni tâche prévue dans le PI (de son epic si elle est choisie, sinon de son domaine ; tâche datée ou rangée
-    dans une itération du PI, ou répétée avec une échéance dans le PI), avec « + Tâche dans l'epic » ; PI terminé sans valeur obtenue notée.
+    dans une itération du PI, ou répétée avec une échéance dans le PI), avec « + Tâche dans l'epic » ; PI terminé sans valeur obtenue notée (aussi
+    pour le PI qui vient de finir, dans la carte et le chiffre de l'onglet).
   - **Roadmap** : alertes de dates (sur les barres) ; epic ou objectif en retard (repousser d'un mois,
     voir les tâches ouvertes) ; epic sans tâche, objectif sans epic.
   - **Portefeuille** : epic « Terminée » avec des tâches ouvertes, ou toutes ses tâches faites sans être
-    terminée ; indicateur d'objectif en retard sur le temps écoulé ; domaine délaissé (rien depuis 2 mois).
+    terminée ; indicateur d'objectif en retard sur le temps écoulé ; domaine délaissé : rien de fait depuis 2 mois et rien de prévu (une epic
+    « en cours » ne compte que par ses tâches).
 - **Mode SAFe** (sélecteur *Simple | SAFe* en haut, mémorisé sur l'appareil). Simple = Tâches + Roadmap ;
   SAFe ajoute trois écrans, de l'exécution à la stratégie :
   - **🏃 Itération** : Kanban À faire / En cours / Fait, charge face à la capacité, burndown ;
@@ -148,7 +152,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    à importer est aussi disponible : [`modele/Taches.xlsx`](modele/Taches.xlsx).
    Le **journal d'exécution** affiche la **clé d'accès** : copiez-la.
    L'onglet `Taches` est créé avec les colonnes :
-   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone | parent | heure_fin`
+   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone | parent | heure_fin | date_fin`
    et les onglets `Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine | etat`),
    `Features` (`id | titre | description | epic | pi | iteration | points | couleur | cree_le | modifie_le`),
    `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le | domaine | epic`), `Ignorees` (`id | cle | signature | cree_le | modifie_le` : alertes ignorées),
@@ -172,7 +176,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 
 Valeurs acceptées dans la feuille si vous saisissez à la main :
 `type` = `tache` / `rendez-vous` / `appel` / `demarche` / `mission` / `story` / `exploration` / `bug` ·
-`telephone` = numéro d'un appel · `parent` = id de la tâche parente (sous-tâche) · `heure_fin` = `HH:MM`, après `heure` (rendez-vous) · `priorite` = `basse` / `normale` / `haute` ·
+`telephone` = numéro d'un appel · `parent` = id de la tâche parente (sous-tâche) · `heure_fin` = `HH:MM`, après `heure` (rendez-vous, mission) · `date_fin` = `AAAA-MM-JJ`, date limite d'une démarche · `priorite` = `basse` / `normale` / `haute` ·
 `statut` = `a_faire` / `en_cours` / `termine` · `date` = `AAAA-MM-JJ` · `heure` = `HH:MM` ·
 `periodicite` = vide / `hebdomadaire` / `mensuelle` / `trimestrielle` / `annuelle` ·
 `echeance` = semaine `1` (lundi) à `7`, mois `1` à `31`, trimestre `m` ou `m-j`, année `MM` ou `MM-JJ`

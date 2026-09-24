@@ -23,10 +23,11 @@ var HEADERS = [
   'points', 'iteration', 'feature',
   'telephone',
   'parent',
-  'heure_fin'
+  'heure_fin',
+  'date_fin'
 ];
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 11;
+var API_VERSION = 12;
 
 /**
  * Niveaux au-dessus des tâches : Domaine > Objectif > Epic > Tâche.
@@ -376,6 +377,9 @@ function sanitize_(item, base) {
   // v9 : heure de fin (rendez-vous), après l'heure de début
   if (out.heure_fin && !/^\d{2}:\d{2}$/.test(out.heure_fin)) throw new Error('Heure de fin invalide (HH:MM).');
   if (out.heure_fin && out.heure && out.heure_fin <= out.heure) throw new Error("L'heure de fin doit être après l'heure de début.");
+  // v12 : date de fin (démarches). « Fin avant la date » est vérifié dans la fiche seulement : reporter une
+  // démarche en retard peut la placer après sa date limite (échéance ratée), ce qui doit rester possible.
+  if (out.date_fin && !/^\d{4}-\d{2}-\d{2}$/.test(out.date_fin)) throw new Error('Date de fin invalide (AAAA-MM-JJ).');
   if (PERIODICITES.indexOf(out.periodicite) < 0) out.periodicite = '';
   if (out.echeance && !/^\d{1,2}(-\d{1,2})?$/.test(out.echeance)) throw new Error('Échéance invalide.');
   if (out.debut && !/^\d{4}-\d{2}-\d{2}$/.test(out.debut)) throw new Error('Date de début invalide (AAAA-MM-JJ).');

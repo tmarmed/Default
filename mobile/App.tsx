@@ -30,7 +30,7 @@ import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
 import { cascadeLinks, pointsCheck, subtaskMap } from './src/subtasks';
 import type { Alignement } from './src/alerts';
-import { type Action, type Check, checksParEcran, nbAlertesDatesDomaine, signaturesExistantes } from './src/checks';
+import { type Action, type Check, checksDatesDomaine, checksParEcran, signaturesExistantes } from './src/checks';
 import { AlertsCard, CheckActionContext, IgnoreContext, nbAlertes } from './src/components/AlertsCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
@@ -245,7 +245,7 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_EPIC_PI);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_DATE_FIN);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -500,6 +500,9 @@ function Main() {
 
   const save = async (input: ItemInput, sousTaches: string[] = []) => {
     if (!settings) return;
+    if (input.date_fin && apiVersion < api.API_VERSION_DATE_FIN) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour la date de fin des démarches. Recollez le nouveau Code.gs et déployez une nouvelle version.");
+    }
     if (input.heure_fin && apiVersion < api.API_VERSION_HEURE_FIN) {
       throw new Error("le script du Google Sheet n'est pas à jour pour l'heure de fin des rendez-vous. Recollez le nouveau Code.gs et déployez une nouvelle version.");
     }
@@ -872,14 +875,14 @@ function Main() {
     const n = new Date();
     return checksParEcran(hv, today, safe.capacite, safe.actif, domFilter, { jours: safe.pointsJours, maintenant: n.getHours() * 60 + n.getMinutes() });
   }, [hv, today, safe.capacite, safe.actif, safe.pointsJours, domFilter]);
-  const nbDates = useMemo(() => nbAlertesDatesDomaine(hv, domFilter), [hv, domFilter]);
+  const alertesDates = useMemo(() => checksDatesDomaine(hv, domFilter), [hv, domFilter]);
   // Les alertes ignorées ne comptent pas
   const ig = hier.ignorees;
   const badges: Record<Tab, number> = {
     taches: nbAlertes(checks.taches, ig),
     iteration: nbAlertes(checks.iteration, ig),
     pi: nbAlertes(checks.pi, ig),
-    roadmap: nbAlertes(checks.roadmap, ig) + nbDates,
+    roadmap: nbAlertes(checks.roadmap, ig) + nbAlertes(alertesDates, ig),
     portefeuille: nbAlertes(checks.portefeuille, ig),
   };
 
@@ -1034,7 +1037,7 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_EPIC_PI && (
+      {apiVersion < api.API_VERSION_DATE_FIN && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
             Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
@@ -1045,7 +1048,8 @@ function Main() {
             {apiVersion < api.API_VERSION_TYPES ? 'les nouveaux types (appel, démarche, story, exploration, bug), ' : ''}
             {apiVersion < api.API_VERSION_SOUS_TACHES ? 'les sous-tâches, ' : ''}
             {apiVersion < api.API_VERSION_HEURE_FIN ? "l'heure de fin des rendez-vous, " : ''}
-            {apiVersion < api.API_VERSION_IGNOREES ? 'les alertes ignorées, ' : ''}l'epic des objectifs du PI ne seront pas
+            {apiVersion < api.API_VERSION_IGNOREES ? 'les alertes ignorées, ' : ''}
+            {apiVersion < api.API_VERSION_EPIC_PI ? "l'epic des objectifs du PI, " : ''}la date de fin des démarches ne seront pas
             enregistrés.
             Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
           </Text>

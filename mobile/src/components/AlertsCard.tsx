@@ -31,7 +31,21 @@ const OUVERTES_KEY = 'mes-taches:alertes-ouvertes';
 let ouvertes: Record<string, boolean> | null = null;
 
 /** Carte « ⚠ Alertes » en haut d'un écran : repliée sur une ligne par défaut ; dépliée, 3 premières visibles. */
-export function AlertsCard({ checks: toutes, style, ecran, titre }: { checks: Check[]; style?: object; ecran: string; /** ex. « IT4 · T4 2026 » */ titre?: string }) {
+export function AlertsCard({
+  checks: toutes,
+  style,
+  ecran,
+  titre,
+  ignoreesEnPlus = [],
+}: {
+  checks: Check[];
+  style?: object;
+  ecran: string;
+  /** ex. « IT4 · T4 2026 » */
+  titre?: string;
+  /** Alertes affichées ailleurs sur l'écran (dates de la roadmap) : seules les ignorées sont listées ici, pour « Ne plus ignorer » */
+  ignoreesEnPlus?: Check[];
+}) {
   const run = useContext(CheckActionContext);
   let checks = toutes;
   const [open, setOpenState] = useState(!!ouvertes?.[ecran]);
@@ -54,7 +68,7 @@ export function AlertsCard({ checks: toutes, style, ecran, titre }: { checks: Ch
   const [tout, setTout] = useState(false);
   const [voirIgnorees, setVoirIgnorees] = useState(false);
   const { ignorees: liste, ignorer, retablir } = useContext(IgnoreContext);
-  const ignorees = checks.filter((c) => estIgnoree(c, liste));
+  const ignorees = [...checks, ...ignoreesEnPlus].filter((c) => estIgnoree(c, liste));
   checks = actives(checks, liste);
   // Raccourci seul (toutes les alertes qu'il regroupe sont ignorées) : rien à afficher
   if (!checks.some((c) => !c.groupe)) checks = [];

@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, prioriteColors, typeColors } from '../theme';
 import {
+  aDateFin,
   aHeureFin,
   Item,
   ItemInput,
@@ -69,6 +70,7 @@ const empty = (type: ItemType, date: string, defaultIteration = ''): ItemInput =
   date,
   heure: '',
   heure_fin: '',
+  date_fin: '',
   lieu: '',
   description: '',
   priorite: 'normale',
@@ -95,6 +97,7 @@ const toInput = (i: Item): ItemInput => ({
   date: i.date,
   heure: i.heure,
   heure_fin: i.heure_fin ?? '',
+  date_fin: i.date_fin ?? '',
   lieu: i.lieu,
   description: i.description,
   priorite: i.priorite,
@@ -198,6 +201,10 @@ export function TaskForm({
       setError("L'heure de fin doit être après l'heure de début.");
       return;
     }
+    if (aDateFin(form.type) && !form.periodicite && form.date_fin && form.date && form.date_fin < form.date) {
+      setError('La date de fin est avant la date.');
+      return;
+    }
     if (enfants.length && !PARENT_TYPES.includes(form.type)) {
       setError('Cette tâche a des sous-tâches : gardez le type Story, Démarche, Mission ou Exploration.');
       return;
@@ -210,7 +217,12 @@ export function TaskForm({
     setBusy(true);
     try {
       // Un élément répété n'a pas de date unique : ses échéances sont calculées.
-      const base = aHeureFin(form.type) ? form : { ...form, heure_fin: '' };
+      const base = {
+        ...form,
+        heure_fin: aHeureFin(form.type) ? form.heure_fin : '',
+        // Date de fin : démarches non répétées seulement
+        date_fin: aDateFin(form.type) && !form.periodicite ? form.date_fin : '',
+      };
       const input = base.periodicite ? { ...base, date: '', statut: 'a_faire' as const } : base;
       await onSave({ ...input, titre: input.titre.trim() }, peutAvoir ? nouvelles : []);
     } catch (e) {
@@ -354,6 +366,13 @@ export function TaskForm({
               <>
                 <Text style={styles.label}>Date</Text>
                 <DateField mode="date" value={form.date} onChange={(v) => set('date', v)} placeholder="Choisir une date" />
+                {aDateFin(form.type) && (
+                  <>
+                    <Text style={styles.label}>Date de fin</Text>
+                    <DateField mode="date" value={form.date_fin} onChange={(v) => set('date_fin', v)} placeholder="Date limite (facultatif)" />
+                    <Text style={styles.hint}>La date où la démarche doit être finie (ex. expiration du document).</Text>
+                  </>
+                )}
               </>
             )}
 
