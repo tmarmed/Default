@@ -36,7 +36,10 @@ const OUVERTES_KEY = 'mes-taches:alertes-ouvertes';
 /** Cartes dépliées, par écran (mémorisé sur l'appareil ; repliées par défaut) */
 let ouvertes: Record<string, boolean> | null = null;
 
-/** Carte « ⚠ Alertes » en haut d'un écran : repliée sur une ligne par défaut ; dépliée, 3 premières visibles. */
+/**
+ * Alertes en haut d'un écran : deux cartes séparées, chacune repliée sur une ligne par défaut et
+ * ouverte / fermée indépendamment (mémorisé par écran) : 🔴 alertes, puis 🟡 rappels.
+ */
 export function AlertsCard({
   checks: toutes,
   style,
@@ -52,136 +55,107 @@ export function AlertsCard({
   /** Alertes affichées ailleurs sur l'écran (dates de la roadmap) : seules les ignorées sont listées ici, pour « Ne plus ignorer » */
   ignoreesEnPlus?: Check[];
 }) {
+  const { ignorees: liste } = useContext(IgnoreContext);
+  const ignorees = [...toutes, ...ignoreesEnPlus].filter((c) => estIgnoree(c, liste));
+  let checks = actives(toutes, liste);
+  // Raccourci seul (toutes les alertes qu'il regroupe sont ignorées) : rien à afficher
+  if (!checks.some((c) => !c.groupe)) checks = [];
+  const rouges = checks.filter((c) => !estRappel(c));
+  const jaunes = checks.filter(estRappel);
+  const ignR = ignorees.filter((c) => !estRappel(c));
+  const ignJ = ignorees.filter(estRappel);
+  if (!checks.length && !ignorees.length) return null;
+  return (
+    <View style={style}>
+      {(rouges.length > 0 || ignR.length > 0) && <Carte checks={rouges} ignorees={ignR} cle={ecran} titre={titre} />}
+      {(jaunes.length > 0 || ignJ.length > 0) && <Carte checks={jaunes} ignorees={ignJ} cle={`${ecran}:rappels`} titre={titre} jaune />}
+    </View>
+  );
+}
+
+/** Une carte d'une couleur (alertes rouges ou rappels jaunes) : titre qui ouvre / ferme, 3 visibles, ignorées. */
+function Carte({ checks, ignorees, cle, titre, jaune = false }: { checks: Check[]; ignorees: Check[]; cle: string; titre?: string; jaune?: boolean }) {
   const run = useContext(CheckActionContext);
-  let checks = toutes;
-  const [open, setOpenState] = useState(!!ouvertes?.[ecran]);
-  // Sections « alertes » et « rappels » de la carte : dépliées par défaut, repliables séparément (mémorisé par écran)
-  const cleR = `${ecran}:rouges`;
-  const cleJ = `${ecran}:jaunes`;
-  const [secR, setSecR] = useState(ouvertes?.[cleR] !== false);
-  const [secJ, setSecJ] = useState(ouvertes?.[cleJ] !== false);
+  const { ignorer, retablir } = useContext(IgnoreContext);
+  const [open, setOpenState] = useState(!!ouvertes?.[cle]);
   useEffect(() => {
-    if (ouvertes) return;
+    if (ouvertes) {
+      setOpenState(!!ouvertes[cle]);
+      return;
+    }
     AsyncStorage.getItem(OUVERTES_KEY)
       .then((v) => {
         ouvertes = v ? JSON.parse(v) : {};
-        setOpenState(!!ouvertes![ecran]);
-        setSecR(ouvertes![cleR] !== false);
-        setSecJ(ouvertes![cleJ] !== false);
+        setOpenState(!!ouvertes![cle]);
       })
       .catch(() => (ouvertes = {}));
-  }, [ecran, cleR, cleJ]);
-  const memoriser = (cle: string, valeur: boolean) => {
-    ouvertes = { ...(ouvertes ?? {}), [cle]: valeur };
-    AsyncStorage.setItem(OUVERTES_KEY, JSON.stringify(ouvertes)).catch(() => {});
-  };
-  const setOpen = (f: (v: boolean) => boolean) =>
+  }, [cle]);
+  const toggle = () =>
     setOpenState((v) => {
-      const next = f(v);
-      memoriser(ecran, next);
-      return next;
-    });
-  const basculer = (j: boolean) =>
-    (j ? setSecJ : setSecR)((v) => {
-      memoriser(j ? cleJ : cleR, !v);
+      ouvertes = { ...(ouvertes ?? {}), [cle]: !v };
+      AsyncStorage.setItem(OUVERTES_KEY, JSON.stringify(ouvertes)).catch(() => {});
       return !v;
     });
-  const [toutR, setToutR] = useState(false);
-  const [toutJ, setToutJ] = useState(false);
+  const [tout, setTout] = useState(false);
   const [voirIgnorees, setVoirIgnorees] = useState(false);
-  const { ignorees: liste, ignorer, retablir } = useContext(IgnoreContext);
-  const ignorees = [...checks, ...ignoreesEnPlus].filter((c) => estIgnoree(c, liste));
-  checks = actives(checks, liste);
-  // Raccourci seul (toutes les alertes qu'il regroupe sont ignorées) : rien à afficher
-  if (!checks.some((c) => !c.groupe)) checks = [];
-  if (!checks.length && !ignorees.length) return null;
-  // Alertes (rouges) d'abord, puis rappels (jaunes) ; le raccourci « Tout reporter » n'est pas une alerte de plus
-  checks = [...checks.filter((c) => !estRappel(c)), ...checks.filter(estRappel)];
-  const n = checks.filter((c) => !c.groupe && !estRappel(c)).length;
-  const r = checks.filter(estRappel).length;
-  const jaune = !n && r > 0;
-  const rouges = checks.filter((c) => !estRappel(c));
-  const jaunes = checks.filter(estRappel);
-  const entete = [
-    n ? `⚠ ${n} alerte${n > 1 ? 's' : ''}` : '',
-    r ? `${n ? '' : '🟡 '}${r} rappel${r > 1 ? 's' : ''}` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const j = jaune;
+  const n = checks.filter((c) => !c.groupe).length;
+  const calme = !checks.length;
+  const shown = tout ? checks : checks.slice(0, VISIBLES);
+  const entete = calme
+    ? `✓ ${j ? 'Aucun rappel' : 'Aucune alerte'} · ${ignorees.length} ignoré${j ? '' : 'e'}${ignorees.length > 1 ? 's' : ''}`
+    : j
+      ? `🟡 ${n} rappel${n > 1 ? 's' : ''}`
+      : `⚠ ${n} alerte${n > 1 ? 's' : ''}`;
+  const reste = checks.length - VISIBLES;
   return (
-    <View style={[s.card, jaune && s.cardJaune, !checks.length && s.cardCalme, style]}>
-      <Pressable style={s.head} onPress={() => setOpen((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: open }}>
-        <Text style={[s.title, jaune && s.titleJaune, !checks.length && s.titleCalme]}>
-          {checks.length ? entete : `✓ Aucune alerte · ${ignorees.length} ignorée${ignorees.length > 1 ? 's' : ''}`}
+    <View style={[s.card, j && s.cardJaune, calme && s.cardCalme]}>
+      <Pressable style={s.head} onPress={toggle} accessibilityRole="button" accessibilityState={{ expanded: open }}>
+        <Text style={[s.title, j && s.titleJaune, calme && s.titleCalme]}>
+          {entete}
           {titre ? ` · ${titre}` : ''}
         </Text>
-        <Text style={[s.chev, jaune && s.titleJaune]}>{open ? '▾' : '▸'}</Text>
+        <Text style={[s.chev, j && s.titleJaune]}>{open ? '▾' : '▸'}</Text>
       </Pressable>
       {open && (
         <>
-          {[rouges, jaunes].map((liste, k) => {
-            // Chaque couleur a ses 3 premières visibles et son « Voir les N autres »
-            const j = k === 1;
-            if (!liste.length) return null;
-            const tous = j ? toutJ : toutR;
-            // Une seule couleur : pas de sous-titre, la section est toujours dépliée
-            const deplie = rouges.length && jaunes.length ? (j ? secJ : secR) : true;
-            const visibles = !deplie ? [] : tous ? liste : liste.slice(0, VISIBLES);
-            const nb = liste.filter((c) => !c.groupe).length;
-            return (
-              <View key={j ? 'jaunes' : 'rouges'}>
-                {/* Sous-titre de la section, repliable (seulement s'il y a les deux couleurs) */}
-                {rouges.length > 0 && jaunes.length > 0 && (
-                  <Pressable
-                    onPress={() => basculer(j)}
-                    style={[s.sousTitre, j && s.itemJaune]}
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: deplie }}
-                  >
-                    <Text style={[s.sousTitreText, j && s.titleJaune]}>
-                      {deplie ? '▾' : '▸'} {j ? `🟡 ${nb} rappel${nb > 1 ? 's' : ''}` : `⚠ ${nb} alerte${nb > 1 ? 's' : ''}`}
-                    </Text>
-                  </Pressable>
-                )}
-                {visibles.map((c) => (
-                  <View key={c.key} style={[s.item, j && s.itemJaune]}>
-                    <Text style={[s.msg, j && s.msgJaune]}>
-                      {j ? '🟡 ' : ''}
-                      {c.icone} {c.message}
-                    </Text>
-                    {c.actions.length > 0 && (
-                      <View style={s.btns}>
-                        {c.actions.map((a) => (
-                          <Pressable
-                            key={a.label}
-                            style={[s.btn, a.principal ? (j ? s.btnMainJaune : s.btnMain) : j ? s.btnSecJaune : s.btnSec]}
-                            onPress={() => run(a.action)}
-                            accessibilityRole="button"
-                          >
-                            <Text style={[s.btnText, !a.principal && s.btnTextSec, j && (a.principal ? s.btnTextJaune : s.btnTextSecJaune)]}>{a.label}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    )}
-                    <Pressable onPress={() => ignorer(c)} hitSlop={6} style={s.ignorer} accessibilityRole="button" accessibilityLabel={`Ignorer : ${c.message}`}>
-                      <Text style={s.ignorerText}>Ignorer</Text>
+          {shown.map((c) => (
+            <View key={c.key} style={[s.item, j && s.itemJaune]}>
+              <Text style={[s.msg, j && s.msgJaune]}>
+                {c.icone} {c.message}
+              </Text>
+              {c.actions.length > 0 && (
+                <View style={s.btns}>
+                  {c.actions.map((a) => (
+                    <Pressable
+                      key={a.label}
+                      style={[s.btn, a.principal ? (j ? s.btnMainJaune : s.btnMain) : j ? s.btnSecJaune : s.btnSec]}
+                      onPress={() => run(a.action)}
+                      accessibilityRole="button"
+                    >
+                      <Text style={[s.btnText, !a.principal && s.btnTextSec, j && (a.principal ? s.btnTextJaune : s.btnTextSecJaune)]}>{a.label}</Text>
                     </Pressable>
-                  </View>
-                ))}
-                {deplie && liste.length > VISIBLES && (
-                  <Pressable onPress={() => (j ? setToutJ : setToutR)((v) => !v)} style={[s.more, j && s.itemJaune]} accessibilityRole="button">
-                    <Text style={[s.moreText, j && s.titleJaune]}>
-                      {tous ? 'Voir moins' : `Voir ${liste.length - VISIBLES > 1 ? `les ${liste.length - VISIBLES} autres` : "l'autre"} ${j ? 'rappel' : 'alerte'}${liste.length - VISIBLES > 1 ? 's' : ''}`}
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
-            );
-          })}
+                  ))}
+                </View>
+              )}
+              <Pressable onPress={() => ignorer(c)} hitSlop={6} style={s.ignorer} accessibilityRole="button" accessibilityLabel={`Ignorer : ${c.message}`}>
+                <Text style={s.ignorerText}>Ignorer</Text>
+              </Pressable>
+            </View>
+          ))}
+          {reste > 0 && (
+            <Pressable onPress={() => setTout((v) => !v)} style={[s.more, j && s.itemJaune]} accessibilityRole="button">
+              <Text style={[s.moreText, j && s.titleJaune]}>
+                {tout ? 'Voir moins' : `Voir ${reste > 1 ? `les ${reste} autres` : "l'autre"} ${j ? 'rappel' : 'alerte'}${reste > 1 ? 's' : ''}`}
+              </Text>
+            </Pressable>
+          )}
           {ignorees.length > 0 && (
-            <Pressable onPress={() => setVoirIgnorees((v) => !v)} style={s.more} accessibilityRole="button">
+            <Pressable onPress={() => setVoirIgnorees((v) => !v)} style={[s.more, j && s.itemJaune]} accessibilityRole="button">
               <Text style={s.ignoreesText}>
-                {voirIgnorees ? '▾' : '▸'} {ignorees.length} alerte{ignorees.length > 1 ? 's' : ''} ignorée{ignorees.length > 1 ? 's' : ''}
+                {voirIgnorees ? '▾' : '▸'} {ignorees.length} {j ? 'rappel' : 'alerte'}
+                {ignorees.length > 1 ? 's' : ''} ignoré{j ? '' : 'e'}
+                {ignorees.length > 1 ? 's' : ''}
                 {voirIgnorees ? '' : ' · les revoir'}
               </Text>
             </Pressable>
@@ -218,8 +192,6 @@ const s = StyleSheet.create({
   btnTextSec: { color: colors.danger },
   more: { paddingHorizontal: 12, paddingVertical: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F6C7C1' },
   moreText: { color: colors.danger, fontWeight: '700', fontSize: 13 },
-  sousTitre: { paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F6C7C1' },
-  sousTitreText: { fontSize: 13, fontWeight: '800', color: colors.danger },
   // Rappels (jaune)
   cardJaune: { backgroundColor: '#FFF8E1', borderColor: '#F3D98B' },
   titleJaune: { color: '#7A5A00' },
