@@ -49,7 +49,11 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   du PI (historique) : ils passent « sans domaine ».
   Dans l'écran PI, la ligne **Tâches hors feature** montre, par itération, les tâches sans feature
   (faites / total) ; toucher une case affiche la liste de ces tâches sous le tableau (cocher, ouvrir) avec
-  **+ Tâche hors feature** dans cette itération (aussi dans le menu + du PI) et un lien vers l'itération.
+  **+ Nouvelle tâche** ou **+ Tâche existante** (tâches sans feature ni date) dans cette itération, et un lien
+  vers l'itération. Sous le tableau : **+ Nouvelle feature** ou **+ Feature existante** (sans PI ou d'un autre
+  PI). Tout cela aussi dans le menu + du PI. Dans la fiche d'une feature, même nouvelle : **+ Nouvelle tâche**
+  (titre + Entrée) ou **+ Tâche existante** (recherche) ; pour une nouvelle feature, elles sont rattachées à
+  l'enregistrement.
 - **🚀 Assistant projet** (modes Simple et SAFe ; bouton +, fiches « Ouvrir dans l'assistant », écrans vides) :
   crée un **nouveau projet** (en partant de zéro ou d'un domaine / objectif existant) ou **complète / modifie**
   un projet existant en entrant au niveau voulu (domaine, objectif, epic, feature). Étape par étape :

@@ -26,6 +26,9 @@ interface Props {
   onToggleTask: (t: Item) => void;
   /** Nouvelle tâche hors feature dans l'itération */
   onAddTask: (itKey: string) => void;
+  /** Choisir des tâches existantes pour l'itération / des features existantes pour ce PI */
+  onPickTask: (itKey: string) => void;
+  onPickFeature: () => void;
 }
 
 /** Itération proposée dans un PI : celle choisie, sinon l'itération en cours, sinon la première. */
@@ -53,6 +56,8 @@ export function PIView({
   onOpenTask,
   onToggleTask,
   onAddTask,
+  onPickTask,
+  onPickFeature,
 }: Props) {
   const h = useHierarchy();
   const safe = useSafe();
@@ -262,9 +267,14 @@ export function PIView({
             </View>
           </ScrollView>
 
-          <Pressable onPress={() => onOpenFeature(null)} hitSlop={6} style={styles.addFeature}>
-            <Text style={styles.add}>+ Feature dans ce PI</Text>
-          </Pressable>
+          <View style={styles.addRow}>
+            <Pressable onPress={() => onOpenFeature(null)} hitSlop={6} accessibilityRole="button">
+              <Text style={styles.add}>+ Nouvelle feature</Text>
+            </Pressable>
+            <Pressable onPress={onPickFeature} hitSlop={6} accessibilityRole="button">
+              <Text style={styles.add}>+ Feature existante</Text>
+            </Pressable>
+          </View>
 
           <View style={styles.card}>
             <View style={styles.cardHead}>
@@ -309,9 +319,14 @@ export function PIView({
                 </Pressable>
               </View>
             ))}
-            <Pressable onPress={() => onAddTask(sel)} hitSlop={6} accessibilityRole="button">
-              <Text style={styles.add}>+ Tâche hors feature dans {its[selIndex].code}</Text>
-            </Pressable>
+            <View style={styles.addRow2}>
+              <Pressable onPress={() => onAddTask(sel)} hitSlop={6} accessibilityRole="button">
+                <Text style={styles.add}>+ Nouvelle tâche</Text>
+              </Pressable>
+              <Pressable onPress={() => onPickTask(sel)} hitSlop={6} accessibilityRole="button">
+                <Text style={styles.add}>+ Tâche existante</Text>
+              </Pressable>
+            </View>
           </View>
 
           {sansPi.length > 0 && (
@@ -349,7 +364,8 @@ const styles = StyleSheet.create({
   objTitle: { flex: 1, fontSize: 14.5, color: colors.text, fontWeight: '600' },
   value: { fontSize: 13, fontWeight: '700', color: colors.text },
   add: { color: colors.primary, fontWeight: '700', fontSize: 14 },
-  addFeature: { marginHorizontal: 16, marginVertical: 12 },
+  addRow: { flexDirection: 'row', gap: 20, marginHorizontal: 16, marginVertical: 12 },
+  addRow2: { flexDirection: 'row', gap: 20, marginTop: 4 },
   boardPad: { paddingHorizontal: 16 },
   board: { backgroundColor: colors.card, borderRadius: 12, overflow: 'hidden' },
   row: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },

@@ -21,6 +21,8 @@ import { FeatureForm } from './src/components/FeatureForm';
 import { IterationView } from './src/components/IterationView';
 import { ObjectifPIForm } from './src/components/ObjectifPIForm';
 import { PIView, selectedIteration } from './src/components/PIView';
+import { PickerModal } from './src/components/ItemPicker';
+import { inDomain } from './src/components/DomainFilter';
 import { DomainFilterContext, loadDomainFilter, saveDomainFilter } from './src/components/DomainFilter';
 import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
@@ -188,6 +190,8 @@ function Main() {
   const [piKey, setPiKey] = useState(() => piOf(new Date()));
   /** Itération choisie dans la ligne « Tâches hors feature » du PI */
   const [piItKey, setPiItKey] = useState('');
+  /** Écran PI : choix de tâches existantes (itération) ou de features existantes (PI) */
+  const [piPicker, setPiPicker] = useState<null | 'tache' | 'feature'>(null);
   const [editingFeature, setEditingFeature] = useState<Feature | null>(null);
   const [featureFormOpen, setFeatureFormOpen] = useState(false);
   const [editingOPI, setEditingOPI] = useState<ObjectifPI | null>(null);
@@ -462,6 +466,31 @@ function Main() {
     setTaskDefaults(defaults);
     setFormOpen(true);
   };
+  /** Tâche mise à jour : remplace l'ancienne dans la liste et le cache. */
+  const updateTask = async (patch: Partial<Item> & { id: string }) => {
+    if (!settings) return;
+    if (apiVersion < api.API_VERSION_SAFE) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour le mode SAFe.");
+    }
+    const saved = await api.updateItem(settings, patch);
+    setItems((prev) => {
+      const next = prev.map((i) => (i.id === saved.id ? saved : i));
+      saveCache(next).catch(() => {});
+      return next;
+    });
+  };
+  /** Rattache une tâche existante à une feature (seul le lien le plus précis est gardé). */
+  const linkTaskToFeature = (f: Feature, t: Item) =>
+    updateTask({
+      id: t.id,
+      feature: f.id,
+      epic: '',
+      objectif: '',
+      domaine: '',
+      // Sans date ni itération, elle prend l'itération prévue de la feature
+      ...(!t.date && !t.iteration && f.iteration ? { iteration: f.iteration } : {}),
+    });
+
   /** Écran PI : nouvelle tâche hors feature, dans l'itération choisie (et le domaine filtré). */
   const addHorsFeature = (key: string) => {
     setPiItKey(key);
@@ -543,6 +572,7 @@ function Main() {
       saveHierarchyCache(next).catch(() => {});
       return next;
     });
+    return saved;
   };
 
   /** Bouton d'une alerte : applique les dates proposées. */
@@ -612,6 +642,36 @@ function Main() {
         : 'Supprimé.',
     );
   };
+
+  const piPickerOptions =
+    piPicker === 'feature'
+      ? hier.features
+          .filter((f) => f.pi !== piKey && inDomain(domFilter, domaineOf({ epic: f.epic }, hv)?.id))
+          .map((f) => ({
+            id: f.id,
+            title: `🧩 ${f.titre}`,
+            sub: [hv.epics.get(f.epic)?.titre ?? 'sans epic', f.pi ? `PI ${f.pi.split('-')[1]} ${f.pi.split('-')[0]}` : 'sans PI'].join(' · '),
+          }))
+      : piPicker === 'tache'
+        ? items
+            .filter(
+              (t) =>
+                !t.periodicite &&
+                !t.feature &&
+                !t.date &&
+                t.statut !== 'termine' &&
+                t.iteration !== selectedIteration(piKey, piItKey) &&
+                inDomain(domFilter, domaineOf(t, hv)?.id),
+            )
+            .map((t) => ({
+              id: t.id,
+              title: t.titre,
+              sub: [
+                hv.epics.get(t.epic)?.titre ?? hv.objectifs.get(t.objectif)?.titre ?? hv.domaines.get(t.domaine)?.nom ?? 'non rangée',
+                t.iteration ? `prévue en ${t.iteration.split('-').slice(1).join(' ')}` : 'pas d’itération',
+              ].join(' · '),
+            }))
+        : [];
 
   if (booting) {
     return <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />;
@@ -804,6 +864,11 @@ function Main() {
           onOpenTask={openForm}
           onToggleTask={toggle}
           onAddTask={addHorsFeature}
+          onPickTask={(key) => {
+            setPiItKey(key);
+            setPiPicker('tache');
+          }}
+          onPickFeature={() => setPiPicker('feature')}
           onOpenObjectifPI={(o) => {
             setEditingOPI(o);
             setOpiFormOpen(true);
@@ -1020,10 +1085,18 @@ function Main() {
         feature={editingFeature}
         defaultPi={piKey}
         onClose={() => setFeatureFormOpen(false)}
-        onSave={async (input) => {
-          await saveEntity('feature', editingFeature, input);
+        onSave={async (input, taches) => {
+          const saved = (await saveEntity('feature', editingFeature, input)) as Feature | undefined;
+          if (!editingFeature && saved) {
+            for (const id of taches.existantes) {
+              const t = items.find((x) => x.id === id);
+              if (t) await linkTaskToFeature(saved, t);
+            }
+            for (const titre of taches.nouvelles) await quickAddTask(saved, titre);
+          }
           setFeatureFormOpen(false);
         }}
+        onLinkTask={linkTaskToFeature}
         onDelete={(f, cascade) => deleteEntity('feature', f, cascade)}
         onOpenTask={(t) => {
           setFeatureFormOpen(false);
@@ -1032,6 +1105,33 @@ function Main() {
         defaults={featDefaults}
         onQuickAddTask={quickAddTask}
         onOpenWizard={(f) => openWizard({ level: 'feature', id: f.id })}
+      />
+
+      <PickerModal
+        visible={piPicker !== null}
+        title={
+          piPicker === 'feature'
+            ? `Features pour le PI ${piKey.split('-')[1]}`
+            : `Tâches pour ${selectedIteration(piKey, piItKey).split('-').pop()}`
+        }
+        hint={
+          piPicker === 'feature'
+            ? 'Features sans PI ou prévues dans un autre PI. Touchez pour la planifier dans ce PI.'
+            : 'Tâches sans feature et sans date, pas encore dans cette itération. Une tâche datée suit sa date : changez-la dans sa fiche.'
+        }
+        empty={piPicker === 'feature' ? 'Aucune autre feature.' : 'Aucune tâche à planifier.'}
+        options={piPickerOptions}
+        onClose={() => setPiPicker(null)}
+        onPick={(id) => {
+          const run =
+            piPicker === 'feature'
+              ? (async () => {
+                  const f = hier.features.find((x) => x.id === id);
+                  if (f) await saveEntity('feature', f, { pi: piKey, iteration: f.iteration.startsWith(piKey) ? f.iteration : '' });
+                })()
+              : updateTask({ id, iteration: selectedIteration(piKey, piItKey) });
+          run.catch((e) => setNotice(`Non planifié : ${(e as Error).message}`));
+        }}
       />
 
       <ProjectWizard
@@ -1060,8 +1160,10 @@ function Main() {
             <Text style={styles.menuTitle}>{tab === 'pi' ? 'Ajouter au PI' : 'Ajouter'}</Text>
             {(tab === 'pi'
               ? ([
-                  ['🧩', 'Une feature', 'Une partie d’epic livrée dans ce PI', () => openFeature(null)],
-                  ['✓', 'Une tâche hors feature', `Dans l’itération ${selectedIteration(piKey, piItKey).split('-').pop()}`, () => addHorsFeature(selectedIteration(piKey, piItKey))],
+                  ['🧩', 'Une nouvelle feature', 'Une partie d’epic livrée dans ce PI', () => openFeature(null)],
+                  ['📥', 'Une feature existante', 'La planifier dans ce PI', () => setPiPicker('feature')],
+                  ['✓', 'Une nouvelle tâche hors feature', `Dans l’itération ${selectedIteration(piKey, piItKey).split('-').pop()}`, () => addHorsFeature(selectedIteration(piKey, piItKey))],
+                  ['📥', 'Une tâche existante', `La planifier dans l’itération ${selectedIteration(piKey, piItKey).split('-').pop()}`, () => setPiPicker('tache')],
                   ['🤝', 'Un objectif du PI', 'Ce que je m’engage à livrer ce trimestre', () => { setEditingOPI(null); setOpiFormOpen(true); }],
                 ] as const)
               : ([

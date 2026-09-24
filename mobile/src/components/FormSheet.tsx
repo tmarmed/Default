@@ -137,6 +137,8 @@ export const formStyles = StyleSheet.create({
   previewTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
   previewSub: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 4 },
   titleInput: { fontSize: 18, fontWeight: '500' },
+  pickBtn: { alignSelf: 'flex-start', marginTop: 8, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1, borderColor: colors.primary },
+  pickText: { color: colors.primary, fontSize: 13.5, fontWeight: '700' },
 });
 
 const styles = StyleSheet.create({
