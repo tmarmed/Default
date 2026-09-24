@@ -1,5 +1,6 @@
 import { toDateString } from './dates';
-import type { Item } from './types';
+import { tasksOfEpic } from './hierarchy';
+import type { Feature, Item } from './types';
 
 /**
  * Alertes de dates : un élément (tâche, epic) qui sort des dates de son parent (epic, objectif).
@@ -87,8 +88,8 @@ export function alertes(
 }
 
 /** Alertes d'une epic pour ses tâches. */
-export function alertesEpic(epic: { id: string; debut: string; fin: string }, items: Item[]): Alerte[] {
-  return alertes(epic, "l'epic", items.filter((i) => i.epic === epic.id).map(periodeTache));
+export function alertesEpic(epic: { id: string; debut: string; fin: string }, items: Item[], features: Feature[] = []): Alerte[] {
+  return alertes(epic, "l'epic", tasksOfEpic(epic.id, items, features).map(periodeTache));
 }
 
 /** Alertes d'un objectif pour ses epics et ses tâches directes. */

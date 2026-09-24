@@ -1,6 +1,8 @@
 import { memo } from 'react';
 import { domaineOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
+import { fmtPoints, pointsOf } from '../pi';
+import { useSafe } from '../safe';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { isOverdue } from '../dates';
 import { colors, prioriteColors, typeColors } from '../theme';
@@ -15,8 +17,12 @@ interface Props {
 export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Props) {
   const done = item.statut === 'termine';
   const h = useHierarchy();
+  const safe = useSafe();
+  const pts = safe.actif ? pointsOf(item) : 0;
+  const parentFeature = h.features.get(item.feature);
   // Rattachement le plus précis affiché en étiquette, précédé de l'icône du domaine.
-  const parent = h.epics.get(item.epic) ?? h.objectifs.get(item.objectif);
+  const parent = parentFeature ?? h.epics.get(item.epic) ?? h.objectifs.get(item.objectif);
+  const parentColor = parentFeature ? (h.epics.get(parentFeature.epic)?.couleur ?? colors.primary) : parent?.couleur;
   const domaine = domaineOf(item, h);
   const late = isOverdue(item);
   return (
@@ -53,13 +59,18 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Prop
           )}
           {(parent || domaine) && (
             <Text
-              style={[styles.epic, { color: (parent ?? domaine)!.couleur, borderColor: (parent ?? domaine)!.couleur }]}
+              style={[
+                styles.epic,
+                { color: parentColor ?? domaine!.couleur, borderColor: parentColor ?? domaine!.couleur },
+              ]}
               numberOfLines={1}
             >
               {domaine ? `${domaine.icone} ` : ''}
+              {parentFeature ? '🧩 ' : ''}
               {parent ? parent.titre : domaine!.nom}
             </Text>
           )}
+          {pts > 0 && <Text style={styles.points}>{fmtPoints(pts, safe.pointsJours)}</Text>}
           {item.statut === 'en_cours' && <Text style={styles.enCours}>{STATUT_LABELS.en_cours}</Text>}
           {item.retards ? (
             <Text style={styles.late}>
@@ -116,6 +127,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     maxWidth: 160,
   },
+  points: { fontSize: 12, fontWeight: '700', color: colors.muted, backgroundColor: '#EEF1F6', borderRadius: 8, paddingHorizontal: 6, overflow: 'hidden' },
   enCours: { fontSize: 13, color: colors.primary, fontWeight: '600' },
   late: { fontSize: 13, color: colors.danger, fontWeight: '600' },
   prio: { width: 8, height: 8, borderRadius: 4, marginRight: 14 },

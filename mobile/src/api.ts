@@ -2,7 +2,18 @@ import { Platform } from 'react-native';
 import { AuthError, getIdToken } from './auth';
 import { DEMO, demoApi } from './demo';
 import type { Data, DeletionCounts } from './hierarchy';
-import { Domaine, EntityKind, Epic, Item, ItemInput, Objectif, RECURRENCE_DEFAUTS, Settings } from './types';
+import {
+  Domaine,
+  EntityKind,
+  Epic,
+  Feature,
+  Item,
+  ItemInput,
+  Objectif,
+  ObjectifPI,
+  RECURRENCE_DEFAUTS,
+  Settings,
+} from './types';
 
 type ApiResponse<T> = ({ ok: true } & T) | { ok: false; error: string; code?: string };
 
@@ -76,13 +87,15 @@ export function normalize(item: Item): Item {
 
 /** Version du script avec domaines, objectifs et suppression en cascade. */
 export const API_VERSION_HIERARCHIE = 4;
+/** Version du script avec features, objectifs du PI, points, itérations et état des epics. */
+export const API_VERSION_SAFE = 5;
 
-const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '' });
+const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '', etat: e.etat ?? '' });
 
 export async function listItems(settings: Settings): Promise<Data & { version: number }> {
   if (DEMO) {
     const all = await demoApi.listAll();
-    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_HIERARCHIE };
+    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_SAFE };
   }
   const data = await post<Partial<Data> & { items: Item[]; version?: number }>(settings, { action: 'list' });
   return {
@@ -90,11 +103,13 @@ export async function listItems(settings: Settings): Promise<Data & { version: n
     epics: (data.epics ?? []).map(normalizeEpic),
     objectifs: data.objectifs ?? [],
     domaines: data.domaines ?? [],
+    features: data.features ?? [],
+    objectifsPI: data.objectifsPI ?? [],
     version: data.version ?? 1,
   };
 }
 
-type EntityMap = { epic: Epic; objectif: Objectif; domaine: Domaine };
+type EntityMap = { epic: Epic; objectif: Objectif; domaine: Domaine; feature: Feature; objectifpi: ObjectifPI };
 
 export async function createEntity<K extends EntityKind>(
   settings: Settings,

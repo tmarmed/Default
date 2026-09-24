@@ -37,6 +37,10 @@ export interface Item {
   epic: string;
   objectif: string;
   domaine: string;
+  /** SAFe : points (facultatif), itération choisie à la main (ex. 2026-T4-IT3), feature (id, le plus précis) */
+  points: string;
+  iteration: string;
+  feature: string;
 
   // --- Champs calculés par l'application (non enregistrés) ---
   /** Occurrence affichée d'un élément répété : clé de sa période */
@@ -66,6 +70,9 @@ export const RECURRENCE_DEFAUTS = {
   epic: '',
   objectif: '',
   domaine: '',
+  points: '',
+  iteration: '',
+  feature: '',
 } as const;
 
 /** Une ligne de l'onglet « Epics » : grand projet affiché dans la roadmap. */
@@ -84,7 +91,52 @@ export interface Epic {
   /** Objectif (id), sinon domaine (id) */
   objectif: string;
   domaine: string;
+  /** SAFe : état dans le Kanban du portefeuille ; vide = déduit des dates */
+  etat: EtatEpic | '';
 }
+
+export type EtatEpic = 'idee' | 'analyse' | 'pret' | 'en_cours' | 'termine';
+
+export const ETATS_EPIC: { value: EtatEpic; label: string; color: string }[] = [
+  { value: 'idee', label: 'Idée', color: '#9AA3AF' },
+  { value: 'analyse', label: 'Analyse', color: '#8E24AA' },
+  { value: 'pret', label: 'Prêt', color: '#E37400' },
+  { value: 'en_cours', label: 'En cours', color: '#1A73E8' },
+  { value: 'termine', label: 'Terminé', color: '#188038' },
+];
+
+/** SAFe : sous-epic prévue dans un PI (trimestre), éventuellement dans une itération. */
+export interface Feature {
+  id: string;
+  titre: string;
+  description: string;
+  epic: string;
+  /** ex. 2026-T4 */
+  pi: string;
+  /** ex. 2026-T4-IT3 ou 2026-T4-IP */
+  iteration: string;
+  points: string;
+  couleur: string;
+  cree_le: string;
+  modifie_le: string;
+}
+
+export type FeatureInput = Omit<Feature, 'id' | 'cree_le' | 'modifie_le'>;
+
+/** SAFe : objectif du PI, engagement d'un trimestre. */
+export interface ObjectifPI {
+  id: string;
+  titre: string;
+  pi: string;
+  type: 'engage' | 'bonus';
+  /** 0 à 10, vide si non noté */
+  valeur_prevue: string;
+  valeur_obtenue: string;
+  cree_le: string;
+  modifie_le: string;
+}
+
+export type ObjectifPIInput = Omit<ObjectifPI, 'id' | 'cree_le' | 'modifie_le'>;
 
 export type EpicInput = Omit<Epic, 'id' | 'cree_le' | 'modifie_le'>;
 
@@ -120,7 +172,7 @@ export interface Domaine {
 
 export type DomaineInput = Omit<Domaine, 'id' | 'cree_le' | 'modifie_le'>;
 
-export type EntityKind = 'epic' | 'objectif' | 'domaine';
+export type EntityKind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi';
 
 /** Icônes proposées pour les domaines. */
 export const DOMAINE_ICONES = ['💼', '🏠', '💶', '❤️', '🎓', '🛠️', '🌱', '✈️', '👪', '📦', '⚽', '🎨'];

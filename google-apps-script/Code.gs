@@ -19,10 +19,11 @@ var HEADERS = [
   'id', 'titre', 'type', 'date', 'heure', 'lieu',
   'description', 'priorite', 'statut', 'cree_le', 'modifie_le',
   'periodicite', 'echeance', 'debut', 'fin', 'faits',
-  'epic', 'objectif', 'domaine'
+  'epic', 'objectif', 'domaine',
+  'points', 'iteration', 'feature'
 ];
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 4;
+var API_VERSION = 5;
 
 /**
  * Niveaux au-dessus des tâches : Domaine > Objectif > Epic > Tâche.
@@ -31,7 +32,18 @@ var API_VERSION = 4;
 var ENTITIES = {
   epic: {
     sheet: 'Epics', min: 8,
-    headers: ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le', 'objectif', 'domaine']
+    headers: ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le', 'objectif', 'domaine',
+      'etat']
+  },
+  // SAFe : feature = sous-epic prévue dans un PI (trimestre), éventuellement dans une itération.
+  feature: {
+    sheet: 'Features', min: 10,
+    headers: ['id', 'titre', 'description', 'epic', 'pi', 'iteration', 'points', 'couleur', 'cree_le', 'modifie_le']
+  },
+  // SAFe : objectif du PI = engagement d'un trimestre (engagé ou bonus), valeur prévue / obtenue sur 10.
+  objectifpi: {
+    sheet: 'ObjectifsPI', min: 8,
+    headers: ['id', 'titre', 'pi', 'type', 'valeur_prevue', 'valeur_obtenue', 'cree_le', 'modifie_le']
   },
   objectif: {
     sheet: 'Objectifs', min: 12,
@@ -44,6 +56,11 @@ var ENTITIES = {
   }
 };
 var PERIODICITES = ['', 'hebdomadaire', 'mensuelle', 'trimestrielle', 'annuelle'];
+/** États d'une epic (Kanban du portefeuille) ; vide = déduit des dates par l'application. */
+var ETATS_EPIC = ['', 'idee', 'analyse', 'pret', 'en_cours', 'termine'];
+var RE_PI = /^\d{4}-T[1-4]$/;
+var RE_ITERATION = /^\d{4}-T[1-4]-(IT[1-6]|IP)$/;
+var RE_NOMBRE = /^\d+([.,]\d+)?$/;
 var TYPES = ['tache', 'mission', 'rendez-vous'];
 var PRIORITES = ['basse', 'normale', 'haute'];
 var STATUTS = ['a_faire', 'en_cours', 'termine'];
@@ -60,6 +77,8 @@ function installer() {
   entitySheet_('epic');
   entitySheet_('objectif');
   entitySheet_('domaine');
+  entitySheet_('feature');
+  entitySheet_('objectifpi');
   var props = PropertiesService.getScriptProperties();
 
   if (GOOGLE_WEB_CLIENT_ID) {
@@ -169,7 +188,9 @@ function listAll_() {
     items: listItems_(),
     epics: listEntities_('epic'),
     objectifs: listEntities_('objectif'),
-    domaines: listEntities_('domaine')
+    domaines: listEntities_('domaine'),
+    features: listEntities_('feature'),
+    objectifsPI: listEntities_('objectifpi')
   };
 }
 
@@ -341,6 +362,7 @@ function sanitize_(item, base) {
   if (out.fin && !/^\d{4}-\d{2}-\d{2}$/.test(out.fin)) throw new Error('Date de fin invalide (AAAA-MM-JJ).');
   if (!/^[0-9A-Za-z;\-]*$/.test(out.faits)) throw new Error('Liste des périodes faites invalide.');
   checkLinks_(out);
+  checkSafe_(out);
   if (!out.periodicite) {
     out.echeance = '';
     out.debut = '';
@@ -431,11 +453,22 @@ function listEntities_(kind) {
 
 /** Liens vers les niveaux supérieurs : seul le plus précis est gardé (epic > objectif > domaine). */
 function checkLinks_(o) {
-  ['epic', 'objectif', 'domaine'].forEach(function (k) {
+  ['feature', 'epic', 'objectif', 'domaine'].forEach(function (k) {
     if (o[k] !== undefined && !/^[0-9A-Za-z\-]*$/.test(o[k])) throw new Error('Lien « ' + k + ' » invalide.');
   });
-  if (o.epic) { o.objectif = ''; o.domaine = ''; }
+  if (o.feature) { o.epic = ''; o.objectif = ''; o.domaine = ''; }
+  else if (o.epic) { o.objectif = ''; o.domaine = ''; }
   else if (o.objectif) { o.domaine = ''; }
+}
+
+/** Champs SAFe (points, itération, PI) : formats. */
+function checkSafe_(o) {
+  if (o.points !== undefined) {
+    o.points = String(o.points).replace(',', '.');
+    if (o.points && !RE_NOMBRE.test(o.points)) throw new Error('Points : nombre attendu.');
+  }
+  if (o.iteration && !RE_ITERATION.test(o.iteration)) throw new Error('Itération invalide (ex. 2026-T4-IT3).');
+  if (o.pi && !RE_PI.test(o.pi)) throw new Error('PI invalide (ex. 2026-T4).');
 }
 
 function sanitizeEntity_(kind, data, base) {
@@ -449,6 +482,16 @@ function sanitizeEntity_(kind, data, base) {
   if (kind === 'domaine') {
     if (!out.nom.trim()) throw new Error('Le nom du domaine est obligatoire.');
     out.icone = out.icone.slice(0, 8);
+  } else if (kind === 'feature') {
+    if (!out.titre.trim()) throw new Error('Le titre est obligatoire.');
+    checkSafe_(out);
+  } else if (kind === 'objectifpi') {
+    if (!out.titre.trim()) throw new Error('Le titre est obligatoire.');
+    if (!RE_PI.test(out.pi)) throw new Error('PI invalide (ex. 2026-T4).');
+    if (out.type !== 'bonus') out.type = 'engage';
+    ['valeur_prevue', 'valeur_obtenue'].forEach(function (k) {
+      if (out[k] && !(/^\d+$/.test(out[k]) && +out[k] >= 0 && +out[k] <= 10)) throw new Error('Valeur : entier de 0 à 10.');
+    });
   } else {
     if (!out.titre.trim()) throw new Error('Le titre est obligatoire.');
     if (!date.test(out.debut)) throw new Error('Date de début invalide (AAAA-MM-JJ).');
@@ -463,7 +506,8 @@ function sanitizeEntity_(kind, data, base) {
     });
     out.unite = out.unite.slice(0, 30);
   }
-  if (!/^#[0-9A-Fa-f]{6}$/.test(out.couleur)) out.couleur = '#1A73E8';
+  if (kind === 'epic' && ETATS_EPIC.indexOf(out.etat) < 0) out.etat = '';
+  if (out.couleur !== undefined && !/^#[0-9A-Fa-f]{6}$/.test(out.couleur)) out.couleur = '#1A73E8';
   checkLinks_(out);
   return out;
 }
@@ -532,90 +576,99 @@ function writeTable_(sheet, headers, rows) {
  */
 function deleteEntity_(kind, id, cascade) {
   var tasksSheet = getSheet_();
-  var sheets = {
-    epic: entitySheet_('epic'),
-    objectif: entitySheet_('objectif'),
-    domaine: entitySheet_('domaine')
-  };
-  var data = {
-    tache: readTable_(tasksSheet, HEADERS),
-    epic: readTable_(sheets.epic, ENTITIES.epic.headers),
-    objectif: readTable_(sheets.objectif, ENTITIES.objectif.headers),
-    domaine: readTable_(sheets.domaine, ENTITIES.domaine.headers)
-  };
+  var kinds = ['epic', 'objectif', 'domaine', 'feature', 'objectifpi'];
+  var sheets = {};
+  var data = { tache: readTable_(tasksSheet, HEADERS) };
+  kinds.forEach(function (k) {
+    sheets[k] = entitySheet_(k);
+    data[k] = readTable_(sheets[k], ENTITIES[k].headers);
+  });
   var self = data[kind].filter(function (o) { return o.id === String(id); })[0];
   if (!self) throw new Error('Élément introuvable (peut-être déjà supprimé).');
 
   var result = planDeletion_(kind, self, cascade, data);
   writeTable_(tasksSheet, HEADERS, result.tache);
-  writeTable_(sheets.epic, ENTITIES.epic.headers, result.epic);
-  writeTable_(sheets.objectif, ENTITIES.objectif.headers, result.objectif);
-  writeTable_(sheets.domaine, ENTITIES.domaine.headers, result.domaine);
+  kinds.forEach(function (k) { writeTable_(sheets[k], ENTITIES[k].headers, result[k]); });
   return result.counts;
 }
 
-/** Calcul pur de la suppression (même règle que l'application, voir mobile/src/hierarchy.ts). */
+/**
+ * Calcul pur de la suppression (même règle que l'application, voir mobile/src/hierarchy.ts).
+ * Domaine > Objectif > Epic > Feature > Tâche.
+ */
 function planDeletion_(kind, self, cascade, data) {
   var id = self.id;
-  var set = function (list) { var m = {}; list.forEach(function (x) { m[x] = true; }); return m; };
-  var objIds = {}, epicIds = {}, taskIds = {};
+  var ids = function (list, test) { var m = {}; list.filter(test).forEach(function (x) { m[x.id] = true; }); return m; };
+  var objIds = {}, epicIds = {}, featIds = {}, taskIds = {};
   if (kind === 'domaine') {
-    objIds = set(data.objectif.filter(function (o) { return o.domaine === id; }).map(function (o) { return o.id; }));
-    epicIds = set(data.epic.filter(function (e) { return e.domaine === id || objIds[e.objectif]; }).map(function (e) { return e.id; }));
-    taskIds = set(data.tache.filter(function (t) { return t.domaine === id || objIds[t.objectif] || epicIds[t.epic]; }).map(function (t) { return t.id; }));
+    objIds = ids(data.objectif, function (o) { return o.domaine === id; });
+    epicIds = ids(data.epic, function (e) { return e.domaine === id || objIds[e.objectif]; });
   } else if (kind === 'objectif') {
-    epicIds = set(data.epic.filter(function (e) { return e.objectif === id; }).map(function (e) { return e.id; }));
-    taskIds = set(data.tache.filter(function (t) { return t.objectif === id || epicIds[t.epic]; }).map(function (t) { return t.id; }));
-  } else {
-    taskIds = set(data.tache.filter(function (t) { return t.epic === id; }).map(function (t) { return t.id; }));
+    epicIds = ids(data.epic, function (e) { return e.objectif === id; });
+  } else if (kind === 'epic') {
+    epicIds[id] = true;
   }
+  if (kind === 'feature') featIds[id] = true;
+  else featIds = ids(data.feature, function (f) { return epicIds[f.epic]; });
+  if (kind !== 'objectifpi') {
+    taskIds = ids(data.tache, function (t) {
+      return featIds[t.feature] || epicIds[t.epic] ||
+        (kind === 'objectif' && t.objectif === id) ||
+        (kind === 'domaine' && (t.domaine === id || objIds[t.objectif]));
+    });
+  }
+  if (kind === 'epic') delete epicIds[id];
+  if (kind === 'feature') delete featIds[id];
   var n = function (m) { return Object.keys(m).length; };
-  var counts = { objectifs: n(objIds), epics: n(epicIds), taches: n(taskIds), cascade: !!cascade };
-  var out = {
-    tache: data.tache, epic: data.epic, objectif: data.objectif,
-    domaine: data.domaine.filter(function (d) { return !(kind === 'domaine' && d.id === id); })
-  };
-  if (kind === 'objectif') out.objectif = data.objectif.filter(function (o) { return o.id !== id; });
-  if (kind === 'epic') out.epic = data.epic.filter(function (e) { return e.id !== id; });
+  var counts = { objectifs: n(objIds), epics: n(epicIds), features: n(featIds), taches: n(taskIds), cascade: !!cascade };
+
+  var out = {};
+  ['tache', 'epic', 'objectif', 'domaine', 'feature', 'objectifpi'].forEach(function (k) {
+    out[k] = data[k].filter(function (o) { return !(k === kind && o.id === id); });
+  });
 
   if (cascade) {
     out.objectif = out.objectif.filter(function (o) { return !objIds[o.id]; });
     out.epic = out.epic.filter(function (e) { return !epicIds[e.id]; });
+    out.feature = out.feature.filter(function (f) { return !featIds[f.id]; });
     out.tache = out.tache.filter(function (t) { return !taskIds[t.id]; });
-    return { tache: out.tache, epic: out.epic, objectif: out.objectif, domaine: out.domaine, counts: counts };
+    out.counts = counts;
+    return out;
   }
   // Sans cascade : les enfants directs remontent d'un niveau.
-  if (kind === 'epic') {
-    out.tache = out.tache.map(function (t) {
-      if (t.epic !== id) return t;
-      var c = copy_(t);
+  var map = function (list, test, change) {
+    return list.map(function (o) {
+      if (!test(o)) return o;
+      var c = copy_(o);
+      change(c);
+      return c;
+    });
+  };
+  if (kind === 'feature') {
+    out.tache = map(out.tache, function (t) { return t.feature === id; }, function (c) {
+      c.feature = '';
+      c.epic = self.epic || '';
+    });
+  } else if (kind === 'epic') {
+    out.tache = map(out.tache, function (t) { return t.epic === id; }, function (c) {
       c.epic = '';
       c.objectif = self.objectif || '';
       c.domaine = self.objectif ? '' : (self.domaine || '');
-      return c;
     });
+    out.feature = map(out.feature, function (f) { return f.epic === id; }, function (c) { c.epic = ''; });
   } else if (kind === 'objectif') {
-    var up = function (o) {
-      if (o.objectif !== id) return o;
-      var c = copy_(o);
-      c.objectif = '';
-      c.domaine = self.domaine || '';
-      return c;
-    };
-    out.epic = out.epic.map(up);
-    out.tache = out.tache.map(up);
-  } else {
-    var clear = function (o) {
-      if (o.domaine !== id) return o;
-      var c = copy_(o);
-      c.domaine = '';
-      return c;
-    };
-    out.objectif = out.objectif.map(clear);
-    out.epic = out.epic.map(clear);
-    out.tache = out.tache.map(clear);
+    var up = function (c) { c.objectif = ''; c.domaine = self.domaine || ''; };
+    out.epic = map(out.epic, function (e) { return e.objectif === id; }, up);
+    out.tache = map(out.tache, function (t) { return t.objectif === id; }, up);
+  } else if (kind === 'domaine') {
+    var clear = function (c) { c.domaine = ''; };
+    var has = function (o) { return o.domaine === id; };
+    out.objectif = map(out.objectif, has, clear);
+    out.epic = map(out.epic, has, clear);
+    out.tache = map(out.tache, has, clear);
   }
-  return { tache: out.tache, epic: out.epic, objectif: out.objectif, domaine: out.domaine, counts: counts };
+  out.counts = counts;
+  return out;
 }
 
 function copy_(o) {

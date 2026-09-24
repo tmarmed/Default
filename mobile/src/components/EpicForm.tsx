@@ -14,9 +14,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { alertesEpic } from '../alerts';
 import { addMonths, toDateString } from '../dates';
+import { childrenOf, describeCounts, tasksOfEpic } from '../hierarchy';
 import { formatEpicDates, progress } from '../roadmap';
 import { colors } from '../theme';
 import { Epic, EPIC_COULEURS, EpicInput, Item } from '../types';
+import { etatEpic, useSafe } from '../safe';
+import { ETATS_EPIC } from '../types';
+import { Chips } from './Chips';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
 import { LinkPicker } from './LinkPicker';
@@ -43,6 +47,7 @@ const empty = (): EpicInput => {
     couleur: EPIC_COULEURS[0],
     objectif: '',
     domaine: '',
+    etat: 'idee',
   };
 };
 
@@ -52,6 +57,8 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const h = useHierarchy();
+  const safe = useSafe();
+  const features = epic ? h.featureList.filter((f) => f.epic === epic.id) : [];
 
   useEffect(() => {
     if (visible) {
@@ -65,6 +72,8 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
               couleur: epic.couleur,
               objectif: epic.objectif,
               domaine: epic.domaine,
+              // État non choisi : on propose celui déduit des dates
+              etat: etatEpic(epic, toDateString(new Date())),
             }
           : empty(),
       );
@@ -73,10 +82,11 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
   }, [visible, epic]);
 
   const set = <K extends keyof EpicInput>(key: K, value: EpicInput[K]) => setForm((f) => ({ ...f, [key]: value }));
-  const tasks = epic ? items.filter((i) => i.epic === epic.id) : [];
-  const stats = epic ? progress(epic.id, items) : null;
+  const tasks = epic ? tasksOfEpic(epic.id, items, h.featureList) : [];
+  const kids = epic ? childrenOf('epic', epic.id, h.data) : null;
+  const stats = epic ? progress(epic.id, items, h.featureList) : null;
   // Alertes calculées sur les dates en cours de saisie : le bouton ajuste les champs, puis on enregistre.
-  const alertes = epic && form.debut ? alertesEpic({ id: epic.id, debut: form.debut, fin: form.fin }, items) : [];
+  const alertes = epic && form.debut ? alertesEpic({ id: epic.id, debut: form.debut, fin: form.fin }, items, h.featureList) : [];
 
   const save = async () => {
     if (!form.titre.trim()) return setError("Donnez un titre à l'epic.");
@@ -171,6 +181,17 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
               onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
             />
 
+            {safe.actif && (
+              <>
+                <Text style={styles.label}>État (portefeuille)</Text>
+                <Chips
+                  options={ETATS_EPIC.map((e) => ({ value: e.value, label: e.label, color: e.color }))}
+                  value={form.etat || 'idee'}
+                  onChange={(v) => set('etat', v)}
+                />
+              </>
+            )}
+
             <Text style={styles.label}>Début</Text>
             <DateField mode="date" value={form.debut} onChange={(v) => set('debut', v)} placeholder="Date de début" />
             <Text style={styles.label}>Fin</Text>
@@ -221,6 +242,11 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
                     />
                   </View>
                 )}
+                {safe.actif && features.length > 0 && (
+                  <Text style={styles.muted}>
+                    🧩 {features.length} feature{features.length > 1 ? 's' : ''} : {features.map((f) => f.titre).join(' · ')}
+                  </Text>
+                )}
                 {tasks.length === 0 ? (
                   <Text style={styles.muted}>
                     Aucune tâche. Pour en rattacher une, ouvrez-la et choisissez cette epic.
@@ -245,7 +271,11 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
                 <DeleteSection
                   label="Supprimer l'epic"
                   name={epic.titre}
-                  children={tasks.length ? `${tasks.length} tâche${tasks.length > 1 ? 's' : ''}` : ''}
+                  children={
+                    kids && kids.featIds.size + kids.taskIds.size
+                      ? describeCounts({ objectifs: 0, epics: 0, features: kids.featIds.size, taches: kids.taskIds.size })
+                      : ''
+                  }
                   keepText={keepText}
                   disabled={busy}
                   onDelete={doDelete}

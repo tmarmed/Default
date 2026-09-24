@@ -28,6 +28,9 @@ import { Chips } from './Chips';
 import { DateField } from './DateField';
 import { checkRecurrence, RecurrenceFields } from './RecurrenceFields';
 import { LinkPicker } from './LinkPicker';
+import { useSafe } from '../safe';
+import { iterationByKey, iterationOf, shiftIteration } from '../pi';
+import { toDateString } from '../dates';
 
 interface Props {
   visible: boolean;
@@ -36,12 +39,14 @@ interface Props {
   defaultType: ItemType;
   /** Date proposée pour un nouvel élément (jour affiché), AAAA-MM-JJ ou vide */
   defaultDate: string;
+  /** Itération proposée pour un nouvel élément sans date (écran Itération) */
+  defaultIteration?: string;
   onClose: () => void;
   onSave: (input: ItemInput) => Promise<void>;
   onDelete: (item: Item) => Promise<void>;
 }
 
-const empty = (type: ItemType, date: string): ItemInput => ({
+const empty = (type: ItemType, date: string, defaultIteration = ''): ItemInput => ({
   titre: '',
   type,
   date,
@@ -58,6 +63,9 @@ const empty = (type: ItemType, date: string): ItemInput => ({
   epic: '',
   objectif: '',
   domaine: '',
+  points: '',
+  iteration: defaultIteration,
+  feature: '',
 });
 
 /** Seulement les champs enregistrés (pas ceux calculés pour l'affichage). */
@@ -78,6 +86,9 @@ const toInput = (i: Item): ItemInput => ({
   epic: i.epic,
   objectif: i.objectif,
   domaine: i.domaine,
+  points: i.points,
+  iteration: i.iteration,
+  feature: i.feature,
 });
 
 const TYPES = (Object.keys(TYPE_LABELS) as ItemType[]).map((t) => ({
@@ -92,15 +103,22 @@ const PRIORITES = (Object.keys(PRIORITE_LABELS) as Priorite[]).map((p) => ({
 }));
 const STATUTS = (Object.keys(STATUT_LABELS) as Statut[]).map((s) => ({ value: s, label: STATUT_LABELS[s] }));
 
-export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onSave, onDelete }: Props) {
-  const [form, setForm] = useState<ItemInput>(empty(defaultType, defaultDate));
+export function TaskForm({ visible, item, defaultType, defaultDate, defaultIteration, onClose, onSave, onDelete }: Props) {
+  const [form, setForm] = useState<ItemInput>(empty(defaultType, defaultDate, defaultIteration));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const safe = useSafe();
+  // Itérations proposées pour une tâche sans date : la courante et les 5 suivantes
+  const itCourante = iterationOf(toDateString(new Date())).key;
+  const itOptions = [0, 1, 2, 3, 4, 5].map((n) => {
+    const key = n ? shiftIteration(itCourante, n) : itCourante;
+    return { value: key, label: `${key.split('-')[1]} ${iterationByKey(key)!.code}` };
+  });
 
   useEffect(() => {
     if (visible) {
-      setForm(item ? toInput(item) : empty(defaultType, defaultDate));
+      setForm(item ? toInput(item) : empty(defaultType, defaultDate, defaultIteration));
       setError(null);
       setConfirmDelete(false);
     }
@@ -208,8 +226,41 @@ export function TaskForm({ visible, item, defaultType, defaultDate, onClose, onS
             <Text style={styles.label}>Heure</Text>
             <DateField mode="time" value={form.heure} onChange={(v) => set('heure', v)} placeholder="Choisir une heure" />
 
+            {safe.actif && (
+              <>
+                <Text style={styles.label}>{safe.pointsJours ? 'Points (jours)' : 'Points'}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Estimation, ex. 2"
+                  placeholderTextColor={colors.muted}
+                  value={form.points}
+                  onChangeText={(v) => set('points', v.replace(/[^0-9.,]/g, ''))}
+                  keyboardType="decimal-pad"
+                />
+                {!form.periodicite &&
+                  (form.date ? (
+                    <Text style={styles.hint}>Itération : {iterationOf(form.date).label} (d'après la date)</Text>
+                  ) : (
+                    <>
+                      <Text style={styles.label}>Itération</Text>
+                      <Chips
+                        options={[
+                          { value: '', label: 'Aucune' },
+                          ...itOptions,
+                          ...(form.iteration && !itOptions.some((o) => o.value === form.iteration)
+                            ? [{ value: form.iteration, label: form.iteration }]
+                            : []),
+                        ]}
+                        value={form.iteration}
+                        onChange={(v) => set('iteration', v)}
+                      />
+                    </>
+                  ))}
+              </>
+            )}
+
             <LinkPicker
-              levels={['epic', 'objectif', 'domaine']}
+              levels={safe.actif ? ['feature', 'epic', 'objectif', 'domaine'] : ['epic', 'objectif', 'domaine']}
               value={form}
               onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
             />
@@ -294,6 +345,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FCE8E6',
   },
+  hint: { marginTop: 10, fontSize: 13, color: colors.muted },
   error: {
     color: colors.danger,
     backgroundColor: '#FCE8E6',

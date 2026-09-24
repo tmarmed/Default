@@ -58,9 +58,9 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
   const set = <K extends keyof ObjectifInput>(k: K, v: ObjectifInput[K]) => setForm((x) => ({ ...x, [k]: v }));
   const epics = objectif ? h.epicList.filter((e) => e.objectif === objectif.id) : [];
   const alertes = objectif && form.debut ? alertesObjectif({ id: objectif.id, debut: form.debut, fin: form.fin }, h.epicList, h.items) : [];
-  const progress = objectif ? progressObjectif({ ...objectif, ...form }, { items: h.items, epics: h.epicList }) : null;
+  const progress = objectif ? progressObjectif({ ...objectif, ...form }, h.data) : null;
   const children = objectif
-    ? childrenOf('objectif', objectif.id, { items: h.items, epics: h.epicList, objectifs: h.objectifList, domaines: h.domaineList })
+    ? childrenOf('objectif', objectif.id, h.data)
     : null;
   const dom = form.domaine ? h.domaines.get(form.domaine) : undefined;
 

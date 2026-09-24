@@ -1,5 +1,6 @@
 import { addDays, addMonths, toDateString } from './dates';
-import type { Epic, Item } from './types';
+import { tasksOfEpic } from './hierarchy';
+import type { Epic, Feature, Item } from './types';
 
 /** Échelles de la roadmap. */
 export type Zoom = '3ans' | 'annee' | 'trimestre' | 'mois';
@@ -132,12 +133,11 @@ export function positionOf(day: string, win: Pick<Window, 'start' | 'end'>): num
 }
 
 /** Avancement d'une epic : tâches ponctuelles terminées / total (les tâches répétées ne comptent pas). */
-export function progress(epicId: string, items: Item[]): { done: number; total: number; repeated: number } {
+export function progress(epicId: string, items: Item[], features: Feature[] = []): { done: number; total: number; repeated: number } {
   let done = 0;
   let total = 0;
   let repeated = 0;
-  for (const i of items) {
-    if (i.epic !== epicId) continue;
+  for (const i of tasksOfEpic(epicId, items, features)) {
     if (i.periodicite) repeated++;
     else {
       total++;

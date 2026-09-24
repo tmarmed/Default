@@ -3,6 +3,7 @@ import { ReactElement, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Alerte, alertesEpic, alertesObjectif } from '../alerts';
 import { progressObjectif } from '../hierarchy';
+import { useHierarchy } from '../hierarchyContext';
 import { toDateString } from '../dates';
 import { barFor, formatEpicDates, positionOf, progress, roadmapWindow, shift, Window, Zoom } from '../roadmap';
 import { colors } from '../theme';
@@ -81,7 +82,11 @@ export function Roadmap({
   const byStart = <T extends { debut: string; fin: string }>(a: T, b: T) =>
     a.debut.localeCompare(b.debut) || (a.fin || '9999').localeCompare(b.fin || '9999');
 
-  const epicAlerts = useMemo(() => new Map(epics.map((e) => [e.id, alertesEpic(e, items)])), [epics, items]);
+  const hv = useHierarchy();
+  const epicAlerts = useMemo(
+    () => new Map(epics.map((e) => [e.id, alertesEpic(e, items, hv.featureList)])),
+    [epics, items, hv.featureList],
+  );
   const objAlerts = useMemo(() => new Map(objectifs.map((o) => [o.id, alertesObjectif(o, epics, items)])), [objectifs, epics, items]);
   const nbAlertes =
     [...epicAlerts.values()].reduce((n, a) => n + a.length, 0) + [...objAlerts.values()].reduce((n, a) => n + a.length, 0);
@@ -229,7 +234,7 @@ export function Roadmap({
                                 fin={o.fin}
                                 win={win}
                                 todayPos={todayPos}
-                                progress={progressObjectif(o, { items, epics })}
+                                progress={progressObjectif(o, hv.data)}
                                 alertes={objAlerts.get(o.id)!}
                                 onPress={() => onOpenObjectif(o)}
                                 onFix={(p) => onFixObjectif(o, p)}
@@ -285,7 +290,8 @@ function EpicBar({
   onOpen: (e: Epic) => void;
   onFix: (e: Epic, patch: Alerte['patch']) => void;
 }) {
-  const stats = progress(epic.id, items);
+  const hv = useHierarchy();
+  const stats = progress(epic.id, items, hv.featureList);
   return (
     <BarRow
       kind="epic"

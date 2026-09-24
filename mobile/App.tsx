@@ -17,6 +17,7 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-
 import * as api from './src/api';
 import { Chips } from './src/components/Chips';
 import { EpicForm } from './src/components/EpicForm';
+import { Portfolio } from './src/components/Portfolio';
 import { Roadmap } from './src/components/Roadmap';
 import { LoginScreen } from './src/components/LoginScreen';
 import { SettingsScreen } from './src/components/SettingsScreen';
@@ -44,6 +45,7 @@ import { DomaineForm } from './src/components/DomaineForm';
 import { ObjectifForm } from './src/components/ObjectifForm';
 import { domaineOf } from './src/hierarchy';
 import { HierarchyContext, makeHierarchyValue } from './src/hierarchyContext';
+import { loadSafe, SAFE_DEFAUT, SafeContext, SafeSettings, saveSafe } from './src/safe';
 import {
   clearSettings,
   loadCache,
@@ -59,10 +61,12 @@ import {
   Domaine,
   EntityKind,
   Epic,
+  Feature,
   Item,
   ItemInput,
   ItemType,
   Objectif,
+  ObjectifPI,
   Settings,
   TYPE_LABELS,
 } from './src/types';
@@ -84,6 +88,34 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'rendez-vous', label: 'Rendez-vous' },
   { value: 'recurrents', label: '🔁' },
 ];
+
+type Tab = 'taches' | 'iteration' | 'pi' | 'roadmap' | 'portefeuille';
+const TAB_TITLES: Record<Tab, string> = {
+  taches: 'Mes tâches',
+  iteration: 'Itération',
+  pi: 'PI',
+  roadmap: 'Roadmap',
+  portefeuille: 'Portefeuille',
+};
+const SIMPLE_TABS = [
+  ['taches', '✓', 'Tâches'],
+  ['roadmap', '▤', 'Roadmap'],
+] as const;
+/** Mode SAFe : de l'exécution à la stratégie */
+const SAFE_TABS = [
+  ['taches', '✓', 'Tâches'],
+  ['roadmap', '▤', 'Roadmap'],
+  ['portefeuille', '🧭', 'Portefeuille'],
+] as const;
+
+type Hier = {
+  epics: Epic[];
+  objectifs: Objectif[];
+  domaines: Domaine[];
+  features: Feature[];
+  objectifsPI: ObjectifPI[];
+};
+const EMPTY_HIER: Hier = { epics: [], objectifs: [], domaines: [], features: [], objectifsPI: [] };
 
 const matchesType = (i: Item, filter: Filter) =>
   filter === 'tous' || (filter === 'recurrents' ? !!i.periodicite : i.type === filter);
@@ -107,13 +139,24 @@ function Main() {
   const [showSettings, setShowSettings] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   /** Domaines, objectifs et epics */
-  const [hier, setHier] = useState<{ epics: Epic[]; objectifs: Objectif[]; domaines: Domaine[] }>({
-    epics: [],
-    objectifs: [],
-    domaines: [],
-  });
-  const { epics, objectifs, domaines } = hier;
-  const hv = useMemo(() => makeHierarchyValue(epics, objectifs, domaines, items), [epics, objectifs, domaines, items]);
+  const [hier, setHier] = useState<Hier>(EMPTY_HIER);
+  const { epics, objectifs, domaines, features, objectifsPI } = hier;
+  const hv = useMemo(
+    () => makeHierarchyValue(epics, objectifs, domaines, items, features, objectifsPI),
+    [epics, objectifs, domaines, items, features, objectifsPI],
+  );
+  /** Mode Simple (Tâches + Roadmap) ou SAFe (5 onglets), capacité, points en jours */
+  const [safe, setSafe] = useState<SafeSettings>(SAFE_DEFAUT);
+  useEffect(() => {
+    loadSafe().then(setSafe);
+  }, []);
+  const updateSafe = (patch: Partial<SafeSettings>) => {
+    setSafe((prev) => {
+      const next = { ...prev, ...patch };
+      saveSafe(next);
+      return next;
+    });
+  };
   const updateHier = useCallback((next: typeof hier) => {
     setHier(next);
     saveHierarchyCache(next).catch(() => {});
@@ -124,7 +167,7 @@ function Main() {
   const [editingDomaine, setEditingDomaine] = useState<Domaine | null>(null);
   const [domaineFormOpen, setDomaineFormOpen] = useState(false);
   const [addMenu, setAddMenu] = useState(false);
-  const [tab, setTab] = useState<'taches' | 'roadmap'>('taches');
+  const [tab, setTab] = useState<Tab>('taches');
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
   const [epicFormOpen, setEpicFormOpen] = useState(false);
   const insets = useSafeAreaInsets();
@@ -135,7 +178,7 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_HIERARCHIE);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_SAFE);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -152,7 +195,7 @@ function Main() {
     await signOut();
     await clearSettings();
     setItems([]);
-    setHier({ epics: [], objectifs: [], domaines: [] });
+    setHier(EMPTY_HIER);
     setSettings(null);
   }, []);
 
@@ -160,9 +203,9 @@ function Main() {
     async (s: Settings) => {
       setRefreshing(true);
       try {
-        const { items: list, epics: e, objectifs: o, domaines: d, version } = await api.listItems(s);
+        const { items: list, version, ...rest } = await api.listItems(s);
         updateItems(list);
-        updateHier({ epics: e, objectifs: o, domaines: d });
+        updateHier(rest);
         setApiVersion(version);
         setOffline(null);
       } catch (e) {
@@ -189,7 +232,7 @@ function Main() {
         s = email ? { url: API_URL, googleEmail: email } : null;
       }
       if (cache && s) setItems(cache.items.map(api.normalize));
-      if (s) setHier(cachedHier);
+      if (s) setHier({ ...EMPTY_HIER, ...cachedHier });
       setSettings(s);
       setBooting(false);
       if (s) refresh(s);
@@ -303,6 +346,9 @@ function Main() {
 
   const save = async (input: ItemInput) => {
     if (!settings) return;
+    if ((input.points || input.iteration || input.feature) && apiVersion < api.API_VERSION_SAFE) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour le mode SAFe. Recollez le nouveau Code.gs et déployez une nouvelle version.");
+    }
     if ((input.objectif || input.domaine) && apiVersion < api.API_VERSION_HIERARCHIE) {
       throw new Error("le script du Google Sheet n'est pas à jour pour les domaines et objectifs. Recollez le nouveau Code.gs et déployez une nouvelle version.");
     }
@@ -347,10 +393,17 @@ function Main() {
     setDomaineFormOpen(true);
   };
 
-  const LIST_KEY = { epic: 'epics', objectif: 'objectifs', domaine: 'domaines' } as const;
+  const LIST_KEY = {
+    epic: 'epics',
+    objectif: 'objectifs',
+    domaine: 'domaines',
+    feature: 'features',
+    objectifpi: 'objectifsPI',
+  } as const satisfies Record<EntityKind, keyof Hier>;
 
-  const checkScript = () => {
-    if (apiVersion < api.API_VERSION_HIERARCHIE) {
+  const checkScript = (kind?: EntityKind, input?: object) => {
+    const needSafe = kind === 'feature' || kind === 'objectifpi' || (!!input && 'etat' in input);
+    if (apiVersion < (needSafe ? api.API_VERSION_SAFE : api.API_VERSION_HIERARCHIE)) {
       throw new Error("le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.");
     }
   };
@@ -358,17 +411,18 @@ function Main() {
   /** Crée (editing = null) ou met à jour un domaine / objectif / epic. */
   const saveEntity = async <K extends EntityKind>(kind: K, editing: { id: string } | null, input: object) => {
     if (!settings) return;
-    checkScript();
+    checkScript(kind, input);
     const saved = editing
       ? await api.updateEntity(settings, kind, { ...input, id: editing.id } as never)
       : await api.createEntity(settings, kind, input as never);
     const key = LIST_KEY[kind];
+    const s0 = saved as { id: string };
     setHier((prev) => {
       const list = prev[key] as { id: string }[];
       const next = {
         ...prev,
-        [key]: editing ? list.map((x) => (x.id === saved.id ? saved : x)) : [...list, saved],
-      };
+        [key]: editing ? list.map((x) => (x.id === s0.id ? s0 : x)) : [...list, s0],
+      } as Hier;
       saveHierarchyCache(next).catch(() => {});
       return next;
     });
@@ -462,10 +516,27 @@ function Main() {
   const TAB_BAR = 58;
 
   return (
+    <SafeContext.Provider value={safe}>
     <HierarchyContext.Provider value={hv}>
     <View style={styles.flex}>
       <View style={styles.header}>
-        <Text style={styles.title}>{tab === 'roadmap' ? 'Roadmap' : 'Mes tâches'}</Text>
+        <Text style={styles.title} numberOfLines={1}>
+          {TAB_TITLES[tab]}
+        </Text>
+        <View style={styles.modeSwitch}>
+          <Segmented
+            options={[
+              { value: 'simple', label: 'Simple' },
+              { value: 'safe', label: 'SAFe' },
+            ]}
+            value={safe.actif ? 'safe' : 'simple'}
+            onChange={(v) => {
+              updateSafe({ actif: v === 'safe' });
+              // En mode Simple, seuls Tâches et Roadmap restent
+              if (v === 'simple' && tab !== 'taches' && tab !== 'roadmap') setTab('taches');
+            }}
+          />
+        </View>
         {!DEMO && (
           <Pressable onPress={openAccount} hitSlop={10} accessibilityLabel="Réglages">
             <Text style={styles.gear}>⚙︎</Text>
@@ -481,7 +552,8 @@ function Main() {
             onPress={async () => {
               const r = await demoApi.reset();
               updateItems(r.items);
-              updateHier({ epics: r.epics, objectifs: r.objectifs, domaines: r.domaines });
+              const { items: _i, ...rest } = r;
+              updateHier(rest);
             }}
             hitSlop={8}
           >
@@ -509,7 +581,7 @@ function Main() {
           )}
         </View>
       )}
-      {tab === 'roadmap' && <View style={styles.spacer} />}
+      {tab !== 'taches' && <View style={styles.spacer} />}
       {info && (
         <Pressable style={styles.info} onPress={() => setInfo(null)} accessibilityLabel="Fermer le message">
           <Text style={styles.infoText}>{info} ✕</Text>
@@ -520,11 +592,13 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_HIERARCHIE && (
+      {apiVersion < api.API_VERSION_SAFE && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
             Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
-            {apiVersion < api.API_VERSION_EPICS ? 'les epics, ' : ''}les domaines et objectifs ne seront pas enregistrés.
+            {apiVersion < api.API_VERSION_EPICS ? 'les epics, ' : ''}
+            {apiVersion < api.API_VERSION_HIERARCHIE ? 'les domaines, les objectifs, ' : ''}les données SAFe (états,
+            features, points, itérations) ne seront pas enregistrées.
             Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
           </Text>
         </View>
@@ -533,6 +607,18 @@ function Main() {
         <Pressable style={styles.offline} onPress={() => refresh(settings)}>
           <Text style={styles.offlineText}>{offline} Données affichées : dernière copie. Touchez pour réessayer.</Text>
         </Pressable>
+      )}
+
+      {tab === 'portefeuille' && (
+        <Portfolio
+          onOpenEpic={openEpic}
+          onOpenObjectif={openObjectif}
+          onMoveEpic={(e, etat) =>
+            saveEntity('epic', e, { etat }).catch((err) => setNotice(`Epic non déplacée : ${(err as Error).message}`))
+          }
+          onShowAlerts={() => setTab('roadmap')}
+          refreshControl={refreshControl}
+        />
       )}
 
       {tab === 'roadmap' && (
@@ -624,7 +710,7 @@ function Main() {
 
       <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 18 }]}
-        onPress={() => (tab === 'roadmap' ? setAddMenu(true) : openForm(null))}
+        onPress={() => (tab === 'roadmap' || tab === 'portefeuille' ? setAddMenu(true) : openForm(null))}
         accessibilityRole="button"
         accessibilityLabel={tab === 'roadmap' ? 'Nouvelle epic' : 'Ajouter'}
       >
@@ -632,12 +718,7 @@ function Main() {
       </Pressable>
 
       <View style={[styles.tabBar, { height: TAB_BAR + insets.bottom, paddingBottom: insets.bottom }]}>
-        {(
-          [
-            ['taches', '✓', 'Tâches'],
-            ['roadmap', '▤', 'Roadmap'],
-          ] as const
-        ).map(([key, icon, label]) => (
+        {(safe.actif ? SAFE_TABS : SIMPLE_TABS).map(([key, icon, label]) => (
           <Pressable
             key={key}
             style={styles.tabBtn}
@@ -737,6 +818,7 @@ function Main() {
       </Modal>
     </View>
     </HierarchyContext.Provider>
+    </SafeContext.Provider>
   );
 }
 
@@ -757,7 +839,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
   },
-  title: { fontSize: 30, fontWeight: '700', color: colors.text },
+  title: { fontSize: 28, fontWeight: '700', color: colors.text, flexShrink: 1 },
+  modeSwitch: { width: 150, marginLeft: 'auto', marginRight: 10 },
   gear: { fontSize: 26, color: colors.muted },
   filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   demo: {

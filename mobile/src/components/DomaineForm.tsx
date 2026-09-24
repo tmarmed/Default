@@ -31,7 +31,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
   }, [visible, domaine]);
 
   const objectifs = domaine ? h.objectifList.filter((o) => o.domaine === domaine.id) : [];
-  const c = domaine ? childrenOf('domaine', domaine.id, { items: h.items, epics: h.epicList, objectifs: h.objectifList, domaines: h.domaineList }) : null;
+  const c = domaine ? childrenOf('domaine', domaine.id, h.data) : null;
   const children = c && c.objIds.size + c.epicIds.size + c.taskIds.size ? describeCounts({ objectifs: c.objIds.size, epics: c.epicIds.size, taches: c.taskIds.size }) : '';
 
   const save = async () => {

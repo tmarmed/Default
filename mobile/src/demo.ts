@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
 import { cleanLinks, Data, DeletionCounts, planDeletion } from './hierarchy';
-import type { Domaine, Epic, Item, ItemInput, Objectif } from './types';
+import { iterationOf, piOf, shiftPi } from './pi';
+import type { Domaine, Epic, Feature, Item, ItemInput, Objectif, ObjectifPI } from './types';
 
 /**
  * Mode démo (EXPO_PUBLIC_DEMO=1) : données d'exemple enregistrées sur l'appareil,
@@ -14,7 +15,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '4';
+const DEMO_DATA_VERSION = '5';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -22,7 +23,15 @@ function checkVersion(): Promise<void> {
   versionChecked ??= (async () => {
     try {
       if ((await AsyncStorage.getItem(VERSION_KEY)) === DEMO_DATA_VERSION) return;
-      await AsyncStorage.multiRemove([KEY, `${KEY}-epics`, `${KEY}-epic`, `${KEY}-objectif`, `${KEY}-domaine`]);
+      await AsyncStorage.multiRemove([
+        KEY,
+        `${KEY}-epics`,
+        `${KEY}-epic`,
+        `${KEY}-objectif`,
+        `${KEY}-domaine`,
+        `${KEY}-feature`,
+        `${KEY}-objectifpi`,
+      ]);
       await AsyncStorage.setItem(VERSION_KEY, DEMO_DATA_VERSION);
     } catch {
       // Stockage indisponible : la démo repart des exemples en mémoire.
@@ -38,7 +47,8 @@ function sample(): Item[] {
   const stamp = now.toISOString();
   const mk = (id: string, titre: string, type: Item['type'], date: string, heure: string, extra: Partial<Item> = {}): Item => ({
     id, titre, type, date, heure, lieu: '', description: '', priorite: 'normale', statut: 'a_faire',
-    cree_le: stamp, modifie_le: stamp, periodicite: '', echeance: '', debut: '', fin: '', faits: '', epic: '', objectif: '', domaine: '', ...extra,
+    cree_le: stamp, modifie_le: stamp, periodicite: '', echeance: '', debut: '', fin: '', faits: '', epic: '', objectif: '', domaine: '',
+    points: '', iteration: '', feature: '', ...extra,
   });
   return [
     mk('d1', 'Rendez-vous client Dupont', 'rendez-vous', d(2), '10:30', {
@@ -49,13 +59,17 @@ function sample(): Item[] {
       epic: 'e2',
       description: 'Rassembler les photos et les heures du chantier', statut: 'en_cours',
     }),
-    mk('d3', 'Appeler le fournisseur', 'tache', d(0), '09:00'),
+    mk('d3', 'Appeler le fournisseur', 'tache', d(0), '09:00', { points: '1' }),
+    // SAFe : tâches de la feature « Maquettes des pages », dans l'itération en cours
+    mk('d18', 'Maquette de la page d\'accueil', 'tache', d(1), '', { feature: 'f1', points: '3', statut: 'en_cours' }),
+    mk('d19', 'Maquette de la page contact', 'tache', '', '', { feature: 'f1', points: '2', iteration: iterationOf(now).key }),
+    mk('d20', 'Choisir la palette de couleurs', 'tache', d(-1), '', { feature: 'f1', points: '1', statut: 'termine' }),
     mk('d4', 'Réunion équipe', 'rendez-vous', d(0), '14:00', { lieu: 'Bureau' }),
     mk('d5', 'Chantier Martin', 'mission', d(-1), '08:00', { lieu: 'Villeurbanne' }),
     mk('d6', 'Envoyer les factures', 'tache', d(-2), '', { statut: 'termine', epic: 'e1' }),
     mk('d7', 'Visite du dépôt', 'mission', d(8), '11:00', { epic: 'e3' }),
     mk('d8', 'Dentiste', 'rendez-vous', d(15), '17:30', { domaine: 'dperso' }),
-    mk('d9', 'Commander le matériel', 'tache', d(1), '', { priorite: 'haute', epic: 'e3' }),
+    mk('d9', 'Commander le matériel', 'tache', d(1), '', { priorite: 'haute', epic: 'e3', points: '2' }),
     mk('d10', 'Relancer le devis Bernard', 'tache', '', '', { epic: 'e1' }),
     // Éléments répétés (débutent il y a deux mois pour montrer les retards à rattraper)
     mk('d11', 'Payer le loyer', 'tache', '', '', {
@@ -75,7 +89,13 @@ function sample(): Item[] {
   ];
 }
 
-function sampleEntities(): { epic: Epic[]; objectif: Objectif[]; domaine: Domaine[] } {
+function sampleEntities(): {
+  epic: Epic[];
+  objectif: Objectif[];
+  domaine: Domaine[];
+  feature: Feature[];
+  objectifpi: ObjectifPI[];
+} {
   const now = new Date();
   const m = (months: number, day = 1) => toDateString(new Date(now.getFullYear(), now.getMonth() + months, day));
   const stamp = now.toISOString();
@@ -85,7 +105,17 @@ function sampleEntities(): { epic: Epic[]; objectif: Objectif[]; domaine: Domain
     id, titre, domaine, debut, fin, couleur, description: '', cible: '', actuel: '', unite: '', ...base, ...extra,
   });
   const ep = (id: string, titre: string, debut: string, fin: string, couleur: string, links: Partial<Epic>, description = ''): Epic => ({
-    id, titre, description, debut, fin, couleur, objectif: '', domaine: '', ...base, ...links,
+    id, titre, description, debut, fin, couleur, objectif: '', domaine: '', etat: '', ...base, ...links,
+  });
+  // SAFe : PI en cours et suivant, itération en cours
+  const pi = piOf(now);
+  const pi2 = shiftPi(pi, 1);
+  const it = iterationOf(now).key;
+  const feat = (id: string, titre: string, epic: string, fpi: string, iteration: string, points: string): Feature => ({
+    id, titre, description: '', epic, pi: fpi, iteration, points, couleur: '', ...base,
+  });
+  const opi = (id: string, titre: string, opiPi: string, type: ObjectifPI['type'], prevue: string, obtenue = ''): ObjectifPI => ({
+    id, titre, pi: opiPi, type, valeur_prevue: prevue, valeur_obtenue: obtenue, ...base,
   });
   return {
     domaine: [
@@ -99,17 +129,39 @@ function sampleEntities(): { epic: Epic[]; objectif: Objectif[]; domaine: Domain
       obj('o3', 'Tenir ses comptes à jour', 'dadmin', m(-6), '', '#E37400', { description: 'Objectif permanent' }),
     ],
     epic: [
-      ep('e1', 'Refonte du site web', m(-1), m(4, 0), '#1A73E8', { objectif: 'o1' }, 'Nouveau site vitrine et prise de rendez-vous en ligne'),
-      ep('e2', 'Salon professionnel', m(0, 15), m(2, 10), '#E37400', { objectif: 'o1' }, 'Stand, supports et rendez-vous clients'),
-      ep('e3', "Déménagement de l'entrepôt", m(-3), m(1, 15), '#8E24AA', { domaine: 'dpro' }),
-      ep('e4', 'Audit et procédures qualité', m(5), m(14, 0), '#188038', { objectif: 'o2' }, 'Audit, procédures et formation'),
-      ep('e5', 'Gestion courante', m(-2), '', '#00897B', { objectif: 'o3' }, 'Epic sans fin : tâches répétées du quotidien'),
+      ep('e1', 'Refonte du site web', m(-1), m(4, 0), '#1A73E8', { objectif: 'o1', etat: 'en_cours' }, 'Nouveau site vitrine et prise de rendez-vous en ligne'),
+      ep('e2', 'Salon professionnel', m(0, 15), m(2, 10), '#E37400', { objectif: 'o1', etat: 'pret' }, 'Stand, supports et rendez-vous clients'),
+      ep('e3', "Déménagement de l'entrepôt", m(-3), m(1, 15), '#8E24AA', { domaine: 'dpro', etat: 'en_cours' }),
+      ep('e6', 'Application mobile clients', m(6), m(12, 0), '#C2185B', { domaine: 'dpro', etat: 'idee' }),
+      ep('e7', 'Nouveau fournisseur', m(2), m(5, 0), '#5E35B1', { domaine: 'dpro', etat: 'analyse' }),
+      ep('e4', 'Audit et procédures qualité', m(5), m(14, 0), '#188038', { objectif: 'o2', etat: 'idee' }, 'Audit, procédures et formation'),
+      ep('e5', 'Gestion courante', m(-2), '', '#00897B', { objectif: 'o3', etat: 'en_cours' }, 'Epic sans fin : tâches répétées du quotidien'),
+    ],
+    feature: [
+      feat('f1', 'Maquettes des pages', 'e1', pi, it, '5'),
+      feat('f2', 'Développement du site', 'e1', pi2, `${pi2}-IT2`, '13'),
+      feat('f3', 'Prise de rendez-vous en ligne', 'e1', pi2, `${pi2}-IT4`, '8'),
+      feat('f4', 'Stand et supports', 'e2', pi2, `${pi2}-IT1`, '5'),
+    ],
+    objectifpi: [
+      opi('p1', 'Maquettes validées par 3 clients', pi, 'engage', '8', '6'),
+      opi('p2', 'Nouveau site en ligne', pi2, 'engage', '10'),
+      opi('p3', 'Prise de rendez-vous en ligne', pi2, 'bonus', '6'),
+      opi('p4', 'Stand prêt pour le salon', pi2, 'engage', '7'),
     ],
   };
 }
 
-type Kind = 'epic' | 'objectif' | 'domaine';
-type EntityOf<K extends Kind> = K extends 'epic' ? Epic : K extends 'objectif' ? Objectif : Domaine;
+type Kind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi';
+type EntityOf<K extends Kind> = K extends 'epic'
+  ? Epic
+  : K extends 'objectif'
+    ? Objectif
+    : K extends 'domaine'
+      ? Domaine
+      : K extends 'feature'
+        ? Feature
+        : ObjectifPI;
 const entityMemory: Partial<Record<Kind, unknown[]>> = {};
 
 async function loadEntities<K extends Kind>(kind: K): Promise<EntityOf<K>[]> {
@@ -183,13 +235,24 @@ export const demoApi = {
     await storeEntities('epic', e.epic);
     await storeEntities('objectif', e.objectif);
     await storeEntities('domaine', e.domaine);
-    return { items: [...memory!], epics: e.epic, objectifs: e.objectif, domaines: e.domaine };
+    await storeEntities('feature', e.feature);
+    await storeEntities('objectifpi', e.objectifpi);
+    return {
+      items: [...memory!],
+      epics: e.epic,
+      objectifs: e.objectif,
+      domaines: e.domaine,
+      features: e.feature,
+      objectifsPI: e.objectifpi,
+    };
   },
   async listAll(): Promise<Omit<Data, 'items'>> {
     return {
       epics: [...(await loadEntities('epic'))],
       objectifs: [...(await loadEntities('objectif'))],
       domaines: [...(await loadEntities('domaine'))],
+      features: [...(await loadEntities('feature'))],
+      objectifsPI: [...(await loadEntities('objectifpi'))],
     };
   },
   async createEntity<K extends Kind>(kind: K, input: Omit<EntityOf<K>, 'id' | 'cree_le' | 'modifie_le'>): Promise<EntityOf<K>> {
@@ -212,11 +275,15 @@ export const demoApi = {
       epics: await loadEntities('epic'),
       objectifs: await loadEntities('objectif'),
       domaines: await loadEntities('domaine'),
+      features: await loadEntities('feature'),
+      objectifsPI: await loadEntities('objectifpi'),
     });
     await store(r.items);
     await storeEntities('epic', r.epics);
     await storeEntities('objectif', r.objectifs);
     await storeEntities('domaine', r.domaines);
+    await storeEntities('feature', r.features);
+    await storeEntities('objectifpi', r.objectifsPI);
     return r.counts;
   },
 };
