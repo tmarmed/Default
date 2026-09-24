@@ -1,4 +1,4 @@
-import { ReactElement } from 'react';
+import { ReactElement, ReactNode } from 'react';
 import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDays, JOURS_COURTS, startOfWeek, toDateString } from '../dates';
 import { colors, typeColors } from '../theme';
@@ -12,6 +12,8 @@ interface Common {
   onPress: (item: Item) => void;
   onToggle: (item: Item) => void;
   refreshControl: ReactElement<RefreshControlProps>;
+  /** En tête de la zone qui défile (ex. alertes) */
+  header?: ReactNode;
 }
 
 function Empty({ text }: { text: string }) {
@@ -41,10 +43,11 @@ function ItemList({ items, onPress, onToggle }: { items: Item[] } & Pick<Common,
 
 // ---------- Jour ----------
 
-export function DayView({ date, byDate, onPress, onToggle, refreshControl }: Common) {
+export function DayView({ date, byDate, onPress, onToggle, refreshControl, header }: Common) {
   const items = byDate.get(toDateString(date)) ?? [];
   return (
     <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
+      {header}
       {items.length ? (
         <ItemList items={items} onPress={onPress} onToggle={onToggle} />
       ) : (
@@ -64,11 +67,13 @@ export function WeekView({
   refreshControl,
   onOpenDay,
   band,
+  header,
 }: Common & { onOpenDay: (d: Date) => void; band: Item[] }) {
   const today = toDateString(new Date());
   const start = startOfWeek(date);
   return (
     <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
+      {header}
       <Band items={band} title="À faire sur la période" onPress={onPress} onToggle={onToggle} />
       {Array.from({ length: 7 }, (_, i) => {
         const d = addDays(start, i);
@@ -106,6 +111,7 @@ export function MonthView({
   refreshControl,
   onSelect,
   band,
+  header,
 }: Common & { onSelect: (d: Date) => void; band: Item[] }) {
   const today = toDateString(new Date());
   const selected = toDateString(date);
@@ -117,6 +123,7 @@ export function MonthView({
 
   return (
     <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
+      {header}
       <Band items={band} title="À faire ce mois-ci" onPress={onPress} onToggle={onToggle} />
       <View style={styles.grid}>
         <View style={styles.week}>

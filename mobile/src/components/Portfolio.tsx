@@ -53,7 +53,7 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
         </Pressable>
       )}
       <DomainChips style={styles.pad} />
-      <AlertsCard checks={checksPortefeuille(h, today)} />
+      <AlertsCard ecran="portefeuille" checks={checksPortefeuille(h, today)} />
 
       <View style={styles.stats}>
         {ETATS_EPIC.map((s) => (

@@ -178,7 +178,7 @@ export function Roadmap({
       />
       <Swipe pageKey={`${zoom}:${win.start}`} onPrev={() => step(-1)} onNext={() => step(1)}>
         <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
-          <AlertsCard checks={checksRoadmap(hv, toDateString(new Date()))} style={{ marginTop: 8 }} />
+          <AlertsCard ecran="roadmap" checks={checksRoadmap(hv, toDateString(new Date()))} style={{ marginTop: 8 }} />
           {empty ? (
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>Roadmap vide pour l’instant</Text>

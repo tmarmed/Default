@@ -103,7 +103,7 @@ export function IterationView({
             {isIP ? ' · semaine d’innovation et de planification' : ''}
           </Text>
           <DomainChips style={styles.chips} />
-          <AlertsCard checks={checksIteration(h, itKey, today, safe.capacite)} />
+          <AlertsCard ecran="iteration" checks={checksIteration(h, itKey, today, safe.capacite)} />
 
           <View style={styles.card}>
             <View style={styles.capRow}>

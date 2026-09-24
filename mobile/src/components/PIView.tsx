@@ -170,7 +170,7 @@ export function PIView({
           {court(piStart(piKey))} → {court(piEnd(piKey))} · 6 itérations + semaine IP
         </Text>
         <DomainChips style={styles.chips} />
-        <AlertsCard checks={checksPI(h, piKey, today, safe.capacite)} />
+        <AlertsCard ecran="pi" checks={checksPI(h, piKey, today, safe.capacite)} />
 
         <View style={styles.card}>
           <View style={styles.cardHead}>

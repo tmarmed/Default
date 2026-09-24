@@ -44,7 +44,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   cochée, tout ce qui est en dessous est supprimé ; décochée, les éléments sont conservés et remontent d'un
   niveau (tâches d'une epic → son objectif ou son domaine ; epics d'un objectif → son domaine).
 - **Alertes de dates** dans la roadmap et les fiches (voir règles ci-dessous).
-- **Alertes par écran** : une carte « ⚠ Alertes » repliable en haut de chaque écran (3 visibles, « voir les
+- **Alertes par écran** : une carte « ⚠ Alertes » en tête de la zone qui défile de chaque écran, repliée sur une ligne
+  par défaut (choix mémorisé par écran ; dépliée : 3 visibles, « voir les
   autres »), avec des boutons d'action, et un **chiffre rouge sur chaque onglet**. Rien n'est modifié tout seul.
   - **Tâches** : en retard (reporter à demain, tout reporter, choisir une date) ; rendez-vous qui se
     chevauchent ; démarche ou tâche de priorité haute prévue dans 3 jours et pas commencée (commencer) ;

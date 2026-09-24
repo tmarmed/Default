@@ -824,6 +824,9 @@ function Main() {
     portefeuille: checks.portefeuille.length,
   };
 
+  // Écran Tâches : les alertes défilent avec le contenu (en tête de liste / de calendrier)
+  const alertesTaches = <AlertsCard ecran="taches" checks={checks.taches} />;
+
   if (booting) {
     return <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />;
   }
@@ -960,7 +963,6 @@ function Main() {
           )}
         </View>
       )}
-      {tab === 'taches' && <AlertsCard checks={checks.taches} />}
       {tab !== 'taches' && <View style={styles.spacer} />}
       {info && (
         <Pressable style={styles.info} onPress={() => setInfo(null)} accessibilityLabel="Fermer le message">
@@ -1069,10 +1071,11 @@ function Main() {
           />
           <Swipe pageKey={`${mode}:${pageKey}`} onPrev={() => step(-1)} onNext={() => step(1)}>
             {mode === 'jour' && (
-              <DayView date={anchor} byDate={byDate} onPress={openForm} onToggle={toggle} refreshControl={refreshControl} />
+              <DayView date={anchor} byDate={byDate} onPress={openForm} onToggle={toggle} refreshControl={refreshControl} header={alertesTaches} />
             )}
             {mode === 'semaine' && (
               <WeekView
+                header={alertesTaches}
                 band={weekBand}
                 date={anchor}
                 byDate={byDate}
@@ -1087,6 +1090,7 @@ function Main() {
             )}
             {mode === 'mois' && (
               <MonthView
+                header={alertesTaches}
                 band={monthBand}
                 date={anchor}
                 byDate={byDate}
@@ -1119,6 +1123,7 @@ function Main() {
           </Text>
         )}
         stickySectionHeadersEnabled={false}
+        ListHeaderComponent={alertesTaches}
         refreshControl={refreshControl}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
@@ -1450,7 +1455,9 @@ const styles = StyleSheet.create({
   menuIcon: { fontSize: 26 },
   menuItemTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
   menuItemSub: { fontSize: 13, color: colors.muted },
+  // La barre des onglets ne se fait jamais écraser ni pousser hors de l'écran
   tabBar: {
+    flexShrink: 0,
     flexDirection: 'row',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,

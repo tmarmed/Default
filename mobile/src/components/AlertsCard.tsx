@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Action, Check } from '../checks';
 import { colors } from '../theme';
@@ -8,10 +9,30 @@ export const CheckActionContext = createContext<(a: Action) => void>(() => {});
 
 const VISIBLES = 3;
 
-/** Carte « ⚠ Alertes » en haut d'un écran : message + boutons ; repliable, 3 premières visibles. */
-export function AlertsCard({ checks, style }: { checks: Check[]; style?: object }) {
+const OUVERTES_KEY = 'mes-taches:alertes-ouvertes';
+/** Cartes dépliées, par écran (mémorisé sur l'appareil ; repliées par défaut) */
+let ouvertes: Record<string, boolean> | null = null;
+
+/** Carte « ⚠ Alertes » en haut d'un écran : repliée sur une ligne par défaut ; dépliée, 3 premières visibles. */
+export function AlertsCard({ checks, style, ecran }: { checks: Check[]; style?: object; ecran: string }) {
   const run = useContext(CheckActionContext);
-  const [open, setOpen] = useState(true);
+  const [open, setOpenState] = useState(!!ouvertes?.[ecran]);
+  useEffect(() => {
+    if (ouvertes) return;
+    AsyncStorage.getItem(OUVERTES_KEY)
+      .then((v) => {
+        ouvertes = v ? JSON.parse(v) : {};
+        setOpenState(!!ouvertes![ecran]);
+      })
+      .catch(() => (ouvertes = {}));
+  }, [ecran]);
+  const setOpen = (f: (v: boolean) => boolean) =>
+    setOpenState((v) => {
+      const next = f(v);
+      ouvertes = { ...(ouvertes ?? {}), [ecran]: next };
+      AsyncStorage.setItem(OUVERTES_KEY, JSON.stringify(ouvertes)).catch(() => {});
+      return next;
+    });
   const [tout, setTout] = useState(false);
   if (!checks.length) return null;
   const shown = tout ? checks : checks.slice(0, VISIBLES);
