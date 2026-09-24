@@ -20,7 +20,7 @@ import { EpicForm } from './src/components/EpicForm';
 import { FeatureForm } from './src/components/FeatureForm';
 import { IterationView } from './src/components/IterationView';
 import { ObjectifPIForm } from './src/components/ObjectifPIForm';
-import { PIView, selectedIteration } from './src/components/PIView';
+import { defaultIteration, PIView } from './src/components/PIView';
 import { PickerModal } from './src/components/ItemPicker';
 import { inDomain } from './src/components/DomainFilter';
 import { DomainFilterContext, loadDomainFilter, saveDomainFilter } from './src/components/DomainFilter';
@@ -188,10 +188,8 @@ function Main() {
   const [itKey, setItKey] = useState(() => iterationOf(new Date()).key);
   const [itFilter, setItFilter] = useState(false);
   const [piKey, setPiKey] = useState(() => piOf(new Date()));
-  /** Itération choisie dans la ligne « Tâches hors feature » du PI */
-  const [piItKey, setPiItKey] = useState('');
-  /** Écran PI : choix de tâches existantes (itération) ou de features existantes (PI) */
-  const [piPicker, setPiPicker] = useState<null | 'tache' | 'feature'>(null);
+  /** Écran PI : choix de tâches existantes ou de features existantes (d'une epic, ou de toutes) pour une itération */
+  const [piPicker, setPiPicker] = useState<null | { kind: 'tache'; itKey: string } | { kind: 'feature'; itKey: string; epicId?: string }>(null);
   const [editingFeature, setEditingFeature] = useState<Feature | null>(null);
   const [featureFormOpen, setFeatureFormOpen] = useState(false);
   const [editingOPI, setEditingOPI] = useState<ObjectifPI | null>(null);
@@ -493,7 +491,6 @@ function Main() {
 
   /** Écran PI : nouvelle tâche hors feature, dans l'itération choisie (et le domaine filtré). */
   const addHorsFeature = (key: string) => {
-    setPiItKey(key);
     openNewTask({ iteration: key, date: '', ...(domFilter !== 'tous' && domFilter ? { domaine: domFilter } : {}) });
   };
   const closeFiches = () => {
@@ -643,16 +640,24 @@ function Main() {
     );
   };
 
+  const piPickerIt = piPicker?.itKey ?? '';
   const piPickerOptions =
-    piPicker === 'feature'
+    piPicker?.kind === 'feature'
       ? hier.features
-          .filter((f) => f.pi !== piKey && inDomain(domFilter, domaineOf({ epic: f.epic }, hv)?.id))
+          .filter(
+            (f) =>
+              f.iteration !== piPickerIt &&
+              (piPicker.epicId === undefined ? inDomain(domFilter, domaineOf({ epic: f.epic }, hv)?.id) : f.epic === piPicker.epicId),
+          )
           .map((f) => ({
             id: f.id,
             title: `🧩 ${f.titre}`,
-            sub: [hv.epics.get(f.epic)?.titre ?? 'sans epic', f.pi ? `PI ${f.pi.split('-')[1]} ${f.pi.split('-')[0]}` : 'sans PI'].join(' · '),
+            sub: [
+              hv.epics.get(f.epic)?.titre ?? 'sans epic',
+              f.iteration ? `prévue en ${f.iteration.split('-').slice(1).join(' ')}` : f.pi ? `PI ${f.pi.split('-')[1]} ${f.pi.split('-')[0]}` : 'sans PI',
+            ].join(' · '),
           }))
-      : piPicker === 'tache'
+      : piPicker?.kind === 'tache'
         ? items
             .filter(
               (t) =>
@@ -660,7 +665,7 @@ function Main() {
                 !t.feature &&
                 !t.date &&
                 t.statut !== 'termine' &&
-                t.iteration !== selectedIteration(piKey, piItKey) &&
+                t.iteration !== piPickerIt &&
                 inDomain(domFilter, domaineOf(t, hv)?.id),
             )
             .map((t) => ({
@@ -859,16 +864,12 @@ function Main() {
             setItKey(key);
             setTab('iteration');
           }}
-          selIt={piItKey}
-          onSelectIt={setPiItKey}
           onOpenTask={openForm}
           onToggleTask={toggle}
           onAddTask={addHorsFeature}
-          onPickTask={(key) => {
-            setPiItKey(key);
-            setPiPicker('tache');
-          }}
-          onPickFeature={() => setPiPicker('feature')}
+          onPickTask={(itKey) => setPiPicker({ kind: 'tache', itKey })}
+          onAddFeature={(epicId, itKey) => openFeature(null, { epic: epicId, pi: piKey, iteration: itKey })}
+          onPickFeature={(epicId, itKey) => setPiPicker({ kind: 'feature', itKey, epicId })}
           onOpenObjectifPI={(o) => {
             setEditingOPI(o);
             setOpiFormOpen(true);
@@ -1109,27 +1110,23 @@ function Main() {
 
       <PickerModal
         visible={piPicker !== null}
-        title={
-          piPicker === 'feature'
-            ? `Features pour le PI ${piKey.split('-')[1]}`
-            : `Tâches pour ${selectedIteration(piKey, piItKey).split('-').pop()}`
-        }
+        title={`${piPicker?.kind === 'feature' ? 'Features' : 'Tâches'} pour ${piPickerIt.split('-').pop()}`}
         hint={
-          piPicker === 'feature'
-            ? 'Features sans PI ou prévues dans un autre PI. Touchez pour la planifier dans ce PI.'
+          piPicker?.kind === 'feature'
+            ? `${piPicker.epicId !== undefined ? `Features de « ${hv.epics.get(piPicker.epicId)?.titre ?? 'Sans epic'} »` : 'Features'} pas encore dans cette itération. Touchez pour la planifier en ${piPickerIt.split('-').pop()}.`
             : 'Tâches sans feature et sans date, pas encore dans cette itération. Une tâche datée suit sa date : changez-la dans sa fiche.'
         }
-        empty={piPicker === 'feature' ? 'Aucune autre feature.' : 'Aucune tâche à planifier.'}
+        empty={piPicker?.kind === 'feature' ? 'Aucune autre feature.' : 'Aucune tâche à planifier.'}
         options={piPickerOptions}
         onClose={() => setPiPicker(null)}
         onPick={(id) => {
           const run =
-            piPicker === 'feature'
+            piPicker?.kind === 'feature'
               ? (async () => {
                   const f = hier.features.find((x) => x.id === id);
-                  if (f) await saveEntity('feature', f, { pi: piKey, iteration: f.iteration.startsWith(piKey) ? f.iteration : '' });
+                  if (f) await saveEntity('feature', f, { pi: piPickerIt.split('-').slice(0, 2).join('-'), iteration: piPickerIt });
                 })()
-              : updateTask({ id, iteration: selectedIteration(piKey, piItKey) });
+              : updateTask({ id, iteration: piPickerIt });
           run.catch((e) => setNotice(`Non planifié : ${(e as Error).message}`));
         }}
       />
@@ -1160,10 +1157,10 @@ function Main() {
             <Text style={styles.menuTitle}>{tab === 'pi' ? 'Ajouter au PI' : 'Ajouter'}</Text>
             {(tab === 'pi'
               ? ([
-                  ['🧩', 'Une nouvelle feature', 'Une partie d’epic livrée dans ce PI', () => openFeature(null)],
-                  ['📥', 'Une feature existante', 'La planifier dans ce PI', () => setPiPicker('feature')],
-                  ['✓', 'Une nouvelle tâche hors feature', `Dans l’itération ${selectedIteration(piKey, piItKey).split('-').pop()}`, () => addHorsFeature(selectedIteration(piKey, piItKey))],
-                  ['📥', 'Une tâche existante', `La planifier dans l’itération ${selectedIteration(piKey, piItKey).split('-').pop()}`, () => setPiPicker('tache')],
+                  ['🧩', 'Une nouvelle feature', `Dans l’itération ${defaultIteration(piKey).split('-').pop()}`, () => openFeature(null, { pi: piKey, iteration: defaultIteration(piKey) })],
+                  ['📥', 'Une feature existante', `La planifier dans l’itération ${defaultIteration(piKey).split('-').pop()}`, () => setPiPicker({ kind: 'feature', itKey: defaultIteration(piKey) })],
+                  ['✓', 'Une nouvelle tâche hors feature', `Dans l’itération ${defaultIteration(piKey).split('-').pop()}`, () => addHorsFeature(defaultIteration(piKey))],
+                  ['📥', 'Une tâche existante', `La planifier dans l’itération ${defaultIteration(piKey).split('-').pop()}`, () => setPiPicker({ kind: 'tache', itKey: defaultIteration(piKey) })],
                   ['🤝', 'Un objectif du PI', 'Ce que je m’engage à livrer ce trimestre', () => { setEditingOPI(null); setOpiFormOpen(true); }],
                 ] as const)
               : ([

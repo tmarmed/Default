@@ -1,5 +1,5 @@
 import { ReactElement, useState } from 'react';
-import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { parseDate, toDateString } from '../dates';
 import { domaineOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
@@ -19,24 +19,24 @@ interface Props {
   refreshControl: ReactElement<RefreshControlProps>;
   /** Ouvre l'écran Itération */
   onOpenIteration: (key: string) => void;
-  /** Itération choisie dans la ligne « Tâches hors feature » */
-  selIt: string;
-  onSelectIt: (key: string) => void;
   onOpenTask: (t: Item) => void;
   onToggleTask: (t: Item) => void;
-  /** Nouvelle tâche hors feature dans l'itération */
+  /** Nouvelle tâche hors feature / tâches existantes à planifier dans l'itération */
   onAddTask: (itKey: string) => void;
-  /** Choisir des tâches existantes pour l'itération / des features existantes pour ce PI */
   onPickTask: (itKey: string) => void;
-  onPickFeature: () => void;
+  /** Nouvelle feature / features existantes d'une epic ('' = sans epic) à planifier dans l'itération */
+  onAddFeature: (epicId: string, itKey: string) => void;
+  onPickFeature: (epicId: string, itKey: string) => void;
 }
 
-/** Itération proposée dans un PI : celle choisie, sinon l'itération en cours, sinon la première. */
-export function selectedIteration(piKey: string, selIt: string): string {
-  if (selIt.startsWith(`${piKey}-`)) return selIt;
+/** Itération visée par défaut dans un PI (menu +) : l'itération en cours, sinon la première. */
+export function defaultIteration(piKey: string): string {
   const now = iterationOf(new Date()).key;
   return now.startsWith(`${piKey}-`) ? now : iterationsOf(piKey)[0].key;
 }
+
+/** « + » d'un en-tête de groupe, dans la colonne d'une itération. */
+type Choice = { kind: 'epic'; epicId: string; itKey: string } | { kind: 'autre'; itKey: string } | { kind: 'tache'; itKey: string };
 
 const NAME_W = 140;
 const COL_W = 76;
@@ -51,12 +51,11 @@ export function PIView({
   onOpenObjectifPI,
   refreshControl,
   onOpenIteration,
-  selIt,
-  onSelectIt,
   onOpenTask,
   onToggleTask,
   onAddTask,
   onPickTask,
+  onAddFeature,
   onPickFeature,
 }: Props) {
   const h = useHierarchy();
@@ -93,8 +92,11 @@ export function PIView({
   const chargeDom = inIt.map((list) => list.filter(taskIn).reduce((n, t) => n + pointsOf(t), 0));
   // Tâches hors feature, par itération
   const horsFeature = inIt.map((list) => list.filter((t) => !t.feature && taskIn(t)));
-  const sel = selectedIteration(piKey, selIt);
-  const selIndex = Math.max(0, its.findIndex((it) => it.key === sel));
+  const [choice, setChoice] = useState<Choice | null>(null);
+  const choiceIt = choice ? its.find((it) => it.key === choice.itKey) : undefined;
+  // Ligne « Autre epic » : epics existantes pas encore dans ce PI (filtre de domaine)
+  const inPi = new Set(groups.map((g) => g.epic?.id ?? ''));
+  const autres = h.epicList.filter((e) => !inPi.has(e.id) && inDomain(dom, domaineOf({ epic: e.id }, h)?.id));
   // Toutes les tâches hors feature du PI, dans l'ordre des itérations
   const allHors = horsFeature.flatMap((list) =>
     [...list].sort((a, b) => (a.date || '~').localeCompare(b.date || '~') || a.titre.localeCompare(b.titre)),
@@ -108,6 +110,19 @@ export function PIView({
   const capaPi = safe.capacite * 6;
 
   const step = (n: number) => onChangePi(shiftPi(piKey, n));
+  /** Cellules « + » d'un en-tête de groupe */
+  const plusCells = (label: string, make: (itKey: string) => Choice) =>
+    its.map((it) => (
+      <Pressable
+        key={it.key}
+        style={[styles.cell, styles.plusCell, it.key === currentIt && styles.nowCol]}
+        onPress={() => setChoice(make(it.key))}
+        accessibilityRole="button"
+        accessibilityLabel={`${label} en ${it.code}`}
+      >
+        <Text style={styles.plus}>+</Text>
+      </Pressable>
+    ));
 
   return (
     <View style={styles.flex}>
@@ -164,20 +179,29 @@ export function PIView({
               <View style={styles.row}>
                 <View style={[styles.nameCell, styles.headCell]} />
                 {its.map((it) => (
-                  <View key={it.key} style={[styles.cell, styles.headCell, it.key === currentIt && styles.nowCol]}>
-                    <Text style={[styles.itCode, it.code === 'IP' && { color: colors.warning }]}>{it.code}</Text>
+                  <Pressable
+                    key={it.key}
+                    style={[styles.cell, styles.headCell, it.key === currentIt && styles.nowCol]}
+                    onPress={() => onOpenIteration(it.key)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Ouvrir l'itération ${it.code}`}
+                  >
+                    <Text style={[styles.itCode, it.code === 'IP' && { color: colors.warning }]}>{it.code} ›</Text>
                     <Text style={styles.itDates}>{it.label.split(' · ')[1].split(' → ')[0]}</Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
 
               {groups.map((g) => (
                 <View key={g.epic?.id ?? 'none'}>
-                  <View style={styles.epicRow}>
-                    <View style={[styles.dot, { backgroundColor: g.epic?.couleur ?? colors.muted }]} />
-                    <Text style={styles.epicName} numberOfLines={1}>
-                      {g.epic ? g.epic.titre : 'Sans epic'}
-                    </Text>
+                  <View style={[styles.row, styles.groupRow]}>
+                    <View style={[styles.nameCell, styles.groupName]}>
+                      <View style={[styles.dot, { backgroundColor: g.epic?.couleur ?? colors.muted }]} />
+                      <Text style={styles.epicName} numberOfLines={2}>
+                        {g.epic ? g.epic.titre : 'Sans epic'}
+                      </Text>
+                    </View>
+                    {plusCells(`Ajouter à ${g.epic?.titre ?? 'Sans epic'}`, (itKey) => ({ kind: 'epic', epicId: g.epic?.id ?? '', itKey }))}
                   </View>
                   {g.features.map((f) => {
                     const color = g.epic?.couleur ?? colors.primary;
@@ -222,15 +246,29 @@ export function PIView({
               {features.length === 0 && (
                 <Text style={[styles.muted, styles.emptyBoard]}>Aucune feature prévue dans ce PI.</Text>
               )}
+              <View style={[styles.row, styles.groupRow]}>
+                <View style={[styles.nameCell, styles.groupName]}>
+                  <Text style={styles.autre}>+ Autre epic</Text>
+                </View>
+                {plusCells('Feature d’une autre epic', (itKey) => ({ kind: 'autre', itKey }))}
+              </View>
 
-              <Pressable style={styles.epicRow} onPress={() => setHorsOpen((v) => !v)} accessibilityRole="button" accessibilityLabel="Replier les tâches hors feature">
-                <Text style={styles.epicName}>
-                  {horsOpen ? '▾' : '▸'} Tâches hors feature
-                </Text>
-                <Text style={styles.fMeta}>
-                  {allHors.length ? `${allHors.filter((t) => t.statut === 'termine').length}/${allHors.length} faites` : 'aucune'}
-                </Text>
-              </Pressable>
+              <View style={[styles.row, styles.groupRow]}>
+                <Pressable
+                  style={[styles.nameCell, styles.groupName]}
+                  onPress={() => setHorsOpen((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Replier les tâches hors feature"
+                >
+                  <View style={styles.flex}>
+                    <Text style={styles.epicName}>{horsOpen ? '▾' : '▸'} Tâches hors feature</Text>
+                    <Text style={styles.fMeta}>
+                      {allHors.length ? `${allHors.filter((t) => t.statut === 'termine').length}/${allHors.length} faites` : 'aucune'}
+                    </Text>
+                  </View>
+                </Pressable>
+                {plusCells('Tâche hors feature', (itKey) => ({ kind: 'tache', itKey }))}
+              </View>
               {horsOpen &&
                 allHors.map((t) => {
                   const done = t.statut === 'termine';
@@ -276,26 +314,6 @@ export function PIView({
                     </View>
                   );
                 })}
-              <View style={styles.row}>
-                <View style={styles.nameCell}>
-                  <Text style={styles.fMeta}>Ajouter une tâche dans l'itération :</Text>
-                </View>
-                {its.map((it) => (
-                  <Pressable
-                    key={it.key}
-                    style={[styles.cell, it.key === currentIt && styles.nowCol]}
-                    onPress={() => onSelectIt(it.key)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: it.key === sel }}
-                    accessibilityLabel={`Ajouter en ${it.code}`}
-                  >
-                    <Text style={[styles.tasks, styles.selBox, it.key === sel && styles.selOn, { color: it.key === sel ? '#fff' : colors.primary }]}>
-                      {it.key === sel ? it.code : '+'}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-
               <View style={[styles.row, styles.chargeRow]}>
                 <View style={styles.nameCell}>
                   <Text style={styles.fName}>Charge</Text>
@@ -319,28 +337,6 @@ export function PIView({
             </View>
           </ScrollView>
 
-          <View style={styles.addRow}>
-            <Pressable onPress={() => onOpenFeature(null)} hitSlop={6} accessibilityRole="button">
-              <Text style={styles.add}>+ Nouvelle feature</Text>
-            </Pressable>
-            <Pressable onPress={onPickFeature} hitSlop={6} accessibilityRole="button">
-              <Text style={styles.add}>+ Feature existante</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.addLine}>
-            <Text style={styles.muted}>Tâche hors feature en {its[selIndex].code} :</Text>
-            <Pressable onPress={() => onAddTask(sel)} hitSlop={6} accessibilityRole="button">
-              <Text style={styles.add}>+ Nouvelle</Text>
-            </Pressable>
-            <Pressable onPress={() => onPickTask(sel)} hitSlop={6} accessibilityRole="button">
-              <Text style={styles.add}>+ Existante</Text>
-            </Pressable>
-            <Pressable onPress={() => onOpenIteration(sel)} hitSlop={6} accessibilityRole="button">
-              <Text style={styles.add}>Itération ›</Text>
-            </Pressable>
-          </View>
-
           {sansPi.length > 0 && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Features sans PI · {sansPi.length}</Text>
@@ -354,6 +350,61 @@ export function PIView({
           )}
         </ScrollView>
       </Swipe>
+      <Modal visible={!!choice} transparent animationType="fade" onRequestClose={() => setChoice(null)}>
+        <Pressable style={styles.backdrop} onPress={() => setChoice(null)}>
+          <Pressable style={styles.sheet} onPress={() => {}}>
+            {choice?.kind === 'autre' ? (
+              <>
+                <Text style={styles.sheetTitle}>Feature en {choiceIt?.code} : pour quelle epic ?</Text>
+                {autres.length === 0 && <Text style={styles.muted}>Toutes les epics sont déjà dans ce PI.</Text>}
+                <ScrollView style={{ maxHeight: 360 }}>
+                  {autres.map((e) => (
+                    <Pressable key={e.id} style={styles.sheetRow} onPress={() => setChoice({ kind: 'epic', epicId: e.id, itKey: choice.itKey })}>
+                      <View style={[styles.dot, { backgroundColor: e.couleur }]} />
+                      <Text style={styles.objTitle} numberOfLines={1}>
+                        {e.titre}
+                      </Text>
+                      <Text style={styles.muted}>›</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            ) : choice ? (
+              <>
+                <Text style={styles.sheetTitle}>
+                  {choice.kind === 'tache'
+                    ? `Tâche hors feature en ${choiceIt?.code}`
+                    : `Feature de « ${h.epics.get(choice.epicId)?.titre ?? 'Sans epic'} » en ${choiceIt?.code}`}
+                </Text>
+                {(
+                  [
+                    ['＋', choice.kind === 'tache' ? 'Nouvelle tâche' : 'Nouvelle feature'],
+                    ['📥', choice.kind === 'tache' ? 'Tâche existante' : 'Feature existante'],
+                  ] as const
+                ).map(([icon, label], i) => (
+                  <Pressable
+                    key={label}
+                    style={styles.sheetRow}
+                    accessibilityRole="button"
+                    onPress={() => {
+                      const c = choice;
+                      setChoice(null);
+                      if (c.kind === 'tache') (i === 0 ? onAddTask : onPickTask)(c.itKey);
+                      else (i === 0 ? onAddFeature : onPickFeature)(c.epicId, c.itKey);
+                    }}
+                  >
+                    <Text style={styles.sheetIcon}>{icon}</Text>
+                    <Text style={styles.objTitle}>{label}</Text>
+                  </Pressable>
+                ))}
+              </>
+            ) : null}
+            <Pressable onPress={() => setChoice(null)} style={styles.sheetCancel}>
+              <Text style={styles.add}>Annuler</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -376,7 +427,17 @@ const styles = StyleSheet.create({
   objTitle: { flex: 1, fontSize: 14.5, color: colors.text, fontWeight: '600' },
   value: { fontSize: 13, fontWeight: '700', color: colors.text },
   add: { color: colors.primary, fontWeight: '700', fontSize: 14 },
-  addRow: { flexDirection: 'row', gap: 20, marginHorizontal: 16, marginVertical: 12 },
+  groupRow: { backgroundColor: '#F7F9FC' },
+  groupName: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  plusCell: { paddingVertical: 4 },
+  plus: { color: colors.primary, fontSize: 17, fontWeight: '700' },
+  autre: { fontSize: 13, fontWeight: '800', color: colors.primary },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', alignItems: 'center' },
+  sheet: { width: '100%', maxWidth: 480, backgroundColor: colors.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, paddingBottom: 28, gap: 6 },
+  sheetTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 6 },
+  sheetRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
+  sheetIcon: { fontSize: 18, width: 24, textAlign: 'center' },
+  sheetCancel: { alignSelf: 'center', paddingTop: 8 },
   addLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14, marginHorizontal: 16, marginBottom: 14 },
   taskName: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 8 },
   boardPad: { paddingHorizontal: 16 },
