@@ -55,7 +55,11 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   tableau, ou bouton bleu) ouvre une fenêtre : on choisit l'**itération** (ou « Sans itération » pour une
   feature), puis **Nouvelle feature** (epic existante choisie dans la fiche), **Feature existante** (toutes
   les epics, avec recherche), **Nouvelle tâche hors feature** ou **Tâche existante** (sans feature ni date).
-  On ne crée pas d'epic depuis le PI. Toucher IT1, IT2… ouvre l'itération. Dans la fiche d'une feature, même nouvelle : **+ Nouvelle tâche**
+  On ne crée pas d'epic depuis le PI. Toucher IT1, IT2… ouvre l'itération.
+  **Déplacer** : toucher une case vide de la ligne d'une feature ou d'une tâche hors feature propose de la
+  déplacer dans cette itération (confirmation) ; pour une tâche datée, une nouvelle date est proposée
+  (même place dans l'itération), modifiable, avec un avertissement si elle tombe dans une autre itération.
+  On change de PI avec les flèches (le tableau ne bascule pas de PI quand on le fait glisser). Dans la fiche d'une feature, même nouvelle : **+ Nouvelle tâche**
   (titre + Entrée) ou **+ Tâche existante** (recherche) ; pour une nouvelle feature, elles sont rattachées à
   l'enregistrement.
 - **🚀 Assistant projet** (modes Simple et SAFe ; bouton +, fiches « Ouvrir dans l'assistant », écrans vides) :

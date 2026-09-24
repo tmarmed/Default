@@ -1,12 +1,13 @@
-import { ReactElement, useState } from 'react';
-import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { parseDate, toDateString } from '../dates';
+import { ReactElement, ReactNode, useState } from 'react';
+import { Modal, Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { addDays, parseDate, toDateString } from '../dates';
 import { domaineOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
-import { fmtPoints, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piOf, piStart, pointsOf, shiftPi } from '../pi';
+import { fmtPoints, iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piOf, piStart, pointsOf, shiftPi } from '../pi';
 import { useSafe } from '../safe';
 import { colors } from '../theme';
 import type { Feature, Item, ObjectifPI } from '../types';
+import { DateField } from './DateField';
 import { DomainChips, inDomain, useDomainFilter } from './DomainFilter';
 import { PeriodHeader } from './PeriodHeader';
 
@@ -22,6 +23,21 @@ interface Props {
   onToggleTask: (t: Item) => void;
   /** « + » du tableau : fenêtre d'ajout (feature ou tâche, nouvelle ou existante) */
   onOpenAdd: () => void;
+  /** Déplacer une feature / une tâche hors feature vers une autre itération (tâche datée : nouvelle date) */
+  onMoveFeature: (f: Feature, itKey: string) => Promise<void>;
+  onMoveTask: (t: Item, patch: { iteration: string } | { date: string }) => Promise<void>;
+}
+
+type Move = { kind: 'feature'; f: Feature; itKey: string } | { kind: 'task'; t: Item; itKey: string };
+
+/** Date proposée dans l'itération visée : même position (jour) dans l'itération. */
+function dateDansIteration(date: string, itKey: string): string {
+  const from = iterationOf(date);
+  const to = iterationByKey(itKey)!;
+  const decalage = Math.round((parseDate(date).getTime() - parseDate(from.start).getTime()) / 86400000);
+  const d = addDays(parseDate(to.start), decalage);
+  const fin = toDateString(d) > to.end ? to.end : toDateString(d);
+  return fin;
 }
 
 
@@ -42,6 +58,8 @@ export function PIView({
   onOpenTask,
   onToggleTask,
   onOpenAdd,
+  onMoveFeature,
+  onMoveTask,
 }: Props) {
   const h = useHierarchy();
   const safe = useSafe();
@@ -82,6 +100,47 @@ export function PIView({
     [...list].sort((a, b) => (a.date || '~').localeCompare(b.date || '~') || a.titre.localeCompare(b.titre)),
   );
   const [horsOpen, setHorsOpen] = useState(true);
+  // Déplacement : case vide touchée → confirmation (tâche datée : nouvelle date proposée)
+  const [move, setMove] = useState<Move | null>(null);
+  const [newDate, setNewDate] = useState('');
+  const [moving, setMoving] = useState(false);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const askMove = (m: Move) => {
+    setMove(m);
+    setMoveError(null);
+    setNewDate(m.kind === 'task' && m.t.date ? dateDansIteration(m.t.date, m.itKey) : '');
+  };
+  const moveIt = move ? iterationByKey(move.itKey) : undefined;
+  const dateIt = newDate ? iterationOf(newDate) : undefined;
+  const confirmMove = async () => {
+    if (!move) return;
+    setMoving(true);
+    setMoveError(null);
+    try {
+      if (move.kind === 'feature') await onMoveFeature(move.f, move.itKey);
+      else await onMoveTask(move.t, move.t.date ? { date: newDate } : { iteration: move.itKey });
+      setMove(null);
+    } catch (e) {
+      setMoveError(`Déplacement impossible : ${(e as Error).message}`);
+    } finally {
+      setMoving(false);
+    }
+  };
+  /** Case d'une ligne : bloc de l'élément, ou case vide qui propose le déplacement */
+  const moveCell = (it: { key: string; code: string }, label: string, onPress: () => void, children?: ReactNode) =>
+    children ? (
+      <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]}>
+        {children}
+      </View>
+    ) : (
+      <Pressable
+        key={it.key}
+        style={[styles.cell, it.key === currentIt && styles.nowCol]}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`Déplacer ${label} en ${it.code}`}
+      />
+    );
   const colorOf = (t: Item) =>
     h.epics.get(t.epic)?.couleur ?? h.objectifs.get(t.objectif)?.couleur ?? h.domaines.get(domaineOf(t, h)?.id ?? '')?.couleur ?? '#8A94A6';
   const parentOf = (t: Item) =>
@@ -193,22 +252,26 @@ export function PIView({
                         const planned = f.iteration === it.key;
                         const inIt = tasks.filter((t) => iterationOfItem(t) === it.key);
                         const done = inIt.filter((t) => t.statut === 'termine').length;
-                        return (
-                          <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]}>
-                            {planned && (
-                              <Pressable style={[styles.block, { backgroundColor: color }]} onPress={() => onOpenFeature(f)}>
-                                <Text style={styles.blockText} numberOfLines={1}>
-                                  {pointsOf(f) ? fmt(pointsOf(f)) : 'prévue'}
-                                </Text>
-                              </Pressable>
-                            )}
-                            {inIt.length > 0 && (
-                              <Text style={[styles.tasks, { color }]}>
-                                {done}/{inIt.length} tâche{inIt.length > 1 ? 's' : ''}
-                              </Text>
-                            )}
-                          </View>
-                        );
+                        const content =
+                          planned || inIt.length > 0 ? (
+                            <>
+                              {planned && (
+                                <Pressable style={[styles.block, { backgroundColor: color }]} onPress={() => onOpenFeature(f)}>
+                                  <Text style={styles.blockText} numberOfLines={1}>
+                                    {pointsOf(f) ? fmt(pointsOf(f)) : 'prévue'}
+                                  </Text>
+                                </Pressable>
+                              )}
+                              {inIt.length > 0 && (
+                                <Pressable onPress={() => !planned && askMove({ kind: 'feature', f, itKey: it.key })} disabled={planned}>
+                                  <Text style={[styles.tasks, { color }]}>
+                                    {done}/{inIt.length} tâche{inIt.length > 1 ? 's' : ''}
+                                  </Text>
+                                </Pressable>
+                              )}
+                            </>
+                          ) : undefined;
+                        return moveCell(it, f.titre, () => askMove({ kind: 'feature', f, itKey: it.key }), content);
                       })}
                     </View>
                   );
@@ -262,9 +325,12 @@ export function PIView({
                         </Text>
                       </Pressable>
                     </View>
-                    {its.map((it) => (
-                      <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]}>
-                        {iterationOfItem(t) === it.key && (
+                    {its.map((it) =>
+                      moveCell(
+                        it,
+                        t.titre,
+                        () => askMove({ kind: 'task', t, itKey: it.key }),
+                        iterationOfItem(t) === it.key ? (
                           <Pressable
                             style={[styles.block, { backgroundColor: done ? colors.success : color }]}
                             onPress={() => onOpenTask(t)}
@@ -275,9 +341,9 @@ export function PIView({
                               {pointsOf(t) ? fmt(pointsOf(t)) : t.date ? court(parseDate(t.date)) : '•'}
                             </Text>
                           </Pressable>
-                        )}
-                      </View>
-                    ))}
+                        ) : undefined,
+                      ),
+                    )}
                   </View>
                 );
               })}
@@ -316,6 +382,59 @@ export function PIView({
           </View>
         )}
       </ScrollView>
+      <Modal visible={!!move} transparent animationType="fade" onRequestClose={() => !moving && setMove(null)}>
+        <Pressable style={styles.backdrop} onPress={() => !moving && setMove(null)}>
+          <Pressable style={styles.sheet} onPress={() => {}}>
+            {move && moveIt && (
+              <>
+                <Text style={styles.sheetTitle}>
+                  Déplacer « {move.kind === 'feature' ? move.f.titre : move.t.titre} » en {moveIt.code} ?
+                </Text>
+                <Text style={styles.muted}>{moveIt.label.split(' · ')[1]}</Text>
+                {move.kind === 'feature' && (
+                  <Text style={styles.muted}>
+                    L’itération prévue de la feature change. Ses tâches gardent leur date ou leur itération.
+                  </Text>
+                )}
+                {move.kind === 'task' && !!move.t.date && (
+                  <>
+                    <Text style={styles.sheetText}>
+                      Cette tâche a une date ({court(parseDate(move.t.date))}) : pour la déplacer, choisissez sa nouvelle date.
+                    </Text>
+                    <DateField mode="date" value={newDate} onChange={setNewDate} placeholder="Nouvelle date" />
+                    {dateIt && dateIt.key !== move.itKey && (
+                      <Text style={styles.warnText}>
+                        ⚠ Le {court(parseDate(newDate))} tombe en {dateIt.code}
+                        {dateIt.pi !== piKey ? ` du PI ${piLabel(dateIt.pi)}` : ''} : la tâche ira là.
+                      </Text>
+                    )}
+                  </>
+                )}
+                {moveError && <Text style={styles.warnText}>{moveError}</Text>}
+                <View style={styles.sheetButtons}>
+                  <Pressable onPress={() => setMove(null)} disabled={moving} style={styles.sheetBtn}>
+                    <Text style={styles.add}>Annuler</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={confirmMove}
+                    disabled={moving || (move.kind === 'task' && !!move.t.date && !newDate)}
+                    style={[styles.sheetBtn, styles.sheetBtnPrimary, moving && { opacity: 0.6 }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.sheetBtnText}>
+                      {moving
+                        ? 'Déplacement…'
+                        : move.kind === 'task' && move.t.date && newDate
+                          ? `Déplacer au ${court(parseDate(newDate))}`
+                          : `Déplacer en ${moveIt.code}`}
+                    </Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -340,6 +459,15 @@ const styles = StyleSheet.create({
   add: { color: colors.primary, fontWeight: '700', fontSize: 14 },
   groupRow: { backgroundColor: '#F7F9FC' },
   groupName: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', alignItems: 'center' },
+  sheet: { width: '100%', maxWidth: 480, backgroundColor: colors.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, paddingBottom: 28, gap: 8 },
+  sheetTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  sheetText: { fontSize: 14, color: colors.text, marginTop: 4 },
+  warnText: { fontSize: 13, color: colors.danger, lineHeight: 18 },
+  sheetButtons: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 12, marginTop: 8 },
+  sheetBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
+  sheetBtnPrimary: { backgroundColor: colors.primary },
+  sheetBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   corner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   cornerPlus: { fontSize: 20, fontWeight: '800', color: colors.primary },
   cornerText: { fontSize: 13, fontWeight: '700', color: colors.primary },

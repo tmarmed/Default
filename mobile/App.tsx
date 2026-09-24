@@ -864,6 +864,10 @@ function Main() {
           onOpenTask={openForm}
           onToggleTask={toggle}
           onOpenAdd={() => setPiAdd(true)}
+          onMoveFeature={async (f, itKey) => {
+            await saveEntity('feature', f, { pi: piKey, iteration: itKey });
+          }}
+          onMoveTask={(t, patch) => updateTask({ id: t.id, ...patch })}
           onOpenObjectifPI={(o) => {
             setEditingOPI(o);
             setOpiFormOpen(true);
