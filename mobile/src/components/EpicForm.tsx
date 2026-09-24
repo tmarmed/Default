@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { alertesEpic } from '../alerts';
 import { addMonths, toDateString } from '../dates';
 import { formatEpicDates, progress } from '../roadmap';
 import { colors } from '../theme';
@@ -63,6 +64,8 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
   const set = <K extends keyof EpicInput>(key: K, value: EpicInput[K]) => setForm((f) => ({ ...f, [key]: value }));
   const tasks = epic ? items.filter((i) => i.epic === epic.id) : [];
   const stats = epic ? progress(epic.id, items) : null;
+  // Alertes calculées sur les dates en cours de saisie : le bouton ajuste les champs, puis on enregistre.
+  const alertes = epic && form.debut ? alertesEpic({ id: epic.id, debut: form.debut, fin: form.fin }, items) : [];
 
   const save = async () => {
     if (!form.titre.trim()) return setError("Donnez un titre à l'epic.");
@@ -128,6 +131,19 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error && <Text style={styles.error}>{error}</Text>}
 
+            {alertes.map((a) => (
+              <View key={a.key} style={styles.alert}>
+                <Text style={styles.alertText}>⚠ {a.message}</Text>
+                <Pressable
+                  style={styles.alertBtn}
+                  onPress={() => setForm((f) => ({ ...f, ...a.patch }))}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.alertBtnText}>{a.bouton}</Text>
+                </Pressable>
+              </View>
+            ))}
+
             <View style={[styles.preview, { backgroundColor: form.couleur }]}>
               <Text style={styles.previewTitle} numberOfLines={2}>
                 {form.titre || 'Titre de l’epic'}
@@ -151,8 +167,8 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
             <Text style={styles.label}>Fin</Text>
             <DateField mode="date" value={form.fin} onChange={(v) => set('fin', v)} placeholder="Sans fin (epic infinie)" />
             <Text style={styles.hint}>
-              Vide = epic sans fin. Les dates s'élargissent toutes seules si une tâche de l'epic en sort ; une tâche
-              répétée sans date de fin rend l'epic sans fin.
+              Vide = epic sans fin. Si une tâche de l'epic sort de ces dates, une alerte le signale avec un bouton
+              pour ajuster.
             </Text>
 
             <Text style={styles.label}>Couleur</Text>
@@ -276,6 +292,10 @@ const styles = StyleSheet.create({
   },
   titleInput: { fontSize: 18, fontWeight: '500' },
   notes: { minHeight: 90 },
+  alert: { marginBottom: 10, padding: 10, borderRadius: 10, backgroundColor: '#FCE8E6', gap: 8 },
+  alertText: { color: '#A50E0E', fontSize: 13.5, lineHeight: 19 },
+  alertBtn: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, backgroundColor: colors.danger },
+  alertBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   hint: { marginTop: 6, fontSize: 12, lineHeight: 17, color: colors.muted },
   swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   swatch: { width: 34, height: 34, borderRadius: 17 },

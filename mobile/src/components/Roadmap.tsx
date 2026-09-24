@@ -1,5 +1,6 @@
 import { ReactElement, useMemo, useState } from 'react';
 import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alerte, alertesEpic } from '../alerts';
 import { toDateString } from '../dates';
 import { barFor, formatEpicDates, positionOf, progress, roadmapWindow, shift, Window, Zoom } from '../roadmap';
 import { colors } from '../theme';
@@ -12,6 +13,8 @@ interface Props {
   epics: Epic[];
   items: Item[];
   onOpenEpic: (epic: Epic) => void;
+  /** Bouton d'une alerte : ajuste les dates de l'epic */
+  onFixEpic: (epic: Epic, patch: Alerte['patch']) => void;
   refreshControl: ReactElement<RefreshControlProps>;
 }
 
@@ -25,7 +28,7 @@ const ZOOMS: { value: Zoom; label: string }[] = [
 const pct = (x: number) => `${Math.max(0, Math.min(100, x * 100))}%` as const;
 
 /** Roadmap : une ligne par epic, barre de début à fin, sur 3 ans / 1 an / 1 trimestre / 1 mois. */
-export function Roadmap({ epics, items, onOpenEpic, refreshControl }: Props) {
+export function Roadmap({ epics, items, onOpenEpic, onFixEpic, refreshControl }: Props) {
   const [zoom, setZoom] = useState<Zoom>('annee');
   const [anchor, setAnchor] = useState(() => new Date());
   const win = useMemo(() => roadmapWindow(zoom, anchor), [zoom, anchor]);
@@ -37,7 +40,10 @@ export function Roadmap({ epics, items, onOpenEpic, refreshControl }: Props) {
     () => [...epics].sort((a, b) => a.debut.localeCompare(b.debut) || (a.fin || '9999').localeCompare(b.fin || '9999')),
     [epics],
   );
-  const visible = sorted.filter((e) => barFor(e, win));
+  const [alertesSeules, setAlertesSeules] = useState(false);
+  const alertMap = useMemo(() => new Map(epics.map((e) => [e.id, alertesEpic(e, items)])), [epics, items]);
+  const nbAlertes = [...alertMap.values()].reduce((n, a) => n + a.length, 0);
+  const visible = sorted.filter((e) => barFor(e, win) && (!alertesSeules || alertMap.get(e.id)!.length > 0));
   const before = sorted.filter((e) => e.fin && e.fin < win.start);
   const after = sorted.filter((e) => e.debut > win.end);
 
@@ -47,6 +53,18 @@ export function Roadmap({ epics, items, onOpenEpic, refreshControl }: Props) {
     <View style={styles.flex}>
       <View style={styles.controls}>
         <Segmented options={ZOOMS} value={zoom} onChange={setZoom} />
+        {nbAlertes > 0 && (
+          <Pressable
+            style={[styles.alertChip, alertesSeules && styles.alertChipOn]}
+            onPress={() => setAlertesSeules((v) => !v)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: alertesSeules }}
+          >
+            <Text style={[styles.alertChipText, alertesSeules && styles.alertChipTextOn]}>
+              ⚠ {nbAlertes} alerte{nbAlertes > 1 ? 's' : ''} {alertesSeules ? '· tout afficher' : '· voir seulement'}
+            </Text>
+          </Pressable>
+        )}
       </View>
       <PeriodHeader
         title={win.title}
@@ -71,7 +89,16 @@ export function Roadmap({ epics, items, onOpenEpic, refreshControl }: Props) {
                 <Text style={styles.none}>Aucune epic sur cette période. Glissez pour changer de période.</Text>
               )}
               {visible.map((e) => (
-                <EpicRow key={e.id} epic={e} win={win} items={items} todayPos={todayPos} onPress={() => onOpenEpic(e)} />
+                <EpicRow
+                  key={e.id}
+                  epic={e}
+                  win={win}
+                  items={items}
+                  todayPos={todayPos}
+                  alertes={alertMap.get(e.id)!}
+                  onPress={() => onOpenEpic(e)}
+                  onFix={(patch) => onFixEpic(e, patch)}
+                />
               ))}
             </View>
           )}
@@ -127,13 +154,17 @@ function EpicRow({
   win,
   items,
   todayPos,
+  alertes,
   onPress,
+  onFix,
 }: {
   epic: Epic;
   win: Window;
   items: Item[];
   todayPos: number | null;
+  alertes: Alerte[];
   onPress: () => void;
+  onFix: (patch: Alerte['patch']) => void;
 }) {
   const bar = barFor(epic, win)!;
   const stats = progress(epic.id, items);
@@ -147,6 +178,7 @@ function EpicRow({
         <Text style={styles.rowTitle} numberOfLines={1}>
           {epic.titre}
         </Text>
+        {alertes.length > 0 && <Text style={styles.warn}>⚠</Text>}
         {stats.total > 0 && (
           <Text style={[styles.rowCount, late && { color: colors.danger }]}>
             {stats.done}/{stats.total}
@@ -180,6 +212,17 @@ function EpicRow({
         {formatEpicDates(epic)}
         {late ? ' · en retard' : ''}
       </Text>
+      {alertes.slice(0, 2).map((a) => (
+        <View key={a.key} style={styles.alert}>
+          <Text style={styles.alertText}>⚠ {a.message}</Text>
+          <Pressable style={styles.alertBtn} onPress={() => onFix(a.patch)} accessibilityRole="button" hitSlop={6}>
+            <Text style={styles.alertBtnText}>{a.bouton}</Text>
+          </Pressable>
+        </View>
+      ))}
+      {alertes.length > 2 && (
+        <Text style={styles.alertMore}>… et {alertes.length - 2} autre(s) : touchez l'epic pour les voir.</Text>
+      )}
     </Pressable>
   );
 }
@@ -207,7 +250,30 @@ const TRACK = 26;
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  controls: { paddingHorizontal: 16, paddingBottom: 10 },
+  controls: { paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
+  alertChip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  alertChipOn: { backgroundColor: colors.danger },
+  alertChipText: { color: colors.danger, fontSize: 13, fontWeight: '600' },
+  alertChipTextOn: { color: '#fff' },
+  warn: { color: colors.danger, fontSize: 14, fontWeight: '700' },
+  alert: { marginTop: 6, padding: 8, borderRadius: 8, backgroundColor: '#FCE8E6', gap: 6 },
+  alertText: { color: '#A50E0E', fontSize: 12.5, lineHeight: 17 },
+  alertBtn: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: colors.danger,
+  },
+  alertBtnText: { color: '#fff', fontSize: 12.5, fontWeight: '700' },
+  alertMore: { marginTop: 4, fontSize: 12, color: colors.danger },
   scroll: { paddingBottom: 130 },
   chart: { marginHorizontal: 12, backgroundColor: colors.card, borderRadius: 14, paddingHorizontal: 12, paddingBottom: 8 },
   scale: { height: 34, position: 'relative', borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 4 },

@@ -38,7 +38,6 @@ import {
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { API_URL, GOOGLE_AUTH } from './src/config';
 import { DEMO, demoApi } from './src/demo';
-import { ajusterEpic } from './src/epicRules';
 import { EpicsContext } from './src/epicsContext';
 import {
   clearSettings,
@@ -286,25 +285,21 @@ function Main() {
     }
     updateItems(next);
     setFormOpen(false);
-    if (saved.epic) await elargirEpic(saved.epic, next);
   };
 
-  /** Élargit l'epic si une de ses tâches en sort (règles dans epicRules.ts). */
-  const elargirEpic = async (epicId: string, allItems: Item[]) => {
-    const epic = epics.find((e) => e.id === epicId);
-    if (!epic || !settings) return;
-    const adj = ajusterEpic(epic, allItems.filter((i) => i.epic === epicId));
-    if (adj.debut === epic.debut && adj.fin === epic.fin) return;
+  /** Bouton d'une alerte : applique les dates proposées à l'epic. */
+  const fixEpic = async (epic: Epic, patch: { debut?: string; fin?: string }) => {
+    if (!settings) return;
     try {
-      const updated = await api.updateEpic(settings, { id: epic.id, debut: adj.debut, fin: adj.fin });
+      const updated = await api.updateEpic(settings, { id: epic.id, ...patch });
       setEpics((prev) => {
         const list = prev.map((e) => (e.id === updated.id ? updated : e));
         saveEpicsCache(list).catch(() => {});
         return list;
       });
-      setInfo(adj.messages.join(' '));
+      setInfo(`Epic « ${epic.titre} » mise à jour.`);
     } catch (e) {
-      setNotice(`Dates de l'epic non mises à jour : ${(e as Error).message}`);
+      setNotice(`Epic non mise à jour : ${(e as Error).message}`);
     }
   };
 
@@ -325,12 +320,6 @@ function Main() {
     if (apiVersion < api.API_VERSION_EPICS) {
       throw new Error("le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.");
     }
-    // Les dates saisies sont élargies si une tâche de l'epic en sort.
-    const adj = editingEpic
-      ? ajusterEpic(input, items.filter((i) => i.epic === editingEpic.id))
-      : { debut: input.debut, fin: input.fin, messages: [] };
-    input = { ...input, debut: adj.debut, fin: adj.fin };
-    if (adj.messages.length) setInfo(adj.messages.join(' '));
     if (editingEpic) {
       const saved = await api.updateEpic(settings, { ...input, id: editingEpic.id });
       const list = epics.map((e) => (e.id === saved.id ? saved : e));
@@ -475,7 +464,13 @@ function Main() {
       )}
 
       {tab === 'roadmap' && (
-        <Roadmap epics={epics} items={items} onOpenEpic={openEpic} refreshControl={refreshControl} />
+        <Roadmap
+          epics={epics}
+          items={items}
+          onOpenEpic={openEpic}
+          onFixEpic={fixEpic}
+          refreshControl={refreshControl}
+        />
       )}
 
       {tab === 'taches' && mode !== 'liste' && (

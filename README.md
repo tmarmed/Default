@@ -22,18 +22,18 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   sur un schéma à barres, échelle **3 ans / Année / Trimestre / Mois**, glisser pour changer de période,
   trait « aujourd'hui » et avancement (tâches terminées / total). Chaque tâche peut être rattachée à une
   epic ; supprimer une epic conserve ses tâches, sans epic.
-- **Dates des epics élargies automatiquement** (voir règles ci-dessous).
+- **Alertes de dates** dans la roadmap et la fiche d'une epic (voir règles ci-dessous).
 
 ### Règles de gestion des dates d'epic
 
-1. L'epic **ne s'agrandit que si une de ses tâches en sort** ; sinon les dates saisies sont gardées.
-   Elle ne rétrécit jamais toute seule (on la raccourcit à la main, sans pouvoir exclure une tâche).
-2. **Début** avancé si une tâche commence avant ; **fin** repoussée si une tâche finit après.
-3. Une epic **sans date de fin est infinie** : sa fin n'est jamais modifiée.
-4. Une **tâche répétée sans date de fin** rend son epic **sans fin**.
-5. Dates retenues : tâche ponctuelle → sa date (sans date : ignorée) ; tâche répétée → son « À partir du »
+1. **Aucune date n'est modifiée automatiquement.** Si une tâche sort des dates de son epic, une **⚠ alerte**
+   s'affiche (roadmap et fiche) avec un **bouton** pour ajuster l'epic : avancer le début, repousser la fin,
+   ou rendre l'epic sans fin.
+2. Une epic **sans date de fin est infinie** : pas d'alerte de fin.
+3. Une **tâche répétée sans date de fin** dans une epic datée déclenche une alerte (« Rendre l'epic sans fin »).
+4. Dates retenues : tâche ponctuelle → sa date (sans date : ignorée) ; tâche répétée → son « À partir du »
    (sinon sa création) pour le début, son « Jusqu'au » pour la fin. Les tâches terminées comptent.
-6. Appliqué à l'enregistrement d'une tâche rattachée ou de l'epic ; un message indique le changement.
+5. La roadmap affiche le nombre d'alertes et peut n'afficher que les epics en alerte.
 - Tirer vers le bas pour synchroniser avec le Google Sheet
 - Dernière copie gardée sur le téléphone : la liste reste lisible sans réseau
 
