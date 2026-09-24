@@ -21,6 +21,7 @@ import { FeatureForm } from './src/components/FeatureForm';
 import { IterationView } from './src/components/IterationView';
 import { ObjectifPIForm } from './src/components/ObjectifPIForm';
 import { PIView } from './src/components/PIView';
+import { DomainFilterContext, loadDomainFilter, saveDomainFilter } from './src/components/DomainFilter';
 import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
 import { Portfolio } from './src/components/Portfolio';
@@ -174,7 +175,13 @@ function Main() {
     setHier(next);
     saveHierarchyCache(next).catch(() => {});
   }, []);
-  const [domFilter, setDomFilter] = useState<string>('tous');
+  /** Filtre de domaine partagé par tous les écrans, mémorisé sur l'appareil */
+  const [domFilter, setDomFilterState] = useState<string>('tous');
+  const setDomFilter = useCallback((v: string) => {
+    setDomFilterState(v);
+    saveDomainFilter(v);
+  }, []);
+  const domFilterValue = useMemo(() => ({ value: domFilter, set: setDomFilter }), [domFilter, setDomFilter]);
   /** Itération affichée dans l'écran Itération ; filtre « itération en cours » de la liste */
   const [itKey, setItKey] = useState(() => iterationOf(new Date()).key);
   const [itFilter, setItFilter] = useState(false);
@@ -205,7 +212,7 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_SAFE);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_DOMAINE_PI);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -252,7 +259,8 @@ function Main() {
 
   useEffect(() => {
     (async () => {
-      const [stored, cache, cachedHier] = await Promise.all([loadSettings(), loadCache(), loadHierarchyCache()]);
+      const [stored, cache, cachedHier, dom] = await Promise.all([loadSettings(), loadCache(), loadHierarchyCache(), loadDomainFilter()]);
+      setDomFilterState(dom);
       let s = stored;
       if (GOOGLE_AUTH) {
         const email = await restoreSession();
@@ -265,6 +273,11 @@ function Main() {
       if (s) refresh(s);
     })();
   }, [refresh]);
+
+  // Domaine filtré supprimé entre-temps : retour à « Tous »
+  useEffect(() => {
+    if (domFilter && domFilter !== 'tous' && hier.domaines.length && !hier.domaines.some((d) => d.id === domFilter)) setDomFilter('tous');
+  }, [domFilter, hier.domaines, setDomFilter]);
 
   const today = toDateString(new Date());
   // Filtres : type (ou répétées) et domaine (direct ou hérité de l'objectif / de l'epic)
@@ -499,7 +512,8 @@ function Main() {
 
   const checkScript = (kind?: EntityKind, input?: object) => {
     const needSafe = kind === 'feature' || kind === 'objectifpi' || (!!input && 'etat' in input);
-    if (apiVersion < (needSafe ? api.API_VERSION_SAFE : api.API_VERSION_HIERARCHIE)) {
+    const needDomPi = kind === 'objectifpi' && !!input && !!(input as { domaine?: string }).domaine;
+    if (apiVersion < (needDomPi ? api.API_VERSION_DOMAINE_PI : needSafe ? api.API_VERSION_SAFE : api.API_VERSION_HIERARCHIE)) {
       throw new Error("le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.");
     }
   };
@@ -653,6 +667,7 @@ function Main() {
   return (
     <SafeContext.Provider value={safe}>
     <HierarchyContext.Provider value={hv}>
+    <DomainFilterContext.Provider value={domFilterValue}>
     <View style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.title} numberOfLines={1}>
@@ -737,13 +752,14 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_SAFE && (
+      {apiVersion < api.API_VERSION_DOMAINE_PI && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
             Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
             {apiVersion < api.API_VERSION_EPICS ? 'les epics, ' : ''}
-            {apiVersion < api.API_VERSION_HIERARCHIE ? 'les domaines, les objectifs, ' : ''}les données SAFe (états,
-            features, points, itérations) ne seront pas enregistrées.
+            {apiVersion < api.API_VERSION_HIERARCHIE ? 'les domaines, les objectifs, ' : ''}
+            {apiVersion < api.API_VERSION_SAFE ? 'les données SAFe (états, features, points, itérations), ' : ''}le domaine
+            des objectifs du PI ne seront pas enregistrés.
             Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
           </Text>
         </View>
@@ -1017,6 +1033,7 @@ function Main() {
         visible={opiFormOpen}
         objectif={editingOPI}
         defaultPi={piKey}
+        defaultDomaine={domFilter === 'tous' ? '' : domFilter}
         onClose={() => setOpiFormOpen(false)}
         onSave={async (input) => {
           await saveEntity('objectifpi', editingOPI, input);
@@ -1063,6 +1080,7 @@ function Main() {
         </Pressable>
       </Modal>
     </View>
+    </DomainFilterContext.Provider>
     </HierarchyContext.Provider>
     </SafeContext.Provider>
   );

@@ -134,6 +134,8 @@ export interface ObjectifPI {
   valeur_obtenue: string;
   cree_le: string;
   modifie_le: string;
+  /** Domaine (id), vide = tous domaines */
+  domaine: string;
 }
 
 export type ObjectifPIInput = Omit<ObjectifPI, 'id' | 'cree_le' | 'modifie_le'>;

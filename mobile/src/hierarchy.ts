@@ -137,7 +137,10 @@ export function planDeletion(kind: EntityKind, id: string, cascade: boolean, d: 
   let objectifs = not('objectif', d.objectifs);
   let domaines = not('domaine', d.domaines);
   let features = not('feature', d.features);
-  const objectifsPI = not('objectifpi', d.objectifsPI);
+  // Objectifs du PI : jamais supprimés avec un domaine, ils perdent leur domaine (comme dans le script)
+  const objectifsPI = not('objectifpi', d.objectifsPI).map((o) =>
+    kind === 'domaine' && o.domaine === id ? { ...o, domaine: '' } : o,
+  );
 
   if (cascade) {
     return {

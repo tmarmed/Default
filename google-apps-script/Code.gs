@@ -23,7 +23,7 @@ var HEADERS = [
   'points', 'iteration', 'feature'
 ];
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 5;
+var API_VERSION = 6;
 
 /**
  * Niveaux au-dessus des tâches : Domaine > Objectif > Epic > Tâche.
@@ -40,10 +40,11 @@ var ENTITIES = {
     sheet: 'Features', min: 10,
     headers: ['id', 'titre', 'description', 'epic', 'pi', 'iteration', 'points', 'couleur', 'cree_le', 'modifie_le']
   },
-  // SAFe : objectif du PI = engagement d'un trimestre (engagé ou bonus), valeur prévue / obtenue sur 10.
+  // SAFe : objectif du PI = engagement d'un trimestre (engagé ou bonus), valeur prévue / obtenue sur 10,
+  // rattaché ou non à un domaine (v6).
   objectifpi: {
     sheet: 'ObjectifsPI', min: 8,
-    headers: ['id', 'titre', 'pi', 'type', 'valeur_prevue', 'valeur_obtenue', 'cree_le', 'modifie_le']
+    headers: ['id', 'titre', 'pi', 'type', 'valeur_prevue', 'valeur_obtenue', 'cree_le', 'modifie_le', 'domaine']
   },
   objectif: {
     sheet: 'Objectifs', min: 12,
@@ -626,6 +627,16 @@ function planDeletion_(kind, self, cascade, data) {
   ['tache', 'epic', 'objectif', 'domaine', 'feature', 'objectifpi'].forEach(function (k) {
     out[k] = data[k].filter(function (o) { return !(k === kind && o.id === id); });
   });
+
+  // Les objectifs du PI (historique des engagements) ne sont jamais supprimés avec un domaine : ils perdent leur domaine.
+  if (kind === 'domaine') {
+    out.objectifpi = out.objectifpi.map(function (o) {
+      if (o.domaine !== id) return o;
+      var c = copy_(o);
+      c.domaine = '';
+      return c;
+    });
+  }
 
   if (cascade) {
     out.objectif = out.objectif.filter(function (o) { return !objIds[o.id]; });

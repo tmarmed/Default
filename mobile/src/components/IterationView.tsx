@@ -1,11 +1,13 @@
 import { ReactElement, useMemo } from 'react';
 import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDays, toDateString } from '../dates';
+import { domaineOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
 import { fmtPoints, iterationByKey, iterationOf, iterationOfItem, piLabel, pointsOf, shiftIteration } from '../pi';
 import { useSafe } from '../safe';
 import { colors } from '../theme';
 import type { Item, Statut } from '../types';
+import { DomainChips, inDomain, useDomainFilter } from './DomainFilter';
 import { PeriodHeader } from './PeriodHeader';
 import { Swipe } from './Swipe';
 
@@ -44,13 +46,19 @@ export function IterationView({
   const current = iterationOf(today).key;
   const fmt = (n: number) => fmtPoints(n, safe.pointsJours);
 
-  const tasks = useMemo(() => items.filter((t) => iterationOfItem(t) === itKey), [items, itKey]);
+  const { value: dom } = useDomainFilter();
+  const filtered = dom !== 'tous';
+  const allTasks = useMemo(() => items.filter((t) => iterationOfItem(t) === itKey), [items, itKey]);
+  // Filtre de domaine : on ne voit que ses tâches, mais la capacité reste commune à tous les domaines
+  const tasks = useMemo(() => allTasks.filter((t) => inDomain(dom, domaineOf(t, h)?.id)), [allTasks, dom, h]);
   const total = tasks.reduce((n, t) => n + pointsOf(t), 0);
+  const totalAll = allTasks.reduce((n, t) => n + pointsOf(t), 0);
+  const autres = totalAll - total;
   const done = tasks.filter((t) => t.statut === 'termine').reduce((n, t) => n + pointsOf(t), 0);
   const sansPoints = tasks.filter((t) => !pointsOf(t)).length;
   const isIP = it.code === 'IP';
   const capacite = isIP ? 0 : safe.capacite;
-  const over = !isIP && total > capacite;
+  const over = !isIP && totalAll > capacite;
 
   // Burndown : points restants chaque jour (une tâche terminée compte à sa date de modification)
   const days: string[] = [];
@@ -76,31 +84,36 @@ export function IterationView({
             {it.label.split(' · ')[1]}
             {isIP ? ' · semaine d’innovation et de planification' : ''}
           </Text>
+          <DomainChips style={styles.chips} />
 
           <View style={styles.card}>
             <View style={styles.capRow}>
               <Text style={styles.capTitle}>Charge</Text>
               <Text style={[styles.capValue, over && { color: colors.danger }]}>
-                {fmt(total)} {isIP ? '' : `/ ${fmt(capacite)}`} {over ? '⚠' : ''}
+                {filtered ? `${fmt(total)} · total ${fmt(totalAll)}` : fmt(total)} {isIP ? '' : `/ ${fmt(capacite)}`} {over ? '⚠' : ''}
               </Text>
             </View>
             {!isIP && (
               <View style={styles.track}>
-                <View style={[styles.fill, { width: `${Math.min(100, (done / Math.max(capacite, total, 1)) * 100)}%`, backgroundColor: colors.success }]} />
+                <View style={[styles.fill, { width: `${Math.min(100, (done / Math.max(capacite, totalAll, 1)) * 100)}%`, backgroundColor: colors.success }]} />
                 <View
                   style={[
                     styles.fill,
                     styles.planned,
-                    { width: `${Math.min(100, ((total - done) / Math.max(capacite, total, 1)) * 100)}%`, backgroundColor: over ? colors.danger : colors.primary },
+                    { width: `${Math.min(100, ((total - done) / Math.max(capacite, totalAll, 1)) * 100)}%`, backgroundColor: over ? colors.danger : colors.primary },
                   ]}
                 />
+                {autres > 0 && (
+                  <View style={[styles.fill, styles.planned, { width: `${Math.min(100, (autres / Math.max(capacite, totalAll, 1)) * 100)}%`, backgroundColor: '#C5CCD6' }]} />
+                )}
               </View>
             )}
             <Text style={styles.muted}>
               Fait {fmt(done)} · reste {fmt(total - done)}
+              {autres > 0 ? ` · autres domaines ${fmt(autres)} (gris)` : ''}
               {sansPoints ? ` · ${sansPoints} tâche${sansPoints > 1 ? 's' : ''} sans points` : ''}
             </Text>
-            {over && <Text style={styles.warn}>⚠ La charge dépasse la capacité de {fmt(total - capacite)}.</Text>}
+            {over && <Text style={styles.warn}>⚠ La charge{filtered ? ' totale' : ''} dépasse la capacité de {fmt(totalAll - capacite)}.</Text>}
             {!isIP && (
               <View style={styles.settings}>
                 <Text style={styles.muted}>Capacité</Text>
@@ -209,6 +222,7 @@ export function IterationView({
 }
 
 const styles = StyleSheet.create({
+  chips: { paddingHorizontal: 16, paddingBottom: 8 },
   flex: { flex: 1 },
   scroll: { paddingBottom: 130 },
   dates: { textAlign: 'center', color: colors.muted, fontSize: 13, marginBottom: 8 },

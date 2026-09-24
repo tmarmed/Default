@@ -15,7 +15,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '5';
+const DEMO_DATA_VERSION = '6';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -114,8 +114,8 @@ function sampleEntities(): {
   const feat = (id: string, titre: string, epic: string, fpi: string, iteration: string, points: string): Feature => ({
     id, titre, description: '', epic, pi: fpi, iteration, points, couleur: '', ...base,
   });
-  const opi = (id: string, titre: string, opiPi: string, type: ObjectifPI['type'], prevue: string, obtenue = ''): ObjectifPI => ({
-    id, titre, pi: opiPi, type, valeur_prevue: prevue, valeur_obtenue: obtenue, ...base,
+  const opi = (id: string, titre: string, opiPi: string, type: ObjectifPI['type'], prevue: string, obtenue = '', domaine = 'dpro'): ObjectifPI => ({
+    id, titre, pi: opiPi, type, valeur_prevue: prevue, valeur_obtenue: obtenue, domaine, ...base,
   });
   return {
     domaine: [
@@ -148,6 +148,8 @@ function sampleEntities(): {
       opi('p2', 'Nouveau site en ligne', pi2, 'engage', '10'),
       opi('p3', 'Prise de rendez-vous en ligne', pi2, 'bonus', '6'),
       opi('p4', 'Stand prêt pour le salon', pi2, 'engage', '7'),
+      opi('p5', 'Comptes du trimestre clôturés', pi, 'engage', '5', '5', 'dadmin'),
+      opi('p6', 'Déclaration de TVA sans retard', pi2, 'engage', '6', '', 'dadmin'),
     ],
   };
 }

@@ -1,4 +1,4 @@
-import { ReactElement, useMemo, useState } from 'react';
+import { ReactElement, useMemo } from 'react';
 import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { alertesEpic, alertesObjectif } from '../alerts';
 import { toDateString } from '../dates';
@@ -8,7 +8,7 @@ import { formatEpicDates, progress } from '../roadmap';
 import { etatEpic } from '../safe';
 import { colors } from '../theme';
 import { Epic, ETATS_EPIC, EtatEpic, Objectif } from '../types';
-import { Chips } from './Chips';
+import { DomainChips, useDomainFilter } from './DomainFilter';
 
 interface Props {
   onOpenEpic: (e: Epic) => void;
@@ -23,7 +23,7 @@ interface Props {
 export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts, refreshControl, onOpenWizard }: Props) {
   const h = useHierarchy();
   const today = toDateString(new Date());
-  const [dom, setDom] = useState('tous');
+  const { value: dom } = useDomainFilter();
 
   const epicDom = (e: Epic) => domaineOf({ epic: e.id }, h)?.id ?? '';
   const epics = h.epicList.filter((e) => dom === 'tous' || epicDom(e) === dom);
@@ -50,16 +50,7 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
           <Text style={styles.wizardText}>🚀 Aucune epic : lancer l’assistant projet</Text>
         </Pressable>
       )}
-      {h.domaineList.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pad}>
-          <Chips
-            options={[{ value: 'tous', label: 'Tous' }, ...h.domaineList.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur }))]}
-            value={dom}
-            onChange={setDom}
-            compact
-          />
-        </ScrollView>
-      )}
+      <DomainChips style={styles.pad} />
 
       <View style={styles.stats}>
         {ETATS_EPIC.map((s) => (

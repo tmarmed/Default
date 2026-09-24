@@ -1,11 +1,13 @@
 import { ReactElement } from 'react';
 import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { toDateString } from '../dates';
+import { domaineOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
 import { fmtPoints, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piOf, piStart, pointsOf, shiftPi } from '../pi';
 import { useSafe } from '../safe';
 import { colors } from '../theme';
-import type { Feature, ObjectifPI } from '../types';
+import type { Feature, Item, ObjectifPI } from '../types';
+import { DomainChips, inDomain, useDomainFilter } from './DomainFilter';
 import { PeriodHeader } from './PeriodHeader';
 import { Swipe } from './Swipe';
 
@@ -33,25 +35,33 @@ export function PIView({ piKey, onChangePi, onOpenFeature, onOpenObjectifPI, ref
   const current = piOf(today);
   const currentIt = iterationOf(today).key;
   const its = iterationsOf(piKey);
+  // Filtre de domaine partagé : objectifs, features et tâches du domaine ; capacité commune
+  const { value: dom } = useDomainFilter();
+  const filtered = dom !== 'tous';
+  const domName = dom ? h.domaines.get(dom)?.nom : 'sans domaine';
+  const featDom = (f: Feature) => domaineOf({ epic: f.epic }, h)?.id;
+  const taskIn = (t: Item) => inDomain(dom, domaineOf(t, h)?.id);
 
   // Objectifs du PI et prévisibilité (valeur obtenue / prévue, objectifs engagés notés)
-  const objs = h.objectifsPI.filter((o) => o.pi === piKey).sort((a, b) => (a.type === b.type ? a.titre.localeCompare(b.titre) : a.type === 'engage' ? -1 : 1));
+  const objs = h.objectifsPI.filter((o) => o.pi === piKey && inDomain(dom, o.domaine)).sort((a, b) => (a.type === b.type ? a.titre.localeCompare(b.titre) : a.type === 'engage' ? -1 : 1));
   const notes = objs.filter((o) => o.type === 'engage' && o.valeur_prevue && o.valeur_obtenue);
   const prevue = notes.reduce((n, o) => n + +o.valeur_prevue, 0);
   const obtenue = notes.reduce((n, o) => n + +o.valeur_obtenue, 0);
   const previsibilite = prevue ? Math.round((obtenue / prevue) * 100) : null;
 
   // Features du PI, groupées par epic
-  const features = h.featureList.filter((f) => f.pi === piKey);
+  const features = h.featureList.filter((f) => f.pi === piKey && inDomain(dom, featDom(f)));
   const groups = [...new Set(features.map((f) => f.epic))]
     .map((epicId) => ({ epic: h.epics.get(epicId), features: features.filter((f) => f.epic === epicId) }))
     .sort((a, b) => (a.epic?.titre ?? '~').localeCompare(b.epic?.titre ?? '~'));
-  const sansPi = h.featureList.filter((f) => !f.pi);
+  const sansPi = h.featureList.filter((f) => !f.pi && inDomain(dom, featDom(f)));
 
   // Charge : points des tâches par itération
-  const charge = its.map((it) => h.items.filter((t) => iterationOfItem(t) === it.key).reduce((n, t) => n + pointsOf(t), 0));
+  const inIt = its.map((it) => h.items.filter((t) => iterationOfItem(t) === it.key));
+  const charge = inIt.map((list) => list.reduce((n, t) => n + pointsOf(t), 0));
+  const chargeDom = inIt.map((list) => list.filter(taskIn).reduce((n, t) => n + pointsOf(t), 0));
   // Tâches hors feature, par itération
-  const horsFeature = its.map((it) => h.items.filter((t) => !t.feature && iterationOfItem(t) === it.key));
+  const horsFeature = inIt.map((list) => list.filter((t) => !t.feature && taskIn(t)));
   const featurePts = features.reduce((n, f) => n + pointsOf(f), 0);
   const capaPi = safe.capacite * 6;
 
@@ -70,13 +80,14 @@ export function PIView({ piKey, onChangePi, onOpenFeature, onOpenObjectifPI, ref
           <Text style={styles.dates}>
             {court(piStart(piKey))} → {court(piEnd(piKey))} · 6 itérations + semaine IP
           </Text>
+          <DomainChips style={styles.chips} />
 
           <View style={styles.card}>
             <View style={styles.cardHead}>
               <Text style={styles.cardTitle}>Objectifs du PI</Text>
               {previsibilite !== null && (
                 <Text style={[styles.badge, { color: previsibilite >= 80 ? colors.success : colors.warning }]}>
-                  Prévisibilité {previsibilite} %
+                  Prévisibilité{filtered ? ` ${domName}` : ''} {previsibilite} %
                 </Text>
               )}
             </View>
@@ -85,6 +96,7 @@ export function PIView({ piKey, onChangePi, onOpenFeature, onOpenObjectifPI, ref
               <Pressable key={o.id} style={styles.objRow} onPress={() => onOpenObjectifPI(o)} accessibilityRole="button">
                 <Text style={[styles.type, o.type === 'engage' ? styles.engage : styles.bonus]}>{o.type === 'engage' ? 'Engagé' : 'Bonus'}</Text>
                 <Text style={styles.objTitle} numberOfLines={2}>
+                  {!filtered && o.domaine && h.domaines.get(o.domaine) ? `${h.domaines.get(o.domaine)!.icone} ` : ''}
                   {o.titre}
                 </Text>
                 <Text style={styles.value}>
@@ -196,14 +208,15 @@ export function PIView({ piKey, onChangePi, onOpenFeature, onOpenObjectifPI, ref
               <View style={[styles.row, styles.chargeRow]}>
                 <View style={styles.nameCell}>
                   <Text style={styles.fName}>Charge</Text>
-                  <Text style={styles.fMeta}>tâches / capacité</Text>
+                  <Text style={styles.fMeta}>{filtered ? `${domName} · total / capacité` : 'tâches / capacité'}</Text>
                 </View>
                 {its.map((it, i) => {
                   const cap = it.code === 'IP' ? 0 : safe.capacite;
                   const over = cap > 0 && charge[i] > cap;
                   return (
                     <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]}>
-                      <Text style={[styles.charge, over && { color: colors.danger }]}>
+                      {filtered && <Text style={styles.charge}>{chargeDom[i] ? fmt(chargeDom[i]).replace(/ .*/, '') : '0'}</Text>}
+                      <Text style={[filtered ? styles.chargeSmall : styles.charge, over && { color: colors.danger }]}>
                         {charge[i] ? fmt(charge[i]).replace(/ .*/, '') : '0'}
                         {cap ? `/${cap}` : ''}
                         {over ? ' ⚠' : ''}
@@ -283,4 +296,6 @@ const styles = StyleSheet.create({
   emptyBoard: { padding: 16, width: NAME_W + COL_W * 7 },
   chargeRow: { backgroundColor: '#F7F9FC' },
   charge: { fontSize: 12, fontWeight: '800', color: colors.text },
+  chargeSmall: { fontSize: 10.5, fontWeight: '600', color: colors.muted },
+  chips: { paddingHorizontal: 16, paddingBottom: 10 },
 });

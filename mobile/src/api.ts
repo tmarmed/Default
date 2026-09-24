@@ -89,13 +89,15 @@ export function normalize(item: Item): Item {
 export const API_VERSION_HIERARCHIE = 4;
 /** Version du script avec features, objectifs du PI, points, itérations et état des epics. */
 export const API_VERSION_SAFE = 5;
+/** Version du script avec le domaine des objectifs du PI. */
+export const API_VERSION_DOMAINE_PI = 6;
 
 const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '', etat: e.etat ?? '' });
 
 export async function listItems(settings: Settings): Promise<Data & { version: number }> {
   if (DEMO) {
     const all = await demoApi.listAll();
-    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_SAFE };
+    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_DOMAINE_PI };
   }
   const data = await post<Partial<Data> & { items: Item[]; version?: number }>(settings, { action: 'list' });
   return {
@@ -104,7 +106,7 @@ export async function listItems(settings: Settings): Promise<Data & { version: n
     objectifs: data.objectifs ?? [],
     domaines: data.domaines ?? [],
     features: data.features ?? [],
-    objectifsPI: data.objectifsPI ?? [],
+    objectifsPI: (data.objectifsPI ?? []).map((o) => ({ ...o, domaine: o.domaine ?? '' })),
     version: data.version ?? 1,
   };
 }

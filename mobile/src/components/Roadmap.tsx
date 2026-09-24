@@ -10,7 +10,7 @@ import { toDateString } from '../dates';
 import { barFor, formatEpicDates, positionOf, progress, roadmapWindow, shift, Window, Zoom } from '../roadmap';
 import { colors } from '../theme';
 import type { Domaine, Epic, Item, Objectif } from '../types';
-import { Chips } from './Chips';
+import { DomainChips, useDomainFilter } from './DomainFilter';
 import { PeriodHeader } from './PeriodHeader';
 import { Segmented } from './Segmented';
 import { Swipe } from './Swipe';
@@ -60,7 +60,7 @@ export function Roadmap({
 }: Props) {
   const [zoom, setZoom] = useState<Zoom>('annee');
   const [anchor, setAnchor] = useState(() => new Date());
-  const [domaineFiltre, setDomaineFiltre] = useState<string>('tous');
+  const { value: domaineFiltre } = useDomainFilter();
   const [alertesSeules, setAlertesSeules] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const win = useMemo(() => roadmapWindow(zoom, anchor), [zoom, anchor]);
@@ -135,11 +135,6 @@ export function Roadmap({
   const anyCollapsed = allKeys.some((k) => collapsed.has(k));
 
   const step = (n: number) => setAnchor((d) => shift(zoom, d, n));
-  const filterOptions = [
-    { value: 'tous', label: 'Tous' },
-    ...[...domaines].sort((a, b) => a.nom.localeCompare(b.nom)).map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })),
-    ...(groups.find((g) => !g.domaine)?.objs.length || groups.find((g) => !g.domaine)?.loose.length ? [{ value: '', label: 'Sans domaine' }] : []),
-  ];
 
   const empty = epics.length === 0 && objectifs.length === 0;
 
@@ -148,9 +143,7 @@ export function Roadmap({
       <View style={styles.controls}>
         <Segmented options={ZOOMS} value={zoom} onChange={setZoom} />
         {domaines.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-            <Chips options={filterOptions} value={domaineFiltre} onChange={setDomaineFiltre} compact />
-          </ScrollView>
+          <DomainChips style={styles.filterRow} />
         )}
         <View style={styles.toolRow}>
           {nbAlertes > 0 && (

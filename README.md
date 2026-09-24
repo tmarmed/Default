@@ -42,6 +42,11 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   6 **itérations** de 14 jours à partir du 1er jour + semaine **IP** (innovation & planification).
   Une tâche est dans l'itération de sa date, sinon dans celle choisie à la main. **Points** facultatifs
   (« 1 point = 1 jour » en option), **capacité** de 10 par itération par défaut (réglable).
+  **Filtre de domaine partagé** par tous les écrans (Tâches, Itération, PI, Roadmap, Portefeuille) et mémorisé :
+  on ne voit que le domaine choisi, mais la **capacité reste commune** (charge du domaine + total / capacité ;
+  dans l'Itération, les autres domaines en gris). Un **objectif du PI** peut être rattaché à un domaine : la
+  prévisibilité se calcule alors pour le domaine filtré. Supprimer un domaine ne supprime jamais ses objectifs
+  du PI (historique) : ils passent « sans domaine ».
   Dans l'écran PI, la ligne **Tâches hors feature** montre, par itération, les tâches sans feature
   (faites / total) ; la toucher ouvre l'itération.
 - **🚀 Assistant projet** (modes Simple et SAFe ; bouton +, fiches « Ouvrir dans l'assistant », écrans vides) :
@@ -85,7 +90,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature`
    et les onglets `Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine | etat`),
    `Features` (`id | titre | description | epic | pi | iteration | points | couleur | cree_le | modifie_le`),
-   `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le`),
+   `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le | domaine`),
    `Objectifs` (`id | titre | description | domaine | debut | fin | couleur | cible | actuel | unite | cree_le | modifie_le`)
    et `Domaines` (`id | nom | icone | couleur | cree_le | modifie_le`).
 4. **Déployer › Nouveau déploiement** → type **Application Web** :
