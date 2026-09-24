@@ -158,7 +158,9 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 7. Chaque alerte propose **deux boutons** : ajuster le parent (ci-dessus) **ou aligner l'élément** sur les
    dates du parent : « Ramener / Décaler la tâche au … » (tâche datée), « Arrêter la répétition le … » ou
    « Faire commencer la répétition le … » (tâche répétée), « Faire finir / commencer l'epic le … » ou
-   « Donner une fin à l'epic » (epic d'un objectif). L'élément est enregistré tout de suite.
+   « Donner une fin à l'epic » (epic d'un objectif). L'élément est enregistré tout de suite. Une démarche avec
+   une date de fin va de sa date à sa date de fin : « Ramener la date de fin de la démarche … au … ». Les messages
+   et boutons nomment chaque élément par son type (la démarche, le rendez-vous répété, la mission…).
 - Tirer vers le bas pour synchroniser avec le Google Sheet
 - Dernière copie gardée sur le téléphone : la liste reste lisible sans réseau
 

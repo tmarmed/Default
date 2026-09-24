@@ -1,6 +1,6 @@
 import { toDateString } from './dates';
 import { tasksOfEpic } from './hierarchy';
-import type { Feature, Item } from './types';
+import type { Feature, Item, ItemType } from './types';
 
 /**
  * Alertes de dates : un élément (tâche, epic) qui sort des dates de son parent (epic, objectif).
@@ -14,7 +14,18 @@ export interface Periode {
   debut: string | null;
   fin: string | 'infinie' | null;
   /** Élément d'origine, pour pouvoir l'aligner sur son parent */
-  src?: { kind: 'tache' | 'epic'; id: string; repetee?: boolean; sous?: boolean; debut?: string; fin?: string };
+  src?: {
+    kind: 'tache' | 'epic';
+    id: string;
+    repetee?: boolean;
+    sous?: boolean;
+    debut?: string;
+    fin?: string;
+    /** Tâche : son type (pour le bon mot), sa date et sa date de fin (démarche) */
+    type?: ItemType;
+    date?: string;
+    dateFin?: string;
+  };
 }
 
 /** Deuxième solution : modifier l'élément plutôt que le parent. */
@@ -41,13 +52,23 @@ export interface Alerte {
 const court = (t: string) => (t.length > 28 ? `${t.slice(0, 27).trimEnd()}…` : t);
 const maj = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
-/** « la tâche », « la sous-tâche », « la tâche répétée » ou « l'epic » */
+/** Le bon mot selon le type : « la démarche », « le rendez-vous répété », « la sous-tâche », « l'epic »… */
 function motEnfant(e: Periode): string {
   const s = e.src;
   if (s?.kind === 'epic') return "l'epic";
-  if (s?.repetee) return 'la tâche répétée';
-  if (s?.sous) return 'la sous-tâche';
-  return 'la tâche';
+  const [mot, fem] =
+    s?.type === 'rendez-vous'
+      ? ['le rendez-vous', false]
+      : s?.type === 'appel'
+        ? ["l'appel", false]
+        : s?.type === 'mission'
+          ? ['la mission', true]
+          : s?.type === 'demarche'
+            ? ['la démarche', true]
+            : s?.sous
+              ? ['la sous-tâche', true]
+              : ['la tâche', true];
+  return s?.repetee ? `${mot} répété${fem ? 'e' : ''}` : mot;
 }
 
 /** Deuxième bouton : ramener l'élément au début (cas 'debut') ou à la fin (cas 'fin') du parent. */
@@ -62,7 +83,19 @@ function alignement(e: Periode, cas: 'debut' | 'fin', cible: string): Alignement
       return cas === 'debut'
         ? { ...base, bouton: `Faire commencer ${qui} le ${d}`, patch: { debut: cible } }
         : { ...base, bouton: `Arrêter ${qui} le ${d}`, patch: { fin: cible } };
-    return { ...base, bouton: `${cas === 'debut' ? 'Décaler' : 'Ramener'} ${qui} au ${d}`, patch: { date: cible } };
+    // Démarche avec une date de fin : c'est elle qui fait la fin de sa période (et le début s'il n'y a pas de date)
+    if (s.dateFin && (cas === 'fin' || !s.date))
+      return {
+        ...base,
+        bouton: `${cas === 'debut' ? 'Décaler' : 'Ramener'} la date de fin de ${qui} au ${d}`,
+        patch: { date_fin: cible, ...(s.date && s.date > cible ? { date: cible } : {}) },
+      };
+    return {
+      ...base,
+      bouton: `${cas === 'debut' ? 'Décaler' : 'Ramener'} ${qui} au ${d}`,
+      // (la date ne doit pas dépasser la date de fin)
+      patch: { date: cible, ...(s.dateFin && s.dateFin < cible ? { date_fin: cible } : {}) },
+    };
   }
   // Epic : on garde fin ≥ début
   if (cas === 'debut')
@@ -81,12 +114,17 @@ export function periodeTache(t: Item): Periode {
       nom: t.titre,
       debut: t.debut || (t.cree_le ? toDateString(new Date(t.cree_le)) : null),
       fin: t.fin || 'infinie',
-      src: { kind: 'tache', id: t.id, repetee: true },
+      src: { kind: 'tache', id: t.id, repetee: true, type: t.type },
     };
   }
   // Démarche avec une date de fin : elle court de sa date (sinon sa date de fin) à sa date de fin
   const fin = t.date_fin || t.date;
-  return { nom: t.titre, debut: t.date || fin || null, fin: fin || null, src: { kind: 'tache', id: t.id, sous: !!t.parent } };
+  return {
+    nom: t.titre,
+    debut: t.date || fin || null,
+    fin: fin || null,
+    src: { kind: 'tache', id: t.id, sous: !!t.parent, type: t.type, date: t.date, dateFin: t.date_fin },
+  };
 }
 
 /** Dates d'une epic (ou d'un objectif) vue comme enfant. */
