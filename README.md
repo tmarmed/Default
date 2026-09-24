@@ -48,11 +48,11 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   prévisibilité se calcule alors pour le domaine filtré. Supprimer un domaine ne supprime jamais ses objectifs
   du PI (historique) : ils passent « sans domaine ».
   Dans le tableau du PI, les **tâches hors feature** ont chacune leur ligne (comme les features) avec un
-  bloc dans la colonne de leur itération (cocher, ouvrir, groupe repliable). Chaque en-tête de groupe a un
-  **« + » par itération** : ligne d'une epic → nouvelle feature (epic et itération remplies) ou feature
-  existante de cette epic ; ligne **+ Autre epic** → on choisit une epic existante pas encore dans le PI ;
-  ligne **Tâches hors feature** → nouvelle tâche ou tâche existante (sans feature ni date). On ne crée pas
-  d'epic depuis le PI. Toucher IT1, IT2… ouvre l'itération. Le menu + du PI vise l'itération en cours. Dans la fiche d'une feature, même nouvelle : **+ Nouvelle tâche**
+  bloc dans la colonne de leur itération (cocher, ouvrir, groupe repliable). Un **seul « + »** (coin du
+  tableau, ou bouton bleu) ouvre une fenêtre : on choisit l'**itération** (ou « Sans itération » pour une
+  feature), puis **Nouvelle feature** (epic existante choisie dans la fiche), **Feature existante** (toutes
+  les epics, avec recherche), **Nouvelle tâche hors feature** ou **Tâche existante** (sans feature ni date).
+  On ne crée pas d'epic depuis le PI. Toucher IT1, IT2… ouvre l'itération. Dans la fiche d'une feature, même nouvelle : **+ Nouvelle tâche**
   (titre + Entrée) ou **+ Tâche existante** (recherche) ; pour une nouvelle feature, elles sont rattachées à
   l'enregistrement.
 - **🚀 Assistant projet** (modes Simple et SAFe ; bouton +, fiches « Ouvrir dans l'assistant », écrans vides) :

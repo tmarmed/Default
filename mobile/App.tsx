@@ -20,7 +20,8 @@ import { EpicForm } from './src/components/EpicForm';
 import { FeatureForm } from './src/components/FeatureForm';
 import { IterationView } from './src/components/IterationView';
 import { ObjectifPIForm } from './src/components/ObjectifPIForm';
-import { defaultIteration, PIView } from './src/components/PIView';
+import { PIView } from './src/components/PIView';
+import { PIAddSheet } from './src/components/PIAddSheet';
 import { PickerModal } from './src/components/ItemPicker';
 import { inDomain } from './src/components/DomainFilter';
 import { DomainFilterContext, loadDomainFilter, saveDomainFilter } from './src/components/DomainFilter';
@@ -189,7 +190,9 @@ function Main() {
   const [itFilter, setItFilter] = useState(false);
   const [piKey, setPiKey] = useState(() => piOf(new Date()));
   /** Écran PI : choix de tâches existantes ou de features existantes (d'une epic, ou de toutes) pour une itération */
-  const [piPicker, setPiPicker] = useState<null | { kind: 'tache'; itKey: string } | { kind: 'feature'; itKey: string; epicId?: string }>(null);
+  const [piPicker, setPiPicker] = useState<null | { kind: 'tache' | 'feature'; itKey: string }>(null);
+  /** Écran PI : fenêtre du « + » (itération, puis quoi ajouter) */
+  const [piAdd, setPiAdd] = useState(false);
   const [editingFeature, setEditingFeature] = useState<Feature | null>(null);
   const [featureFormOpen, setFeatureFormOpen] = useState(false);
   const [editingOPI, setEditingOPI] = useState<ObjectifPI | null>(null);
@@ -644,11 +647,8 @@ function Main() {
   const piPickerOptions =
     piPicker?.kind === 'feature'
       ? hier.features
-          .filter(
-            (f) =>
-              f.iteration !== piPickerIt &&
-              (piPicker.epicId === undefined ? inDomain(domFilter, domaineOf({ epic: f.epic }, hv)?.id) : f.epic === piPicker.epicId),
-          )
+          // Pas encore à cet endroit : autre itération, ou (sans itération) pas encore dans ce PI
+          .filter((f) => (piPickerIt ? f.iteration !== piPickerIt : f.pi !== piKey) && inDomain(domFilter, domaineOf({ epic: f.epic }, hv)?.id))
           .map((f) => ({
             id: f.id,
             title: `🧩 ${f.titre}`,
@@ -866,10 +866,7 @@ function Main() {
           }}
           onOpenTask={openForm}
           onToggleTask={toggle}
-          onAddTask={addHorsFeature}
-          onPickTask={(itKey) => setPiPicker({ kind: 'tache', itKey })}
-          onAddFeature={(epicId, itKey) => openFeature(null, { epic: epicId, pi: piKey, iteration: itKey })}
-          onPickFeature={(epicId, itKey) => setPiPicker({ kind: 'feature', itKey, epicId })}
+          onOpenAdd={() => setPiAdd(true)}
           onOpenObjectifPI={(o) => {
             setEditingOPI(o);
             setOpiFormOpen(true);
@@ -981,7 +978,7 @@ function Main() {
 
       <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 18 }]}
-        onPress={() => (tab === 'roadmap' || tab === 'portefeuille' || tab === 'pi' ? setAddMenu(true) : openForm(null))}
+        onPress={() => (tab === 'pi' ? setPiAdd(true) : tab === 'roadmap' || tab === 'portefeuille' ? setAddMenu(true) : openForm(null))}
         accessibilityRole="button"
         accessibilityLabel={tab === 'roadmap' ? 'Nouvelle epic' : 'Ajouter'}
       >
@@ -1108,12 +1105,24 @@ function Main() {
         onOpenWizard={(f) => openWizard({ level: 'feature', id: f.id })}
       />
 
+      <PIAddSheet
+        visible={piAdd}
+        piKey={piKey}
+        onClose={() => setPiAdd(false)}
+        onChoose={(kind, itKey) => {
+          setPiAdd(false);
+          if (kind === 'newFeature') openFeature(null, { pi: piKey, iteration: itKey });
+          else if (kind === 'newTask') addHorsFeature(itKey);
+          else setPiPicker({ kind: kind === 'pickFeature' ? 'feature' : 'tache', itKey });
+        }}
+      />
+
       <PickerModal
         visible={piPicker !== null}
-        title={`${piPicker?.kind === 'feature' ? 'Features' : 'Tâches'} pour ${piPickerIt.split('-').pop()}`}
+        title={`${piPicker?.kind === 'feature' ? 'Features' : 'Tâches'} pour ${piPickerIt ? piPickerIt.split('-').pop() : `le PI ${piKey.split('-')[1]}`}`}
         hint={
           piPicker?.kind === 'feature'
-            ? `${piPicker.epicId !== undefined ? `Features de « ${hv.epics.get(piPicker.epicId)?.titre ?? 'Sans epic'} »` : 'Features'} pas encore dans cette itération. Touchez pour la planifier en ${piPickerIt.split('-').pop()}.`
+            ? `Features de toutes les epics, pas encore ${piPickerIt ? 'dans cette itération' : 'dans ce PI'}. Touchez pour la planifier ${piPickerIt ? `en ${piPickerIt.split('-').pop()}` : 'dans ce PI (sans itération)'}.`
             : 'Tâches sans feature et sans date, pas encore dans cette itération. Une tâche datée suit sa date : changez-la dans sa fiche.'
         }
         empty={piPicker?.kind === 'feature' ? 'Aucune autre feature.' : 'Aucune tâche à planifier.'}
@@ -1124,7 +1133,7 @@ function Main() {
             piPicker?.kind === 'feature'
               ? (async () => {
                   const f = hier.features.find((x) => x.id === id);
-                  if (f) await saveEntity('feature', f, { pi: piPickerIt.split('-').slice(0, 2).join('-'), iteration: piPickerIt });
+                  if (f) await saveEntity('feature', f, { pi: piKey, iteration: piPickerIt });
                 })()
               : updateTask({ id, iteration: piPickerIt });
           run.catch((e) => setNotice(`Non planifié : ${(e as Error).message}`));
@@ -1154,24 +1163,17 @@ function Main() {
       <Modal visible={addMenu} transparent animationType="fade" onRequestClose={() => setAddMenu(false)}>
         <Pressable style={styles.menuBackdrop} onPress={() => setAddMenu(false)}>
           <View style={[styles.menu, { paddingBottom: 16 + insets.bottom }]}>
-            <Text style={styles.menuTitle}>{tab === 'pi' ? 'Ajouter au PI' : 'Ajouter'}</Text>
-            {(tab === 'pi'
-              ? ([
-                  ['🧩', 'Une nouvelle feature', `Dans l’itération ${defaultIteration(piKey).split('-').pop()}`, () => openFeature(null, { pi: piKey, iteration: defaultIteration(piKey) })],
-                  ['📥', 'Une feature existante', `La planifier dans l’itération ${defaultIteration(piKey).split('-').pop()}`, () => setPiPicker({ kind: 'feature', itKey: defaultIteration(piKey) })],
-                  ['✓', 'Une nouvelle tâche hors feature', `Dans l’itération ${defaultIteration(piKey).split('-').pop()}`, () => addHorsFeature(defaultIteration(piKey))],
-                  ['📥', 'Une tâche existante', `La planifier dans l’itération ${defaultIteration(piKey).split('-').pop()}`, () => setPiPicker({ kind: 'tache', itKey: defaultIteration(piKey) })],
-                  ['🤝', 'Un objectif du PI', 'Ce que je m’engage à livrer ce trimestre', () => { setEditingOPI(null); setOpiFormOpen(true); }],
-                ] as const)
-              : ([
-                  ['🚀', 'Assistant projet', 'Créer ou modifier un projet, niveau par niveau', () => openWizard(null)],
-                  ['🗂️', 'Une epic', 'Un projet daté, avec ses tâches', () => openEpic(null)],
-                  ...(safe.actif
-                    ? ([['🧩', 'Une feature', 'Une partie d’epic (sous-epic), prévue dans un PI', () => openFeature(null)]] as const)
-                    : []),
-                  ['🎯', 'Un objectif', 'Un résultat à atteindre, avec échéance ou permanent', () => openObjectif(null)],
-                  ['🏷️', 'Un domaine', 'Une grande catégorie : Pro, Perso…', () => openDomaine(null)],
-                ] as const)
+            <Text style={styles.menuTitle}>Ajouter</Text>
+            {(
+              [
+                ['🚀', 'Assistant projet', 'Créer ou modifier un projet, niveau par niveau', () => openWizard(null)],
+                ['🗂️', 'Une epic', 'Un projet daté, avec ses tâches', () => openEpic(null)],
+                ...(safe.actif
+                  ? ([['🧩', 'Une feature', 'Une partie d’epic (sous-epic), prévue dans un PI', () => openFeature(null)]] as const)
+                  : []),
+                ['🎯', 'Un objectif', 'Un résultat à atteindre, avec échéance ou permanent', () => openObjectif(null)],
+                ['🏷️', 'Un domaine', 'Une grande catégorie : Pro, Perso…', () => openDomaine(null)],
+              ] as const
             ).map(([icon, title, sub, action]) => (
               <Pressable
                 key={title}
