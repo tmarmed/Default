@@ -654,3 +654,26 @@ export function checksParEcran(complet: HierarchyValue, today: string, capacite:
 
 /** Nombre d'alertes de dates des barres de la roadmap, dans le domaine filtré. */
 export const nbAlertesDatesDomaine = (complet: HierarchyValue, dom = 'tous') => nbAlertesDates(filtrerDomaine(complet, dom));
+
+/**
+ * Toutes les alertes qui existent aujourd'hui (clé + message), pour nettoyer les alertes ignorées dont la
+ * situation n'existe plus. Large exprès pour ne rien effacer à tort : chaque filtre de domaine possible,
+ * modes Simple et SAFe, toutes les itérations du PI en cours et du suivant (et l'itération qui vient de finir).
+ */
+export function signaturesExistantes(complet: HierarchyValue, today: string, capacite: number): Set<string> {
+  const out = new Set<string>();
+  const add = (cs: Check[]) => cs.forEach((c) => out.add(`${c.key}\u0000${c.message}`));
+  const pi = iterationOf(today).pi;
+  const pis = [pi, iterationOf(toDateString(addDays(piEnd(pi), 1))).pi];
+  const its = [shiftIteration(iterationOf(today).key, -1), ...pis.flatMap((p) => iterationsOf(p).map((it) => it.key))];
+  for (const dom of ['tous', '', ...complet.domaineList.map((d) => d.id)]) {
+    const h = filtrerDomaine(complet, dom);
+    add(checksTaches(h, today, { safe: false, complet }));
+    add(checksTaches(h, today, { safe: true, complet }));
+    add(checksRoadmap(h, today));
+    add(checksPortefeuille(h, today));
+    for (const p of pis) add(checksPI(h, p, today, capacite, complet));
+    for (const k of its) add(checksIteration(h, k, today, capacite, complet));
+  }
+  return out;
+}

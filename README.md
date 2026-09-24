@@ -51,7 +51,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   la capacité reste commune. Rien n'est modifié tout seul.
   **Ignorer** une alerte (lien discret sous chaque alerte) : elle disparaît de la carte et du chiffre de l'onglet,
   enregistrée dans le Google Sheet (onglet `Ignorees`, partagé entre vos appareils) avec la situation du moment ;
-  si la situation change (dates, heures, nombre…), l'alerte revient. « N alertes ignorées · les revoir » →
+  si la situation change (dates, heures, nombre…), l'alerte revient. Nettoyage automatique : à chaque chargement depuis le Google Sheet, les alertes ignorées dont la situation n'existe plus (problème corrigé ou situation changée) sont effacées de l'onglet `Ignorees` — calculé sur tous les domaines, les deux modes, les itérations du PI en cours et du suivant, pour ne rien effacer à tort. « N alertes ignorées · les revoir » →
   « Ne plus ignorer ». Agenda : chevauchements calculés sur tout l'agenda (tous domaines), y compris rendez-vous
   répétés (30 jours), appels et missions avec une heure (30 min estimées) ; rendez-vous passé non coché :
   « Marquer fait » ou « Reprogrammer » ; une tâche et ses sous-tâches en retard = une seule alerte ; pas

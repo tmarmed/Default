@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -30,7 +30,7 @@ import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
 import { cascadeLinks, pointsCheck, subtaskMap } from './src/subtasks';
 import type { Alignement } from './src/alerts';
-import { type Action, type Check, checksParEcran, nbAlertesDatesDomaine } from './src/checks';
+import { type Action, type Check, checksParEcran, nbAlertesDatesDomaine, signaturesExistantes } from './src/checks';
 import { actives, AlertsCard, CheckActionContext, IgnoreContext } from './src/components/AlertsCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
@@ -185,6 +185,9 @@ function Main() {
   );
   /** Mode Simple (Tâches + Roadmap) ou SAFe (5 onglets), capacité, points en jours */
   const [safe, setSafe] = useState<SafeSettings>(SAFE_DEFAUT);
+  /** Capacité courante, lue au chargement (nettoyage des alertes ignorées) */
+  const capaciteRef = useRef(SAFE_DEFAUT.capacite);
+  capaciteRef.current = safe.capacite;
   useEffect(() => {
     loadSafe().then(setSafe);
   }, []);
@@ -267,7 +270,23 @@ function Main() {
       try {
         const { items: list, version, ...rest } = await api.listItems(s);
         updateItems(list);
-        updateHier({ ...rest, ignorees: rest.ignorees ?? [] });
+        let ignorees = rest.ignorees ?? [];
+        // Nettoyage : une alerte ignorée dont la situation n'existe plus est effacée du Google Sheet
+        // (si le même problème revient un jour, il sera de nouveau signalé). Seulement sur des données fraîches.
+        if (version >= api.API_VERSION_IGNOREES && ignorees.length) {
+          const hvFrais = makeHierarchyValue(rest.epics, rest.objectifs, rest.domaines, list, rest.features, rest.objectifsPI);
+          const existantes = signaturesExistantes(hvFrais, toDateString(new Date()), capaciteRef.current);
+          const perimees = ignorees.filter((i) => !existantes.has(`${i.cle}\u0000${i.signature}`));
+          for (const i of perimees) {
+            try {
+              await api.deleteEntity(s, 'ignoree', i.id, false);
+              ignorees = ignorees.filter((x) => x.id !== i.id);
+            } catch {
+              // On réessaiera au prochain chargement
+            }
+          }
+        }
+        updateHier({ ...rest, ignorees });
         setApiVersion(version);
         setOffline(null);
       } catch (e) {
