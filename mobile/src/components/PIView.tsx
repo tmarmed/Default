@@ -1,6 +1,6 @@
 import { ReactElement, useState } from 'react';
 import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { toDateString } from '../dates';
+import { parseDate, toDateString } from '../dates';
 import { domaineOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
 import { fmtPoints, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piOf, piStart, pointsOf, shiftPi } from '../pi';
@@ -267,7 +267,7 @@ export function PIView({
                             >
                               <Text style={styles.blockText} numberOfLines={1}>
                                 {done ? '✓ ' : ''}
-                                {pointsOf(t) ? fmt(pointsOf(t)) : t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}` : '•'}
+                                {pointsOf(t) ? fmt(pointsOf(t)) : t.date ? court(parseDate(t.date)) : '•'}
                               </Text>
                             </Pressable>
                           )}
