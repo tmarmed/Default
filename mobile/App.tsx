@@ -30,6 +30,8 @@ import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
 import { cascadeLinks, pointsCheck, subtaskMap } from './src/subtasks';
 import type { Alignement } from './src/alerts';
+import { type Action, checksParEcran, nbAlertesDates } from './src/checks';
+import { AlertsCard, CheckActionContext } from './src/components/AlertsCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
 import { iterationOf, iterationOfItem, piOf } from './src/pi';
@@ -685,6 +687,38 @@ function Main() {
     }
   };
 
+  /** Boutons des alertes : modifier, ouvrir ou créer. */
+  const runAction = (a: Action) => {
+    const fait = (p: Promise<unknown>, msg = 'Fait.') =>
+      p.then(() => setInfo(msg)).catch((e) => setNotice(`Action impossible : ${(e as Error).message}`));
+    switch (a.kind) {
+      case 'task':
+        return fait(updateTask({ id: a.id, ...a.patch }));
+      case 'tasks':
+        return fait(
+          (async () => {
+            for (const p of a.patches) await updateTask(p);
+          })(),
+          `${a.patches.length} tâche${a.patches.length > 1 ? 's' : ''} mise${a.patches.length > 1 ? 's' : ''} à jour.`,
+        );
+      case 'entity':
+        return fait(saveEntity(a.entity, { id: a.id }, a.patch));
+      case 'open': {
+        if (a.target === 'task') return openForm(items.find((t) => t.id === a.id) ?? null);
+        if (a.target === 'epic') return openEpic(hier.epics.find((e) => e.id === a.id) ?? null);
+        if (a.target === 'objectif') return openObjectif(hier.objectifs.find((o) => o.id === a.id) ?? null);
+        if (a.target === 'feature') return openFeature(hier.features.find((f) => f.id === a.id) ?? null);
+        setEditingOPI(hier.objectifsPI.find((o) => o.id === a.id) ?? null);
+        return setOpiFormOpen(true);
+      }
+      case 'new':
+        return a.target === 'task' ? openNewTask(a.defaults) : openEpic(null, a.defaults);
+      case 'iteration':
+        setItKey(a.itKey);
+        return setTab('iteration');
+    }
+  };
+
   /** Assistant projet : enregistre le brouillon, puis recharge tout. */
   const applyWizard = async (draft: Parameters<typeof applyDraft>[0], onProgress: (done: number, total: number) => void) => {
     if (!settings) return;
@@ -779,6 +813,17 @@ function Main() {
             }))
         : [];
 
+  // Alertes de chaque écran (chiffres rouges des onglets)
+  const checks = useMemo(() => checksParEcran(hv, today, safe.capacite, safe.actif), [hv, today, safe.capacite, safe.actif]);
+  const nbDates = useMemo(() => nbAlertesDates(hv), [hv]);
+  const badges: Record<Tab, number> = {
+    taches: checks.taches.length,
+    iteration: checks.iteration.length,
+    pi: checks.pi.length,
+    roadmap: checks.roadmap.length + nbDates,
+    portefeuille: checks.portefeuille.length,
+  };
+
   if (booting) {
     return <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />;
   }
@@ -841,6 +886,7 @@ function Main() {
     <SafeContext.Provider value={safe}>
     <HierarchyContext.Provider value={hv}>
     <DomainFilterContext.Provider value={domFilterValue}>
+    <CheckActionContext.Provider value={runAction}>
     <View style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.title} numberOfLines={1}>
@@ -914,6 +960,7 @@ function Main() {
           )}
         </View>
       )}
+      {tab === 'taches' && <AlertsCard checks={checks.taches} />}
       {tab !== 'taches' && <View style={styles.spacer} />}
       {info && (
         <Pressable style={styles.info} onPress={() => setInfo(null)} accessibilityLabel="Fermer le message">
@@ -1111,7 +1158,14 @@ function Main() {
             accessibilityRole="tab"
             accessibilityState={{ selected: tab === key }}
           >
-            <Text style={[styles.tabIcon, tab === key && styles.tabOn]}>{icon}</Text>
+            <View>
+              <Text style={[styles.tabIcon, tab === key && styles.tabOn]}>{icon}</Text>
+              {badges[key] > 0 && (
+                <View style={styles.badge} accessibilityLabel={`${badges[key]} alerte${badges[key] > 1 ? 's' : ''}`}>
+                  <Text style={styles.badgeText}>{badges[key] > 99 ? '99+' : badges[key]}</Text>
+                </View>
+              )}
+            </View>
             <Text style={[styles.tabLabel, tab === key && styles.tabOn]}>{label}</Text>
           </Pressable>
         ))}
@@ -1316,6 +1370,7 @@ function Main() {
         </Pressable>
       </Modal>
     </View>
+    </CheckActionContext.Provider>
     </DomainFilterContext.Provider>
     </HierarchyContext.Provider>
     </SafeContext.Provider>
@@ -1403,6 +1458,19 @@ const styles = StyleSheet.create({
   },
   tabBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
   tabIcon: { fontSize: 18, color: colors.muted },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -14,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { color: '#fff', fontSize: 10.5, fontWeight: '800' },
   tabLabel: { fontSize: 12, fontWeight: '600', color: colors.muted },
   tabOn: { color: colors.primary },
   fab: {

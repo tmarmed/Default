@@ -8,6 +8,8 @@ import { formatEpicDates, progress } from '../roadmap';
 import { etatEpic } from '../safe';
 import { colors } from '../theme';
 import { Epic, ETATS_EPIC, EtatEpic, Objectif } from '../types';
+import { AlertsCard } from './AlertsCard';
+import { checksPortefeuille } from '../checks';
 import { DomainChips, useDomainFilter } from './DomainFilter';
 
 interface Props {
@@ -51,6 +53,7 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
         </Pressable>
       )}
       <DomainChips style={styles.pad} />
+      <AlertsCard checks={checksPortefeuille(h, today)} />
 
       <View style={styles.stats}>
         {ETATS_EPIC.map((s) => (

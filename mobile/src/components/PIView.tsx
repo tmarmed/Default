@@ -9,6 +9,8 @@ import { useSafe } from '../safe';
 import { colors } from '../theme';
 import type { Feature, Item, ObjectifPI } from '../types';
 import { DateField } from './DateField';
+import { AlertsCard } from './AlertsCard';
+import { checksPI } from '../checks';
 import { DomainChips, inDomain, useDomainFilter } from './DomainFilter';
 import { PeriodHeader } from './PeriodHeader';
 
@@ -168,6 +170,7 @@ export function PIView({
           {court(piStart(piKey))} → {court(piEnd(piKey))} · 6 itérations + semaine IP
         </Text>
         <DomainChips style={styles.chips} />
+        <AlertsCard checks={checksPI(h, piKey, today, safe.capacite)} />
 
         <View style={styles.card}>
           <View style={styles.cardHead}>

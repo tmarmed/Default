@@ -44,6 +44,20 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   cochée, tout ce qui est en dessous est supprimé ; décochée, les éléments sont conservés et remontent d'un
   niveau (tâches d'une epic → son objectif ou son domaine ; epics d'un objectif → son domaine).
 - **Alertes de dates** dans la roadmap et les fiches (voir règles ci-dessous).
+- **Alertes par écran** : une carte « ⚠ Alertes » repliable en haut de chaque écran (3 visibles, « voir les
+  autres »), avec des boutons d'action, et un **chiffre rouge sur chaque onglet**. Rien n'est modifié tout seul.
+  - **Tâches** : en retard (reporter à demain, tout reporter, choisir une date) ; rendez-vous qui se
+    chevauchent ; démarche ou tâche de priorité haute prévue dans 3 jours et pas commencée (commencer) ;
+    toutes les sous-tâches faites (terminer la tâche) ; points du parent ≠ sous-tâches.
+  - **Itération** : retard sur le burndown ; fin d'itération avec des tâches non faites (les reporter dans
+    l'itération suivante) ; tâches sans points.
+  - **PI** : itération surchargée ; feature sans itération ; feature en retard sur son plan (décaler la
+    feature ou ramener ses tâches) ; points de la feature ≠ ses tâches ; objectif du PI engagé sans feature
+    (de son domaine) ; PI terminé sans valeur obtenue notée.
+  - **Roadmap** : alertes de dates (sur les barres) ; epic ou objectif en retard (repousser d'un mois,
+    marquer terminée) ; epic sans tâche, objectif sans epic.
+  - **Portefeuille** : epic « Terminée » avec des tâches ouvertes, ou toutes ses tâches faites sans être
+    terminée ; indicateur d'objectif en retard sur le temps écoulé ; domaine délaissé (rien depuis 2 mois).
 - **Mode SAFe** (sélecteur *Simple | SAFe* en haut, mémorisé sur l'appareil). Simple = Tâches + Roadmap ;
   SAFe ajoute trois écrans, de l'exécution à la stratégie :
   - **🏃 Itération** : Kanban À faire / En cours / Fait, charge face à la capacité, burndown ;

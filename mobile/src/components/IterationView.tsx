@@ -8,6 +8,8 @@ import { useSafe } from '../safe';
 import { colors } from '../theme';
 import { TYPE_ICONS, type Item, type Statut } from '../types';
 import { chargeOf, pointsCheck, subtaskMap } from '../subtasks';
+import { AlertsCard } from './AlertsCard';
+import { checksIteration } from '../checks';
 import { DomainChips, inDomain, useDomainFilter } from './DomainFilter';
 import { PeriodHeader } from './PeriodHeader';
 import { Swipe } from './Swipe';
@@ -101,6 +103,7 @@ export function IterationView({
             {isIP ? ' · semaine d’innovation et de planification' : ''}
           </Text>
           <DomainChips style={styles.chips} />
+          <AlertsCard checks={checksIteration(h, itKey, today, safe.capacite)} />
 
           <View style={styles.card}>
             <View style={styles.capRow}>
