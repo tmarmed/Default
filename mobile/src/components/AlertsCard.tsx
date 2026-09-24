@@ -55,21 +55,36 @@ export function AlertsCard({
   const run = useContext(CheckActionContext);
   let checks = toutes;
   const [open, setOpenState] = useState(!!ouvertes?.[ecran]);
+  // Sections « alertes » et « rappels » de la carte : dépliées par défaut, repliables séparément (mémorisé par écran)
+  const cleR = `${ecran}:rouges`;
+  const cleJ = `${ecran}:jaunes`;
+  const [secR, setSecR] = useState(ouvertes?.[cleR] !== false);
+  const [secJ, setSecJ] = useState(ouvertes?.[cleJ] !== false);
   useEffect(() => {
     if (ouvertes) return;
     AsyncStorage.getItem(OUVERTES_KEY)
       .then((v) => {
         ouvertes = v ? JSON.parse(v) : {};
         setOpenState(!!ouvertes![ecran]);
+        setSecR(ouvertes![cleR] !== false);
+        setSecJ(ouvertes![cleJ] !== false);
       })
       .catch(() => (ouvertes = {}));
-  }, [ecran]);
+  }, [ecran, cleR, cleJ]);
+  const memoriser = (cle: string, valeur: boolean) => {
+    ouvertes = { ...(ouvertes ?? {}), [cle]: valeur };
+    AsyncStorage.setItem(OUVERTES_KEY, JSON.stringify(ouvertes)).catch(() => {});
+  };
   const setOpen = (f: (v: boolean) => boolean) =>
     setOpenState((v) => {
       const next = f(v);
-      ouvertes = { ...(ouvertes ?? {}), [ecran]: next };
-      AsyncStorage.setItem(OUVERTES_KEY, JSON.stringify(ouvertes)).catch(() => {});
+      memoriser(ecran, next);
       return next;
+    });
+  const basculer = (j: boolean) =>
+    (j ? setSecJ : setSecR)((v) => {
+      memoriser(j ? cleJ : cleR, !v);
+      return !v;
     });
   const [toutR, setToutR] = useState(false);
   const [toutJ, setToutJ] = useState(false);
@@ -107,10 +122,27 @@ export function AlertsCard({
           {[rouges, jaunes].map((liste, k) => {
             // Chaque couleur a ses 3 premières visibles et son « Voir les N autres »
             const j = k === 1;
+            if (!liste.length) return null;
             const tous = j ? toutJ : toutR;
-            const visibles = tous ? liste : liste.slice(0, VISIBLES);
+            // Une seule couleur : pas de sous-titre, la section est toujours dépliée
+            const deplie = rouges.length && jaunes.length ? (j ? secJ : secR) : true;
+            const visibles = !deplie ? [] : tous ? liste : liste.slice(0, VISIBLES);
+            const nb = liste.filter((c) => !c.groupe).length;
             return (
               <View key={j ? 'jaunes' : 'rouges'}>
+                {/* Sous-titre de la section, repliable (seulement s'il y a les deux couleurs) */}
+                {rouges.length > 0 && jaunes.length > 0 && (
+                  <Pressable
+                    onPress={() => basculer(j)}
+                    style={[s.sousTitre, j && s.itemJaune]}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: deplie }}
+                  >
+                    <Text style={[s.sousTitreText, j && s.titleJaune]}>
+                      {deplie ? '▾' : '▸'} {j ? `🟡 ${nb} rappel${nb > 1 ? 's' : ''}` : `⚠ ${nb} alerte${nb > 1 ? 's' : ''}`}
+                    </Text>
+                  </Pressable>
+                )}
                 {visibles.map((c) => (
                   <View key={c.key} style={[s.item, j && s.itemJaune]}>
                     <Text style={[s.msg, j && s.msgJaune]}>
@@ -136,7 +168,7 @@ export function AlertsCard({
                     </Pressable>
                   </View>
                 ))}
-                {liste.length > VISIBLES && (
+                {deplie && liste.length > VISIBLES && (
                   <Pressable onPress={() => (j ? setToutJ : setToutR)((v) => !v)} style={[s.more, j && s.itemJaune]} accessibilityRole="button">
                     <Text style={[s.moreText, j && s.titleJaune]}>
                       {tous ? 'Voir moins' : `Voir ${liste.length - VISIBLES > 1 ? `les ${liste.length - VISIBLES} autres` : "l'autre"} ${j ? 'rappel' : 'alerte'}${liste.length - VISIBLES > 1 ? 's' : ''}`}
@@ -186,6 +218,8 @@ const s = StyleSheet.create({
   btnTextSec: { color: colors.danger },
   more: { paddingHorizontal: 12, paddingVertical: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F6C7C1' },
   moreText: { color: colors.danger, fontWeight: '700', fontSize: 13 },
+  sousTitre: { paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F6C7C1' },
+  sousTitreText: { fontSize: 13, fontWeight: '800', color: colors.danger },
   // Rappels (jaune)
   cardJaune: { backgroundColor: '#FFF8E1', borderColor: '#F3D98B' },
   titleJaune: { color: '#7A5A00' },

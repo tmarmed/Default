@@ -59,7 +59,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   autres »), avec des boutons d'action, et deux **pastilles sur chaque onglet** (itération et PI en cours) : 🔴 alertes et 🟡 rappels. **Rappels (jaune)** :
   démarche à finir dans 3 jours au plus, fin d'itération dans 2 jours avec des tâches non faites ; tout le reste est
   en rouge. Mêmes règles d'affichage pour les deux (carte « ⚠ 2 alertes · 1 rappel », rouges d'abord, 3 visibles
-  par couleur avec son propre « Voir les N autres », fond de couleur par alerte, Ignorer…). Les alertes suivent le **filtre de domaine** ;
+  par couleur avec son propre « Voir les N autres » ; quand il y a les deux couleurs, les sections « ⚠ N alertes »
+  et « 🟡 N rappels » se replient séparément (mémorisé par écran), fond de couleur par alerte, Ignorer…). Les alertes suivent le **filtre de domaine** ;
   la capacité reste commune. Rien n'est modifié tout seul.
   **Ignorer** une alerte (lien discret sous chaque alerte) : elle disparaît de la carte et du chiffre de l'onglet,
   enregistrée dans le Google Sheet (onglet `Ignorees`, partagé entre vos appareils) avec la situation du moment ;
