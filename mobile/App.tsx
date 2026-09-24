@@ -249,7 +249,7 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_TERMINE_LE);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_STATUT_AVANT);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -480,7 +480,13 @@ function Main() {
           if (!voulu.has(i.id)) return i;
           const statut = voulu.get(i.id)!;
           // « Terminé le » : posé en passant à Terminé, vidé en sortant (le script fait de même)
-          return { ...i, statut, modifie_le: now, termine_le: statut !== 'termine' ? '' : i.statut === 'termine' ? i.termine_le : jour };
+          return {
+            ...i,
+            statut,
+            modifie_le: now,
+            termine_le: statut !== 'termine' ? '' : i.statut === 'termine' ? i.termine_le : jour,
+            statut_avant: statut !== 'termine' ? '' : i.statut === 'termine' ? i.statut_avant : i.statut === 'en_cours' ? 'en_cours' : '',
+          };
         }),
       );
       for (const { item, statut } of changes) {
@@ -509,7 +515,9 @@ function Main() {
     (item: Item, voulu: Statut) => {
       // Élément enregistré (la ligne affichée peut porter une autre date : parent de sous-tâches)
       const orig = items.find((i) => i.id === item.id) ?? item;
-      const statut = orig.statut === 'termine' && voulu === 'a_faire' ? (statutAvant.current[orig.id] ?? 'a_faire') : voulu;
+      // Statut d'avant : enregistré dans le Google Sheet (v14), sinon le souvenir de l'appareil (ancien script)
+      const avant = (orig.statut_avant as Statut) || statutAvant.current[orig.id] || 'a_faire';
+      const statut = orig.statut === 'termine' && voulu === 'a_faire' ? avant : voulu;
       if (statut === 'termine') {
         const kids = items.filter((k) => k.parent === orig.id && k.statut !== 'termine');
         if (kids.length) return setAskSubs({ parent: orig, kids });
@@ -1129,7 +1137,7 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_TERMINE_LE && (
+      {apiVersion < api.API_VERSION_STATUT_AVANT && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
             Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
@@ -1142,7 +1150,8 @@ function Main() {
             {apiVersion < api.API_VERSION_HEURE_FIN ? "l'heure de fin des rendez-vous, " : ''}
             {apiVersion < api.API_VERSION_IGNOREES ? 'les alertes ignorées, ' : ''}
             {apiVersion < api.API_VERSION_EPIC_PI ? "l'epic des objectifs du PI, " : ''}
-            {apiVersion < api.API_VERSION_DATE_FIN ? 'la date de fin des démarches, ' : ''}le jour où une tâche est terminée ne seront pas
+            {apiVersion < api.API_VERSION_DATE_FIN ? 'la date de fin des démarches, ' : ''}
+            {apiVersion < api.API_VERSION_TERMINE_LE ? 'le jour où une tâche est terminée, ' : ''}le statut d'avant « Terminé » ne seront pas
             enregistrés.
             Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
           </Text>

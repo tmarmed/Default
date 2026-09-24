@@ -30,6 +30,8 @@ export interface Item {
   date_fin: string;
   /** Jour où la tâche est passée à « Terminé » (calculé par le script, v13), vide sinon */
   termine_le: string;
+  /** Statut d'avant « Terminé » ('en_cours' ou vide), calculé par le script (v14) : décocher le remet */
+  statut_avant: string;
   lieu: string;
   description: string;
   priorite: Priorite;
@@ -88,6 +90,7 @@ export type ItemInput = Omit<
   | 'id'
   | 'cree_le'
   | 'termine_le'
+  | 'statut_avant'
   | 'modifie_le'
   | 'occurrence'
   | 'baseId'
@@ -119,6 +122,7 @@ export const RECURRENCE_DEFAUTS = {
   heure_fin: '',
   date_fin: '',
   termine_le: '',
+  statut_avant: '',
 } as const;
 
 /** Une ligne de l'onglet « Epics » : grand projet affiché dans la roadmap. */

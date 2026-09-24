@@ -25,10 +25,11 @@ var HEADERS = [
   'parent',
   'heure_fin',
   'date_fin',
-  'termine_le'
+  'termine_le',
+  'statut_avant'
 ];
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 13;
+var API_VERSION = 14;
 
 /**
  * Niveaux au-dessus des tâches : Domaine > Objectif > Epic > Tâche.
@@ -379,6 +380,10 @@ function sanitize_(item, base) {
   if (out.statut !== 'termine') out.termine_le = '';
   else if (avant !== 'termine') out.termine_le = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   else out.termine_le = base.termine_le || '';
+  // v14 : statut d'avant « Terminé » (« en_cours » ou vide), pour que décocher remette « En cours » sur tous les appareils
+  if (out.statut !== 'termine') out.statut_avant = '';
+  else if (avant !== 'termine') out.statut_avant = avant === 'en_cours' ? 'en_cours' : '';
+  else out.statut_avant = base.statut_avant || '';
   if (out.date && !/^\d{4}-\d{2}-\d{2}$/.test(out.date)) throw new Error('Date invalide (AAAA-MM-JJ).');
   if (out.heure && !/^\d{2}:\d{2}$/.test(out.heure)) throw new Error('Heure invalide (HH:MM).');
   // v9 : heure de fin (rendez-vous), après l'heure de début

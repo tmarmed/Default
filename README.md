@@ -15,8 +15,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   date limite, affichée « ⏳ fin … » dans la liste, rouge si dépassée ; script v12), 🚩 Mission, 📖 User story,
   🔍 Exploration, 🐞 Bug. Filtre de la liste : « Tous » ou un type (liste déroulante, avec 🔁 Répétés).
 - **Statut unique** (`statut` dans le Google Sheet), le même dans les deux modes : cocher = « Terminé » =
-  colonne « Terminé » du Kanban. Décocher remet le statut d'avant (« En cours » s'il l'était ; mémorisé sur
-  l'appareil). Cocher (ou passer en « Terminé ») un parent dont des sous-tâches sont ouvertes demande :
+  colonne « Terminé » du Kanban. Décocher remet le statut d'avant (« En cours » s'il l'était ; gardé par le
+  script dans la colonne `statut_avant`, v14, donc valable sur tous les appareils). Cocher (ou passer en « Terminé ») un parent dont des sous-tâches sont ouvertes demande :
   « Terminer aussi les sous-tâches ? » (tout terminer / seulement le parent) ; même question dans la fiche
   quand on choisit « Terminé ». Un parent suit ses sous-tâches : une sous-tâche commencée ou finie fait passer
   un parent « À faire » en « En cours », une sous-tâche rouverte, ajoutée ou rattachée fait repasser un parent
@@ -81,7 +81,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   - **Tâches** : en retard (reporter à demain, tout reporter, choisir une date) ; élément répété en retard
     (cocher la période, tout rattraper ; rendez-vous répété : « n'est pas coché », marquer fait) ; rendez-vous et missions qui se
     chevauchent (pas une sous-tâche pendant sa propre tâche) (d'après l'heure de fin ; sans elle, 1 h estimée), avec « Décaler … juste après » ;
-    toutes les sous-tâches faites (terminer la tâche) ; démarche : date de fin dépassée (terminer ; remplace
+    toutes les sous-tâches faites (terminer la tâche) ; tâche terminée alors que des sous-tâches ne sont pas faites
+    (terminer aussi les sous-tâches, ou rouvrir la tâche ; ces sous-tâches ne sont alors plus signalées en retard) ; démarche : date de fin dépassée (terminer ; remplace
     l'alerte « en retard », et « toutes les sous-tâches faites » s'il y a lieu), date de fin dans 3 jours au plus (rappel), date prévue après la date de fin (ramener), sous-tâche prévue après la
     date de fin de sa démarche (ramener). Un report (« Reporter à demain », « Tout reporter », fin d'itération) ne
     dépasse jamais une date de fin pas encore passée : « Reporter à aujourd'hui (date de fin) ». Deuxième choix partout où la
@@ -175,7 +176,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    à importer est aussi disponible : [`modele/Taches.xlsx`](modele/Taches.xlsx).
    Le **journal d'exécution** affiche la **clé d'accès** : copiez-la.
    L'onglet `Taches` est créé avec les colonnes :
-   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone | parent | heure_fin | date_fin | termine_le`
+   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone | parent | heure_fin | date_fin | termine_le | statut_avant`
    et les onglets `Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine | etat`),
    `Features` (`id | titre | description | epic | pi | iteration | points | couleur | cree_le | modifie_le`),
    `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le | domaine | epic`), `Ignorees` (`id | cle | signature | cree_le | modifie_le` : alertes ignorées),
@@ -199,7 +200,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 
 Valeurs acceptées dans la feuille si vous saisissez à la main :
 `type` = `tache` / `rendez-vous` / `appel` / `demarche` / `mission` / `story` / `exploration` / `bug` ·
-`telephone` = numéro d'un appel · `parent` = id de la tâche parente (sous-tâche) · `heure_fin` = `HH:MM`, après `heure` (rendez-vous, mission) · `date_fin` = `AAAA-MM-JJ`, date limite d'une démarche · `termine_le` = rempli par le script (ne pas saisir) · `priorite` = `basse` / `normale` / `haute` ·
+`telephone` = numéro d'un appel · `parent` = id de la tâche parente (sous-tâche) · `heure_fin` = `HH:MM`, après `heure` (rendez-vous, mission) · `date_fin` = `AAAA-MM-JJ`, date limite d'une démarche · `termine_le`, `statut_avant` = remplis par le script (ne pas saisir) · `priorite` = `basse` / `normale` / `haute` ·
 `statut` = `a_faire` / `en_cours` / `termine` · `date` = `AAAA-MM-JJ` · `heure` = `HH:MM` ·
 `periodicite` = vide / `hebdomadaire` / `mensuelle` / `trimestrielle` / `annuelle` ·
 `echeance` = semaine `1` (lundi) à `7`, mois `1` à `31`, trimestre `m` ou `m-j`, année `MM` ou `MM-JJ`

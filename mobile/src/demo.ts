@@ -16,7 +16,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '15';
+const DEMO_DATA_VERSION = '16';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -49,7 +49,7 @@ function sample(): Item[] {
   const stamp = now.toISOString();
   const pi2 = shiftPi(piOf(now), 1);
   const mk = (id: string, titre: string, type: Item['type'], date: string, heure: string, extra: Partial<Item> = {}): Item => ({
-    id, titre, type, date, heure, heure_fin: '', date_fin: '', termine_le: '', lieu: '', description: '', priorite: 'normale', statut: 'a_faire',
+    id, titre, type, date, heure, heure_fin: '', date_fin: '', termine_le: '', statut_avant: '', lieu: '', description: '', priorite: 'normale', statut: 'a_faire',
     cree_le: stamp, modifie_le: stamp, periodicite: '', echeance: '', debut: '', fin: '', faits: '', epic: '', objectif: '', domaine: '',
     points: '', iteration: '', feature: '', telephone: '', parent: '', ...extra,
   });
@@ -253,7 +253,7 @@ export const demoApi = {
     const now = new Date().toISOString();
     const items = await load();
     const item: Item = cleanLinks(
-      checkParent({ ...input, id: `d${Date.now()}`, cree_le: now, modifie_le: now, termine_le: input.statut === 'termine' ? now.slice(0, 10) : '' }, items),
+      checkParent({ ...input, id: `d${Date.now()}`, cree_le: now, modifie_le: now, termine_le: input.statut === 'termine' ? now.slice(0, 10) : '', statut_avant: '' }, items),
     );
     await store([...items, item]);
     return item;
@@ -265,7 +265,8 @@ export const demoApi = {
     // « Terminé le » : même règle que le script (v13)
     const statut = patch.statut ?? current.statut;
     const termine_le = statut !== 'termine' ? '' : current.statut === 'termine' ? current.termine_le ?? '' : toDateString(new Date());
-    const item = cleanLinks(checkParent({ ...current, ...patch, termine_le, modifie_le: new Date().toISOString() }, items));
+    const statut_avant = statut !== 'termine' ? '' : current.statut === 'termine' ? current.statut_avant ?? '' : current.statut === 'en_cours' ? 'en_cours' : '';
+    const item = cleanLinks(checkParent({ ...current, ...patch, termine_le, statut_avant, modifie_le: new Date().toISOString() }, items));
     await store(cascadeLinks(item, items.map((i) => (i.id === item.id ? item : i))));
     return item;
   },

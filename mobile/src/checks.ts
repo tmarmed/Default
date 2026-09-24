@@ -178,7 +178,9 @@ export function checksTaches(
   };
   // (une démarche dont la date de fin est dépassée a son alerte à part, plus importante)
   const finDepassee = (t: Item) => aDateFin(t.type) && !!t.date_fin && t.date_fin < today;
-  const enRetard = (t: Item) => ouvert(t) && !!t.date && t.date < today && !finDepassee(t);
+  // (sous-tâche ouverte d'un parent terminé : c'est l'alerte « terminée, mais des sous-tâches ne sont pas faites » qui s'en occupe)
+  const parentTermine = (t: Item) => !!t.parent && items.some((p) => p.id === t.parent && p.statut === 'termine');
+  const enRetard = (t: Item) => ouvert(t) && !!t.date && t.date < today && !finDepassee(t) && !parentTermine(t);
   const rdvPasses = items.filter((t) => enRetard(t) && t.type === 'rendez-vous');
   const retard = items.filter((t) => enRetard(t) && t.type !== 'rendez-vous' && !toutFait(t)).sort((a, b) => a.date.localeCompare(b.date));
   const familles = new Map<string, Item[]>();
@@ -416,6 +418,27 @@ export function checksTaches(
         { label: `Ramener au ${court(p.date_fin)}`, action: { kind: 'task', id: k.id, patch: { date: p.date_fin } }, principal: true },
         { label: `Repousser la date de fin de « ${p.titre} » au ${court(k.date)}`, action: { kind: 'task', id: p.id, patch: { date_fin: k.date } } },
         { label: 'Ouvrir', action: { kind: 'open', target: 'task', id: k.id } },
+      ],
+    });
+  }
+
+  // Parent terminé alors que des sous-tâches ne sont pas faites (ex. « Non, seulement la tâche ») : comme pour une epic
+  for (const [pid, kids] of subs) {
+    const p = items.find((t) => t.id === pid);
+    const ouvertes = kids.filter((k) => k.statut !== 'termine');
+    if (!p || p.statut !== 'termine' || !ouvertes.length) continue;
+    const n = ouvertes.length;
+    out.push({
+      key: `parentouvert:${p.id}`,
+      icone: '✅',
+      message: `${maj(mot(p))} « ${p.titre} » est terminée, mais ${n} sous-tâche${n > 1 ? 's ne sont pas faites' : " n'est pas faite"} : ${ouvertes.map((k) => `« ${k.titre} »`).join(', ')}.`,
+      actions: [
+        {
+          label: `Terminer aussi ${n > 1 ? `les ${n} sous-tâches` : 'la sous-tâche'}`,
+          action: { kind: 'tasks', patches: ouvertes.map((k) => ({ id: k.id, statut: 'termine' as const })) },
+          principal: true,
+        },
+        { label: `Rouvrir « ${p.titre} »`, action: { kind: 'task', id: p.id, patch: { statut: 'en_cours' } } },
       ],
     });
   }
