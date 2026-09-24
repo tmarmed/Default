@@ -33,8 +33,10 @@ export interface Item {
   fin: string;
   /** Périodes faites, séparées par « ; » (ex. « 2026-08;2026-09 ») */
   faits: string;
-  /** Epic à laquelle la tâche appartient (id), vide = aucune */
+  /** Rattachement (le plus précis seulement) : epic, sinon objectif, sinon domaine (ids) */
   epic: string;
+  objectif: string;
+  domaine: string;
 
   // --- Champs calculés par l'application (non enregistrés) ---
   /** Occurrence affichée d'un élément répété : clé de sa période */
@@ -55,7 +57,16 @@ export type ItemInput = Omit<
 >;
 
 /** Champs ajoutés avec la répétition : valeurs par défaut pour les anciennes données. */
-export const RECURRENCE_DEFAUTS = { periodicite: '', echeance: '', debut: '', fin: '', faits: '', epic: '' } as const;
+export const RECURRENCE_DEFAUTS = {
+  periodicite: '',
+  echeance: '',
+  debut: '',
+  fin: '',
+  faits: '',
+  epic: '',
+  objectif: '',
+  domaine: '',
+} as const;
 
 /** Une ligne de l'onglet « Epics » : grand projet affiché dans la roadmap. */
 export interface Epic {
@@ -70,9 +81,49 @@ export interface Epic {
   couleur: string;
   cree_le: string;
   modifie_le: string;
+  /** Objectif (id), sinon domaine (id) */
+  objectif: string;
+  domaine: string;
 }
 
 export type EpicInput = Omit<Epic, 'id' | 'cree_le' | 'modifie_le'>;
+
+/** Onglet « Objectifs » : résultat à atteindre, daté ou permanent. */
+export interface Objectif {
+  id: string;
+  titre: string;
+  description: string;
+  domaine: string;
+  debut: string;
+  /** vide = objectif permanent */
+  fin: string;
+  couleur: string;
+  /** Indicateur facultatif : valeur cible, valeur actuelle, unité */
+  cible: string;
+  actuel: string;
+  unite: string;
+  cree_le: string;
+  modifie_le: string;
+}
+
+export type ObjectifInput = Omit<Objectif, 'id' | 'cree_le' | 'modifie_le'>;
+
+/** Onglet « Domaines » : grande catégorie permanente (Pro, Perso…). */
+export interface Domaine {
+  id: string;
+  nom: string;
+  icone: string;
+  couleur: string;
+  cree_le: string;
+  modifie_le: string;
+}
+
+export type DomaineInput = Omit<Domaine, 'id' | 'cree_le' | 'modifie_le'>;
+
+export type EntityKind = 'epic' | 'objectif' | 'domaine';
+
+/** Icônes proposées pour les domaines. */
+export const DOMAINE_ICONES = ['💼', '🏠', '💶', '❤️', '🎓', '🛠️', '🌱', '✈️', '👪', '📦', '⚽', '🎨'];
 
 /** Couleurs proposées pour les epics. */
 export const EPIC_COULEURS = ['#1A73E8', '#8E24AA', '#E37400', '#188038', '#D93025', '#00897B', '#5E35B1', '#C2185B'];

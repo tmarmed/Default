@@ -3,9 +3,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
+  ScrollView,
   SectionList,
   StyleSheet,
   Text,
@@ -38,19 +40,32 @@ import {
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { API_URL, GOOGLE_AUTH } from './src/config';
 import { DEMO, demoApi } from './src/demo';
-import { EpicsContext } from './src/epicsContext';
+import { DomaineForm } from './src/components/DomaineForm';
+import { ObjectifForm } from './src/components/ObjectifForm';
+import { domaineOf } from './src/hierarchy';
+import { HierarchyContext, makeHierarchyValue } from './src/hierarchyContext';
 import {
   clearSettings,
   loadCache,
-  loadEpicsCache,
+  loadHierarchyCache,
   loadSettings,
   saveCache,
-  saveEpicsCache,
+  saveHierarchyCache,
   saveSettings,
 } from './src/storage';
 import { colors } from './src/theme';
 import { expandRange, listEntries, toggleDone } from './src/recurrence';
-import { Epic, EpicInput, Item, ItemInput, ItemType, Settings, TYPE_LABELS } from './src/types';
+import {
+  Domaine,
+  EntityKind,
+  Epic,
+  Item,
+  ItemInput,
+  ItemType,
+  Objectif,
+  Settings,
+  TYPE_LABELS,
+} from './src/types';
 
 type Filter = 'tous' | ItemType | 'recurrents';
 type Mode = 'liste' | 'jour' | 'semaine' | 'mois';
@@ -70,7 +85,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'recurrents', label: '🔁' },
 ];
 
-const matches = (i: Item, filter: Filter) =>
+const matchesType = (i: Item, filter: Filter) =>
   filter === 'tous' || (filter === 'recurrents' ? !!i.periodicite : i.type === filter);
 
 export default function App() {
@@ -91,8 +106,24 @@ function Main() {
   const [booting, setBooting] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
-  const [epics, setEpics] = useState<Epic[]>([]);
-  const epicMap = useMemo(() => new Map(epics.map((e) => [e.id, e])), [epics]);
+  /** Domaines, objectifs et epics */
+  const [hier, setHier] = useState<{ epics: Epic[]; objectifs: Objectif[]; domaines: Domaine[] }>({
+    epics: [],
+    objectifs: [],
+    domaines: [],
+  });
+  const { epics, objectifs, domaines } = hier;
+  const hv = useMemo(() => makeHierarchyValue(epics, objectifs, domaines, items), [epics, objectifs, domaines, items]);
+  const updateHier = useCallback((next: typeof hier) => {
+    setHier(next);
+    saveHierarchyCache(next).catch(() => {});
+  }, []);
+  const [domFilter, setDomFilter] = useState<string>('tous');
+  const [editingObjectif, setEditingObjectif] = useState<Objectif | null>(null);
+  const [objectifFormOpen, setObjectifFormOpen] = useState(false);
+  const [editingDomaine, setEditingDomaine] = useState<Domaine | null>(null);
+  const [domaineFormOpen, setDomaineFormOpen] = useState(false);
+  const [addMenu, setAddMenu] = useState(false);
   const [tab, setTab] = useState<'taches' | 'roadmap'>('taches');
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
   const [epicFormOpen, setEpicFormOpen] = useState(false);
@@ -104,7 +135,7 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_EPICS);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_HIERARCHIE);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -121,7 +152,7 @@ function Main() {
     await signOut();
     await clearSettings();
     setItems([]);
-    setEpics([]);
+    setHier({ epics: [], objectifs: [], domaines: [] });
     setSettings(null);
   }, []);
 
@@ -129,10 +160,9 @@ function Main() {
     async (s: Settings) => {
       setRefreshing(true);
       try {
-        const { items: list, epics: epicList, version } = await api.listItems(s);
+        const { items: list, epics: e, objectifs: o, domaines: d, version } = await api.listItems(s);
         updateItems(list);
-        setEpics(epicList);
-        saveEpicsCache(epicList).catch(() => {});
+        updateHier({ epics: e, objectifs: o, domaines: d });
         setApiVersion(version);
         setOffline(null);
       } catch (e) {
@@ -147,19 +177,19 @@ function Main() {
         setRefreshing(false);
       }
     },
-    [updateItems, logout],
+    [updateItems, updateHier, logout],
   );
 
   useEffect(() => {
     (async () => {
-      const [stored, cache, cachedEpics] = await Promise.all([loadSettings(), loadCache(), loadEpicsCache()]);
+      const [stored, cache, cachedHier] = await Promise.all([loadSettings(), loadCache(), loadHierarchyCache()]);
       let s = stored;
       if (GOOGLE_AUTH) {
         const email = await restoreSession();
         s = email ? { url: API_URL, googleEmail: email } : null;
       }
       if (cache && s) setItems(cache.items.map(api.normalize));
-      if (s) setEpics(cachedEpics);
+      if (s) setHier(cachedHier);
       setSettings(s);
       setBooting(false);
       if (s) refresh(s);
@@ -167,20 +197,27 @@ function Main() {
   }, [refresh]);
 
   const today = toDateString(new Date());
+  // Filtres : type (ou répétées) et domaine (direct ou hérité de l'objectif / de l'epic)
+  const matches = useCallback(
+    (i: Item) =>
+      matchesType(i, filter) &&
+      (domFilter === 'tous' || (domaineOf(i, hv)?.id ?? '') === domFilter),
+    [filter, domFilter, hv],
+  );
   const visible = useMemo(
     () =>
       groupItems(
         items
-          .filter((i) => matches(i, filter))
+          .filter((i) => matches(i))
           // Un élément répété devient ses lignes du moment : retards regroupés + échéance en cours.
           .flatMap((i) => (i.periodicite ? listEntries(i, today) : [i]))
           .filter((i) => showDone || i.statut !== 'termine'),
       ),
-    [items, filter, showDone, today],
+    [items, matches, showDone, today],
   );
   const doneCount = useMemo(
-    () => items.filter((i) => !i.periodicite && i.statut === 'termine' && matches(i, filter)).length,
-    [items, filter],
+    () => items.filter((i) => !i.periodicite && i.statut === 'termine' && matches(i)).length,
+    [items, matches],
   );
 
   // Vues Jour / Semaine / Mois : éléments datés et échéances des éléments répétés,
@@ -188,14 +225,14 @@ function Main() {
   const { byDate, fenetres } = useMemo(() => {
     const gridStart = startOfWeek(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
     const range = expandRange(
-      items.filter((i) => matches(i, filter)),
+      items.filter((i) => matches(i)),
       toDateString(gridStart),
       toDateString(addDays(gridStart, 41)),
       today,
     );
     for (const list of range.byDate.values()) list.sort(compareItems);
     return range;
-  }, [items, filter, anchor, today]);
+  }, [items, matches, anchor, today]);
   const weekStart = toDateString(startOfWeek(anchor));
   const weekEnd = toDateString(addDays(startOfWeek(anchor), 6));
   const monthStart = toDateString(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
@@ -266,6 +303,9 @@ function Main() {
 
   const save = async (input: ItemInput) => {
     if (!settings) return;
+    if ((input.objectif || input.domaine) && apiVersion < api.API_VERSION_HIERARCHIE) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour les domaines et objectifs. Recollez le nouveau Code.gs et déployez une nouvelle version.");
+    }
     if (input.epic && apiVersion < api.API_VERSION_EPICS) {
       throw new Error("le script du Google Sheet n'est pas à jour pour les epics. Recollez le nouveau Code.gs et déployez une nouvelle version.");
     }
@@ -287,22 +327,6 @@ function Main() {
     setFormOpen(false);
   };
 
-  /** Bouton d'une alerte : applique les dates proposées à l'epic. */
-  const fixEpic = async (epic: Epic, patch: { debut?: string; fin?: string }) => {
-    if (!settings) return;
-    try {
-      const updated = await api.updateEpic(settings, { id: epic.id, ...patch });
-      setEpics((prev) => {
-        const list = prev.map((e) => (e.id === updated.id ? updated : e));
-        saveEpicsCache(list).catch(() => {});
-        return list;
-      });
-      setInfo(`Epic « ${epic.titre} » mise à jour.`);
-    } catch (e) {
-      setNotice(`Epic non mise à jour : ${(e as Error).message}`);
-    }
-  };
-
   const remove = async (item: Item) => {
     if (!settings) return;
     await api.deleteItem(settings, item.id);
@@ -314,35 +338,69 @@ function Main() {
     setEditingEpic(epic);
     setEpicFormOpen(true);
   };
-
-  const saveEpic = async (input: EpicInput) => {
-    if (!settings) return;
-    if (apiVersion < api.API_VERSION_EPICS) {
-      throw new Error("le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.");
-    }
-    if (editingEpic) {
-      const saved = await api.updateEpic(settings, { ...input, id: editingEpic.id });
-      const list = epics.map((e) => (e.id === saved.id ? saved : e));
-      setEpics(list);
-      saveEpicsCache(list).catch(() => {});
-    } else {
-      const created = await api.createEpic(settings, input);
-      const list = [...epics, created];
-      setEpics(list);
-      saveEpicsCache(list).catch(() => {});
-    }
-    setEpicFormOpen(false);
+  const openObjectif = (o: Objectif | null) => {
+    setEditingObjectif(o);
+    setObjectifFormOpen(true);
+  };
+  const openDomaine = (d: Domaine | null) => {
+    setEditingDomaine(d);
+    setDomaineFormOpen(true);
   };
 
-  const removeEpic = async (epic: Epic) => {
+  const LIST_KEY = { epic: 'epics', objectif: 'objectifs', domaine: 'domaines' } as const;
+
+  const checkScript = () => {
+    if (apiVersion < api.API_VERSION_HIERARCHIE) {
+      throw new Error("le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.");
+    }
+  };
+
+  /** Crée (editing = null) ou met à jour un domaine / objectif / epic. */
+  const saveEntity = async <K extends EntityKind>(kind: K, editing: { id: string } | null, input: object) => {
     if (!settings) return;
-    await api.deleteEpic(settings, epic.id);
-    const list = epics.filter((e) => e.id !== epic.id);
-    setEpics(list);
-    saveEpicsCache(list).catch(() => {});
-    // Les tâches de l'epic sont conservées, sans epic.
-    updateItems(items.map((i) => (i.epic === epic.id ? { ...i, epic: '' } : i)));
+    checkScript();
+    const saved = editing
+      ? await api.updateEntity(settings, kind, { ...input, id: editing.id } as never)
+      : await api.createEntity(settings, kind, input as never);
+    const key = LIST_KEY[kind];
+    setHier((prev) => {
+      const list = prev[key] as { id: string }[];
+      const next = {
+        ...prev,
+        [key]: editing ? list.map((x) => (x.id === saved.id ? saved : x)) : [...list, saved],
+      };
+      saveHierarchyCache(next).catch(() => {});
+      return next;
+    });
+  };
+
+  /** Bouton d'une alerte : applique les dates proposées. */
+  const fixEntity = async (kind: 'epic' | 'objectif', x: { id: string; titre: string }, patch: { debut?: string; fin?: string }) => {
+    try {
+      await saveEntity(kind, x, patch);
+      setInfo(`${kind === 'epic' ? 'Epic' : 'Objectif'} « ${x.titre} » mis(e) à jour.`);
+    } catch (e) {
+      setNotice(`Mise à jour impossible : ${(e as Error).message}`);
+    }
+  };
+
+  /** Suppression, avec ou sans ce qui est rattaché ; la liste est rechargée (le script a tout fait). */
+  const deleteEntity = async (kind: EntityKind, x: { id: string }, cascade: boolean) => {
+    if (!settings) return;
+    checkScript();
+    const counts = await api.deleteEntity(settings, kind, x.id, cascade);
     setEpicFormOpen(false);
+    setObjectifFormOpen(false);
+    setDomaineFormOpen(false);
+    await refresh(settings);
+    const n = counts.objectifs + counts.epics + counts.taches;
+    setInfo(
+      n
+        ? cascade
+          ? `Supprimé, avec ${n} élément(s) rattaché(s).`
+          : `Supprimé. ${n} élément(s) rattaché(s) conservé(s).`
+        : 'Supprimé.',
+    );
   };
 
   if (booting) {
@@ -404,7 +462,7 @@ function Main() {
   const TAB_BAR = 58;
 
   return (
-    <EpicsContext.Provider value={epicMap}>
+    <HierarchyContext.Provider value={hv}>
     <View style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.title}>{tab === 'roadmap' ? 'Roadmap' : 'Mes tâches'}</Text>
@@ -423,7 +481,7 @@ function Main() {
             onPress={async () => {
               const r = await demoApi.reset();
               updateItems(r.items);
-              setEpics(r.epics);
+              updateHier({ epics: r.epics, objectifs: r.objectifs, domaines: r.domaines });
             }}
             hitSlop={8}
           >
@@ -435,6 +493,20 @@ function Main() {
         <View style={styles.filters}>
           <Segmented options={MODES} value={mode} onChange={setMode} />
           <Chips options={FILTERS} value={filter} onChange={setFilter} compact />
+          {domaines.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <Chips
+                options={[
+                  { value: 'tous', label: 'Tous domaines' },
+                  ...hv.domaineList.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })),
+                  { value: '', label: 'Sans domaine' },
+                ]}
+                value={domFilter}
+                onChange={setDomFilter}
+                compact
+              />
+            </ScrollView>
+          )}
         </View>
       )}
       {tab === 'roadmap' && <View style={styles.spacer} />}
@@ -448,12 +520,12 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_EPICS && (
+      {apiVersion < api.API_VERSION_HIERARCHIE && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
-            Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition et ' : ''}
-            les epics ne seront pas enregistrées. Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements ›
-            Nouvelle version.
+            Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
+            {apiVersion < api.API_VERSION_EPICS ? 'les epics, ' : ''}les domaines et objectifs ne seront pas enregistrés.
+            Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
           </Text>
         </View>
       )}
@@ -466,9 +538,14 @@ function Main() {
       {tab === 'roadmap' && (
         <Roadmap
           epics={epics}
+          objectifs={objectifs}
+          domaines={domaines}
           items={items}
           onOpenEpic={openEpic}
-          onFixEpic={fixEpic}
+          onOpenObjectif={openObjectif}
+          onOpenDomaine={openDomaine}
+          onFixEpic={(e, p) => fixEntity('epic', e, p)}
+          onFixObjectif={(o, p) => fixEntity('objectif', o, p)}
           refreshControl={refreshControl}
         />
       )}
@@ -547,7 +624,7 @@ function Main() {
 
       <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 18 }]}
-        onPress={() => (tab === 'roadmap' ? openEpic(null) : openForm(null))}
+        onPress={() => (tab === 'roadmap' ? setAddMenu(true) : openForm(null))}
         accessibilityRole="button"
         accessibilityLabel={tab === 'roadmap' ? 'Nouvelle epic' : 'Ajouter'}
       >
@@ -589,15 +666,77 @@ function Main() {
         epic={editingEpic}
         items={items}
         onClose={() => setEpicFormOpen(false)}
-        onSave={saveEpic}
-        onDelete={removeEpic}
+        onSave={async (input) => {
+          await saveEntity('epic', editingEpic, input);
+          setEpicFormOpen(false);
+        }}
+        onDelete={(e, cascade) => deleteEntity('epic', e, cascade)}
         onOpenTask={(t) => {
           setEpicFormOpen(false);
           openForm(t);
         }}
       />
+      <ObjectifForm
+        visible={objectifFormOpen}
+        objectif={editingObjectif}
+        onClose={() => setObjectifFormOpen(false)}
+        onSave={async (input) => {
+          await saveEntity('objectif', editingObjectif, input);
+          setObjectifFormOpen(false);
+        }}
+        onDelete={(o, cascade) => deleteEntity('objectif', o, cascade)}
+        onOpenEpic={(e) => {
+          setObjectifFormOpen(false);
+          openEpic(e);
+        }}
+      />
+
+      <DomaineForm
+        visible={domaineFormOpen}
+        domaine={editingDomaine}
+        onClose={() => setDomaineFormOpen(false)}
+        onSave={async (input) => {
+          await saveEntity('domaine', editingDomaine, input);
+          setDomaineFormOpen(false);
+        }}
+        onDelete={(d, cascade) => deleteEntity('domaine', d, cascade)}
+        onOpenObjectif={(o) => {
+          setDomaineFormOpen(false);
+          openObjectif(o);
+        }}
+      />
+
+      <Modal visible={addMenu} transparent animationType="fade" onRequestClose={() => setAddMenu(false)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setAddMenu(false)}>
+          <View style={[styles.menu, { paddingBottom: 16 + insets.bottom }]}>
+            <Text style={styles.menuTitle}>Ajouter à la roadmap</Text>
+            {(
+              [
+                ['🗂️', 'Une epic', 'Un projet daté, avec ses tâches', () => openEpic(null)],
+                ['🎯', 'Un objectif', 'Un résultat à atteindre, avec échéance ou permanent', () => openObjectif(null)],
+                ['🏷️', 'Un domaine', 'Une grande catégorie : Pro, Perso…', () => openDomaine(null)],
+              ] as const
+            ).map(([icon, title, sub, action]) => (
+              <Pressable
+                key={title}
+                style={styles.menuItem}
+                onPress={() => {
+                  setAddMenu(false);
+                  action();
+                }}
+              >
+                <Text style={styles.menuIcon}>{icon}</Text>
+                <View style={styles.flex}>
+                  <Text style={styles.menuItemTitle}>{title}</Text>
+                  <Text style={styles.menuItemSub}>{sub}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
     </View>
-    </EpicsContext.Provider>
+    </HierarchyContext.Provider>
   );
 }
 
@@ -653,6 +792,21 @@ const styles = StyleSheet.create({
   doneToggle: { alignItems: 'center', paddingVertical: 16 },
   doneToggleText: { color: colors.primary, fontSize: 15 },
   spacer: { height: 12 },
+  menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', alignItems: 'center' },
+  menu: {
+    width: '100%',
+    maxWidth: 480,
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    padding: 16,
+    gap: 4,
+  },
+  menuTitle: { fontSize: 13, fontWeight: '700', color: colors.muted, marginBottom: 6, textTransform: 'uppercase' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 },
+  menuIcon: { fontSize: 26 },
+  menuItemTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
+  menuItemSub: { fontSize: 13, color: colors.muted },
   tabBar: {
     flexDirection: 'row',
     borderTopWidth: StyleSheet.hairlineWidth,

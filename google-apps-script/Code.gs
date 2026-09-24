@@ -19,14 +19,30 @@ var HEADERS = [
   'id', 'titre', 'type', 'date', 'heure', 'lieu',
   'description', 'priorite', 'statut', 'cree_le', 'modifie_le',
   'periodicite', 'echeance', 'debut', 'fin', 'faits',
-  'epic'
+  'epic', 'objectif', 'domaine'
 ];
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 3;
+var API_VERSION = 4;
 
-/** Onglet des epics (grands projets de la roadmap). */
-var EPICS_SHEET_NAME = 'Epics';
-var EPIC_HEADERS = ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le'];
+/**
+ * Niveaux au-dessus des tâches : Domaine > Objectif > Epic > Tâche.
+ * `min` = nombre de colonnes de la première version de l'onglet (les suivantes sont ajoutées à la fin).
+ */
+var ENTITIES = {
+  epic: {
+    sheet: 'Epics', min: 8,
+    headers: ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le', 'objectif', 'domaine']
+  },
+  objectif: {
+    sheet: 'Objectifs', min: 12,
+    headers: ['id', 'titre', 'description', 'domaine', 'debut', 'fin', 'couleur', 'cible', 'actuel', 'unite',
+      'cree_le', 'modifie_le']
+  },
+  domaine: {
+    sheet: 'Domaines', min: 6,
+    headers: ['id', 'nom', 'icone', 'couleur', 'cree_le', 'modifie_le']
+  }
+};
 var PERIODICITES = ['', 'hebdomadaire', 'mensuelle', 'trimestrielle', 'annuelle'];
 var TYPES = ['tache', 'mission', 'rendez-vous'];
 var PRIORITES = ['basse', 'normale', 'haute'];
@@ -41,7 +57,9 @@ function installer() {
   var sheet = getSheet_();
   if (sheet.getLastRow() < 2) ajouterExemples_();
   var users = getUsersSheet_();
-  getEpicsSheet_();
+  entitySheet_('epic');
+  entitySheet_('objectif');
+  entitySheet_('domaine');
   var props = PropertiesService.getScriptProperties();
 
   if (GOOGLE_WEB_CLIENT_ID) {
@@ -110,7 +128,7 @@ function doGet(e) {
     checkAuth_({ key: e.parameter.key });
     var action = e.parameter.action || 'list';
     if (action === 'ping') return { ok: true };
-    if (action === 'list') return { ok: true, version: API_VERSION, items: listItems_(), epics: listEpics_() };
+    if (action === 'list') return listAll_();
     throw new Error('Action inconnue : ' + action);
   });
 }
@@ -121,7 +139,7 @@ function doPost(e) {
     checkAuth_(body);
     // Lecture : pas besoin de verrou.
     if (body.action === 'ping') return { ok: true, version: API_VERSION };
-    if (body.action === 'list') return { ok: true, version: API_VERSION, items: listItems_(), epics: listEpics_() };
+    if (body.action === 'list') return listAll_();
     var lock = LockService.getScriptLock();
     lock.waitLock(20000);
     try {
@@ -129,15 +147,30 @@ function doPost(e) {
         case 'create': return { ok: true, item: createItem_(body.item || {}) };
         case 'update': return { ok: true, item: updateItem_(body.item || {}) };
         case 'delete': deleteItem_(body.id); return { ok: true };
-        case 'createEpic': return { ok: true, epic: createEpic_(body.epic || {}) };
-        case 'updateEpic': return { ok: true, epic: updateEpic_(body.epic || {}) };
-        case 'deleteEpic': return { ok: true, detached: deleteEpic_(body.id) };
+        case 'createEntity': return { ok: true, entity: createEntity_(body.kind, body.data || {}) };
+        case 'updateEntity': return { ok: true, entity: updateEntity_(body.kind, body.data || {}) };
+        case 'deleteEntity': return { ok: true, counts: deleteEntity_(body.kind, body.id, !!body.cascade) };
+        // Anciennes actions (version 3 de l'application)
+        case 'createEpic': return { ok: true, epic: createEntity_('epic', body.epic || {}) };
+        case 'updateEpic': return { ok: true, epic: updateEntity_('epic', body.epic || {}) };
+        case 'deleteEpic': return { ok: true, detached: deleteEntity_('epic', body.id, false).taches };
         default: throw new Error('Action inconnue : ' + body.action);
       }
     } finally {
       lock.releaseLock();
     }
   });
+}
+
+function listAll_() {
+  return {
+    ok: true,
+    version: API_VERSION,
+    items: listItems_(),
+    epics: listEntities_('epic'),
+    objectifs: listEntities_('objectif'),
+    domaines: listEntities_('domaine')
+  };
 }
 
 function handle_(fn) {
@@ -210,41 +243,47 @@ function verifyGoogleToken_(idToken) {
 }
 
 function getSheet_() {
+  return getTable_(SHEET_NAME, HEADERS, 11);
+}
+
+/**
+ * Onglet `name` avec les colonnes `headers`, créé s'il n'existe pas. Un onglet d'une version
+ * précédente (colonnes de début identiques, suivantes vides) est complété à la fin sans perte.
+ * Un onglet avec d'autres colonnes n'est jamais modifié.
+ */
+function getTable_(name, headers, minKnown) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(SHEET_NAME);
+  var sheet = ss.getSheetByName(name);
   if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME);
-    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold');
+    sheet = ss.insertSheet(name);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
     sheet.setFrozenRows(1);
     // Tout en texte brut pour que Sheets ne transforme pas les dates / heures.
-    sheet.getRange(2, 1, sheet.getMaxRows() - 1, HEADERS.length).setNumberFormat('@');
-  } else if (sheet.getLastRow() === 0) {
-    // Onglet existant mais vide : on ajoute seulement la ligne d'en-têtes.
-    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold');
+    sheet.getRange(2, 1, sheet.getMaxRows() - 1, headers.length).setNumberFormat('@');
+    return sheet;
+  }
+  if (sheet.getMaxColumns() < headers.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
+  }
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
     sheet.setFrozenRows(1);
-  } else {
-    // Onglet existant avec des données : on ne touche à rien si les colonnes
-    // ne sont pas celles attendues, pour ne jamais écrire dans la mauvaise colonne.
-    if (sheet.getMaxColumns() < HEADERS.length) {
-      sheet.insertColumnsAfter(sheet.getMaxColumns(), HEADERS.length - sheet.getMaxColumns());
-    }
-    var actual = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0]
-      .map(function (h) { return String(h).trim(); });
-    // Onglet d'une version précédente (colonnes de début identiques, suivantes vides) :
-    // on ajoute les nouvelles colonnes à la fin, sans toucher aux données existantes.
-    var known = 0;
-    while (known < HEADERS.length && actual[known] === HEADERS[known]) known++;
-    var restEmpty = actual.slice(known).every(function (h) { return h === ''; });
-    if (known >= 11 && known < HEADERS.length && restEmpty) {
-      var extra = HEADERS.slice(known);
-      sheet.getRange(1, known + 1, 1, extra.length).setValues([extra]).setFontWeight('bold');
-      sheet.getRange(2, known + 1, sheet.getMaxRows() - 1, extra.length).setNumberFormat('@');
-      actual = HEADERS.slice();
-    }
-    if (actual.join('|') !== HEADERS.join('|')) {
-      throw new Error('L\'onglet « ' + SHEET_NAME + ' » existe déjà avec d\'autres colonnes. ' +
-        'Rien n\'a été modifié. Colonnes attendues en ligne 1 : ' + HEADERS.join(', '));
-    }
+    return sheet;
+  }
+  var actual = sheet.getRange(1, 1, 1, headers.length).getValues()[0]
+    .map(function (h) { return String(h).trim(); });
+  var known = 0;
+  while (known < headers.length && actual[known] === headers[known]) known++;
+  var restEmpty = actual.slice(known).every(function (h) { return h === ''; });
+  if (known >= minKnown && known < headers.length && restEmpty) {
+    var extra = headers.slice(known);
+    sheet.getRange(1, known + 1, 1, extra.length).setValues([extra]).setFontWeight('bold');
+    sheet.getRange(2, known + 1, sheet.getMaxRows() - 1, extra.length).setNumberFormat('@');
+    actual = headers.slice();
+  }
+  if (actual.join('|') !== headers.join('|')) {
+    throw new Error('L\'onglet « ' + name + ' » existe déjà avec d\'autres colonnes. ' +
+      'Rien n\'a été modifié. Colonnes attendues en ligne 1 : ' + headers.join(', '));
   }
   return sheet;
 }
@@ -301,7 +340,7 @@ function sanitize_(item, base) {
   if (out.debut && !/^\d{4}-\d{2}-\d{2}$/.test(out.debut)) throw new Error('Date de début invalide (AAAA-MM-JJ).');
   if (out.fin && !/^\d{4}-\d{2}-\d{2}$/.test(out.fin)) throw new Error('Date de fin invalide (AAAA-MM-JJ).');
   if (!/^[0-9A-Za-z;\-]*$/.test(out.faits)) throw new Error('Liste des périodes faites invalide.');
-  if (!/^[0-9A-Za-z\-]*$/.test(out.epic)) throw new Error('Epic invalide.');
+  checkLinks_(out);
   if (!out.periodicite) {
     out.echeance = '';
     out.debut = '';
@@ -355,120 +394,232 @@ function deleteItem_(id) {
 
 
 // ---------------------------------------------------------------------------
-// Epics : grands projets avec une date de début et de fin, affichés dans la roadmap.
+// Domaines, objectifs et epics : Domaine > Objectif > Epic > Tâche.
 // ---------------------------------------------------------------------------
 
-function getEpicsSheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(EPICS_SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(EPICS_SHEET_NAME);
-    sheet.getRange(1, 1, 1, EPIC_HEADERS.length).setValues([EPIC_HEADERS]).setFontWeight('bold');
-    sheet.setFrozenRows(1);
-    sheet.getRange(2, 1, sheet.getMaxRows() - 1, EPIC_HEADERS.length).setNumberFormat('@');
-  } else if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, EPIC_HEADERS.length).setValues([EPIC_HEADERS]).setFontWeight('bold');
-    sheet.setFrozenRows(1);
-  } else {
-    var actual = sheet.getRange(1, 1, 1, EPIC_HEADERS.length).getValues()[0]
-      .map(function (h) { return String(h).trim(); });
-    if (actual.join('|') !== EPIC_HEADERS.join('|')) {
-      throw new Error('L\'onglet « ' + EPICS_SHEET_NAME + ' » existe déjà avec d\'autres colonnes. ' +
-        'Rien n\'a été modifié. Colonnes attendues en ligne 1 : ' + EPIC_HEADERS.join(', '));
-    }
-  }
-  return sheet;
+function entity_(kind) {
+  var def = ENTITIES[kind];
+  if (!def) throw new Error('Type inconnu : ' + kind);
+  return def;
 }
 
-function listEpics_() {
-  var sheet = getEpicsSheet_();
+function entitySheet_(kind) {
+  var def = entity_(kind);
+  return getTable_(def.sheet, def.headers, def.min);
+}
+
+function listEntities_(kind) {
+  var def = entity_(kind);
+  var sheet = entitySheet_(kind);
   var last = sheet.getLastRow();
   if (last < 2) return [];
   var tz = Session.getScriptTimeZone();
-  return sheet.getRange(2, 1, last - 1, EPIC_HEADERS.length).getValues()
+  return sheet.getRange(2, 1, last - 1, def.headers.length).getValues()
     .filter(function (row) { return row[0] !== ''; })
     .map(function (row) {
-      var epic = {};
-      EPIC_HEADERS.forEach(function (h, i) {
+      var o = {};
+      def.headers.forEach(function (h, i) {
         var v = row[i];
         if (v instanceof Date) {
           v = Utilities.formatDate(v, tz, h === 'debut' || h === 'fin' ? 'yyyy-MM-dd' : "yyyy-MM-dd'T'HH:mm:ss");
         }
-        epic[h] = String(v);
+        o[h] = String(v);
       });
-      return epic;
+      return o;
     });
 }
 
-function sanitizeEpic_(epic, base) {
+/** Liens vers les niveaux supérieurs : seul le plus précis est gardé (epic > objectif > domaine). */
+function checkLinks_(o) {
+  ['epic', 'objectif', 'domaine'].forEach(function (k) {
+    if (o[k] !== undefined && !/^[0-9A-Za-z\-]*$/.test(o[k])) throw new Error('Lien « ' + k + ' » invalide.');
+  });
+  if (o.epic) { o.objectif = ''; o.domaine = ''; }
+  else if (o.objectif) { o.domaine = ''; }
+}
+
+function sanitizeEntity_(kind, data, base) {
+  var def = entity_(kind);
   var out = {};
-  EPIC_HEADERS.forEach(function (h) {
-    var v = epic[h] !== undefined ? epic[h] : (base ? base[h] : '');
+  def.headers.forEach(function (h) {
+    var v = data[h] !== undefined ? data[h] : (base ? base[h] : '');
     out[h] = v === null || v === undefined ? '' : String(v).slice(0, 5000);
   });
-  if (!out.titre.trim()) throw new Error('Le titre de l\'epic est obligatoire.');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(out.debut)) throw new Error('Date de début de l\'epic invalide (AAAA-MM-JJ).');
-  // Fin vide = epic sans fin (infinie).
-  if (out.fin && !/^\d{4}-\d{2}-\d{2}$/.test(out.fin)) throw new Error('Date de fin de l\'epic invalide (AAAA-MM-JJ).');
-  if (out.fin && out.fin < out.debut) throw new Error('La fin de l\'epic est avant son début.');
+  var date = /^\d{4}-\d{2}-\d{2}$/;
+  if (kind === 'domaine') {
+    if (!out.nom.trim()) throw new Error('Le nom du domaine est obligatoire.');
+    out.icone = out.icone.slice(0, 8);
+  } else {
+    if (!out.titre.trim()) throw new Error('Le titre est obligatoire.');
+    if (!date.test(out.debut)) throw new Error('Date de début invalide (AAAA-MM-JJ).');
+    // Fin vide = epic sans fin / objectif permanent.
+    if (out.fin && !date.test(out.fin)) throw new Error('Date de fin invalide (AAAA-MM-JJ).');
+    if (out.fin && out.fin < out.debut) throw new Error('La date de fin est avant la date de début.');
+  }
+  if (kind === 'objectif') {
+    ['cible', 'actuel'].forEach(function (k) {
+      if (out[k] && !/^-?\d+([.,]\d+)?$/.test(out[k])) throw new Error('Indicateur : « ' + k + ' » doit être un nombre.');
+      out[k] = out[k].replace(',', '.');
+    });
+    out.unite = out.unite.slice(0, 30);
+  }
   if (!/^#[0-9A-Fa-f]{6}$/.test(out.couleur)) out.couleur = '#1A73E8';
+  checkLinks_(out);
   return out;
 }
 
-function epicToRow_(epic) {
-  return EPIC_HEADERS.map(function (h) { return epic[h]; });
-}
-
-function createEpic_(input) {
-  var sheet = getEpicsSheet_();
+function createEntity_(kind, data) {
+  var def = entity_(kind);
+  var sheet = entitySheet_(kind);
   var now = new Date().toISOString();
-  var epic = sanitizeEpic_(input);
-  epic.id = Utilities.getUuid();
-  epic.cree_le = now;
-  epic.modifie_le = now;
-  var range = sheet.getRange(sheet.getLastRow() + 1, 1, 1, EPIC_HEADERS.length);
+  var o = sanitizeEntity_(kind, data);
+  o.id = Utilities.getUuid();
+  o.cree_le = now;
+  o.modifie_le = now;
+  var range = sheet.getRange(sheet.getLastRow() + 1, 1, 1, def.headers.length);
   range.setNumberFormat('@');
-  range.setValues([epicToRow_(epic)]);
-  return epic;
+  range.setValues([def.headers.map(function (h) { return o[h]; })]);
+  return o;
 }
 
-function updateEpic_(input) {
-  var sheet = getEpicsSheet_();
-  var row = findRow_(sheet, input.id);
-  if (row < 0) throw new Error('Epic introuvable (peut-être supprimée).');
-  var range = sheet.getRange(row, 1, 1, EPIC_HEADERS.length);
+function updateEntity_(kind, data) {
+  var def = entity_(kind);
+  var sheet = entitySheet_(kind);
+  var row = findRow_(sheet, data.id);
+  if (row < 0) throw new Error('Élément introuvable (peut-être supprimé).');
+  var range = sheet.getRange(row, 1, 1, def.headers.length);
   var current = {};
   var values = range.getValues()[0];
-  EPIC_HEADERS.forEach(function (h, i) { current[h] = values[i]; });
-  var epic = sanitizeEpic_(input, current);
-  epic.id = String(current.id);
-  epic.cree_le = String(current.cree_le);
-  epic.modifie_le = new Date().toISOString();
+  def.headers.forEach(function (h, i) { current[h] = values[i]; });
+  var o = sanitizeEntity_(kind, data, current);
+  o.id = String(current.id);
+  o.cree_le = String(current.cree_le);
+  o.modifie_le = new Date().toISOString();
   range.setNumberFormat('@');
-  range.setValues([epicToRow_(epic)]);
-  return epic;
+  range.setValues([def.headers.map(function (h) { return o[h]; })]);
+  return o;
 }
 
-/** Supprime l'epic et détache ses tâches (elles sont conservées). Renvoie le nombre de tâches détachées. */
-function deleteEpic_(id) {
-  var sheet = getEpicsSheet_();
-  var row = findRow_(sheet, id);
-  if (row < 0) throw new Error('Epic introuvable (peut-être déjà supprimée).');
-  sheet.deleteRow(row);
+/** Lit un onglet en objets { row, data } (pour la suppression en cascade). */
+function readTable_(sheet, headers) {
+  var last = sheet.getLastRow();
+  if (last < 2) return [];
+  return sheet.getRange(2, 1, last - 1, headers.length).getValues()
+    .filter(function (r) { return r[0] !== ''; })
+    .map(function (r) {
+      var o = {};
+      headers.forEach(function (h, i) { o[h] = String(r[i]); });
+      return o;
+    });
+}
 
-  var tasks = getSheet_();
-  var last = tasks.getLastRow();
-  if (last < 2) return 0;
-  var col = HEADERS.indexOf('epic') + 1;
-  var range = tasks.getRange(2, col, last - 1, 1);
-  var values = range.getValues();
-  var count = 0;
-  values.forEach(function (r) {
-    if (String(r[0]) === String(id)) {
-      r[0] = '';
-      count++;
-    }
-  });
-  if (count) range.setValues(values);
-  return count;
+/** Réécrit un onglet avec les lignes restantes (plus rapide que de supprimer ligne par ligne). */
+function writeTable_(sheet, headers, rows) {
+  var last = sheet.getLastRow();
+  if (last >= 2) sheet.getRange(2, 1, last - 1, headers.length).clearContent();
+  if (!rows.length) return;
+  var range = sheet.getRange(2, 1, rows.length, headers.length);
+  range.setNumberFormat('@');
+  range.setValues(rows.map(function (o) { return headers.map(function (h) { return o[h] === undefined ? '' : o[h]; }); }));
+}
+
+/**
+ * Supprime un domaine, un objectif ou une epic.
+ * - cascade : supprime aussi tout ce qui est en dessous ;
+ * - sinon : ce qui est en dessous est conservé et remonte d'un niveau
+ *   (tâches d'une epic → objectif de l'epic, ou son domaine ; epics et tâches d'un objectif → son domaine).
+ * Renvoie le nombre d'éléments supprimés ou rattachés ailleurs.
+ */
+function deleteEntity_(kind, id, cascade) {
+  var tasksSheet = getSheet_();
+  var sheets = {
+    epic: entitySheet_('epic'),
+    objectif: entitySheet_('objectif'),
+    domaine: entitySheet_('domaine')
+  };
+  var data = {
+    tache: readTable_(tasksSheet, HEADERS),
+    epic: readTable_(sheets.epic, ENTITIES.epic.headers),
+    objectif: readTable_(sheets.objectif, ENTITIES.objectif.headers),
+    domaine: readTable_(sheets.domaine, ENTITIES.domaine.headers)
+  };
+  var self = data[kind].filter(function (o) { return o.id === String(id); })[0];
+  if (!self) throw new Error('Élément introuvable (peut-être déjà supprimé).');
+
+  var result = planDeletion_(kind, self, cascade, data);
+  writeTable_(tasksSheet, HEADERS, result.tache);
+  writeTable_(sheets.epic, ENTITIES.epic.headers, result.epic);
+  writeTable_(sheets.objectif, ENTITIES.objectif.headers, result.objectif);
+  writeTable_(sheets.domaine, ENTITIES.domaine.headers, result.domaine);
+  return result.counts;
+}
+
+/** Calcul pur de la suppression (même règle que l'application, voir mobile/src/hierarchy.ts). */
+function planDeletion_(kind, self, cascade, data) {
+  var id = self.id;
+  var set = function (list) { var m = {}; list.forEach(function (x) { m[x] = true; }); return m; };
+  var objIds = {}, epicIds = {}, taskIds = {};
+  if (kind === 'domaine') {
+    objIds = set(data.objectif.filter(function (o) { return o.domaine === id; }).map(function (o) { return o.id; }));
+    epicIds = set(data.epic.filter(function (e) { return e.domaine === id || objIds[e.objectif]; }).map(function (e) { return e.id; }));
+    taskIds = set(data.tache.filter(function (t) { return t.domaine === id || objIds[t.objectif] || epicIds[t.epic]; }).map(function (t) { return t.id; }));
+  } else if (kind === 'objectif') {
+    epicIds = set(data.epic.filter(function (e) { return e.objectif === id; }).map(function (e) { return e.id; }));
+    taskIds = set(data.tache.filter(function (t) { return t.objectif === id || epicIds[t.epic]; }).map(function (t) { return t.id; }));
+  } else {
+    taskIds = set(data.tache.filter(function (t) { return t.epic === id; }).map(function (t) { return t.id; }));
+  }
+  var n = function (m) { return Object.keys(m).length; };
+  var counts = { objectifs: n(objIds), epics: n(epicIds), taches: n(taskIds), cascade: !!cascade };
+  var out = {
+    tache: data.tache, epic: data.epic, objectif: data.objectif,
+    domaine: data.domaine.filter(function (d) { return !(kind === 'domaine' && d.id === id); })
+  };
+  if (kind === 'objectif') out.objectif = data.objectif.filter(function (o) { return o.id !== id; });
+  if (kind === 'epic') out.epic = data.epic.filter(function (e) { return e.id !== id; });
+
+  if (cascade) {
+    out.objectif = out.objectif.filter(function (o) { return !objIds[o.id]; });
+    out.epic = out.epic.filter(function (e) { return !epicIds[e.id]; });
+    out.tache = out.tache.filter(function (t) { return !taskIds[t.id]; });
+    return { tache: out.tache, epic: out.epic, objectif: out.objectif, domaine: out.domaine, counts: counts };
+  }
+  // Sans cascade : les enfants directs remontent d'un niveau.
+  if (kind === 'epic') {
+    out.tache = out.tache.map(function (t) {
+      if (t.epic !== id) return t;
+      var c = copy_(t);
+      c.epic = '';
+      c.objectif = self.objectif || '';
+      c.domaine = self.objectif ? '' : (self.domaine || '');
+      return c;
+    });
+  } else if (kind === 'objectif') {
+    var up = function (o) {
+      if (o.objectif !== id) return o;
+      var c = copy_(o);
+      c.objectif = '';
+      c.domaine = self.domaine || '';
+      return c;
+    };
+    out.epic = out.epic.map(up);
+    out.tache = out.tache.map(up);
+  } else {
+    var clear = function (o) {
+      if (o.domaine !== id) return o;
+      var c = copy_(o);
+      c.domaine = '';
+      return c;
+    };
+    out.objectif = out.objectif.map(clear);
+    out.epic = out.epic.map(clear);
+    out.tache = out.tache.map(clear);
+  }
+  return { tache: out.tache, epic: out.epic, objectif: out.objectif, domaine: out.domaine, counts: counts };
+}
+
+function copy_(o) {
+  var c = {};
+  Object.keys(o).forEach(function (k) { c[k] = o[k]; });
+  return c;
 }

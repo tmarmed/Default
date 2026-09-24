@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GOOGLE_AUTH } from './config';
 import { DEMO } from './demo';
-import type { Epic, Item, Settings } from './types';
+import type { Domaine, Epic, Item, Objectif, Settings } from './types';
 
 const SETTINGS_KEY = 'mes-taches:settings';
 const CACHE_KEY = 'mes-taches:cache';
@@ -44,16 +44,20 @@ export async function saveCache(items: Item[]): Promise<void> {
   await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ items, savedAt: new Date().toISOString() }));
 }
 
-/** Dernières epics reçues, affichées hors connexion. */
-export async function loadEpicsCache(): Promise<Epic[]> {
+/** Derniers domaines / objectifs / epics reçus, affichés hors connexion. */
+export async function loadHierarchyCache(): Promise<{ epics: Epic[]; objectifs: Objectif[]; domaines: Domaine[] }> {
+  const empty = { epics: [], objectifs: [], domaines: [] };
   try {
     const raw = await AsyncStorage.getItem(EPICS_CACHE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return empty;
+    const data = JSON.parse(raw);
+    // Ancien format : tableau d'epics seul
+    return Array.isArray(data) ? { ...empty, epics: data } : { ...empty, ...data };
   } catch {
-    return [];
+    return empty;
   }
 }
 
-export async function saveEpicsCache(epics: Epic[]): Promise<void> {
-  await AsyncStorage.setItem(EPICS_CACHE_KEY, JSON.stringify(epics));
+export async function saveHierarchyCache(h: { epics: Epic[]; objectifs: Objectif[]; domaines: Domaine[] }): Promise<void> {
+  await AsyncStorage.setItem(EPICS_CACHE_KEY, JSON.stringify(h));
 }

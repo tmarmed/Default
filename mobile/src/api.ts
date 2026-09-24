@@ -1,7 +1,8 @@
 import { Platform } from 'react-native';
 import { AuthError, getIdToken } from './auth';
 import { DEMO, demoApi } from './demo';
-import { Epic, EpicInput, Item, ItemInput, RECURRENCE_DEFAUTS, Settings } from './types';
+import type { Data, DeletionCounts } from './hierarchy';
+import { Domaine, EntityKind, Epic, Item, ItemInput, Objectif, RECURRENCE_DEFAUTS, Settings } from './types';
 
 type ApiResponse<T> = ({ ok: true } & T) | { ok: false; error: string; code?: string };
 
@@ -73,40 +74,60 @@ export function normalize(item: Item): Item {
   return { ...RECURRENCE_DEFAUTS, ...item };
 }
 
-export async function listItems(settings: Settings): Promise<{ items: Item[]; epics: Epic[]; version: number }> {
+/** Version du script avec domaines, objectifs et suppression en cascade. */
+export const API_VERSION_HIERARCHIE = 4;
+
+const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '' });
+
+export async function listItems(settings: Settings): Promise<Data & { version: number }> {
   if (DEMO) {
-    return { items: (await demoApi.list()).map(normalize), epics: await demoApi.listEpics(), version: API_VERSION_EPICS };
+    const all = await demoApi.listAll();
+    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_HIERARCHIE };
   }
-  const data = await post<{ items: Item[]; epics?: Epic[]; version?: number }>(settings, { action: 'list' });
-  return { items: data.items.map(normalize), epics: data.epics ?? [], version: data.version ?? 1 };
+  const data = await post<Partial<Data> & { items: Item[]; version?: number }>(settings, { action: 'list' });
+  return {
+    items: data.items.map(normalize),
+    epics: (data.epics ?? []).map(normalizeEpic),
+    objectifs: data.objectifs ?? [],
+    domaines: data.domaines ?? [],
+    version: data.version ?? 1,
+  };
 }
 
-export async function createEpic(settings: Settings, epic: EpicInput): Promise<Epic> {
-  if (DEMO) return demoApi.createEpic(epic);
-  return (await post<{ epic: Epic }>(settings, { action: 'createEpic', epic })).epic;
+type EntityMap = { epic: Epic; objectif: Objectif; domaine: Domaine };
+
+export async function createEntity<K extends EntityKind>(
+  settings: Settings,
+  kind: K,
+  data: Omit<EntityMap[K], 'id' | 'cree_le' | 'modifie_le'>,
+): Promise<EntityMap[K]> {
+  if (DEMO) return demoApi.createEntity(kind, data as never) as Promise<EntityMap[K]>;
+  return (await post<{ entity: EntityMap[K] }>(settings, { action: 'createEntity', kind, data })).entity;
 }
 
-export async function updateEpic(settings: Settings, epic: Partial<Epic> & { id: string }): Promise<Epic> {
-  if (DEMO) return demoApi.updateEpic(epic);
-  return (await post<{ epic: Epic }>(settings, { action: 'updateEpic', epic })).epic;
+export async function updateEntity<K extends EntityKind>(
+  settings: Settings,
+  kind: K,
+  data: Partial<EntityMap[K]> & { id: string },
+): Promise<EntityMap[K]> {
+  if (DEMO) return demoApi.updateEntity(kind, data as never) as Promise<EntityMap[K]>;
+  return (await post<{ entity: EntityMap[K] }>(settings, { action: 'updateEntity', kind, data })).entity;
 }
 
-/** Supprime l'epic ; ses tâches sont conservées et détachées. Renvoie leur nombre. */
-export async function deleteEpic(settings: Settings, id: string): Promise<number> {
-  if (DEMO) return demoApi.deleteEpic(id);
-  return (await post<{ detached: number }>(settings, { action: 'deleteEpic', id })).detached;
+/** Supprime un domaine / objectif / epic ; `cascade` supprime aussi ce qui est en dessous. */
+export async function deleteEntity(settings: Settings, kind: EntityKind, id: string, cascade: boolean): Promise<DeletionCounts> {
+  if (DEMO) return demoApi.deleteEntity(kind, id, cascade);
+  return (await post<{ counts: DeletionCounts }>(settings, { action: 'deleteEntity', kind, id, cascade })).counts;
 }
 
 export async function createItem(settings: Settings, item: ItemInput): Promise<Item> {
   if (DEMO) return demoApi.create(item);
   return normalize((await post<{ item: Item }>(settings, { action: 'create', item })).item);
 }
-
 export async function updateItem(settings: Settings, item: Partial<Item> & { id: string }): Promise<Item> {
   if (DEMO) return demoApi.update(item);
   return normalize((await post<{ item: Item }>(settings, { action: 'update', item })).item);
 }
-
 export async function deleteItem(settings: Settings, id: string): Promise<void> {
   if (DEMO) return demoApi.remove(id);
   await post(settings, { action: 'delete', id });

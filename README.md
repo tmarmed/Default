@@ -22,9 +22,17 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   sur un schéma à barres, échelle **3 ans / Année / Trimestre / Mois**, glisser pour changer de période,
   trait « aujourd'hui » et avancement (tâches terminées / total). Chaque tâche peut être rattachée à une
   epic ; supprimer une epic conserve ses tâches, sans epic.
-- **Alertes de dates** dans la roadmap et la fiche d'une epic (voir règles ci-dessous).
+- **Hiérarchie Domaine → Objectif → Epic → Tâche** : domaines permanents (💼 Pro, 🏠 Perso…), objectifs
+  datés ou permanents avec indicateur facultatif (ex. 8/20 clients). Chaque élément est rattaché à son
+  niveau le plus précis ; les niveaux au-dessus s'en déduisent. Filtre par domaine dans la liste.
+- **Roadmap regroupée** par domaine puis objectif, sections repliables (mémorisées), filtre par domaine,
+  « alertes seulement », « tout replier / déplier ». Bouton + : epic, objectif ou domaine.
+- **Suppression** d'un domaine, objectif ou epic avec la case « Supprimer aussi tout ce qui est rattaché » :
+  cochée, tout ce qui est en dessous est supprimé ; décochée, les éléments sont conservés et remontent d'un
+  niveau (tâches d'une epic → son objectif ou son domaine ; epics d'un objectif → son domaine).
+- **Alertes de dates** dans la roadmap et les fiches (voir règles ci-dessous).
 
-### Règles de gestion des dates d'epic
+### Règles de gestion des dates (epics et objectifs)
 
 1. **Aucune date n'est modifiée automatiquement.** Si une tâche sort des dates de son epic, une **⚠ alerte**
    s'affiche (roadmap et fiche) avec un **bouton** pour ajuster l'epic : avancer le début, repousser la fin,
@@ -33,7 +41,10 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 3. Une **tâche répétée sans date de fin** dans une epic datée déclenche une alerte (« Rendre l'epic sans fin »).
 4. Dates retenues : tâche ponctuelle → sa date (sans date : ignorée) ; tâche répétée → son « À partir du »
    (sinon sa création) pour le début, son « Jusqu'au » pour la fin. Les tâches terminées comptent.
-5. La roadmap affiche le nombre d'alertes et peut n'afficher que les epics en alerte.
+5. Mêmes règles entre un **objectif** et ses epics / tâches directes : l'échéance n'est jamais modifiée
+   automatiquement ; alerte + bouton « Repousser l'échéance » ou « Rendre l'objectif permanent »
+   (objectif sans échéance = permanent, pas d'alerte de fin).
+6. La roadmap affiche le nombre d'alertes et peut n'afficher que les éléments en alerte.
 - Tirer vers le bas pour synchroniser avec le Google Sheet
 - Dernière copie gardée sur le téléphone : la liste reste lisible sans réseau
 
@@ -47,8 +58,10 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    à importer est aussi disponible : [`modele/Taches.xlsx`](modele/Taches.xlsx).
    Le **journal d'exécution** affiche la **clé d'accès** : copiez-la.
    L'onglet `Taches` est créé avec les colonnes :
-   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic`
-   et un onglet `Epics` : `id | titre | description | debut | fin | couleur | cree_le | modifie_le`
+   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine`
+   et les onglets `Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine`),
+   `Objectifs` (`id | titre | description | domaine | debut | fin | couleur | cible | actuel | unite | cree_le | modifie_le`)
+   et `Domaines` (`id | nom | icone | couleur | cree_le | modifie_le`).
 4. **Déployer › Nouveau déploiement** → type **Application Web** :
    - *Exécuter en tant que* : **Moi**
    - *Qui a accès* : **Tout le monde**
@@ -72,7 +85,7 @@ Valeurs acceptées dans la feuille si vous saisissez à la main :
 `echeance` = semaine `1` (lundi) à `7`, mois `1` à `31`, trimestre `m` ou `m-j`, année `MM` ou `MM-JJ`
 (vide = « dans la période ») · `debut` / `fin` = `AAAA-MM-JJ` · `faits` = périodes cochées,
 ex. `2026-08;2026-09` (mois), `2026-T3` (trimestre), `2026` (année), `2026-09-21` (semaine du lundi 21) ·
-`epic` = `id` d'une ligne de l'onglet `Epics` (vide = aucune). Epics : `couleur` = `#RRGGBB`, `fin` vide = epic sans fin.
+`epic` / `objectif` / `domaine` = `id` du rattachement (un seul, le plus précis). Epics : `couleur` = `#RRGGBB`, `fin` vide = epic sans fin.
 Chaque ligne doit avoir un `id` unique : le plus simple est de créer les lignes depuis l'application.
 
 ## Connexion avec Google (optionnel)

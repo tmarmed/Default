@@ -1,0 +1,127 @@
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { childrenOf, describeCounts } from '../hierarchy';
+import { useHierarchy } from '../hierarchyContext';
+import { colors } from '../theme';
+import { DOMAINE_ICONES, Domaine, DomaineInput, EPIC_COULEURS, Objectif } from '../types';
+import { DeleteSection } from './DeleteSection';
+import { ColorPicker, Field, FormSheet, formStyles as f, Label } from './FormSheet';
+
+interface Props {
+  visible: boolean;
+  domaine: Domaine | null;
+  onClose: () => void;
+  onSave: (input: DomaineInput) => Promise<void>;
+  onDelete: (d: Domaine, cascade: boolean) => Promise<void>;
+  onOpenObjectif: (o: Objectif) => void;
+}
+
+/** Fiche d'un domaine (Pro, Perso…) : nom, icône, couleur, objectifs. */
+export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpenObjectif }: Props) {
+  const h = useHierarchy();
+  const [form, setForm] = useState<DomaineInput>({ nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0] });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (visible) {
+      setForm(domaine ? { nom: domaine.nom, icone: domaine.icone, couleur: domaine.couleur } : { nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0] });
+      setError(null);
+    }
+  }, [visible, domaine]);
+
+  const objectifs = domaine ? h.objectifList.filter((o) => o.domaine === domaine.id) : [];
+  const c = domaine ? childrenOf('domaine', domaine.id, { items: h.items, epics: h.epicList, objectifs: h.objectifList, domaines: h.domaineList }) : null;
+  const children = c && c.objIds.size + c.epicIds.size + c.taskIds.size ? describeCounts({ objectifs: c.objIds.size, epics: c.epicIds.size, taches: c.taskIds.size }) : '';
+
+  const save = async () => {
+    if (!form.nom.trim()) return setError('Donnez un nom au domaine.');
+    setError(null);
+    setBusy(true);
+    try {
+      await onSave({ ...form, nom: form.nom.trim() });
+    } catch (e) {
+      setError(`Échec de l'enregistrement : ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <FormSheet visible={visible} title={domaine ? 'Domaine' : 'Nouveau domaine'} busy={busy} error={error} onClose={onClose} onSave={save}>
+      <View style={[f.preview, { backgroundColor: form.couleur }]}>
+        <Text style={f.previewTitle}>
+          {form.icone} {form.nom || 'Nom du domaine'}
+        </Text>
+      </View>
+      <Field style={f.titleInput} placeholder="Nom (ex. Pro, Perso, Administratif)" value={form.nom} onChangeText={(v) => setForm((x) => ({ ...x, nom: v }))} autoFocus={!domaine} />
+      <Label>Icône</Label>
+      <View style={styles.icons}>
+        {DOMAINE_ICONES.map((i) => (
+          <Pressable
+            key={i}
+            onPress={() => setForm((x) => ({ ...x, icone: i }))}
+            style={[styles.icon, form.icone === i && styles.iconOn]}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: form.icone === i }}
+          >
+            <Text style={styles.iconText}>{i}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Label>Couleur</Label>
+      <ColorPicker value={form.couleur} onChange={(col) => setForm((x) => ({ ...x, couleur: col }))} />
+
+      {domaine && (
+        <>
+          <Label>Objectifs · {objectifs.length}</Label>
+          {objectifs.length === 0 ? (
+            <Text style={f.muted}>Aucun objectif dans ce domaine.</Text>
+          ) : (
+            objectifs.map((o) => (
+              <Pressable key={o.id} style={f.link} onPress={() => onOpenObjectif(o)}>
+                <View style={[f.dot, { backgroundColor: o.couleur }]} />
+                <Text style={f.linkTitle} numberOfLines={1}>
+                  🎯 {o.titre}
+                </Text>
+              </Pressable>
+            ))
+          )}
+          <DeleteSection
+            label="Supprimer le domaine"
+            name={domaine.nom}
+            children={children}
+            keepText="sans domaine"
+            disabled={busy}
+            onDelete={async (cascade) => {
+              setBusy(true);
+              try {
+                await onDelete(domaine, cascade);
+              } catch (e) {
+                setError(`Échec de la suppression : ${(e as Error).message}`);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+        </>
+      )}
+    </FormSheet>
+  );
+}
+
+const styles = StyleSheet.create({
+  icons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  icon: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  iconOn: { borderColor: colors.primary, borderWidth: 2, backgroundColor: '#E8F0FE' },
+  iconText: { fontSize: 22 },
+});

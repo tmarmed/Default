@@ -90,3 +90,20 @@ export function alertes(
 export function alertesEpic(epic: { id: string; debut: string; fin: string }, items: Item[]): Alerte[] {
   return alertes(epic, "l'epic", items.filter((i) => i.epic === epic.id).map(periodeTache));
 }
+
+/** Alertes d'un objectif pour ses epics et ses tâches directes. */
+export function alertesObjectif(
+  o: { id: string; debut: string; fin: string },
+  epics: { titre: string; debut: string; fin: string; objectif: string }[],
+  items: Item[],
+): Alerte[] {
+  return alertes(
+    o,
+    "l'objectif",
+    [
+      ...epics.filter((e) => e.objectif === o.id).map(periodeBloc),
+      ...items.filter((t) => t.objectif === o.id).map(periodeTache),
+    ],
+    { fin: "l'échéance", sansFin: "Rendre l'objectif permanent" },
+  );
+}

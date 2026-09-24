@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -19,6 +18,9 @@ import { formatEpicDates, progress } from '../roadmap';
 import { colors } from '../theme';
 import { Epic, EPIC_COULEURS, EpicInput, Item } from '../types';
 import { DateField } from './DateField';
+import { DeleteSection } from './DeleteSection';
+import { LinkPicker } from './LinkPicker';
+import { useHierarchy } from '../hierarchyContext';
 
 interface Props {
   visible: boolean;
@@ -27,7 +29,7 @@ interface Props {
   items: Item[];
   onClose: () => void;
   onSave: (input: EpicInput) => Promise<void>;
-  onDelete: (epic: Epic) => Promise<void>;
+  onDelete: (epic: Epic, cascade: boolean) => Promise<void>;
   onOpenTask: (item: Item) => void;
 }
 
@@ -39,6 +41,8 @@ const empty = (): EpicInput => {
     debut: toDateString(today),
     fin: toDateString(addMonths(today, 3)),
     couleur: EPIC_COULEURS[0],
+    objectif: '',
+    domaine: '',
   };
 };
 
@@ -47,17 +51,24 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
   const [form, setForm] = useState<EpicInput>(empty());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const h = useHierarchy();
 
   useEffect(() => {
     if (visible) {
       setForm(
         epic
-          ? { titre: epic.titre, description: epic.description, debut: epic.debut, fin: epic.fin, couleur: epic.couleur }
+          ? {
+              titre: epic.titre,
+              description: epic.description,
+              debut: epic.debut,
+              fin: epic.fin,
+              couleur: epic.couleur,
+              objectif: epic.objectif,
+              domaine: epic.domaine,
+            }
           : empty(),
       );
       setError(null);
-      setConfirmDelete(false);
     }
   }, [visible, epic]);
 
@@ -82,11 +93,11 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
     }
   };
 
-  const doDelete = async () => {
+  const doDelete = async (cascade: boolean) => {
     if (!epic) return;
     setBusy(true);
     try {
-      await onDelete(epic);
+      await onDelete(epic, cascade);
     } catch (e) {
       setError(`Échec de la suppression : ${(e as Error).message}`);
     } finally {
@@ -94,22 +105,14 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
     }
   };
 
-  const remove = () => {
-    if (!epic) return;
-    const suite = tasks.length
-      ? `Ses ${tasks.length} tâche(s) sont conservées, sans epic.`
-      : "Aucune tâche n'y est rattachée.";
-    // Le navigateur n'affiche pas les boîtes de dialogue : confirmation par un 2e appui.
-    if (Platform.OS === 'web') {
-      if (confirmDelete) doDelete();
-      else setConfirmDelete(true);
-      return;
-    }
-    Alert.alert("Supprimer l'epic ?", `« ${epic.titre} » sera supprimée du Google Sheet. ${suite}`, [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: doDelete },
-    ]);
-  };
+  // Où vont les tâches si l'epic est supprimée sans cascade
+  const parentObj = form.objectif ? h.objectifs.get(form.objectif) : undefined;
+  const parentDom = !parentObj && form.domaine ? h.domaines.get(form.domaine) : undefined;
+  const keepText = parentObj
+    ? `rattachées à l'objectif « ${parentObj.titre} »`
+    : parentDom
+      ? `rattachées au domaine ${parentDom.icone} ${parentDom.nom}`
+      : 'sans rattachement';
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -160,6 +163,12 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
               value={form.titre}
               onChangeText={(v) => set('titre', v)}
               autoFocus={!epic}
+            />
+
+            <LinkPicker
+              levels={['objectif', 'domaine']}
+              value={form}
+              onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
             />
 
             <Text style={styles.label}>Début</Text>
@@ -233,16 +242,14 @@ export function EpicForm({ visible, epic, items, onClose, onSave, onDelete, onOp
                   ))
                 )}
 
-                <Pressable style={styles.deleteBtn} onPress={remove} disabled={busy}>
-                  <Text style={styles.deleteText}>
-                    {confirmDelete ? 'Toucher encore pour confirmer' : "Supprimer l'epic"}
-                  </Text>
-                </Pressable>
-                {confirmDelete && tasks.length > 0 && (
-                  <Text style={[styles.muted, styles.center]}>
-                    Ses {tasks.length} tâche(s) seront conservées, sans epic.
-                  </Text>
-                )}
+                <DeleteSection
+                  label="Supprimer l'epic"
+                  name={epic.titre}
+                  children={tasks.length ? `${tasks.length} tâche${tasks.length > 1 ? 's' : ''}` : ''}
+                  keepText={keepText}
+                  disabled={busy}
+                  onDelete={doDelete}
+                />
               </>
             )}
           </ScrollView>
@@ -316,13 +323,4 @@ const styles = StyleSheet.create({
   taskTitle: { flex: 1, fontSize: 15, color: colors.text },
   taskDone: { textDecorationLine: 'line-through', color: colors.muted },
   muted: { fontSize: 13, color: colors.muted },
-  center: { textAlign: 'center', marginTop: 6 },
-  deleteBtn: {
-    marginTop: 28,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: '#FCE8E6',
-  },
-  deleteText: { color: colors.danger, fontSize: 16, fontWeight: '600' },
 });

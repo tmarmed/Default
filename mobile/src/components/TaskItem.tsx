@@ -1,5 +1,6 @@
 import { memo } from 'react';
-import { useEpics } from '../epicsContext';
+import { domaineOf } from '../hierarchy';
+import { useHierarchy } from '../hierarchyContext';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { isOverdue } from '../dates';
 import { colors, prioriteColors, typeColors } from '../theme';
@@ -13,7 +14,10 @@ interface Props {
 
 export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Props) {
   const done = item.statut === 'termine';
-  const epic = useEpics().get(item.epic);
+  const h = useHierarchy();
+  // Rattachement le plus précis affiché en étiquette, précédé de l'icône du domaine.
+  const parent = h.epics.get(item.epic) ?? h.objectifs.get(item.objectif);
+  const domaine = domaineOf(item, h);
   const late = isOverdue(item);
   return (
     <Pressable style={styles.card} onPress={() => onPress(item)}>
@@ -47,9 +51,13 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Prop
               🔁 {item.periodeLabel ?? ''}
             </Text>
           )}
-          {epic && (
-            <Text style={[styles.epic, { color: epic.couleur, borderColor: epic.couleur }]} numberOfLines={1}>
-              {epic.titre}
+          {(parent || domaine) && (
+            <Text
+              style={[styles.epic, { color: (parent ?? domaine)!.couleur, borderColor: (parent ?? domaine)!.couleur }]}
+              numberOfLines={1}
+            >
+              {domaine ? `${domaine.icone} ` : ''}
+              {parent ? parent.titre : domaine!.nom}
             </Text>
           )}
           {item.statut === 'en_cours' && <Text style={styles.enCours}>{STATUT_LABELS.en_cours}</Text>}
