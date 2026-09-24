@@ -81,9 +81,11 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
     (cocher la période, tout rattraper ; rendez-vous répété : « n'est pas coché », marquer fait) ; rendez-vous et missions qui se
     chevauchent (pas une sous-tâche pendant sa propre tâche) (d'après l'heure de fin ; sans elle, 1 h estimée), avec « Décaler … juste après » ;
     toutes les sous-tâches faites (terminer la tâche) ; démarche : date de fin dépassée (terminer ; remplace
-    l'alerte « en retard », et « toutes les sous-tâches faites » s'il y a lieu), date de fin dans 3 jours au plus (rappel), date prévue après la date de fin (ramener).
+    l'alerte « en retard », et « toutes les sous-tâches faites » s'il y a lieu), date de fin dans 3 jours au plus (rappel), date prévue après la date de fin (ramener), sous-tâche prévue après la
+    date de fin de sa démarche (ramener). Un report (« Reporter à demain », « Tout reporter », fin d'itération) ne
+    dépasse jamais une date de fin pas encore passée : « Reporter à aujourd'hui (date de fin) ».
   - **Itération** (l'itération affichée, nommée dans la carte) : surcharge ; points du parent ≠ sous-tâches ;
-    retard sur le burndown ; fin d'itération avec des tâches non faites, hors rendez-vous (reporter les non datées dans
+    retard sur le burndown ; fin d'itération avec des tâches non faites, hors rendez-vous (une tâche et ses sous-tâches comptent pour une ; reporter les non datées dans
     l'itération suivante, décaler les datées) ; tâches sans points (hors rendez-vous et appels, et hors
     sous-tâches dont le parent porte la charge).
   - **PI** : itération surchargée ; dates de la feature hors de son epic (étendre l'epic) ; feature sans itération ; feature en retard sur son plan (décaler la

@@ -95,6 +95,18 @@ export function filtrerDomaine(h: HierarchyValue, dom: string): HierarchyValue {
 
 /** Types qu'on estime en points (pas les rendez-vous ni les appels) */
 const avecPoints = (t: Item) => t.type !== 'rendez-vous' && t.type !== 'appel';
+/** Date limite d'un élément : sa date de fin (démarche) ou celle de sa démarche parente ('' = aucune). */
+function limiteDe(t: Item, items: Item[]): string {
+  if (aDateFin(t.type) && t.date_fin) return t.date_fin;
+  const p = t.parent ? items.find((x) => x.id === t.parent) : undefined;
+  return p && aDateFin(p.type) && p.date_fin ? p.date_fin : '';
+}
+/** Nouvelle date d'un report, sans dépasser la date limite (sauf si elle est déjà passée). */
+function borne(t: Item, cible: string, items: Item[], today: string): string {
+  const l = limiteDe(t, items);
+  return l && l >= today && cible > l ? l : cible;
+}
+
 /** Ce qui identifie la situation d'une alerte ignorée (voir Check.situation). */
 export const situationDe = (c: Check) => c.situation ?? c.message;
 
@@ -150,13 +162,17 @@ export function checksTaches(
   const familles = new Map<string, Item[]>();
   for (const t of retard) familles.set(t.parent || t.id, [...(familles.get(t.parent || t.id) ?? []), t]);
   // Raccourci « Tout reporter » quand il y a plusieurs alertes de retard (il ne compte pas comme une alerte de plus)
+  // Reporter à demain, sans dépasser une date de fin de démarche (sinon le report crée l'alerte « après sa date de fin »)
+  const report = (t: Item) => borne(t, demain, items, today);
+  const libelleTout = (ts: Item[]) =>
+    ts.some((t) => report(t) !== demain) ? 'Tout reporter (demain, ou la date de fin si elle est avant)' : 'Tout reporter à demain';
   if (familles.size > 1)
     out.push({
       key: 'retard:tout',
       groupe: true,
       icone: '⏰',
       message: `${familles.size} retards à traiter${retard.length > familles.size ? ` (${retard.length} tâches avec les sous-tâches)` : ''}.`,
-      actions: [{ label: 'Tout reporter à demain', action: { kind: 'tasks', patches: retard.map((t) => ({ id: t.id, date: demain })) }, principal: true }],
+      actions: [{ label: libelleTout(retard), action: { kind: 'tasks', patches: retard.map((t) => ({ id: t.id, date: report(t) })) }, principal: true }],
     });
   for (const [id, groupe] of familles) {
     const parent = items.find((x) => x.id === id);
@@ -169,7 +185,11 @@ export function checksTaches(
         icone: '⏰',
         message: `${maj(mot(t))} « ${t.titre} » est en retard (prévu${e(t)} le ${court(t.date)}).`,
         actions: [
-          { label: 'Reporter à demain', action: { kind: 'task', id: t.id, patch: { date: demain } }, principal: true },
+          {
+            label: report(t) === demain ? 'Reporter à demain' : report(t) === today ? "Reporter à aujourd'hui (date de fin)" : `Reporter au ${court(report(t))} (date de fin)`,
+            action: { kind: 'task', id: t.id, patch: { date: report(t) } },
+            principal: true,
+          },
           { label: 'Choisir une date', action: { kind: 'open', target: 'task', id: t.id } },
         ],
       });
@@ -183,7 +203,7 @@ export function checksTaches(
         ? `${maj(nom)} et ${sous.length} de ses sous-tâches sont en retard.`
         : `${sous.length} sous-tâche${sous.length > 1 ? 's' : ''} de ${nom} ${sous.length > 1 ? 'sont' : 'est'} en retard : ${sous.map((t) => `« ${t.titre} »`).join(', ')}.`,
       actions: [
-        { label: 'Tout reporter à demain', action: { kind: 'tasks', patches: groupe.map((t) => ({ id: t.id, date: demain })) }, principal: true },
+        { label: libelleTout(groupe), action: { kind: 'tasks', patches: groupe.map((t) => ({ id: t.id, date: report(t) })) }, principal: true },
         ...(parent ? [{ label: `Ouvrir « ${parent.titre} »`, action: { kind: 'open', target: 'task', id: parent.id } as Action }] : []),
       ],
     });
@@ -335,6 +355,21 @@ export function checksTaches(
       });
   }
 
+  // Sous-tâche prévue après la date de fin de sa démarche (date de fin pas encore passée : sinon l'alerte « dépassée » suffit)
+  for (const k of items.filter((x) => x.parent && ouvert(x) && !!x.date)) {
+    const p = items.find((x) => x.id === k.parent);
+    if (!p || !aDateFin(p.type) || !p.date_fin || p.statut === 'termine' || p.date_fin < today || k.date <= p.date_fin) continue;
+    out.push({
+      key: `dsous:${k.id}`,
+      icone: '⏳',
+      message: `La sous-tâche « ${k.titre} » est prévue le ${court(k.date)}, après la date de fin de ${mot(p)} « ${p.titre} » (${court(p.date_fin)}).`,
+      actions: [
+        { label: `Ramener au ${court(p.date_fin)}`, action: { kind: 'task', id: k.id, patch: { date: p.date_fin } }, principal: true },
+        { label: 'Ouvrir', action: { kind: 'open', target: 'task', id: k.id } },
+      ],
+    });
+  }
+
   // Sous-tâches : tout est fait mais le parent ne l'est pas (les points sont vérifiés dans l'Itération et le PI, en mode SAFe)
   for (const [pid, kids] of subs) {
     const p = items.find((t) => t.id === pid);
@@ -416,15 +451,19 @@ export function checksIteration(
     const code = iterationByKey(suivante)!.code;
     const sansDate = nonFaites.filter((t) => !t.date);
     const datees = nonFaites.filter((t) => t.date);
-    // Tâches datées : itération finie → demain ; sinon → premier jour de l'itération suivante
+    // Tâches datées : itération finie → demain ; sinon → premier jour de l'itération suivante (sans dépasser une date de fin)
     const nouvelleDate = it.end < today ? toDateString(addDays(parseDate(today), 1)) : iterationByKey(suivante)!.start;
+    const borneAu = (t: Item) => borne(t, nouvelleDate, h.items, today);
+    // Une tâche et ses sous-tâches comptent pour une (comme partout ailleurs)
+    const nbFamilles = new Set(nonFaites.map((t) => t.parent || t.id)).size;
+    const nbSous = nonFaites.filter((t) => t.parent).length;
     const lesTaches = (n: number, datee = false) => (n > 1 ? `les ${n} tâches${datee ? ' datées' : ''}` : `la tâche${datee ? ' datée' : ''}`);
     out.push({
       key: `fin:${itKey}`,
       // Itération pas encore finie : rappel (jaune) ; finie : alerte (rouge)
       ...(it.end < today ? {} : { niveau: 'rappel' as const }),
       icone: '↪️',
-      message: `${it.end < today ? 'Itération terminée' : `Fin de l'itération le ${court(it.end)}`} : ${nonFaites.length} tâche${nonFaites.length > 1 ? 's' : ''} non faite${nonFaites.length > 1 ? 's' : ''}${datees.length ? ` (dont ${datees.length} datée${datees.length > 1 ? 's' : ''})` : ''}.`,
+      message: `${it.end < today ? 'Itération terminée' : `Fin de l'itération le ${court(it.end)}`} : ${nbFamilles} tâche${nbFamilles > 1 ? 's' : ''} non faite${nbFamilles > 1 ? 's' : ''}${nbSous ? `, avec ${nbSous} sous-tâche${nbSous > 1 ? 's' : ''}` : ''}.`,
       actions: [
         ...(sansDate.length
           ? [
@@ -438,8 +477,8 @@ export function checksIteration(
         ...(datees.length
           ? [
               {
-                label: `Décaler ${lesTaches(datees.length, true)} au ${court(nouvelleDate)}`,
-                action: { kind: 'tasks', patches: datees.map((t) => ({ id: t.id, date: nouvelleDate })) } as Action,
+                label: `Décaler ${lesTaches(datees.length, true)} au ${court(nouvelleDate)}${datees.some((t) => borneAu(t) !== nouvelleDate) ? ' (ou à leur date de fin)' : ''}`,
+                action: { kind: 'tasks', patches: datees.map((t) => ({ id: t.id, date: borneAu(t) })) } as Action,
                 principal: !sansDate.length,
               },
             ]
