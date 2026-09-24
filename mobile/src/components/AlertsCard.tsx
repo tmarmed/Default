@@ -14,7 +14,7 @@ const OUVERTES_KEY = 'mes-taches:alertes-ouvertes';
 let ouvertes: Record<string, boolean> | null = null;
 
 /** Carte « ⚠ Alertes » en haut d'un écran : repliée sur une ligne par défaut ; dépliée, 3 premières visibles. */
-export function AlertsCard({ checks, style, ecran }: { checks: Check[]; style?: object; ecran: string }) {
+export function AlertsCard({ checks, style, ecran, titre }: { checks: Check[]; style?: object; ecran: string; /** ex. « IT4 · T4 2026 » */ titre?: string }) {
   const run = useContext(CheckActionContext);
   const [open, setOpenState] = useState(!!ouvertes?.[ecran]);
   useEffect(() => {
@@ -41,6 +41,7 @@ export function AlertsCard({ checks, style, ecran }: { checks: Check[]; style?: 
       <Pressable style={s.head} onPress={() => setOpen((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: open }}>
         <Text style={s.title}>
           ⚠ {checks.length} alerte{checks.length > 1 ? 's' : ''}
+          {titre ? ` · ${titre}` : ''}
         </Text>
         <Text style={s.chev}>{open ? '▾' : '▸'}</Text>
       </Pressable>

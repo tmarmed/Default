@@ -1,8 +1,10 @@
 import { alertesEpic, alertesObjectif, fmtDate } from './alerts';
 import { addDays, addMonths, parseDate, toDateString } from './dates';
 import { domaineOf, progressObjectif, tasksOfEpic } from './hierarchy';
+import { makeHierarchyValue } from './hierarchyContext';
 import type { HierarchyValue } from './hierarchyContext';
-import { iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, pointsOf, shiftIteration } from './pi';
+import { iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piStart, pointsOf, shiftIteration } from './pi';
+import { recurrenceState } from './recurrence';
 import { etatEpic } from './safe';
 import { chargeOf, pointsCheck, subtaskMap } from './subtasks';
 import type { Item } from './types';
@@ -46,6 +48,28 @@ const minutes = (h: string) => {
   return a * 60 + b;
 };
 
+/**
+ * Données limitées au domaine filtré ('tous' = tout ; '' = sans domaine), pour que les alertes suivent le
+ * filtre de domaine comme le reste de l'écran. La capacité, elle, reste commune (voir `complet`).
+ */
+export function filtrerDomaine(h: HierarchyValue, dom: string): HierarchyValue {
+  if (dom === 'tous') return h;
+  const ok = (id: string | undefined) => (id ?? '') === dom;
+  const epics = h.epicList.filter((e) => ok(domaineOf({ epic: e.id }, h)?.id));
+  const epicIds = new Set(epics.map((e) => e.id));
+  return makeHierarchyValue(
+    epics,
+    h.objectifList.filter((o) => ok(o.domaine)),
+    h.domaineList.filter((d) => d.id === dom),
+    h.items.filter((t) => ok(domaineOf(t, h)?.id)),
+    h.featureList.filter((f) => epicIds.has(f.epic) || (!f.epic && dom === '')),
+    h.objectifsPI.filter((o) => ok(o.domaine)),
+  );
+}
+
+/** Types qu'on estime en points (pas les rendez-vous ni les appels) */
+const avecPoints = (t: Item) => t.type !== 'rendez-vous' && t.type !== 'appel';
+
 // ---------------------------------------------------------------------------
 // 1. Tâches : « qu'est-ce qui cloche aujourd'hui ? »
 // ---------------------------------------------------------------------------
@@ -73,6 +97,24 @@ export function checksTaches(h: HierarchyValue, today: string): Check[] {
         { label: 'Choisir une date', action: { kind: 'open', target: 'task', id: t.id } },
       ],
     });
+
+  // Tâches répétées avec des périodes oubliées : cocher la plus ancienne, ou tout rattraper
+  for (const t of items.filter((x) => x.periodicite && x.statut !== 'termine')) {
+    const { missed } = recurrenceState(t, today);
+    if (!missed.length) continue;
+    const faits = (keys: string[]) => [...new Set([...t.faits.split(';').filter(Boolean), ...keys])].sort().join(';');
+    out.push({
+      key: `repete:${t.id}`,
+      icone: '🔁',
+      message: `La tâche répétée « ${t.titre} » est en retard : ${missed.map((o) => o.label).join(', ')}.`,
+      actions: [
+        { label: `Cocher ${missed[0].label}`, action: { kind: 'task', id: t.id, patch: { faits: faits([missed[0].key]) } }, principal: true },
+        ...(missed.length > 1
+          ? [{ label: `Tout rattraper (${missed.length})`, action: { kind: 'task', id: t.id, patch: { faits: faits(missed.map((o) => o.key)) } } as Action }]
+          : []),
+      ],
+    });
+  }
 
   // Rendez-vous qui se chevauchent (même jour, moins d'une heure d'écart)
   const rdv = items
@@ -138,11 +180,40 @@ export function checksTaches(h: HierarchyValue, today: string): Check[] {
 // ---------------------------------------------------------------------------
 // 2. Itération : « est-ce que je tiens mon itération ? »
 // ---------------------------------------------------------------------------
-export function checksIteration(h: HierarchyValue, itKey: string, today: string, capacite: number): Check[] {
+export function checksIteration(h: HierarchyValue, itKey: string, today: string, capacite: number, complet: HierarchyValue = h): Check[] {
   const out: Check[] = [];
   const it = iterationByKey(itKey);
   if (!it) return out;
   const subs = subtaskMap(h.items);
+
+  // Surcharge : la capacité est commune à tous les domaines
+  const subsAll = subtaskMap(complet.items);
+  const chargeAll = complet.items.filter((t) => iterationOfItem(t) === itKey).reduce((n, t) => n + chargeOf(t, subsAll), 0);
+  if (it.code !== 'IP' && chargeAll > capacite)
+    out.push({
+      key: `surcharge:${itKey}`,
+      icone: '🔴',
+      message: `${it.code} est surchargée : ${nb(chargeAll)} j pour ${capacite} j de capacité.`,
+      actions: [],
+    });
+
+  // Points incohérents : parent ≠ total de ses sous-tâches (parents présents dans l'itération)
+  const parents = new Set<string>();
+  for (const t of h.items) if (iterationOfItem(t) === itKey) parents.add(t.parent || t.id);
+  for (const pid of parents) {
+    const p = h.items.find((t) => t.id === pid);
+    const c = p ? pointsCheck(p, subs.get(pid)) : undefined;
+    if (p && c?.alerte)
+      out.push({
+        key: `points:${p.id}`,
+        icone: '🔢',
+        message: `La tâche « ${p.titre} » : ${nb(c.parent)} j prévus, ${nb(c.sous)} j dans ses sous-tâches.`,
+        actions: [
+          { label: `Passer la tâche à ${nb(c.sous)} j`, action: { kind: 'task', id: p.id, patch: { points: String(c.sous) } }, principal: true },
+          { label: 'Ouvrir la tâche', action: { kind: 'open', target: 'task', id: p.id } },
+        ],
+      });
+  }
   const tasks = h.items.filter((t) => iterationOfItem(t) === itKey);
   const total = tasks.reduce((n, t) => n + chargeOf(t, subs), 0);
   const done = tasks.filter((t) => t.statut === 'termine').reduce((n, t) => n + chargeOf(t, subs), 0);
@@ -187,7 +258,7 @@ export function checksIteration(h: HierarchyValue, itKey: string, today: string,
   }
 
   // Tâches sans points (on ignore un parent dont les sous-tâches ont des points)
-  const sansPoints = tasks.filter((t) => ouvert(t) && !pointsOf(t) && !(subs.get(t.id) ?? []).some((c) => pointsOf(c) > 0));
+  const sansPoints = tasks.filter((t) => ouvert(t) && avecPoints(t) && !pointsOf(t) && !(subs.get(t.id) ?? []).some((c) => pointsOf(c) > 0));
   if (sansPoints.length && capacite > 0)
     out.push({
       key: `sanspoints:${itKey}`,
@@ -201,15 +272,16 @@ export function checksIteration(h: HierarchyValue, itKey: string, today: string,
 // ---------------------------------------------------------------------------
 // 3. PI : « mon plan du trimestre est-il réaliste et cohérent ? »
 // ---------------------------------------------------------------------------
-export function checksPI(h: HierarchyValue, piKey: string, today: string, capacite: number): Check[] {
+export function checksPI(h: HierarchyValue, piKey: string, today: string, capacite: number, complet: HierarchyValue = h): Check[] {
   const out: Check[] = [];
   const subs = subtaskMap(h.items);
   const its = iterationsOf(piKey);
 
-  // Itérations surchargées
+  // Itérations surchargées (capacité commune à tous les domaines)
+  const subsAll = subtaskMap(complet.items);
   for (const it of its) {
     if (it.code === 'IP') continue;
-    const charge = h.items.filter((t) => iterationOfItem(t) === it.key).reduce((n, t) => n + chargeOf(t, subs), 0);
+    const charge = complet.items.filter((t) => iterationOfItem(t) === it.key).reduce((n, t) => n + chargeOf(t, subsAll), 0);
     if (charge > capacite)
       out.push({
         key: `surcharge:${it.key}`,
@@ -222,6 +294,36 @@ export function checksPI(h: HierarchyValue, piKey: string, today: string, capaci
   const features = h.featureList.filter((f) => f.pi === piKey);
   for (const f of features) {
     const tasks = h.items.filter((t) => t.feature === f.id && !t.periodicite);
+    // Dates de la feature (son itération, sinon tout le PI) hors des dates de son epic
+    const epic = h.epics.get(f.epic);
+    if (epic) {
+      const itf = f.iteration ? iterationByKey(f.iteration) : undefined;
+      const [fd, ff] = itf ? [itf.start, itf.end] : [toDateString(piStart(piKey)), toDateString(piEnd(piKey))];
+      const periode = itf ? `son itération ${itf.code} (${court(fd)} → ${court(ff)})` : `le PI ${piLabel(piKey)}`;
+      // Sans itération, le PI entier ne fait que « chevaucher » : on ne signale qu'un PI complètement en dehors
+      const avant = epic.debut && (itf ? fd < epic.debut : ff < epic.debut);
+      const apres = epic.fin && (itf ? ff > epic.fin : fd > epic.fin);
+      if (avant)
+        out.push({
+          key: `fdebut:${f.id}`,
+          icone: '📆',
+          message: `La feature « ${f.titre} » est prévue dans ${periode}, avant le début de l'epic « ${epic.titre} » (${fmtDate(epic.debut)}).`,
+          actions: [
+            { label: `Avancer le début de l'epic au ${fmtDate(fd)}`, action: { kind: 'entity', entity: 'epic', id: epic.id, patch: { debut: fd } }, principal: true },
+            { label: 'Ouvrir la feature', action: { kind: 'open', target: 'feature', id: f.id } },
+          ],
+        });
+      if (apres)
+        out.push({
+          key: `ffin:${f.id}`,
+          icone: '📆',
+          message: `La feature « ${f.titre} » est prévue dans ${periode}, après la fin de l'epic « ${epic.titre} » (${fmtDate(epic.fin)}).`,
+          actions: [
+            { label: `Repousser la fin de l'epic au ${fmtDate(ff)}`, action: { kind: 'entity', entity: 'epic', id: epic.id, patch: { fin: ff } }, principal: true },
+            { label: 'Ouvrir la feature', action: { kind: 'open', target: 'feature', id: f.id } },
+          ],
+        });
+    }
     // Feature sans itération
     if (!f.iteration)
       out.push({
@@ -318,7 +420,8 @@ export function checksRoadmap(h: HierarchyValue, today: string): Check[] {
         message: `L'epic « ${e.titre} » devait finir le ${fmtDate(e.fin)} : ${faites}/${tasks.length} tâches faites.`,
         actions: [
           { label: `Repousser la fin de l'epic au ${fmtDate(unMois(e.fin))}`, action: { kind: 'entity', entity: 'epic', id: e.id, patch: { fin: unMois(e.fin) } }, principal: true },
-          { label: "Marquer l'epic terminée", action: { kind: 'entity', entity: 'epic', id: e.id, patch: { etat: 'termine' } } },
+          // Pas de « Marquer terminée » : des tâches sont encore ouvertes (elle réapparaîtrait en alerte dans le Portefeuille)
+          { label: 'Voir les tâches ouvertes', action: { kind: 'open', target: 'epic', id: e.id } },
         ],
       });
     // Epic sans tâche
@@ -429,14 +532,20 @@ export function checksPortefeuille(h: HierarchyValue, today: string): Check[] {
 }
 
 /** Itération / PI examinés pour les pastilles des onglets : ceux d'aujourd'hui (et l'itération qui vient de finir). */
-export function checksParEcran(h: HierarchyValue, today: string, capacite: number, safe: boolean) {
+export function checksParEcran(complet: HierarchyValue, today: string, capacite: number, safe: boolean, dom = 'tous') {
+  const h = filtrerDomaine(complet, dom);
   const it = iterationOf(today).key;
   const precedente = shiftIteration(it, -1);
   return {
     taches: checksTaches(h, today),
     roadmap: checksRoadmap(h, today),
-    iteration: safe ? [...checksIteration(h, precedente, today, capacite).filter((c) => c.key.startsWith('fin:')), ...checksIteration(h, it, today, capacite)] : [],
-    pi: safe ? checksPI(h, iterationOf(today).pi, today, capacite) : [],
+    iteration: safe
+      ? [...checksIteration(h, precedente, today, capacite, complet).filter((c) => c.key.startsWith('fin:')), ...checksIteration(h, it, today, capacite, complet)]
+      : [],
+    pi: safe ? checksPI(h, iterationOf(today).pi, today, capacite, complet) : [],
     portefeuille: safe ? checksPortefeuille(h, today) : [],
   };
 }
+
+/** Nombre d'alertes de dates des barres de la roadmap, dans le domaine filtré. */
+export const nbAlertesDatesDomaine = (complet: HierarchyValue, dom = 'tous') => nbAlertesDates(filtrerDomaine(complet, dom));

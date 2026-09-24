@@ -30,7 +30,7 @@ import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
 import { cascadeLinks, pointsCheck, subtaskMap } from './src/subtasks';
 import type { Alignement } from './src/alerts';
-import { type Action, checksParEcran, nbAlertesDates } from './src/checks';
+import { type Action, checksParEcran, nbAlertesDatesDomaine } from './src/checks';
 import { AlertsCard, CheckActionContext } from './src/components/AlertsCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
@@ -814,8 +814,9 @@ function Main() {
         : [];
 
   // Alertes de chaque écran (chiffres rouges des onglets)
-  const checks = useMemo(() => checksParEcran(hv, today, safe.capacite, safe.actif), [hv, today, safe.capacite, safe.actif]);
-  const nbDates = useMemo(() => nbAlertesDates(hv), [hv]);
+  // Les alertes suivent le filtre de domaine (la capacité reste commune)
+  const checks = useMemo(() => checksParEcran(hv, today, safe.capacite, safe.actif, domFilter), [hv, today, safe.capacite, safe.actif, domFilter]);
+  const nbDates = useMemo(() => nbAlertesDatesDomaine(hv, domFilter), [hv, domFilter]);
   const badges: Record<Tab, number> = {
     taches: checks.taches.length,
     iteration: checks.iteration.length,

@@ -46,17 +46,20 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 - **Alertes de dates** dans la roadmap et les fiches (voir règles ci-dessous).
 - **Alertes par écran** : une carte « ⚠ Alertes » en tête de la zone qui défile de chaque écran, repliée sur une ligne
   par défaut (choix mémorisé par écran ; dépliée : 3 visibles, « voir les
-  autres »), avec des boutons d'action, et un **chiffre rouge sur chaque onglet**. Rien n'est modifié tout seul.
-  - **Tâches** : en retard (reporter à demain, tout reporter, choisir une date) ; rendez-vous qui se
+  autres »), avec des boutons d'action, et un **chiffre rouge sur chaque onglet** (itération et PI en cours). Les alertes suivent le **filtre de domaine** ;
+  la capacité reste commune. Rien n'est modifié tout seul.
+  - **Tâches** : en retard (reporter à demain, tout reporter, choisir une date) ; tâche répétée en retard
+    (cocher la période, tout rattraper) ; rendez-vous qui se
     chevauchent ; démarche ou tâche de priorité haute prévue dans 3 jours et pas commencée (commencer) ;
     toutes les sous-tâches faites (terminer la tâche) ; points du parent ≠ sous-tâches.
-  - **Itération** : retard sur le burndown ; fin d'itération avec des tâches non faites (les reporter dans
-    l'itération suivante) ; tâches sans points.
-  - **PI** : itération surchargée ; feature sans itération ; feature en retard sur son plan (décaler la
+  - **Itération** (l'itération affichée, nommée dans la carte) : surcharge ; points du parent ≠ sous-tâches ;
+    retard sur le burndown ; fin d'itération avec des tâches non faites (les reporter dans
+    l'itération suivante) ; tâches sans points (hors rendez-vous et appels).
+  - **PI** : itération surchargée ; dates de la feature hors de son epic (étendre l'epic) ; feature sans itération ; feature en retard sur son plan (décaler la
     feature ou ramener ses tâches) ; points de la feature ≠ ses tâches ; objectif du PI engagé sans feature
     (de son domaine) ; PI terminé sans valeur obtenue notée.
   - **Roadmap** : alertes de dates (sur les barres) ; epic ou objectif en retard (repousser d'un mois,
-    marquer terminée) ; epic sans tâche, objectif sans epic.
+    voir les tâches ouvertes) ; epic sans tâche, objectif sans epic.
   - **Portefeuille** : epic « Terminée » avec des tâches ouvertes, ou toutes ses tâches faites sans être
     terminée ; indicateur d'objectif en retard sur le temps écoulé ; domaine délaissé (rien depuis 2 mois).
 - **Mode SAFe** (sélecteur *Simple | SAFe* en haut, mémorisé sur l'appareil). Simple = Tâches + Roadmap ;

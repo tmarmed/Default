@@ -9,7 +9,7 @@ import { colors } from '../theme';
 import { TYPE_ICONS, type Item, type Statut } from '../types';
 import { chargeOf, pointsCheck, subtaskMap } from '../subtasks';
 import { AlertsCard } from './AlertsCard';
-import { checksIteration } from '../checks';
+import { checksIteration, filtrerDomaine } from '../checks';
 import { DomainChips, inDomain, useDomainFilter } from './DomainFilter';
 import { PeriodHeader } from './PeriodHeader';
 import { Swipe } from './Swipe';
@@ -72,7 +72,6 @@ export function IterationView({
     return out;
   }, [tasks, items]);
   const sansPoints = cards.filter((t) => !pointsOf(t) && !(subs.get(t.id) ?? []).some((c) => pointsOf(c) > 0)).length;
-  const incoherents = cards.filter((t) => pointsCheck(t, subs.get(t.id)).alerte);
   const [ouverts, setOuverts] = useState<Record<string, boolean>>({});
   const isIP = it.code === 'IP';
   const capacite = isIP ? 0 : safe.capacite;
@@ -103,7 +102,7 @@ export function IterationView({
             {isIP ? ' · semaine d’innovation et de planification' : ''}
           </Text>
           <DomainChips style={styles.chips} />
-          <AlertsCard ecran="iteration" checks={checksIteration(h, itKey, today, safe.capacite)} />
+          <AlertsCard ecran="iteration" titre={`${it.code} · ${piLabel(it.pi)}`} checks={checksIteration(filtrerDomaine(h, dom), itKey, today, safe.capacite, h)} />
 
           <View style={styles.card}>
             <View style={styles.capRow}>
@@ -132,14 +131,6 @@ export function IterationView({
               {autres > 0 ? ` · autres domaines ${fmt(autres)} (gris)` : ''}
               {sansPoints ? ` · ${sansPoints} tâche${sansPoints > 1 ? 's' : ''} sans points` : ''}
             </Text>
-            {incoherents.map((t) => (
-              <Pressable key={t.id} onPress={() => onOpenTask(t)} accessibilityRole="button">
-                <Text style={styles.warn}>
-                  ⚠ « {t.titre} » : {fmt(pointsCheck(t, subs.get(t.id)).parent)} prévus, {fmt(pointsCheck(t, subs.get(t.id)).sous)} dans ses
-                  sous-tâches ›
-                </Text>
-              </Pressable>
-            ))}
             {over && <Text style={styles.warn}>⚠ La charge{filtered ? ' totale' : ''} dépasse la capacité de {fmt(totalAll - capacite)}.</Text>}
             {!isIP && (
               <View style={styles.settings}>

@@ -12,7 +12,7 @@ import { colors } from '../theme';
 import type { Domaine, Epic, Item, Objectif } from '../types';
 import { DomainChips, useDomainFilter } from './DomainFilter';
 import { AlertsCard } from './AlertsCard';
-import { checksRoadmap } from '../checks';
+import { checksRoadmap, filtrerDomaine } from '../checks';
 import { PeriodHeader } from './PeriodHeader';
 import { Segmented } from './Segmented';
 import { Swipe } from './Swipe';
@@ -178,7 +178,7 @@ export function Roadmap({
       />
       <Swipe pageKey={`${zoom}:${win.start}`} onPrev={() => step(-1)} onNext={() => step(1)}>
         <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
-          <AlertsCard ecran="roadmap" checks={checksRoadmap(hv, toDateString(new Date()))} style={{ marginTop: 8 }} />
+          <AlertsCard ecran="roadmap" checks={checksRoadmap(filtrerDomaine(hv, domaineFiltre), toDateString(new Date()))} style={{ marginTop: 8 }} />
           {empty ? (
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>Roadmap vide pour l’instant</Text>

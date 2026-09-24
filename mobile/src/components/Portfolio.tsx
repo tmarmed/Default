@@ -9,7 +9,7 @@ import { etatEpic } from '../safe';
 import { colors } from '../theme';
 import { Epic, ETATS_EPIC, EtatEpic, Objectif } from '../types';
 import { AlertsCard } from './AlertsCard';
-import { checksPortefeuille } from '../checks';
+import { checksPortefeuille, filtrerDomaine } from '../checks';
 import { DomainChips, useDomainFilter } from './DomainFilter';
 
 interface Props {
@@ -53,7 +53,7 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
         </Pressable>
       )}
       <DomainChips style={styles.pad} />
-      <AlertsCard ecran="portefeuille" checks={checksPortefeuille(h, today)} />
+      <AlertsCard ecran="portefeuille" checks={checksPortefeuille(filtrerDomaine(h, dom), today)} />
 
       <View style={styles.stats}>
         {ETATS_EPIC.map((s) => (
