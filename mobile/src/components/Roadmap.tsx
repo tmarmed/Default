@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReactElement, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Alerte, alertesEpic, alertesObjectif } from '../alerts';
+import { Alerte, alertesEpic, alertesObjectif, Alignement } from '../alerts';
 import { progressObjectif } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
 import { piLabel } from '../pi';
@@ -26,6 +26,8 @@ interface Props {
   /** Boutons des alertes : ajustent les dates de l'epic / de l'objectif */
   onFixEpic: (epic: Epic, patch: Alerte['patch']) => void;
   onFixObjectif: (o: Objectif, patch: Alerte['patch']) => void;
+  /** Deuxième bouton : aligner l'élément (tâche, epic) sur son parent */
+  onAlign: (a: Alignement) => void;
   onOpenWizard?: () => void;
   refreshControl: ReactElement<RefreshControlProps>;
 }
@@ -55,6 +57,7 @@ export function Roadmap({
   onOpenDomaine,
   onFixEpic,
   onFixObjectif,
+  onAlign,
   refreshControl,
   onOpenWizard,
 }: Props) {
@@ -240,12 +243,13 @@ export function Roadmap({
                                 alertes={objAlerts.get(o.id)!}
                                 onPress={() => onOpenObjectif(o)}
                                 onFix={(p) => onFixObjectif(o, p)}
+                                onAlign={onAlign}
                                 toggle={shown.length ? { open: oOpen, count: shown.length, onPress: () => toggle(oKey) } : undefined}
                               />
                               {oOpen &&
                                 shown.map((e) => (
                                   <View key={e.id} style={styles.indent}>
-                                    <EpicBar epic={e} win={win} items={items} todayPos={todayPos} alertes={epicAlerts.get(e.id)!} onOpen={onOpenEpic} onFix={onFixEpic} />
+                                    <EpicBar epic={e} win={win} items={items} todayPos={todayPos} alertes={epicAlerts.get(e.id)!} onOpen={onOpenEpic} onFix={onFixEpic} onAlign={onAlign} />
                                   </View>
                                 ))}
                             </View>
@@ -253,7 +257,7 @@ export function Roadmap({
                         })}
                         {g.loose.length > 0 && g.objs.length > 0 && <Text style={styles.subhead}>Sans objectif</Text>}
                         {g.loose.map((e) => (
-                          <EpicBar key={e.id} epic={e} win={win} items={items} todayPos={todayPos} alertes={epicAlerts.get(e.id)!} onOpen={onOpenEpic} onFix={onFixEpic} />
+                          <EpicBar key={e.id} epic={e} win={win} items={items} todayPos={todayPos} alertes={epicAlerts.get(e.id)!} onOpen={onOpenEpic} onFix={onFixEpic} onAlign={onAlign} />
                         ))}
                       </>
                     )}
@@ -283,6 +287,7 @@ function EpicBar({
   alertes,
   onOpen,
   onFix,
+  onAlign,
 }: {
   epic: Epic;
   win: Window;
@@ -291,6 +296,7 @@ function EpicBar({
   alertes: Alerte[];
   onOpen: (e: Epic) => void;
   onFix: (e: Epic, patch: Alerte['patch']) => void;
+  onAlign: (a: Alignement) => void;
 }) {
   const hv = useHierarchy();
   const safe = useSafe();
@@ -310,6 +316,7 @@ function EpicBar({
       alertes={alertes}
       onPress={() => onOpen(epic)}
       onFix={(p) => onFix(epic, p)}
+      onAlign={onAlign}
     />
   );
 }
@@ -361,6 +368,7 @@ function BarRow({
   alertes,
   onPress,
   onFix,
+  onAlign,
   toggle,
   note,
 }: {
@@ -377,6 +385,7 @@ function BarRow({
   alertes: Alerte[];
   onPress: () => void;
   onFix: (patch: Alerte['patch']) => void;
+  onAlign: (a: Alignement) => void;
   toggle?: { open: boolean; count: number; onPress: () => void };
 }) {
   const bar = barFor({ debut, fin }, win);
@@ -435,9 +444,16 @@ function BarRow({
       {alertes.slice(0, 2).map((a) => (
         <View key={a.key} style={styles.alert}>
           <Text style={styles.alertText}>⚠ {a.message}</Text>
-          <Pressable style={styles.alertBtn} onPress={() => onFix(a.patch)} accessibilityRole="button" hitSlop={6}>
-            <Text style={styles.alertBtnText}>{a.bouton}</Text>
-          </Pressable>
+          <View style={styles.alertBtns}>
+            <Pressable style={styles.alertBtn} onPress={() => onFix(a.patch)} accessibilityRole="button" hitSlop={6}>
+              <Text style={styles.alertBtnText}>{a.bouton}</Text>
+            </Pressable>
+            {a.aligner && (
+              <Pressable style={[styles.alertBtn, styles.alertBtn2]} onPress={() => onAlign(a.aligner!)} accessibilityRole="button" hitSlop={6}>
+                <Text style={[styles.alertBtnText, styles.alertBtnText2]}>{a.aligner.bouton}</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
       ))}
       {alertes.length > 2 && (
@@ -526,6 +542,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
   },
   alertBtnText: { color: '#fff', fontSize: 12.5, fontWeight: '700' },
+  alertBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  alertBtn2: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.danger },
+  alertBtnText2: { color: colors.danger },
   alertMore: { marginTop: 4, fontSize: 12, color: colors.danger },
   scroll: { paddingBottom: 130 },
   chart: { marginHorizontal: 12, backgroundColor: colors.card, borderRadius: 14, paddingHorizontal: 12, paddingBottom: 8 },

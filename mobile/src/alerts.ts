@@ -4,7 +4,8 @@ import type { Feature, Item } from './types';
 
 /**
  * Alertes de dates : un élément (tâche, epic) qui sort des dates de son parent (epic, objectif).
- * Rien n'est modifié automatiquement : chaque alerte propose un bouton pour ajuster le parent.
+ * Rien n'est modifié automatiquement : chaque alerte propose deux boutons, ajuster le parent
+ * ou aligner l'élément sur les dates du parent.
  */
 
 /** Période d'un élément enfant ; fin 'infinie' = sans fin ; null = pas de date. */
@@ -12,6 +13,17 @@ export interface Periode {
   nom: string;
   debut: string | null;
   fin: string | 'infinie' | null;
+  /** Élément d'origine, pour pouvoir l'aligner sur son parent */
+  src?: { kind: 'tache' | 'epic'; id: string; repetee?: boolean; debut?: string; fin?: string };
+}
+
+/** Deuxième solution : modifier l'élément plutôt que le parent. */
+export interface Alignement {
+  kind: 'tache' | 'epic';
+  id: string;
+  nom: string;
+  bouton: string;
+  patch: Record<string, string>;
 }
 
 export interface Alerte {
@@ -21,6 +33,31 @@ export interface Alerte {
   bouton: string;
   /** Dates à appliquer au parent quand on touche le bouton */
   patch: { debut?: string; fin?: string };
+  /** Aligner l'élément sur le parent (absent si l'élément n'est pas connu) */
+  aligner?: Alignement;
+}
+
+/** Deuxième bouton : ramener l'élément au début (cas 'debut') ou à la fin (cas 'fin') du parent. */
+function alignement(e: Periode, cas: 'debut' | 'fin', cible: string): Alignement | undefined {
+  const s = e.src;
+  if (!s) return undefined;
+  const d = fmtDate(cible);
+  const base = { kind: s.kind, id: s.id, nom: e.nom };
+  if (s.kind === 'tache') {
+    if (s.repetee)
+      return cas === 'debut'
+        ? { ...base, bouton: `Faire commencer la répétition le ${d}`, patch: { debut: cible } }
+        : { ...base, bouton: `Arrêter la répétition le ${d}`, patch: { fin: cible } };
+    return { ...base, bouton: `${cas === 'debut' ? 'Décaler' : 'Ramener'} la tâche au ${d}`, patch: { date: cible } };
+  }
+  // Epic : on garde fin ≥ début
+  if (cas === 'debut')
+    return { ...base, bouton: `Faire commencer l'epic le ${d}`, patch: { debut: cible, ...(s.fin && s.fin < cible ? { fin: cible } : {}) } };
+  return {
+    ...base,
+    bouton: s.fin ? `Faire finir l'epic le ${d}` : `Donner une fin à l'epic : ${d}`,
+    patch: { fin: cible, ...(s.debut && s.debut > cible ? { debut: cible } : {}) },
+  };
 }
 
 /** Dates d'une tâche : sa date ; pour une tâche répétée, « À partir du » (sinon création) et « Jusqu'au ». */
@@ -30,14 +67,20 @@ export function periodeTache(t: Item): Periode {
       nom: t.titre,
       debut: t.debut || (t.cree_le ? toDateString(new Date(t.cree_le)) : null),
       fin: t.fin || 'infinie',
+      src: { kind: 'tache', id: t.id, repetee: true },
     };
   }
-  return { nom: t.titre, debut: t.date || null, fin: t.date || null };
+  return { nom: t.titre, debut: t.date || null, fin: t.date || null, src: { kind: 'tache', id: t.id } };
 }
 
 /** Dates d'une epic (ou d'un objectif) vue comme enfant. */
-export function periodeBloc(b: { titre: string; debut: string; fin: string }): Periode {
-  return { nom: b.titre, debut: b.debut || null, fin: b.fin || 'infinie' };
+export function periodeBloc(b: { id?: string; titre: string; debut: string; fin: string }): Periode {
+  return {
+    nom: b.titre,
+    debut: b.debut || null,
+    fin: b.fin || 'infinie',
+    src: b.id ? { kind: 'epic', id: b.id, debut: b.debut, fin: b.fin } : undefined,
+  };
 }
 
 const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
@@ -65,6 +108,7 @@ export function alertes(
         message: `« ${e.nom} » commence le ${fmtDate(e.debut)}, avant le début de ${sujet} (${fmtDate(parent.debut)}).`,
         bouton: `Avancer le début au ${fmtDate(e.debut)}`,
         patch: { debut: e.debut },
+        aligner: alignement(e, 'debut', parent.debut),
       });
     }
     if (!parent.fin || !e.fin) continue;
@@ -74,6 +118,7 @@ export function alertes(
         message: `« ${e.nom} » n'a pas de fin, alors que ${sujet} finit le ${fmtDate(parent.fin)}.`,
         bouton: mots.sansFin,
         patch: { fin: '' },
+        aligner: alignement(e, 'fin', parent.fin),
       });
     } else if (e.fin > parent.fin) {
       out.push({
@@ -81,6 +126,7 @@ export function alertes(
         message: `« ${e.nom} » finit le ${fmtDate(e.fin)}, après ${mots.fin} de ${sujet} (${fmtDate(parent.fin)}).`,
         bouton: `Repousser ${mots.fin} au ${fmtDate(e.fin)}`,
         patch: { fin: e.fin },
+        aligner: alignement(e, 'fin', parent.fin),
       });
     }
   }
@@ -95,7 +141,7 @@ export function alertesEpic(epic: { id: string; debut: string; fin: string }, it
 /** Alertes d'un objectif pour ses epics et ses tâches directes. */
 export function alertesObjectif(
   o: { id: string; debut: string; fin: string },
-  epics: { titre: string; debut: string; fin: string; objectif: string }[],
+  epics: { id?: string; titre: string; debut: string; fin: string; objectif: string }[],
   items: Item[],
 ): Alerte[] {
   return alertes(

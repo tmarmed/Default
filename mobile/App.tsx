@@ -29,6 +29,7 @@ import { DomainFilterContext, loadDomainFilter, saveDomainFilter } from './src/c
 import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
 import { cascadeLinks, pointsCheck, subtaskMap } from './src/subtasks';
+import type { Alignement } from './src/alerts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
 import { iterationOf, iterationOfItem, piOf } from './src/pi';
@@ -673,6 +674,17 @@ function Main() {
     }
   };
 
+  /** Deuxième bouton d'une alerte : aligner la tâche ou l'epic sur les dates de son parent. */
+  const alignChild = async (a: Alignement) => {
+    try {
+      if (a.kind === 'tache') await updateTask({ id: a.id, ...a.patch });
+      else await saveEntity('epic', { id: a.id }, a.patch);
+      setInfo(`« ${a.nom} » aligné sur les dates de son parent.`);
+    } catch (e) {
+      setNotice(`Alignement impossible : ${(e as Error).message}`);
+    }
+  };
+
   /** Assistant projet : enregistre le brouillon, puis recharge tout. */
   const applyWizard = async (draft: Parameters<typeof applyDraft>[0], onProgress: (done: number, total: number) => void) => {
     if (!settings) return;
@@ -994,6 +1006,7 @@ function Main() {
           onOpenDomaine={openDomaine}
           onFixEpic={(e, p) => fixEntity('epic', e, p)}
           onFixObjectif={(o, p) => fixEntity('objectif', o, p)}
+          onAlign={alignChild}
           refreshControl={refreshControl}
           onOpenWizard={() => openWizard(null)}
         />
@@ -1143,6 +1156,7 @@ function Main() {
           openNewTask({ epic: e.id });
         }}
         onOpenWizard={(e) => openWizard({ level: 'epic', id: e.id })}
+        onAlign={alignChild}
       />
       <ObjectifForm
         visible={objectifFormOpen}
@@ -1163,6 +1177,7 @@ function Main() {
           openEpic(null, { objectif: o.id, domaine: '' });
         }}
         onOpenWizard={(o) => openWizard({ level: 'objectif', id: o.id })}
+        onAlign={alignChild}
       />
 
       <DomaineForm

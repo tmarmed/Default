@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, Text } from 'react-native';
-import { alertesObjectif } from '../alerts';
+import { alertesObjectif, type Alignement } from '../alerts';
 import { addMonths, toDateString } from '../dates';
 import { childrenOf, describeCounts, progressObjectif } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
@@ -23,6 +23,8 @@ interface Props {
   defaults?: Partial<ObjectifInput>;
   onAddEpic?: (o: Objectif) => void;
   onOpenWizard?: (o: Objectif) => void;
+  /** Aligner un élément (epic, tâche) sur l'objectif */
+  onAlign?: (a: Alignement) => void;
 }
 
 const empty = (): ObjectifInput => {
@@ -43,7 +45,7 @@ const empty = (): ObjectifInput => {
 const number = (t: string) => t.replace(/[^0-9.,-]/g, '');
 
 /** Fiche d'un objectif : échéance (ou permanent), indicateur, epics, alertes. */
-export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onOpenEpic, defaults, onAddEpic, onOpenWizard }: Props) {
+export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onOpenEpic, defaults, onAddEpic, onOpenWizard, onAlign }: Props) {
   const h = useHierarchy();
   const [form, setForm] = useState<ObjectifInput>(empty());
   const [busy, setBusy] = useState(false);
@@ -96,7 +98,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
       onClose={onClose}
       onSave={save}
     >
-      <AlertList alertes={alertes} onFix={(a) => setForm((x) => ({ ...x, ...a.patch }))} />
+      <AlertList alertes={alertes} onFix={(a) => setForm((x) => ({ ...x, ...a.patch }))} onAlign={onAlign} />
 
       <View style={[f.preview, { backgroundColor: form.couleur }]}>
         <Text style={f.previewTitle} numberOfLines={2}>

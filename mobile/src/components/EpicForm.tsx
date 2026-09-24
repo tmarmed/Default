@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { alertesEpic } from '../alerts';
+import { alertesEpic, type Alignement } from '../alerts';
 import { addMonths, toDateString } from '../dates';
 import { childrenOf, describeCounts, tasksOfEpic } from '../hierarchy';
 import { formatEpicDates, progress } from '../roadmap';
@@ -41,6 +41,8 @@ interface Props {
   onAddFeature?: (e: Epic) => void;
   onAddTask?: (e: Epic) => void;
   onOpenWizard?: (e: Epic) => void;
+  /** Aligner une tâche sur l'epic */
+  onAlign?: (a: Alignement) => void;
 }
 
 const empty = (): EpicInput => {
@@ -70,6 +72,7 @@ export function EpicForm({
   onAddFeature,
   onAddTask,
   onOpenWizard,
+  onAlign,
 }: Props) {
   const [form, setForm] = useState<EpicInput>(empty());
   const [busy, setBusy] = useState(false);
@@ -166,13 +169,20 @@ export function EpicForm({
             {alertes.map((a) => (
               <View key={a.key} style={styles.alert}>
                 <Text style={styles.alertText}>⚠ {a.message}</Text>
-                <Pressable
-                  style={styles.alertBtn}
-                  onPress={() => setForm((f) => ({ ...f, ...a.patch }))}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.alertBtnText}>{a.bouton}</Text>
-                </Pressable>
+                <View style={styles.alertBtns}>
+                  <Pressable
+                    style={styles.alertBtn}
+                    onPress={() => setForm((f) => ({ ...f, ...a.patch }))}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.alertBtnText}>{a.bouton}</Text>
+                  </Pressable>
+                  {a.aligner && onAlign && (
+                    <Pressable style={[styles.alertBtn, styles.alertBtn2]} onPress={() => onAlign(a.aligner!)} accessibilityRole="button">
+                      <Text style={[styles.alertBtnText, styles.alertBtnText2]}>{a.aligner.bouton}</Text>
+                    </Pressable>
+                  )}
+                </View>
               </View>
             ))}
 
@@ -362,6 +372,9 @@ const styles = StyleSheet.create({
   alertText: { color: '#A50E0E', fontSize: 13.5, lineHeight: 19 },
   alertBtn: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, backgroundColor: colors.danger },
   alertBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  alertBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  alertBtn2: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.danger },
+  alertBtnText2: { color: colors.danger },
   hint: { marginTop: 6, fontSize: 12, lineHeight: 17, color: colors.muted },
   swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   swatch: { width: 34, height: 34, borderRadius: 17 },

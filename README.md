@@ -97,6 +97,10 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    automatiquement ; alerte + bouton « Repousser l'échéance » ou « Rendre l'objectif permanent »
    (objectif sans échéance = permanent, pas d'alerte de fin).
 6. La roadmap affiche le nombre d'alertes et peut n'afficher que les éléments en alerte.
+7. Chaque alerte propose **deux boutons** : ajuster le parent (ci-dessus) **ou aligner l'élément** sur les
+   dates du parent : « Ramener / Décaler la tâche au … » (tâche datée), « Arrêter la répétition le … » ou
+   « Faire commencer la répétition le … » (tâche répétée), « Faire finir / commencer l'epic le … » ou
+   « Donner une fin à l'epic » (epic d'un objectif). L'élément est enregistré tout de suite.
 - Tirer vers le bas pour synchroniser avec le Google Sheet
 - Dernière copie gardée sur le téléphone : la liste reste lisible sans réseau
 

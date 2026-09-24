@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { Alerte } from '../alerts';
+import type { Alerte, Alignement } from '../alerts';
 import { colors } from '../theme';
 import { EPIC_COULEURS } from '../types';
 
@@ -77,16 +77,34 @@ export function ColorPicker({ value, onChange }: { value: string; onChange: (c: 
   );
 }
 
-/** Alertes de dates avec leur bouton (qui ajuste les champs du formulaire). */
-export function AlertList({ alertes, onFix }: { alertes: Alerte[]; onFix: (a: Alerte) => void }) {
+/**
+ * Alertes de dates avec deux boutons : ajuster le parent (champs du formulaire) ou aligner l'élément
+ * (tâche, epic) sur le parent, enregistré tout de suite.
+ */
+export function AlertList({
+  alertes,
+  onFix,
+  onAlign,
+}: {
+  alertes: Alerte[];
+  onFix: (a: Alerte) => void;
+  onAlign?: (a: Alignement) => void;
+}) {
   return (
     <>
       {alertes.map((a) => (
         <View key={a.key} style={styles.alert}>
           <Text style={styles.alertText}>⚠ {a.message}</Text>
-          <Pressable style={styles.alertBtn} onPress={() => onFix(a)} accessibilityRole="button">
-            <Text style={styles.alertBtnText}>{a.bouton}</Text>
-          </Pressable>
+          <View style={styles.alertBtns}>
+            <Pressable style={styles.alertBtn} onPress={() => onFix(a)} accessibilityRole="button">
+              <Text style={styles.alertBtnText}>{a.bouton}</Text>
+            </Pressable>
+            {a.aligner && onAlign && (
+              <Pressable style={[styles.alertBtn, styles.alertBtn2]} onPress={() => onAlign(a.aligner!)} accessibilityRole="button">
+                <Text style={[styles.alertBtnText, styles.alertBtnText2]}>{a.aligner.bouton}</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
       ))}
     </>
@@ -176,6 +194,9 @@ const styles = StyleSheet.create({
   alertText: { color: '#A50E0E', fontSize: 13.5, lineHeight: 19 },
   alertBtn: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, backgroundColor: colors.danger },
   alertBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  alertBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  alertBtn2: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.danger },
+  alertBtnText2: { color: colors.danger },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 18 },
   action: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, borderWidth: 1, borderColor: colors.primary },
   actionPrimary: { backgroundColor: colors.primary },
