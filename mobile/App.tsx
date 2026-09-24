@@ -968,12 +968,14 @@ function Main() {
   const alertesDates = useMemo(() => checksDatesDomaine(hv, domFilter), [hv, domFilter]);
   // Les alertes ignorées ne comptent pas
   const ig = hier.ignorees;
-  const badges: Record<Tab, number> = {
-    taches: nbAlertes(checks.taches, ig),
-    iteration: nbAlertes(checks.iteration, ig),
-    pi: nbAlertes(checks.pi, ig),
-    roadmap: nbAlertes(checks.roadmap, ig) + nbAlertes(alertesDates, ig),
-    portefeuille: nbAlertes(checks.portefeuille, ig),
+  // Deux pastilles par onglet : alertes (rouge) et rappels (jaune)
+  const compte = (cs: Check[]) => ({ rouge: nbAlertes(cs, ig, 'alerte'), jaune: nbAlertes(cs, ig, 'rappel') });
+  const badges: Record<Tab, { rouge: number; jaune: number }> = {
+    taches: compte(checks.taches),
+    iteration: compte(checks.iteration),
+    pi: compte(checks.pi),
+    roadmap: compte([...checks.roadmap, ...alertesDates]),
+    portefeuille: compte(checks.portefeuille),
   };
 
   // Écran Tâches : les alertes défilent avec le contenu (en tête de liste / de calendrier)
@@ -1323,9 +1325,18 @@ function Main() {
           >
             <View>
               <Text style={[styles.tabIcon, tab === key && styles.tabOn]}>{icon}</Text>
-              {badges[key] > 0 && (
-                <View style={styles.badge} accessibilityLabel={`${badges[key]} alerte${badges[key] > 1 ? 's' : ''}`}>
-                  <Text style={styles.badgeText}>{badges[key] > 99 ? '99+' : badges[key]}</Text>
+              {(badges[key].rouge > 0 || badges[key].jaune > 0) && (
+                <View style={styles.badges}>
+                  {badges[key].rouge > 0 && (
+                    <View style={styles.badge} accessibilityLabel={`${badges[key].rouge} alerte${badges[key].rouge > 1 ? 's' : ''}`}>
+                      <Text style={styles.badgeText}>{badges[key].rouge > 99 ? '99+' : badges[key].rouge}</Text>
+                    </View>
+                  )}
+                  {badges[key].jaune > 0 && (
+                    <View style={[styles.badge, styles.badgeJaune]} accessibilityLabel={`${badges[key].jaune} rappel${badges[key].jaune > 1 ? 's' : ''}`}>
+                      <Text style={[styles.badgeText, styles.badgeTextJaune]}>{badges[key].jaune > 99 ? '99+' : badges[key].jaune}</Text>
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -1646,10 +1657,10 @@ const styles = StyleSheet.create({
   },
   tabBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
   tabIcon: { fontSize: 18, color: colors.muted },
+  badges: { position: 'absolute', top: -5, left: 13, flexDirection: 'row', gap: 2 },
+  badgeJaune: { backgroundColor: '#F2C230' },
+  badgeTextJaune: { color: '#3A2E00' },
   badge: {
-    position: 'absolute',
-    top: -5,
-    right: -14,
     minWidth: 17,
     height: 17,
     borderRadius: 9,

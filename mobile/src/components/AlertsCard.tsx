@@ -21,8 +21,14 @@ export const IgnoreContext = createContext<IgnoreValue>({ ignorees: [], ignorer:
 export const estIgnoree = (c: Check, ignorees: Ignoree[]) => ignorees.some((i) => i.cle === c.key && i.signature === c.message);
 /** Alertes à afficher et à compter (sans les ignorées). */
 export const actives = (checks: Check[], ignorees: Ignoree[]) => checks.filter((c) => !estIgnoree(c, ignorees));
-/** Nombre d'alertes (sans les ignorées, ni les raccourcis qui en regroupent d'autres) */
-export const nbAlertes = (checks: Check[], ignorees: Ignoree[]) => actives(checks, ignorees).filter((c) => !c.groupe).length;
+/** Rappel (jaune) ou alerte (rouge) */
+export const estRappel = (c: Check) => c.niveau === 'rappel';
+/**
+ * Nombre d'alertes (sans les ignorées, ni les raccourcis qui en regroupent d'autres) :
+ * 'alerte' = rouges, 'rappel' = jaunes, 'tous' = les deux.
+ */
+export const nbAlertes = (checks: Check[], ignorees: Ignoree[], niveau: 'alerte' | 'rappel' | 'tous' = 'tous') =>
+  actives(checks, ignorees).filter((c) => !c.groupe && (niveau === 'tous' || (niveau === 'rappel') === estRappel(c))).length;
 
 const VISIBLES = 3;
 
@@ -73,23 +79,35 @@ export function AlertsCard({
   // Raccourci seul (toutes les alertes qu'il regroupe sont ignorées) : rien à afficher
   if (!checks.some((c) => !c.groupe)) checks = [];
   if (!checks.length && !ignorees.length) return null;
-  // Le raccourci « Tout reporter » n'est pas une alerte de plus
-  const n = checks.filter((c) => !c.groupe).length;
+  // Alertes (rouges) d'abord, puis rappels (jaunes) ; le raccourci « Tout reporter » n'est pas une alerte de plus
+  checks = [...checks.filter((c) => !estRappel(c)), ...checks.filter(estRappel)];
+  const n = checks.filter((c) => !c.groupe && !estRappel(c)).length;
+  const r = checks.filter(estRappel).length;
+  const jaune = !n && r > 0;
   const shown = tout ? checks : checks.slice(0, VISIBLES);
+  const entete = [
+    n ? `⚠ ${n} alerte${n > 1 ? 's' : ''}` : '',
+    r ? `${n ? '' : '🟡 '}${r} rappel${r > 1 ? 's' : ''}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
   return (
-    <View style={[s.card, !checks.length && s.cardCalme, style]}>
+    <View style={[s.card, jaune && s.cardJaune, !checks.length && s.cardCalme, style]}>
       <Pressable style={s.head} onPress={() => setOpen((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: open }}>
-        <Text style={[s.title, !checks.length && s.titleCalme]}>
-          {checks.length ? `⚠ ${n} alerte${n > 1 ? 's' : ''}` : `✓ Aucune alerte · ${ignorees.length} ignorée${ignorees.length > 1 ? 's' : ''}`}
+        <Text style={[s.title, jaune && s.titleJaune, !checks.length && s.titleCalme]}>
+          {checks.length ? entete : `✓ Aucune alerte · ${ignorees.length} ignorée${ignorees.length > 1 ? 's' : ''}`}
           {titre ? ` · ${titre}` : ''}
         </Text>
-        <Text style={s.chev}>{open ? '▾' : '▸'}</Text>
+        <Text style={[s.chev, jaune && s.titleJaune]}>{open ? '▾' : '▸'}</Text>
       </Pressable>
       {open && (
         <>
-          {shown.map((c) => (
-            <View key={c.key} style={s.item}>
-              <Text style={s.msg}>
+          {shown.map((c) => {
+            const j = estRappel(c);
+            return (
+            <View key={c.key} style={[s.item, j && s.itemJaune]}>
+              <Text style={[s.msg, j && s.msgJaune]}>
+                {j ? '🟡 ' : ''}
                 {c.icone} {c.message}
               </Text>
               {c.actions.length > 0 && (
@@ -97,11 +115,11 @@ export function AlertsCard({
                   {c.actions.map((a) => (
                     <Pressable
                       key={a.label}
-                      style={[s.btn, a.principal ? s.btnMain : s.btnSec]}
+                      style={[s.btn, a.principal ? (j ? s.btnMainJaune : s.btnMain) : j ? s.btnSecJaune : s.btnSec]}
                       onPress={() => run(a.action)}
                       accessibilityRole="button"
                     >
-                      <Text style={[s.btnText, !a.principal && s.btnTextSec]}>{a.label}</Text>
+                      <Text style={[s.btnText, !a.principal && s.btnTextSec, j && (a.principal ? s.btnTextJaune : s.btnTextSecJaune)]}>{a.label}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -110,10 +128,11 @@ export function AlertsCard({
                 <Text style={s.ignorerText}>Ignorer</Text>
               </Pressable>
             </View>
-          ))}
+            );
+          })}
           {checks.length > VISIBLES && (
             <Pressable onPress={() => setTout((v) => !v)} style={s.more} accessibilityRole="button">
-              <Text style={s.moreText}>{tout ? 'Voir moins' : `Voir les ${checks.length - VISIBLES} autres`}</Text>
+              <Text style={[s.moreText, jaune && s.titleJaune]}>{tout ? 'Voir moins' : `Voir les ${checks.length - VISIBLES} autres`}</Text>
             </Pressable>
           )}
           {ignorees.length > 0 && (
@@ -156,6 +175,15 @@ const s = StyleSheet.create({
   btnTextSec: { color: colors.danger },
   more: { paddingHorizontal: 12, paddingVertical: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F6C7C1' },
   moreText: { color: colors.danger, fontWeight: '700', fontSize: 13 },
+  // Rappels (jaune)
+  cardJaune: { backgroundColor: '#FFF8E1', borderColor: '#F3D98B' },
+  titleJaune: { color: '#7A5A00' },
+  itemJaune: { backgroundColor: '#FFF8E1', borderTopColor: '#F3D98B' },
+  msgJaune: { color: '#5C4400' },
+  btnMainJaune: { backgroundColor: '#F2C230' },
+  btnSecJaune: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#C99700' },
+  btnTextJaune: { color: '#3A2E00' },
+  btnTextSecJaune: { color: '#7A5A00' },
   cardCalme: { backgroundColor: colors.card, borderColor: colors.border },
   titleCalme: { color: colors.muted, fontWeight: '700' },
   ignorer: { alignSelf: 'flex-start', paddingVertical: 2 },

@@ -28,6 +28,8 @@ export interface Check {
   key: string;
   /** Alerte qui regroupe d'autres alertes (« Tout reporter ») : pas comptée dans le chiffre de l'onglet */
   groupe?: boolean;
+  /** 'rappel' = jaune (rien n'est encore raté : rappel avant une échéance) ; sinon rouge */
+  niveau?: 'rappel';
   icone: string;
   message: string;
   actions: { label: string; action: Action; principal?: boolean }[];
@@ -307,6 +309,7 @@ export function checksTaches(
     else if (t.date_fin <= dans3)
       out.push({
         key: `drappel:${t.id}`,
+        niveau: 'rappel',
         icone: '⏳',
         message: `${maj(mot(t))} « ${t.titre} » doit être finie ${quand(t.date_fin)} (date de fin : ${court(t.date_fin)}).`,
         actions: [{ ...ouvrir, principal: true }, { label: 'Marquer terminée', action: { kind: 'task', id: t.id, patch: { statut: 'termine' } } }],
@@ -404,6 +407,8 @@ export function checksIteration(
     const lesTaches = (n: number, datee = false) => (n > 1 ? `les ${n} tâches${datee ? ' datées' : ''}` : `la tâche${datee ? ' datée' : ''}`);
     out.push({
       key: `fin:${itKey}`,
+      // Itération pas encore finie : rappel (jaune) ; finie : alerte (rouge)
+      ...(it.end < today ? {} : { niveau: 'rappel' as const }),
       icone: '↪️',
       message: `${it.end < today ? 'Itération terminée' : `Fin de l'itération le ${court(it.end)}`} : ${nonFaites.length} tâche${nonFaites.length > 1 ? 's' : ''} non faite${nonFaites.length > 1 ? 's' : ''}${datees.length ? ` (dont ${datees.length} datée${datees.length > 1 ? 's' : ''})` : ''}.`,
       actions: [
