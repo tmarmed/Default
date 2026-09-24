@@ -85,6 +85,8 @@ export interface Item {
   periodeLabel?: string;
   /** Périodes oubliées, regroupées sur une ligne « En retard » */
   retards?: string[];
+  /** Calendrier : repère « ⏳ Fin » d'une démarche, affiché le jour de sa date de fin (en plus de sa date) */
+  repereFin?: boolean;
   /** Sous-tâche affichée seule (calendrier) : titre du parent */
   parentTitre?: string;
   /** Parent affiché dans la liste : sous-tâches visibles, avancement, alerte de points */

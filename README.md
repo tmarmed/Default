@@ -13,7 +13,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   après le début, et durée affichée), 📞 Appel (numéro + bouton
   **Appeler** dans la fiche et dans la liste), 🗂️ Démarche administrative (avec **date de fin** facultative =
   date limite, affichée « ⏳ fin … » dans la liste, rouge si dépassée ; script v12 ; sans date, c'est sa date de fin
-  qui la range dans la liste, le calendrier et l'itération, avec l'étiquette « Date de fin dépassée » une fois passée), 🚩 Mission, 📖 User story,
+  qui la range dans la liste, le calendrier et l'itération, avec l'étiquette « Date de fin dépassée » une fois passée ; avec une date ET une date de fin, le calendrier la montre aussi
+  le jour de sa date de fin : « ⏳ Fin : … », jusqu'à ce qu'elle soit terminée), 🚩 Mission, 📖 User story,
   🔍 Exploration, 🐞 Bug. Filtre de la liste : « Tous » ou un type (liste déroulante, avec 🔁 Répétés).
 - **Statut unique** (`statut` dans le Google Sheet), le même dans les deux modes : cocher = « Terminé » =
   colonne « Terminé » du Kanban. Décocher remet le statut d'avant (« En cours » s'il l'était ; gardé par le

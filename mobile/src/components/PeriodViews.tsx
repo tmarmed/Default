@@ -35,7 +35,7 @@ function ItemList({ items, onPress, onToggle }: { items: Item[] } & Pick<Common,
   return (
     <>
       {items.map((item) => (
-        <TaskItem key={item.id} item={item} onPress={onPress} onToggle={onToggle} />
+        <TaskItem key={`${item.id}${item.repereFin ? ':fin' : ''}`} item={item} onPress={onPress} onToggle={onToggle} />
       ))}
     </>
   );

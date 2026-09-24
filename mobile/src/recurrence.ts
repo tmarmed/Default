@@ -1,5 +1,5 @@
 import { addDays, addMonths, startOfWeek, toDateString } from './dates';
-import { dateRepere, type Item, type Periodicite } from './types';
+import { aDateFin, dateRepere, type Item, type Periodicite } from './types';
 
 /** Une échéance d'un élément répété, dans une période donnée. */
 export interface Occurrence {
@@ -265,6 +265,13 @@ export function expandRange(
       const list = byDate.get(d);
       if (list) list.push(item);
       else byDate.set(d, [item]);
+      // Démarche avec une date ET une date de fin : repère « ⏳ Fin » le jour de sa date de fin (tant qu'elle n'est pas finie)
+      if (aDateFin(item.type) && item.date && item.date_fin && item.date_fin !== item.date && item.statut !== 'termine') {
+        const fin = { ...item, repereFin: true };
+        const l2 = byDate.get(item.date_fin);
+        if (l2) l2.push(fin);
+        else byDate.set(item.date_fin, [fin]);
+      }
       continue;
     }
     const done = doneKeys(item);

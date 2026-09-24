@@ -46,6 +46,7 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle, expand
       </Pressable>
       <View style={styles.body}>
         <Text style={[styles.title, done && styles.titleDone]} numberOfLines={2}>
+          {item.repereFin ? <Text style={styles.finLabel}>⏳ Fin : </Text> : null}
           {item.titre}
         </Text>
         <View style={styles.meta}>
@@ -243,5 +244,6 @@ const styles = StyleSheet.create({
   points: { fontSize: 12, fontWeight: '700', color: colors.muted, backgroundColor: '#EEF1F6', borderRadius: 8, paddingHorizontal: 6, overflow: 'hidden' },
   enCours: { fontSize: 13, color: colors.primary, fontWeight: '600' },
   late: { fontSize: 13, color: colors.danger, fontWeight: '600' },
+  finLabel: { color: colors.warning, fontWeight: '700' },
   prio: { width: 8, height: 8, borderRadius: 4, marginRight: 14 },
 });
