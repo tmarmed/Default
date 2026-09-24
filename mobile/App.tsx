@@ -20,7 +20,7 @@ import { EpicForm } from './src/components/EpicForm';
 import { FeatureForm } from './src/components/FeatureForm';
 import { IterationView } from './src/components/IterationView';
 import { ObjectifPIForm } from './src/components/ObjectifPIForm';
-import { PIView } from './src/components/PIView';
+import { PIView, selectedIteration } from './src/components/PIView';
 import { DomainFilterContext, loadDomainFilter, saveDomainFilter } from './src/components/DomainFilter';
 import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
@@ -186,6 +186,8 @@ function Main() {
   const [itKey, setItKey] = useState(() => iterationOf(new Date()).key);
   const [itFilter, setItFilter] = useState(false);
   const [piKey, setPiKey] = useState(() => piOf(new Date()));
+  /** Itération choisie dans la ligne « Tâches hors feature » du PI */
+  const [piItKey, setPiItKey] = useState('');
   const [editingFeature, setEditingFeature] = useState<Feature | null>(null);
   const [featureFormOpen, setFeatureFormOpen] = useState(false);
   const [editingOPI, setEditingOPI] = useState<ObjectifPI | null>(null);
@@ -459,6 +461,11 @@ function Main() {
     setEditing(null);
     setTaskDefaults(defaults);
     setFormOpen(true);
+  };
+  /** Écran PI : nouvelle tâche hors feature, dans l'itération choisie (et le domaine filtré). */
+  const addHorsFeature = (key: string) => {
+    setPiItKey(key);
+    openNewTask({ iteration: key, date: '', ...(domFilter !== 'tous' && domFilter ? { domaine: domFilter } : {}) });
   };
   const closeFiches = () => {
     setEpicFormOpen(false);
@@ -792,6 +799,11 @@ function Main() {
             setItKey(key);
             setTab('iteration');
           }}
+          selIt={piItKey}
+          onSelectIt={setPiItKey}
+          onOpenTask={openForm}
+          onToggleTask={toggle}
+          onAddTask={addHorsFeature}
           onOpenObjectifPI={(o) => {
             setEditingOPI(o);
             setOpiFormOpen(true);
@@ -1049,6 +1061,7 @@ function Main() {
             {(tab === 'pi'
               ? ([
                   ['🧩', 'Une feature', 'Une partie d’epic livrée dans ce PI', () => openFeature(null)],
+                  ['✓', 'Une tâche hors feature', `Dans l’itération ${selectedIteration(piKey, piItKey).split('-').pop()}`, () => addHorsFeature(selectedIteration(piKey, piItKey))],
                   ['🤝', 'Un objectif du PI', 'Ce que je m’engage à livrer ce trimestre', () => { setEditingOPI(null); setOpiFormOpen(true); }],
                 ] as const)
               : ([

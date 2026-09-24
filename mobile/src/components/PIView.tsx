@@ -17,8 +17,22 @@ interface Props {
   onOpenFeature: (f: Feature | null) => void;
   onOpenObjectifPI: (o: ObjectifPI | null) => void;
   refreshControl: ReactElement<RefreshControlProps>;
-  /** Ouvre l'écran Itération (tâches hors feature de cette itération) */
+  /** Ouvre l'écran Itération */
   onOpenIteration: (key: string) => void;
+  /** Itération choisie dans la ligne « Tâches hors feature » */
+  selIt: string;
+  onSelectIt: (key: string) => void;
+  onOpenTask: (t: Item) => void;
+  onToggleTask: (t: Item) => void;
+  /** Nouvelle tâche hors feature dans l'itération */
+  onAddTask: (itKey: string) => void;
+}
+
+/** Itération proposée dans un PI : celle choisie, sinon l'itération en cours, sinon la première. */
+export function selectedIteration(piKey: string, selIt: string): string {
+  if (selIt.startsWith(`${piKey}-`)) return selIt;
+  const now = iterationOf(new Date()).key;
+  return now.startsWith(`${piKey}-`) ? now : iterationsOf(piKey)[0].key;
 }
 
 const NAME_W = 140;
@@ -27,7 +41,19 @@ const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août'
 const court = (d: Date) => `${d.getDate() === 1 ? '1er' : d.getDate()} ${MOIS[d.getMonth()]}`;
 
 /** 🗓️ PI (vision tactique SAFe) : objectifs du PI, tableau features × itérations, charge. */
-export function PIView({ piKey, onChangePi, onOpenFeature, onOpenObjectifPI, refreshControl, onOpenIteration }: Props) {
+export function PIView({
+  piKey,
+  onChangePi,
+  onOpenFeature,
+  onOpenObjectifPI,
+  refreshControl,
+  onOpenIteration,
+  selIt,
+  onSelectIt,
+  onOpenTask,
+  onToggleTask,
+  onAddTask,
+}: Props) {
   const h = useHierarchy();
   const safe = useSafe();
   const fmt = (n: number) => fmtPoints(n, safe.pointsJours);
@@ -62,6 +88,13 @@ export function PIView({ piKey, onChangePi, onOpenFeature, onOpenObjectifPI, ref
   const chargeDom = inIt.map((list) => list.filter(taskIn).reduce((n, t) => n + pointsOf(t), 0));
   // Tâches hors feature, par itération
   const horsFeature = inIt.map((list) => list.filter((t) => !t.feature && taskIn(t)));
+  const sel = selectedIteration(piKey, selIt);
+  const selIndex = Math.max(0, its.findIndex((it) => it.key === sel));
+  const selList = [...horsFeature[selIndex]].sort(
+    (a, b) => +(a.statut === 'termine') - +(b.statut === 'termine') || (a.date || '~').localeCompare(b.date || '~'),
+  );
+  const parentOf = (t: Item) =>
+    h.epics.get(t.epic)?.titre ?? h.objectifs.get(t.objectif)?.titre ?? (h.domaines.get(t.domaine) ? `${h.domaines.get(t.domaine)!.icone} ${h.domaines.get(t.domaine)!.nom}` : '');
   const featurePts = features.reduce((n, f) => n + pointsOf(f), 0);
   const capaPi = safe.capacite * 6;
 
@@ -184,7 +217,7 @@ export function PIView({ piKey, onChangePi, onOpenFeature, onOpenObjectifPI, ref
               <View style={styles.row}>
                 <View style={styles.nameCell}>
                   <Text style={styles.fName}>Tâches hors feature</Text>
-                  <Text style={styles.fMeta}>faites / total</Text>
+                  <Text style={styles.fMeta}>faites / total · toucher pour voir</Text>
                 </View>
                 {its.map((it, i) => {
                   const list = horsFeature[i];
@@ -193,11 +226,12 @@ export function PIView({ piKey, onChangePi, onOpenFeature, onOpenObjectifPI, ref
                     <Pressable
                       key={it.key}
                       style={[styles.cell, it.key === currentIt && styles.nowCol]}
-                      onPress={() => onOpenIteration(it.key)}
+                      onPress={() => onSelectIt(it.key)}
                       accessibilityRole="button"
+                      accessibilityState={{ selected: it.key === sel }}
                       accessibilityLabel={`Tâches hors feature ${it.code}`}
                     >
-                      <Text style={[styles.tasks, { color: list.length ? colors.text : colors.muted }]}>
+                      <Text style={[styles.tasks, styles.selBox, it.key === sel && styles.selOn, { color: it.key === sel ? '#fff' : list.length ? colors.text : colors.muted }]}>
                         {list.length ? `${done}/${list.length}` : '+'}
                       </Text>
                     </Pressable>
@@ -231,6 +265,54 @@ export function PIView({ piKey, onChangePi, onOpenFeature, onOpenObjectifPI, ref
           <Pressable onPress={() => onOpenFeature(null)} hitSlop={6} style={styles.addFeature}>
             <Text style={styles.add}>+ Feature dans ce PI</Text>
           </Pressable>
+
+          <View style={styles.card}>
+            <View style={styles.cardHead}>
+              <Text style={styles.cardTitle}>
+                Tâches hors feature · {its[selIndex].code}
+              </Text>
+              <Pressable onPress={() => onOpenIteration(sel)} hitSlop={6} accessibilityRole="button">
+                <Text style={styles.add}>Itération ›</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.muted}>
+              {its[selIndex].label.split(' · ')[1]}
+              {filtered ? ` · ${domName}` : ''}
+            </Text>
+            {selList.length === 0 && <Text style={styles.muted}>Aucune tâche hors feature dans cette itération.</Text>}
+            {selList.map((t) => (
+              <View key={t.id} style={styles.taskRow}>
+                <Pressable
+                  onPress={() => onToggleTask(t)}
+                  hitSlop={6}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: t.statut === 'termine' }}
+                  accessibilityLabel={`Terminer ${t.titre}`}
+                  style={[styles.check, t.statut === 'termine' && styles.checkOn]}
+                >
+                  {t.statut === 'termine' && <Text style={styles.checkMark}>✓</Text>}
+                </Pressable>
+                <Pressable style={styles.flex} onPress={() => onOpenTask(t)} accessibilityRole="button">
+                  <Text style={[styles.objTitle, t.statut === 'termine' && styles.done]} numberOfLines={2}>
+                    {t.titre}
+                  </Text>
+                  <Text style={styles.muted} numberOfLines={1}>
+                    {[
+                      pointsOf(t) ? fmt(pointsOf(t)) : '',
+                      t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}` : '',
+                      t.statut === 'en_cours' ? 'en cours' : '',
+                      parentOf(t),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Text>
+                </Pressable>
+              </View>
+            ))}
+            <Pressable onPress={() => onAddTask(sel)} hitSlop={6} accessibilityRole="button">
+              <Text style={styles.add}>+ Tâche hors feature dans {its[selIndex].code}</Text>
+            </Pressable>
+          </View>
 
           {sansPi.length > 0 && (
             <View style={styles.card}>
@@ -296,6 +378,13 @@ const styles = StyleSheet.create({
   emptyBoard: { padding: 16, width: NAME_W + COL_W * 7 },
   chargeRow: { backgroundColor: '#F7F9FC' },
   charge: { fontSize: 12, fontWeight: '800', color: colors.text },
+  selBox: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, overflow: 'hidden' },
+  selOn: { backgroundColor: colors.primary },
+  taskRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
+  check: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  checkOn: { backgroundColor: colors.success, borderColor: colors.success },
+  checkMark: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  done: { textDecorationLine: 'line-through', color: colors.muted },
   chargeSmall: { fontSize: 10.5, fontWeight: '600', color: colors.muted },
   chips: { paddingHorizontal: 16, paddingBottom: 10 },
 });

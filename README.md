@@ -48,7 +48,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   prévisibilité se calcule alors pour le domaine filtré. Supprimer un domaine ne supprime jamais ses objectifs
   du PI (historique) : ils passent « sans domaine ».
   Dans l'écran PI, la ligne **Tâches hors feature** montre, par itération, les tâches sans feature
-  (faites / total) ; la toucher ouvre l'itération.
+  (faites / total) ; toucher une case affiche la liste de ces tâches sous le tableau (cocher, ouvrir) avec
+  **+ Tâche hors feature** dans cette itération (aussi dans le menu + du PI) et un lien vers l'itération.
 - **🚀 Assistant projet** (modes Simple et SAFe ; bouton +, fiches « Ouvrir dans l'assistant », écrans vides) :
   crée un **nouveau projet** (en partant de zéro ou d'un domaine / objectif existant) ou **complète / modifie**
   un projet existant en entrant au niveau voulu (domaine, objectif, epic, feature). Étape par étape :
