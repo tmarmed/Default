@@ -1,4 +1,4 @@
-import { ReactElement } from 'react';
+import { ReactElement, useState } from 'react';
 import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { toDateString } from '../dates';
 import { domaineOf } from '../hierarchy';
@@ -95,9 +95,13 @@ export function PIView({
   const horsFeature = inIt.map((list) => list.filter((t) => !t.feature && taskIn(t)));
   const sel = selectedIteration(piKey, selIt);
   const selIndex = Math.max(0, its.findIndex((it) => it.key === sel));
-  const selList = [...horsFeature[selIndex]].sort(
-    (a, b) => +(a.statut === 'termine') - +(b.statut === 'termine') || (a.date || '~').localeCompare(b.date || '~'),
+  // Toutes les tâches hors feature du PI, dans l'ordre des itérations
+  const allHors = horsFeature.flatMap((list) =>
+    [...list].sort((a, b) => (a.date || '~').localeCompare(b.date || '~') || a.titre.localeCompare(b.titre)),
   );
+  const [horsOpen, setHorsOpen] = useState(true);
+  const colorOf = (t: Item) =>
+    h.epics.get(t.epic)?.couleur ?? h.objectifs.get(t.objectif)?.couleur ?? h.domaines.get(domaineOf(t, h)?.id ?? '')?.couleur ?? '#8A94A6';
   const parentOf = (t: Item) =>
     h.epics.get(t.epic)?.titre ?? h.objectifs.get(t.objectif)?.titre ?? (h.domaines.get(t.domaine) ? `${h.domaines.get(t.domaine)!.icone} ${h.domaines.get(t.domaine)!.nom}` : '');
   const featurePts = features.reduce((n, f) => n + pointsOf(f), 0);
@@ -219,29 +223,77 @@ export function PIView({
                 <Text style={[styles.muted, styles.emptyBoard]}>Aucune feature prévue dans ce PI.</Text>
               )}
 
-              <View style={styles.row}>
-                <View style={styles.nameCell}>
-                  <Text style={styles.fName}>Tâches hors feature</Text>
-                  <Text style={styles.fMeta}>faites / total · toucher pour voir</Text>
-                </View>
-                {its.map((it, i) => {
-                  const list = horsFeature[i];
-                  const done = list.filter((t) => t.statut === 'termine').length;
+              <Pressable style={styles.epicRow} onPress={() => setHorsOpen((v) => !v)} accessibilityRole="button" accessibilityLabel="Replier les tâches hors feature">
+                <Text style={styles.epicName}>
+                  {horsOpen ? '▾' : '▸'} Tâches hors feature
+                </Text>
+                <Text style={styles.fMeta}>
+                  {allHors.length ? `${allHors.filter((t) => t.statut === 'termine').length}/${allHors.length} faites` : 'aucune'}
+                </Text>
+              </Pressable>
+              {horsOpen &&
+                allHors.map((t) => {
+                  const done = t.statut === 'termine';
+                  const color = colorOf(t);
                   return (
-                    <Pressable
-                      key={it.key}
-                      style={[styles.cell, it.key === currentIt && styles.nowCol]}
-                      onPress={() => onSelectIt(it.key)}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: it.key === sel }}
-                      accessibilityLabel={`Tâches hors feature ${it.code}`}
-                    >
-                      <Text style={[styles.tasks, styles.selBox, it.key === sel && styles.selOn, { color: it.key === sel ? '#fff' : list.length ? colors.text : colors.muted }]}>
-                        {list.length ? `${done}/${list.length}` : '+'}
-                      </Text>
-                    </Pressable>
+                    <View key={t.id} style={styles.row}>
+                      <View style={[styles.nameCell, styles.taskName]}>
+                        <Pressable
+                          onPress={() => onToggleTask(t)}
+                          hitSlop={6}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: done }}
+                          accessibilityLabel={`Terminer ${t.titre}`}
+                          style={[styles.check, done && styles.checkOn]}
+                        >
+                          {done && <Text style={styles.checkMark}>✓</Text>}
+                        </Pressable>
+                        <Pressable style={styles.flex} onPress={() => onOpenTask(t)} accessibilityRole="button">
+                          <Text style={[styles.fName, done && styles.done]} numberOfLines={2}>
+                            {t.titre}
+                          </Text>
+                          <Text style={styles.fMeta} numberOfLines={1}>
+                            {[t.statut === 'en_cours' ? 'en cours' : '', parentOf(t)].filter(Boolean).join(' · ')}
+                          </Text>
+                        </Pressable>
+                      </View>
+                      {its.map((it) => (
+                        <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]}>
+                          {iterationOfItem(t) === it.key && (
+                            <Pressable
+                              style={[styles.block, { backgroundColor: done ? colors.success : color }]}
+                              onPress={() => onOpenTask(t)}
+                              accessibilityLabel={`${t.titre} en ${it.code}`}
+                            >
+                              <Text style={styles.blockText} numberOfLines={1}>
+                                {done ? '✓ ' : ''}
+                                {pointsOf(t) ? fmt(pointsOf(t)) : t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}` : '•'}
+                              </Text>
+                            </Pressable>
+                          )}
+                        </View>
+                      ))}
+                    </View>
                   );
                 })}
+              <View style={styles.row}>
+                <View style={styles.nameCell}>
+                  <Text style={styles.fMeta}>Ajouter une tâche dans l'itération :</Text>
+                </View>
+                {its.map((it) => (
+                  <Pressable
+                    key={it.key}
+                    style={[styles.cell, it.key === currentIt && styles.nowCol]}
+                    onPress={() => onSelectIt(it.key)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: it.key === sel }}
+                    accessibilityLabel={`Ajouter en ${it.code}`}
+                  >
+                    <Text style={[styles.tasks, styles.selBox, it.key === sel && styles.selOn, { color: it.key === sel ? '#fff' : colors.primary }]}>
+                      {it.key === sel ? it.code : '+'}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
 
               <View style={[styles.row, styles.chargeRow]}>
@@ -276,57 +328,17 @@ export function PIView({
             </Pressable>
           </View>
 
-          <View style={styles.card}>
-            <View style={styles.cardHead}>
-              <Text style={styles.cardTitle}>
-                Tâches hors feature · {its[selIndex].code}
-              </Text>
-              <Pressable onPress={() => onOpenIteration(sel)} hitSlop={6} accessibilityRole="button">
-                <Text style={styles.add}>Itération ›</Text>
-              </Pressable>
-            </View>
-            <Text style={styles.muted}>
-              {its[selIndex].label.split(' · ')[1]}
-              {filtered ? ` · ${domName}` : ''}
-            </Text>
-            {selList.length === 0 && <Text style={styles.muted}>Aucune tâche hors feature dans cette itération.</Text>}
-            {selList.map((t) => (
-              <View key={t.id} style={styles.taskRow}>
-                <Pressable
-                  onPress={() => onToggleTask(t)}
-                  hitSlop={6}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: t.statut === 'termine' }}
-                  accessibilityLabel={`Terminer ${t.titre}`}
-                  style={[styles.check, t.statut === 'termine' && styles.checkOn]}
-                >
-                  {t.statut === 'termine' && <Text style={styles.checkMark}>✓</Text>}
-                </Pressable>
-                <Pressable style={styles.flex} onPress={() => onOpenTask(t)} accessibilityRole="button">
-                  <Text style={[styles.objTitle, t.statut === 'termine' && styles.done]} numberOfLines={2}>
-                    {t.titre}
-                  </Text>
-                  <Text style={styles.muted} numberOfLines={1}>
-                    {[
-                      pointsOf(t) ? fmt(pointsOf(t)) : '',
-                      t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}` : '',
-                      t.statut === 'en_cours' ? 'en cours' : '',
-                      parentOf(t),
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </Text>
-                </Pressable>
-              </View>
-            ))}
-            <View style={styles.addRow2}>
-              <Pressable onPress={() => onAddTask(sel)} hitSlop={6} accessibilityRole="button">
-                <Text style={styles.add}>+ Nouvelle tâche</Text>
-              </Pressable>
-              <Pressable onPress={() => onPickTask(sel)} hitSlop={6} accessibilityRole="button">
-                <Text style={styles.add}>+ Tâche existante</Text>
-              </Pressable>
-            </View>
+          <View style={styles.addLine}>
+            <Text style={styles.muted}>Tâche hors feature en {its[selIndex].code} :</Text>
+            <Pressable onPress={() => onAddTask(sel)} hitSlop={6} accessibilityRole="button">
+              <Text style={styles.add}>+ Nouvelle</Text>
+            </Pressable>
+            <Pressable onPress={() => onPickTask(sel)} hitSlop={6} accessibilityRole="button">
+              <Text style={styles.add}>+ Existante</Text>
+            </Pressable>
+            <Pressable onPress={() => onOpenIteration(sel)} hitSlop={6} accessibilityRole="button">
+              <Text style={styles.add}>Itération ›</Text>
+            </Pressable>
           </View>
 
           {sansPi.length > 0 && (
@@ -365,7 +377,8 @@ const styles = StyleSheet.create({
   value: { fontSize: 13, fontWeight: '700', color: colors.text },
   add: { color: colors.primary, fontWeight: '700', fontSize: 14 },
   addRow: { flexDirection: 'row', gap: 20, marginHorizontal: 16, marginVertical: 12 },
-  addRow2: { flexDirection: 'row', gap: 20, marginTop: 4 },
+  addLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14, marginHorizontal: 16, marginBottom: 14 },
+  taskName: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 8 },
   boardPad: { paddingHorizontal: 16 },
   board: { backgroundColor: colors.card, borderRadius: 12, overflow: 'hidden' },
   row: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
