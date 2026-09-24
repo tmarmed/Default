@@ -30,7 +30,7 @@ import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
 import { cascadeLinks, parentsLies, pointsCheck, subtaskMap } from './src/subtasks';
 import type { Alignement } from './src/alerts';
-import { type Action, type Check, checksDatesDomaine, checksParEcran, signaturesExistantes } from './src/checks';
+import { type Action, type Check, checksDatesDomaine, checksParEcran, signaturesExistantes, situationDe } from './src/checks';
 import { AlertsCard, CheckActionContext, IgnoreContext, nbAlertes } from './src/components/AlertsCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
@@ -810,7 +810,7 @@ function Main() {
   /** « Ignorer » une alerte : enregistrée dans le Google Sheet (onglet Ignorees), avec la situation du moment. */
   const ignorer = (c: Check) => {
     const deja = hier.ignorees.find((i) => i.cle === c.key);
-    (deja ? saveEntity('ignoree', deja, { signature: c.message }) : saveEntity('ignoree', null, { cle: c.key, signature: c.message }))
+    (deja ? saveEntity('ignoree', deja, { signature: situationDe(c) }) : saveEntity('ignoree', null, { cle: c.key, signature: situationDe(c) }))
       .then(() => setInfo('Alerte ignorée. Elle reviendra si la situation change.'))
       .catch((e) => setNotice(`Impossible d'ignorer l'alerte : ${(e as Error).message}`));
   };

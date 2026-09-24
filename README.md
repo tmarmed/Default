@@ -64,7 +64,9 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   la capacité reste commune. Rien n'est modifié tout seul.
   **Ignorer** une alerte (lien discret sous chaque alerte) : elle disparaît de la carte et du chiffre de l'onglet,
   enregistrée dans le Google Sheet (onglet `Ignorees`, partagé entre vos appareils) avec la situation du moment ;
-  si la situation change (dates, heures, nombre…), l'alerte revient. Nettoyage automatique : à chaque chargement depuis le Google Sheet, les alertes ignorées dont la situation n'existe plus (problème corrigé ou situation changée) sont effacées de l'onglet `Ignorees` — calculé sur tous les domaines, les deux modes, les itérations et PI précédent, en cours et suivant, pour ne rien effacer à tort. Les alertes de dates
+  si la situation change (dates, heures, nombre…), l'alerte revient. Pour les alertes dont le texte bouge chaque
+  jour (rappel « dans 2 jours », burndown, % de temps écoulé), c'est une situation stable qui compte (date de fin,
+  itération, résultat de l'objectif) : l'alerte ignorée ne revient pas le lendemain. Nettoyage automatique : à chaque chargement depuis le Google Sheet, les alertes ignorées dont la situation n'existe plus (problème corrigé ou situation changée) sont effacées de l'onglet `Ignorees` — calculé sur tous les domaines, les deux modes, les itérations et PI précédent, en cours et suivant, pour ne rien effacer à tort. Les alertes de dates
   des barres de la Roadmap s'ignorent aussi (lien « Ignorer » sous l'alerte ; « Ne plus ignorer » dans la carte). « N alertes ignorées · les revoir » →
   « Ne plus ignorer ». Agenda : chevauchements calculés sur tout l'agenda (tous domaines), y compris rendez-vous
   répétés (30 jours), rendez-vous et missions (heure de fin, sinon 1 h estimée), appels avec une heure (30 min
@@ -77,9 +79,9 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   domaine de moins de 2 mois.
   - **Tâches** : en retard (reporter à demain, tout reporter, choisir une date) ; élément répété en retard
     (cocher la période, tout rattraper ; rendez-vous répété : « n'est pas coché », marquer fait) ; rendez-vous et missions qui se
-    chevauchent (d'après l'heure de fin ; sans elle, 1 h estimée), avec « Décaler … juste après » ;
+    chevauchent (pas une sous-tâche pendant sa propre tâche) (d'après l'heure de fin ; sans elle, 1 h estimée), avec « Décaler … juste après » ;
     toutes les sous-tâches faites (terminer la tâche) ; démarche : date de fin dépassée (terminer ; remplace
-    l'alerte « en retard »), date de fin dans 3 jours au plus (rappel), date prévue après la date de fin (ramener).
+    l'alerte « en retard », et « toutes les sous-tâches faites » s'il y a lieu), date de fin dans 3 jours au plus (rappel), date prévue après la date de fin (ramener).
   - **Itération** (l'itération affichée, nommée dans la carte) : surcharge ; points du parent ≠ sous-tâches ;
     retard sur le burndown ; fin d'itération avec des tâches non faites, hors rendez-vous (reporter les non datées dans
     l'itération suivante, décaler les datées) ; tâches sans points (hors rendez-vous et appels, et hors
@@ -91,8 +93,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
     pour le PI qui vient de finir, dans la carte et le chiffre de l'onglet).
   - **Roadmap** : alertes de dates (sur les barres) ; epic ou objectif en retard (repousser d'un mois,
     voir les tâches ouvertes) ; epic sans tâche, objectif sans epic.
-  - **Portefeuille** : epic encore à l'état Idée / Analyse / Prêt alors que des tâches sont commencées (la
-    passer En cours) ; epic « Terminée » avec des tâches ouvertes, ou toutes ses tâches faites sans être
+  - **Portefeuille** : epic encore à l'état Idée / Analyse / Prêt alors que des tâches sont commencées et d'autres
+    encore ouvertes (la passer En cours) ; epic « Terminée » avec des tâches ouvertes, ou toutes ses tâches faites sans être
     terminée ; indicateur d'objectif en retard sur le temps écoulé ; domaine délaissé : rien de fait depuis 2 mois et rien de prévu (une epic
     « en cours » ne compte que par ses tâches).
 - **Mode SAFe** (sélecteur *Simple | SAFe* en haut, mémorisé sur l'appareil). Simple = Tâches + Roadmap ;

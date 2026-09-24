@@ -30,6 +30,11 @@ export interface Check {
   groupe?: boolean;
   /** 'rappel' = jaune (rien n'est encore raté : rappel avant une échéance) ; sinon rouge */
   niveau?: 'rappel';
+  /**
+   * Situation stable, pour « Ignorer » : une alerte ignorée revient quand sa situation change. Par défaut le
+   * message ; à préciser quand le message contient des chiffres qui bougent chaque jour (« dans 2 jours », %…).
+   */
+  situation?: string;
   icone: string;
   message: string;
   actions: { label: string; action: Action; principal?: boolean }[];
@@ -90,6 +95,9 @@ export function filtrerDomaine(h: HierarchyValue, dom: string): HierarchyValue {
 
 /** Types qu'on estime en points (pas les rendez-vous ni les appels) */
 const avecPoints = (t: Item) => t.type !== 'rendez-vous' && t.type !== 'appel';
+/** Ce qui identifie la situation d'une alerte ignorée (voir Check.situation). */
+export const situationDe = (c: Check) => c.situation ?? c.message;
+
 /** Unité choisie dans les réglages : « 5 j » ou « 5 pts » */
 const unite = (jours: boolean) => (n: number) => (jours ? `${nb(n)} j` : `${nb(n)} pt${n > 1 ? 's' : ''}`);
 const prevu = (n: number) => `prévu${n > 1 ? 's' : ''}`;
@@ -258,6 +266,8 @@ export function checksTaches(
     for (let j = i + 1; j < creneaux.length && creneaux[j].date === creneaux[i].date; j++) {
       const [a, b] = [creneaux[i], creneaux[j]];
       if (b.debut >= a.fin || a.t.id === b.t.id) continue;
+      // Une sous-tâche pendant sa propre tâche (ex. un appel pendant la mission) : normal
+      if (a.t.parent === b.t.id || b.t.parent === a.t.id) continue;
       if (!visibles.has(a.t.id) && !visibles.has(b.t.id)) continue;
       const recouvre = Math.min(a.fin, b.fin) - Math.max(a.debut, b.debut);
       // Proposition : décaler le 2e juste après le 1er (seulement s'il est ponctuel : décaler un répété changerait toutes ses dates)
@@ -303,13 +313,15 @@ export function checksTaches(
       out.push({
         key: `dfin:${t.id}`,
         icone: '⏳',
-        message: `${maj(mot(t))} « ${t.titre} » a dépassé sa date de fin (${court(t.date_fin)}).`,
+        // (sous-tâches toutes faites : une seule alerte, pas en plus « toutes les sous-tâches sont faites »)
+        message: `${maj(mot(t))} « ${t.titre} » a dépassé sa date de fin (${court(t.date_fin)})${toutFait(t) ? ' et toutes ses sous-tâches sont faites' : ''}.`,
         actions: [{ label: `Terminer « ${t.titre} »`, action: { kind: 'task', id: t.id, patch: { statut: 'termine' } }, principal: true }, ouvrir],
       });
     else if (t.date_fin <= dans3)
       out.push({
         key: `drappel:${t.id}`,
         niveau: 'rappel',
+        situation: `Date de fin le ${t.date_fin}`,
         icone: '⏳',
         message: `${maj(mot(t))} « ${t.titre} » doit être finie ${quand(t.date_fin)} (date de fin : ${court(t.date_fin)}).`,
         actions: [{ ...ouvrir, principal: true }, { label: 'Marquer terminée', action: { kind: 'task', id: t.id, patch: { statut: 'termine' } } }],
@@ -327,7 +339,7 @@ export function checksTaches(
   for (const [pid, kids] of subs) {
     const p = items.find((t) => t.id === pid);
     if (!p) continue;
-    if (p.statut !== 'termine' && kids.every((k) => k.statut === 'termine'))
+    if (p.statut !== 'termine' && kids.every((k) => k.statut === 'termine') && !finDepassee(p))
       out.push({
         key: `parent:${p.id}`,
         icone: '✓',
@@ -387,6 +399,8 @@ export function checksIteration(
     if (reste > ideal + 0.5)
       out.push({
         key: `burndown:${itKey}`,
+        // (les chiffres bougent chaque jour : ignorer vaut pour toute l'itération)
+        situation: 'En retard sur le burndown',
         icone: '📉',
         message: `En retard sur le burndown : il reste ${u(reste)}, l'idéal à cette date serait ${u(ideal)}.`,
         actions: [],
@@ -710,8 +724,9 @@ export function checksPortefeuille(h: HierarchyValue, today: string): Check[] {
         ],
       });
     // Epic pas encore lancée (Idée, Analyse, Prêt) alors que des tâches sont commencées ou faites
+    // (toutes faites : c'est « Marquer l'epic terminée » qui s'applique, pas « Passer en cours »)
     const commencees = tasks.filter((t) => t.statut !== 'a_faire').length;
-    if ((etat === 'idee' || etat === 'analyse' || etat === 'pret') && commencees)
+    if ((etat === 'idee' || etat === 'analyse' || etat === 'pret') && commencees && ouvertes)
       out.push({
         key: `etat3:${e.id}`,
         icone: '▶️',
@@ -742,6 +757,8 @@ export function checksPortefeuille(h: HierarchyValue, today: string): Check[] {
     if (temps >= 0.2 && resultat < temps - 0.25)
       out.push({
         key: `indic:${o.id}`,
+        // (le % de temps bouge chaque jour : l'alerte ignorée revient si le résultat ou l'objectif change)
+        situation: `Résultat ${o.actuel || 0}/${o.cible} · du ${o.debut} au ${o.fin}`,
         icone: '📈',
         message: `L'objectif « ${o.titre} » : ${Math.round(temps * 100)} % du temps écoulé, ${Math.round(resultat * 100)} % du résultat (${o.actuel || 0}/${o.cible}${o.unite ? ` ${o.unite}` : ''}).`,
         actions: [{ label: "Mettre à jour l'objectif", action: { kind: 'open', target: 'objectif', id: o.id }, principal: true }],
@@ -819,7 +836,7 @@ export const checksDatesDomaine = (complet: HierarchyValue, dom = 'tous') => che
  */
 export function signaturesExistantes(complet: HierarchyValue, today: string, capacite: number, jours = true): Set<string> {
   const out = new Set<string>();
-  const add = (cs: Check[]) => cs.forEach((c) => out.add(`${c.key}\u0000${c.message}`));
+  const add = (cs: Check[]) => cs.forEach((c) => out.add(`${c.key}\u0000${situationDe(c)}`));
   const pi = iterationOf(today).pi;
   const pis = [shiftPi(pi, -1), pi, shiftPi(pi, 1)];
   const its = [shiftIteration(iterationOf(today).key, -1), ...pis.flatMap((p) => iterationsOf(p).map((it) => it.key))];

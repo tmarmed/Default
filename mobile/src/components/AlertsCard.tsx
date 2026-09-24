@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { Action, Check } from '../checks';
+import { type Action, type Check, situationDe } from '../checks';
 import type { Ignoree } from '../types';
 import { colors } from '../theme';
 
@@ -18,7 +18,7 @@ export interface IgnoreValue {
   retablir: (c: Check) => void;
 }
 export const IgnoreContext = createContext<IgnoreValue>({ ignorees: [], ignorer: () => {}, retablir: () => {} });
-export const estIgnoree = (c: Check, ignorees: Ignoree[]) => ignorees.some((i) => i.cle === c.key && i.signature === c.message);
+export const estIgnoree = (c: Check, ignorees: Ignoree[]) => ignorees.some((i) => i.cle === c.key && i.signature === situationDe(c));
 /** Alertes à afficher et à compter (sans les ignorées). */
 export const actives = (checks: Check[], ignorees: Ignoree[]) => checks.filter((c) => !estIgnoree(c, ignorees));
 /** Rappel (jaune) ou alerte (rouge) */
