@@ -20,10 +20,11 @@ var HEADERS = [
   'description', 'priorite', 'statut', 'cree_le', 'modifie_le',
   'periodicite', 'echeance', 'debut', 'fin', 'faits',
   'epic', 'objectif', 'domaine',
-  'points', 'iteration', 'feature'
+  'points', 'iteration', 'feature',
+  'telephone'
 ];
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 6;
+var API_VERSION = 7;
 
 /**
  * Niveaux au-dessus des tâches : Domaine > Objectif > Epic > Tâche.
@@ -62,7 +63,8 @@ var ETATS_EPIC = ['', 'idee', 'analyse', 'pret', 'en_cours', 'termine'];
 var RE_PI = /^\d{4}-T[1-4]$/;
 var RE_ITERATION = /^\d{4}-T[1-4]-(IT[1-6]|IP)$/;
 var RE_NOMBRE = /^\d+([.,]\d+)?$/;
-var TYPES = ['tache', 'mission', 'rendez-vous'];
+// v7 : appel, démarche administrative, user story, exploration, bug
+var TYPES = ['tache', 'rendez-vous', 'appel', 'demarche', 'mission', 'story', 'exploration', 'bug'];
 var PRIORITES = ['basse', 'normale', 'haute'];
 var STATUTS = ['a_faire', 'en_cours', 'termine'];
 
@@ -353,6 +355,7 @@ function sanitize_(item, base) {
   });
   if (!out.titre.trim()) throw new Error('Le titre est obligatoire.');
   if (TYPES.indexOf(out.type) < 0) out.type = 'tache';
+  if (out.telephone && !/^[0-9+().\s\-]{3,30}$/.test(out.telephone)) throw new Error('Numéro de téléphone invalide.');
   if (PRIORITES.indexOf(out.priorite) < 0) out.priorite = 'normale';
   if (STATUTS.indexOf(out.statut) < 0) out.statut = 'a_faire';
   if (out.date && !/^\d{4}-\d{2}-\d{2}$/.test(out.date)) throw new Error('Date invalide (AAAA-MM-JJ).');

@@ -22,7 +22,9 @@ import {
   PRIORITE_LABELS,
   Statut,
   STATUT_LABELS,
+  TYPE_ICONS,
   TYPE_LABELS,
+  TYPE_SHORT,
 } from '../types';
 import { Chips } from './Chips';
 import { DateField } from './DateField';
@@ -32,6 +34,7 @@ import { useHierarchy } from '../hierarchyContext';
 import { useSafe } from '../safe';
 import { iterationByKey, iterationOf, shiftIteration } from '../pi';
 import { toDateString } from '../dates';
+import { callNumber } from '../phone';
 
 interface Props {
   visible: boolean;
@@ -69,6 +72,7 @@ const empty = (type: ItemType, date: string, defaultIteration = ''): ItemInput =
   points: '',
   iteration: defaultIteration,
   feature: '',
+  telephone: '',
 });
 
 /** Seulement les champs enregistrés (pas ceux calculés pour l'affichage). */
@@ -92,11 +96,12 @@ const toInput = (i: Item): ItemInput => ({
   points: i.points,
   iteration: i.iteration,
   feature: i.feature,
+  telephone: i.telephone ?? '',
 });
 
 const TYPES = (Object.keys(TYPE_LABELS) as ItemType[]).map((t) => ({
   value: t,
-  label: TYPE_LABELS[t],
+  label: `${TYPE_ICONS[t]} ${TYPE_SHORT[t]}`,
   color: typeColors[t],
 }));
 const PRIORITES = (Object.keys(PRIORITE_LABELS) as Priorite[]).map((p) => ({
@@ -216,7 +221,34 @@ export function TaskForm({ visible, item, defaultType, defaultDate, defaultItera
             />
 
             <Text style={styles.label}>Type</Text>
-            <Chips options={TYPES} value={form.type} onChange={(v) => set('type', v)} />
+            <Chips options={TYPES} value={form.type} onChange={(v) => set('type', v)} compact wrap />
+
+            {form.type === 'appel' && (
+              <>
+                <Text style={styles.label}>Numéro</Text>
+                <View style={styles.phoneRow}>
+                  <TextInput
+                    style={[styles.input, styles.phoneInput]}
+                    placeholder="06 12 34 56 78"
+                    placeholderTextColor={colors.muted}
+                    value={form.telephone}
+                    onChangeText={(v) => set('telephone', v.replace(/[^0-9+().\s-]/g, ''))}
+                    keyboardType="phone-pad"
+                    autoComplete="tel"
+                  />
+                  {!!form.telephone.trim() && (
+                    <Pressable
+                      style={styles.callBtn}
+                      onPress={() => callNumber(form.telephone)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Appeler le ${form.telephone}`}
+                    >
+                      <Text style={styles.callText}>📞 Appeler</Text>
+                    </Pressable>
+                  )}
+                </View>
+              </>
+            )}
 
             <RecurrenceFields value={form} onChange={(patch) => setForm((f) => ({ ...f, ...patch }))} />
 
@@ -322,6 +354,10 @@ export function TaskForm({ visible, item, defaultType, defaultDate, defaultItera
 }
 
 const styles = StyleSheet.create({
+  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  phoneInput: { flex: 1, minWidth: 0 },
+  callBtn: { backgroundColor: '#00897B', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12 },
+  callText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',

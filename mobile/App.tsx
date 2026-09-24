@@ -21,6 +21,7 @@ import { FeatureForm } from './src/components/FeatureForm';
 import { IterationView } from './src/components/IterationView';
 import { ObjectifPIForm } from './src/components/ObjectifPIForm';
 import { PIView } from './src/components/PIView';
+import { TypeFilter, TypeFiltre } from './src/components/TypeFilter';
 import { PIAddSheet } from './src/components/PIAddSheet';
 import { PickerModal } from './src/components/ItemPicker';
 import { inDomain } from './src/components/DomainFilter';
@@ -79,14 +80,14 @@ import {
   FeatureInput,
   ObjectifInput,
   RECURRENCE_DEFAUTS,
-  ItemType,
+  TYPES_V7,
   Objectif,
   ObjectifPI,
   Settings,
   TYPE_LABELS,
 } from './src/types';
 
-type Filter = 'tous' | ItemType | 'recurrents';
+type Filter = TypeFiltre;
 type Mode = 'liste' | 'jour' | 'semaine' | 'mois';
 
 const MODES: { value: Mode; label: string }[] = [
@@ -94,14 +95,6 @@ const MODES: { value: Mode; label: string }[] = [
   { value: 'jour', label: 'Jour' },
   { value: 'semaine', label: 'Semaine' },
   { value: 'mois', label: 'Mois' },
-];
-
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: 'tous', label: 'Tous' },
-  { value: 'tache', label: 'Tâches' },
-  { value: 'mission', label: 'Missions' },
-  { value: 'rendez-vous', label: 'Rendez-vous' },
-  { value: 'recurrents', label: '🔁' },
 ];
 
 type Tab = 'taches' | 'iteration' | 'pi' | 'roadmap' | 'portefeuille';
@@ -219,7 +212,7 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_DOMAINE_PI);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_TYPES);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -412,6 +405,9 @@ function Main() {
 
   const save = async (input: ItemInput) => {
     if (!settings) return;
+    if ((TYPES_V7.includes(input.type) || input.telephone) && apiVersion < api.API_VERSION_TYPES) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour les nouveaux types (appel, démarche, story, exploration, bug). Recollez le nouveau Code.gs et déployez une nouvelle version.");
+    }
     if ((input.points || input.iteration || input.feature) && apiVersion < api.API_VERSION_SAFE) {
       throw new Error("le script du Google Sheet n'est pas à jour pour le mode SAFe. Recollez le nouveau Code.gs et déployez une nouvelle version.");
     }
@@ -786,7 +782,7 @@ function Main() {
       {tab === 'taches' && (
         <View style={styles.filters}>
           <Segmented options={MODES} value={mode} onChange={setMode} />
-          <Chips options={FILTERS} value={filter} onChange={setFilter} compact />
+          <TypeFilter value={filter} onChange={setFilter} />
           {(domaines.length > 0 || safe.actif) && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
               {safe.actif && (
@@ -824,14 +820,15 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_DOMAINE_PI && (
+      {apiVersion < api.API_VERSION_TYPES && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
             Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
             {apiVersion < api.API_VERSION_EPICS ? 'les epics, ' : ''}
             {apiVersion < api.API_VERSION_HIERARCHIE ? 'les domaines, les objectifs, ' : ''}
-            {apiVersion < api.API_VERSION_SAFE ? 'les données SAFe (états, features, points, itérations), ' : ''}le domaine
-            des objectifs du PI ne seront pas enregistrés.
+            {apiVersion < api.API_VERSION_SAFE ? 'les données SAFe (états, features, points, itérations), ' : ''}
+            {apiVersion < api.API_VERSION_DOMAINE_PI ? 'le domaine des objectifs du PI, ' : ''}les nouveaux types (appel,
+            démarche, story, exploration, bug) ne seront pas enregistrés.
             Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
           </Text>
         </View>

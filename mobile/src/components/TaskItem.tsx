@@ -5,6 +5,7 @@ import { fmtPoints, pointsOf } from '../pi';
 import { useSafe } from '../safe';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { isOverdue } from '../dates';
+import { callNumber } from '../phone';
 import { colors, prioriteColors, typeColors } from '../theme';
 import { Item, STATUT_LABELS, TYPE_ICONS, TYPE_LABELS } from '../types';
 
@@ -47,6 +48,11 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Prop
             {TYPE_ICONS[item.type]} {TYPE_LABELS[item.type]}
           </Text>
           {!!item.heure && <Text style={styles.metaText}>🕒 {item.heure}</Text>}
+          {item.type === 'appel' && !!item.telephone && (
+            <Pressable onPress={() => callNumber(item.telephone)} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Appeler le ${item.telephone}`}>
+              <Text style={styles.call}>📞 {item.telephone}</Text>
+            </Pressable>
+          )}
           {!!item.lieu && (
             <Text style={styles.metaText} numberOfLines={1}>
               📍 {item.lieu}
@@ -89,6 +95,7 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Prop
 });
 
 const styles = StyleSheet.create({
+  call: { fontSize: 12.5, fontWeight: '700', color: '#00897B', textDecorationLine: 'underline' },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

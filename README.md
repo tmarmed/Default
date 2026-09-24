@@ -9,10 +9,13 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 
 ## Fonctionnalités
 
+- **8 types**, les mêmes en mode Simple et SAFe : ✓ Tâche, 📅 Rendez-vous, 📞 Appel (numéro + bouton
+  **Appeler** dans la fiche et dans la liste), 🗂️ Démarche administrative, 🚩 Mission, 📖 User story,
+  🔍 Exploration, 🐞 Bug. Filtre de la liste : « Tous » ou un type (liste déroulante, avec 🔁 Répétés).
 - 4 vues : **Liste** (En retard, Aujourd'hui, Demain, dates suivantes, Sans date), **Jour**, **Semaine**, **Mois**
 - Glisser le doigt à gauche / à droite pour passer au jour, à la semaine ou au mois suivant / précédent ;
   bouton « Aujourd'hui » pour revenir à la période en cours
-- Filtres : Tous / Tâches / Missions / Rendez-vous
+- Filtres : Tous ou un type (liste déroulante)
 - Ajout, modification, suppression ; titre, type, date, heure, lieu, priorité, statut, notes
 - Case à cocher pour marquer « terminé » ; les terminés sont masqués (affichables en bas de liste)
 - **Répétition** chaque semaine, mois, trimestre ou année, à jour précis ou « dans la période »,
@@ -93,7 +96,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    à importer est aussi disponible : [`modele/Taches.xlsx`](modele/Taches.xlsx).
    Le **journal d'exécution** affiche la **clé d'accès** : copiez-la.
    L'onglet `Taches` est créé avec les colonnes :
-   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature`
+   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone`
    et les onglets `Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine | etat`),
    `Features` (`id | titre | description | epic | pi | iteration | points | couleur | cree_le | modifie_le`),
    `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le | domaine`),
@@ -116,7 +119,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 > à la fin de l'onglet `Taches` et l'onglet `Epics` est créé, sans toucher aux données.
 
 Valeurs acceptées dans la feuille si vous saisissez à la main :
-`type` = `tache` / `mission` / `rendez-vous` · `priorite` = `basse` / `normale` / `haute` ·
+`type` = `tache` / `rendez-vous` / `appel` / `demarche` / `mission` / `story` / `exploration` / `bug` ·
+`telephone` = numéro d'un appel · `priorite` = `basse` / `normale` / `haute` ·
 `statut` = `a_faire` / `en_cours` / `termine` · `date` = `AAAA-MM-JJ` · `heure` = `HH:MM` ·
 `periodicite` = vide / `hebdomadaire` / `mensuelle` / `trimestrielle` / `annuelle` ·
 `echeance` = semaine `1` (lundi) à `7`, mois `1` à `31`, trimestre `m` ou `m-j`, année `MM` ou `MM-JJ`

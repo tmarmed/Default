@@ -1,4 +1,7 @@
-export type ItemType = 'tache' | 'mission' | 'rendez-vous';
+/** Mêmes types en mode Simple et en mode SAFe (v7 : appel, démarche, story, exploration, bug). */
+export type ItemType = 'tache' | 'rendez-vous' | 'appel' | 'demarche' | 'mission' | 'story' | 'exploration' | 'bug';
+/** Types apparus avec la version 7 du script */
+export const TYPES_V7: ItemType[] = ['appel', 'demarche', 'story', 'exploration', 'bug'];
 export type Priorite = 'basse' | 'normale' | 'haute';
 export type Statut = 'a_faire' | 'en_cours' | 'termine';
 /** '' = pas de répétition */
@@ -41,6 +44,8 @@ export interface Item {
   points: string;
   iteration: string;
   feature: string;
+  /** Appel : numéro à composer */
+  telephone: string;
 
   // --- Champs calculés par l'application (non enregistrés) ---
   /** Occurrence affichée d'un élément répété : clé de sa période */
@@ -73,6 +78,7 @@ export const RECURRENCE_DEFAUTS = {
   points: '',
   iteration: '',
   feature: '',
+  telephone: '',
 } as const;
 
 /** Une ligne de l'onglet « Epics » : grand projet affiché dans la roadmap. */
@@ -191,16 +197,39 @@ export interface Settings {
   googleEmail?: string;
 }
 
+/** Libellés, dans l'ordre d'affichage */
 export const TYPE_LABELS: Record<ItemType, string> = {
   tache: 'Tâche',
-  mission: 'Mission',
   'rendez-vous': 'Rendez-vous',
+  appel: 'Appel',
+  demarche: 'Démarche administrative',
+  mission: 'Mission',
+  story: 'User story',
+  exploration: 'Exploration',
+  bug: 'Bug',
+};
+
+/** Libellés courts (puces, filtres) */
+export const TYPE_SHORT: Record<ItemType, string> = {
+  tache: 'Tâche',
+  'rendez-vous': 'Rendez-vous',
+  appel: 'Appel',
+  demarche: 'Démarche',
+  mission: 'Mission',
+  story: 'Story',
+  exploration: 'Exploration',
+  bug: 'Bug',
 };
 
 export const TYPE_ICONS: Record<ItemType, string> = {
   tache: '✓',
-  mission: '🚩',
   'rendez-vous': '📅',
+  appel: '📞',
+  demarche: '🗂️',
+  mission: '🚩',
+  story: '📖',
+  exploration: '🔍',
+  bug: '🐞',
 };
 
 export const PRIORITE_LABELS: Record<Priorite, string> = {

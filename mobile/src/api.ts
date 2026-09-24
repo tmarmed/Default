@@ -91,13 +91,15 @@ export const API_VERSION_HIERARCHIE = 4;
 export const API_VERSION_SAFE = 5;
 /** Version du script avec le domaine des objectifs du PI. */
 export const API_VERSION_DOMAINE_PI = 6;
+/** Version du script avec les nouveaux types (appel, démarche, story, exploration, bug) et le téléphone. */
+export const API_VERSION_TYPES = 7;
 
 const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '', etat: e.etat ?? '' });
 
 export async function listItems(settings: Settings): Promise<Data & { version: number }> {
   if (DEMO) {
     const all = await demoApi.listAll();
-    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_DOMAINE_PI };
+    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_TYPES };
   }
   const data = await post<Partial<Data> & { items: Item[]; version?: number }>(settings, { action: 'list' });
   return {

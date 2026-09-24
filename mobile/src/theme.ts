@@ -14,8 +14,13 @@ export const colors = {
 
 export const typeColors: Record<ItemType, string> = {
   tache: '#1A73E8',
-  mission: '#8E24AA',
   'rendez-vous': '#E37400',
+  appel: '#00897B',
+  demarche: '#795548',
+  mission: '#8E24AA',
+  story: '#188038',
+  exploration: '#C2185B',
+  bug: '#D93025',
 };
 
 export const prioriteColors: Record<Priorite, string> = {

@@ -15,7 +15,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '6';
+const DEMO_DATA_VERSION = '7';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -48,7 +48,7 @@ function sample(): Item[] {
   const mk = (id: string, titre: string, type: Item['type'], date: string, heure: string, extra: Partial<Item> = {}): Item => ({
     id, titre, type, date, heure, lieu: '', description: '', priorite: 'normale', statut: 'a_faire',
     cree_le: stamp, modifie_le: stamp, periodicite: '', echeance: '', debut: '', fin: '', faits: '', epic: '', objectif: '', domaine: '',
-    points: '', iteration: '', feature: '', ...extra,
+    points: '', iteration: '', feature: '', telephone: '', ...extra,
   });
   return [
     mk('d1', 'Rendez-vous client Dupont', 'rendez-vous', d(2), '10:30', {
@@ -64,6 +64,16 @@ function sample(): Item[] {
     mk('d18', 'Maquette de la page d\'accueil', 'tache', d(1), '', { feature: 'f1', points: '3', statut: 'en_cours' }),
     mk('d19', 'Maquette de la page contact', 'tache', '', '', { feature: 'f1', points: '2', iteration: iterationOf(now).key }),
     mk('d20', 'Choisir la palette de couleurs', 'tache', d(-1), '', { feature: 'f1', points: '1', statut: 'termine' }),
+    // Nouveaux types (v7)
+    mk('d21', 'Appeler le plombier', 'appel', d(0), '11:00', {
+      telephone: '06 12 34 56 78', domaine: 'dperso', description: 'Fuite sous l’évier : demander un rendez-vous cette semaine',
+    }),
+    mk('d22', 'Renouveler la carte d’identité', 'demarche', d(10), '', {
+      domaine: 'dadmin', description: 'Prendre rendez-vous en mairie, photo d’identité, justificatif de domicile',
+    }),
+    mk('d23', 'En tant que client, je vois les tarifs en ligne', 'story', '', '', { feature: 'f3', points: '3' }),
+    mk('d24', 'Comparer 3 outils de prise de rendez-vous', 'exploration', '', '', { feature: 'f3', points: '1' }),
+    mk('d25', 'Le formulaire de contact n’envoie rien', 'bug', d(1), '', { epic: 'e1', priorite: 'haute', points: '1' }),
     mk('d4', 'Réunion équipe', 'rendez-vous', d(0), '14:00', { lieu: 'Bureau' }),
     mk('d5', 'Chantier Martin', 'mission', d(-1), '08:00', { lieu: 'Villeurbanne' }),
     mk('d6', 'Envoyer les factures', 'tache', d(-2), '', { statut: 'termine', epic: 'e1' }),
