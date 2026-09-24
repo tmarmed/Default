@@ -1,6 +1,10 @@
 /** Mêmes types en mode Simple et en mode SAFe (v7 : appel, démarche, story, exploration, bug). */
 export type ItemType = 'tache' | 'rendez-vous' | 'appel' | 'demarche' | 'mission' | 'story' | 'exploration' | 'bug';
 /** Types apparus avec la version 7 du script */
+/** Types qui ont une heure de fin (créneau dans l'agenda) */
+export const AVEC_FIN: ItemType[] = ['rendez-vous', 'mission'];
+export const aHeureFin = (type: ItemType) => AVEC_FIN.includes(type);
+
 export const TYPES_V7: ItemType[] = ['appel', 'demarche', 'story', 'exploration', 'bug'];
 export type Priorite = 'basse' | 'normale' | 'haute';
 export type Statut = 'a_faire' | 'en_cours' | 'termine';

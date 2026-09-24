@@ -7,7 +7,7 @@ import { iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLa
 import { occurrencesBetween, recurrenceState } from './recurrence';
 import { etatEpic } from './safe';
 import { chargeOf, pointsCheck, subtaskMap } from './subtasks';
-import type { Item } from './types';
+import { aHeureFin, type Item } from './types';
 
 /**
  * Alertes de chaque écran, calculées à partir des données (rien n'est modifié tout seul) :
@@ -26,6 +26,8 @@ export type Action =
 
 export interface Check {
   key: string;
+  /** Alerte qui regroupe d'autres alertes (« Tout reporter ») : pas comptée dans le chiffre de l'onglet */
+  groupe?: boolean;
   icone: string;
   message: string;
   actions: { label: string; action: Action; principal?: boolean }[];
@@ -86,6 +88,24 @@ export function filtrerDomaine(h: HierarchyValue, dom: string): HierarchyValue {
 
 /** Types qu'on estime en points (pas les rendez-vous ni les appels) */
 const avecPoints = (t: Item) => t.type !== 'rendez-vous' && t.type !== 'appel';
+/** Unité choisie dans les réglages : « 5 j » ou « 5 pts » */
+const unite = (jours: boolean) => (n: number) => (jours ? `${nb(n)} j` : `${nb(n)} pt${n > 1 ? 's' : ''}`);
+const prevu = (n: number) => `prévu${n > 1 ? 's' : ''}`;
+
+/** Points d'un parent ≠ total de ses sous-tâches (même alerte dans l'Itération et le PI) */
+function checkPoints(p: Item, kids: Item[] | undefined, u: (n: number) => string): Check | null {
+  const c = pointsCheck(p, kids);
+  if (!c.alerte) return null;
+  return {
+    key: `points:${p.id}`,
+    icone: '🔢',
+    message: `La tâche « ${p.titre} » : ${u(c.parent)} ${prevu(c.parent)}, ${u(c.sous)} dans ses sous-tâches.`,
+    actions: [
+      { label: `Passer la tâche à ${u(c.sous)}`, action: { kind: 'task', id: p.id, patch: { points: String(c.sous) } }, principal: true },
+      { label: 'Ouvrir la tâche', action: { kind: 'open', target: 'task', id: p.id } },
+    ],
+  };
+}
 
 // ---------------------------------------------------------------------------
 // 1. Tâches : « qu'est-ce qui cloche aujourd'hui ? »
@@ -93,7 +113,11 @@ const avecPoints = (t: Item) => t.type !== 'rendez-vous' && t.type !== 'appel';
 export function checksTaches(
   h: HierarchyValue,
   today: string,
-  opts: { safe?: boolean; complet?: HierarchyValue } = {},
+  opts: {
+    complet?: HierarchyValue;
+    /** Heure actuelle en minutes : les créneaux d'aujourd'hui déjà finis ne comptent plus dans l'agenda */
+    maintenant?: number;
+  } = {},
 ): Check[] {
   const out: Check[] = [];
   const items = h.items;
@@ -102,18 +126,26 @@ export function checksTaches(
 
   // En retard. Rendez-vous passés à part (on ne « reporte » pas un rendez-vous qui a eu lieu) ;
   // une tâche et ses sous-tâches en retard forment une seule alerte.
+  // (un parent dont toutes les sous-tâches sont faites n'est pas « en retard » : l'alerte propose de le terminer)
+  const subs = subtaskMap(items);
+  const toutFait = (t: Item) => {
+    const k = subs.get(t.id) ?? [];
+    return k.length > 0 && k.every((x) => x.statut === 'termine');
+  };
   const enRetard = (t: Item) => ouvert(t) && !!t.date && t.date < today;
   const rdvPasses = items.filter((t) => enRetard(t) && t.type === 'rendez-vous');
-  const retard = items.filter((t) => enRetard(t) && t.type !== 'rendez-vous').sort((a, b) => a.date.localeCompare(b.date));
-  if (retard.length > 1)
-    out.push({
-      key: 'retard:tout',
-      icone: '⏰',
-      message: `${retard.length} tâches sont en retard.`,
-      actions: [{ label: 'Tout reporter à demain', action: { kind: 'tasks', patches: retard.map((t) => ({ id: t.id, date: demain })) }, principal: true }],
-    });
+  const retard = items.filter((t) => enRetard(t) && t.type !== 'rendez-vous' && !toutFait(t)).sort((a, b) => a.date.localeCompare(b.date));
   const familles = new Map<string, Item[]>();
   for (const t of retard) familles.set(t.parent || t.id, [...(familles.get(t.parent || t.id) ?? []), t]);
+  // Raccourci « Tout reporter » quand il y a plusieurs alertes de retard (il ne compte pas comme une alerte de plus)
+  if (familles.size > 1)
+    out.push({
+      key: 'retard:tout',
+      groupe: true,
+      icone: '⏰',
+      message: `${familles.size} retards à traiter${retard.length > familles.size ? ` (${retard.length} tâches avec les sous-tâches)` : ''}.`,
+      actions: [{ label: 'Tout reporter à demain', action: { kind: 'tasks', patches: retard.map((t) => ({ id: t.id, date: demain })) }, principal: true }],
+    });
   for (const [id, groupe] of familles) {
     const parent = items.find((x) => x.id === id);
     const parentEnRetard = groupe.some((t) => t.id === id);
@@ -174,7 +206,7 @@ export function checksTaches(
   }
 
   // Agenda : créneaux qui se recouvrent le même jour. On regarde TOUT l'agenda (le temps est commun à tous
-  // les domaines) : rendez-vous (fin indiquée, sinon 1 h), appels et missions avec une heure (30 min),
+  // les domaines) : rendez-vous et missions (fin indiquée, sinon 1 h), appels avec une heure (30 min),
   // rendez-vous répétés sur les 30 prochains jours. L'alerte s'affiche si l'un des deux est dans le domaine filtré.
   const visibles = new Set(items.map((t) => t.id));
   const dans30 = toDateString(addDays(parseDate(today), 30));
@@ -182,8 +214,8 @@ export function checksTaches(
   const creneaux: Creneau[] = [];
   const minutesDe = (t: Item) => {
     const d = minutes(t.heure);
-    if (t.type === 'rendez-vous' && t.heure_fin && t.heure_fin > t.heure) return { debut: d, fin: minutes(t.heure_fin), estime: false };
-    return { debut: d, fin: d + (t.type === 'rendez-vous' ? 60 : 30), estime: true };
+    if (aHeureFin(t.type) && t.heure_fin && t.heure_fin > t.heure) return { debut: d, fin: minutes(t.heure_fin), estime: false };
+    return { debut: d, fin: d + (aHeureFin(t.type) ? 60 : 30), estime: true };
   };
   for (const t of complet.items) {
     if (!t.heure || t.statut === 'termine' || !['rendez-vous', 'appel', 'mission'].includes(t.type)) continue;
@@ -194,6 +226,11 @@ export function checksTaches(
       for (const o of occurrencesBetween(t, today, dans30, today))
         if (o.date && o.date >= today && !faits.has(o.key)) creneaux.push({ t, date: o.date, repete: true, ...minutesDe(t) });
     }
+  }
+  // Aujourd'hui : un créneau déjà fini ne peut plus en chevaucher un autre
+  if (opts.maintenant !== undefined) {
+    const m = opts.maintenant;
+    for (let i = creneaux.length - 1; i >= 0; i--) if (creneaux[i].date === today && creneaux[i].fin <= m) creneaux.splice(i, 1);
   }
   creneaux.sort((a, b) => (a.date + hhmm(a.debut)).localeCompare(b.date + hhmm(b.debut)));
   const libelle = (c: Creneau) =>
@@ -237,7 +274,6 @@ export function checksTaches(
 
   // Démarche ou tâche de priorité haute prévue dans 3 jours et pas commencée
   // (pas les rendez-vous ; un parent est « commencé » dès qu'une de ses sous-tâches avance)
-  const subs = subtaskMap(items);
   const limite = toDateString(addDays(parseDate(today), 3));
   for (const t of items) {
     const commence = t.statut !== 'a_faire' || (subs.get(t.id) ?? []).some((k) => k.statut !== 'a_faire');
@@ -253,7 +289,7 @@ export function checksTaches(
       });
   }
 
-  // Sous-tâches : tout est fait mais le parent ne l'est pas ; points incohérents (en mode SAFe, dans l'Itération)
+  // Sous-tâches : tout est fait mais le parent ne l'est pas (les points sont vérifiés dans l'Itération et le PI, en mode SAFe)
   for (const [pid, kids] of subs) {
     const p = items.find((t) => t.id === pid);
     if (!p) continue;
@@ -264,17 +300,6 @@ export function checksTaches(
         message: `Toutes les sous-tâches de ${mot(p).replace('la sous-tâche', 'la tâche')} « ${p.titre} » sont faites.`,
         actions: [{ label: `Terminer « ${p.titre} »`, action: { kind: 'task', id: p.id, patch: { statut: 'termine' } }, principal: true }],
       });
-    const c = pointsCheck(p, kids);
-    if (c.alerte && !opts.safe)
-      out.push({
-        key: `points:${p.id}`,
-        icone: '🔢',
-        message: `La tâche « ${p.titre} » : ${nb(c.parent)} j prévus, ${nb(c.sous)} j dans ses sous-tâches.`,
-        actions: [
-          { label: `Passer la tâche à ${nb(c.sous)} j`, action: { kind: 'task', id: p.id, patch: { points: String(c.sous) } }, principal: true },
-          { label: 'Ouvrir la tâche', action: { kind: 'open', target: 'task', id: p.id } },
-        ],
-      });
   }
   return out;
 }
@@ -282,8 +307,16 @@ export function checksTaches(
 // ---------------------------------------------------------------------------
 // 2. Itération : « est-ce que je tiens mon itération ? »
 // ---------------------------------------------------------------------------
-export function checksIteration(h: HierarchyValue, itKey: string, today: string, capacite: number, complet: HierarchyValue = h): Check[] {
+export function checksIteration(
+  h: HierarchyValue,
+  itKey: string,
+  today: string,
+  capacite: number,
+  complet: HierarchyValue = h,
+  jours = true,
+): Check[] {
   const out: Check[] = [];
+  const u = unite(jours);
   const it = iterationByKey(itKey);
   if (!it) return out;
   const subs = subtaskMap(h.items);
@@ -295,7 +328,7 @@ export function checksIteration(h: HierarchyValue, itKey: string, today: string,
     out.push({
       key: `surcharge:${itKey}`,
       icone: '🔴',
-      message: `${it.code} est surchargée : ${nb(chargeAll)} j pour ${capacite} j de capacité.`,
+      message: `${it.code} est surchargée : ${u(chargeAll)} pour ${u(capacite)} de capacité.`,
       actions: [],
     });
 
@@ -304,17 +337,8 @@ export function checksIteration(h: HierarchyValue, itKey: string, today: string,
   for (const t of h.items) if (iterationOfItem(t) === itKey) parents.add(t.parent || t.id);
   for (const pid of parents) {
     const p = h.items.find((t) => t.id === pid);
-    const c = p ? pointsCheck(p, subs.get(pid)) : undefined;
-    if (p && c?.alerte)
-      out.push({
-        key: `points:${p.id}`,
-        icone: '🔢',
-        message: `La tâche « ${p.titre} » : ${nb(c.parent)} j prévus, ${nb(c.sous)} j dans ses sous-tâches.`,
-        actions: [
-          { label: `Passer la tâche à ${nb(c.sous)} j`, action: { kind: 'task', id: p.id, patch: { points: String(c.sous) } }, principal: true },
-          { label: 'Ouvrir la tâche', action: { kind: 'open', target: 'task', id: p.id } },
-        ],
-      });
+    const c = p && checkPoints(p, subs.get(pid), u);
+    if (c) out.push(c);
   }
   const tasks = h.items.filter((t) => iterationOfItem(t) === itKey);
   const total = tasks.reduce((n, t) => n + chargeOf(t, subs), 0);
@@ -330,7 +354,7 @@ export function checksIteration(h: HierarchyValue, itKey: string, today: string,
       out.push({
         key: `burndown:${itKey}`,
         icone: '📉',
-        message: `En retard sur le burndown : il reste ${nb(reste)} j, l'idéal à cette date serait ${nb(ideal)} j.`,
+        message: `En retard sur le burndown : il reste ${u(reste)}, l'idéal à cette date serait ${u(ideal)}.`,
         actions: [],
       });
   }
@@ -342,25 +366,45 @@ export function checksIteration(h: HierarchyValue, itKey: string, today: string,
     const suivante = shiftIteration(itKey, 1);
     const code = iterationByKey(suivante)!.code;
     const sansDate = nonFaites.filter((t) => !t.date);
-    const datees = nonFaites.length - sansDate.length;
+    const datees = nonFaites.filter((t) => t.date);
+    // Tâches datées : itération finie → demain ; sinon → premier jour de l'itération suivante
+    const nouvelleDate = it.end < today ? toDateString(addDays(parseDate(today), 1)) : iterationByKey(suivante)!.start;
+    const lesTaches = (n: number, datee = false) => (n > 1 ? `les ${n} tâches${datee ? ' datées' : ''}` : `la tâche${datee ? ' datée' : ''}`);
     out.push({
       key: `fin:${itKey}`,
       icone: '↪️',
-      message: `${it.end < today ? 'Itération terminée' : `Fin de l'itération le ${court(it.end)}`} : ${nonFaites.length} tâche${nonFaites.length > 1 ? 's' : ''} non faite${nonFaites.length > 1 ? 's' : ''}${datees ? ` (dont ${datees} datée${datees > 1 ? 's' : ''} : changez leur date)` : ''}.`,
-      actions: sansDate.length
-        ? [
-            {
-              label: `Reporter ${sansDate.length > 1 ? `les ${sansDate.length} tâches` : 'la tâche'} en ${code}`,
-              action: { kind: 'tasks', patches: sansDate.map((t) => ({ id: t.id, iteration: suivante })) },
-              principal: true,
-            },
-          ]
-        : [],
+      message: `${it.end < today ? 'Itération terminée' : `Fin de l'itération le ${court(it.end)}`} : ${nonFaites.length} tâche${nonFaites.length > 1 ? 's' : ''} non faite${nonFaites.length > 1 ? 's' : ''}${datees.length ? ` (dont ${datees.length} datée${datees.length > 1 ? 's' : ''})` : ''}.`,
+      actions: [
+        ...(sansDate.length
+          ? [
+              {
+                label: `Reporter ${lesTaches(sansDate.length)} en ${code}`,
+                action: { kind: 'tasks', patches: sansDate.map((t) => ({ id: t.id, iteration: suivante })) } as Action,
+                principal: true,
+              },
+            ]
+          : []),
+        ...(datees.length
+          ? [
+              {
+                label: `Décaler ${lesTaches(datees.length, true)} au ${court(nouvelleDate)}`,
+                action: { kind: 'tasks', patches: datees.map((t) => ({ id: t.id, date: nouvelleDate })) } as Action,
+                principal: !sansDate.length,
+              },
+            ]
+          : []),
+      ],
     });
   }
 
-  // Tâches sans points (on ignore un parent dont les sous-tâches ont des points)
-  const sansPoints = tasks.filter((t) => ouvert(t) && avecPoints(t) && !pointsOf(t) && !(subs.get(t.id) ?? []).some((c) => pointsOf(c) > 0));
+  // Tâches sans points (on ignore un parent dont les sous-tâches ont des points, et une sous-tâche dont le
+  // parent porte la charge : parent avec des points et aucune sous-tâche avec des points)
+  const aDesPoints = (id: string) => (subs.get(id) ?? []).some((c) => pointsOf(c) > 0);
+  const parentPorte = (t: Item) => {
+    const p = t.parent ? h.items.find((x) => x.id === t.parent) : undefined;
+    return !!p && pointsOf(p) > 0 && !aDesPoints(p.id);
+  };
+  const sansPoints = tasks.filter((t) => ouvert(t) && avecPoints(t) && !pointsOf(t) && !aDesPoints(t.id) && !parentPorte(t));
   if (sansPoints.length && capacite > 0)
     out.push({
       key: `sanspoints:${itKey}`,
@@ -374,8 +418,9 @@ export function checksIteration(h: HierarchyValue, itKey: string, today: string,
 // ---------------------------------------------------------------------------
 // 3. PI : « mon plan du trimestre est-il réaliste et cohérent ? »
 // ---------------------------------------------------------------------------
-export function checksPI(h: HierarchyValue, piKey: string, today: string, capacite: number, complet: HierarchyValue = h): Check[] {
+export function checksPI(h: HierarchyValue, piKey: string, today: string, capacite: number, complet: HierarchyValue = h, jours = true): Check[] {
   const out: Check[] = [];
+  const u = unite(jours);
   const subs = subtaskMap(h.items);
   const its = iterationsOf(piKey);
 
@@ -388,7 +433,7 @@ export function checksPI(h: HierarchyValue, piKey: string, today: string, capaci
       out.push({
         key: `surcharge:${it.key}`,
         icone: '🔴',
-        message: `${it.code} est surchargée : ${nb(charge)} j pour ${capacite} j de capacité.`,
+        message: `${it.code} est surchargée : ${u(charge)} pour ${u(capacite)} de capacité.`,
         actions: [{ label: `Ouvrir ${it.code}`, action: { kind: 'iteration', itKey: it.key }, principal: true }],
       });
   }
@@ -470,12 +515,22 @@ export function checksPI(h: HierarchyValue, piKey: string, today: string, capaci
       out.push({
         key: `fpoints:${f.id}`,
         icone: '🔢',
-        message: `La feature « ${f.titre} » : ${nb(fp)} j prévus, ${nb(tp)} j dans ses tâches.`,
+        message: `La feature « ${f.titre} » : ${u(fp)} ${prevu(fp)}, ${u(tp)} dans ses tâches.`,
         actions: [
-          { label: `Passer la feature à ${nb(tp)} j`, action: { kind: 'entity', entity: 'feature', id: f.id, patch: { points: String(+tp.toFixed(1)) } }, principal: true },
+          { label: `Passer la feature à ${u(tp)}`, action: { kind: 'entity', entity: 'feature', id: f.id, patch: { points: String(+tp.toFixed(1)) } }, principal: true },
           { label: 'Ouvrir la feature', action: { kind: 'open', target: 'feature', id: f.id } },
         ],
       });
+  }
+
+  // Points d'une tâche ≠ total de ses sous-tâches, pour toutes les itérations du PI
+  const keys = new Set(its.map((it) => it.key));
+  const parents = new Set<string>();
+  for (const t of h.items) if (keys.has(iterationOfItem(t))) parents.add(t.parent || t.id);
+  for (const pid of parents) {
+    const p = h.items.find((t) => t.id === pid);
+    const c = p && checkPoints(p, subs.get(pid), u);
+    if (c) out.push(c);
   }
 
   // Objectif du PI engagé sans feature pour le porter (même domaine, ou aucune feature dans le PI)
@@ -637,17 +692,28 @@ export function checksPortefeuille(h: HierarchyValue, today: string): Check[] {
 }
 
 /** Itération / PI examinés pour les pastilles des onglets : ceux d'aujourd'hui (et l'itération qui vient de finir). */
-export function checksParEcran(complet: HierarchyValue, today: string, capacite: number, safe: boolean, dom = 'tous') {
+export function checksParEcran(
+  complet: HierarchyValue,
+  today: string,
+  capacite: number,
+  safe: boolean,
+  dom = 'tous',
+  opts: { jours?: boolean; maintenant?: number } = {},
+) {
+  const jours = opts.jours ?? true;
   const h = filtrerDomaine(complet, dom);
   const it = iterationOf(today).key;
   const precedente = shiftIteration(it, -1);
   return {
-    taches: checksTaches(h, today, { safe, complet }),
+    taches: checksTaches(h, today, { complet, maintenant: opts.maintenant }),
     roadmap: checksRoadmap(h, today),
     iteration: safe
-      ? [...checksIteration(h, precedente, today, capacite, complet).filter((c) => c.key.startsWith('fin:')), ...checksIteration(h, it, today, capacite, complet)]
+      ? [
+          ...checksIteration(h, precedente, today, capacite, complet, jours).filter((c) => c.key.startsWith('fin:')),
+          ...checksIteration(h, it, today, capacite, complet, jours),
+        ]
       : [],
-    pi: safe ? checksPI(h, iterationOf(today).pi, today, capacite, complet) : [],
+    pi: safe ? checksPI(h, iterationOf(today).pi, today, capacite, complet, jours) : [],
     portefeuille: safe ? checksPortefeuille(h, today) : [],
   };
 }
@@ -660,7 +726,7 @@ export const nbAlertesDatesDomaine = (complet: HierarchyValue, dom = 'tous') => 
  * situation n'existe plus. Large exprès pour ne rien effacer à tort : chaque filtre de domaine possible,
  * modes Simple et SAFe, toutes les itérations du PI en cours et du suivant (et l'itération qui vient de finir).
  */
-export function signaturesExistantes(complet: HierarchyValue, today: string, capacite: number): Set<string> {
+export function signaturesExistantes(complet: HierarchyValue, today: string, capacite: number, jours = true): Set<string> {
   const out = new Set<string>();
   const add = (cs: Check[]) => cs.forEach((c) => out.add(`${c.key}\u0000${c.message}`));
   const pi = iterationOf(today).pi;
@@ -668,12 +734,11 @@ export function signaturesExistantes(complet: HierarchyValue, today: string, cap
   const its = [shiftIteration(iterationOf(today).key, -1), ...pis.flatMap((p) => iterationsOf(p).map((it) => it.key))];
   for (const dom of ['tous', '', ...complet.domaineList.map((d) => d.id)]) {
     const h = filtrerDomaine(complet, dom);
-    add(checksTaches(h, today, { safe: false, complet }));
-    add(checksTaches(h, today, { safe: true, complet }));
+    add(checksTaches(h, today, { complet }));
     add(checksRoadmap(h, today));
     add(checksPortefeuille(h, today));
-    for (const p of pis) add(checksPI(h, p, today, capacite, complet));
-    for (const k of its) add(checksIteration(h, k, today, capacite, complet));
+    for (const p of pis) add(checksPI(h, p, today, capacite, complet, jours));
+    for (const k of its) add(checksIteration(h, k, today, capacite, complet, jours));
   }
   return out;
 }

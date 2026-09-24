@@ -55,7 +55,8 @@ const empty = (): EpicInput => {
     couleur: EPIC_COULEURS[0],
     objectif: '',
     domaine: '',
-    etat: 'idee',
+    // Vide = état déduit des dates, tant qu'on n'en choisit pas un
+    etat: '',
   };
 };
 
@@ -93,8 +94,8 @@ export function EpicForm({
               couleur: epic.couleur,
               objectif: epic.objectif,
               domaine: epic.domaine,
-              // État non choisi : on propose celui déduit des dates
-              etat: etatEpic(epic, toDateString(new Date())),
+              // État enregistré seulement s'il a été choisi à la main (vide = déduit des dates)
+              etat: epic.etat,
             }
           : { ...empty(), ...defaults },
       );
@@ -215,9 +216,10 @@ export function EpicForm({
                 <Text style={styles.label}>État (portefeuille)</Text>
                 <Chips
                   options={ETATS_EPIC.map((e) => ({ value: e.value, label: e.label, color: e.color }))}
-                  value={form.etat || 'idee'}
+                  value={form.etat || etatEpic(form, toDateString(new Date()))}
                   onChange={(v) => set('etat', v)}
                 />
+                {!form.etat && <Text style={styles.hint}>Déduit des dates tant que vous n'en choisissez pas un.</Text>}
               </>
             )}
 

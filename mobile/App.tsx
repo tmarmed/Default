@@ -31,7 +31,7 @@ import { applyDraft } from './src/wizard';
 import { cascadeLinks, pointsCheck, subtaskMap } from './src/subtasks';
 import type { Alignement } from './src/alerts';
 import { type Action, type Check, checksParEcran, nbAlertesDatesDomaine, signaturesExistantes } from './src/checks';
-import { actives, AlertsCard, CheckActionContext, IgnoreContext } from './src/components/AlertsCard';
+import { AlertsCard, CheckActionContext, IgnoreContext, nbAlertes } from './src/components/AlertsCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
 import { iterationOf, iterationOfItem, piOf } from './src/pi';
@@ -188,6 +188,8 @@ function Main() {
   /** Capacité courante, lue au chargement (nettoyage des alertes ignorées) */
   const capaciteRef = useRef(SAFE_DEFAUT.capacite);
   capaciteRef.current = safe.capacite;
+  const joursRef = useRef(SAFE_DEFAUT.pointsJours);
+  joursRef.current = safe.pointsJours;
   useEffect(() => {
     loadSafe().then(setSafe);
   }, []);
@@ -275,7 +277,7 @@ function Main() {
         // (si le même problème revient un jour, il sera de nouveau signalé). Seulement sur des données fraîches.
         if (version >= api.API_VERSION_IGNOREES && ignorees.length) {
           const hvFrais = makeHierarchyValue(rest.epics, rest.objectifs, rest.domaines, list, rest.features, rest.objectifsPI);
-          const existantes = signaturesExistantes(hvFrais, toDateString(new Date()), capaciteRef.current);
+          const existantes = signaturesExistantes(hvFrais, toDateString(new Date()), capaciteRef.current, joursRef.current);
           const perimees = ignorees.filter((i) => !existantes.has(`${i.cle}\u0000${i.signature}`));
           for (const i of perimees) {
             try {
@@ -862,16 +864,20 @@ function Main() {
 
   // Alertes de chaque écran (chiffres rouges des onglets)
   // Les alertes suivent le filtre de domaine (la capacité reste commune)
-  const checks = useMemo(() => checksParEcran(hv, today, safe.capacite, safe.actif, domFilter), [hv, today, safe.capacite, safe.actif, domFilter]);
+  // (l'heure actuelle est relue à chaque recalcul : les rendez-vous d'aujourd'hui déjà finis ne se chevauchent plus)
+  const checks = useMemo(() => {
+    const n = new Date();
+    return checksParEcran(hv, today, safe.capacite, safe.actif, domFilter, { jours: safe.pointsJours, maintenant: n.getHours() * 60 + n.getMinutes() });
+  }, [hv, today, safe.capacite, safe.actif, safe.pointsJours, domFilter]);
   const nbDates = useMemo(() => nbAlertesDatesDomaine(hv, domFilter), [hv, domFilter]);
   // Les alertes ignorées ne comptent pas
   const ig = hier.ignorees;
   const badges: Record<Tab, number> = {
-    taches: actives(checks.taches, ig).length,
-    iteration: actives(checks.iteration, ig).length,
-    pi: actives(checks.pi, ig).length,
-    roadmap: actives(checks.roadmap, ig).length + nbDates,
-    portefeuille: actives(checks.portefeuille, ig).length,
+    taches: nbAlertes(checks.taches, ig),
+    iteration: nbAlertes(checks.iteration, ig),
+    pi: nbAlertes(checks.pi, ig),
+    roadmap: nbAlertes(checks.roadmap, ig) + nbDates,
+    portefeuille: nbAlertes(checks.portefeuille, ig),
   };
 
   // Écran Tâches : les alertes défilent avec le contenu (en tête de liste / de calendrier)

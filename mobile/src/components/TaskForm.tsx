@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, prioriteColors, typeColors } from '../theme';
 import {
+  aHeureFin,
   Item,
   ItemInput,
   ItemType,
@@ -193,7 +194,7 @@ export function TaskForm({
       setError(recurrenceError);
       return;
     }
-    if (form.type === 'rendez-vous' && form.heure_fin && (!form.heure || form.heure_fin <= form.heure)) {
+    if (aHeureFin(form.type) && form.heure_fin && (!form.heure || form.heure_fin <= form.heure)) {
       setError("L'heure de fin doit être après l'heure de début.");
       return;
     }
@@ -209,7 +210,7 @@ export function TaskForm({
     setBusy(true);
     try {
       // Un élément répété n'a pas de date unique : ses échéances sont calculées.
-      const base = form.type === 'rendez-vous' ? form : { ...form, heure_fin: '' };
+      const base = aHeureFin(form.type) ? form : { ...form, heure_fin: '' };
       const input = base.periodicite ? { ...base, date: '', statut: 'a_faire' as const } : base;
       await onSave({ ...input, titre: input.titre.trim() }, peutAvoir ? nouvelles : []);
     } catch (e) {
@@ -364,13 +365,13 @@ export function TaskForm({
                 setForm((f) => ({
                   ...f,
                   heure: v,
-                  // Rendez-vous : fin proposée une heure après le début (si pas encore choisie)
-                  heure_fin: f.type === 'rendez-vous' && v && (!f.heure_fin || f.heure_fin <= v) ? plusUneHeure(v) : f.heure_fin,
+                  // Rendez-vous, mission : fin proposée une heure après le début (si pas encore choisie)
+                  heure_fin: aHeureFin(f.type) && v && (!f.heure_fin || f.heure_fin <= v) ? plusUneHeure(v) : f.heure_fin,
                 }))
               }
               placeholder="Choisir une heure"
             />
-            {form.type === 'rendez-vous' && (
+            {aHeureFin(form.type) && (
               <>
                 <Text style={styles.label}>Heure de fin</Text>
                 <DateField mode="time" value={form.heure_fin} onChange={(v) => set('heure_fin', v)} placeholder="Choisir l'heure de fin" />

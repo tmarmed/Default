@@ -21,6 +21,8 @@ export const IgnoreContext = createContext<IgnoreValue>({ ignorees: [], ignorer:
 export const estIgnoree = (c: Check, ignorees: Ignoree[]) => ignorees.some((i) => i.cle === c.key && i.signature === c.message);
 /** Alertes à afficher et à compter (sans les ignorées). */
 export const actives = (checks: Check[], ignorees: Ignoree[]) => checks.filter((c) => !estIgnoree(c, ignorees));
+/** Nombre d'alertes (sans les ignorées, ni les raccourcis qui en regroupent d'autres) */
+export const nbAlertes = (checks: Check[], ignorees: Ignoree[]) => actives(checks, ignorees).filter((c) => !c.groupe).length;
 
 const VISIBLES = 3;
 
@@ -54,13 +56,17 @@ export function AlertsCard({ checks: toutes, style, ecran, titre }: { checks: Ch
   const { ignorees: liste, ignorer, retablir } = useContext(IgnoreContext);
   const ignorees = checks.filter((c) => estIgnoree(c, liste));
   checks = actives(checks, liste);
+  // Raccourci seul (toutes les alertes qu'il regroupe sont ignorées) : rien à afficher
+  if (!checks.some((c) => !c.groupe)) checks = [];
   if (!checks.length && !ignorees.length) return null;
+  // Le raccourci « Tout reporter » n'est pas une alerte de plus
+  const n = checks.filter((c) => !c.groupe).length;
   const shown = tout ? checks : checks.slice(0, VISIBLES);
   return (
     <View style={[s.card, !checks.length && s.cardCalme, style]}>
       <Pressable style={s.head} onPress={() => setOpen((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: open }}>
         <Text style={[s.title, !checks.length && s.titleCalme]}>
-          {checks.length ? `⚠ ${checks.length} alerte${checks.length > 1 ? 's' : ''}` : `✓ Aucune alerte · ${ignorees.length} ignorée${ignorees.length > 1 ? 's' : ''}`}
+          {checks.length ? `⚠ ${n} alerte${n > 1 ? 's' : ''}` : `✓ Aucune alerte · ${ignorees.length} ignorée${ignorees.length > 1 ? 's' : ''}`}
           {titre ? ` · ${titre}` : ''}
         </Text>
         <Text style={s.chev}>{open ? '▾' : '▸'}</Text>

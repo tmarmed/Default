@@ -9,7 +9,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 
 ## Fonctionnalités
 
-- **8 types**, les mêmes en mode Simple et SAFe : ✓ Tâche, 📅 Rendez-vous (avec **heure de fin**, proposée 1 h
+- **8 types**, les mêmes en mode Simple et SAFe : ✓ Tâche, 📅 Rendez-vous et 🚩 Mission avec **heure de fin** (proposée 1 h
   après le début, et durée affichée), 📞 Appel (numéro + bouton
   **Appeler** dans la fiche et dans la liste), 🗂️ Démarche administrative, 🚩 Mission, 📖 User story,
   🔍 Exploration, 🐞 Bug. Filtre de la liste : « Tous » ou un type (liste déroulante, avec 🔁 Répétés).
@@ -53,19 +53,24 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   enregistrée dans le Google Sheet (onglet `Ignorees`, partagé entre vos appareils) avec la situation du moment ;
   si la situation change (dates, heures, nombre…), l'alerte revient. Nettoyage automatique : à chaque chargement depuis le Google Sheet, les alertes ignorées dont la situation n'existe plus (problème corrigé ou situation changée) sont effacées de l'onglet `Ignorees` — calculé sur tous les domaines, les deux modes, les itérations du PI en cours et du suivant, pour ne rien effacer à tort. « N alertes ignorées · les revoir » →
   « Ne plus ignorer ». Agenda : chevauchements calculés sur tout l'agenda (tous domaines), y compris rendez-vous
-  répétés (30 jours), appels et missions avec une heure (30 min estimées) ; rendez-vous passé non coché :
-  « Marquer fait » ou « Reprogrammer » ; une tâche et ses sous-tâches en retard = une seule alerte ; pas
+  répétés (30 jours), rendez-vous et missions (heure de fin, sinon 1 h estimée), appels avec une heure (30 min
+  estimées), sans les créneaux d'aujourd'hui déjà finis ; rendez-vous passé non coché :
+  « Marquer fait » ou « Reprogrammer » ; une tâche et ses sous-tâches en retard = une seule alerte (le raccourci « Tout reporter », affiché
+  quand il y a plusieurs retards, ne compte pas dans le chiffre de l'onglet) ; un parent dont toutes les
+  sous-tâches sont faites propose seulement « Terminer » (pas « Reporter ») ; les points, la charge et la
+  capacité s'affichent dans l'unité choisie (j ou pts) ; pas
   d'alerte « vide » pour une epic à l'état Idée ou qui commence dans plus d'un mois, ni « délaissé » pour un
   domaine de moins de 2 mois.
   - **Tâches** : en retard (reporter à demain, tout reporter, choisir une date) ; tâche répétée en retard
-    (cocher la période, tout rattraper) ; rendez-vous qui se
+    (cocher la période, tout rattraper) ; rendez-vous et missions qui se
     chevauchent (d'après l'heure de fin ; sans elle, 1 h estimée), avec « Décaler … juste après » ; démarche ou tâche de priorité haute prévue dans 3 jours et pas commencée (commencer) ;
-    toutes les sous-tâches faites (terminer la tâche) ; points du parent ≠ sous-tâches.
+    toutes les sous-tâches faites (terminer la tâche).
   - **Itération** (l'itération affichée, nommée dans la carte) : surcharge ; points du parent ≠ sous-tâches ;
-    retard sur le burndown ; fin d'itération avec des tâches non faites (les reporter dans
-    l'itération suivante) ; tâches sans points (hors rendez-vous et appels).
+    retard sur le burndown ; fin d'itération avec des tâches non faites (reporter les non datées dans
+    l'itération suivante, décaler les datées) ; tâches sans points (hors rendez-vous et appels, et hors
+    sous-tâches dont le parent porte la charge).
   - **PI** : itération surchargée ; dates de la feature hors de son epic (étendre l'epic) ; feature sans itération ; feature en retard sur son plan (décaler la
-    feature ou ramener ses tâches) ; points de la feature ≠ ses tâches ; objectif du PI engagé sans feature
+    feature ou ramener ses tâches) ; points de la feature ≠ ses tâches ; points d'une tâche ≠ ses sous-tâches (toutes les itérations du PI) ; objectif du PI engagé sans feature
     (de son domaine) ; PI terminé sans valeur obtenue notée.
   - **Roadmap** : alertes de dates (sur les barres) ; epic ou objectif en retard (repousser d'un mois,
     voir les tâches ouvertes) ; epic sans tâche, objectif sans epic.
@@ -173,7 +178,7 @@ Valeurs acceptées dans la feuille si vous saisissez à la main :
 ex. `2026-08;2026-09` (mois), `2026-T3` (trimestre), `2026` (année), `2026-09-21` (semaine du lundi 21) ·
 `feature` / `epic` / `objectif` / `domaine` = `id` du rattachement (un seul, le plus précis) ·
 `points` = nombre · `iteration` = `2026-T4-IT3` ou `2026-T4-IP`. Epics : `etat` = `idee` / `analyse` / `pret` /
-`en_cours` / `termine` (vide = déduit des dates). Features : `pi` = `2026-T4`. ObjectifsPI : `type` = `engage` /
+`en_cours` / `termine` (vide = déduit des dates ; la fiche n'enregistre un état que s'il a été choisi à la main). Features : `pi` = `2026-T4`. ObjectifsPI : `type` = `engage` /
 `bonus`, valeurs de 0 à 10. Epics : `couleur` = `#RRGGBB`, `fin` vide = epic sans fin.
 Chaque ligne doit avoir un `id` unique : le plus simple est de créer les lignes depuis l'application.
 

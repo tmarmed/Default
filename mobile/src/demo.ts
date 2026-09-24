@@ -16,7 +16,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '10';
+const DEMO_DATA_VERSION = '11';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -88,9 +88,11 @@ function sample(): Item[] {
     // Alerte « rendez-vous qui se chevauchent » : même jour que le RDV Dupont (10:30)
     mk('d32', 'Rendez-vous banque', 'rendez-vous', d(2), '11:00', { heure_fin: '11:45', domaine: 'dperso', lieu: 'Agence du centre' }),
     mk('d4', 'Réunion équipe', 'rendez-vous', d(0), '14:00', { heure_fin: '15:30', lieu: 'Bureau' }),
-    mk('d5', 'Chantier Martin', 'mission', d(-1), '08:00', { lieu: 'Villeurbanne' }),
+    mk('d5', 'Chantier Martin', 'mission', d(-1), '08:00', { heure_fin: '12:00', lieu: 'Villeurbanne' }),
     mk('d6', 'Envoyer les factures', 'tache', d(-2), '', { statut: 'termine', epic: 'e1' }),
-    mk('d7', 'Visite du dépôt', 'mission', d(8), '11:00', { epic: 'e3' }),
+    mk('d7', 'Visite du dépôt', 'mission', d(8), '11:00', { heure_fin: '12:30', epic: 'e3' }),
+    // Chevauche la fin de la visite du dépôt (mission ↔ rendez-vous)
+    mk('d33', 'Déjeuner fournisseur', 'rendez-vous', d(8), '12:00', { heure_fin: '13:30', domaine: 'dpro', lieu: 'Restaurant du port' }),
     mk('d8', 'Dentiste', 'rendez-vous', d(15), '17:30', { heure_fin: '18:00', domaine: 'dperso' }),
     mk('d9', 'Commander le matériel', 'tache', d(1), '', { priorite: 'haute', epic: 'e3', points: '2' }),
     mk('d10', 'Relancer le devis Bernard', 'tache', '', '', { epic: 'e1' }),
