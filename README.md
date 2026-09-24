@@ -19,8 +19,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   l'appareil). Cocher (ou passer en « Terminé ») un parent dont des sous-tâches sont ouvertes demande :
   « Terminer aussi les sous-tâches ? » (tout terminer / seulement le parent) ; même question dans la fiche
   quand on choisit « Terminé ». Un parent suit ses sous-tâches : une sous-tâche commencée ou finie fait passer
-  un parent « À faire » en « En cours », une sous-tâche rouverte fait repasser un parent « Terminé » en
-  « En cours ». Rendez-vous et appels n'ont pas d'« En cours » (À faire ⇄ Terminé). Le jour de fin réel est
+  un parent « À faire » en « En cours », une sous-tâche rouverte, ajoutée ou rattachée fait repasser un parent
+  « Terminé » en « En cours ». Les boutons « Terminer » / « Marquer fait » des alertes suivent les mêmes règles. Rendez-vous et appels n'ont pas d'« En cours » (À faire ⇄ Terminé). Le jour de fin réel est
   noté par le script (colonne `termine_le`, v13) et sert au burndown et à « domaine délaissé ».
 - **Sous-tâches** (un seul niveau) pour les Story, Démarche, Mission et Exploration : chaque sous-tâche a son
   type, sa date, ses points, son statut et son itération, et le même rangement que son parent. Dans la
@@ -74,7 +74,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   - **Tâches** : en retard (reporter à demain, tout reporter, choisir une date) ; élément répété en retard
     (cocher la période, tout rattraper ; rendez-vous répété : « n'est pas coché », marquer fait) ; rendez-vous et missions qui se
     chevauchent (d'après l'heure de fin ; sans elle, 1 h estimée), avec « Décaler … juste après » ;
-    toutes les sous-tâches faites (terminer la tâche).
+    toutes les sous-tâches faites (terminer la tâche) ; démarche : date de fin dépassée (terminer ; remplace
+    l'alerte « en retard »), date de fin dans 3 jours au plus (rappel), date prévue après la date de fin (ramener).
   - **Itération** (l'itération affichée, nommée dans la carte) : surcharge ; points du parent ≠ sous-tâches ;
     retard sur le burndown ; fin d'itération avec des tâches non faites, hors rendez-vous (reporter les non datées dans
     l'itération suivante, décaler les datées) ; tâches sans points (hors rendez-vous et appels, et hors
@@ -86,7 +87,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
     pour le PI qui vient de finir, dans la carte et le chiffre de l'onglet).
   - **Roadmap** : alertes de dates (sur les barres) ; epic ou objectif en retard (repousser d'un mois,
     voir les tâches ouvertes) ; epic sans tâche, objectif sans epic.
-  - **Portefeuille** : epic « Terminée » avec des tâches ouvertes, ou toutes ses tâches faites sans être
+  - **Portefeuille** : epic encore à l'état Idée / Analyse / Prêt alors que des tâches sont commencées (la
+    passer En cours) ; epic « Terminée » avec des tâches ouvertes, ou toutes ses tâches faites sans être
     terminée ; indicateur d'objectif en retard sur le temps écoulé ; domaine délaissé : rien de fait depuis 2 mois et rien de prévu (une epic
     « en cours » ne compte que par ses tâches).
 - **Mode SAFe** (sélecteur *Simple | SAFe* en haut, mémorisé sur l'appareil). Simple = Tâches + Roadmap ;

@@ -16,7 +16,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '14';
+const DEMO_DATA_VERSION = '15';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -93,6 +93,10 @@ function sample(): Item[] {
     mk('d5', 'Chantier Martin', 'mission', d(-1), '08:00', { heure_fin: '12:00', lieu: 'Villeurbanne' }),
     mk('d6', 'Envoyer les factures', 'tache', d(-2), '', { statut: 'termine', epic: 'e1' }),
     mk('d7', 'Visite du dépôt', 'mission', d(8), '11:00', { heure_fin: '12:30', epic: 'e3' }),
+    // Date de fin dans 2 jours → rappel « doit être finie dans 2 jours »
+    mk('d34', 'Envoyer l’attestation d’assurance', 'demarche', '', '', { date_fin: d(2), domaine: 'dadmin' }),
+    // Epic « Salon professionnel » à l'état Prêt, mais une tâche est déjà faite → alerte du Portefeuille
+    mk('d35', 'Réserver le stand', 'tache', d(-5), '', { epic: 'e2', statut: 'termine' }),
     // Chevauche la fin de la visite du dépôt (mission ↔ rendez-vous)
     mk('d33', 'Déjeuner fournisseur', 'rendez-vous', d(8), '12:00', { heure_fin: '13:30', domaine: 'dpro', lieu: 'Restaurant du port' }),
     mk('d8', 'Dentiste', 'rendez-vous', d(15), '17:30', { heure_fin: '18:00', domaine: 'dperso' }),

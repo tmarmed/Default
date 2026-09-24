@@ -596,6 +596,8 @@ function Main() {
     for (const titre of sousTaches) next = [...next, await api.createItem(settings, subtaskInput(saved, titre))];
     updateItems(next);
     setFormOpen(false);
+    // Parent enregistré « Terminé » avec de nouvelles sous-tâches à faire : il est « En cours »
+    if (sousTaches.length && saved.statut === 'termine') await enregistrerStatuts([{ item: saved, statut: 'en_cours' }]);
     // Statut changé dans la fiche : mêmes règles que la case à cocher et le Kanban
     if (ancien && ancien.statut !== saved.statut) {
       noterStatutAvant([{ item: ancien, statut: saved.statut }]);
@@ -631,6 +633,9 @@ function Main() {
       saveCache(next).catch(() => {});
       return next;
     });
+    // Nouveau travail sur un parent terminé : il repasse « En cours »
+    const orig = items.find((i) => i.id === parent.id);
+    if (orig?.statut === 'termine') await enregistrerStatuts([{ item: orig, statut: 'en_cours' }]);
   };
 
   const openEpic = (epic: Epic | null, defaults?: Partial<EpicInput>) => {
@@ -667,11 +672,16 @@ function Main() {
       saveCache(next).catch(() => {});
       return next;
     });
-    // Statut changé (bouton d'une alerte…) : mêmes règles que la case à cocher
+    // Statut changé : mêmes règles que la case à cocher
     if (ancien && patch.statut && patch.statut !== ancien.statut) {
       noterStatutAvant([{ item: ancien, statut: patch.statut }]);
       const lies = parentsLies([{ item: ancien, statut: patch.statut }], items);
       if (lies.length) await enregistrerStatuts(lies);
+    }
+    // Tâche ouverte rattachée à un parent terminé (sous-tâche existante) : le parent repasse « En cours »
+    if (ancien && patch.parent && patch.parent !== ancien.parent && saved.statut !== 'termine') {
+      const p = items.find((i) => i.id === patch.parent);
+      if (p?.statut === 'termine') await enregistrerStatuts([{ item: p, statut: 'en_cours' }]);
     }
   };
   /** Rattache une tâche existante à une feature (seul le lien le plus précis est gardé). */
@@ -821,8 +831,14 @@ function Main() {
     const fait = (p: Promise<unknown>, msg = 'Fait.') =>
       p.then(() => setInfo(msg)).catch((e) => setNotice(`Action impossible : ${(e as Error).message}`));
     switch (a.kind) {
-      case 'task':
+      case 'task': {
+        // Simple changement de statut (« Terminer », « Marquer fait ») : même règle que la case à cocher
+        // (question pour les sous-tâches ouvertes, parent qui suit)
+        const t = items.find((i) => i.id === a.id);
+        const cles = Object.keys(a.patch);
+        if (t && cles.length === 1 && a.patch.statut) return changerStatut(t, a.patch.statut);
         return fait(updateTask({ id: a.id, ...a.patch }));
+      }
       case 'tasks':
         return fait(
           (async () => {

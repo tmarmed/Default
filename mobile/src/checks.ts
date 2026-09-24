@@ -7,7 +7,7 @@ import { iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLa
 import { occurrencesBetween, recurrenceState } from './recurrence';
 import { etatEpic } from './safe';
 import { chargeOf, pointsCheck, subtaskMap } from './subtasks';
-import { aHeureFin, type Item } from './types';
+import { aDateFin, aHeureFin, ETATS_EPIC, type Item } from './types';
 
 /**
  * Alertes de chaque écran, calculées à partir des données (rien n'est modifié tout seul) :
@@ -132,7 +132,9 @@ export function checksTaches(
     const k = subs.get(t.id) ?? [];
     return k.length > 0 && k.every((x) => x.statut === 'termine');
   };
-  const enRetard = (t: Item) => ouvert(t) && !!t.date && t.date < today;
+  // (une démarche dont la date de fin est dépassée a son alerte à part, plus importante)
+  const finDepassee = (t: Item) => aDateFin(t.type) && !!t.date_fin && t.date_fin < today;
+  const enRetard = (t: Item) => ouvert(t) && !!t.date && t.date < today && !finDepassee(t);
   const rdvPasses = items.filter((t) => enRetard(t) && t.type === 'rendez-vous');
   const retard = items.filter((t) => enRetard(t) && t.type !== 'rendez-vous' && !toutFait(t)).sort((a, b) => a.date.localeCompare(b.date));
   const familles = new Map<string, Item[]>();
@@ -286,6 +288,37 @@ export function checksTaches(
         ],
       });
     }
+
+  // Démarches : date de fin (date limite) dépassée, proche (3 jours), ou date prévue après la date de fin
+  const dans3 = toDateString(addDays(parseDate(today), 3));
+  for (const t of items.filter((x) => aDateFin(x.type) && ouvert(x) && !!x.date_fin)) {
+    const quand = (d: string) => {
+      const n = Math.round((parseDate(d).getTime() - parseDate(today).getTime()) / 86400000);
+      return n === 0 ? "aujourd'hui" : n === 1 ? 'demain' : `dans ${n} jours`;
+    };
+    const ouvrir = { label: 'Ouvrir', action: { kind: 'open', target: 'task', id: t.id } as Action };
+    if (t.date_fin < today)
+      out.push({
+        key: `dfin:${t.id}`,
+        icone: '⏳',
+        message: `${maj(mot(t))} « ${t.titre} » a dépassé sa date de fin (${court(t.date_fin)}).`,
+        actions: [{ label: `Terminer « ${t.titre} »`, action: { kind: 'task', id: t.id, patch: { statut: 'termine' } }, principal: true }, ouvrir],
+      });
+    else if (t.date_fin <= dans3)
+      out.push({
+        key: `drappel:${t.id}`,
+        icone: '⏳',
+        message: `${maj(mot(t))} « ${t.titre} » doit être finie ${quand(t.date_fin)} (date de fin : ${court(t.date_fin)}).`,
+        actions: [{ ...ouvrir, principal: true }, { label: 'Marquer terminée', action: { kind: 'task', id: t.id, patch: { statut: 'termine' } } }],
+      });
+    if (t.date && t.date > t.date_fin && t.date_fin >= today)
+      out.push({
+        key: `dapres:${t.id}`,
+        icone: '⏳',
+        message: `${maj(mot(t))} « ${t.titre} » est prévue le ${court(t.date)}, après sa date de fin (${court(t.date_fin)}).`,
+        actions: [{ label: `Ramener au ${court(t.date_fin)}`, action: { kind: 'task', id: t.id, patch: { date: t.date_fin } }, principal: true }, ouvrir],
+      });
+  }
 
   // Sous-tâches : tout est fait mais le parent ne l'est pas (les points sont vérifiés dans l'Itération et le PI, en mode SAFe)
   for (const [pid, kids] of subs) {
@@ -668,6 +701,18 @@ export function checksPortefeuille(h: HierarchyValue, today: string): Check[] {
         message: `L'epic « ${e.titre} » est « Terminée », mais ${ouvertes} tâche${ouvertes > 1 ? 's sont' : ' est'} encore ouverte${ouvertes > 1 ? 's' : ''}.`,
         actions: [
           { label: "Remettre l'epic en cours", action: { kind: 'entity', entity: 'epic', id: e.id, patch: { etat: 'en_cours' } }, principal: true },
+          { label: "Ouvrir l'epic", action: { kind: 'open', target: 'epic', id: e.id } },
+        ],
+      });
+    // Epic pas encore lancée (Idée, Analyse, Prêt) alors que des tâches sont commencées ou faites
+    const commencees = tasks.filter((t) => t.statut !== 'a_faire').length;
+    if ((etat === 'idee' || etat === 'analyse' || etat === 'pret') && commencees)
+      out.push({
+        key: `etat3:${e.id}`,
+        icone: '▶️',
+        message: `L'epic « ${e.titre} » est à l'état ${ETATS_EPIC.find((x) => x.value === etat)?.label ?? etat}, mais ${commencees} tâche${commencees > 1 ? 's sont commencées' : ' est commencée'}.`,
+        actions: [
+          { label: "Passer l'epic En cours", action: { kind: 'entity', entity: 'epic', id: e.id, patch: { etat: 'en_cours' } }, principal: true },
           { label: "Ouvrir l'epic", action: { kind: 'open', target: 'epic', id: e.id } },
         ],
       });
