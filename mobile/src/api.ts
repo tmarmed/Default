@@ -93,13 +93,15 @@ export const API_VERSION_SAFE = 5;
 export const API_VERSION_DOMAINE_PI = 6;
 /** Version du script avec les nouveaux types (appel, démarche, story, exploration, bug) et le téléphone. */
 export const API_VERSION_TYPES = 7;
+/** Version du script avec les sous-tâches (colonne parent). */
+export const API_VERSION_SOUS_TACHES = 8;
 
 const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '', etat: e.etat ?? '' });
 
 export async function listItems(settings: Settings): Promise<Data & { version: number }> {
   if (DEMO) {
     const all = await demoApi.listAll();
-    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_TYPES };
+    return { items: (await demoApi.list()).map(normalize), ...all, version: API_VERSION_SOUS_TACHES };
   }
   const data = await post<Partial<Data> & { items: Item[]; version?: number }>(settings, { action: 'list' });
   return {
@@ -147,7 +149,8 @@ export async function updateItem(settings: Settings, item: Partial<Item> & { id:
   if (DEMO) return demoApi.update(item);
   return normalize((await post<{ item: Item }>(settings, { action: 'update', item })).item);
 }
-export async function deleteItem(settings: Settings, id: string): Promise<void> {
-  if (DEMO) return demoApi.remove(id);
-  await post(settings, { action: 'delete', id });
+/** Supprime une tâche ; ses sous-tâches sont supprimées (cascade) ou deviennent des tâches normales. */
+export async function deleteItem(settings: Settings, id: string, cascade = false): Promise<void> {
+  if (DEMO) return demoApi.remove(id, cascade);
+  await post(settings, { action: 'delete', id, cascade });
 }

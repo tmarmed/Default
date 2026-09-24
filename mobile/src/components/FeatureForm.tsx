@@ -75,13 +75,18 @@ export function FeatureForm({
   const pis = [-1, 0, 1, 2, 3].map((n) => shiftPi(current, n));
   if (form.pi && !pis.includes(form.pi)) pis.push(form.pi);
   const tasks = feature ? h.items.filter((t) => t.feature === feature.id) : [];
+  const sousTitre = (p: Item) => {
+    const k = tasks.filter((t) => t.parent === p.id);
+    return k.length ? `  (${k.filter((t) => t.statut === 'termine').length}/${k.length})` : '';
+  };
   const doneTasks = tasks.filter((t) => t.statut === 'termine');
   const ptsTasks = tasks.reduce((n, t) => n + pointsOf(t), 0);
   const kids = feature ? childrenOf('feature', feature.id, h.data) : null;
   const epic = form.epic ? h.epics.get(form.epic) : undefined;
   // Tâches qu'on peut rattacher : ni répétées, ni terminées, pas déjà dans cette feature
   const candidats = h.items
-    .filter((t) => !t.periodicite && t.statut !== 'termine' && (!feature || t.feature !== feature.id) && !existantes.includes(t.id))
+    // Les sous-tâches suivent leur parent : on ne les rattache pas seules
+    .filter((t) => !t.periodicite && !t.parent && t.statut !== 'termine' && (!feature || t.feature !== feature.id) && !existantes.includes(t.id))
     .map((t) => {
       const ft = h.features.get(t.feature);
       const where = ft ? `🧩 ${ft.titre}` : h.epics.get(t.epic)?.titre ?? h.objectifs.get(t.objectif)?.titre ?? h.domaines.get(t.domaine)?.nom ?? 'non rangée';
@@ -240,11 +245,12 @@ export function FeatureForm({
         (tasks.length === 0 ? (
           <Text style={f.muted}>Aucune tâche pour l'instant.</Text>
         ) : (
-          tasks.map((t) => (
+          tasks.filter((t) => !t.parent).map((t) => (
             <Pressable key={t.id} style={f.link} onPress={() => onOpenTask(t)}>
               <Text style={f.muted}>{t.statut === 'termine' ? '✓' : t.statut === 'en_cours' ? '▶' : '○'}</Text>
               <Text style={f.linkTitle} numberOfLines={1}>
                 {t.titre}
+                {sousTitre(t)}
               </Text>
               {!!pointsOf(t) && <Text style={f.muted}>{fmtPoints(pointsOf(t), safe.pointsJours)}</Text>}
             </Pressable>

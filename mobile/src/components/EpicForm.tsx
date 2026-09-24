@@ -271,7 +271,7 @@ export function EpicForm({
                     Aucune tâche. Pour en rattacher une, ouvrez-la et choisissez cette epic.
                   </Text>
                 ) : (
-                  tasks.map((t) => (
+                  tasks.filter((t) => !t.parent).map((t) => (
                     <Pressable key={t.id} style={styles.task} onPress={() => onOpenTask(t)}>
                       <Text style={[styles.taskCheck, t.statut === 'termine' && { color: colors.success }]}>
                         {t.periodicite ? '🔁' : t.statut === 'termine' ? '✓' : '○'}
@@ -281,6 +281,9 @@ export function EpicForm({
                         numberOfLines={1}
                       >
                         {t.titre}
+                        {tasks.some((c) => c.parent === t.id)
+                          ? `  (${tasks.filter((c) => c.parent === t.id && c.statut === 'termine').length}/${tasks.filter((c) => c.parent === t.id).length})`
+                          : ''}
                       </Text>
                       {!!t.date && <Text style={styles.muted}>{t.date.split('-').reverse().join('/')}</Text>}
                     </Pressable>

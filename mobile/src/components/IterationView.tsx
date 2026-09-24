@@ -1,4 +1,4 @@
-import { ReactElement, useMemo } from 'react';
+import { ReactElement, useMemo, useState } from 'react';
 import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDays, toDateString } from '../dates';
 import { domaineOf } from '../hierarchy';
@@ -6,7 +6,8 @@ import { useHierarchy } from '../hierarchyContext';
 import { fmtPoints, iterationByKey, iterationOf, iterationOfItem, piLabel, pointsOf, shiftIteration } from '../pi';
 import { useSafe } from '../safe';
 import { colors } from '../theme';
-import type { Item, Statut } from '../types';
+import { TYPE_ICONS, type Item, type Statut } from '../types';
+import { chargeOf, pointsCheck, subtaskMap } from '../subtasks';
 import { DomainChips, inDomain, useDomainFilter } from './DomainFilter';
 import { PeriodHeader } from './PeriodHeader';
 import { Swipe } from './Swipe';
@@ -48,14 +49,29 @@ export function IterationView({
 
   const { value: dom } = useDomainFilter();
   const filtered = dom !== 'tous';
+  const subs = useMemo(() => subtaskMap(items), [items]);
+  // Éléments de l'itération (sous-tâches comprises) ; un parent dont les sous-tâches ont des points ne compte pas
   const allTasks = useMemo(() => items.filter((t) => iterationOfItem(t) === itKey), [items, itKey]);
   // Filtre de domaine : on ne voit que ses tâches, mais la capacité reste commune à tous les domaines
   const tasks = useMemo(() => allTasks.filter((t) => inDomain(dom, domaineOf(t, h)?.id)), [allTasks, dom, h]);
-  const total = tasks.reduce((n, t) => n + pointsOf(t), 0);
-  const totalAll = allTasks.reduce((n, t) => n + pointsOf(t), 0);
+  const charge = (t: Item) => chargeOf(t, subs);
+  const total = tasks.reduce((n, t) => n + charge(t), 0);
+  const totalAll = allTasks.reduce((n, t) => n + charge(t), 0);
   const autres = totalAll - total;
-  const done = tasks.filter((t) => t.statut === 'termine').reduce((n, t) => n + pointsOf(t), 0);
-  const sansPoints = tasks.filter((t) => !pointsOf(t)).length;
+  const done = tasks.filter((t) => t.statut === 'termine').reduce((n, t) => n + charge(t), 0);
+  // Cartes du Kanban : les éléments sans parent, et les parents dont une sous-tâche est dans l'itération
+  const cards = useMemo(() => {
+    const ids = new Set<string>();
+    const out: Item[] = [];
+    for (const t of tasks) {
+      const card = t.parent ? items.find((p) => p.id === t.parent) : t;
+      if (card && !ids.has(card.id)) (ids.add(card.id), out.push(card));
+    }
+    return out;
+  }, [tasks, items]);
+  const sansPoints = cards.filter((t) => !pointsOf(t) && !(subs.get(t.id) ?? []).some((c) => pointsOf(c) > 0)).length;
+  const incoherents = cards.filter((t) => pointsCheck(t, subs.get(t.id)).alerte);
+  const [ouverts, setOuverts] = useState<Record<string, boolean>>({});
   const isIP = it.code === 'IP';
   const capacite = isIP ? 0 : safe.capacite;
   const over = !isIP && totalAll > capacite;
@@ -65,7 +81,7 @@ export function IterationView({
   for (let d = new Date(it.start); toDateString(d) <= it.end; d = addDays(d, 1)) days.push(toDateString(d));
   const doneDay = (t: Item) => (t.modifie_le ? toDateString(new Date(t.modifie_le)) : it.start);
   const remaining = days.map((d) =>
-    d > today ? null : total - tasks.filter((t) => t.statut === 'termine' && doneDay(t) <= d).reduce((n, t) => n + pointsOf(t), 0),
+    d > today ? null : total - tasks.filter((t) => t.statut === 'termine' && doneDay(t) <= d).reduce((n, t) => n + chargeOf(t, subs), 0),
   );
 
   const step = (n: number) => onChangeIteration(shiftIteration(itKey, n));
@@ -113,6 +129,14 @@ export function IterationView({
               {autres > 0 ? ` · autres domaines ${fmt(autres)} (gris)` : ''}
               {sansPoints ? ` · ${sansPoints} tâche${sansPoints > 1 ? 's' : ''} sans points` : ''}
             </Text>
+            {incoherents.map((t) => (
+              <Pressable key={t.id} onPress={() => onOpenTask(t)} accessibilityRole="button">
+                <Text style={styles.warn}>
+                  ⚠ « {t.titre} » : {fmt(pointsCheck(t, subs.get(t.id)).parent)} prévus, {fmt(pointsCheck(t, subs.get(t.id)).sous)} dans ses
+                  sous-tâches ›
+                </Text>
+              </Pressable>
+            ))}
             {over && <Text style={styles.warn}>⚠ La charge{filtered ? ' totale' : ''} dépasse la capacité de {fmt(totalAll - capacite)}.</Text>}
             {!isIP && (
               <View style={styles.settings}>
@@ -163,8 +187,8 @@ export function IterationView({
           )}
 
           {COLONNES.map((col, ci) => {
-            const list = tasks.filter((t) => t.statut === col.statut);
-            const pts = list.reduce((n, t) => n + pointsOf(t), 0);
+            const list = cards.filter((t) => t.statut === col.statut);
+            const pts = list.reduce((n, t) => n + (tasks.includes(t) ? charge(t) : 0) + (subs.get(t.id) ?? []).filter((c) => tasks.includes(c)).reduce((m, c) => m + charge(c), 0), 0);
             return (
               <View key={col.statut} style={styles.lane}>
                 <View style={[styles.laneHead, { borderLeftColor: col.color }]}>
@@ -179,14 +203,19 @@ export function IterationView({
                   const e = f ? h.epics.get(f.epic) : h.epics.get(t.epic);
                   const prev = COLONNES[ci - 1];
                   const next = COLONNES[ci + 1];
+                  const kids = subs.get(t.id) ?? [];
+                  const kidsDone = kids.filter((c) => c.statut === 'termine').length;
+                  const open = ouverts[t.id] ?? kids.some((c) => tasks.includes(c) && c.statut !== 'termine');
+                  const alerte = pointsCheck(t, kids).alerte;
                   return (
-                    <View key={t.id} style={[styles.task, { borderLeftColor: e?.couleur ?? colors.border }]}>
+                    <View key={t.id} style={[styles.taskOuter, { borderLeftColor: e?.couleur ?? colors.border }]}>
+                    <View style={styles.task}>
                       <Pressable onPress={() => onOpenTask(t)} style={styles.flex} accessibilityRole="button">
                         <Text style={[styles.taskTitle, t.statut === 'termine' && styles.done]} numberOfLines={2}>
                           {t.titre}
                         </Text>
                         <Text style={styles.muted} numberOfLines={1}>
-                          {pointsOf(t) ? fmt(pointsOf(t)) : 'sans points'}
+                          {TYPE_ICONS[t.type]} {pointsOf(t) ? fmt(pointsOf(t)) : 'sans points'}
                           {f ? ` · 🧩 ${f.titre}` : e ? ` · ${e.titre}` : ''}
                           {t.date ? ` · ${t.date.slice(8)}/${t.date.slice(5, 7)}` : ''}
                         </Text>
@@ -203,6 +232,55 @@ export function IterationView({
                           </Pressable>
                         )}
                       </View>
+                    </View>
+                    {kids.length > 0 && (
+                      <Pressable
+                        onPress={() => setOuverts((o) => ({ ...o, [t.id]: !open }))}
+                        style={styles.kidsToggle}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${open ? 'Replier' : 'Déplier'} les sous-tâches de ${t.titre}`}
+                      >
+                        <Text style={styles.kidsToggleText}>
+                          {alerte ? '⚠ ' : ''}
+                          {open ? '▾' : '▸'} Sous-tâches {kidsDone}/{kids.length}
+                        </Text>
+                      </Pressable>
+                    )}
+                    {open &&
+                      kids.map((c) => {
+                        const ici = tasks.includes(c);
+                        const cDone = c.statut === 'termine';
+                        const autre = iterationOfItem(c);
+                        return (
+                          <View key={c.id} style={[styles.kid, !ici && styles.kidAilleurs]}>
+                            <Pressable
+                              onPress={() => onSetStatut(c, cDone ? 'a_faire' : 'termine')}
+                              hitSlop={6}
+                              accessibilityRole="checkbox"
+                              accessibilityState={{ checked: cDone }}
+                              accessibilityLabel={`Terminer ${c.titre}`}
+                              style={[styles.kidCheck, cDone && styles.kidCheckOn]}
+                            >
+                              {cDone && <Text style={styles.kidMark}>✓</Text>}
+                            </Pressable>
+                            <Pressable style={styles.flex} onPress={() => onOpenTask(c)} accessibilityRole="button">
+                              <Text style={[styles.kidTitle, cDone && styles.done]} numberOfLines={2}>
+                                {c.type !== 'tache' ? `${TYPE_ICONS[c.type]} ` : ''}
+                                {c.titre}
+                              </Text>
+                              <Text style={styles.kidMeta}>
+                                {pointsOf(c) ? fmt(pointsOf(c)) : ''}
+                                {!ici ? `${pointsOf(c) ? ' · ' : ''}${autre ? `en ${autre.split('-').slice(-1)[0]}${autre.slice(0, 7) !== itKey.slice(0, 7) ? ` (${autre.split('-')[1]})` : ''}` : 'hors itération'}` : ''}
+                              </Text>
+                            </Pressable>
+                          </View>
+                        );
+                      })}
+                    {open && kids.length > 0 && kidsDone === kids.length && t.statut !== 'termine' && (
+                      <Pressable onPress={() => onSetStatut(t, 'termine')} style={styles.finish} accessibilityRole="button">
+                        <Text style={styles.finishText}>✓ Tout est fait : terminer « {t.titre} »</Text>
+                      </Pressable>
+                    )}
                     </View>
                   );
                 })}
@@ -252,15 +330,24 @@ const styles = StyleSheet.create({
   laneHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderLeftWidth: 4, paddingLeft: 8 },
   laneTitle: { fontSize: 15, fontWeight: '800' },
   empty: { color: colors.muted, paddingLeft: 12 },
+  taskOuter: { backgroundColor: colors.card, borderRadius: 10, borderLeftWidth: 4, overflow: 'hidden' },
   task: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.card,
-    borderRadius: 10,
     padding: 10,
-    borderLeftWidth: 4,
   },
+  kidsToggle: { paddingHorizontal: 10, paddingBottom: 8 },
+  kidsToggleText: { fontSize: 12.5, fontWeight: '700', color: colors.primary },
+  kid: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 6, marginLeft: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  kidAilleurs: { opacity: 0.45 },
+  kidCheck: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.muted, alignItems: 'center', justifyContent: 'center' },
+  kidCheckOn: { backgroundColor: colors.success, borderColor: colors.success },
+  kidMark: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  kidTitle: { fontSize: 13.5, color: colors.text },
+  kidMeta: { fontSize: 11.5, color: colors.muted },
+  finish: { margin: 8, marginTop: 4, backgroundColor: '#E6F4EA', borderRadius: 8, padding: 8 },
+  finishText: { color: colors.success, fontWeight: '700', fontSize: 13 },
   taskTitle: { fontSize: 14.5, fontWeight: '600', color: colors.text },
   done: { textDecorationLine: 'line-through', color: colors.muted },
   moves: { flexDirection: 'row', gap: 6 },

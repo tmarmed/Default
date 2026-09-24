@@ -21,10 +21,11 @@ var HEADERS = [
   'periodicite', 'echeance', 'debut', 'fin', 'faits',
   'epic', 'objectif', 'domaine',
   'points', 'iteration', 'feature',
-  'telephone'
+  'telephone',
+  'parent'
 ];
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 7;
+var API_VERSION = 8;
 
 /**
  * Niveaux au-dessus des tâches : Domaine > Objectif > Epic > Tâche.
@@ -65,6 +66,9 @@ var RE_ITERATION = /^\d{4}-T[1-4]-(IT[1-6]|IP)$/;
 var RE_NOMBRE = /^\d+([.,]\d+)?$/;
 // v7 : appel, démarche administrative, user story, exploration, bug
 var TYPES = ['tache', 'rendez-vous', 'appel', 'demarche', 'mission', 'story', 'exploration', 'bug'];
+/** v8 : types qui peuvent avoir des sous-tâches (un seul niveau). */
+var PARENT_TYPES = ['story', 'demarche', 'mission', 'exploration'];
+var LIENS = ['feature', 'epic', 'objectif', 'domaine'];
 var PRIORITES = ['basse', 'normale', 'haute'];
 var STATUTS = ['a_faire', 'en_cours', 'termine'];
 
@@ -168,7 +172,7 @@ function doPost(e) {
       switch (body.action) {
         case 'create': return { ok: true, item: createItem_(body.item || {}) };
         case 'update': return { ok: true, item: updateItem_(body.item || {}) };
-        case 'delete': deleteItem_(body.id); return { ok: true };
+        case 'delete': return { ok: true, supprimes: deleteItem_(body.id, !!body.cascade) };
         case 'createEntity': return { ok: true, entity: createEntity_(body.kind, body.data || {}) };
         case 'updateEntity': return { ok: true, entity: updateEntity_(body.kind, body.data || {}) };
         case 'deleteEntity': return { ok: true, counts: deleteEntity_(body.kind, body.id, !!body.cascade) };
@@ -355,6 +359,7 @@ function sanitize_(item, base) {
   });
   if (!out.titre.trim()) throw new Error('Le titre est obligatoire.');
   if (TYPES.indexOf(out.type) < 0) out.type = 'tache';
+  if (!/^[0-9A-Za-z\-]*$/.test(out.parent)) throw new Error('Lien « parent » invalide.');
   if (out.telephone && !/^[0-9+().\s\-]{3,30}$/.test(out.telephone)) throw new Error('Numéro de téléphone invalide.');
   if (PRIORITES.indexOf(out.priorite) < 0) out.priorite = 'normale';
   if (STATUTS.indexOf(out.statut) < 0) out.statut = 'a_faire';
@@ -380,10 +385,47 @@ function toRow_(item) {
   return HEADERS.map(function (h) { return item[h]; });
 }
 
+/**
+ * Sous-tâches (v8) : un seul niveau, parent de type story / démarche / mission / exploration, non répété.
+ * Une sous-tâche a toujours le rangement (feature, epic, objectif, domaine) de son parent.
+ */
+function checkParent_(item, sheet) {
+  var rows = readTable_(sheet, HEADERS);
+  var enfants = rows.filter(function (r) { return item.id && r.parent === item.id; });
+  if (enfants.length) {
+    if (item.parent) throw new Error('Cette tâche a des sous-tâches : elle ne peut pas devenir une sous-tâche.');
+    if (PARENT_TYPES.indexOf(item.type) < 0) throw new Error('Cette tâche a des sous-tâches : gardez le type Story, Démarche, Mission ou Exploration.');
+    if (item.periodicite) throw new Error('Une tâche avec des sous-tâches ne peut pas être répétée.');
+  }
+  if (!item.parent) return;
+  if (item.parent === item.id) throw new Error('Une tâche ne peut pas être sa propre sous-tâche.');
+  var parent = rows.filter(function (r) { return r.id === item.parent; })[0];
+  if (!parent) throw new Error('Tâche parente introuvable.');
+  if (parent.parent) throw new Error('Une sous-tâche ne peut pas avoir de sous-tâches.');
+  if (PARENT_TYPES.indexOf(parent.type) < 0) throw new Error('Seules les stories, démarches, missions et explorations ont des sous-tâches.');
+  if (parent.periodicite) throw new Error('Une tâche répétée ne peut pas avoir de sous-tâches.');
+  if (item.periodicite) throw new Error('Une sous-tâche ne peut pas être répétée.');
+  LIENS.forEach(function (k) { item[k] = parent[k]; });
+}
+
+/** Le rangement d'un parent s'applique à ses sous-tâches. */
+function cascadeLiens_(sheet, parent) {
+  var rows = readTable_(sheet, HEADERS);
+  var changed = false;
+  rows.forEach(function (r) {
+    if (r.parent !== parent.id) return;
+    LIENS.forEach(function (k) {
+      if (r[k] !== parent[k]) { r[k] = parent[k]; changed = true; }
+    });
+  });
+  if (changed) writeTable_(sheet, HEADERS, rows);
+}
+
 function createItem_(input) {
   var sheet = getSheet_();
   var now = new Date().toISOString();
   var item = sanitize_(input);
+  checkParent_(item, sheet);
   item.id = Utilities.getUuid();
   item.cree_le = now;
   item.modifie_le = now;
@@ -404,18 +446,30 @@ function updateItem_(input) {
   HEADERS.forEach(function (h, i) { current[h] = values[i]; });
   var item = sanitize_(input, current);
   item.id = current.id;
+  checkParent_(item, sheet);
   item.cree_le = String(current.cree_le);
   item.modifie_le = new Date().toISOString();
   range.setNumberFormat('@');
   range.setValues([toRow_(item)]);
+  if (LIENS.some(function (k) { return String(current[k]) !== item[k]; })) cascadeLiens_(sheet, item);
   return item;
 }
 
-function deleteItem_(id) {
+/** Supprime une tâche ; ses sous-tâches sont supprimées (cascade) ou deviennent des tâches normales. */
+function deleteItem_(id, cascade) {
   var sheet = getSheet_();
-  var row = findRow_(sheet, id);
-  if (row < 0) throw new Error('Élément introuvable (peut-être déjà supprimé).');
-  sheet.deleteRow(row);
+  var rows = readTable_(sheet, HEADERS);
+  if (!rows.some(function (r) { return r.id === String(id); })) throw new Error('Élément introuvable (peut-être déjà supprimé).');
+  var enfants = rows.filter(function (r) { return r.parent === String(id); }).length;
+  if (!enfants) {
+    sheet.deleteRow(findRow_(sheet, id));
+    return 0;
+  }
+  var rest = rows
+    .filter(function (r) { return r.id !== String(id) && !(cascade && r.parent === String(id)); })
+    .map(function (r) { if (r.parent === String(id)) r.parent = ''; return r; });
+  writeTable_(sheet, HEADERS, rest);
+  return cascade ? enfants : 0;
 }
 
 

@@ -1,9 +1,9 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { domaineOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
 import { fmtPoints, pointsOf } from '../pi';
 import { useSafe } from '../safe';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { isOverdue } from '../dates';
 import { callNumber } from '../phone';
 import { colors, prioriteColors, typeColors } from '../theme';
@@ -13,9 +13,14 @@ interface Props {
   item: Item;
   onPress: (item: Item) => void;
   onToggle: (item: Item) => void;
+  /** Parent avec sous-tâches : déplié ou non (liste) */
+  expanded?: boolean;
+  onToggleExpand?: (id: string, now: boolean) => void;
+  onAddSubtask?: (parent: Item, titre: string) => void;
 }
 
-export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Props) {
+export const TaskItem = memo(function TaskItem({ item, onPress, onToggle, expanded, onToggleExpand, onAddSubtask }: Props) {
+  const [quick, setQuick] = useState('');
   const done = item.statut === 'termine';
   const h = useHierarchy();
   const safe = useSafe();
@@ -27,7 +32,7 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Prop
   const domaine = domaineOf(item, h);
   const late = isOverdue(item);
   return (
-    <Pressable style={styles.card} onPress={() => onPress(item)}>
+    <Pressable style={[styles.card, expanded && styles.cardOpen]} onPress={() => onPress(item)}>
       <View style={[styles.stripe, { backgroundColor: typeColors[item.type] }]} />
       <Pressable
         onPress={() => onToggle(item)}
@@ -35,7 +40,7 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Prop
         accessibilityRole="checkbox"
         accessibilityState={{ checked: done }}
         accessibilityLabel={done ? 'Marquer à faire' : 'Marquer terminé'}
-        style={[styles.check, done && styles.checkDone]}
+        style={[styles.check, done && styles.checkDone, expanded && styles.checkOpen]}
       >
         {done && <Text style={styles.checkMark}>✓</Text>}
       </Pressable>
@@ -47,6 +52,11 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Prop
           <Text style={[styles.badge, { color: typeColors[item.type] }]}>
             {TYPE_ICONS[item.type]} {TYPE_LABELS[item.type]}
           </Text>
+          {!!item.parentTitre && (
+            <Text style={styles.metaText} numberOfLines={1}>
+              ↳ {item.parentTitre}
+            </Text>
+          )}
           {!!item.heure && <Text style={styles.metaText}>🕒 {item.heure}</Text>}
           {item.type === 'appel' && !!item.telephone && (
             <Pressable onPress={() => callNumber(item.telephone)} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Appeler le ${item.telephone}`}>
@@ -86,7 +96,79 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Prop
             late && <Text style={styles.late}>En retard</Text>
           )}
         </View>
+        {expanded && (
+          <View style={styles.subs}>
+            {(item.sousTaches ?? []).map((c) => {
+              const cDone = c.statut === 'termine';
+              const cLate = isOverdue(c);
+              return (
+                <View key={c.id} style={styles.subRow}>
+                  <Pressable
+                    onPress={() => onToggle(c)}
+                    hitSlop={8}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: cDone }}
+                    accessibilityLabel={`Terminer ${c.titre}`}
+                    style={[styles.subCheck, cDone && styles.checkDone]}
+                  >
+                    {cDone && <Text style={styles.subMark}>✓</Text>}
+                  </Pressable>
+                  <Pressable style={styles.subBody} onPress={() => onPress(c)} accessibilityRole="button">
+                    <Text style={[styles.subTitle, cDone && styles.titleDone]} numberOfLines={2}>
+                      {c.type !== 'tache' ? `${TYPE_ICONS[c.type]} ` : ''}
+                      {c.titre}
+                    </Text>
+                    {(!!c.date || !!c.heure || cLate) && (
+                      <Text style={[styles.subMeta, cLate && !cDone && styles.lateText]}>
+                        {c.date ? `${c.date.slice(8)}/${c.date.slice(5, 7)}` : ''}
+                        {c.heure ? ` ${c.heure}` : ''}
+                        {cLate && !cDone ? ' · en retard' : ''}
+                      </Text>
+                    )}
+                  </Pressable>
+                  {c.type === 'appel' && !!c.telephone && (
+                    <Pressable onPress={() => callNumber(c.telephone)} hitSlop={6} accessibilityLabel={`Appeler le ${c.telephone}`}>
+                      <Text style={styles.call}>📞</Text>
+                    </Pressable>
+                  )}
+                </View>
+              );
+            })}
+            {onAddSubtask && (
+              <TextInput
+                style={styles.subInput}
+                placeholder="+ Sous-tâche"
+                placeholderTextColor={colors.muted}
+                value={quick}
+                onChangeText={setQuick}
+                returnKeyType="done"
+                blurOnSubmit={false}
+                onSubmitEditing={() => {
+                  const t = quick.trim();
+                  if (!t) return;
+                  onAddSubtask(item, t);
+                  setQuick('');
+                }}
+              />
+            )}
+          </View>
+        )}
       </View>
+      {!!item.sousTotal && (
+        <Pressable
+          onPress={() => onToggleExpand?.(item.id, !!expanded)}
+          hitSlop={8}
+          style={[styles.expand, expanded && styles.expandOpen]}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: !!expanded }}
+          accessibilityLabel={`${expanded ? 'Replier' : 'Déplier'} les sous-tâches de ${item.titre}`}
+        >
+          <Text style={[styles.expandText, item.sousFaites === item.sousTotal && { color: colors.success }]}>
+            {item.alertePoints ? '⚠ ' : ''}
+            {expanded ? '▾' : '▸'} {item.sousFaites}/{item.sousTotal}
+          </Text>
+        </Pressable>
+      )}
       {item.priorite !== 'normale' && !done && (
         <View style={[styles.prio, { backgroundColor: prioriteColors[item.priorite] }]} />
       )}
@@ -96,6 +178,20 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle }: Prop
 
 const styles = StyleSheet.create({
   call: { fontSize: 12.5, fontWeight: '700', color: '#00897B', textDecorationLine: 'underline' },
+  cardOpen: { alignItems: 'flex-start' },
+  checkOpen: { marginTop: 18 },
+  subs: { marginTop: 8, gap: 2 },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  subCheck: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.muted, alignItems: 'center', justifyContent: 'center' },
+  subMark: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  subBody: { flex: 1, minWidth: 0 },
+  subTitle: { fontSize: 14.5, color: colors.text },
+  subMeta: { fontSize: 12, color: colors.muted },
+  lateText: { color: colors.danger, fontWeight: '600' },
+  subInput: { marginTop: 4, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, fontSize: 14, color: colors.text },
+  expand: { alignSelf: 'flex-start', marginTop: 12, marginRight: 10, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, backgroundColor: '#EEF1F6' },
+  expandOpen: { backgroundColor: '#E8F0FE' },
+  expandText: { fontSize: 12.5, fontWeight: '700', color: colors.text },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

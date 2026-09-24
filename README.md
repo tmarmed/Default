@@ -12,6 +12,16 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 - **8 types**, les mêmes en mode Simple et SAFe : ✓ Tâche, 📅 Rendez-vous, 📞 Appel (numéro + bouton
   **Appeler** dans la fiche et dans la liste), 🗂️ Démarche administrative, 🚩 Mission, 📖 User story,
   🔍 Exploration, 🐞 Bug. Filtre de la liste : « Tous » ou un type (liste déroulante, avec 🔁 Répétés).
+- **Sous-tâches** (un seul niveau) pour les Story, Démarche, Mission et Exploration : chaque sous-tâche a son
+  type, sa date, ses points, son statut et son itération, et le même rangement que son parent. Dans la
+  **liste**, le parent se déplie (bouton ▸ 1/3, mémorisé ; déplié tout seul si une sous-tâche est due ou en
+  retard), avec cases à cocher et « + Sous-tâche » ; il se range à la date la plus proche de ses sous-tâches.
+  **Jour / Semaine / Mois** : une sous-tâche datée apparaît à sa date (« ↳ parent »). **Itération** : la carte
+  du parent se déplie (sous-tâches d'une autre itération en gris), bouton « terminer » quand tout est fait.
+  **Charge** : si les sous-tâches ont des points, ce sont elles qui comptent (dans leur itération) ; si
+  seules la tâche en a, la tâche l'emporte ; si les deux diffèrent, **alerte** dans la fiche (bouton
+  « Passer la tâche à … » et points modifiables sur chaque sous-tâche), ⚠ sur la ligne et dans l'Itération.
+  Supprimer un parent : avec ses sous-tâches (case à cocher) ou en les gardant comme tâches normales.
 - 4 vues : **Liste** (En retard, Aujourd'hui, Demain, dates suivantes, Sans date), **Jour**, **Semaine**, **Mois**
 - Glisser le doigt à gauche / à droite pour passer au jour, à la semaine ou au mois suivant / précédent ;
   bouton « Aujourd'hui » pour revenir à la période en cours
@@ -100,7 +110,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
    à importer est aussi disponible : [`modele/Taches.xlsx`](modele/Taches.xlsx).
    Le **journal d'exécution** affiche la **clé d'accès** : copiez-la.
    L'onglet `Taches` est créé avec les colonnes :
-   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone`
+   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone | parent`
    et les onglets `Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine | etat`),
    `Features` (`id | titre | description | epic | pi | iteration | points | couleur | cree_le | modifie_le`),
    `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le | domaine`),
@@ -124,7 +134,7 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 
 Valeurs acceptées dans la feuille si vous saisissez à la main :
 `type` = `tache` / `rendez-vous` / `appel` / `demarche` / `mission` / `story` / `exploration` / `bug` ·
-`telephone` = numéro d'un appel · `priorite` = `basse` / `normale` / `haute` ·
+`telephone` = numéro d'un appel · `parent` = id de la tâche parente (sous-tâche) · `priorite` = `basse` / `normale` / `haute` ·
 `statut` = `a_faire` / `en_cours` / `termine` · `date` = `AAAA-MM-JJ` · `heure` = `HH:MM` ·
 `periodicite` = vide / `hebdomadaire` / `mensuelle` / `trimestrielle` / `annuelle` ·
 `echeance` = semaine `1` (lundi) à `7`, mois `1` à `31`, trimestre `m` ou `m-j`, année `MM` ou `MM-JJ`

@@ -2,6 +2,7 @@ import { ReactElement, ReactNode, useState } from 'react';
 import { Modal, Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDays, parseDate, toDateString } from '../dates';
 import { domaineOf } from '../hierarchy';
+import { chargeOf, subtaskMap } from '../subtasks';
 import { useHierarchy } from '../hierarchyContext';
 import { fmtPoints, iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piOf, piStart, pointsOf, shiftPi } from '../pi';
 import { useSafe } from '../safe';
@@ -91,10 +92,13 @@ export function PIView({
 
   // Charge : points des tâches par itération
   const inIt = its.map((it) => h.items.filter((t) => iterationOfItem(t) === it.key));
-  const charge = inIt.map((list) => list.reduce((n, t) => n + pointsOf(t), 0));
-  const chargeDom = inIt.map((list) => list.filter(taskIn).reduce((n, t) => n + pointsOf(t), 0));
+  // Un parent dont les sous-tâches ont des points ne compte pas : ses sous-tâches comptent dans leur itération
+  const subs = subtaskMap(h.items);
+  const charge = inIt.map((list) => list.reduce((n, t) => n + chargeOf(t, subs), 0));
+  const chargeDom = inIt.map((list) => list.filter(taskIn).reduce((n, t) => n + chargeOf(t, subs), 0));
   // Tâches hors feature, par itération
-  const horsFeature = inIt.map((list) => list.filter((t) => !t.feature && taskIn(t)));
+  // Les sous-tâches restent sous leur parent : pas de ligne à elles
+  const horsFeature = inIt.map((list) => list.filter((t) => !t.feature && !t.parent && taskIn(t)));
   // Toutes les tâches hors feature du PI, dans l'ordre des itérations
   const allHors = horsFeature.flatMap((list) =>
     [...list].sort((a, b) => (a.date || '~').localeCompare(b.date || '~') || a.titre.localeCompare(b.titre)),
@@ -391,6 +395,9 @@ export function PIView({
                   Déplacer « {move.kind === 'feature' ? move.f.titre : move.t.titre} » en {moveIt.code} ?
                 </Text>
                 <Text style={styles.muted}>{moveIt.label.split(' · ')[1]}</Text>
+                {move.kind === 'task' && (subs.get(move.t.id) ?? []).length > 0 && (
+                  <Text style={styles.muted}>Ses sous-tâches gardent leur date ou leur itération.</Text>
+                )}
                 {move.kind === 'feature' && (
                   <Text style={styles.muted}>
                     L’itération prévue de la feature change. Ses tâches gardent leur date ou leur itération.

@@ -28,6 +28,8 @@ import { inDomain } from './src/components/DomainFilter';
 import { DomainFilterContext, loadDomainFilter, saveDomainFilter } from './src/components/DomainFilter';
 import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
+import { cascadeLinks, pointsCheck, subtaskMap } from './src/subtasks';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
 import { iterationOf, iterationOfItem, piOf } from './src/pi';
 import { Roadmap } from './src/components/Roadmap';
@@ -127,6 +129,27 @@ type Hier = {
 };
 const EMPTY_HIER: Hier = { epics: [], objectifs: [], domaines: [], features: [], objectifsPI: [] };
 
+/** Nouvelle sous-tâche : rangement du parent ; sans date, elle prend l'itération du parent. */
+const subtaskInput = (parent: Item, titre: string): ItemInput => ({
+  ...RECURRENCE_DEFAUTS,
+  titre,
+  type: 'tache',
+  date: '',
+  heure: '',
+  lieu: '',
+  description: '',
+  priorite: 'normale',
+  statut: 'a_faire',
+  parent: parent.id,
+  feature: parent.feature,
+  epic: parent.epic,
+  objectif: parent.objectif,
+  domaine: parent.domaine,
+  iteration: parent.date ? iterationOf(parent.date).key : parent.iteration,
+});
+
+const DEPLIES_KEY = 'mes-taches:deplies';
+
 const matchesType = (i: Item, filter: Filter) =>
   filter === 'tous' || (filter === 'recurrents' ? !!i.periodicite : i.type === filter);
 
@@ -212,7 +235,7 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_TYPES);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_SOUS_TACHES);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -288,16 +311,57 @@ function Main() {
       (!safe.actif || !itFilter || iterationOfItem(i) === iterationOf(new Date()).key),
     [filter, domFilter, hv, safe.actif, itFilter],
   );
+  const subs = useMemo(() => subtaskMap(items), [items]);
   const visible = useMemo(
     () =>
       groupItems(
         items
-          .filter((i) => matches(i))
+          .filter((i) => !i.parent)
+          .flatMap((i): Item[] => {
+            const kids = subs.get(i.id);
+            if (!kids) return matches(i) ? [i] : [];
+            // Parent : visible s'il passe le filtre, ou si une de ses sous-tâches le passe (seules celles-ci sont montrées)
+            const shown = matches(i) ? kids : kids.filter((k) => matches(k));
+            if (!matches(i) && !shown.length) return [];
+            // Rangé à la date la plus proche : la sienne ou celle d'une sous-tâche pas encore faite
+            const dates = [i.statut !== 'termine' ? i.date : '', ...kids.filter((k) => k.statut !== 'termine').map((k) => k.date)].filter(Boolean);
+            const date = dates.length ? dates.sort()[0] : i.date;
+            return [
+              {
+                ...i,
+                date,
+                sousTaches: showDone ? shown : shown.filter((k) => k.statut !== 'termine' || i.statut === 'termine'),
+                sousTotal: kids.length,
+                sousFaites: kids.filter((k) => k.statut === 'termine').length,
+                alertePoints: pointsCheck(i, kids).alerte,
+              },
+            ];
+          })
           // Un élément répété devient ses lignes du moment : retards regroupés + échéance en cours.
           .flatMap((i) => (i.periodicite ? listEntries(i, today) : [i]))
           .filter((i) => showDone || i.statut !== 'termine'),
       ),
-    [items, matches, showDone, today],
+    [items, subs, matches, showDone, today],
+  );
+  /** Parents dépliés / repliés à la main (sinon : dépliés si une sous-tâche est due aujourd'hui ou en retard) */
+  const [deplies, setDeplies] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    AsyncStorage.getItem(DEPLIES_KEY)
+      .then((v) => v && setDeplies(JSON.parse(v)))
+      .catch(() => {});
+  }, []);
+  const toggleDeplie = useCallback((id: string, now: boolean) => {
+    setDeplies((prev) => {
+      const next = { ...prev, [id]: !now };
+      AsyncStorage.setItem(DEPLIES_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+  const isDeplie = useCallback(
+    (p: Item) =>
+      deplies[p.id] ??
+      (subs.get(p.id) ?? []).some((k) => k.statut !== 'termine' && !!k.date && k.date <= today),
+    [deplies, subs, today],
   );
   const doneCount = useMemo(
     () => items.filter((i) => !i.periodicite && i.statut === 'termine' && matches(i)).length,
@@ -308,8 +372,10 @@ function Main() {
   // sur les 6 semaines de la grille du mois affiché (qui contient aussi le jour et la semaine).
   const { byDate, fenetres } = useMemo(() => {
     const gridStart = startOfWeek(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
+    const titres = new Map(items.map((i) => [i.id, i.titre]));
     const range = expandRange(
-      items.filter((i) => matches(i)),
+      // Sous-tâches datées : à leur date, avec « ↳ parent »
+      items.filter((i) => matches(i)).map((i) => (i.parent ? { ...i, parentTitre: titres.get(i.parent) ?? '' } : i)),
       toDateString(gridStart),
       toDateString(addDays(gridStart, 41)),
       today,
@@ -335,7 +401,8 @@ function Main() {
   const openForm = useCallback(
     (item: Item | null) => {
       // Une échéance affichée ouvre l'élément répété d'origine.
-      setEditing(item?.baseId ? (items.find((i) => i.id === item.baseId) ?? null) : item);
+      // Échéance d'un élément répété, ou parent affiché avec une autre date : on ouvre l'élément enregistré.
+      setEditing(item ? (items.find((i) => i.id === (item.baseId ?? item.id)) ?? item) : null);
       setTaskDefaults(undefined);
       setFormOpen(true);
     },
@@ -369,6 +436,8 @@ function Main() {
         return;
       }
       const statut = item.statut === 'termine' ? 'a_faire' : 'termine';
+      // Élément enregistré (la ligne affichée peut porter une autre date : parent de sous-tâches)
+      const orig = items.find((i) => i.id === item.id) ?? item;
       // Mise à jour immédiate à l'écran, annulée si le Google Sheet refuse.
       setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, statut } : i)));
       try {
@@ -379,7 +448,7 @@ function Main() {
           return next;
         });
       } catch (e) {
-        setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+        setItems((prev) => prev.map((i) => (i.id === item.id ? orig : i)));
         setNotice(`Modification non enregistrée : ${(e as Error).message}`);
       }
     },
@@ -403,8 +472,11 @@ function Main() {
     }
   };
 
-  const save = async (input: ItemInput) => {
+  const save = async (input: ItemInput, sousTaches: string[] = []) => {
     if (!settings) return;
+    if ((input.parent || sousTaches.length) && apiVersion < api.API_VERSION_SOUS_TACHES) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour les sous-tâches. Recollez le nouveau Code.gs et déployez une nouvelle version.");
+    }
     if ((TYPES_V7.includes(input.type) || input.telephone) && apiVersion < api.API_VERSION_TYPES) {
       throw new Error("le script du Google Sheet n'est pas à jour pour les nouveaux types (appel, démarche, story, exploration, bug). Recollez le nouveau Code.gs et déployez une nouvelle version.");
     }
@@ -431,15 +503,35 @@ function Main() {
       saved = await api.createItem(settings, input);
       next = [...items, saved];
     }
+    // Les sous-tâches suivent le rangement de leur parent (le script fait de même)
+    next = cascadeLinks(saved, next);
+    for (const titre of sousTaches) next = [...next, await api.createItem(settings, subtaskInput(saved, titre))];
     updateItems(next);
     setFormOpen(false);
   };
 
-  const remove = async (item: Item) => {
+  const remove = async (item: Item, cascade = false) => {
     if (!settings) return;
-    await api.deleteItem(settings, item.id);
-    updateItems(items.filter((i) => i.id !== item.id));
+    await api.deleteItem(settings, item.id, cascade);
+    // Sous-tâches : supprimées (cascade) ou détachées
+    updateItems(
+      items.filter((i) => i.id !== item.id && !(cascade && i.parent === item.id)).map((i) => (i.parent === item.id ? { ...i, parent: '' } : i)),
+    );
     setFormOpen(false);
+  };
+
+  /** Sous-tâche ajoutée depuis la fiche du parent (ou l'Itération) : tout de suite. */
+  const addSubtask = async (parent: Item, titre: string) => {
+    if (!settings) return;
+    if (apiVersion < api.API_VERSION_SOUS_TACHES) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour les sous-tâches.");
+    }
+    const saved = await api.createItem(settings, subtaskInput(parent, titre));
+    setItems((prev) => {
+      const next = [...prev, saved];
+      saveCache(next).catch(() => {});
+      return next;
+    });
   };
 
   const openEpic = (epic: Epic | null, defaults?: Partial<EpicInput>) => {
@@ -471,7 +563,7 @@ function Main() {
     }
     const saved = await api.updateItem(settings, patch);
     setItems((prev) => {
-      const next = prev.map((i) => (i.id === saved.id ? saved : i));
+      const next = cascadeLinks(saved, prev.map((i) => (i.id === saved.id ? saved : i)));
       saveCache(next).catch(() => {});
       return next;
     });
@@ -659,6 +751,7 @@ function Main() {
               (t) =>
                 !t.periodicite &&
                 !t.feature &&
+                !t.parent &&
                 !t.date &&
                 t.statut !== 'termine' &&
                 t.iteration !== piPickerIt &&
@@ -820,15 +913,16 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_TYPES && (
+      {apiVersion < api.API_VERSION_SOUS_TACHES && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
             Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
             {apiVersion < api.API_VERSION_EPICS ? 'les epics, ' : ''}
             {apiVersion < api.API_VERSION_HIERARCHIE ? 'les domaines, les objectifs, ' : ''}
             {apiVersion < api.API_VERSION_SAFE ? 'les données SAFe (états, features, points, itérations), ' : ''}
-            {apiVersion < api.API_VERSION_DOMAINE_PI ? 'le domaine des objectifs du PI, ' : ''}les nouveaux types (appel,
-            démarche, story, exploration, bug) ne seront pas enregistrés.
+            {apiVersion < api.API_VERSION_DOMAINE_PI ? 'le domaine des objectifs du PI, ' : ''}
+            {apiVersion < api.API_VERSION_TYPES ? 'les nouveaux types (appel, démarche, story, exploration, bug), ' : ''}les
+            sous-tâches ne seront pas enregistrés.
             Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
           </Text>
         </View>
@@ -949,7 +1043,16 @@ function Main() {
       {tab === 'taches' && mode === 'liste' && <SectionList
         sections={visible}
         keyExtractor={(i) => i.id}
-        renderItem={({ item }) => <TaskItem item={item} onPress={openForm} onToggle={toggle} />}
+        renderItem={({ item }) => (
+          <TaskItem
+            item={item}
+            onPress={openForm}
+            onToggle={toggle}
+            expanded={item.sousTotal ? isDeplie(item) : undefined}
+            onToggleExpand={toggleDeplie}
+            onAddSubtask={(p, titre) => addSubtask(items.find((x) => x.id === p.id) ?? p, titre).catch((e) => setNotice(`Sous-tâche non ajoutée : ${(e as Error).message}`))}
+          />
+        )}
         renderSectionHeader={({ section }) => (
           <Text style={[styles.section, section.title === 'En retard' && { color: colors.danger }]}>
             {section.title} · {section.data.length}
@@ -1011,6 +1114,9 @@ function Main() {
         onClose={() => setFormOpen(false)}
         onSave={save}
         onDelete={remove}
+        onOpenTask={openForm}
+        onAddSubtask={addSubtask}
+        onUpdateTask={updateTask}
       />
 
       <EpicForm

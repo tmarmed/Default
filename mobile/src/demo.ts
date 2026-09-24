@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
 import { cleanLinks, Data, DeletionCounts, planDeletion } from './hierarchy';
 import { iterationOf, piOf, shiftPi } from './pi';
+import { cascadeLinks, checkParent } from './subtasks';
 import type { Domaine, Epic, Feature, Item, ItemInput, Objectif, ObjectifPI } from './types';
 
 /**
@@ -15,7 +16,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '7';
+const DEMO_DATA_VERSION = '8';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -45,10 +46,11 @@ function sample(): Item[] {
   const now = new Date();
   const d = (n: number) => toDateString(addDays(now, n));
   const stamp = now.toISOString();
+  const pi2 = shiftPi(piOf(now), 1);
   const mk = (id: string, titre: string, type: Item['type'], date: string, heure: string, extra: Partial<Item> = {}): Item => ({
     id, titre, type, date, heure, lieu: '', description: '', priorite: 'normale', statut: 'a_faire',
     cree_le: stamp, modifie_le: stamp, periodicite: '', echeance: '', debut: '', fin: '', faits: '', epic: '', objectif: '', domaine: '',
-    points: '', iteration: '', feature: '', telephone: '', ...extra,
+    points: '', iteration: '', feature: '', telephone: '', parent: '', ...extra,
   });
   return [
     mk('d1', 'Rendez-vous client Dupont', 'rendez-vous', d(2), '10:30', {
@@ -72,6 +74,13 @@ function sample(): Item[] {
       domaine: 'dadmin', description: 'Prendre rendez-vous en mairie, photo d’identité, justificatif de domicile',
     }),
     mk('d23', 'En tant que client, je vois les tarifs en ligne', 'story', '', '', { feature: 'f3', points: '3' }),
+    // Sous-tâches (v8) : la démarche « carte d'identité » et la story « tarifs » (5 j de sous-tâches pour 3 j → alerte)
+    mk('d26', 'Faire les photos d’identité', 'tache', d(-3), '', { parent: 'd22', domaine: 'dadmin', statut: 'termine' }),
+    mk('d27', 'Appeler la mairie pour un rendez-vous', 'appel', d(0), '10:00', { parent: 'd22', domaine: 'dadmin', telephone: '01 23 45 67 89' }),
+    mk('d28', 'Déposer le dossier en mairie', 'tache', d(18), '', { parent: 'd22', domaine: 'dadmin' }),
+    mk('d29', 'Rédiger les textes des tarifs', 'tache', '', '', { parent: 'd23', feature: 'f3', points: '1', statut: 'termine', iteration: `${pi2}-IT4` }),
+    mk('d30', 'Mettre en page la grille', 'tache', '', '', { parent: 'd23', feature: 'f3', points: '2', iteration: `${pi2}-IT4` }),
+    mk('d31', 'Relire et publier', 'tache', '', '', { parent: 'd23', feature: 'f3', points: '2', iteration: `${pi2}-IT5` }),
     mk('d24', 'Comparer 3 outils de prise de rendez-vous', 'exploration', '', '', { feature: 'f3', points: '1' }),
     mk('d25', 'Le formulaire de contact n’envoie rien', 'bug', d(1), '', { epic: 'e1', priorite: 'haute', points: '1' }),
     mk('d4', 'Réunion équipe', 'rendez-vous', d(0), '14:00', { lieu: 'Bureau' }),
@@ -226,20 +235,25 @@ export const demoApi = {
   },
   async create(input: ItemInput): Promise<Item> {
     const now = new Date().toISOString();
-    const item: Item = cleanLinks({ ...input, id: `d${Date.now()}`, cree_le: now, modifie_le: now });
-    await store([...(await load()), item]);
+    const items = await load();
+    const item: Item = cleanLinks(checkParent({ ...input, id: `d${Date.now()}`, cree_le: now, modifie_le: now }, items));
+    await store([...items, item]);
     return item;
   },
   async update(patch: Partial<Item> & { id: string }): Promise<Item> {
     const items = await load();
     const current = items.find((i) => i.id === patch.id);
     if (!current) throw new Error('Élément introuvable.');
-    const item = cleanLinks({ ...current, ...patch, modifie_le: new Date().toISOString() });
-    await store(items.map((i) => (i.id === item.id ? item : i)));
+    const item = cleanLinks(checkParent({ ...current, ...patch, modifie_le: new Date().toISOString() }, items));
+    await store(cascadeLinks(item, items.map((i) => (i.id === item.id ? item : i))));
     return item;
   },
-  async remove(id: string): Promise<void> {
-    await store((await load()).filter((i) => i.id !== id));
+  async remove(id: string, cascade = false): Promise<void> {
+    await store(
+      (await load())
+        .filter((i) => i.id !== id && !(cascade && i.parent === id))
+        .map((i) => (i.parent === id ? { ...i, parent: '' } : i)),
+    );
   },
   async reset(): Promise<Data> {
     await store(sample());

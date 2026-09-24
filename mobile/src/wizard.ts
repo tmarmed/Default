@@ -98,8 +98,8 @@ export function loadDraft(level: Exclude<Level, 'tache'>, id: string, d: Data): 
     ...pick('objectif', kids.objIds),
     ...pick('epic', kids.epicIds),
     ...pick('feature', kids.featIds),
-    // Les tâches répétées restent gérées dans leur fiche (échéances, périodicité)
-    ...pick('tache', new Set([...kids.taskIds].filter((i) => !entityOf('tache', i, d)?.periodicite))),
+    // Les tâches répétées restent gérées dans leur fiche ; les sous-tâches suivent leur parent
+    ...pick('tache', new Set([...kids.taskIds].filter((i) => !entityOf('tache', i, d)?.periodicite && !entityOf('tache', i, d)?.parent))),
   ];
 }
 

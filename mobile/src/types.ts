@@ -46,6 +46,8 @@ export interface Item {
   feature: string;
   /** Appel : numéro à composer */
   telephone: string;
+  /** Sous-tâche : id de la tâche parente (un seul niveau) */
+  parent: string;
 
   // --- Champs calculés par l'application (non enregistrés) ---
   /** Occurrence affichée d'un élément répété : clé de sa période */
@@ -58,11 +60,30 @@ export interface Item {
   periodeLabel?: string;
   /** Périodes oubliées, regroupées sur une ligne « En retard » */
   retards?: string[];
+  /** Sous-tâche affichée seule (calendrier) : titre du parent */
+  parentTitre?: string;
+  /** Parent affiché dans la liste : sous-tâches visibles, avancement, alerte de points */
+  sousTaches?: Item[];
+  sousTotal?: number;
+  sousFaites?: number;
+  alertePoints?: boolean;
 }
 
 export type ItemInput = Omit<
   Item,
-  'id' | 'cree_le' | 'modifie_le' | 'occurrence' | 'baseId' | 'fenetre' | 'periodeLabel' | 'retards'
+  | 'id'
+  | 'cree_le'
+  | 'modifie_le'
+  | 'occurrence'
+  | 'baseId'
+  | 'fenetre'
+  | 'periodeLabel'
+  | 'retards'
+  | 'parentTitre'
+  | 'sousTaches'
+  | 'sousTotal'
+  | 'sousFaites'
+  | 'alertePoints'
 >;
 
 /** Champs ajoutés avec la répétition : valeurs par défaut pour les anciennes données. */
@@ -79,6 +100,7 @@ export const RECURRENCE_DEFAUTS = {
   iteration: '',
   feature: '',
   telephone: '',
+  parent: '',
 } as const;
 
 /** Une ligne de l'onglet « Epics » : grand projet affiché dans la roadmap. */
