@@ -380,7 +380,9 @@ export function checksTaches(
           { label: 'Repousser la date de fin…', action: { kind: 'open', target: 'task', id: t.id } },
         ],
       });
-    else if (t.date_fin <= dans3)
+    // Rappel (jaune) : seulement si la démarche n'a pas déjà une alerte rouge (en retard, sous-tâches en retard,
+    // prévue après sa date de fin) : c'est la même situation, l'alerte rouge suffit
+    else if (t.date_fin <= dans3 && !familles.has(t.id) && !(t.date && t.date > t.date_fin))
       out.push({
         key: `drappel:${t.id}`,
         niveau: 'rappel',
@@ -490,8 +492,8 @@ export function checksIteration(
       });
   }
 
-  // Fin d'itération (terminée, ou dans 2 jours au plus) avec des tâches non faites
-  const bientotFinie = toDateString(addDays(parseDate(today), 2)) >= it.end;
+  // Fin d'itération (terminée, ou dans 3 jours au plus : même délai que les autres rappels) avec des tâches non faites
+  const bientotFinie = toDateString(addDays(parseDate(today), 3)) >= it.end;
   // (sans les rendez-vous : un rendez-vous passé a son alerte « passé et pas coché », on ne le déplace pas)
   const nonFaites = tasks.filter((t) => ouvert(t) && t.type !== 'rendez-vous');
   if (bientotFinie && nonFaites.length) {

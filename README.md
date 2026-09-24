@@ -57,7 +57,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 - **Alertes par écran** : une carte « ⚠ Alertes » en tête de la zone qui défile de chaque écran, repliée sur une ligne
   par défaut (choix mémorisé par écran ; dépliée : 3 visibles, « voir les
   autres »), avec des boutons d'action, et deux **pastilles sur chaque onglet** (itération et PI en cours) : 🔴 alertes et 🟡 rappels. **Rappels (jaune)** :
-  démarche à finir dans 3 jours au plus, fin d'itération dans 2 jours avec des tâches non faites ; tout le reste est
+  démarche à finir dans 3 jours au plus (sauf si elle a déjà une alerte rouge : en retard, sous-tâches en retard,
+  prévue après sa date de fin), fin d'itération dans 3 jours au plus avec des tâches non faites ; tout le reste est
   en rouge. Mêmes règles d'affichage pour les deux : **deux cartes séparées**, rouge « ⚠ N alertes » puis jaune
   « 🟡 N rappels », chacune repliée par défaut et ouverte / fermée indépendamment (mémorisé par écran), 3 visibles
   et « Voir les N autres », alertes ignorées de sa couleur, fond de couleur par alerte, Ignorer…). Les alertes suivent le **filtre de domaine** ;
