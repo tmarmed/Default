@@ -72,6 +72,9 @@ Lot 2 (connexion Google directe) :
   de script Code.gs ni de clé sur cette branche. Projet Google Cloud gratuit, mode production avec accès limité aux
   fichiers créés ou ouverts par l'application (pas de validation Google, pas de reconnexion toutes les semaines) ;
   un fichier existant s'ajoute en le choisissant dans la fenêtre Google.
+  État actuel du projet Google Cloud « Mes taches » : API Sheets, Drive et Picker activées, écran d'autorisation
+  créé (accès drive.file, openid, email, profile), publication laissée **en test** (comptes de test seulement ;
+  à publier en production avant l'usage réel ou l'invitation d'une équipe).
 
 Ensuite (nouveaux écrans : Stratégie, Backlog, Équipe, Organisation, Pilotage), à prendre en compte dès leur
 conception :
