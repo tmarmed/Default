@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { childrenOf, describeCounts } from '../hierarchy';
-import { HierarchyContext } from '../hierarchyContext';
+import { HierarchyContext, inDomain } from '../hierarchyContext';
+import { domaineOf } from '../hierarchy';
+import { DomaineChoix } from './DomaineChoix';
 import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 import { fmtPoints, iterationsOf, piLabel, piOf, pointsOf, shiftPi } from '../pi';
 import { useSafe } from '../safe';
@@ -27,6 +29,8 @@ interface Props {
   /** Rattache tout de suite une tâche existante (feature déjà enregistrée) */
   onLinkTask?: (f: Feature, t: Item) => Promise<void>;
   onOpenWizard?: (f: Feature) => void;
+  /** Nouvelle feature : domaine présélectionné (les epics proposées sont celles de ce domaine) */
+  defaultDomaine?: string;
 }
 
 /** Fiche d'une feature (sous-epic) : epic, PI, itération prévue, points, tâches. */
@@ -42,6 +46,7 @@ export function FeatureForm({
   onQuickAddTask,
   onLinkTask,
   onOpenWizard,
+  defaultDomaine,
 }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, feature, defaults);
@@ -56,6 +61,10 @@ export function FeatureForm({
   const [nouvelles, setNouvelles] = useState<string[]>([]);
   const [existantes, setExistantes] = useState<string[]>([]);
   const [picking, setPicking] = useState(false);
+  /** Nouvelle feature : domaine (une feature n'a pas de domaine à elle : il sert à choisir l'epic) */
+  const [dom, setDom] = useState('');
+  const domEpic = (id: string) => domaineOf({ epic: id }, h)?.id ?? '';
+  const epicsProposees = h.epicList.filter((e) => e.id === form.epic || !dom || inDomain(dom, domEpic(e.id), h));
 
   useEffect(() => {
     if (visible) {
@@ -68,6 +77,7 @@ export function FeatureForm({
       setExistantes([]);
       setPicking(false);
       setQuick('');
+      setDom(feature ? '' : (defaultDomaine ?? ''));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, feature]);
@@ -130,13 +140,24 @@ export function FeatureForm({
         fige={!!feature}
         onChange={(v) => {
           setEspace(v);
+          setDom('');
           setForm((x) => ({ ...x, epic: '' }));
         }}
       />
 
+      {!feature && (
+        <DomaineChoix
+          value={dom}
+          onChange={(v) => {
+            setDom(v);
+            // Un autre domaine : l'epic choisie n'en fait plus partie
+            setForm((x) => ({ ...x, epic: x.epic && v && !inDomain(v, domEpic(x.epic), h) ? '' : x.epic }));
+          }}
+        />
+      )}
       <Label>Epic</Label>
       <Chips
-        options={[{ value: '', label: 'Aucune' }, ...h.epicList.map((e) => ({ value: e.id, label: e.titre, color: e.couleur }))]}
+        options={[{ value: '', label: 'Aucune' }, ...epicsProposees.map((e) => ({ value: e.id, label: e.titre, color: e.couleur }))]}
         value={form.epic}
         onChange={(v) => set('epic', v)}
       />

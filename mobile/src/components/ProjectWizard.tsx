@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fmtDate } from '../alerts';
-import { useHierarchy } from '../hierarchyContext';
+import { cleDomaine, filtrerEspace, useHierarchy } from '../hierarchyContext';
+import { EspaceChoix } from './EspaceChoix';
 import { iterationsOf, piLabel, piOf, shiftPi } from '../pi';
 import { useSafe } from '../safe';
 import { colors } from '../theme';
@@ -51,14 +52,19 @@ interface Props {
   start: WizardStart;
   onClose: () => void;
   /** Enregistre le brouillon (créations, modifications, déplacements, suppressions) */
-  onApply: (draft: WNode[], onProgress: (done: number, total: number) => void) => Promise<void>;
+  onApply: (draft: WNode[], onProgress: (done: number, total: number) => void, espace: string) => Promise<void>;
+  /** Nouveau projet : espace et domaine présélectionnés (domaine filtré) */
+  preselection?: { espace: string; domaine?: string };
 }
 
 type Phase = 'start' | 'pick' | 'steps' | 'recap';
 
 /** 🚀 Assistant projet : créer un projet, ou compléter / modifier un projet existant à partir du niveau voulu. */
-export function ProjectWizard({ visible, start, onClose, onApply }: Props) {
-  const h = useHierarchy();
+export function ProjectWizard({ visible, start, onClose, onApply, preselection }: Props) {
+  const hTous = useHierarchy();
+  // Un projet est dans un seul espace : l'assistant ne montre et ne crée que dans cet espace
+  const [espace, setEspace] = useState('moi');
+  const h = useMemo(() => filtrerEspace(hTous, espace), [hTous, espace]);
   const safe = useSafe();
   const [phase, setPhase] = useState<Phase>('start');
   const [draft, setDraft] = useState<WNode[]>([]);
@@ -75,7 +81,10 @@ export function ProjectWizard({ visible, start, onClose, onApply }: Props) {
 
   const beginNew = () => {
     setIsNew(true);
-    setDraft([]);
+    // Domaine filtré présélectionné (sa version dans l'espace choisi, même nom)
+    const f = preselection?.domaine ? hTous.domaines.get(preselection.domaine) : undefined;
+    const d = f ? h.domaineList.find((x) => cleDomaine(x, hTous) === cleDomaine(f, hTous)) : undefined;
+    setDraft(d ? [nodeOf('domaine', d as never, true)] : []);
     setSteps(levels);
     setStep(0);
     setPhase('steps');
@@ -93,6 +102,10 @@ export function ProjectWizard({ visible, start, onClose, onApply }: Props) {
     setError(null);
     setBusy(null);
     setSearch('');
+    if (start) {
+      const x = { domaine: hTous.domaines, objectif: hTous.objectifs, epic: hTous.epics, feature: hTous.features }[start.level].get(start.id);
+      setEspace(x?.espace || 'moi');
+    } else setEspace(preselection?.espace ?? 'moi');
     if (start) beginEdit(start.level, start.id);
     else setPhase('start');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -220,7 +233,7 @@ export function ProjectWizard({ visible, start, onClose, onApply }: Props) {
     setError(null);
     setBusy('Enregistrement…');
     try {
-      await onApply(draft, (done, total) => setBusy(`Enregistrement… ${done}/${total}`));
+      await onApply(draft, (done, total) => setBusy(`Enregistrement… ${done}/${total}`), espace);
       setBusy(null);
       onClose();
     } catch (e) {
@@ -271,6 +284,7 @@ export function ProjectWizard({ visible, start, onClose, onApply }: Props) {
                   L'assistant vous guide niveau par niveau : {levels.map((l) => LEVEL_PLURAL[l].toLowerCase()).join(' → ')}. Rien
                   n'est enregistré avant le récapitulatif.
                 </Text>
+                <EspaceChoix espace={espace} fige={false} onChange={setEspace} />
                 <BigButton icon="✨" title="Nouveau projet" sub="Partir de zéro, ou d'un domaine / objectif existant" onPress={beginNew} />
                 <BigButton
                   icon="✏️"

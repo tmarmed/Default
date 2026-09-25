@@ -297,7 +297,7 @@ function Main() {
   const [objDefaults, setObjDefaults] = useState<Partial<ObjectifInput> | undefined>();
   const [epicDefaults, setEpicDefaults] = useState<Partial<EpicInput> | undefined>();
   const [featDefaults, setFeatDefaults] = useState<Partial<FeatureInput> | undefined>();
-  const [wizard, setWizard] = useState<{ open: boolean; start: WizardStart }>({ open: false, start: null });
+  const [wizard, setWizard] = useState<{ open: boolean; start: WizardStart; pre?: { espace: string; domaine?: string } }>({ open: false, start: null });
   const [tab, setTab] = useState<Tab>('taches');
   /** Menu « ⋯ Plus » (écrans au-delà des 5 de la barre) */
   const [plusOpen, setPlusOpen] = useState(false);
@@ -803,8 +803,10 @@ function Main() {
     setObjDefaults(defaults);
     setObjectifFormOpen(true);
   };
-  const openFeature = (f: Feature | null, defaults?: Partial<FeatureInput>) => {
+  const [featDomaine, setFeatDomaine] = useState<string | undefined>(undefined);
+  const openFeature = (f: Feature | null, defaults?: Partial<FeatureInput>, domaine?: string) => {
     setEditingFeature(f);
+    setFeatDomaine(domaine);
     setFeatDefaults(defaults);
     setFeatureFormOpen(true);
   };
@@ -884,7 +886,7 @@ function Main() {
   const openWizard = (start: WizardStart) => {
     closeFiches();
     setAddMenu(false);
-    setWizard({ open: true, start });
+    setWizard({ open: true, start, pre: preselection() });
   };
 
   /** Saisie rapide dans une feature : tâche créée tout de suite, dans l'itération prévue de la feature. */
@@ -1048,7 +1050,7 @@ function Main() {
   };
 
   /** Assistant projet : enregistre le brouillon, puis recharge tout. */
-  const applyWizard = async (draft: Parameters<typeof applyDraft>[0], onProgress: (done: number, total: number) => void) => {
+  const applyWizard = async (draft: Parameters<typeof applyDraft>[0], onProgress: (done: number, total: number) => void, espace: string) => {
     if (!settings) return;
     checkScript(safe.actif ? 'feature' : undefined);
     try {
@@ -1057,8 +1059,8 @@ function Main() {
         {
           create: async (level, data) =>
             level === 'tache'
-              ? (await api.createItem(settings, data as unknown as ItemInput)).id
-              : (await api.createEntity(settings, level, data as never)).id,
+              ? (await api.createItem(settings, { ...data, espace } as unknown as ItemInput)).id
+              : (await api.createEntity(settings, level, { ...data, espace } as never)).id,
           update: async (level, id, data) => {
             if (level === 'tache') await api.updateItem(settings, { ...data, id } as never);
             else await api.updateEntity(settings, level, { ...data, id } as never);
@@ -1643,6 +1645,7 @@ function Main() {
         visible={featureFormOpen}
         feature={editingFeature}
         defaultPi={piKey}
+        defaultDomaine={featDomaine}
         onClose={() => setFeatureFormOpen(false)}
         onSave={async (input, taches) => {
           const saved = (await saveEntity('feature', editingFeature, input)) as Feature | undefined;
@@ -1700,7 +1703,10 @@ function Main() {
         onClose={() => setPiAdd(false)}
         onChoose={(kind, itKey) => {
           setPiAdd(false);
-          if (kind === 'newFeature') openFeature(null, { pi: piKey, iteration: itKey, espace: preselection().espace });
+          if (kind === 'newFeature') {
+            const pre = preselection();
+            openFeature(null, { pi: piKey, iteration: itKey, espace: pre.espace }, pre.domaine);
+          }
           else if (kind === 'newTask') addHorsFeature(itKey);
           else setPiPicker({ kind: kind === 'pickFeature' ? 'feature' : 'tache', itKey });
         }}
@@ -1732,6 +1738,7 @@ function Main() {
       <ProjectWizard
         visible={wizard.open}
         start={wizard.start}
+        preselection={wizard.pre}
         onClose={() => setWizard((w) => ({ ...w, open: false }))}
         onApply={applyWizard}
       />
@@ -1758,7 +1765,10 @@ function Main() {
                 ['🚀', 'Assistant projet', 'Créer ou modifier un projet, niveau par niveau', () => openWizard(null)],
                 ['🗂️', 'Une epic', 'Un projet daté, avec ses tâches', () => openEpic(null, preselection())],
                 ...(safe.actif
-                  ? ([['🧩', 'Une feature', 'Une partie d’epic (sous-epic), prévue dans un PI', () => openFeature(null, { espace: preselection().espace })]] as const)
+                  ? ([['🧩', 'Une feature', 'Une partie d’epic (sous-epic), prévue dans un PI', () => {
+                          const pre = preselection();
+                          openFeature(null, { espace: pre.espace }, pre.domaine);
+                        }]] as const)
                   : []),
                 ['🎯', 'Un objectif', 'Un résultat à atteindre, avec échéance ou permanent', () => openObjectif(null, preselection())],
                 ['🏷️', 'Un domaine', 'Une grande catégorie : Pro, Perso…', () => openDomaine(null, preselection().espace)],
