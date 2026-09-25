@@ -4,7 +4,7 @@
  * suppression en cascade), colonnes inconnues gardées, colonnes manquantes ajoutées.
  * Lancer : npm run verif:sheets
  */
-import { creerFichierEspace, fichiersEspaces, magasinSheets, utiliserJeton } from '../src/gsheets';
+import { adopterFichier, creerFichierEspace, fichiersEspaces, magasinSheets, renommerFichier, utiliserJeton } from '../src/gsheets';
 
 type Feuille = string[][];
 const fichiers = new Map<string, { titre: string; props: Record<string, string>; feuilles: Map<string, Feuille> }>();
@@ -27,11 +27,19 @@ globalThis.fetch = (async (input: string, init: RequestInit = {}) => {
   const corps = init.body ? JSON.parse(init.body as string) : undefined;
   const rep = (x: unknown, status = 200) => new Response(x === undefined ? '' : JSON.stringify(x), { status });
   if (url.host === 'www.googleapis.com' && url.pathname === '/drive/v3/files') {
-    return rep({ files: [...fichiers].map(([id, f]) => ({ id, name: f.titre, appProperties: f.props })).filter((f) => f.appProperties.mesTaches === '1') });
+    if (init.method === 'POST') {
+      // Création d'un Google Sheet par Drive : nom et propriétés d'un coup, une feuille « Feuille 1 »
+      const id = `f${fichiers.size + 1}`;
+      fichiers.set(id, { titre: corps.name, props: corps.appProperties ?? {}, feuilles: new Map([['Feuille 1', []]]) });
+      return rep({ id });
+    }
+    return rep({ files: [...fichiers].map(([id, f]) => ({ id, name: f.titre, appProperties: f.props })) });
   }
   const drive = /^\/drive\/v3\/files\/(.+)$/.exec(url.pathname);
   if (drive) {
-    fichiers.get(drive[1])!.props = corps.appProperties;
+    const f = fichiers.get(drive[1])!;
+    if (corps.appProperties) f.props = corps.appProperties;
+    if (corps.name) f.titre = corps.name;
     return rep({ id: drive[1] });
   }
   if (url.pathname === '/v4/spreadsheets' && init.method === 'POST') {
@@ -45,7 +53,15 @@ globalThis.fetch = (async (input: string, init: RequestInit = {}) => {
   const f = fichiers.get(m[1]);
   if (!f) return rep({ error: { message: 'introuvable' } }, 404);
   if (url.pathname.endsWith(':batchUpdate') && !url.pathname.includes('/values')) {
-    for (const r of corps.requests) f.feuilles.set(r.addSheet.properties.title, []);
+    for (const r of corps.requests) {
+      if (r.addSheet) f.feuilles.set(r.addSheet.properties.title, []);
+      if (r.updateSheetProperties) {
+        // Renomme la première feuille
+        const [premiere, contenu] = [...f.feuilles][0];
+        f.feuilles.delete(premiere);
+        f.feuilles = new Map([[r.updateSheetProperties.properties.title, contenu], ...f.feuilles]);
+      }
+    }
     return rep({});
   }
   if (url.pathname.endsWith('/values:batchUpdate')) {
@@ -55,7 +71,7 @@ globalThis.fetch = (async (input: string, init: RequestInit = {}) => {
     }
     return rep({});
   }
-  if (!m[2]) return rep({ sheets: [...f.feuilles.keys()].map((title) => ({ properties: { title } })) });
+  if (!m[2]) return rep({ sheets: [...f.feuilles.keys()].map((title, sheetId) => ({ properties: { title, sheetId } })) });
   const p = plage(m[2]);
   const feuille = f.feuilles.get(p.nom)!;
   if (url.pathname.endsWith(':clear')) {
@@ -84,8 +100,9 @@ const ok = (cond: unknown, msg: string) => {
 
 (async () => {
   const id = await creerFichierEspace('Mes tâches | Moi', 'moi', 'Moi');
-  const trouves = await fichiersEspaces();
-  ok(trouves.length === 1 && trouves[0].type === 'moi', 'fichier de Moi créé et retrouvé par ses propriétés');
+  const trouves = (await fichiersEspaces()).espaces;
+  ok(trouves.length === 1 && trouves[0].type === 'moi' && trouves[0].nom === 'Mes tâches | Moi', 'fichier de Moi créé avec son nom, retrouvé par ses propriétés');
+  ok([...fichiers.get(id)!.feuilles.keys()].join(',') === 'Taches,Epics,Features,ObjectifsPI,Objectifs,Domaines,Ignorees', 'onglets créés (la feuille par défaut devient « Taches »)');
   const m = magasinSheets(id);
 
   const perso = await m.createEntity('domaine', { nom: 'Perso', icone: '🏠', couleur: '#188038', parent: '' });
@@ -118,6 +135,16 @@ const ok = (cond: unknown, msg: string) => {
   fichiers.get(id2)!.feuilles.delete('Ignorees');
   await magasinSheets(id2).createEntity('ignoree', { cle: 'x', signature: 'y' });
   ok(fichiers.get(id2)!.feuilles.get('Ignorees')?.[0]?.[0] === 'id', 'onglet manquant ajouté avec ses colonnes');
+
+  // Fichier de l'application resté sans titre (création interrompue) : repris comme fichier de Moi, puis renommé
+  fichiers.set('orph', { titre: 'Feuille de calcul sans titre', props: {}, feuilles: new Map([['Feuille 1', []]]) });
+  const avant = await fichiersEspaces();
+  ok(avant.autres.some((f) => f.id === 'orph' && f.sansTitre), 'fichier sans titre repéré');
+  await adopterFichier('orph', 'President | Moi', 'moi', 'Moi');
+  const apres = (await fichiersEspaces()).espaces.find((f) => f.id === 'orph');
+  ok(apres?.type === 'moi' && apres.nom === 'President | Moi', 'fichier sans titre repris : nom et propriétés de Moi');
+  await renommerFichier(id2, 'President | Équipe | Test');
+  ok(fichiers.get(id2)!.titre === 'President | Équipe | Test', 'renommage selon la règle');
 
   // Erreur de règle
   let refus = '';

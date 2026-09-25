@@ -55,7 +55,7 @@ import {
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { GOOGLE_AUTH } from './src/config';
 import { DEMO, demoApiFor, ESPACES_DEMO } from './src/demo';
-import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, loadRetires, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveVisibles } from './src/espaces';
+import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, lireNomFichier, loadRetires, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveVisibles } from './src/espaces';
 import { EspacesBar } from './src/components/EspacesBar';
 import { EspacesSheet } from './src/components/EspacesSheet';
 import { EcranAVenir } from './src/components/EcranAVenir';
@@ -377,25 +377,36 @@ function Main() {
    */
   const preparerEspaces = useCallback(async (s: Settings) => {
     if (DEMO) return;
-    const fichiers = await api.fichiersEspaces();
+    const { espaces: fichiers, autres } = await api.fichiersEspaces();
     let liste = espacesRef.current;
     let change = false;
     const moi = liste[0];
-    if (!moi.fichier || !fichiers.some((f) => f.id === moi.fichier)) {
+    // Fichier de Moi : celui connu, sinon le premier trouvé, sinon un fichier de l'application resté sans titre
+    // (création interrompue) repris et renommé, sinon un nouveau fichier (avec les domaines de base)
+    if (!moi.fichier || !fichiers.some((f) => f.id === moi.fichier && f.type === 'moi')) {
       const trouve = fichiers.find((f) => f.type === 'moi');
-      const fichier = trouve ? trouve.id : await api.creerFichierEspace(nomFichier(NOM_APP, ESPACE_MOI), 'moi', 'Moi');
+      const orphelin = trouve ? undefined : autres.find((f) => f.sansTitre || lireNomFichier(f.nom, NOM_APP, ANCIENS_NOMS)?.type === 'moi');
+      let fichier = trouve?.id;
+      if (!fichier && orphelin) {
+        await api.adopterFichier(orphelin.id, nomFichier(NOM_APP, ESPACE_MOI), 'moi', 'Moi');
+        fichier = orphelin.id;
+      }
+      if (!fichier) fichier = await api.creerFichierEspace(nomFichier(NOM_APP, ESPACE_MOI), 'moi', 'Moi');
       liste = [{ ...moi, fichier }, ...liste.slice(1)];
       change = true;
       if (!trouve) {
         api.definirEspaces(liste.map((e) => ({ id: e.id, fichier: e.fichier })));
-        await api.copierDomaines(s, 'moi', DOMAINES_DE_BASE);
+        const existants = orphelin ? (await api.listItems(s, 'moi')).domaines : [];
+        await api.copierDomaines(s, 'moi', DOMAINES_DE_BASE, existants);
       }
     }
-    // Nouveau nom de l'application : les fichiers qui portent un ancien nom sont renommés
+    // Règle de nommage imposée à tous les fichiers d'espace : « President | Moi », « President | Équipe | Nom »…
+    const ratés: string[] = [];
     for (const f of fichiers) {
       const attendu = nomFichier(NOM_APP, f.type === 'moi' ? ESPACE_MOI : { type: f.type, nom: f.nomEspace });
-      if (f.nom !== attendu && ANCIENS_NOMS.some((n) => f.nom.startsWith(n))) await api.renommerFichier(f.id, attendu).catch(() => {});
+      if (f.nom !== attendu) await api.renommerFichier(f.id, attendu).catch(() => ratés.push(f.nom));
     }
+    if (ratés.length) setNotice(`Fichier${ratés.length > 1 ? 's' : ''} non renommé${ratés.length > 1 ? 's' : ''} selon la règle : ${ratés.join(', ')}. Nouvel essai au prochain démarrage.`);
     const retires = await loadRetires();
     const connus = new Set(liste.map((e) => e.fichier));
     const nouveaux = fichiers

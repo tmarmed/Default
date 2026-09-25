@@ -52,39 +52,75 @@ export interface FichierEspace {
   nomEspace: string;
 }
 
-/** Google Sheets des espaces créés par l'application (dans le Drive du compte connecté) */
-export async function fichiersEspaces(): Promise<FichierEspace[]> {
-  const q = encodeURIComponent("appProperties has { key='mesTaches' and value='1' } and trashed=false");
+/** Noms donnés par Google à un fichier sans titre */
+const SANS_TITRE = /^(feuille de calcul sans titre|untitled spreadsheet|sans titre|untitled)$/i;
+
+/**
+ * Google Sheets créés par l'application (l'accès limité ne montre que ceux-là), du plus ancien au plus récent :
+ * les fichiers d'espace (reconnus par leurs propriétés : type, nom), et les autres (création interrompue).
+ */
+export async function fichiersEspaces(): Promise<{ espaces: FichierEspace[]; autres: { id: string; nom: string; sansTitre: boolean }[] }> {
+  const q = encodeURIComponent("mimeType='application/vnd.google-apps.spreadsheet' and trashed=false");
   const r = await appel<{ files: { id: string; name: string; appProperties?: Record<string, string> }[] }>(
-    `${DRIVE}?q=${q}&fields=files(id,name,appProperties)&pageSize=100`,
+    `${DRIVE}?q=${q}&fields=files(id,name,appProperties,createdTime)&orderBy=createdTime&pageSize=200`,
   );
-  return r.files
-    .filter((f) => ['moi', 'equipe', 'entreprise'].includes(f.appProperties?.type ?? ''))
-    .map((f) => ({ id: f.id, nom: f.name, type: f.appProperties!.type as TypeEspace, nomEspace: f.appProperties?.nom ?? f.name }));
+  const estEspace = (f: { appProperties?: Record<string, string> }) =>
+    f.appProperties?.mesTaches === '1' && ['moi', 'equipe', 'entreprise'].includes(f.appProperties?.type ?? '');
+  return {
+    espaces: r.files
+      .filter(estEspace)
+      .map((f) => ({ id: f.id, nom: f.name, type: f.appProperties!.type as TypeEspace, nomEspace: f.appProperties?.nom ?? f.name })),
+    autres: r.files.filter((f) => !estEspace(f)).map((f) => ({ id: f.id, nom: f.name, sansTitre: SANS_TITRE.test(f.name.trim()) })),
+  };
 }
 
-/** Renomme un fichier (ex. nouveau nom de l'application) */
+/** Renomme un fichier (règle de nommage des espaces) */
 export async function renommerFichier(id: string, nom: string): Promise<void> {
   await appel(`${DRIVE}/${id}?fields=id`, { method: 'PATCH', body: JSON.stringify({ name: nom }) });
 }
 
-/** Crée le Google Sheet d'un espace, avec ses onglets et leurs colonnes */
-export async function creerFichierEspace(titre: string, type: TypeEspace, nomEspace: string): Promise<string> {
-  const entete = (cols: string[]) => [
-    { startRow: 0, startColumn: 0, rowData: [{ values: cols.map((c) => ({ userEnteredValue: { stringValue: c }, userEnteredFormat: { textFormat: { bold: true } } })) }] },
-  ];
-  const s = await appel<{ spreadsheetId: string }>(SHEETS, {
-    method: 'POST',
-    body: JSON.stringify({
-      properties: { title: titre, locale: 'fr_FR' },
-      sheets: TABLES.map((t) => ({ properties: { title: ONGLETS[t].nom, gridProperties: { frozenRowCount: 1 } }, data: entete(ONGLETS[t].colonnes) })),
-    }),
-  });
-  await appel(`${DRIVE}/${s.spreadsheetId}?fields=id`, {
+/** Reprend un fichier de l'application (création interrompue) comme fichier d'un espace : nom et propriétés */
+export async function adopterFichier(id: string, titre: string, type: TypeEspace, nomEspace: string): Promise<void> {
+  await appel(`${DRIVE}/${id}?fields=id`, {
     method: 'PATCH',
-    body: JSON.stringify({ appProperties: { mesTaches: '1', type, nom: nomEspace } }),
+    body: JSON.stringify({ name: titre, appProperties: { mesTaches: '1', type, nom: nomEspace } }),
   });
-  return s.spreadsheetId;
+}
+
+/**
+ * Crée le Google Sheet d'un espace : le fichier naît avec son nom et ses propriétés (un seul appel à Drive),
+ * puis reçoit ses onglets et leurs colonnes.
+ */
+export async function creerFichierEspace(titre: string, type: TypeEspace, nomEspace: string): Promise<string> {
+  const f = await appel<{ id: string }>(`${DRIVE}?fields=id`, {
+    method: 'POST',
+    body: JSON.stringify({ name: titre, mimeType: 'application/vnd.google-apps.spreadsheet', appProperties: { mesTaches: '1', type, nom: nomEspace } }),
+  });
+  const g = await appel<{ sheets: { properties: { sheetId: number; title: string } }[] }>(`${SHEETS}/${f.id}?fields=sheets.properties`);
+  const premier = g.sheets[0]?.properties.sheetId ?? 0;
+  const ids = TABLES.map((_, i) => (i === 0 ? premier : 1000 + i));
+  const requests: object[] = [];
+  TABLES.forEach((t, i) => {
+    const properties = { sheetId: ids[i], title: ONGLETS[t].nom, gridProperties: { frozenRowCount: 1 } };
+    requests.push(
+      i === 0
+        ? { updateSheetProperties: { properties, fields: 'title,gridProperties.frozenRowCount' } }
+        : { addSheet: { properties } },
+      {
+        repeatCell: {
+          range: { sheetId: ids[i], startRowIndex: 0, endRowIndex: 1 },
+          cell: { userEnteredFormat: { textFormat: { bold: true } } },
+          fields: 'userEnteredFormat.textFormat.bold',
+        },
+      },
+    );
+  });
+  await appel(`${SHEETS}/${f.id}:batchUpdate`, { method: 'POST', body: JSON.stringify({ requests }) });
+  await appel(`${SHEETS}/${f.id}/values:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({ valueInputOption: 'RAW', data: TABLES.map((t) => ({ range: plage(ONGLETS[t].nom, 'A1'), values: [ONGLETS[t].colonnes] })) }),
+  });
+  return f.id;
 }
 
 // ---------------------------------------------------------------------------

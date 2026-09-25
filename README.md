@@ -254,6 +254,9 @@ conception :
 2. Au premier lancement, l'application crée dans votre Google Drive le fichier **« President | Moi »**, avec ses
    onglets et les domaines de base. Chaque espace créé ensuite a son propre fichier
    (« President | Équipe | Mobile »… ; les fichiers de l'ancien nom « Mes tâches » sont renommés). Sur un autre appareil, ces fichiers sont retrouvés automatiquement.
+   **Règle de nommage imposée** : à chaque démarrage, un fichier d'espace qui ne s'appelle pas « President | Moi »,
+   « President | Équipe | Nom » ou « President | Entreprise | Nom » est renommé (message si le renommage échoue). Un
+   fichier créé par l'application et resté sans titre (création interrompue) est repris comme fichier de Moi.
 3. Accès limité : l'application ne voit **que les fichiers qu'elle a créés** (ou ouverts avec elle). Les Google
    Sheets de l'ancienne version (avec script) ne sont pas repris automatiquement.
 
