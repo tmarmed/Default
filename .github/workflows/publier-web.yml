@@ -1,10 +1,11 @@
-# Compile la version web et la publie sur GitHub Pages à chaque modification.
-# Adresse : https://tmarmed.github.io/Default/
+# Compile les deux versions web et les publie ensemble sur GitHub Pages à chaque modification de l'une d'elles.
+# - Version simple (branche claude/mobile-task-management-app-q8jysq) : https://tmarmed.github.io/Default/
+# - Version SAFe (branche claude/version-safe) : https://tmarmed.github.io/Default/safe/
 name: Publier la version web
 
 on:
   push:
-    branches: [claude/mobile-task-management-app-q8jysq]
+    branches: [claude/mobile-task-management-app-q8jysq, claude/version-safe]
   workflow_dispatch:
 
 permissions:
@@ -19,26 +20,40 @@ concurrency:
 jobs:
   compiler:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mobile
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: claude/mobile-task-management-app-q8jysq
+          path: simple
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/version-safe
+          path: safe
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: mobile/package-lock.json
-      - run: npm ci
-      - run: npx tsc --noEmit
-      - name: Compiler la version web
-        run: npx expo export --platform web --clear
+          cache-dependency-path: |
+            simple/mobile/package-lock.json
+            safe/mobile/package-lock.json
+      - name: Compiler la version simple
+        working-directory: simple/mobile
+        run: npm ci && npx tsc --noEmit && npx expo export --platform web --clear
         env:
-          # Le site est servi dans le sous-dossier /Default de github.io.
           EXPO_BASE_URL: /${{ github.event.repository.name }}
+      - name: Compiler la version SAFe
+        working-directory: safe/mobile
+        run: npm ci && npx tsc --noEmit && npm run verif:alertes && npx expo export --platform web --clear
+        env:
+          EXPO_BASE_URL: /${{ github.event.repository.name }}/safe
+      - name: Assembler le site
+        run: |
+          mkdir -p site/safe
+          cp -r simple/mobile/dist/. site/
+          cp -r safe/mobile/dist/. site/safe/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: mobile/dist
+          path: site
 
   publier:
     needs: compiler
