@@ -12,13 +12,25 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
+  # GitHub Pages n'accepte que la branche d'origine : un envoi sur la version SAFe relance la publication
+  # depuis la branche d'origine (qui compile et publie les deux versions).
+  relancer:
+    if: github.ref_name == 'claude/version-safe'
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh workflow run publier-web.yml --repo ${{ github.repository }} --ref claude/mobile-task-management-app-q8jysq
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   compiler:
+    if: github.ref_name != 'claude/version-safe'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
