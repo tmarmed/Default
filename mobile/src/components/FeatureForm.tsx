@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { childrenOf, describeCounts } from '../hierarchy';
-import { useHierarchy } from '../hierarchyContext';
+import { HierarchyContext } from '../hierarchyContext';
+import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 import { fmtPoints, iterationsOf, piLabel, piOf, pointsOf, shiftPi } from '../pi';
 import { useSafe } from '../safe';
 import type { Feature, FeatureInput, Item } from '../types';
@@ -42,7 +43,8 @@ export function FeatureForm({
   onLinkTask,
   onOpenWizard,
 }: Props) {
-  const h = useHierarchy();
+  // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
+  const { espace, setEspace, h } = useEspaceFiche(visible, feature, defaults);
   const safe = useSafe();
   const empty = (): FeatureInput => ({ titre: '', description: '', epic: '', pi: defaultPi, iteration: '', points: '', couleur: '' });
   const [form, setForm] = useState<FeatureInput>(empty());
@@ -101,7 +103,7 @@ export function FeatureForm({
     try {
       // L'itération doit appartenir au PI choisi
       const iteration = form.iteration && form.pi && form.iteration.startsWith(form.pi) ? form.iteration : '';
-      await onSave({ ...form, iteration, titre: form.titre.trim() }, { nouvelles, existantes });
+      await onSave({ ...form, espace, iteration, titre: form.titre.trim() }, { nouvelles, existantes });
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
     } finally {
@@ -110,6 +112,7 @@ export function FeatureForm({
   };
 
   return (
+    <HierarchyContext.Provider value={h}>
     <FormSheet visible={visible} title={feature ? 'Feature' : 'Nouvelle feature'} busy={busy} error={error} onClose={onClose} onSave={save}>
       <View style={[f.preview, { backgroundColor: epic?.couleur ?? '#5E6B7D' }]}>
         <Text style={f.previewTitle} numberOfLines={2}>
@@ -122,6 +125,14 @@ export function FeatureForm({
         </Text>
       </View>
       <Field style={f.titleInput} placeholder="Titre (ex. Prise de rendez-vous en ligne)" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!feature} />
+      <EspaceChoix
+        espace={espace}
+        fige={!!feature}
+        onChange={(v) => {
+          setEspace(v);
+          setForm((x) => ({ ...x, epic: '' }));
+        }}
+      />
 
       <Label>Epic</Label>
       <Chips
@@ -280,5 +291,6 @@ export function FeatureForm({
         </>
       )}
     </FormSheet>
+    </HierarchyContext.Provider>
   );
 }

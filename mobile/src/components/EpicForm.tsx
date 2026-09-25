@@ -25,7 +25,8 @@ import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
 import { ChildActions } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
-import { useHierarchy } from '../hierarchyContext';
+import { HierarchyContext } from '../hierarchyContext';
+import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 
 interface Props {
   visible: boolean;
@@ -78,7 +79,8 @@ export function EpicForm({
   const [form, setForm] = useState<EpicInput>(empty());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const h = useHierarchy();
+  // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
+  const { espace, setEspace, h } = useEspaceFiche(visible, epic, defaults);
   const safe = useSafe();
   const features = epic ? h.featureList.filter((f) => f.epic === epic.id) : [];
 
@@ -118,7 +120,7 @@ export function EpicForm({
     setError(null);
     setBusy(true);
     try {
-      await onSave({ ...form, titre: form.titre.trim() });
+      await onSave({ ...form, espace, titre: form.titre.trim() });
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
     } finally {
@@ -148,6 +150,7 @@ export function EpicForm({
       : 'sans rattachement';
 
   return (
+    <HierarchyContext.Provider value={h}>
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
@@ -203,6 +206,14 @@ export function EpicForm({
               value={form.titre}
               onChangeText={(v) => set('titre', v)}
               autoFocus={!epic}
+            />
+            <EspaceChoix
+              espace={espace}
+              fige={!!epic}
+              onChange={(v) => {
+                setEspace(v);
+                setForm((x) => ({ ...x, objectif: '', domaine: '' }));
+              }}
             />
 
             <LinkPicker
@@ -327,6 +338,7 @@ export function EpicForm({
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
+    </HierarchyContext.Provider>
   );
 }
 

@@ -105,6 +105,9 @@ function marquer<T extends { id: string }>(x: T, espace: string): T & { espace: 
   return { ...x, espace };
 }
 const LIENS_ITEM = ['parent', 'feature', 'epic', 'objectif', 'domaine'] as const;
+/** Espace d'un rattachement (le premier trouvé) */
+const espaceDesLiens = (data: Record<string, unknown>, champs: readonly string[]) =>
+  champs.map((k) => (typeof data[k] === 'string' ? origine.get(data[k] as string) : undefined)).find(Boolean);
 const LIENS_ENTITE = ['epic', 'objectif', 'domaine'] as const;
 /** Pas de lien vers un élément d'un autre espace */
 function verifierLiens(espace: string, data: Record<string, unknown>, champs: readonly string[]) {
@@ -194,7 +197,10 @@ export async function createEntity<K extends EntityKind>(
   data: Omit<EntityMap[K], 'id' | 'cree_le' | 'modifie_le'>,
 ): Promise<EntityMap[K]> {
   // Les alertes ignorées sont personnelles : toujours dans l'espace Moi
-  const { e, s } = route(settings, kind === 'ignoree' ? 'moi' : (data as { espace?: string }).espace);
+  const { e, s } = route(
+    settings,
+    kind === 'ignoree' ? 'moi' : ((data as { espace?: string }).espace ?? espaceDesLiens(data as Record<string, unknown>, LIENS_ENTITE)),
+  );
   verifierLiens(e, data as Record<string, unknown>, LIENS_ENTITE);
   if (DEMO) return marquer(await demoApiFor(e).createEntity(kind, data as never), e) as unknown as EntityMap[K];
   return marquer((await post<{ entity: EntityMap[K] }>(s, { action: 'createEntity', kind, data })).entity, e);
@@ -219,7 +225,7 @@ export async function deleteEntity(settings: Settings, kind: EntityKind, id: str
 }
 
 export async function createItem(settings: Settings, item: ItemInput): Promise<Item> {
-  const { e, s } = route(settings, item.espace || espaceDe(item.parent));
+  const { e, s } = route(settings, item.espace || espaceDesLiens(item as unknown as Record<string, unknown>, LIENS_ITEM));
   verifierLiens(e, item as unknown as Record<string, unknown>, LIENS_ITEM);
   if (DEMO) return marquer(await demoApiFor(e).create(item), e);
   return marquer(normalize((await post<{ item: Item }>(s, { action: 'create', item })).item), e);

@@ -3,7 +3,8 @@ import { Pressable, Text } from 'react-native';
 import { alertesObjectif, type Alignement } from '../alerts';
 import { addMonths, toDateString } from '../dates';
 import { childrenOf, describeCounts, progressObjectif } from '../hierarchy';
-import { useHierarchy } from '../hierarchyContext';
+import { HierarchyContext } from '../hierarchyContext';
+import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 import { formatEpicDates } from '../roadmap';
 import { EPIC_COULEURS, Epic, Objectif, ObjectifInput } from '../types';
 import { DateField } from './DateField';
@@ -46,7 +47,8 @@ const number = (t: string) => t.replace(/[^0-9.,-]/g, '');
 
 /** Fiche d'un objectif : échéance (ou permanent), indicateur, epics, alertes. */
 export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onOpenEpic, defaults, onAddEpic, onOpenWizard, onAlign }: Props) {
-  const h = useHierarchy();
+  // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
+  const { espace, setEspace, h } = useEspaceFiche(visible, objectif, defaults);
   const [form, setForm] = useState<ObjectifInput>(empty());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +83,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
     setError(null);
     setBusy(true);
     try {
-      await onSave({ ...form, titre: form.titre.trim() });
+      await onSave({ ...form, espace, titre: form.titre.trim() });
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
     } finally {
@@ -90,6 +92,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
   };
 
   return (
+    <HierarchyContext.Provider value={h}>
     <FormSheet
       visible={visible}
       title={objectif ? 'Objectif' : 'Nouvel objectif'}
@@ -113,6 +116,14 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
         value={form.titre}
         onChangeText={(v) => set('titre', v)}
         autoFocus={!objectif}
+      />
+      <EspaceChoix
+        espace={espace}
+        fige={!!objectif}
+        onChange={(v) => {
+          setEspace(v);
+          setForm((x) => ({ ...x, domaine: '' }));
+        }}
       />
 
       <LinkPicker levels={['domaine']} value={form} onChange={(p) => set('domaine', p.domaine ?? '')} />
@@ -184,5 +195,6 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
         </>
       )}
     </FormSheet>
+    </HierarchyContext.Provider>
   );
 }

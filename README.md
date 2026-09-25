@@ -15,8 +15,10 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   partagé), 👥 **Équipe** (équipe indépendante), 🏢 **Entreprise** (avec ses équipes). Nom du fichier :
   `Mes tâches | Moi`, `Mes tâches | Équipe | Mobile`, `Mes tâches | Entreprise | ACME` (séparateur `|`).
 - **Filtre en haut** : un ou plusieurs espaces affichés, et « ＋ Espace » pour créer ou retirer un espace. Avec
-  plusieurs espaces, chaque tâche porte l'étiquette de son espace. Une création va dans l'espace choisi dans la
-  fiche (par défaut le premier affiché) ; une tâche rattachée (feature, epic…) va dans l'espace de ce rattachement.
+  plusieurs espaces, chaque tâche porte l'étiquette de son espace. Chaque fiche (tâche, epic, objectif, domaine,
+  feature, objectif du PI) a une ligne « Espace » pour un nouvel élément (par défaut : l'espace de son rattachement,
+  sinon le premier espace affiché) ; ses choix de rattachement ne montrent que cet espace. L'espace d'un élément
+  existant ne change pas.
 - **Rendez-vous, appels et démarches** : toujours privés, enregistrés dans Moi.
 - **Pas de lien entre deux espaces** (une tâche de Moi ne peut pas être rattachée à une epic d'une entreprise).
 - **Mode Simple / SAFe** : choisi à la volée (en haut), comme avant, pour tous les espaces affichés.

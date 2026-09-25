@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Text } from 'react-native';
 import { domaineOf } from '../hierarchy';
-import { useHierarchy } from '../hierarchyContext';
+import { HierarchyContext } from '../hierarchyContext';
+import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 import { piLabel, piOf, shiftPi } from '../pi';
 import type { ObjectifPI, ObjectifPIInput } from '../types';
 import { Chips } from './Chips';
@@ -23,7 +24,8 @@ const VALEURS = ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'].map((v) 
 
 /** Objectif du PI : engagement d'un trimestre, valeur prévue en début, valeur obtenue en fin (sur 10). */
 export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, onClose, onSave, onDelete }: Props) {
-  const h = useHierarchy();
+  // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
+  const { espace, setEspace, h } = useEspaceFiche(visible, objectif, { domaine: defaultDomaine });
   const empty = (): ObjectifPIInput => ({ titre: '', pi: defaultPi, type: 'engage', valeur_prevue: '', valeur_obtenue: '', domaine: defaultDomaine, epic: '' });
   const [form, setForm] = useState<ObjectifPIInput>(empty());
   const [busy, setBusy] = useState(false);
@@ -54,7 +56,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
     setError(null);
     setBusy(true);
     try {
-      await onSave({ ...form, titre: form.titre.trim() });
+      await onSave({ ...form, espace, titre: form.titre.trim() });
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
     } finally {
@@ -63,8 +65,17 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
   };
 
   return (
+    <HierarchyContext.Provider value={h}>
     <FormSheet visible={visible} title={objectif ? 'Objectif du PI' : 'Nouvel objectif du PI'} busy={busy} error={error} onClose={onClose} onSave={save}>
       <Field style={f.titleInput} placeholder="Résultat à livrer (ex. Nouveau site en ligne)" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!objectif} />
+      <EspaceChoix
+        espace={espace}
+        fige={!!objectif}
+        onChange={(v) => {
+          setEspace(v);
+          setForm((x) => ({ ...x, domaine: '', epic: '' }));
+        }}
+      />
       <Label>PI (trimestre)</Label>
       <Chips options={pis.map((p) => ({ value: p, label: piLabel(p) }))} value={form.pi} onChange={(v) => set('pi', v)} compact wrap />
       {h.domaineList.length > 0 && (
@@ -129,5 +140,6 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
         />
       )}
     </FormSheet>
+    </HierarchyContext.Provider>
   );
 }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { childrenOf, describeCounts } from '../hierarchy';
-import { useHierarchy } from '../hierarchyContext';
+import { HierarchyContext } from '../hierarchyContext';
+import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 import { colors } from '../theme';
 import { DOMAINE_ICONES, Domaine, DomaineInput, EPIC_COULEURS, Objectif } from '../types';
 import { DeleteSection } from './DeleteSection';
@@ -21,7 +22,8 @@ interface Props {
 
 /** Fiche d'un domaine (Pro, Perso…) : nom, icône, couleur, objectifs. */
 export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpenObjectif, onAddObjectif, onOpenWizard }: Props) {
-  const h = useHierarchy();
+  // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
+  const { espace, setEspace, h } = useEspaceFiche(visible, domaine, undefined);
   const [form, setForm] = useState<DomaineInput>({ nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0] });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
     setError(null);
     setBusy(true);
     try {
-      await onSave({ ...form, nom: form.nom.trim() });
+      await onSave({ ...form, espace, nom: form.nom.trim() });
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
     } finally {
@@ -51,6 +53,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
   };
 
   return (
+    <HierarchyContext.Provider value={h}>
     <FormSheet visible={visible} title={domaine ? 'Domaine' : 'Nouveau domaine'} busy={busy} error={error} onClose={onClose} onSave={save}>
       <View style={[f.preview, { backgroundColor: form.couleur }]}>
         <Text style={f.previewTitle}>
@@ -58,6 +61,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
         </Text>
       </View>
       <Field style={f.titleInput} placeholder="Nom (ex. Pro, Perso, Administratif)" value={form.nom} onChangeText={(v) => setForm((x) => ({ ...x, nom: v }))} autoFocus={!domaine} />
+      <EspaceChoix espace={espace} fige={!!domaine} onChange={setEspace} />
       <Label>Icône</Label>
       <View style={styles.icons}>
         {DOMAINE_ICONES.map((i) => (
@@ -116,6 +120,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
         </>
       )}
     </FormSheet>
+    </HierarchyContext.Provider>
   );
 }
 
