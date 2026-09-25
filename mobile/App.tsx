@@ -65,7 +65,7 @@ import { ChoiceSheet } from './src/components/ChoiceSheet';
 import { DomaineForm } from './src/components/DomaineForm';
 import { ObjectifForm } from './src/components/ObjectifForm';
 import { domaineOf } from './src/hierarchy';
-import { HierarchyContext, makeHierarchyValue } from './src/hierarchyContext';
+import { cleDomaine, HierarchyContext, makeHierarchyValue } from './src/hierarchyContext';
 import { loadSafe, SAFE_DEFAUT, SafeContext, SafeSettings, saveSafe } from './src/safe';
 import {
   clearSettings,
@@ -98,6 +98,9 @@ import {
   Settings,
   Statut,
   TYPE_LABELS,
+  TYPE_ICONS,
+  TYPES_PRIVES,
+  type ItemType,
   DOMAINES_DE_BASE,
 } from './src/types';
 
@@ -278,6 +281,8 @@ function Main() {
   const [piPicker, setPiPicker] = useState<null | { kind: 'tache' | 'feature'; itKey: string }>(null);
   /** Écran PI : fenêtre du « + » (itération, puis quoi ajouter) */
   const [piAdd, setPiAdd] = useState(false);
+  // Mes tâches : le + propose d'abord le type
+  const [typeMenu, setTypeMenu] = useState(false);
   const [editingFeature, setEditingFeature] = useState<Feature | null>(null);
   const [featureFormOpen, setFeatureFormOpen] = useState(false);
   const [editingOPI, setEditingOPI] = useState<ObjectifPI | null>(null);
@@ -854,6 +859,16 @@ function Main() {
   /** Écran PI : nouvelle tâche hors feature, dans l'itération choisie (et le domaine filtré). */
   const addHorsFeature = (key: string) => {
     openNewTask({ iteration: key, date: '', ...(domFilter !== 'tous' && domFilter ? { domaine: domFilter } : {}) });
+  };
+  /**
+   * Mes tâches : nouvel élément du type choisi, pré-rempli avec le jour affiché (vues Jour et Mois, par la fiche)
+   * et le domaine filtré (celui de son espace ; rendez-vous, appels et démarches sont dans Moi).
+   */
+  const nouveauDuType = (type: ItemType) => {
+    const f = domFilter && domFilter !== 'tous' ? hv.domaines.get(domFilter) : undefined;
+    const espace = TYPES_PRIVES.includes(type) ? 'moi' : (f?.espace ?? visibles[0] ?? 'moi');
+    const dom = f ? hv.domaineList.find((d) => (d.espace || 'moi') === espace && cleDomaine(d, hv) === cleDomaine(f, hv)) : undefined;
+    openNewTask({ type, espace, ...(dom ? { domaine: dom.id } : {}) });
   };
   const closeFiches = () => {
     setEpicFormOpen(false);
@@ -1476,7 +1491,9 @@ function Main() {
               : // Itération : la nouvelle tâche est rangée dans l'itération affichée (modifiable dans la fiche)
                 tab === 'iteration'
                 ? addHorsFeature(itKey)
-                : openForm(null)
+                : tab === 'taches'
+                  ? setTypeMenu(true)
+                  : openForm(null)
         }
         accessibilityRole="button"
         accessibilityLabel={tab === 'roadmap' ? 'Nouvelle epic' : 'Ajouter'}
@@ -1641,6 +1658,12 @@ function Main() {
         onOpenWizard={(f) => openWizard({ level: 'feature', id: f.id })}
       />
 
+      <ChoiceSheet
+        visible={typeMenu}
+        title="Ajouter"
+        choices={(Object.keys(TYPE_LABELS) as ItemType[]).map((t) => ({ label: `${TYPE_ICONS[t]} ${TYPE_LABELS[t]}`, principal: t === 'tache', onPress: () => nouveauDuType(t) }))}
+        onClose={() => setTypeMenu(false)}
+      />
       <ChoiceSheet
         visible={!!askSubs}
         title="Terminer aussi les sous-tâches ?"
