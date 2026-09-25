@@ -6,8 +6,10 @@ import type { Epic, EtatEpic } from './types';
 export interface SafeSettings {
   /** Mode SAFe (5 onglets) ou Simple (Tâches + Roadmap) */
   actif: boolean;
-  /** Capacité par itération, en points */
+  /** Capacité par itération, en points (par défaut, pour un espace sans capacité à lui) */
   capacite: number;
+  /** Capacité par itération de chaque espace (id de l'espace → points) */
+  capacites?: Record<string, number>;
   /** Afficher les points comme des jours */
   pointsJours: boolean;
 }
@@ -31,6 +33,9 @@ export async function saveSafe(s: SafeSettings): Promise<void> {
     // Stockage indisponible : réglage gardé le temps de la session.
   }
 }
+
+/** Capacité par itération d'un espace */
+export const capaciteDe = (s: Pick<SafeSettings, 'capacite' | 'capacites'>, espace: string | undefined) => s.capacites?.[espace || 'moi'] ?? s.capacite;
 
 export const SafeContext = createContext<SafeSettings>(SAFE_DEFAUT);
 export const useSafe = () => useContext(SafeContext);

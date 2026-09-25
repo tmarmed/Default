@@ -4,7 +4,9 @@ import { addDays, toDateString } from '../dates';
 import { domaineOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
 import { fmtPoints, iterationByKey, iterationOf, iterationOfItem, piLabel, pointsOf, shiftIteration } from '../pi';
-import { useSafe } from '../safe';
+import { capaciteDe, useSafe } from '../safe';
+import { useEspaces } from '../espaces';
+import { prefixeEspace } from '../nomsEspaces';
 import { colors } from '../theme';
 import { sansEnCours, TYPE_ICONS, type Item, type Statut } from '../types';
 import { chargeOf, pointsCheck, subtaskMap } from '../subtasks';
@@ -20,7 +22,8 @@ interface Props {
   items: Item[];
   onOpenTask: (t: Item) => void;
   onSetStatut: (t: Item, statut: Statut) => void;
-  onChangeCapacite: (n: number) => void;
+  /** Capacité par itération d'un espace */
+  onChangeCapacite: (espace: string, n: number) => void;
   onTogglePointsJours: () => void;
   refreshControl: ReactElement<RefreshControlProps>;
 }
@@ -58,9 +61,6 @@ export function IterationView({
   const tasks = useMemo(() => allTasks.filter((t) => inDomain(dom, domaineOf(t, h)?.id, h)), [allTasks, dom, h]);
   const charge = (t: Item) => chargeOf(t, subs);
   const total = tasks.reduce((n, t) => n + charge(t), 0);
-  const totalAll = allTasks.reduce((n, t) => n + charge(t), 0);
-  const autres = totalAll - total;
-  const done = tasks.filter((t) => t.statut === 'termine').reduce((n, t) => n + charge(t), 0);
   // Cartes du Kanban : les éléments sans parent, et les parents dont une sous-tâche est dans l'itération
   const cards = useMemo(() => {
     const ids = new Set<string>();
@@ -71,11 +71,10 @@ export function IterationView({
     }
     return out;
   }, [tasks, items]);
-  const sansPoints = cards.filter((t) => !pointsOf(t) && !(subs.get(t.id) ?? []).some((c) => pointsOf(c) > 0)).length;
   const [ouverts, setOuverts] = useState<Record<string, boolean>>({});
   const isIP = it.code === 'IP';
-  const capacite = isIP ? 0 : safe.capacite;
-  const over = !isIP && totalAll > capacite;
+  // Espaces affichés : une jauge de charge chacun
+  const { visibles: lesEspaces } = useEspaces();
 
   // Burndown : points restants chaque jour (une tâche terminée compte à sa date de modification)
   const days: string[] = [];
@@ -103,52 +102,67 @@ export function IterationView({
             {isIP ? ' · semaine d’innovation et de planification' : ''}
           </Text>
           <DomainChips style={styles.chips} />
-          <AlertsCard ecran="iteration" titre={`${it.code} · ${piLabel(it.pi)}`} checks={checksIteration(filtrerDomaine(h, dom), itKey, today, safe.capacite, h)} />
+          <AlertsCard ecran="iteration" titre={`${it.code} · ${piLabel(it.pi)}`} checks={checksIteration(filtrerDomaine(h, dom), itKey, today, (e) => capaciteDe(safe, e), h, safe.pointsJours)} />
 
-          <View style={styles.card}>
-            <View style={styles.capRow}>
-              <Text style={styles.capTitle}>Charge</Text>
-              <Text style={[styles.capValue, over && { color: colors.danger }]}>
-                {filtered ? `${fmt(total)} · total ${fmt(totalAll)}` : fmt(total)} {isIP ? '' : `/ ${fmt(capacite)}`} {over ? '⚠' : ''}
-              </Text>
-            </View>
-            {!isIP && (
-              <View style={styles.track}>
-                <View style={[styles.fill, { width: `${Math.min(100, (done / Math.max(capacite, totalAll, 1)) * 100)}%`, backgroundColor: colors.success }]} />
-                <View
-                  style={[
-                    styles.fill,
-                    styles.planned,
-                    { width: `${Math.min(100, ((total - done) / Math.max(capacite, totalAll, 1)) * 100)}%`, backgroundColor: over ? colors.danger : colors.primary },
-                  ]}
-                />
-                {autres > 0 && (
-                  <View style={[styles.fill, styles.planned, { width: `${Math.min(100, (autres / Math.max(capacite, totalAll, 1)) * 100)}%`, backgroundColor: '#C5CCD6' }]} />
+          {/* Charge : une jauge par espace affiché (chaque espace a sa capacité) */}
+          {lesEspaces.map((e) => {
+            const dansE = (t: Item) => (t.espace || 'moi') === e;
+            const totalE = tasks.filter(dansE).reduce((n, t) => n + charge(t), 0);
+            const totalAllE = allTasks.filter(dansE).reduce((n, t) => n + charge(t), 0);
+            const autresE = totalAllE - totalE;
+            const doneE = tasks.filter((t) => dansE(t) && t.statut === 'termine').reduce((n, t) => n + charge(t), 0);
+            const sansPointsE = cards.filter((t) => dansE(t) && !pointsOf(t) && !(subs.get(t.id) ?? []).some((c) => pointsOf(c) > 0)).length;
+            const capE = capaciteDe(safe, e);
+            const capacite = isIP ? 0 : capE;
+            const over = !isIP && totalAllE > capacite;
+            const nom = prefixeEspace(e).replace(/ · $/, '');
+            return (
+              <View key={e} style={styles.card}>
+                <View style={styles.capRow}>
+                  <Text style={styles.capTitle}>Charge{nom ? ` · ${nom}` : ''}</Text>
+                  <Text style={[styles.capValue, over && { color: colors.danger }]}>
+                    {filtered ? `${fmt(totalE)} · total ${fmt(totalAllE)}` : fmt(totalE)} {isIP ? '' : `/ ${fmt(capacite)}`} {over ? '⚠' : ''}
+                  </Text>
+                </View>
+                {!isIP && (
+                  <View style={styles.track}>
+                    <View style={[styles.fill, { width: `${Math.min(100, (doneE / Math.max(capacite, totalAllE, 1)) * 100)}%`, backgroundColor: colors.success }]} />
+                    <View
+                      style={[
+                        styles.fill,
+                        styles.planned,
+                        { width: `${Math.min(100, ((totalE - doneE) / Math.max(capacite, totalAllE, 1)) * 100)}%`, backgroundColor: over ? colors.danger : colors.primary },
+                      ]}
+                    />
+                    {autresE > 0 && (
+                      <View style={[styles.fill, styles.planned, { width: `${Math.min(100, (autresE / Math.max(capacite, totalAllE, 1)) * 100)}%`, backgroundColor: '#C5CCD6' }]} />
+                    )}
+                  </View>
+                )}
+                <Text style={styles.muted}>
+                  Fait {fmt(doneE)} · reste {fmt(totalE - doneE)}
+                  {autresE > 0 ? ` · autres domaines ${fmt(autresE)} (gris)` : ''}
+                  {sansPointsE ? ` · ${sansPointsE} tâche${sansPointsE > 1 ? 's' : ''} sans points` : ''}
+                </Text>
+                {over && <Text style={styles.warn}>⚠ La charge{filtered ? ' totale' : ''} dépasse la capacité de {fmt(totalAllE - capacite)}.</Text>}
+                {!isIP && (
+                  <View style={styles.settings}>
+                    <Text style={styles.muted}>Capacité</Text>
+                    <Pressable style={styles.stepBtn} onPress={() => onChangeCapacite(e, Math.max(1, capE - 1))} accessibilityLabel={`Diminuer la capacité${nom ? ` de ${nom}` : ''}`}>
+                      <Text style={styles.stepText}>−</Text>
+                    </Pressable>
+                    <Text style={styles.capNum}>{capE}</Text>
+                    <Pressable style={styles.stepBtn} onPress={() => onChangeCapacite(e, capE + 1)} accessibilityLabel={`Augmenter la capacité${nom ? ` de ${nom}` : ''}`}>
+                      <Text style={styles.stepText}>+</Text>
+                    </Pressable>
+                    <Pressable onPress={onTogglePointsJours} style={styles.unit} accessibilityRole="switch" accessibilityState={{ checked: safe.pointsJours }}>
+                      <Text style={styles.unitText}>{safe.pointsJours ? '1 point = 1 jour ✓' : '1 point = 1 jour'}</Text>
+                    </Pressable>
+                  </View>
                 )}
               </View>
-            )}
-            <Text style={styles.muted}>
-              Fait {fmt(done)} · reste {fmt(total - done)}
-              {autres > 0 ? ` · autres domaines ${fmt(autres)} (gris)` : ''}
-              {sansPoints ? ` · ${sansPoints} tâche${sansPoints > 1 ? 's' : ''} sans points` : ''}
-            </Text>
-            {over && <Text style={styles.warn}>⚠ La charge{filtered ? ' totale' : ''} dépasse la capacité de {fmt(totalAll - capacite)}.</Text>}
-            {!isIP && (
-              <View style={styles.settings}>
-                <Text style={styles.muted}>Capacité</Text>
-                <Pressable style={styles.stepBtn} onPress={() => onChangeCapacite(Math.max(1, safe.capacite - 1))} accessibilityLabel="Diminuer la capacité">
-                  <Text style={styles.stepText}>−</Text>
-                </Pressable>
-                <Text style={styles.capNum}>{safe.capacite}</Text>
-                <Pressable style={styles.stepBtn} onPress={() => onChangeCapacite(safe.capacite + 1)} accessibilityLabel="Augmenter la capacité">
-                  <Text style={styles.stepText}>+</Text>
-                </Pressable>
-                <Pressable onPress={onTogglePointsJours} style={styles.unit} accessibilityRole="switch" accessibilityState={{ checked: safe.pointsJours }}>
-                  <Text style={styles.unitText}>{safe.pointsJours ? '1 point = 1 jour ✓' : '1 point = 1 jour'}</Text>
-                </Pressable>
-              </View>
-            )}
-          </View>
+            );
+          })}
 
           {total > 0 && (
             <View style={styles.card}>

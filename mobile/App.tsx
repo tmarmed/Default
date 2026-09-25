@@ -67,7 +67,7 @@ import { ObjectifForm } from './src/components/ObjectifForm';
 import { domaineOf } from './src/hierarchy';
 import { HierarchyContext, makeHierarchyValue } from './src/hierarchyContext';
 import { definirNomsEspaces } from './src/nomsEspaces';
-import { loadSafe, SAFE_DEFAUT, SafeContext, SafeSettings, saveSafe } from './src/safe';
+import { capaciteDe, loadSafe, SAFE_DEFAUT, SafeContext, SafeSettings, saveSafe } from './src/safe';
 import {
   clearSettings,
   loadCache,
@@ -238,8 +238,8 @@ function Main() {
   /** Mode Simple (Tâches + Roadmap) ou SAFe (5 onglets), capacité, points en jours */
   const [safe, setSafe] = useState<SafeSettings>(SAFE_DEFAUT);
   /** Capacité courante, lue au chargement (nettoyage des alertes ignorées) */
-  const capaciteRef = useRef(SAFE_DEFAUT.capacite);
-  capaciteRef.current = safe.capacite;
+  const capaciteRef = useRef<SafeSettings>(SAFE_DEFAUT);
+  capaciteRef.current = safe;
   const joursRef = useRef(SAFE_DEFAUT.pointsJours);
   joursRef.current = safe.pointsJours;
   useEffect(() => {
@@ -405,7 +405,7 @@ function Main() {
         // (si le même problème revient un jour, il sera de nouveau signalé). Seulement sur des données fraîches.
         if (version >= api.API_VERSION_IGNOREES && ignorees.length && !echecs.length) {
           const hvFrais = makeHierarchyValue(rest.epics, rest.objectifs, rest.domaines, list, rest.features, rest.objectifsPI);
-          const existantes = signaturesExistantes(hvFrais, toDateString(new Date()), capaciteRef.current, joursRef.current);
+          const existantes = signaturesExistantes(hvFrais, toDateString(new Date()), (e) => capaciteDe(capaciteRef.current, e), joursRef.current);
           const perimees = ignorees.filter((i) => !existantes.has(`${i.cle}\u0000${i.signature}`));
           for (const i of perimees) {
             try {
@@ -1151,8 +1151,8 @@ function Main() {
   // (l'heure actuelle est relue à chaque recalcul : les rendez-vous d'aujourd'hui déjà finis ne se chevauchent plus)
   const checks = useMemo(() => {
     const n = new Date();
-    return checksParEcran(hv, today, safe.capacite, safe.actif, domFilter, { jours: safe.pointsJours, maintenant: n.getHours() * 60 + n.getMinutes() });
-  }, [hv, today, safe.capacite, safe.actif, safe.pointsJours, domFilter]);
+    return checksParEcran(hv, today, (e) => capaciteDe(safe, e), safe.actif, domFilter, { jours: safe.pointsJours, maintenant: n.getHours() * 60 + n.getMinutes() });
+  }, [hv, today, safe, domFilter]);
   const alertesDates = useMemo(() => checksDatesDomaine(hv, domFilter), [hv, domFilter]);
   // Les alertes ignorées ne comptent pas
   const ig = hier.ignorees;
@@ -1348,7 +1348,7 @@ function Main() {
           items={items}
           onOpenTask={openForm}
           onSetStatut={setStatut}
-          onChangeCapacite={(n) => updateSafe({ capacite: n })}
+          onChangeCapacite={(espace, n) => updateSafe({ capacites: { ...safe.capacites, [espace]: n } })}
           onTogglePointsJours={() => updateSafe({ pointsJours: !safe.pointsJours })}
           refreshControl={refreshControl}
         />

@@ -413,5 +413,10 @@ export function demoApiFor(espace = 'moi') {
   }
   return st;
 }
+/** Données d'exemple d'un espace de la démo (sans stockage) : pour les vérifications automatiques */
+export function donneesDemo(espace = 'moi') {
+  const seeds = espace === 'moi' ? { items: sample, entities: sampleEntities } : espace === 'demo-equipe' ? SEEDS_EQUIPE : SEEDS_ENTREPRISE;
+  return { items: seeds.items(), entities: seeds.entities() };
+}
 /** Espace « Moi » de la démo */
 export const demoApi = demoApiFor('moi');

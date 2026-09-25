@@ -59,12 +59,13 @@ Décisions prises :
   les objectifs du PI restent propres au mode SAFe.
 - **Alertes ignorées** : personnelles (enregistrées dans Moi), chacun ignore pour soi.
 
-Lot 1 (cohérence) :
+Lot 1 (cohérence) — fait :
 - **Alertes ignorées** : la « situation » d'une alerte ne dépend que des données, jamais de l'affichage (espaces
-  affichés, préfixe d'espace, unité jours / points, mode) ; calcul « neutre » commun à toutes les alertes, et test
-  automatique de garde.
-- **Capacité d'itération par espace** : une capacité par espace, charge calculée espace par espace (une jauge par
-  espace quand plusieurs sont affichés).
+  affichés, préfixe d'espace, unité jours / points, mode) ; calcul « neutre » commun à toutes les alertes. Test
+  automatique de garde : `cd mobile && npm run verif:alertes` (à lancer avant chaque mise en ligne).
+- **Capacité d'itération par espace** : une capacité par espace (réglée sur l'appareil), charge et surcharge
+  calculées espace par espace ; une jauge par espace dans l'Itération et une ligne de charge par espace dans le PI
+  quand plusieurs espaces sont affichés.
 
 Lot 2 (connexion Google directe) :
 - Connexion avec le compte Google, l'application lit, écrit et crée elle-même les Google Sheets des espaces ; plus

@@ -6,6 +6,21 @@ import type { Domaine } from './types';
  */
 let noms: Record<string, string> = {};
 let plusieurs = false;
+/**
+ * Affichage « neutre » : sans rien qui dépende de l'affichage (préfixe d'espace, unité jours / points…). Sert à
+ * calculer la situation des alertes (« Ignorer »), qui ne doit dépendre que des données.
+ */
+let neutre = false;
+export const estNeutre = () => neutre;
+export function enNeutre<T>(fn: () => T): T {
+  const avant = neutre;
+  neutre = true;
+  try {
+    return fn();
+  } finally {
+    neutre = avant;
+  }
+}
 
 export function definirNomsEspaces(n: Record<string, string>, visibles: string[]): void {
   noms = n;
@@ -14,7 +29,7 @@ export function definirNomsEspaces(n: Record<string, string>, visibles: string[]
 
 /** « 🏢 ACME · » quand plusieurs espaces sont affichés, sinon rien */
 export function prefixeEspace(espace: string | undefined): string {
-  if (!plusieurs) return '';
+  if (!plusieurs || neutre) return '';
   const n = noms[espace || 'moi'];
   return n ? `${n} · ` : '';
 }

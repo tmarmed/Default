@@ -2,7 +2,7 @@ import { type Alerte, alertesEpic, alertesObjectif, fmtDate } from './alerts';
 import { addDays, addMonths, parseDate, toDateString } from './dates';
 import { domaineOf, progressObjectif, tasksOfEpic } from './hierarchy';
 import { inDomain, makeHierarchyValue } from './hierarchyContext';
-import { nomDomaine } from './nomsEspaces';
+import { enNeutre, estNeutre, nomDomaine, prefixeEspace } from './nomsEspaces';
 import type { HierarchyValue } from './hierarchyContext';
 import { iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piStart, pointsOf, shiftIteration, shiftPi } from './pi';
 import { occurrencesBetween, recurrenceState } from './recurrence';
@@ -133,8 +133,41 @@ function borne(t: Item, cible: string, items: Item[], today: string): string {
 /** Ce qui identifie la situation d'une alerte ignorée (voir Check.situation). */
 export const situationDe = (c: Check) => c.situation ?? c.message;
 
+/** Capacité par itération : un nombre (tous les espaces) ou la capacité de chaque espace */
+export type Capacite = number | ((espace: string) => number);
+const capaciteFn = (c: Capacite) => (typeof c === 'function' ? c : () => c);
+
+/**
+ * Surcharge d'une itération, espace par espace (chaque espace a sa capacité). Clé de Moi inchangée
+ * (« surcharge:<itération> ») pour garder les alertes déjà ignorées.
+ */
+function surcharges(items: Item[], itKey: string, code: string, capacite: Capacite, u: (n: number) => string, actions: Check['actions'] = []): Check[] {
+  const cap = capaciteFn(capacite);
+  const subs = subtaskMap(items);
+  const dans = items.filter((t) => iterationOfItem(t) === itKey);
+  const espaces = [...new Set(dans.map((t) => t.espace || 'moi'))];
+  return espaces.flatMap((e) => {
+    const charge = dans.filter((t) => (t.espace || 'moi') === e).reduce((n, t) => n + chargeOf(t, subs), 0);
+    return charge > cap(e)
+      ? [{ key: `surcharge:${itKey}${e === 'moi' ? '' : `:${e}`}`, icone: '🔴', message: `${prefixeEspace(e)}${code} est surchargée : ${u(charge)} pour ${u(cap(e))} de capacité.`, actions }]
+      : [];
+  });
+}
+
+/**
+ * Situation de chaque alerte calculée en affichage neutre (sans préfixe d'espace, unité fixe…) : « Ignorer » ne
+ * dépend ainsi que des données, pour toutes les alertes, présentes et futures. Le message affiché, lui, reste
+ * celui de l'affichage courant.
+ */
+function avecSituations(calc: () => Check[]): Check[] {
+  if (estNeutre()) return calc();
+  const affiche = calc();
+  const neutres = new Map(enNeutre(calc).map((c) => [c.key, situationDe(c)]));
+  return affiche.map((c) => ({ ...c, situation: neutres.get(c.key) ?? situationDe(c) }));
+}
+
 /** Unité choisie dans les réglages : « 5 j » ou « 5 pts » */
-const unite = (jours: boolean) => (n: number) => (jours ? `${nb(n)} j` : `${nb(n)} pt${n > 1 ? 's' : ''}`);
+const unite = (jours: boolean) => (n: number) => (estNeutre() ? `${nb(n)} u` : jours ? `${nb(n)} j` : `${nb(n)} pt${n > 1 ? 's' : ''}`);
 const prevu = (n: number) => `prévu${n > 1 ? 's' : ''}`;
 
 /** Points d'un parent ≠ total de ses sous-tâches (même alerte dans l'Itération et le PI) */
@@ -155,7 +188,7 @@ function checkPoints(p: Item, kids: Item[] | undefined, u: (n: number) => string
 // ---------------------------------------------------------------------------
 // 1. Tâches : « qu'est-ce qui cloche aujourd'hui ? »
 // ---------------------------------------------------------------------------
-export function checksTaches(
+function checksTachesBrut(
   h: HierarchyValue,
   today: string,
   opts: {
@@ -462,11 +495,11 @@ export function checksTaches(
 // ---------------------------------------------------------------------------
 // 2. Itération : « est-ce que je tiens mon itération ? »
 // ---------------------------------------------------------------------------
-export function checksIteration(
+function checksIterationBrut(
   h: HierarchyValue,
   itKey: string,
   today: string,
-  capacite: number,
+  capacite: Capacite,
   complet: HierarchyValue = h,
   jours = true,
 ): Check[] {
@@ -476,16 +509,8 @@ export function checksIteration(
   if (!it) return out;
   const subs = subtaskMap(h.items);
 
-  // Surcharge : la capacité est commune à tous les domaines
-  const subsAll = subtaskMap(complet.items);
-  const chargeAll = complet.items.filter((t) => iterationOfItem(t) === itKey).reduce((n, t) => n + chargeOf(t, subsAll), 0);
-  if (it.code !== 'IP' && chargeAll > capacite)
-    out.push({
-      key: `surcharge:${itKey}`,
-      icone: '🔴',
-      message: `${it.code} est surchargée : ${u(chargeAll)} pour ${u(capacite)} de capacité.`,
-      actions: [],
-    });
+  // Surcharge : la capacité est commune à tous les domaines, propre à chaque espace
+  if (it.code !== 'IP') out.push(...surcharges(complet.items, itKey, it.code, capacite, u));
 
   // Points incohérents : parent ≠ total de ses sous-tâches (parents présents dans l'itération)
   const parents = new Set<string>();
@@ -580,7 +605,7 @@ export function checksIteration(
     return !!p && pointsOf(p) > 0 && !aDesPoints(p.id);
   };
   const sansPoints = tasks.filter((t) => ouvert(t) && avecPoints(t) && !pointsOf(t) && !aDesPoints(t.id) && !parentPorte(t));
-  if (sansPoints.length && capacite > 0)
+  if (sansPoints.some((t) => capaciteFn(capacite)(t.espace || 'moi') > 0))
     out.push({
       key: `sanspoints:${itKey}`,
       icone: '❔',
@@ -593,24 +618,16 @@ export function checksIteration(
 // ---------------------------------------------------------------------------
 // 3. PI : « mon plan du trimestre est-il réaliste et cohérent ? »
 // ---------------------------------------------------------------------------
-export function checksPI(h: HierarchyValue, piKey: string, today: string, capacite: number, complet: HierarchyValue = h, jours = true): Check[] {
+function checksPIBrut(h: HierarchyValue, piKey: string, today: string, capacite: Capacite, complet: HierarchyValue = h, jours = true): Check[] {
   const out: Check[] = [];
   const u = unite(jours);
   const subs = subtaskMap(h.items);
   const its = iterationsOf(piKey);
 
-  // Itérations surchargées (capacité commune à tous les domaines)
-  const subsAll = subtaskMap(complet.items);
+  // Itérations surchargées (capacité commune à tous les domaines, propre à chaque espace)
   for (const it of its) {
     if (it.code === 'IP') continue;
-    const charge = complet.items.filter((t) => iterationOfItem(t) === it.key).reduce((n, t) => n + chargeOf(t, subsAll), 0);
-    if (charge > capacite)
-      out.push({
-        key: `surcharge:${it.key}`,
-        icone: '🔴',
-        message: `${it.code} est surchargée : ${u(charge)} pour ${u(capacite)} de capacité.`,
-        actions: [{ label: `Ouvrir ${it.code}`, action: { kind: 'iteration', itKey: it.key }, principal: true }],
-      });
+    out.push(...surcharges(complet.items, it.key, it.code, capacite, u, [{ label: `Ouvrir ${it.code}`, action: { kind: 'iteration', itKey: it.key }, principal: true }]));
   }
 
   const features = h.featureList.filter((f) => f.pi === piKey);
@@ -757,7 +774,7 @@ export function checksPI(h: HierarchyValue, piKey: string, today: string, capaci
 // ---------------------------------------------------------------------------
 // 4. Roadmap : « mes dates tiennent-elles ? » (les alertes de dates sont affichées sur chaque barre)
 // ---------------------------------------------------------------------------
-export function checksRoadmap(h: HierarchyValue, today: string): Check[] {
+function checksRoadmapBrut(h: HierarchyValue, today: string): Check[] {
   const out: Check[] = [];
   const unMois = (d: string) => toDateString(addMonths(parseDate(d < today ? today : d), 1));
   for (const e of h.epicList) {
@@ -822,7 +839,7 @@ export const dateCheck = (kind: 'epic' | 'objectif', parentId: string, a: Alerte
   actions: [],
 });
 /** Toutes les alertes de dates affichées sur les barres de la roadmap. */
-export const checksDates = (h: HierarchyValue): Check[] => [
+const checksDatesBrut = (h: HierarchyValue): Check[] => [
   ...h.epicList.flatMap((e) => alertesEpic(e, h.items, h.featureList).map((a) => dateCheck('epic', e.id, a))),
   ...h.objectifList.flatMap((o) => alertesObjectif(o, h.epicList, h.items).map((a) => dateCheck('objectif', o.id, a))),
 ];
@@ -830,7 +847,7 @@ export const checksDates = (h: HierarchyValue): Check[] => [
 // ---------------------------------------------------------------------------
 // 5. Portefeuille : « est-ce que je m'éparpille ? »
 // ---------------------------------------------------------------------------
-export function checksPortefeuille(h: HierarchyValue, today: string): Check[] {
+function checksPortefeuilleBrut(h: HierarchyValue, today: string): Check[] {
   const out: Check[] = [];
   for (const e of h.epicList) {
     const tasks = tasksOfEpic(e.id, h.items, h.featureList).filter((t) => !t.periodicite);
@@ -926,7 +943,7 @@ export function checksPortefeuille(h: HierarchyValue, today: string): Check[] {
 export function checksParEcran(
   complet: HierarchyValue,
   today: string,
-  capacite: number,
+  capacite: Capacite,
   safe: boolean,
   dom = 'tous',
   opts: { jours?: boolean; maintenant?: number } = {},
@@ -963,7 +980,7 @@ export const checksDatesDomaine = (complet: HierarchyValue, dom = 'tous') => che
  * situation n'existe plus. Large exprès pour ne rien effacer à tort : chaque filtre de domaine possible,
  * modes Simple et SAFe, toutes les itérations du PI en cours et du suivant (et l'itération qui vient de finir).
  */
-export function signaturesExistantes(complet: HierarchyValue, today: string, capacite: number, jours = true): Set<string> {
+export function signaturesExistantes(complet: HierarchyValue, today: string, capacite: Capacite, jours = true): Set<string> {
   const out = new Set<string>();
   const add = (cs: Check[]) => cs.forEach((c) => out.add(`${c.key}\u0000${situationDe(c)}`));
   const pi = iterationOf(today).pi;
@@ -980,3 +997,14 @@ export function signaturesExistantes(complet: HierarchyValue, today: string, cap
   }
   return out;
 }
+
+export const checksTaches = (...a: Parameters<typeof checksTachesBrut>): Check[] => avecSituations(() => checksTachesBrut(...a));
+
+export const checksIteration = (...a: Parameters<typeof checksIterationBrut>): Check[] => avecSituations(() => checksIterationBrut(...a));
+
+export const checksPI = (...a: Parameters<typeof checksPIBrut>): Check[] => avecSituations(() => checksPIBrut(...a));
+
+export const checksRoadmap = (...a: Parameters<typeof checksRoadmapBrut>): Check[] => avecSituations(() => checksRoadmapBrut(...a));
+
+export const checksPortefeuille = (...a: Parameters<typeof checksPortefeuilleBrut>): Check[] => avecSituations(() => checksPortefeuilleBrut(...a));
+export const checksDates = (h: HierarchyValue): Check[] => avecSituations(() => checksDatesBrut(h));

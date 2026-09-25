@@ -5,7 +5,9 @@ import { domaineOf } from '../hierarchy';
 import { chargeOf, subtaskMap } from '../subtasks';
 import { useHierarchy } from '../hierarchyContext';
 import { fmtPoints, iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piOf, piStart, pointsOf, shiftPi } from '../pi';
-import { useSafe } from '../safe';
+import { capaciteDe, useSafe } from '../safe';
+import { useEspaces } from '../espaces';
+import { prefixeEspace } from '../nomsEspaces';
 import { colors } from '../theme';
 import type { Feature, Item, ObjectifPI } from '../types';
 import { DateField } from './DateField';
@@ -96,8 +98,12 @@ export function PIView({
   const inIt = its.map((it) => h.items.filter((t) => iterationOfItem(t) === it.key));
   // Un parent dont les sous-tâches ont des points ne compte pas : ses sous-tâches comptent dans leur itération
   const subs = subtaskMap(h.items);
-  const charge = inIt.map((list) => list.reduce((n, t) => n + chargeOf(t, subs), 0));
-  const chargeDom = inIt.map((list) => list.filter(taskIn).reduce((n, t) => n + chargeOf(t, subs), 0));
+  // Charge espace par espace (chaque espace a sa capacité)
+  const { visibles: lesEspaces } = useEspaces();
+  const dansE = (e: string) => (t: { espace?: string }) => (t.espace || 'moi') === e;
+  const charge = (e: string) => inIt.map((list) => list.filter(dansE(e)).reduce((n, t) => n + chargeOf(t, subs), 0));
+  const chargeDom = (e: string) => inIt.map((list) => list.filter((t) => dansE(e)(t) && taskIn(t)).reduce((n, t) => n + chargeOf(t, subs), 0));
+  const nomE = (e: string) => prefixeEspace(e).replace(/ · $/, '');
   // Tâches hors feature, par itération
   // Les sous-tâches restent sous leur parent : pas de ligne à elles
   const horsFeature = inIt.map((list) => list.filter((t) => !t.feature && !t.parent && taskIn(t)));
@@ -151,8 +157,8 @@ export function PIView({
     h.epics.get(t.epic)?.couleur ?? h.objectifs.get(t.objectif)?.couleur ?? h.domaines.get(domaineOf(t, h)?.id ?? '')?.couleur ?? '#8A94A6';
   const parentOf = (t: Item) =>
     h.epics.get(t.epic)?.titre ?? h.objectifs.get(t.objectif)?.titre ?? (h.domaines.get(t.domaine) ? `${h.domaines.get(t.domaine)!.icone} ${h.domaines.get(t.domaine)!.nom}` : '');
-  const featurePts = features.reduce((n, f) => n + pointsOf(f), 0);
-  const capaPi = safe.capacite * 6;
+  const featurePts = (e: string) => features.filter(dansE(e)).reduce((n, f) => n + pointsOf(f), 0);
+  const capaPi = (e: string) => capaciteDe(safe, e) * 6;
 
   const step = (n: number) => onChangePi(shiftPi(piKey, n));
 
@@ -170,7 +176,7 @@ export function PIView({
           {court(piStart(piKey))} → {court(piEnd(piKey))} · 6 itérations + semaine IP
         </Text>
         <DomainChips style={styles.chips} />
-        <AlertsCard ecran="pi" titre={`PI ${piLabel(piKey)}`} checks={checksPI(filtrerDomaine(h, dom), piKey, today, safe.capacite, h)} />
+        <AlertsCard ecran="pi" titre={`PI ${piLabel(piKey)}`} checks={checksPI(filtrerDomaine(h, dom), piKey, today, (e) => capaciteDe(safe, e), h, safe.pointsJours)} />
 
         <View style={styles.card}>
           <View style={styles.cardHead}>
@@ -203,10 +209,12 @@ export function PIView({
 
         <View style={styles.cardHead2}>
           <Text style={styles.section}>Tableau du PI</Text>
-          <Text style={styles.muted}>
-            Features {fmt(featurePts)} · capacité {fmt(capaPi)}
-            {featurePts > capaPi ? ' ⚠' : ''}
-          </Text>
+          {lesEspaces.map((e) => (
+            <Text key={e} style={styles.muted}>
+              {nomE(e) ? `${nomE(e)} : ` : ''}Features {fmt(featurePts(e))} · capacité {fmt(capaPi(e))}
+              {featurePts(e) > capaPi(e) ? ' ⚠' : ''}
+            </Text>
+          ))}
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.boardPad}>
           <View style={styles.board}>
@@ -355,26 +363,32 @@ export function PIView({
                   </View>
                 );
               })}
-            <View style={[styles.row, styles.chargeRow]}>
-              <View style={styles.nameCell}>
-                <Text style={styles.fName}>Charge</Text>
-                <Text style={styles.fMeta}>{filtered ? `${domName} · total / capacité` : 'tâches / capacité'}</Text>
-              </View>
-              {its.map((it, i) => {
-                const cap = it.code === 'IP' ? 0 : safe.capacite;
-                const over = cap > 0 && charge[i] > cap;
-                return (
-                  <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]}>
-                    {filtered && <Text style={styles.charge}>{chargeDom[i] ? fmt(chargeDom[i]).replace(/ .*/, '') : '0'}</Text>}
-                    <Text style={[filtered ? styles.chargeSmall : styles.charge, over && { color: colors.danger }]}>
-                      {charge[i] ? fmt(charge[i]).replace(/ .*/, '') : '0'}
-                      {cap ? `/${cap}` : ''}
-                      {over ? ' ⚠' : ''}
-                    </Text>
+            {lesEspaces.map((e) => {
+              const ch = charge(e);
+              const chDom = chargeDom(e);
+              return (
+                <View key={e} style={[styles.row, styles.chargeRow]}>
+                  <View style={styles.nameCell}>
+                    <Text style={styles.fName}>Charge{nomE(e) ? ` · ${nomE(e)}` : ''}</Text>
+                    <Text style={styles.fMeta}>{filtered ? `${domName} · total / capacité` : 'tâches / capacité'}</Text>
                   </View>
-                );
-              })}
-            </View>
+                  {its.map((it, i) => {
+                    const cap = it.code === 'IP' ? 0 : capaciteDe(safe, e);
+                    const over = cap > 0 && ch[i] > cap;
+                    return (
+                      <View key={it.key} style={[styles.cell, it.key === currentIt && styles.nowCol]}>
+                        {filtered && <Text style={styles.charge}>{chDom[i] ? fmt(chDom[i]).replace(/ .*/, '') : '0'}</Text>}
+                        <Text style={[filtered ? styles.chargeSmall : styles.charge, over && { color: colors.danger }]}>
+                          {ch[i] ? fmt(ch[i]).replace(/ .*/, '') : '0'}
+                          {cap ? `/${cap}` : ''}
+                          {over ? ' ⚠' : ''}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              );
+            })}
           </View>
         </ScrollView>
 
