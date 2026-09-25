@@ -1,6 +1,6 @@
-# Compile les deux versions web et les publie ensemble sur GitHub Pages à chaque modification de l'une d'elles.
-# - Version simple (branche claude/mobile-task-management-app-q8jysq) : https://tmarmed.github.io/Default/
-# - Version SAFe (branche claude/version-safe) : https://tmarmed.github.io/Default/safe/
+# Publie la version SAFe (branche claude/version-safe) sur GitHub Pages à chaque modification :
+# https://tmarmed.github.io/Default/safe/ ; l'adresse racine https://tmarmed.github.io/Default/ y renvoie.
+# La version simple (branche claude/mobile-task-management-app-q8jysq) n'est plus publiée.
 name: Publier la version web
 
 on:
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   # GitHub Pages n'accepte que la branche d'origine : un envoi sur la version SAFe relance la publication
-  # depuis la branche d'origine (qui compile et publie les deux versions).
+  # depuis la branche d'origine (qui compile et publie la version SAFe).
   relancer:
     if: github.ref_name == 'claude/version-safe'
     runs-on: ubuntu-latest
@@ -35,24 +35,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: claude/mobile-task-management-app-q8jysq
-          path: simple
-      - uses: actions/checkout@v4
-        with:
           ref: claude/version-safe
           path: safe
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            simple/mobile/package-lock.json
-            safe/mobile/package-lock.json
-      - name: Compiler la version simple
-        working-directory: simple/mobile
-        run: npm ci && npx tsc --noEmit && npx expo export --platform web --clear
-        env:
-          EXPO_BASE_URL: /${{ github.event.repository.name }}
+          cache-dependency-path: safe/mobile/package-lock.json
       - name: Compiler la version SAFe
         working-directory: safe/mobile
         run: npm ci && npx tsc --noEmit && npm run verif:alertes && npm run verif:sheets && npx expo export --platform web --clear
@@ -61,8 +50,9 @@ jobs:
       - name: Assembler le site
         run: |
           mkdir -p site/safe
-          cp -r simple/mobile/dist/. site/
           cp -r safe/mobile/dist/. site/safe/
+          # Adresse racine : renvoie vers la version SAFe
+          printf '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=safe/"><title>President</title></head><body><a href="safe/">President</a></body></html>' > site/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
