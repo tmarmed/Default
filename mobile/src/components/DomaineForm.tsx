@@ -19,12 +19,14 @@ interface Props {
   /** + Objectif dans ce domaine */
   onAddObjectif?: (d: Domaine) => void;
   onOpenWizard?: (d: Domaine) => void;
+  /** Espace proposé pour un nouveau domaine */
+  defaultEspace?: string;
 }
 
 /** Fiche d'un domaine (Pro, Perso…) : nom, icône, couleur, objectifs. */
-export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpenObjectif, onAddObjectif, onOpenWizard }: Props) {
+export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpenObjectif, onAddObjectif, onOpenWizard, defaultEspace }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
-  const { espace, setEspace, h } = useEspaceFiche(visible, domaine, undefined);
+  const { espace, setEspace, h } = useEspaceFiche(visible, domaine, defaultEspace ? { espace: defaultEspace } : undefined);
   const [form, setForm] = useState<DomaineInput>({ nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0], parent: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

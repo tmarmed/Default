@@ -858,18 +858,23 @@ function Main() {
 
   /** Écran PI : nouvelle tâche hors feature, dans l'itération choisie (et le domaine filtré). */
   const addHorsFeature = (key: string) => {
-    openNewTask({ iteration: key, date: '', ...(domFilter !== 'tous' && domFilter ? { domaine: domFilter } : {}) });
+    openNewTask({ iteration: key, date: '', ...preselection() });
+  };
+  /**
+   * Présélection de tout « + » : l'espace (celui du domaine filtré, sinon le premier espace affiché ; Moi si
+   * `moi`) et le domaine filtré (sa version dans cet espace, même nom), s'il y en a un.
+   */
+  const preselection = (moi = false): { espace: string; domaine?: string } => {
+    const f = domFilter && domFilter !== 'tous' ? hv.domaines.get(domFilter) : undefined;
+    const espace = moi ? 'moi' : (f?.espace ?? visibles[0] ?? 'moi');
+    const dom = f ? hv.domaineList.find((d) => (d.espace || 'moi') === espace && cleDomaine(d, hv) === cleDomaine(f, hv)) : undefined;
+    return { espace, ...(dom ? { domaine: dom.id } : {}) };
   };
   /**
    * Mes tâches : nouvel élément du type choisi, pré-rempli avec le jour affiché (vues Jour et Mois, par la fiche)
    * et le domaine filtré (celui de son espace ; rendez-vous, appels et démarches sont dans Moi).
    */
-  const nouveauDuType = (type: ItemType) => {
-    const f = domFilter && domFilter !== 'tous' ? hv.domaines.get(domFilter) : undefined;
-    const espace = TYPES_PRIVES.includes(type) ? 'moi' : (f?.espace ?? visibles[0] ?? 'moi');
-    const dom = f ? hv.domaineList.find((d) => (d.espace || 'moi') === espace && cleDomaine(d, hv) === cleDomaine(f, hv)) : undefined;
-    openNewTask({ type, espace, ...(dom ? { domaine: dom.id } : {}) });
-  };
+  const nouveauDuType = (type: ItemType) => openNewTask({ type, ...preselection(TYPES_PRIVES.includes(type)) });
   const closeFiches = () => {
     setEpicFormOpen(false);
     setObjectifFormOpen(false);
@@ -907,8 +912,10 @@ function Main() {
       return next;
     });
   };
-  const openDomaine = (d: Domaine | null) => {
+  const [domaineEspace, setDomaineEspace] = useState<string | undefined>(undefined);
+  const openDomaine = (d: Domaine | null, espace?: string) => {
     setEditingDomaine(d);
+    setDomaineEspace(espace);
     setDomaineFormOpen(true);
   };
 
@@ -1614,6 +1621,7 @@ function Main() {
       <DomaineForm
         visible={domaineFormOpen}
         domaine={editingDomaine}
+        defaultEspace={domaineEspace}
         onClose={() => setDomaineFormOpen(false)}
         onSave={async (input) => {
           await saveEntity('domaine', editingDomaine, input);
@@ -1692,7 +1700,7 @@ function Main() {
         onClose={() => setPiAdd(false)}
         onChoose={(kind, itKey) => {
           setPiAdd(false);
-          if (kind === 'newFeature') openFeature(null, { pi: piKey, iteration: itKey });
+          if (kind === 'newFeature') openFeature(null, { pi: piKey, iteration: itKey, espace: preselection().espace });
           else if (kind === 'newTask') addHorsFeature(itKey);
           else setPiPicker({ kind: kind === 'pickFeature' ? 'feature' : 'tache', itKey });
         }}
@@ -1748,12 +1756,12 @@ function Main() {
             {(
               [
                 ['🚀', 'Assistant projet', 'Créer ou modifier un projet, niveau par niveau', () => openWizard(null)],
-                ['🗂️', 'Une epic', 'Un projet daté, avec ses tâches', () => openEpic(null)],
+                ['🗂️', 'Une epic', 'Un projet daté, avec ses tâches', () => openEpic(null, preselection())],
                 ...(safe.actif
-                  ? ([['🧩', 'Une feature', 'Une partie d’epic (sous-epic), prévue dans un PI', () => openFeature(null)]] as const)
+                  ? ([['🧩', 'Une feature', 'Une partie d’epic (sous-epic), prévue dans un PI', () => openFeature(null, { espace: preselection().espace })]] as const)
                   : []),
-                ['🎯', 'Un objectif', 'Un résultat à atteindre, avec échéance ou permanent', () => openObjectif(null)],
-                ['🏷️', 'Un domaine', 'Une grande catégorie : Pro, Perso…', () => openDomaine(null)],
+                ['🎯', 'Un objectif', 'Un résultat à atteindre, avec échéance ou permanent', () => openObjectif(null, preselection())],
+                ['🏷️', 'Un domaine', 'Une grande catégorie : Pro, Perso…', () => openDomaine(null, preselection().espace)],
               ] as const
             ).map(([icon, title, sub, action]) => (
               <Pressable
