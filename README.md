@@ -18,7 +18,10 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
 - **Espaces** : chaque espace est un Google Sheet, d'un type choisi à sa création : 🔒 **Moi** (un seul, jamais
   partagé), 👥 **Équipe** (équipe indépendante), 🏢 **Entreprise** (avec ses équipes). Nom du fichier :
   `President | Moi`, `President | Équipe | Mobile`, `President | Entreprise | ACME` (séparateur `|`).
-- **Filtre en haut** : un ou plusieurs espaces affichés, et « ＋ Espace » pour créer ou retirer un espace. Avec
+- **Filtre en haut** : un ou plusieurs espaces affichés. « ＋ Espace » crée un espace, ou fait revenir un espace retiré
+  (« Rétablir ») ou supprimé (« Restaurer », pendant 30 jours). **Appui long** sur un espace (sauf Moi) : **Retirer**
+  (l'espace quitte l'application, son Google Sheet est gardé) ou **Supprimer** (le Google Sheet part à la corbeille de
+  Google Drive, récupérable 30 jours ; un espace partagé disparaît aussi pour les autres). Avec
   plusieurs espaces, chaque tâche porte l'étiquette de son espace. Chaque fiche (tâche, epic, objectif, domaine,
   feature, objectif du PI) a une ligne « Espace » pour un nouvel élément (par défaut : l'espace de son rattachement,
   sinon le premier espace affiché) ; ses choix de rattachement ne montrent que cet espace. L'espace d'un élément

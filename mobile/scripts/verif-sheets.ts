@@ -4,10 +4,10 @@
  * suppression en cascade), colonnes inconnues gardées, colonnes manquantes ajoutées.
  * Lancer : npm run verif:sheets
  */
-import { adopterFichier, creerFichierEspace, fichiersEspaces, magasinSheets, renommerFichier, utiliserJeton } from '../src/gsheets';
+import { adopterFichier, corbeille, creerFichierEspace, fichiersCorbeille, fichiersEspaces, magasinSheets, renommerFichier, utiliserJeton } from '../src/gsheets';
 
 type Feuille = string[][];
-const fichiers = new Map<string, { titre: string; props: Record<string, string>; feuilles: Map<string, Feuille> }>();
+const fichiers = new Map<string, { titre: string; props: Record<string, string>; feuilles: Map<string, Feuille>; jete?: boolean }>();
 let appels = 0;
 
 const lettre = (s: string) => [...s].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0);
@@ -33,13 +33,15 @@ globalThis.fetch = (async (input: string, init: RequestInit = {}) => {
       fichiers.set(id, { titre: corps.name, props: corps.appProperties ?? {}, feuilles: new Map([['Feuille 1', []]]) });
       return rep({ id });
     }
-    return rep({ files: [...fichiers].map(([id, f]) => ({ id, name: f.titre, appProperties: f.props })) });
+    const jetes = decodeURIComponent(url.search).includes('trashed=true');
+    return rep({ files: [...fichiers].filter(([, f]) => !!f.jete === jetes).map(([id, f]) => ({ id, name: f.titre, appProperties: f.props })) });
   }
   const drive = /^\/drive\/v3\/files\/(.+)$/.exec(url.pathname);
   if (drive) {
     const f = fichiers.get(drive[1])!;
     if (corps.appProperties) f.props = corps.appProperties;
     if (corps.name) f.titre = corps.name;
+    if (corps.trashed !== undefined) f.jete = corps.trashed;
     return rep({ id: drive[1] });
   }
   if (url.pathname === '/v4/spreadsheets' && init.method === 'POST') {
@@ -145,6 +147,12 @@ const ok = (cond: unknown, msg: string) => {
   ok(apres?.type === 'moi' && apres.nom === 'President | Moi', 'fichier sans titre repris : nom et propriétés de Moi');
   await renommerFichier(id2, 'President | Équipe | Test');
   ok(fichiers.get(id2)!.titre === 'President | Équipe | Test', 'renommage selon la règle');
+
+  // Supprimer un espace : son Google Sheet va à la corbeille, puis il est restauré
+  await corbeille(id2, true);
+  ok((await fichiersCorbeille()).some((f) => f.id === id2) && !(await fichiersEspaces()).espaces.some((f) => f.id === id2), 'espace supprimé : Google Sheet dans la corbeille');
+  await corbeille(id2, false);
+  ok((await fichiersEspaces()).espaces.some((f) => f.id === id2) && !(await fichiersCorbeille()).length, 'espace restauré depuis la corbeille');
 
   // Erreur de règle
   let refus = '';

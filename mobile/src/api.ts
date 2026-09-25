@@ -1,5 +1,5 @@
 import { DEMO, demoApiFor } from './demo';
-import { adopterFichier, creerFichierEspace, fichiersEspaces, magasinSheets, renommerFichier } from './gsheets';
+import { adopterFichier, corbeille, creerFichierEspace, fichiersCorbeille, fichiersEspaces, magasinSheets, renommerFichier } from './gsheets';
 import type { Data, DeletionCounts } from './hierarchy';
 import {
   Domaine,
@@ -50,7 +50,7 @@ const route = (_settings: Settings, espace: string | undefined) => {
   return { e, m: magasinSheets(f) };
 };
 
-export { adopterFichier, creerFichierEspace, fichiersEspaces, renommerFichier };
+export { adopterFichier, corbeille, creerFichierEspace, fichiersCorbeille, fichiersEspaces, renommerFichier };
 function marquer<T extends { id: string }>(x: T, espace: string): T & { espace: string } {
   origine.set(x.id, espace);
   return { ...x, espace };

@@ -19,27 +19,33 @@ interface Props {
   domainesMoi: Domaine[];
   /** Nouvel espace, avec les domaines choisis (copiés dans son Google Sheet) */
   onAdd: (e: Espace, domaines: ModeleDomaine[]) => Promise<void>;
-  onRemove: (e: Espace) => void;
+  /** Espaces retirés (Google Sheet gardé) : « Rétablir » */
+  retires: Espace[];
+  onRetablir: (e: Espace) => Promise<void>;
+  /** Espaces supprimés (corbeille de Google Drive, 30 jours) : « Restaurer » ; null = en cours de lecture */
+  corbeille: Espace[] | null;
+  onRestaurer: (e: Espace) => Promise<void>;
 }
 
 /**
- * Espaces : la liste, et la création d'un espace avec son type (Équipe ou Entreprise ; « Moi » existe toujours).
- * Hors démo, l'application crée le Google Sheet de l'espace dans le Drive du compte connecté.
+ * « ＋ Espace » : créer un espace (Équipe ou Entreprise ; « Moi » existe toujours), ou faire revenir un espace
+ * retiré ou supprimé. Hors démo, l'application crée le Google Sheet de l'espace dans le Drive du compte connecté.
+ * (Retirer / supprimer : appui long sur l'espace, en haut de l'écran.)
  */
-export function EspacesSheet({ visible, espaces, nomApp, demo, domainesMoi, onClose, onAdd, onRemove }: Props) {
+export function EspacesSheet({ visible, espaces, nomApp, demo, domainesMoi, onClose, onAdd, retires, onRetablir, corbeille, onRestaurer }: Props) {
   const [choisis, setChoisis] = useState<string[]>([]);
   const [type, setType] = useState<TypeEspace>('equipe');
   const [nom, setNom] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [retrait, setRetrait] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) {
       setType('equipe');
       setNom('');
       setError(null);
-      setRetrait(null);
+      setEnCours(null);
       setChoisis([]);
     }
   }, [visible]);
@@ -63,6 +69,18 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, domainesMoi, onCl
         sous: liste.filter((x) => x.parent === d.id && choisis.includes(x.id)).map((x) => ({ nom: x.nom, icone: x.icone, couleur: x.couleur })),
       }));
 
+  const retour = async (e: Espace, action: (e: Espace) => Promise<void>) => {
+    setEnCours(e.id);
+    setError(null);
+    try {
+      await action(e);
+    } catch (err) {
+      setError(`Espace non rétabli : ${(err as Error).message}`);
+    } finally {
+      setEnCours(null);
+    }
+  };
+
   const save = async () => {
     const n = nom.trim();
     if (!n) return setError("Donnez un nom à l'espace.");
@@ -81,32 +99,7 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, domainesMoi, onCl
   };
 
   return (
-    <FormSheet visible={visible} title="Espaces" busy={busy} error={error} onClose={onClose} onSave={save}>
-      <Label>Mes espaces</Label>
-      {espaces.map((e) => (
-        <View key={e.id} style={s.row}>
-          <View style={s.flex}>
-            <Text style={s.nom}>
-              {ICONE_ESPACE[e.type]} {libelleEspace(e)}
-            </Text>
-            <Text style={s.sub} numberOfLines={1}>
-              {LIBELLE_ESPACE[e.type]} · fichier « {nomFichier(nomApp, e)} »
-            </Text>
-          </View>
-          {e.id !== 'moi' &&
-            (retrait === e.id ? (
-              <Pressable onPress={() => onRemove(e)} hitSlop={6} accessibilityRole="button">
-                <Text style={s.danger}>Confirmer</Text>
-              </Pressable>
-            ) : (
-              <Pressable onPress={() => setRetrait(e.id)} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Retirer ${libelleEspace(e)}`}>
-                <Text style={s.retirer}>Retirer</Text>
-              </Pressable>
-            ))}
-        </View>
-      ))}
-      <Text style={f.hint}>Retirer un espace l'enlève de l'application ; son Google Sheet n'est pas supprimé.</Text>
-
+    <FormSheet visible={visible} title="Nouvel espace" busy={busy} error={error} onClose={onClose} onSave={save}>
       <Label>Créer un espace</Label>
       <Chips
         options={[
@@ -146,7 +139,39 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, domainesMoi, onCl
       )}
       {!demo && <Text style={f.hint}>Le Google Sheet de l'espace est créé dans votre Google Drive, avec ce nom.</Text>}
       {demo && <Text style={f.hint}>Démo : l'espace est créé dans ce navigateur (avec les domaines choisis).</Text>}
+      {(retires.length > 0 || (corbeille?.length ?? 0) > 0 || corbeille === null) && (
+        <>
+          {retires.length > 0 && <Label>Espaces retirés</Label>}
+          {retires.map((e) => (
+            <LigneRetour key={`r-${e.id}`} e={e} sous={`Google Sheet gardé · « ${nomFichier(nomApp, e)} »`} bouton="Rétablir" busy={enCours === e.id} onPress={() => retour(e, onRetablir)} />
+          ))}
+          {!demo && corbeille === null && <Text style={f.hint}>Lecture de la corbeille de Google Drive…</Text>}
+          {(corbeille?.length ?? 0) > 0 && <Label>Espaces supprimés (corbeille, 30 jours)</Label>}
+          {corbeille?.map((e) => (
+            <LigneRetour key={`c-${e.id}`} e={e} sous="Dans la corbeille : récupérable 30 jours" bouton="Restaurer" busy={enCours === e.id} onPress={() => retour(e, onRestaurer)} />
+          ))}
+        </>
+      )}
     </FormSheet>
+  );
+}
+
+/** Ligne d'un espace retiré ou supprimé, avec son bouton de retour */
+function LigneRetour({ e, sous, bouton, busy, onPress }: { e: Espace; sous: string; bouton: string; busy: boolean; onPress: () => void }) {
+  return (
+    <View style={s.row}>
+      <View style={s.flex}>
+        <Text style={s.nom}>
+          {ICONE_ESPACE[e.type]} {libelleEspace(e)}
+        </Text>
+        <Text style={s.sub} numberOfLines={1}>
+          {sous}
+        </Text>
+      </View>
+      <Pressable onPress={onPress} disabled={busy} hitSlop={6} accessibilityRole="button" accessibilityLabel={`${bouton} ${libelleEspace(e)}`}>
+        <Text style={s.retour}>{busy ? '…' : bouton}</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -155,8 +180,7 @@ const s = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   nom: { fontSize: 15, fontWeight: '600', color: colors.text },
   sub: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  retirer: { color: colors.muted, fontSize: 13, textDecorationLine: 'underline' },
-  danger: { color: colors.danger, fontSize: 13, fontWeight: '700' },
+  retour: { color: colors.primary, fontSize: 13, fontWeight: '700' },
   doms: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   dom: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
   sous: { borderStyle: 'dashed' },

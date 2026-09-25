@@ -123,19 +123,40 @@ export async function loadEspaces(defaut: Espace[]): Promise<Espace[]> {
 export async function saveEspaces(list: Espace[]): Promise<void> {
   await AsyncStorage.setItem(ESPACES_KEY, JSON.stringify(list)).catch(() => {});
 }
-/** Google Sheets d'espaces retirés : plus ajoutés automatiquement à la connexion */
+/**
+ * Espaces retirés de l'application (leur Google Sheet est gardé) : plus ajoutés automatiquement à la connexion,
+ * rétablis depuis « ＋ Espace ».
+ */
 const RETIRES_KEY = 'mes-taches:espaces-retires';
-export async function loadRetires(): Promise<string[]> {
+export async function loadRetires(): Promise<Espace[]> {
   try {
     const v = JSON.parse((await AsyncStorage.getItem(RETIRES_KEY)) ?? '[]');
-    return Array.isArray(v) ? v : [];
+    // Ancien format : identifiants de fichiers seulement
+    return Array.isArray(v) ? v.map((x) => (typeof x === 'string' ? { id: `equipe-${x}`, type: 'equipe' as const, nom: '?', fichier: x } : x)) : [];
   } catch {
     return [];
   }
 }
-export async function saveRetires(v: string[]): Promise<void> {
-  await AsyncStorage.setItem(RETIRES_KEY, JSON.stringify([...new Set(v)])).catch(() => {});
+export async function saveRetires(v: Espace[]): Promise<void> {
+  await AsyncStorage.setItem(RETIRES_KEY, JSON.stringify(v)).catch(() => {});
 }
+
+/** Démo : espaces supprimés (corbeille simulée, 30 jours) */
+const SUPPRIMES_KEY = 'mes-taches:espaces-supprimes';
+export type EspaceSupprime = Espace & { supprime_le: string };
+export async function loadSupprimes(): Promise<EspaceSupprime[]> {
+  try {
+    const v = JSON.parse((await AsyncStorage.getItem(SUPPRIMES_KEY)) ?? '[]') as EspaceSupprime[];
+    const limite = Date.now() - 30 * 86400000;
+    return Array.isArray(v) ? v.filter((e) => new Date(e.supprime_le).getTime() > limite) : [];
+  } catch {
+    return [];
+  }
+}
+export async function saveSupprimes(v: EspaceSupprime[]): Promise<void> {
+  await AsyncStorage.setItem(SUPPRIMES_KEY, JSON.stringify(v)).catch(() => {});
+}
+
 export async function loadVisibles(): Promise<string[]> {
   try {
     const raw = await AsyncStorage.getItem(VISIBLES_KEY);

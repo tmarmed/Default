@@ -74,6 +74,22 @@ export async function fichiersEspaces(): Promise<{ espaces: FichierEspace[]; aut
   };
 }
 
+/** Google Sheets d'espace dans la corbeille de Google Drive (récupérables 30 jours) */
+export async function fichiersCorbeille(): Promise<FichierEspace[]> {
+  const q = encodeURIComponent("mimeType='application/vnd.google-apps.spreadsheet' and trashed=true");
+  const r = await appel<{ files: { id: string; name: string; appProperties?: Record<string, string> }[] }>(
+    `${DRIVE}?q=${q}&fields=files(id,name,appProperties)&pageSize=200`,
+  );
+  return r.files
+    .filter((f) => f.appProperties?.mesTaches === '1' && ['equipe', 'entreprise'].includes(f.appProperties?.type ?? ''))
+    .map((f) => ({ id: f.id, nom: f.name, type: f.appProperties!.type as TypeEspace, nomEspace: f.appProperties?.nom ?? f.name }));
+}
+
+/** Met le Google Sheet d'un espace à la corbeille de Google Drive (true) ou l'en sort (false) */
+export async function corbeille(id: string, dedans: boolean): Promise<void> {
+  await appel(`${DRIVE}/${id}?fields=id`, { method: 'PATCH', body: JSON.stringify({ trashed: dedans }) });
+}
+
 /** Renomme un fichier (règle de nommage des espaces) */
 export async function renommerFichier(id: string, nom: string): Promise<void> {
   await appel(`${DRIVE}/${id}?fields=id`, { method: 'PATCH', body: JSON.stringify({ name: nom }) });

@@ -1,18 +1,22 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces';
+import { type Espace, ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces';
 import { colors } from '../theme';
 
 /**
  * Filtre des espaces, en haut de l'application : un ou plusieurs espaces affichés (au moins un),
- * « + Espace » pour créer ou ajouter un espace et, à droite, le compte Google (rond avec l'initiale).
+ * « + Espace » pour créer un espace (ou en faire revenir un), appui long sur un espace pour le retirer ou le
+ * supprimer et, à droite, le compte Google (rond avec l'initiale).
  */
 export function EspacesBar({
   onChange,
   onGerer,
+  onOuvrir,
   compte,
 }: {
   onChange: (visibles: string[]) => void;
   onGerer: () => void;
+  /** Appui long sur un espace (sauf Moi) : sa fiche (retirer, supprimer) */
+  onOuvrir: (e: Espace) => void;
   /** Compte Google connecté (rien dans la démo) */
   compte?: { email: string; onPress: () => void };
 }) {
@@ -31,10 +35,13 @@ export function EspacesBar({
           <Pressable
             key={e.id}
             onPress={() => basculer(e.id)}
+            onLongPress={e.id === 'moi' ? undefined : () => onOuvrir(e)}
+            delayLongPress={450}
             style={[s.chip, on && s.chipOn]}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: on }}
             accessibilityLabel={`Espace ${libelleEspace(e)}`}
+            accessibilityHint={e.id === 'moi' ? undefined : 'Appui long : retirer ou supprimer l’espace'}
           >
             <Text style={[s.chipText, on && s.chipTextOn]}>
               {ICONE_ESPACE[e.type]} {libelleEspace(e)}
@@ -42,7 +49,7 @@ export function EspacesBar({
           </Pressable>
         );
       })}
-      <Pressable onPress={onGerer} style={s.add} accessibilityRole="button" accessibilityLabel="Créer ou ajouter un espace">
+      <Pressable onPress={onGerer} style={s.add} accessibilityRole="button" accessibilityLabel="Créer un espace">
         <Text style={s.addText}>＋ Espace</Text>
       </Pressable>
     </ScrollView>
