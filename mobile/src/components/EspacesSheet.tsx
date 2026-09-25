@@ -24,15 +24,12 @@ interface Props {
 
 /**
  * Espaces : la liste, et la création d'un espace avec son type (Équipe ou Entreprise ; « Moi » existe toujours).
- * En attendant la connexion Google directe (détection et création automatiques des fichiers), un espace se
- * relie à son Google Sheet par l'adresse de son script et sa clé.
+ * Hors démo, l'application crée le Google Sheet de l'espace dans le Drive du compte connecté.
  */
 export function EspacesSheet({ visible, espaces, nomApp, demo, domainesMoi, onClose, onAdd, onRemove }: Props) {
   const [choisis, setChoisis] = useState<string[]>([]);
   const [type, setType] = useState<TypeEspace>('equipe');
   const [nom, setNom] = useState('');
-  const [url, setUrl] = useState('');
-  const [key, setKey] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retrait, setRetrait] = useState<string | null>(null);
@@ -41,8 +38,6 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, domainesMoi, onCl
     if (visible) {
       setType('equipe');
       setNom('');
-      setUrl('');
-      setKey('');
       setError(null);
       setRetrait(null);
       setChoisis([]);
@@ -73,11 +68,10 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, domainesMoi, onCl
     if (!n) return setError("Donnez un nom à l'espace.");
     if (espaces.some((e) => e.type === type && e.nom.trim().toLowerCase() === n.toLowerCase()))
       return setError(`Un espace ${LIBELLE_ESPACE[type]} « ${n} » existe déjà.`);
-    if (!demo && (!url.trim() || !key.trim())) return setError("Indiquez l'adresse du script et la clé de son Google Sheet.");
     setError(null);
     setBusy(true);
     try {
-      await onAdd({ id: `${type}-${Date.now()}`, type, nom: n, ...(demo ? {} : { url: url.trim(), key: key.trim() }) }, modeles());
+      await onAdd({ id: `${type}-${Date.now()}`, type, nom: n }, modeles());
       onClose();
     } catch (e) {
       setError(`Espace non ajouté : ${(e as Error).message}`);
@@ -150,17 +144,7 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, domainesMoi, onCl
           <Text style={f.hint}>Les domaines choisis sont copiés dans l'espace ; Moi garde tous les domaines.</Text>
         </>
       )}
-      {!demo && (
-        <>
-          <Label>Google Sheet de l'espace</Label>
-          <Field placeholder="Adresse du script (…/exec)" value={url} onChangeText={setUrl} autoCapitalize="none" autoCorrect={false} />
-          <Field placeholder="Clé d'accès" value={key} onChangeText={setKey} autoCapitalize="none" autoCorrect={false} />
-          <Text style={f.hint}>
-            En attendant la connexion Google directe (détection et création automatiques des fichiers), un espace se relie
-            à son Google Sheet par son script et sa clé, comme l'espace Moi.
-          </Text>
-        </>
-      )}
+      {!demo && <Text style={f.hint}>Le Google Sheet de l'espace est créé dans votre Google Drive, avec ce nom.</Text>}
       {demo && <Text style={f.hint}>Démo : l'espace est créé dans ce navigateur (avec les domaines choisis).</Text>}
     </FormSheet>
   );

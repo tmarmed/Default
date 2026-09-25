@@ -1,21 +1,20 @@
-import { GOOGLE_AUTH, GOOGLE_IOS_CLIENT_ID, GOOGLE_WEB_CLIENT_ID } from './config';
-
-type GoogleSigninModule = typeof import('@react-native-google-signin/google-signin');
-
-let lib: GoogleSigninModule | null = null;
+import { AuthError } from './authError';
+import { GOOGLE_IOS_CLIENT_ID, GOOGLE_SCOPES, GOOGLE_WEB_CLIENT_ID } from './config';
 
 /**
- * Chargée seulement si la connexion Google est activée : le module natif n'existe pas
- * dans Expo Go, et l'importer au démarrage ferait planter l'application en mode clé.
+ * Connexion Google sur iPhone / Android (module natif). La version web est dans auth.web.ts.
+ * Le module natif n'existe pas dans Expo Go : il n'est chargé qu'au premier usage.
  */
+type GoogleSigninModule = typeof import('@react-native-google-signin/google-signin');
+let lib: GoogleSigninModule | null = null;
+
 function google(): GoogleSigninModule {
-  if (!GOOGLE_AUTH) throw new Error('Connexion Google non configurée.');
   if (!lib) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     lib = require('@react-native-google-signin/google-signin') as GoogleSigninModule;
     lib.GoogleSignin.configure({
-      // L'idToken est émis pour l'ID client « Web » : c'est lui que vérifie le script.
       webClientId: GOOGLE_WEB_CLIENT_ID,
+      scopes: GOOGLE_SCOPES,
       ...(GOOGLE_IOS_CLIENT_ID ? { iosClientId: GOOGLE_IOS_CLIENT_ID } : {}),
     });
   }
@@ -52,30 +51,28 @@ export async function signIn(): Promise<string | null> {
 
 export async function signOut(): Promise<void> {
   try {
-    if (GOOGLE_AUTH) await google().GoogleSignin.signOut();
+    await google().GoogleSignin.signOut();
   } catch {
     // Déjà déconnecté.
   }
 }
 
-/**
- * Preuve d'identité Google à joindre à chaque appel du script.
- * Google la renouvelle tout seul (elle expire au bout d'une heure).
- */
-export async function getIdToken(forceRefresh = false): Promise<string> {
+/** Jeton d'accès aux Google Sheets (renouvelé par Google quand il expire). */
+export async function getAccessToken(forceRefresh = false): Promise<string> {
   const { GoogleSignin } = google();
-  if (!forceRefresh) {
-    try {
-      const { idToken } = await GoogleSignin.getTokens();
-      if (idToken) return idToken;
-    } catch {
-      // Pas de session en mémoire : on passe par signInSilently.
-    }
+  try {
+    if (forceRefresh) await GoogleSignin.signInSilently();
+    const { accessToken } = await GoogleSignin.getTokens();
+    if (accessToken) return accessToken;
+  } catch {
+    // Pas de session : reconnexion nécessaire
   }
-  const res = await GoogleSignin.signInSilently();
-  if (res.type === 'success' && res.data.idToken) return res.data.idToken;
   throw new AuthError('Session Google terminée : reconnectez-vous.');
 }
 
-/** Erreur de connexion : l'application renvoie alors vers l'écran de connexion. */
-export class AuthError extends Error {}
+export { AuthError };
+
+/** Dernier compte utilisé (proposé à la reconnexion) : géré par Google sur téléphone */
+export async function dernierCompte(): Promise<string | null> {
+  return null;
+}

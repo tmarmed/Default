@@ -9,13 +9,12 @@ const EPICS_CACHE_KEY = 'mes-taches:cache-epics';
 
 export async function loadSettings(): Promise<Settings | null> {
   if (DEMO) return { url: 'demo', key: 'demo' };
-  // Avec la connexion Google, l'URL est intégrée à l'application et rien n'est saisi.
+  // Connexion Google : le compte est retrouvé au démarrage (restoreSession), rien n'est saisi.
   if (GOOGLE_AUTH) return null;
   const raw = await AsyncStorage.getItem(SETTINGS_KEY);
   if (!raw) return null;
   try {
-    const s = JSON.parse(raw) as Settings;
-    return s.url && s.key ? s : null;
+    return JSON.parse(raw) as Settings;
   } catch {
     return null;
   }

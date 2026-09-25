@@ -1,9 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
-import { cleanLinks, Data, DeletionCounts, planDeletion } from './hierarchy';
 import { iterationOf, piOf, shiftPi } from './pi';
-import { cascadeLinks, checkParent } from './subtasks';
-import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type ItemInput, type Objectif, type ObjectifPI } from './types';
+import { creerMagasin, type Kind, type Persistance, type Table, TABLES } from './magasin';
+import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI } from './types';
 
 /**
  * Mode démo (EXPO_PUBLIC_DEMO=1) : données d'exemple enregistrées sur l'appareil,
@@ -183,151 +182,46 @@ function sampleEntities(): {
   };
 }
 
-type Kind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'ignoree';
-type EntityOf<K extends Kind> = K extends 'epic'
-  ? Epic
-  : K extends 'objectif'
-    ? Objectif
-    : K extends 'domaine'
-      ? Domaine
-      : K extends 'feature'
-        ? Feature
-        : K extends 'objectifpi'
-          ? ObjectifPI
-          : Ignoree;
 type Seeds = { items: () => Item[]; entities: () => ReturnType<typeof sampleEntities> };
 
-/** Stockage d'un espace de la démo (« moi » : clés historiques ; autres : « mes-taches:demo@<espace> »). */
+/**
+ * Stockage d'un espace de la démo (« moi » : clés historiques ; autres : « mes-taches:demo@<espace> »), avec
+ * les mêmes règles que les Google Sheets (magasin commun).
+ */
 function creerStore(espace: string, seeds: Seeds) {
   const key = espace === 'moi' ? KEY : `${KEY}@${espace}`;
-  let memory: Item[] | null = null;
-  const entityMemory: Partial<Record<Kind, unknown[]>> = {};
+  const memoire: Partial<Record<Table, unknown[]>> = {};
+  const cle = (t: Table) => (t === 'items' ? key : `${key}-${t}`);
+  const exemples = (t: Table): unknown[] => (t === 'items' ? seeds.items() : seeds.entities()[t as Kind]);
 
-  async function loadEntities<K extends Kind>(kind: K): Promise<EntityOf<K>[]> {
-    if (entityMemory[kind]) return entityMemory[kind] as EntityOf<K>[];
-    await checkVersion();
-    let list: EntityOf<K>[];
-    try {
-      const raw = await AsyncStorage.getItem(`${key}-${kind}`);
-      list = raw ? JSON.parse(raw) : (seeds.entities()[kind] as EntityOf<K>[]);
-    } catch {
-      list = seeds.entities()[kind] as EntityOf<K>[];
-    }
-    entityMemory[kind] = list;
-    return list;
-  }
-  async function storeEntities<K extends Kind>(kind: K, list: EntityOf<K>[]): Promise<void> {
-    entityMemory[kind] = list;
-    try {
-      await AsyncStorage.setItem(`${key}-${kind}`, JSON.stringify(list));
-    } catch {
-      // Stockage indisponible : la démo reste en mémoire.
-    }
-  }
-  async function load(): Promise<Item[]> {
-    if (memory) return memory;
-    await checkVersion();
-    try {
-      const raw = await AsyncStorage.getItem(key);
-      memory = raw ? JSON.parse(raw) : seeds.items();
-    } catch {
-      memory = seeds.items();
-    }
-    return memory!;
-  }
-  async function store(items: Item[]): Promise<void> {
-    memory = items;
-    try {
-      await AsyncStorage.setItem(key, JSON.stringify(items));
-    } catch {
-      // Stockage indisponible (navigation privée) : la démo reste en mémoire.
-    }
-  }
+  const persistance: Persistance = {
+    async lire(t) {
+      if (!memoire[t]) {
+        await checkVersion();
+        try {
+          const raw = await AsyncStorage.getItem(cle(t));
+          memoire[t] = raw ? JSON.parse(raw) : exemples(t);
+        } catch {
+          memoire[t] = exemples(t);
+        }
+      }
+      return [...(memoire[t] as never[])];
+    },
+    async ecrire(t, rows) {
+      memoire[t] = rows;
+      try {
+        await AsyncStorage.setItem(cle(t), JSON.stringify(rows));
+      } catch {
+        // Stockage indisponible (navigation privée) : la démo reste en mémoire.
+      }
+    },
+  };
 
   return {
-    async list(): Promise<Item[]> {
-      return [...(await load())];
-    },
-    async create(input: ItemInput): Promise<Item> {
-      const now = new Date().toISOString();
-      const items = await load();
-      const item: Item = cleanLinks(
-        checkParent({ ...input, id: `d${Date.now()}${Math.floor(Math.random() * 1000)}`, cree_le: now, modifie_le: now, termine_le: input.statut === 'termine' ? now.slice(0, 10) : '', statut_avant: '' }, items),
-      );
-      await store([...items, item]);
-      return item;
-    },
-    async update(patch: Partial<Item> & { id: string }): Promise<Item> {
-      const items = await load();
-      const current = items.find((i) => i.id === patch.id);
-      if (!current) throw new Error('Élément introuvable.');
-      // « Terminé le » : même règle que le script (v13)
-      const statut = patch.statut ?? current.statut;
-      const termine_le = statut !== 'termine' ? '' : current.statut === 'termine' ? current.termine_le ?? '' : toDateString(new Date());
-      const statut_avant = statut !== 'termine' ? '' : current.statut === 'termine' ? current.statut_avant ?? '' : current.statut === 'en_cours' ? 'en_cours' : '';
-      const item = cleanLinks(checkParent({ ...current, ...patch, termine_le, statut_avant, modifie_le: new Date().toISOString() }, items));
-      await store(cascadeLinks(item, items.map((i) => (i.id === item.id ? item : i))));
-      return item;
-    },
-    async remove(id: string, cascade = false): Promise<void> {
-      await store(
-        (await load())
-          .filter((i) => i.id !== id && !(cascade && i.parent === id))
-          .map((i) => (i.parent === id ? { ...i, parent: '' } : i)),
-      );
-    },
+    ...creerMagasin(persistance),
     async reset(): Promise<void> {
-      await store(seeds.items());
-      const e = seeds.entities();
-      await storeEntities('epic', e.epic);
-      await storeEntities('objectif', e.objectif);
-      await storeEntities('domaine', e.domaine);
-      await storeEntities('feature', e.feature);
-      await storeEntities('objectifpi', e.objectifpi);
-      await storeEntities('ignoree', []);
-    },
-    async listAll(): Promise<Omit<Data, 'items'>> {
-      return {
-        epics: [...(await loadEntities('epic'))],
-        objectifs: [...(await loadEntities('objectif'))],
-        domaines: [...(await loadEntities('domaine'))],
-        features: [...(await loadEntities('feature'))],
-        objectifsPI: [...(await loadEntities('objectifpi'))],
-        ignorees: [...(await loadEntities('ignoree'))],
-      };
-    },
-    async createEntity<K extends Kind>(kind: K, input: Omit<EntityOf<K>, 'id' | 'cree_le' | 'modifie_le'>): Promise<EntityOf<K>> {
-      const now = new Date().toISOString();
-      const o = cleanLinks({ ...input, id: `${kind[0]}${Date.now()}${Math.floor(Math.random() * 1000)}`, cree_le: now, modifie_le: now }) as unknown as EntityOf<K>;
-      await storeEntities(kind, [...(await loadEntities(kind)), o]);
-      return o;
-    },
-    async updateEntity<K extends Kind>(kind: K, patch: Partial<EntityOf<K>> & { id: string }): Promise<EntityOf<K>> {
-      const list = await loadEntities(kind);
-      const current = list.find((e) => e.id === patch.id);
-      if (!current) throw new Error('Élément introuvable.');
-      const o = cleanLinks({ ...current, ...patch, modifie_le: new Date().toISOString() }) as EntityOf<K>;
-      await storeEntities(kind, list.map((e) => (e.id === o.id ? o : e)));
-      return o;
-    },
-    async deleteEntity(kind: Kind, id: string, cascade: boolean): Promise<DeletionCounts> {
-      const r = planDeletion(kind, id, cascade, {
-        items: await load(),
-        epics: await loadEntities('epic'),
-        objectifs: await loadEntities('objectif'),
-        domaines: await loadEntities('domaine'),
-        features: await loadEntities('feature'),
-        objectifsPI: await loadEntities('objectifpi'),
-        ignorees: await loadEntities('ignoree'),
-      });
-      await store(r.items);
-      await storeEntities('epic', r.epics);
-      await storeEntities('objectif', r.objectifs);
-      await storeEntities('domaine', r.domaines);
-      await storeEntities('feature', r.features);
-      await storeEntities('objectifpi', r.objectifsPI);
-      await storeEntities('ignoree', r.ignorees ?? []);
-      return r.counts;
+      for (const t of TABLES) await persistance.ecrire(t, exemples(t) as never);
+      await persistance.ecrire('ignoree', []);
     },
   };
 }

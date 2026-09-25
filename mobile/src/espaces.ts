@@ -14,9 +14,8 @@ export interface Espace {
   id: string;
   type: TypeEspace;
   nom: string;
-  /** Connexion à son Google Sheet (script + clé), en attendant la connexion Google directe */
-  url?: string;
-  key?: string;
+  /** Son Google Sheet (identifiant du fichier dans Google Drive) */
+  fichier?: string;
 }
 
 export const ICONE_ESPACE: Record<TypeEspace, string> = { moi: '🔒', equipe: '👥', entreprise: '🏢' };
@@ -114,14 +113,28 @@ export async function loadEspaces(defaut: Espace[]): Promise<Espace[]> {
   try {
     const raw = await AsyncStorage.getItem(ESPACES_KEY);
     const list: Espace[] = raw ? JSON.parse(raw) : defaut;
-    // « Moi » existe toujours, en premier
-    return [ESPACE_MOI, ...list.filter((e) => e.id !== 'moi')];
+    // « Moi » existe toujours, en premier (avec son Google Sheet s'il est connu)
+    const moi = list.find((e) => e.id === 'moi');
+    return [{ ...ESPACE_MOI, ...(moi?.fichier ? { fichier: moi.fichier } : {}) }, ...list.filter((e) => e.id !== 'moi')];
   } catch {
     return defaut;
   }
 }
 export async function saveEspaces(list: Espace[]): Promise<void> {
   await AsyncStorage.setItem(ESPACES_KEY, JSON.stringify(list)).catch(() => {});
+}
+/** Google Sheets d'espaces retirés : plus ajoutés automatiquement à la connexion */
+const RETIRES_KEY = 'mes-taches:espaces-retires';
+export async function loadRetires(): Promise<string[]> {
+  try {
+    const v = JSON.parse((await AsyncStorage.getItem(RETIRES_KEY)) ?? '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+export async function saveRetires(v: string[]): Promise<void> {
+  await AsyncStorage.setItem(RETIRES_KEY, JSON.stringify([...new Set(v)])).catch(() => {});
 }
 export async function loadVisibles(): Promise<string[]> {
   try {

@@ -2,7 +2,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Platform,
   Pressable,
@@ -36,7 +35,6 @@ import { Portfolio } from './src/components/Portfolio';
 import { iterationOf, iterationOfItem, piOf } from './src/pi';
 import { Roadmap } from './src/components/Roadmap';
 import { LoginScreen } from './src/components/LoginScreen';
-import { SettingsScreen } from './src/components/SettingsScreen';
 import { TaskForm } from './src/components/TaskForm';
 import { TaskItem } from './src/components/TaskItem';
 import { DayView, MonthView, WeekView } from './src/components/PeriodViews';
@@ -55,9 +53,9 @@ import {
   toDateString,
 } from './src/dates';
 import { AuthError, restoreSession, signOut } from './src/auth';
-import { API_URL, GOOGLE_AUTH } from './src/config';
+import { GOOGLE_AUTH } from './src/config';
 import { DEMO, demoApiFor, ESPACES_DEMO } from './src/demo';
-import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, loadVisibles, onglets, saveEspaces, saveVisibles } from './src/espaces';
+import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, loadRetires, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveVisibles } from './src/espaces';
 import { EspacesBar } from './src/components/EspacesBar';
 import { EspacesSheet } from './src/components/EspacesSheet';
 import { EcranAVenir } from './src/components/EcranAVenir';
@@ -75,7 +73,6 @@ import {
   loadSettings,
   saveCache,
   saveHierarchyCache,
-  saveSettings,
 } from './src/storage';
 import { colors } from './src/theme';
 import { expandRange, listEntries, toggleDone } from './src/recurrence';
@@ -93,7 +90,6 @@ import {
   FeatureInput,
   ObjectifInput,
   RECURRENCE_DEFAUTS,
-  TYPES_V7,
   Objectif,
   ObjectifPI,
   Settings,
@@ -176,8 +172,6 @@ const subtaskInput = (parent: Item, titre: string): ItemInput => ({
   iteration: parent.date ? iterationOf(parent.date).key : parent.iteration,
 });
 
-/** Domaines de base déjà créés dans Moi (sur cet appareil) */
-const DOMAINES_BASE_KEY = 'mes-taches:domaines-de-base';
 const DEPLIES_KEY = 'mes-taches:deplies';
 /** Statut d'avant « Terminé » (« En cours »), pour décocher sans le perdre ; mémorisé sur l'appareil */
 const STATUT_AVANT_KEY = 'mes-taches:statut-avant';
@@ -201,7 +195,8 @@ export default function App() {
 function Main() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [booting, setBooting] = useState(true);
-  const [showSettings, setShowSettings] = useState(false);
+  // Menu du compte Google (e-mail, déconnexion)
+  const [compteOpen, setCompteOpen] = useState(false);
   /** Données de tous les espaces (chaque élément porte son espace) ; seuls les espaces affichés sont montrés */
   const [tousItems, setItems] = useState<Item[]>([]);
   /** Domaines, objectifs et epics */
@@ -322,7 +317,6 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_SUPPR_SOUS_DOMAINES);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -354,25 +348,66 @@ function Main() {
   /** Connexion de chaque espace : Moi = la connexion principale ; les autres = leur script (même compte Google) */
   const connexions = useCallback(
     (s: Settings) =>
-      espacesRef.current.map((e) => ({
-        id: e.id,
-        settings: e.id === 'moi' ? s : { url: DEMO ? 'demo' : (e.url ?? ''), key: e.key, googleEmail: s.googleEmail },
-      })),
+      espacesRef.current.map((e) => ({ id: e.id, fichier: e.fichier, settings: s })),
     [],
   );
 
   const logout = useCallback(async () => {
     await signOut();
     await clearSettings();
+    // Un autre compte a d'autres Google Sheets : la liste des espaces repart de Moi
+    espacesRef.current = [ESPACE_MOI];
+    setEspacesState([ESPACE_MOI]);
+    await saveEspaces([ESPACE_MOI]);
+    visiblesRef.current = ['moi'];
+    setVisiblesState(['moi']);
+    await saveVisibles(['moi']);
     setItems([]);
     setHier(EMPTY_HIER);
     setSettings(null);
+  }, []);
+
+  /**
+   * Connexion Google : retrouve le Google Sheet de Moi (ou le crée, avec les domaines de base), et ajoute les
+   * espaces trouvés dans le Drive (créés sur un autre appareil), sauf ceux qu'on a retirés.
+   */
+  const preparerEspaces = useCallback(async (s: Settings) => {
+    if (DEMO) return;
+    const fichiers = await api.fichiersEspaces();
+    let liste = espacesRef.current;
+    let change = false;
+    const moi = liste[0];
+    if (!moi.fichier || !fichiers.some((f) => f.id === moi.fichier)) {
+      const trouve = fichiers.find((f) => f.type === 'moi');
+      const fichier = trouve ? trouve.id : await api.creerFichierEspace(nomFichier(NOM_APP, ESPACE_MOI), 'moi', 'Moi');
+      liste = [{ ...moi, fichier }, ...liste.slice(1)];
+      change = true;
+      if (!trouve) {
+        api.definirEspaces(liste.map((e) => ({ id: e.id, fichier: e.fichier })));
+        await api.copierDomaines(s, 'moi', DOMAINES_DE_BASE);
+      }
+    }
+    const retires = await loadRetires();
+    const connus = new Set(liste.map((e) => e.fichier));
+    const nouveaux = fichiers
+      .filter((f) => f.type !== 'moi' && !connus.has(f.id) && !retires.includes(f.id))
+      .map((f): Espace => ({ id: `${f.type}-${f.id}`, type: f.type, nom: f.nomEspace, fichier: f.id }));
+    if (nouveaux.length) {
+      liste = [...liste, ...nouveaux];
+      change = true;
+    }
+    if (change) {
+      espacesRef.current = liste;
+      setEspacesState(liste);
+      await saveEspaces(liste);
+    }
   }, []);
 
   const refresh = useCallback(
     async (s: Settings) => {
       setRefreshing(true);
       try {
+        await preparerEspaces(s);
         // Tous les espaces connus (changer le filtre du haut est alors immédiat)
         api.definirEspaces(connexions(s), visiblesRef.current[0] ?? 'moi');
         const liste = espacesRef.current;
@@ -387,23 +422,13 @@ function Main() {
         const list = [...tousItemsRef.current.filter(garde), ...ok.flatMap((o) => o.d.items)];
         const cat = <K extends keyof Omit<Hier, 'ignorees'>>(k: K) => [...(tousHierRef.current[k] as { espace?: string }[]).filter(garde), ...ok.flatMap((o) => o.d[k] as { espace?: string }[])] as Hier[K];
         const rest: Omit<Hier, 'ignorees'> = { epics: cat('epics'), objectifs: cat('objectifs'), domaines: cat('domaines'), features: cat('features'), objectifsPI: cat('objectifsPI') };
-        const version = Math.min(...ok.map((o) => o.d.version));
-        // Premier lancement : domaines de base dans Moi (une seule fois : ceux qu'on supprime ne reviennent pas)
-        if (!moi.value.domaines.length && moi.value.version >= api.API_VERSION_SOUS_DOMAINES && !(await AsyncStorage.getItem(DOMAINES_BASE_KEY).catch(() => '1'))) {
-          try {
-            rest.domaines = [...rest.domaines, ...(await api.copierDomaines(s, 'moi', DOMAINES_DE_BASE))];
-            AsyncStorage.setItem(DOMAINES_BASE_KEY, '1').catch(() => {});
-          } catch {
-            // On réessaiera au prochain chargement
-          }
-        }
         setItems(list);
         saveCache(list).catch(() => {});
         // Alertes ignorées : dans l'espace Moi
         let ignorees = moi.value.ignorees ?? [];
         // Nettoyage : une alerte ignorée dont la situation n'existe plus est effacée du Google Sheet
         // (si le même problème revient un jour, il sera de nouveau signalé). Seulement sur des données fraîches.
-        if (version >= api.API_VERSION_IGNOREES && ignorees.length && !echecs.length) {
+        if (ignorees.length && !echecs.length) {
           const hvFrais = makeHierarchyValue(rest.epics, rest.objectifs, rest.domaines, list, rest.features, rest.objectifsPI);
           const existantes = signaturesExistantes(hvFrais, toDateString(new Date()), (e) => capaciteDe(capaciteRef.current, e), joursRef.current);
           const perimees = ignorees.filter((i) => !existantes.has(`${i.cle}\u0000${i.signature}`));
@@ -419,12 +444,11 @@ function Main() {
         const all: Hier = { ...rest, ignorees };
         setHier(all);
         saveHierarchyCache(all).catch(() => {});
-        setApiVersion(version);
         setOffline(echecs.length ? `Espace injoignable : ${echecs.map((e) => e.nom).join(', ')}.` : null);
       } catch (e) {
-        if (e instanceof AuthError && s.googleEmail) {
-          // Compte retiré de l'onglet « Utilisateurs » ou session Google terminée.
-          await logout();
+        if (e instanceof AuthError) {
+          // Session Google expirée : un appui sur « Continuer avec … » suffit (les données restent affichées ensuite)
+          setSettings(null);
           setLoginError(e.message);
           return;
         }
@@ -433,7 +457,7 @@ function Main() {
         setRefreshing(false);
       }
     },
-    [logout, connexions],
+    [connexions, preparerEspaces],
   );
 
   useEffect(() => {
@@ -456,7 +480,7 @@ function Main() {
       let s = stored;
       if (GOOGLE_AUTH) {
         const email = await restoreSession();
-        s = email ? { url: API_URL, googleEmail: email } : null;
+        s = email ? { url: '', googleEmail: email } : null;
       }
       if (cache && s) {
         const list = cache.items.map(api.normalize);
@@ -683,10 +707,6 @@ function Main() {
         // Échéance d'un élément répété : on coche / décoche sa période.
         const base = items.find((i) => i.id === item.baseId);
         if (!base) return;
-        if (apiVersion < api.API_VERSION_REPETITION) {
-          setNotice("Mettez à jour le script du Google Sheet pour enregistrer les éléments répétés.");
-          return;
-        }
         const faits = toggleDone(base, item.occurrence);
         setItems((prev) => prev.map((i) => (i.id === base.id ? { ...i, faits } : i)));
         try {
@@ -704,7 +724,7 @@ function Main() {
       }
       changerStatut(item, item.statut === 'termine' ? 'a_faire' : 'termine');
     },
-    [settings, items, apiVersion, changerStatut],
+    [settings, items, changerStatut],
   );
 
   /** Écran Itération : déplacer une carte du Kanban (statut). */
@@ -712,32 +732,6 @@ function Main() {
 
   const save = async (input: ItemInput, sousTaches: string[] = [], opts: { terminerSousTaches?: boolean } = {}) => {
     if (!settings) return;
-    if (input.date_fin && apiVersion < api.API_VERSION_DATE_FIN) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour la date de fin des démarches. Recollez le nouveau Code.gs et déployez une nouvelle version.");
-    }
-    if (input.heure_fin && apiVersion < api.API_VERSION_HEURE_FIN) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour l'heure de fin des rendez-vous. Recollez le nouveau Code.gs et déployez une nouvelle version.");
-    }
-    if ((input.parent || sousTaches.length) && apiVersion < api.API_VERSION_SOUS_TACHES) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour les sous-tâches. Recollez le nouveau Code.gs et déployez une nouvelle version.");
-    }
-    if ((TYPES_V7.includes(input.type) || input.telephone) && apiVersion < api.API_VERSION_TYPES) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour les nouveaux types (appel, démarche, story, exploration, bug). Recollez le nouveau Code.gs et déployez une nouvelle version.");
-    }
-    if ((input.points || input.iteration || input.feature) && apiVersion < api.API_VERSION_SAFE) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour le mode SAFe. Recollez le nouveau Code.gs et déployez une nouvelle version.");
-    }
-    if ((input.objectif || input.domaine) && apiVersion < api.API_VERSION_HIERARCHIE) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour les domaines et objectifs. Recollez le nouveau Code.gs et déployez une nouvelle version.");
-    }
-    if (input.epic && apiVersion < api.API_VERSION_EPICS) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour les epics. Recollez le nouveau Code.gs et déployez une nouvelle version.");
-    }
-    if (input.periodicite && apiVersion < api.API_VERSION_REPETITION) {
-      throw new Error(
-        "le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.",
-      );
-    }
     let next: Item[];
     let saved: Item;
     const ancien = editing ? (items.find((i) => i.id === editing.id) ?? editing) : null;
@@ -781,9 +775,6 @@ function Main() {
   /** Sous-tâche ajoutée depuis la fiche du parent (ou l'Itération) : tout de suite. */
   const addSubtask = async (parent: Item, titre: string) => {
     if (!settings) return;
-    if (apiVersion < api.API_VERSION_SOUS_TACHES) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour les sous-tâches.");
-    }
     const saved = await api.createItem(settings, subtaskInput(parent, titre));
     setItems((prev) => {
       const next = [...prev, saved];
@@ -826,9 +817,6 @@ function Main() {
   /** Tâche mise à jour : remplace l'ancienne dans la liste et le cache. */
   const updateTask = async (patch: Partial<Item> & { id: string }) => {
     if (!settings) return;
-    if (apiVersion < api.API_VERSION_SAFE) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour le mode SAFe.");
-    }
     const ancien = items.find((i) => i.id === patch.id);
     const saved = await api.updateItem(settings, patch);
     setItems((prev) => {
@@ -892,9 +880,6 @@ function Main() {
   /** Saisie rapide dans une feature : tâche créée tout de suite, dans l'itération prévue de la feature. */
   const quickAddTask = async (f: Feature, titre: string) => {
     if (!settings) return;
-    if (apiVersion < api.API_VERSION_SAFE) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour le mode SAFe.");
-    }
     const saved = await api.createItem(settings, {
       ...RECURRENCE_DEFAUTS,
       titre,
@@ -930,27 +915,9 @@ function Main() {
     ignoree: 'ignorees',
   } as const satisfies Record<EntityKind, keyof Hier>;
 
-  const checkScript = (kind?: EntityKind, input?: object) => {
-    const needSafe = kind === 'feature' || kind === 'objectifpi' || (!!input && 'etat' in input);
-    if (kind === 'ignoree' && apiVersion < api.API_VERSION_IGNOREES) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour ignorer des alertes. Recollez le nouveau Code.gs et déployez une nouvelle version.");
-    }
-    if (kind === 'objectifpi' && !!input && !!(input as { epic?: string }).epic && apiVersion < api.API_VERSION_EPIC_PI) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour l'epic des objectifs du PI. Recollez le nouveau Code.gs et déployez une nouvelle version.");
-    }
-    if (kind === 'domaine' && !!input && !!(input as { parent?: string }).parent && apiVersion < api.API_VERSION_SOUS_DOMAINES) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour les sous-domaines. Recollez le nouveau Code.gs et déployez une nouvelle version.");
-    }
-    const needDomPi = kind === 'objectifpi' && !!input && !!(input as { domaine?: string }).domaine;
-    if (apiVersion < (needDomPi ? api.API_VERSION_DOMAINE_PI : needSafe ? api.API_VERSION_SAFE : api.API_VERSION_HIERARCHIE)) {
-      throw new Error("le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.");
-    }
-  };
-
   /** Crée (editing = null) ou met à jour un domaine / objectif / epic. */
   const saveEntity = async <K extends EntityKind>(kind: K, editing: { id: string } | null, input: object) => {
     if (!settings) return;
-    checkScript(kind, input);
     // Création : dans l'espace de son rattachement (objectif, epic, domaine), sinon le premier espace affiché
     if (!editing && !(input as { espace?: string }).espace)
       input = { ...input, espace: espaceLie(input as Partial<Item>) ?? visiblesRef.current[0] ?? 'moi' };
@@ -1052,7 +1019,6 @@ function Main() {
   /** Assistant projet : enregistre le brouillon, puis recharge tout. */
   const applyWizard = async (draft: Parameters<typeof applyDraft>[0], onProgress: (done: number, total: number) => void, espace: string) => {
     if (!settings) return;
-    checkScript(safe.actif ? 'feature' : undefined);
     try {
       const r = await applyDraft(
         draft,
@@ -1089,10 +1055,6 @@ function Main() {
   /** Suppression, avec ou sans ce qui est rattaché ; la liste est rechargée (le script a tout fait). */
   const deleteEntity = async (kind: EntityKind, x: { id: string }, cascade: boolean) => {
     if (!settings) return;
-    checkScript();
-    if (kind === 'domaine' && hier.domaines.some((d) => d.parent === x.id) && apiVersion < api.API_VERSION_SUPPR_SOUS_DOMAINES) {
-      throw new Error("le script du Google Sheet n'est pas à jour pour supprimer un domaine qui a des sous-domaines. Recollez le nouveau Code.gs et déployez une nouvelle version.");
-    }
     const counts = await api.deleteEntity(settings, kind, x.id, cascade);
     setEpicFormOpen(false);
     setObjectifFormOpen(false);
@@ -1185,7 +1147,7 @@ function Main() {
       <LoginScreen
         initialError={loginError}
         onSignedIn={(email) => {
-          const s = { url: API_URL, googleEmail: email };
+          const s = { url: '', googleEmail: email };
           setLoginError(null);
           setSettings(s);
           refresh(s);
@@ -1194,41 +1156,9 @@ function Main() {
     );
   }
 
-  const openAccount = () => {
-    if (!settings?.googleEmail) {
-      setShowSettings(true);
-      return;
-    }
-    Alert.alert('Compte Google', `Connecté avec ${settings.googleEmail}`, [
-      { text: 'Fermer', style: 'cancel' },
-      { text: 'Se déconnecter', style: 'destructive', onPress: logout },
-    ]);
-  };
+  const openAccount = () => setCompteOpen(true);
 
-  if (!settings || showSettings) {
-    return (
-      <SettingsScreen
-        initial={settings}
-        onSaved={async (s) => {
-          await saveSettings(s);
-          setSettings(s);
-          setShowSettings(false);
-          refresh(s);
-        }}
-        onCancel={settings ? () => setShowSettings(false) : undefined}
-        onDisconnect={
-          settings
-            ? async () => {
-                await clearSettings();
-                setItems([]);
-                setSettings(null);
-                setShowSettings(false);
-              }
-            : undefined
-        }
-      />
-    );
-  }
+  if (!settings) return <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />;
 
   const refreshControl = <RefreshControl refreshing={refreshing} onRefresh={() => refresh(settings)} />;
 
@@ -1312,28 +1242,6 @@ function Main() {
         <Pressable style={styles.notice} onPress={() => setNotice(null)} accessibilityLabel="Fermer le message">
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
-      )}
-      {apiVersion < api.API_VERSION_SUPPR_SOUS_DOMAINES && (
-        <View style={styles.offline}>
-          <Text style={styles.offlineText}>
-            Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
-            {apiVersion < api.API_VERSION_EPICS ? 'les epics, ' : ''}
-            {apiVersion < api.API_VERSION_HIERARCHIE ? 'les domaines, les objectifs, ' : ''}
-            {apiVersion < api.API_VERSION_SAFE ? 'les données SAFe (états, features, points, itérations), ' : ''}
-            {apiVersion < api.API_VERSION_DOMAINE_PI ? 'le domaine des objectifs du PI, ' : ''}
-            {apiVersion < api.API_VERSION_TYPES ? 'les nouveaux types (appel, démarche, story, exploration, bug), ' : ''}
-            {apiVersion < api.API_VERSION_SOUS_TACHES ? 'les sous-tâches, ' : ''}
-            {apiVersion < api.API_VERSION_HEURE_FIN ? "l'heure de fin des rendez-vous, " : ''}
-            {apiVersion < api.API_VERSION_IGNOREES ? 'les alertes ignorées, ' : ''}
-            {apiVersion < api.API_VERSION_EPIC_PI ? "l'epic des objectifs du PI, " : ''}
-            {apiVersion < api.API_VERSION_DATE_FIN ? 'la date de fin des démarches, ' : ''}
-            {apiVersion < api.API_VERSION_TERMINE_LE ? 'le jour où une tâche est terminée, ' : ''}
-            {apiVersion < api.API_VERSION_STATUT_AVANT ? "le statut d'avant « Terminé », " : ''}
-            {apiVersion < api.API_VERSION_SOUS_DOMAINES ? 'les sous-domaines, ' : ''}la suppression des sous-domaines avec leur domaine ne seront pas
-            enregistrés.
-            Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
-          </Text>
-        </View>
       )}
       {offline && (
         <Pressable style={styles.offline} onPress={() => refresh(settings)}>
@@ -1674,6 +1582,13 @@ function Main() {
       />
 
       <ChoiceSheet
+        visible={compteOpen}
+        title="Compte Google"
+        message={settings.googleEmail ? `Connecté avec ${settings.googleEmail}. Vos espaces sont des Google Sheets de ce compte.` : undefined}
+        choices={[{ label: 'Se déconnecter', onPress: logout }]}
+        onClose={() => setCompteOpen(false)}
+      />
+      <ChoiceSheet
         visible={typeMenu}
         title="Ajouter"
         choices={(Object.keys(TYPE_LABELS) as ItemType[]).map((t) => ({ label: `${TYPE_ICONS[t]} ${TYPE_LABELS[t]}`, principal: t === 'tache', onPress: () => nouveauDuType(t) }))}
@@ -1810,7 +1725,9 @@ function Main() {
         demo={DEMO}
         onClose={() => setEspacesOpen(false)}
         domainesMoi={tousHier.domaines.filter((d) => (d.espace || 'moi') === 'moi')}
-        onAdd={async (e, domaines) => {
+        onAdd={async (nouveau, domaines) => {
+          // Hors démo : le Google Sheet de l'espace est créé dans le Drive du compte connecté
+          const e = DEMO ? nouveau : { ...nouveau, fichier: await api.creerFichierEspace(nomFichier(NOM_APP, nouveau), nouveau.type, nouveau.nom) };
           const liste = [...espaces, e];
           espacesRef.current = liste;
           setEspacesState(liste);
@@ -1829,6 +1746,8 @@ function Main() {
           if (settings) await refresh(settings);
         }}
         onRemove={(e) => {
+          // Retiré : son Google Sheet n'est plus ajouté automatiquement à la connexion
+          if (e.fichier) loadRetires().then((r) => saveRetires([...r, e.fichier!]));
           const liste = espaces.filter((x) => x.id !== e.id);
           espacesRef.current = liste;
           setEspacesState(liste);

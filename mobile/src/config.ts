@@ -1,14 +1,16 @@
-import { Platform } from 'react-native';
 import { DEMO } from './demo';
 
 /**
- * Réglages fixés à la compilation (fichier mobile/.env, voir .env.example).
- * Quand l'URL du script et l'ID client Google sont renseignés, l'application
- * se connecte avec le compte Google : plus d'URL ni de clé à saisir.
+ * Connexion Google directe (projet Google Cloud « Mes taches ») : l'application lit et écrit elle-même les
+ * Google Sheets des espaces. L'ID client n'est pas secret ; il peut être remplacé à la compilation
+ * (EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID).
  */
-export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
-export const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
+export const GOOGLE_WEB_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '395045425554-bf52efnae8jja0r6st01tk6v0h5mmrhc.apps.googleusercontent.com';
 export const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '';
 
-/** Connexion Google (iPhone / Android uniquement ; la démo web n'en a pas besoin). */
-export const GOOGLE_AUTH = !DEMO && Platform.OS !== 'web' && !!API_URL && !!GOOGLE_WEB_CLIENT_ID;
+/** Accès demandés : seulement les fichiers créés ou ouverts par l'application, et l'adresse e-mail du compte */
+export const GOOGLE_SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/userinfo.email'];
+
+/** Connexion Google (hors démo) */
+export const GOOGLE_AUTH = !DEMO;

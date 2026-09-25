@@ -1,34 +1,32 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ping } from '../api';
-import { signIn, signOut } from '../auth';
-import { API_URL } from '../config';
+import { dernierCompte, signIn } from '../auth';
 import { colors } from '../theme';
 
 interface Props {
   onSignedIn: (email: string) => void;
-  /** Message à afficher en arrivant (ex. session refusée par le script) */
+  /** Message à afficher en arrivant (ex. session expirée) */
   initialError?: string | null;
 }
 
-/** Connexion avec le compte Google ; le script vérifie que le compte est autorisé. */
+/**
+ * Connexion avec le compte Google : l'application lit et écrit ensuite elle-même les Google Sheets de vos
+ * espaces (accès limité aux fichiers qu'elle a créés).
+ */
 export function LoginScreen({ onSignedIn, initialError }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(initialError ?? null);
+  const [compte, setCompte] = useState<string | null>(null);
+  useEffect(() => {
+    dernierCompte().then(setCompte).catch(() => {});
+  }, []);
 
   const login = async () => {
     setBusy(true);
     setError(null);
     try {
       const email = await signIn();
-      if (!email) return; // fenêtre Google fermée
-      try {
-        await ping({ url: API_URL, googleEmail: email });
-      } catch (e) {
-        await signOut();
-        throw e;
-      }
-      onSignedIn(email);
+      if (email) onSignedIn(email);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -42,7 +40,9 @@ export function LoginScreen({ onSignedIn, initialError }: Props) {
         <Text style={styles.logoText}>✓</Text>
       </View>
       <Text style={styles.title}>Mes tâches</Text>
-      <Text style={styles.subtitle}>Tâches, missions et rendez-vous, enregistrés dans votre Google Sheet.</Text>
+      <Text style={styles.subtitle}>
+        Tâches, projets et rendez-vous, enregistrés dans des Google Sheets de votre Google Drive, créés par l'application.
+      </Text>
 
       {error && <Text style={styles.error}>{error}</Text>}
 
@@ -57,7 +57,7 @@ export function LoginScreen({ onSignedIn, initialError }: Props) {
         ) : (
           <>
             <Text style={styles.g}>G</Text>
-            <Text style={styles.buttonText}>Se connecter avec Google</Text>
+            <Text style={styles.buttonText}>{compte ? `Continuer avec ${compte}` : 'Se connecter avec Google'}</Text>
           </>
         )}
       </Pressable>

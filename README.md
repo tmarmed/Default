@@ -1,11 +1,12 @@
 # Mes tâches — application mobile iPhone & Android reliée à Google Sheets
 
 Application pour gérer une liste de **tâches**, **missions** et **rendez-vous**.
-Toutes les données sont lues et enregistrées dans un **Google Sheet** (onglet `Taches`),
-qu'on peut donc aussi consulter et modifier depuis un ordinateur.
+Toutes les données sont lues et enregistrées dans des **Google Sheets** de votre Google Drive (un par espace),
+qu'on peut donc aussi consulter depuis un ordinateur.
 
-- `mobile/` : l'application (Expo / React Native, un seul code pour iOS et Android)
-- `google-apps-script/Code.gs` : la petite API à installer dans le Google Sheet
+- `mobile/` : l'application (Expo / React Native, un seul code pour iOS, Android et le web)
+- Sur cette branche (version SAFe), **plus de script** : l'application se connecte avec le compte Google et lit /
+  écrit elle-même les Google Sheets (connexion Google directe).
 
 ## Fonctionnalités
 
@@ -25,9 +26,8 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 - **Cloisonnement** : chaque élément reste dans l'espace où il est créé, y compris les rendez-vous, appels et
   démarches.
 - **Domaines** : au premier lancement, Moi reçoit les domaines de base 💼 Pro, 🏠 Perso (avec le sous-domaine
-  🩺 Santé), 👪 Famille, 🎨 Loisirs. Un domaine peut avoir des **sous-domaines** (un seul niveau, facultatif, script
-  v15) ; un sous-domaine n'est proposé qu'une fois son domaine choisi (seul, il est choisi d'office). Supprimer un
-  domaine en cascade supprime aussi ses sous-domaines, sinon ils deviennent des domaines principaux (v16). À la
+  🩺 Santé), 👪 Famille, 🎨 Loisirs. Un domaine peut avoir des **sous-domaines** (un seul niveau, facultatif) ; un sous-domaine n'est proposé qu'une fois son domaine choisi (seul, il est choisi d'office). Supprimer un
+  domaine en cascade supprime aussi ses sous-domaines, sinon ils deviennent des domaines principaux. À la
   création d'un espace, on coche ses domaines : ils sont copiés de Moi dans son Google Sheet. Chaque espace garde ses
   domaines : avec plusieurs espaces affichés, ils sont préfixés de leur espace (« 🏢 ACME · 💼 Pro »). Filtrer un
   domaine montre aussi ses sous-domaines.
@@ -48,9 +48,9 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   Backlog → Portefeuille → Roadmap → Équipe → Organisation → Pilotage.
 - **Écrans à venir** (vides pour l'instant) : Stratégie, Backlog, Équipe, Organisation, Pilotage.
 - Toutes les règles de gestion de la version précédente s'appliquent à chaque espace.
-- **À venir** : connexion Google directe (plus de script ni de clé), détection automatique des fichiers par leur
-  nom, création des fichiers et invitation des membres depuis l'application. En attendant, un espace se relie à
-  son Google Sheet par l'adresse de son script et sa clé, comme l'espace Moi.
+- **Connexion Google directe** : l'application crée le Google Sheet de chaque espace dans le Drive du compte
+  connecté et retrouve ceux créés sur un autre appareil (un espace retiré n'est plus ajouté). À venir :
+  invitation des membres d'un espace, ouverture d'un Google Sheet créé par quelqu'un d'autre (fenêtre Google).
 
 #### Décisions et travaux à venir (branche `claude/version-safe`)
 
@@ -70,9 +70,9 @@ Lot 1 (cohérence) — fait :
   calculées espace par espace ; une jauge par espace dans l'Itération et une ligne de charge par espace dans le PI
   quand plusieurs espaces sont affichés.
 
-Lot 2 (connexion Google directe) :
-- Connexion avec le compte Google, l'application lit, écrit et crée elle-même les Google Sheets des espaces ; plus
-  de script Code.gs ni de clé sur cette branche. Projet Google Cloud gratuit, mode production avec accès limité aux
+Lot 2 (connexion Google directe) — fait (web ; application iPhone / Android : identifiants à créer) :
+- Fait : connexion avec le compte Google, l'application lit, écrit et crée elle-même les Google Sheets des espaces ;
+  plus de script Code.gs ni de clé sur cette branche. Projet Google Cloud gratuit, mode production avec accès limité aux
   fichiers créés ou ouverts par l'application (pas de validation Google, pas de reconnexion toutes les semaines) ;
   un fichier existant s'ajoute en le choisissant dans la fenêtre Google.
   État actuel du projet Google Cloud « Mes taches » : API Sheets, Drive et Picker activées, écran d'autorisation
@@ -246,41 +246,33 @@ conception :
 - Tirer vers le bas pour synchroniser avec le Google Sheet
 - Dernière copie gardée sur le téléphone : la liste reste lisible sans réseau
 
-## 1. Préparer le Google Sheet (5 minutes)
+## 1. Connexion Google (rien à installer)
 
-1. Créez (ou ouvrez) un Google Sheet.
-2. Menu **Extensions › Apps Script**. Remplacez le contenu de `Code.gs` par celui de
-   [`google-apps-script/Code.gs`](google-apps-script/Code.gs), puis enregistrez.
-3. Dans la liste des fonctions, choisissez **`installer`** puis **Exécuter**. Acceptez les autorisations.
-   Si l'onglet est vide, 2 exemples sont ajoutés (un rendez-vous et une mission). Un modèle
-   à importer est aussi disponible : [`modele/Taches.xlsx`](modele/Taches.xlsx).
-   Le **journal d'exécution** affiche la **clé d'accès** : copiez-la.
-   L'onglet `Taches` est créé avec les colonnes :
-   `id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone | parent | heure_fin | date_fin | termine_le | statut_avant`
-   et les onglets `Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine | etat`),
-   `Features` (`id | titre | description | epic | pi | iteration | points | couleur | cree_le | modifie_le`),
-   `ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le | domaine | epic`), `Ignorees` (`id | cle | signature | cree_le | modifie_le` : alertes ignorées),
-   `Objectifs` (`id | titre | description | domaine | debut | fin | couleur | cible | actuel | unite | cree_le | modifie_le`)
-   et `Domaines` (`id | nom | icone | couleur | cree_le | modifie_le | parent`, `parent` = domaine au-dessus d'un sous-domaine, v15).
-4. **Déployer › Nouveau déploiement** → type **Application Web** :
-   - *Exécuter en tant que* : **Moi**
-   - *Qui a accès* : **Tout le monde**
-5. Copiez l'**URL de l'application Web** (se termine par `/exec`).
+1. Ouvrez l'application et touchez **« Se connecter avec Google »**, puis autorisez l'accès aux fichiers de
+   l'application (case « Google Drive »).
+2. Au premier lancement, l'application crée dans votre Google Drive le fichier **« Mes tâches | Moi »**, avec ses
+   onglets et les domaines de base. Chaque espace créé ensuite a son propre fichier
+   (« Mes tâches | Équipe | Mobile »…). Sur un autre appareil, ces fichiers sont retrouvés automatiquement.
+3. Accès limité : l'application ne voit **que les fichiers qu'elle a créés** (ou ouverts avec elle). Les Google
+   Sheets de l'ancienne version (avec script) ne sont pas repris automatiquement.
 
-> La clé d'accès protège l'API : sans elle, personne ne peut lire ni écrire dans la feuille,
-> même avec l'URL. Pour la changer, supprimez la propriété `API_KEY`
-> (Paramètres du projet › Propriétés du script) et relancez `installer`.
->
-> Après toute modification de `Code.gs`, faites **Déployer › Gérer les déploiements › Modifier ›
-> Nouvelle version** pour garder la même URL.
+Projet Google Cloud « Mes taches » : API Google Sheets, Drive et Picker activées ; écran d'autorisation avec les accès
+`drive.file`, `openid`, `userinfo.email`, `userinfo.profile` ; ID client « Application Web » pour
+`https://tmarmed.github.io` (intégré à l'application, voir `mobile/src/config.ts`). Tant que l'application Google est
+**en test**, seuls les comptes listés dans « Utilisateurs test » peuvent se connecter.
 
-> **Mise à jour depuis une ancienne version** : recollez `Code.gs`, puis **Déployer › Gérer les déploiements
-> › Modifier › Nouvelle version**. Les nouvelles colonnes (répétition, epic) sont ajoutées automatiquement
-> à la fin de l'onglet `Taches` et l'onglet `Epics` est créé, sans toucher aux données.
+Onglets de chaque fichier (mêmes colonnes que l'ancienne version ; une colonne ajoutée à la main est gardée, une
+colonne manquante est ajoutée à la fin) :
+`Taches` (`id | titre | type | date | heure | lieu | description | priorite | statut | cree_le | modifie_le | periodicite | echeance | debut | fin | faits | epic | objectif | domaine | points | iteration | feature | telephone | parent | heure_fin | date_fin | termine_le | statut_avant`),
+`Epics` (`id | titre | description | debut | fin | couleur | cree_le | modifie_le | objectif | domaine | etat`),
+`Features` (`id | titre | description | epic | pi | iteration | points | couleur | cree_le | modifie_le`),
+`ObjectifsPI` (`id | titre | pi | type | valeur_prevue | valeur_obtenue | cree_le | modifie_le | domaine | epic`),
+`Objectifs` (`id | titre | description | domaine | debut | fin | couleur | cible | actuel | unite | cree_le | modifie_le`),
+`Domaines` (`id | nom | icone | couleur | cree_le | modifie_le | parent`) et `Ignorees` (`id | cle | signature | cree_le | modifie_le`).
 
 Valeurs acceptées dans la feuille si vous saisissez à la main :
 `type` = `tache` / `rendez-vous` / `appel` / `demarche` / `mission` / `story` / `exploration` / `bug` ·
-`telephone` = numéro d'un appel · `parent` = id de la tâche parente (sous-tâche) · `heure_fin` = `HH:MM`, après `heure` (rendez-vous, mission) · `date_fin` = `AAAA-MM-JJ`, date limite d'une démarche · `termine_le`, `statut_avant` = remplis par le script (ne pas saisir) · `priorite` = `basse` / `normale` / `haute` ·
+`telephone` = numéro d'un appel · `parent` = id de la tâche parente (sous-tâche) · `heure_fin` = `HH:MM`, après `heure` (rendez-vous, mission) · `date_fin` = `AAAA-MM-JJ`, date limite d'une démarche · `termine_le`, `statut_avant` = remplis par l'application (ne pas saisir) · `priorite` = `basse` / `normale` / `haute` ·
 `statut` = `a_faire` / `en_cours` / `termine` · `date` = `AAAA-MM-JJ` · `heure` = `HH:MM` ·
 `periodicite` = vide / `hebdomadaire` / `mensuelle` / `trimestrielle` / `annuelle` ·
 `echeance` = semaine `1` (lundi) à `7`, mois `1` à `31`, trimestre `m` ou `m-j`, année `MM` ou `MM-JJ`
@@ -291,12 +283,6 @@ ex. `2026-08;2026-09` (mois), `2026-T3` (trimestre), `2026` (année), `2026-09-2
 `en_cours` / `termine` (vide = déduit des dates ; la fiche n'enregistre un état que s'il a été choisi à la main). Features : `pi` = `2026-T4`. ObjectifsPI : `type` = `engage` /
 `bonus`, valeurs de 0 à 10. Epics : `couleur` = `#RRGGBB`, `fin` vide = epic sans fin.
 Chaque ligne doit avoir un `id` unique : le plus simple est de créer les lignes depuis l'application.
-
-## Connexion avec Google (optionnel)
-
-Pour remplacer l'URL et la clé d'accès par un simple bouton **« Se connecter avec Google »**,
-suivez le guide [`docs/connexion-google.md`](docs/connexion-google.md). Seuls les comptes
-listés dans l'onglet `Utilisateurs` du Google Sheet peuvent se connecter.
 
 ## 2. Lancer l'application
 
@@ -357,4 +343,6 @@ pour les vôtres avant de publier.
 ```bash
 cd mobile
 npx tsc --noEmit
+npm run verif:alertes   # « Ignorer » ne dépend pas de l'affichage
+npm run verif:sheets    # connexion Google directe, avec un faux Google en mémoire
 ```

@@ -43,7 +43,7 @@ jobs:
           EXPO_BASE_URL: /${{ github.event.repository.name }}
       - name: Compiler la version SAFe
         working-directory: safe/mobile
-        run: npm ci && npx tsc --noEmit && npm run verif:alertes && npx expo export --platform web --clear
+        run: npm ci && npx tsc --noEmit && npm run verif:alertes && npm run verif:sheets && npx expo export --platform web --clear
         env:
           EXPO_BASE_URL: /${{ github.event.repository.name }}/safe
       - name: Assembler le site

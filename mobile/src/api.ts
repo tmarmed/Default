@@ -1,6 +1,5 @@
-import { Platform } from 'react-native';
-import { AuthError, getIdToken } from './auth';
 import { DEMO, demoApiFor } from './demo';
+import { creerFichierEspace, fichiersEspaces, magasinSheets } from './gsheets';
 import type { Data, DeletionCounts } from './hierarchy';
 import {
   Domaine,
@@ -17,74 +16,19 @@ import {
   Settings,
 } from './types';
 
-type ApiResponse<T> = ({ ok: true } & T) | { ok: false; error: string; code?: string };
-
-// Apps Script peut mettre plus de 20 s à répondre au premier appel (script « endormi »).
-const TIMEOUT_MS = 60000;
-
-async function send<T>(settings: Settings, body: object): Promise<ApiResponse<T>> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  let res: Response;
-  try {
-    // Tout passe en POST : la preuve de connexion n'apparaît jamais dans l'URL.
-    // Apps Script répond par une redirection vers googleusercontent.com : fetch la suit.
-    res = await fetch(settings.url.trim(), {
-      method: 'POST',
-      // text/plain : format accepté par Apps Script sans requête préalable.
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(body),
-      redirect: 'follow',
-      signal: controller.signal,
-    });
-  } catch {
-    throw new Error(
-      controller.signal.aborted
-        ? "Le Google Sheet n'a pas répondu en 60 secondes. Réessayez ; si ça persiste, ouvrez l'URL du script dans un onglet pour voir son message."
-        : Platform.OS === 'web'
-          ? "Le script n'a pas renvoyé de réponse lisible. Vérifiez le déploiement (Qui a accès : Tout le monde, nouvelle version déployée) et ouvrez l'URL dans un onglet pour voir son message."
-          : 'Pas de connexion au Google Sheet. Vérifiez votre réseau.',
-    );
-  } finally {
-    clearTimeout(timer);
-  }
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    // Page HTML = mauvaise URL ou déploiement non accessible à « Tout le monde ».
-    throw new Error("Réponse inattendue du serveur. Vérifiez l'URL et le déploiement du script.");
-  }
-}
-
-async function post<T>(settings: Settings, body: object): Promise<T> {
-  if (!settings.googleEmail) {
-    const data = await send<T>(settings, { ...body, key: settings.key });
-    if (!data.ok) throw new Error(data.error);
-    return data;
-  }
-  let data = await send<T>(settings, { ...body, idToken: await getIdToken() });
-  if (!data.ok && data.code === 'auth') {
-    // Jeton refusé (souvent expiré) : on le renouvelle et on réessaie une fois.
-    data = await send<T>(settings, { ...body, idToken: await getIdToken(true) });
-  }
-  if (!data.ok) throw data.code === 'auth' ? new AuthError(data.error) : new Error(data.error);
-  return data;
-}
-
 // ---------------------------------------------------------------------------
 // Espaces : chaque espace est un Google Sheet. Chaque élément chargé est marqué de son espace (champ
 // `espace`) et chaque écriture part vers le Sheet de son espace ; une création va vers l'espace indiqué
 // (sinon l'espace par défaut). Pas de lien entre deux espaces.
 // ---------------------------------------------------------------------------
-const configs = new Map<string, Settings>();
+const fichiers = new Map<string, string>();
 const origine = new Map<string, string>();
 let espaceParDefaut = 'moi';
 
-/** Connexions des espaces (Moi = la connexion principale) et espace des nouvelles créations sans espace précisé */
-export function definirEspaces(list: { id: string; settings: Settings }[], parDefaut = 'moi') {
-  configs.clear();
-  for (const e of list) configs.set(e.id, e.settings);
+/** Google Sheet de chaque espace, et espace des nouvelles créations sans espace précisé */
+export function definirEspaces(list: { id: string; fichier?: string }[], parDefaut = 'moi') {
+  fichiers.clear();
+  for (const e of list) if (e.fichier) fichiers.set(e.id, e.fichier);
   espaceParDefaut = parDefaut;
 }
 export function definirEspaceParDefaut(id: string) {
@@ -97,10 +41,16 @@ export function retenirEspaces(list: { id: string; espace?: string }[]) {
 /** Espace d'un élément déjà chargé */
 export const espaceDe = (id: string | undefined) => (id ? origine.get(id) : undefined);
 
-const route = (settings: Settings, espace: string | undefined) => {
+/** Espace d'une opération, et son magasin : démo (sur l'appareil) ou Google Sheet de l'espace */
+const route = (_settings: Settings, espace: string | undefined) => {
   const e = espace || espaceParDefaut;
-  return { e, s: configs.get(e) ?? settings };
+  if (DEMO) return { e, m: demoApiFor(e) };
+  const f = fichiers.get(e);
+  if (!f) throw new Error("Cet espace n'est relié à aucun Google Sheet.");
+  return { e, m: magasinSheets(f) };
 };
+
+export { creerFichierEspace, fichiersEspaces };
 function marquer<T extends { id: string }>(x: T, espace: string): T & { espace: string } {
   origine.set(x.id, espace);
   return { ...x, espace };
@@ -119,46 +69,12 @@ function verifierLiens(espace: string, data: Record<string, unknown>, champs: re
   }
 }
 
-export async function ping(settings: Settings): Promise<void> {
-  if (DEMO) return;
-  await post(settings, { action: 'ping' });
-}
-
-/** Version du script à partir de laquelle la répétition est enregistrée. */
-export const API_VERSION_REPETITION = 2;
-/** Version du script à partir de laquelle les epics sont enregistrées. */
-export const API_VERSION_EPICS = 3;
-
-/** Complète les éléments venant d'un ancien script (sans colonnes de répétition). */
+/** Complète les éléments d'un fichier ancien (sans colonnes de répétition). */
 export function normalize(item: Item): Item {
   return { ...RECURRENCE_DEFAUTS, ...item };
 }
 
-/** Version du script avec domaines, objectifs et suppression en cascade. */
-export const API_VERSION_HIERARCHIE = 4;
-/** Version du script avec features, objectifs du PI, points, itérations et état des epics. */
-export const API_VERSION_SAFE = 5;
-/** Version du script avec le domaine des objectifs du PI. */
-export const API_VERSION_DOMAINE_PI = 6;
-/** Version du script avec les nouveaux types (appel, démarche, story, exploration, bug) et le téléphone. */
-export const API_VERSION_TYPES = 7;
-/** Version du script avec les sous-tâches (colonne parent). */
-export const API_VERSION_SOUS_TACHES = 8;
-/** Version du script avec l'heure de fin des rendez-vous. */
-export const API_VERSION_HEURE_FIN = 9;
-/** Version du script avec les alertes ignorées (onglet Ignorees). */
-export const API_VERSION_IGNOREES = 10;
-/** Version du script avec l'epic des objectifs du PI. */
-export const API_VERSION_EPIC_PI = 11;
-/** Version du script avec la date de fin des démarches. */
-export const API_VERSION_DATE_FIN = 12;
-/** Version du script qui note le jour où une tâche est terminée. */
-export const API_VERSION_TERMINE_LE = 13;
-/** Version du script qui garde le statut d'avant « Terminé ». */
-export const API_VERSION_STATUT_AVANT = 14;
-/** Version du script avec les sous-domaines. */
-export const API_VERSION_SOUS_DOMAINES = 15;
-/** Version du script qui supprime les sous-domaines avec leur domaine (cascade) ou les libère. */
+/** Version des règles des données (les règles sont dans l'application : toujours la dernière) */
 export const API_VERSION_SUPPR_SOUS_DOMAINES = 16;
 
 const normalizeDomaine = (d: Domaine): Domaine => ({ ...d, parent: d.parent ?? '' });
@@ -167,32 +83,18 @@ const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', do
 
 /** Charge un espace (par défaut : Moi) ; chaque élément est marqué de son espace. */
 export async function listItems(settings: Settings, espace = 'moi'): Promise<Data & { version: number }> {
-  const { s } = route(settings, espace);
+  const { m: d } = route(settings, espace);
   const m = <T extends { id: string }>(l: T[]) => l.map((x) => marquer(x, espace));
-  if (DEMO) {
-    const d = demoApiFor(espace);
-    const all = await d.listAll();
-    return {
-      items: m((await d.list()).map(normalize)),
-      epics: m(all.epics),
-      objectifs: m(all.objectifs),
-      domaines: m(all.domaines.map(normalizeDomaine)),
-      features: m(all.features),
-      objectifsPI: m(all.objectifsPI),
-      ignorees: m(all.ignorees ?? []),
-      version: API_VERSION_SUPPR_SOUS_DOMAINES,
-    };
-  }
-  const data = await post<Partial<Data> & { items: Item[]; version?: number }>(s, { action: 'list' });
+  const [items, all] = await Promise.all([d.list(), d.listAll()]);
   return {
-    items: m(data.items.map(normalize)),
-    epics: m((data.epics ?? []).map(normalizeEpic)),
-    objectifs: m(data.objectifs ?? []),
-    domaines: m((data.domaines ?? []).map(normalizeDomaine)),
-    features: m(data.features ?? []),
-    objectifsPI: m((data.objectifsPI ?? []).map((o) => ({ ...o, domaine: o.domaine ?? '', epic: o.epic ?? '' }))),
-    ignorees: m(data.ignorees ?? []),
-    version: data.version ?? 1,
+    items: m(items.map(normalize)),
+    epics: m(all.epics.map(normalizeEpic)),
+    objectifs: m(all.objectifs),
+    domaines: m(all.domaines.map(normalizeDomaine)),
+    features: m(all.features),
+    objectifsPI: m(all.objectifsPI.map((o) => ({ ...o, domaine: o.domaine ?? '', epic: o.epic ?? '' }))),
+    ignorees: m(all.ignorees ?? []),
+    version: API_VERSION_SUPPR_SOUS_DOMAINES,
   };
 }
 
@@ -204,13 +106,12 @@ export async function createEntity<K extends EntityKind>(
   data: Omit<EntityMap[K], 'id' | 'cree_le' | 'modifie_le'>,
 ): Promise<EntityMap[K]> {
   // Les alertes ignorées sont personnelles : toujours dans l'espace Moi
-  const { e, s } = route(
+  const { e, m } = route(
     settings,
     kind === 'ignoree' ? 'moi' : ((data as { espace?: string }).espace ?? espaceDesLiens(data as Record<string, unknown>, LIENS_ENTITE)),
   );
   verifierLiens(e, data as Record<string, unknown>, LIENS_ENTITE);
-  if (DEMO) return marquer(await demoApiFor(e).createEntity(kind, data as never), e) as unknown as EntityMap[K];
-  return marquer((await post<{ entity: EntityMap[K] }>(s, { action: 'createEntity', kind, data })).entity, e);
+  return marquer(await m.createEntity(kind, data as never), e) as unknown as EntityMap[K];
 }
 
 export async function updateEntity<K extends EntityKind>(
@@ -218,10 +119,9 @@ export async function updateEntity<K extends EntityKind>(
   kind: K,
   data: Partial<EntityMap[K]> & { id: string },
 ): Promise<EntityMap[K]> {
-  const { e, s } = route(settings, espaceDe(data.id));
+  const { e, m } = route(settings, espaceDe(data.id));
   verifierLiens(e, data as Record<string, unknown>, LIENS_ENTITE);
-  if (DEMO) return marquer(await demoApiFor(e).updateEntity(kind, data as never), e) as unknown as EntityMap[K];
-  return marquer((await post<{ entity: EntityMap[K] }>(s, { action: 'updateEntity', kind, data })).entity, e);
+  return marquer(await m.updateEntity(kind, data as never), e) as unknown as EntityMap[K];
 }
 
 /**
@@ -247,26 +147,20 @@ export async function copierDomaines(settings: Settings, espace: string, modeles
 
 /** Supprime un domaine / objectif / epic ; `cascade` supprime aussi ce qui est en dessous. */
 export async function deleteEntity(settings: Settings, kind: EntityKind, id: string, cascade: boolean): Promise<DeletionCounts> {
-  const { e, s } = route(settings, espaceDe(id));
-  if (DEMO) return demoApiFor(e).deleteEntity(kind, id, cascade);
-  return (await post<{ counts: DeletionCounts }>(s, { action: 'deleteEntity', kind, id, cascade })).counts;
+  return route(settings, espaceDe(id)).m.deleteEntity(kind, id, cascade);
 }
 
 export async function createItem(settings: Settings, item: ItemInput): Promise<Item> {
-  const { e, s } = route(settings, item.espace || espaceDesLiens(item as unknown as Record<string, unknown>, LIENS_ITEM));
+  const { e, m } = route(settings, item.espace || espaceDesLiens(item as unknown as Record<string, unknown>, LIENS_ITEM));
   verifierLiens(e, item as unknown as Record<string, unknown>, LIENS_ITEM);
-  if (DEMO) return marquer(await demoApiFor(e).create(item), e);
-  return marquer(normalize((await post<{ item: Item }>(s, { action: 'create', item })).item), e);
+  return marquer(normalize(await m.create(item)), e);
 }
 export async function updateItem(settings: Settings, item: Partial<Item> & { id: string }): Promise<Item> {
-  const { e, s } = route(settings, espaceDe(item.id));
+  const { e, m } = route(settings, espaceDe(item.id));
   verifierLiens(e, item as unknown as Record<string, unknown>, LIENS_ITEM);
-  if (DEMO) return marquer(await demoApiFor(e).update(item), e);
-  return marquer(normalize((await post<{ item: Item }>(s, { action: 'update', item })).item), e);
+  return marquer(normalize(await m.update(item)), e);
 }
 /** Supprime une tâche ; ses sous-tâches sont supprimées (cascade) ou deviennent des tâches normales. */
 export async function deleteItem(settings: Settings, id: string, cascade = false): Promise<void> {
-  const { e, s } = route(settings, espaceDe(id));
-  if (DEMO) return demoApiFor(e).remove(id, cascade);
-  await post(s, { action: 'delete', id, cascade });
+  await route(settings, espaceDe(id)).m.remove(id, cascade);
 }

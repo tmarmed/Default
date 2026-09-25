@@ -1,0 +1,129 @@
+/**
+ * Vérification automatique de la connexion Google directe, avec un faux Google (Sheets + Drive) en mémoire :
+ * création du fichier d'un espace, lecture / écriture des onglets, règles du magasin (terminé le, sous-tâches,
+ * suppression en cascade), colonnes inconnues gardées, colonnes manquantes ajoutées.
+ * Lancer : npm run verif:sheets
+ */
+import { creerFichierEspace, fichiersEspaces, magasinSheets, utiliserJeton } from '../src/gsheets';
+
+type Feuille = string[][];
+const fichiers = new Map<string, { titre: string; props: Record<string, string>; feuilles: Map<string, Feuille> }>();
+let appels = 0;
+
+const lettre = (s: string) => [...s].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0);
+function cellule(ref: string) {
+  const m = /^([A-Z]+)(\d+)?$/.exec(ref)!;
+  return { col: lettre(m[1]) - 1, row: m[2] ? +m[2] - 1 : undefined };
+}
+function plage(p: string) {
+  const [nom, suite] = decodeURIComponent(p).split('!');
+  const [a, b] = suite.split(':');
+  return { nom: nom.replace(/^'|'$/g, '').replace(/''/g, "'"), a: cellule(a), b: b ? cellule(b) : undefined };
+}
+
+globalThis.fetch = (async (input: string, init: RequestInit = {}) => {
+  appels++;
+  const url = new URL(input);
+  const corps = init.body ? JSON.parse(init.body as string) : undefined;
+  const rep = (x: unknown, status = 200) => new Response(x === undefined ? '' : JSON.stringify(x), { status });
+  if (url.host === 'www.googleapis.com' && url.pathname === '/drive/v3/files') {
+    return rep({ files: [...fichiers].map(([id, f]) => ({ id, name: f.titre, appProperties: f.props })).filter((f) => f.appProperties.mesTaches === '1') });
+  }
+  const drive = /^\/drive\/v3\/files\/(.+)$/.exec(url.pathname);
+  if (drive) {
+    fichiers.get(drive[1])!.props = corps.appProperties;
+    return rep({ id: drive[1] });
+  }
+  if (url.pathname === '/v4/spreadsheets' && init.method === 'POST') {
+    const id = `f${fichiers.size + 1}`;
+    const feuilles = new Map<string, Feuille>();
+    for (const sh of corps.sheets) feuilles.set(sh.properties.title, [sh.data[0].rowData[0].values.map((v: { userEnteredValue: { stringValue: string } }) => v.userEnteredValue.stringValue)]);
+    fichiers.set(id, { titre: corps.properties.title, props: {}, feuilles });
+    return rep({ spreadsheetId: id });
+  }
+  const m = /^\/v4\/spreadsheets\/([^/:]+)(?::batchUpdate)?(?:\/values(?::batchUpdate|\/([^:]+)(?::clear)?)?)?$/.exec(url.pathname)!;
+  const f = fichiers.get(m[1]);
+  if (!f) return rep({ error: { message: 'introuvable' } }, 404);
+  if (url.pathname.endsWith(':batchUpdate') && !url.pathname.includes('/values')) {
+    for (const r of corps.requests) f.feuilles.set(r.addSheet.properties.title, []);
+    return rep({});
+  }
+  if (url.pathname.endsWith('/values:batchUpdate')) {
+    for (const d of corps.data) {
+      const p = plage(d.range);
+      f.feuilles.set(p.nom, d.values);
+    }
+    return rep({});
+  }
+  if (!m[2]) return rep({ sheets: [...f.feuilles.keys()].map((title) => ({ properties: { title } })) });
+  const p = plage(m[2]);
+  const feuille = f.feuilles.get(p.nom)!;
+  if (url.pathname.endsWith(':clear')) {
+    for (let r = p.a.row!; r <= p.b!.row!; r++) if (feuille[r]) feuille[r] = feuille[r].map(() => '');
+    while (feuille.length && feuille[feuille.length - 1].every((c) => c === '')) feuille.pop();
+    return rep({});
+  }
+  if (init.method === 'PUT') {
+    corps.values.forEach((row: string[], i: number) => {
+      const r = (p.a.row ?? 0) + i;
+      feuille[r] = feuille[r] ?? [];
+      row.forEach((v, j) => (feuille[r][p.a.col + j] = v));
+    });
+    return rep({});
+  }
+  // Lecture : cellules vides en fin de ligne omises, comme Google
+  return rep({ values: feuille.map((row) => { const r = [...row]; while (r.length && (r[r.length - 1] ?? '') === '') r.pop(); return r; }) });
+}) as typeof fetch;
+utiliserJeton(async () => 'jeton');
+
+let erreurs = 0;
+const ok = (cond: unknown, msg: string) => {
+  if (!cond) erreurs++;
+  console.log(`${cond ? '✓' : '✗'} ${msg}`);
+};
+
+(async () => {
+  const id = await creerFichierEspace('Mes tâches | Moi', 'moi', 'Moi');
+  const trouves = await fichiersEspaces();
+  ok(trouves.length === 1 && trouves[0].type === 'moi', 'fichier de Moi créé et retrouvé par ses propriétés');
+  const m = magasinSheets(id);
+
+  const perso = await m.createEntity('domaine', { nom: 'Perso', icone: '🏠', couleur: '#188038', parent: '' });
+  const sante = await m.createEntity('domaine', { nom: 'Santé', icone: '🩺', couleur: '#D93025', parent: perso.id });
+  const base = { lieu: '', description: '', priorite: 'normale', statut: 'a_faire', periodicite: '', echeance: '', debut: '', fin: '', faits: '', epic: '', objectif: '', feature: '', points: '', iteration: '', telephone: '', parent: '', heure: '', heure_fin: '', date_fin: '', date: '' } as const;
+  const dem = await m.create({ ...base, titre: 'Passeport', type: 'demarche', domaine: perso.id });
+  const sous = await m.create({ ...base, titre: 'Photos', type: 'tache', parent: dem.id, domaine: '' });
+  ok(sous.domaine === perso.id, 'sous-tâche : rangement de son parent');
+  const fait = await m.update({ id: sous.id, statut: 'termine' });
+  ok(!!fait.termine_le, '« terminé le » posé');
+  await m.update({ id: dem.id, domaine: sante.id });
+  const relu = (await m.list()).find((t) => t.id === sous.id)!;
+  ok(relu.domaine === sante.id && relu.statut === 'termine' && relu.termine_le === fait.termine_le, 'relu depuis le Sheet : sous-tâche suit son parent, statut gardé');
+
+  // Colonne ajoutée à la main dans le Sheet : gardée
+  const taches = fichiers.get(id)!.feuilles.get('Taches')!;
+  taches[0].push('note_perso');
+  taches[1][taches[0].length - 1] = 'garde-moi';
+  await m.update({ id: sous.id, titre: 'Photos d’identité' });
+  ok(fichiers.get(id)!.feuilles.get('Taches')!.some((r) => r.includes('garde-moi')), 'colonne ajoutée à la main : gardée');
+
+  // Suppression en cascade : Perso et son sous-domaine, avec leur contenu
+  await m.deleteEntity('domaine', perso.id, true);
+  const all = await m.listAll();
+  ok(all.domaines.length === 0 && (await m.list()).length === 0, 'suppression en cascade : domaine, sous-domaine et tâches supprimés');
+  ok(fichiers.get(id)!.feuilles.get('Taches')!.length === 1, 'lignes en trop effacées dans le Sheet');
+
+  // Fichier sans onglet Ignorees (ancien, ou modifié à la main) : onglet ajouté au premier accès
+  const id2 = await creerFichierEspace('Mes tâches | Équipe | Test', 'equipe', 'Test');
+  fichiers.get(id2)!.feuilles.delete('Ignorees');
+  await magasinSheets(id2).createEntity('ignoree', { cle: 'x', signature: 'y' });
+  ok(fichiers.get(id2)!.feuilles.get('Ignorees')?.[0]?.[0] === 'id', 'onglet manquant ajouté avec ses colonnes');
+
+  // Erreur de règle
+  let refus = '';
+  await m.create({ ...base, titre: '', type: 'tache', domaine: '' }).catch((e) => (refus = e.message));
+  ok(refus.includes('titre'), 'titre obligatoire vérifié');
+
+  console.log(`${appels} appels à Google simulés : ${erreurs ? `${erreurs} erreur(s)` : 'OK'}`);
+  process.exit(erreurs ? 1 : 0);
+})();
