@@ -116,6 +116,18 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
   }, [phase, step]);
 
   const map = useMemo(() => mapOf(draft), [draft]);
+  /**
+   * Mode Simple : les features ne sont jamais affichées. Une tâche d'une feature est montrée dans l'epic de cette
+   * feature (affichage seulement : son lien avec la feature est gardé).
+   */
+  const cacheFeat = !safe.actif;
+  const visKey = (key: string | null): string | null => {
+    if (!cacheFeat || !key || levelOfKey(key, map) !== 'feature') return key;
+    const n = map.get(key);
+    if (n) return n.parentKey;
+    const e = h.features.get(key.slice(key.indexOf(':') + 1))?.epic;
+    return e ? keyOf('epic', e) : null;
+  };
   const patch = (key: string, p: Partial<WNode>) => setDraft((d) => d.map((n) => (n.key === key ? { ...n, ...p } : n)));
 
   const add = (level: Level, parentKey: string | null, titre: string) => {
@@ -156,7 +168,7 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
     const allowed = PARENT_LEVELS[n.level];
     const banned = new Set([n.key, ...descendants(n.key, draft).map((x) => x.key)]);
     const inDraft = draft
-      .filter((x) => allowed.includes(x.level) && !banned.has(x.key) && !isGone(x, map))
+      .filter((x) => allowed.includes(x.level) && !banned.has(x.key) && !isGone(x, map) && !(cacheFeat && x.level === 'feature'))
       .map((x) => ({ value: x.key, label: labelOf(x.key) }));
     const outside: { value: string; label: string }[] = [];
     const push = (level: Level, id: string, label: string) => {
@@ -188,19 +200,21 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
             ? ['feature', 'epic']
             : allowed.filter((l) => draft.some((n) => n.level === l)).slice(0, 1)
           : allowed.filter((l) => draft.some((n) => n.level === l)).slice(0, 1);
-      for (const n of draft) if (primary.includes(n.level)) parentSet.add(n.key);
+      for (const n of draft) if (primary.includes(n.level) && !(cacheFeat && n.level === 'feature')) parentSet.add(n.key);
     }
-    for (const n of nodes) if (n.parentKey) parentSet.add(n.parentKey);
+    const pk = (n: WNode) => visKey(n.parentKey);
+    for (const n of nodes) if (pk(n)) parentSet.add(pk(n)!);
     const inDraft = order.filter((n) => parentSet.has(n.key));
     const outside = [...parentSet].filter((k) => !map.has(k));
     const out: { key: string | null; nodes: WNode[] }[] = [
-      ...outside.map((k) => ({ key: k as string | null, nodes: nodes.filter((n) => n.parentKey === k) })),
-      ...inDraft.map((p) => ({ key: p.key as string | null, nodes: nodes.filter((n) => n.parentKey === p.key) })),
+      ...outside.map((k) => ({ key: k as string | null, nodes: nodes.filter((n) => pk(n) === k) })),
+      ...inDraft.map((p) => ({ key: p.key as string | null, nodes: nodes.filter((n) => pk(n) === p.key) })),
     ];
-    const orphans = nodes.filter((n) => !n.parentKey);
+    const orphans = nodes.filter((n) => !pk(n));
     if (orphans.length || !out.length) out.push({ key: null, nodes: orphans });
     return out;
-  }, [phase, level, draft, map]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, level, draft, map, cacheFeat]);
 
   /** Éléments existants proposés comme point d'attache (nouveau projet). */
   const existing = useMemo(() => {
@@ -387,7 +401,9 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
                           draft={draft}
                           safeOn={safe.actif}
                           parentOptions={parentOptions(n)}
-                          onPatch={(p) => patch(n.key, p)}
+                          parentValue={visKey(n.parentKey)}
+                          // Mode Simple : rechoisir l'epic de sa feature garde la tâche dans la feature
+                          onPatch={(p) => patch(n.key, 'parentKey' in p && cacheFeat && p.parentKey === visKey(n.parentKey) ? { ...p, parentKey: n.parentKey } : p)}
                           onRemoveNew={() => setDraft((d) => d.filter((x) => x.key !== n.key).map((x) => (x.parentKey === n.key ? { ...x, parentKey: n.parentKey } : x)))}
                         />
                       ))}
@@ -438,7 +454,11 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
                   </Text>
                 ))}
                 <View style={s.card}>
-                  {treeOrder(draft).map(({ node: n, depth }) => {
+                  {treeOrder(draft)
+                    // Mode Simple : pas de feature (ses tâches sont montrées sous l'epic)
+                    .filter(({ node: n }) => !(cacheFeat && n.level === 'feature'))
+                    .map(({ node: n, depth: d0 }) => {
+                    const depth = cacheFeat && n.parentKey && map.get(n.parentKey)?.level === 'feature' ? d0 - 1 : d0;
                     const gone = isGone(n, map);
                     const c = isChanged(n, map);
                     const tags = n.ctx
@@ -561,11 +581,13 @@ interface RowProps {
   draft: WNode[];
   safeOn: boolean;
   parentOptions: { value: string; label: string }[];
+  /** Rattachement affiché (mode Simple : l'epic à la place de la feature) */
+  parentValue?: string | null;
   onPatch: (p: Partial<WNode>) => void;
   onRemoveNew: () => void;
 }
 
-function NodeRow({ node: n, map, draft, safeOn, parentOptions, onPatch, onRemoveNew }: RowProps) {
+function NodeRow({ node: n, map, draft, safeOn, parentOptions, parentValue, onPatch, onRemoveNew }: RowProps) {
   const [open, setOpen] = useState<'edit' | 'move' | null>(null);
   const gone = isGone(n, map);
   const hasKids = descendants(n.key, draft).length > 0 || (!!n.id && n.level !== 'tache');
@@ -629,7 +651,7 @@ function NodeRow({ node: n, map, draft, safeOn, parentOptions, onPatch, onRemove
           <Text style={s.panelLabel}>Rattacher à (ce qui est dessous suit)</Text>
           <Chips
             options={parentOptions}
-            value={n.parentKey ?? ''}
+            value={(parentValue !== undefined ? parentValue : n.parentKey) ?? ''}
             onChange={(v) => {
               onPatch({ parentKey: v || null });
               setOpen(null);

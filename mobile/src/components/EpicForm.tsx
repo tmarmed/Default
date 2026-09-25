@@ -233,6 +233,12 @@ export function EpicForm({
                 {!form.etat && <Text style={styles.hint}>Déduit des dates tant que vous n'en choisissez pas un.</Text>}
               </>
             )}
+            {/* Mode Simple : état choisi en lecture seule */}
+            {!safe.actif && !!form.etat && (
+              <Text style={styles.hint}>
+                État : {ETATS_EPIC.find((e) => e.value === form.etat)?.label ?? form.etat} — modifiable en mode SAFe.
+              </Text>
+            )}
 
             <Text style={styles.label}>Début</Text>
             <DateField mode="date" value={form.debut} onChange={(v) => set('debut', v)} placeholder="Date de début" />

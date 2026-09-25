@@ -26,9 +26,11 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle, expand
   const h = useHierarchy();
   const safe = useSafe();
   const pts = safe.actif ? pointsOf(item) : 0;
-  const parentFeature = h.features.get(item.feature);
+  // Mode Simple : pas de feature affichée, la tâche d'une feature montre l'epic de cette feature
+  const feat = h.features.get(item.feature);
+  const parentFeature = safe.actif ? feat : undefined;
   // Rattachement le plus précis affiché en étiquette, précédé de l'icône du domaine.
-  const parent = parentFeature ?? h.epics.get(item.epic) ?? h.objectifs.get(item.objectif);
+  const parent = parentFeature ?? h.epics.get(item.epic || feat?.epic || '') ?? h.objectifs.get(item.objectif);
   const parentColor = parentFeature ? (h.epics.get(parentFeature.epic)?.couleur ?? colors.primary) : parent?.couleur;
   const domaine = domaineOf(item, h);
   const late = isOverdue(item);

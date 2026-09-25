@@ -497,6 +497,20 @@ export function TaskForm({
                   ))}
               </>
             )}
+            {/* Mode Simple : planification SAFe en lecture seule (rien n'est caché ni perdu) */}
+            {!safe.actif && (!!form.iteration || !!form.points) && (
+              <Text style={styles.hint}>
+                {[
+                  form.iteration && iterationByKey(form.iteration)
+                    ? `Planifiée en ${iterationByKey(form.iteration)!.code} (${form.iteration.split('-')[1]} ${form.iteration.slice(0, 4)})`
+                    : '',
+                  form.points ? fmtPoints(parseFloat(form.points.replace(',', '.')) || 0, safe.pointsJours) : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}{' '}
+                — modifiable en mode SAFe.
+              </Text>
+            )}
 
             {!form.parent && (
               <LinkPicker

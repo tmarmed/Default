@@ -23,7 +23,10 @@ export function LinkPicker({ levels, value, onChange }: Props) {
   const has = (l: 'feature' | 'epic' | 'objectif' | 'domaine') => levels.includes(l);
   const feature = has('feature') && value.feature ? h.features.get(value.feature) : undefined;
   const inheritedEpic = feature ? epicOf({ feature: feature.id }, h) : undefined;
-  const epic = !feature && value.epic ? h.epics.get(value.epic) : undefined;
+  // Feature non proposée (mode Simple) : la tâche d'une feature est montrée dans l'epic de cette feature,
+  // et rechoisir cette epic garde son lien avec la feature (le lien tâche → epic n'est jamais perdu)
+  const featureCachee = !has('feature') && value.feature ? h.features.get(value.feature) : undefined;
+  const epic = feature ? undefined : value.epic ? h.epics.get(value.epic) : featureCachee?.epic ? h.epics.get(featureCachee.epic) : undefined;
   const objectif = has('objectif') && !feature && !epic && value.objectif ? h.objectifs.get(value.objectif) : undefined;
   const inheritedObj = feature || epic ? objectifOf(value, h) : undefined;
   const inheritedDom = feature || epic || objectif ? domaineOf(value, h) : undefined;
@@ -53,7 +56,13 @@ export function LinkPicker({ levels, value, onChange }: Props) {
           <Chips
             options={[none('Aucune'), ...h.epicList.map((e) => ({ value: e.id, label: e.titre, color: e.couleur }))]}
             value={epic ? epic.id : ''}
-            onChange={(v) => onChange({ feature: '', epic: v, objectif: '', domaine: '' })}
+            onChange={(v) =>
+              onChange(
+                featureCachee && v === featureCachee.epic
+                  ? { feature: featureCachee.id, epic: '', objectif: '', domaine: '' }
+                  : { feature: '', epic: v, objectif: '', domaine: '' },
+              )
+            }
           />
         </>
       )}
