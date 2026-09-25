@@ -1216,6 +1216,8 @@ function Main() {
     <IgnoreContext.Provider value={ignoreValue}>
     <EspacesContext.Provider value={espacesValue}>
     <View style={styles.flex}>
+      {/* Espaces affichés et « ＋ Espace », au-dessus du titre et du mode */}
+      <EspacesBar onChange={setVisibles} onGerer={() => setEspacesOpen(true)} />
       <View style={styles.header}>
         <Text style={styles.title} numberOfLines={1}>
           {TAB_TITLES[tab]}
@@ -1236,7 +1238,6 @@ function Main() {
           </Pressable>
         )}
       </View>
-      <EspacesBar onChange={setVisibles} onGerer={() => setEspacesOpen(true)} />
       {DEMO && (
         <View style={styles.demo}>
           <Pressable
@@ -1825,7 +1826,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 8,
   },
   title: { fontSize: 28, fontWeight: '700', color: colors.text, flexShrink: 1 },
   modeSwitch: { width: 150, marginLeft: 'auto', marginRight: 10 },

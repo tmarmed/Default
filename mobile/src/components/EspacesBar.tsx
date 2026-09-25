@@ -40,8 +40,8 @@ export function EspacesBar({ onChange, onGerer }: { onChange: (visibles: string[
 }
 
 const s = StyleSheet.create({
-  bar: { flexGrow: 0 },
-  row: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8, gap: 6, alignItems: 'center' },
+  bar: { flexGrow: 0, flexShrink: 0 },
+  row: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6, gap: 6, alignItems: 'center' },
   chip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
   chipOn: { backgroundColor: colors.text, borderColor: colors.text },
   chipText: { fontSize: 13, color: colors.text, fontWeight: '600' },

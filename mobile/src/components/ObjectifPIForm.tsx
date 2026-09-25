@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Text } from 'react-native';
 import { domaineOf } from '../hierarchy';
-import { HierarchyContext } from '../hierarchyContext';
+import { HierarchyContext, inDomain } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 import { piLabel, piOf, shiftPi } from '../pi';
 import type { ObjectifPI, ObjectifPIInput } from '../types';
 import { Chips } from './Chips';
+import { DomaineChoix } from './DomaineChoix';
 import { DeleteSection } from './DeleteSection';
 import { Field, FormSheet, formStyles as f, Label } from './FormSheet';
 
@@ -45,7 +46,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
   const set = <K extends keyof ObjectifPIInput>(k: K, v: ObjectifPIInput[K]) => setForm((x) => ({ ...x, [k]: v }));
   const domEpic = (id: string) => domaineOf({ epic: id }, h)?.id ?? '';
   // Epics proposées : celles du domaine choisi (toutes sans domaine), sauf les terminées (garder celle déjà choisie)
-  const epics = h.epicList.filter((e) => (e.id === form.epic || e.etat !== 'termine') && (!form.domaine || domEpic(e.id) === form.domaine));
+  const epics = h.epicList.filter((e) => (e.id === form.epic || e.etat !== 'termine') && (!form.domaine || inDomain(form.domaine, domEpic(e.id), h)));
   const current = piOf(new Date());
   const pis = [-1, 0, 1, 2].map((n) => shiftPi(current, n));
   if (form.pi && !pis.includes(form.pi)) pis.push(form.pi);
@@ -78,22 +79,11 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
       />
       <Label>PI (trimestre)</Label>
       <Chips options={pis.map((p) => ({ value: p, label: piLabel(p) }))} value={form.pi} onChange={(v) => set('pi', v)} compact wrap />
-      {h.domaineList.length > 0 && (
-        <>
-          <Label>Domaine</Label>
-          <Chips
-            options={[
-              { value: '', label: 'Aucun' },
-              ...h.domaineList.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })),
-            ]}
-            value={form.domaine}
-            // Un autre domaine : l'epic choisie n'en fait plus partie
-            onChange={(v) => setForm((x) => ({ ...x, domaine: v, epic: x.epic && v && domEpic(x.epic) !== v ? '' : x.epic }))}
-            compact
-            wrap
-          />
-        </>
-      )}
+      <DomaineChoix
+        value={form.domaine}
+        // Un autre domaine : l'epic choisie n'en fait plus partie
+        onChange={(v) => setForm((x) => ({ ...x, domaine: v, epic: x.epic && v && !inDomain(v, domEpic(x.epic), h) ? '' : x.epic }))}
+      />
       {epics.length > 0 && (
         <>
           <Label>Epic</Label>

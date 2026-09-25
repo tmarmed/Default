@@ -3,6 +3,7 @@ import { domaineOf, epicOf, objectifOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
 import { colors } from '../theme';
 import { Chips } from './Chips';
+import { DomaineChoix } from './DomaineChoix';
 
 type Links = { feature?: string; epic?: string; objectif?: string; domaine?: string };
 
@@ -67,17 +68,10 @@ export function LinkPicker({ levels, value, onChange }: Props) {
         </>
       )}
       {has('domaine') && !feature && !epic && !objectif && h.domaineList.length > 0 && (
-        <>
-          <Text style={styles.label}>Domaine</Text>
-          <Chips
-            options={[
-              none('Aucun'),
-              ...h.domaineList.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })),
-            ]}
-            value={value.domaine && h.domaines.has(value.domaine) ? value.domaine : ''}
-            onChange={(v) => onChange({ feature: '', epic: '', objectif: '', domaine: v })}
-          />
-        </>
+        <DomaineChoix
+          value={value.domaine && h.domaines.has(value.domaine) ? value.domaine : ''}
+          onChange={(v) => onChange({ feature: '', epic: '', objectif: '', domaine: v })}
+        />
       )}
       {(inheritedEpic || inheritedObj || inheritedDom) && (
         <Text style={styles.inherited}>
