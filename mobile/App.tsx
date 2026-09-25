@@ -413,7 +413,23 @@ function Main() {
       if (f.nom !== attendu) await api.renommerFichier(f.id, attendu).catch(() => ratés.push(f.nom));
     }
     if (ratés.length) setNotice(`Fichier${ratés.length > 1 ? 's' : ''} non renommé${ratés.length > 1 ? 's' : ''} selon la règle : ${ratés.join(', ')}. Nouvel essai au prochain démarrage.`);
+    // Nom et type de chaque espace : ceux enregistrés dans son Google Sheet (répare un nom perdu, « ? »)
+    const infos = new Map(fichiers.map((f) => [f.id, f]));
+    const reparee = liste.map((e) => {
+      const f = e.fichier ? infos.get(e.fichier) : undefined;
+      return f && e.id !== 'moi' && (e.nom !== f.nomEspace || e.type !== f.type) ? { ...e, nom: f.nomEspace, type: f.type } : e;
+    });
+    if (reparee.some((e, i) => e !== liste[i])) {
+      liste = reparee;
+      change = true;
+    }
     const retires = await loadRetires();
+    // Espaces retirés : même réparation (rétablis avec leur vrai nom)
+    const retiresOk = retires.map((r) => {
+      const f = r.fichier ? infos.get(r.fichier) : undefined;
+      return f ? { ...r, id: r.nom === '?' ? `${f.type}-${f.id}` : r.id, nom: f.nomEspace, type: f.type } : r;
+    });
+    if (JSON.stringify(retiresOk) !== JSON.stringify(retires)) await saveRetires(retiresOk);
     const connus = new Set(liste.map((e) => e.fichier));
     const nouveaux = fichiers
       .filter((f) => f.type !== 'moi' && !connus.has(f.id) && !retires.some((r) => r.fichier === f.id))
@@ -1247,6 +1263,18 @@ function Main() {
     loadRetires().then(setRetires);
     if (DEMO) loadSupprimes().then(setCorbeilleEsp);
     else {
+      // Nom et type des espaces retirés : lus dans leur Google Sheet ; un fichier disparu n'est plus proposé
+      Promise.all([loadRetires(), api.fichiersEspaces()])
+        .then(([rs, { espaces: fs }]) => {
+          const infos = new Map(fs.map((f) => [f.id, f]));
+          const ok = rs.flatMap((r) => {
+            const f = r.fichier ? infos.get(r.fichier) : undefined;
+            return f ? [{ ...r, id: r.nom === '?' ? `${f.type}-${f.id}` : r.id, nom: f.nomEspace, type: f.type }] : [];
+          });
+          setRetires(ok);
+          saveRetires(ok);
+        })
+        .catch(() => {});
       setCorbeilleEsp(null);
       api
         .fichiersCorbeille()
@@ -1846,7 +1874,6 @@ function Main() {
         nomApp={NOM_APP}
         demo={DEMO}
         onClose={() => setEspacesOpen(false)}
-        domainesMoi={tousHier.domaines.filter((d) => (d.espace || 'moi') === 'moi')}
         onAdd={async (nouveau, domaines) => {
           // Hors démo : le Google Sheet de l'espace est créé dans le Drive du compte connecté
           const e = DEMO ? nouveau : { ...nouveau, fichier: await api.creerFichierEspace(nomFichier(NOM_APP, nouveau), nouveau.type, nouveau.nom) };
@@ -1854,7 +1881,7 @@ function Main() {
           espacesRef.current = liste;
           setEspacesState(liste);
           await saveEspaces(liste);
-          // Domaines choisis : copiés de Moi dans le Google Sheet du nouvel espace
+          // Domaines saisis : créés dans le Google Sheet du nouvel espace (ses propres domaines)
           if (settings && domaines.length) {
             api.definirEspaces(connexions(settings), visiblesRef.current[0] ?? 'moi');
             try {

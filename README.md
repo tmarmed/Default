@@ -32,8 +32,8 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   et 🛠️ Travail), 🏠 Perso (sous-domaine 🩺 Santé), 👪 Famille, 🎨 Loisirs (une fois par liste : un domaine supprimé
   ensuite ne revient pas). Un domaine peut avoir des **sous-domaines** (un seul niveau, facultatif) ; un sous-domaine n'est proposé qu'une fois son domaine choisi (seul, il est choisi d'office). Supprimer un
   domaine en cascade supprime aussi ses sous-domaines, sinon ils deviennent des domaines principaux. À la
-  création d'un espace, on coche ses domaines : ils sont copiés de Moi dans son Google Sheet. Chaque espace garde ses
-  domaines : avec plusieurs espaces affichés, ils sont préfixés de leur espace (« 🏢 ACME · 💼 Pro »). Filtrer un
+  création d'un espace, on saisit rapidement ses domaines (champ « + Domaine », Entrée) : ils sont créés dans son
+  Google Sheet. Chaque espace a ses propres domaines, aucun n'est partagé (deux domaines peuvent avoir le même nom) : avec plusieurs espaces affichés, ils sont préfixés de leur espace (« 🏢 ACME · 💼 Pro »). Filtrer un
   domaine montre aussi ses sous-domaines.
 - **Pas de lien entre deux espaces** (une tâche de Moi ne peut pas être rattachée à une epic d'une entreprise).
 - **Mode Simple / SAFe** : choisi à la volée (en haut), comme avant, pour tous les espaces affichés.

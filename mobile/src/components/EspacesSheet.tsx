@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { type Espace, ICONE_ESPACE, LIBELLE_ESPACE, libelleEspace, nomFichier, type TypeEspace } from '../espaces';
-import { ordreDomaines } from '../hierarchyContext';
 import { colors } from '../theme';
-import type { Domaine, ModeleDomaine } from '../types';
+import { EPIC_COULEURS, type ModeleDomaine } from '../types';
 import { Chips } from './Chips';
 import { Field, FormSheet, formStyles as f, Label } from './FormSheet';
 
@@ -15,9 +14,7 @@ interface Props {
   /** Démo : un nouvel espace est stocké dans le navigateur, sans Google Sheet */
   demo: boolean;
   onClose: () => void;
-  /** Domaines de Moi, proposés au nouvel espace */
-  domainesMoi: Domaine[];
-  /** Nouvel espace, avec les domaines choisis (copiés dans son Google Sheet) */
+  /** Nouvel espace, avec ses domaines saisis (créés dans son Google Sheet ; chaque espace a ses propres domaines) */
   onAdd: (e: Espace, domaines: ModeleDomaine[]) => Promise<void>;
   /** Espaces retirés (Google Sheet gardé) : « Rétablir » */
   retires: Espace[];
@@ -32,8 +29,10 @@ interface Props {
  * retiré ou supprimé. Hors démo, l'application crée le Google Sheet de l'espace dans le Drive du compte connecté.
  * (Retirer / supprimer : appui long sur l'espace, en haut de l'écran.)
  */
-export function EspacesSheet({ visible, espaces, nomApp, demo, domainesMoi, onClose, onAdd, retires, onRetablir, corbeille, onRestaurer }: Props) {
-  const [choisis, setChoisis] = useState<string[]>([]);
+export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, retires, onRetablir, corbeille, onRestaurer }: Props) {
+  // Domaines du nouvel espace, saisis rapidement (propres à l'espace)
+  const [domaines, setDomaines] = useState<string[]>([]);
+  const [saisie, setSaisie] = useState('');
   const [type, setType] = useState<TypeEspace>('equipe');
   const [nom, setNom] = useState('');
   const [busy, setBusy] = useState(false);
@@ -46,28 +45,22 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, domainesMoi, onCl
       setNom('');
       setError(null);
       setEnCours(null);
-      setChoisis([]);
+      setDomaines([]);
+      setSaisie('');
     }
   }, [visible]);
 
-  const liste = ordreDomaines(domainesMoi);
-  const principal = (d: Domaine) => !d.parent || !liste.some((p) => p.id === d.parent);
-  // Un sous-domaine choisi emmène son domaine ; un domaine retiré emmène ses sous-domaines
-  const basculer = (d: Domaine) =>
-    setChoisis((c) =>
-      c.includes(d.id)
-        ? c.filter((x) => x !== d.id && !(principal(d) && liste.some((s2) => s2.id === x && s2.parent === d.id)))
-        : [...c, d.id, ...(principal(d) || c.includes(d.parent) ? [] : [d.parent])],
-    );
+  const ajouterDomaine = () => {
+    const n = saisie.trim();
+    if (n && !domaines.some((d) => d.toLowerCase() === n.toLowerCase())) setDomaines((l) => [...l, n]);
+    setSaisie('');
+  };
   const modeles = (): ModeleDomaine[] =>
-    liste
-      .filter((d) => principal(d) && choisis.includes(d.id))
-      .map((d) => ({
-        nom: d.nom,
-        icone: d.icone,
-        couleur: d.couleur,
-        sous: liste.filter((x) => x.parent === d.id && choisis.includes(x.id)).map((x) => ({ nom: x.nom, icone: x.icone, couleur: x.couleur })),
-      }));
+    [...domaines, ...(saisie.trim() ? [saisie.trim()] : [])].map((nom, i) => ({
+      nom,
+      icone: '🏷️',
+      couleur: EPIC_COULEURS[i % EPIC_COULEURS.length],
+    }));
 
   const retour = async (e: Espace, action: (e: Espace) => Promise<void>) => {
     setEnCours(e.id);
@@ -111,34 +104,28 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, domainesMoi, onCl
       />
       <Field style={f.titleInput} placeholder={type === 'equipe' ? "Nom de l'équipe (ex. Mobile)" : "Nom de l'entreprise (ex. ACME)"} value={nom} onChangeText={setNom} />
       {!!nom.trim() && <Text style={f.hint}>Fichier : « {nomFichier(nomApp, { type, nom })} »</Text>}
-      {liste.length > 0 && (
-        <>
-          <Label>Domaines concernés</Label>
-          <View style={s.doms}>
-            {liste.map((d) => {
-              const on = choisis.includes(d.id);
-              return (
-                <Pressable
-                  key={d.id}
-                  onPress={() => basculer(d)}
-                  style={[s.dom, !principal(d) && s.sous, on && { borderColor: d.couleur, backgroundColor: `${d.couleur}1A` }]}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: on }}
-                >
-                  <Text style={[s.domText, on && s.domOn]}>
-                    {on ? '✓ ' : ''}
-                    {principal(d) ? '' : '↳ '}
-                    {d.icone} {d.nom}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Text style={f.hint}>Les domaines choisis sont copiés dans l'espace ; Moi garde tous les domaines.</Text>
-        </>
+      <Label>Domaines de l'espace (facultatif)</Label>
+      {domaines.length > 0 && (
+        <View style={s.doms}>
+          {domaines.map((d, i) => (
+            <Pressable
+              key={d}
+              onPress={() => setDomaines((l) => l.filter((x) => x !== d))}
+              style={[s.dom, { borderColor: EPIC_COULEURS[i % EPIC_COULEURS.length] }]}
+              accessibilityRole="button"
+              accessibilityLabel={`Enlever le domaine ${d}`}
+            >
+              <Text style={s.domText}>
+                🏷️ {d} ✕
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       )}
+      <Field placeholder="+ Domaine (Entrée pour ajouter)" value={saisie} onChangeText={setSaisie} onSubmitEditing={ajouterDomaine} blurOnSubmit={false} returnKeyType="done" />
+      <Text style={f.hint}>Chaque espace a ses propres domaines. Icône et couleur modifiables ensuite dans la fiche du domaine.</Text>
       {!demo && <Text style={f.hint}>Le Google Sheet de l'espace est créé dans votre Google Drive, avec ce nom.</Text>}
-      {demo && <Text style={f.hint}>Démo : l'espace est créé dans ce navigateur (avec les domaines choisis).</Text>}
+      {demo && <Text style={f.hint}>Démo : l'espace est créé dans ce navigateur.</Text>}
       {(retires.length > 0 || (corbeille?.length ?? 0) > 0 || corbeille === null) && (
         <>
           {retires.length > 0 && <Label>Espaces retirés</Label>}
@@ -183,7 +170,5 @@ const s = StyleSheet.create({
   retour: { color: colors.primary, fontSize: 13, fontWeight: '700' },
   doms: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   dom: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
-  sous: { borderStyle: 'dashed' },
   domText: { fontSize: 14, color: colors.text },
-  domOn: { fontWeight: '600' },
 });
