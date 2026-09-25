@@ -4,6 +4,7 @@ import { alertesEpic, alertesObjectif } from '../alerts';
 import { toDateString } from '../dates';
 import { domaineOf, progressObjectif } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
+import { nomDomaine } from '../nomsEspaces';
 import { formatEpicDates, progress } from '../roadmap';
 import { etatEpic } from '../safe';
 import { colors } from '../theme';
@@ -156,7 +157,7 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
             {repartition.map(({ d, n }) => (
               <View key={d ? d.id : 'none'} style={styles.repRow}>
                 <Text style={styles.repName} numberOfLines={1}>
-                  {d ? `${d.icone} ${d.nom}` : 'Sans domaine'}
+                  {d ? nomDomaine(d, h.domaines) : 'Sans domaine'}
                 </Text>
                 <View style={styles.repTrack}>
                   <View style={[styles.fill, { width: `${(n / enCours.length) * 100}%`, backgroundColor: d?.couleur ?? colors.muted }]} />

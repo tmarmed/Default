@@ -4,8 +4,6 @@ export type ItemType = 'tache' | 'rendez-vous' | 'appel' | 'demarche' | 'mission
 /** Types qui ont une heure de fin (créneau dans l'agenda) */
 export const AVEC_FIN: ItemType[] = ['rendez-vous', 'mission'];
 export const aHeureFin = (type: ItemType) => AVEC_FIN.includes(type);
-/** Types toujours privés : enregistrés dans l'espace Moi, quel que soit l'espace affiché */
-export const TYPES_PRIVES: ItemType[] = ['rendez-vous', 'appel', 'demarche'];
 /** Types sans « En cours » : un rendez-vous a lieu ou pas, un appel est passé ou pas */
 export const sansEnCours = (type: ItemType) => type === 'rendez-vous' || type === 'appel';
 /** Types qui ont une date de fin (date limite) */

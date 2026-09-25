@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fmtDate } from '../alerts';
-import { cleDomaine, filtrerEspace, useHierarchy } from '../hierarchyContext';
+import { filtrerEspace, useHierarchy } from '../hierarchyContext';
+import { nomDomaine } from '../nomsEspaces';
 import { EspaceChoix } from './EspaceChoix';
 import { iterationsOf, piLabel, piOf, shiftPi } from '../pi';
 import { useSafe } from '../safe';
@@ -81,9 +82,8 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
 
   const beginNew = () => {
     setIsNew(true);
-    // Domaine filtré présélectionné (sa version dans l'espace choisi, même nom)
-    const f = preselection?.domaine ? hTous.domaines.get(preselection.domaine) : undefined;
-    const d = f ? h.domaineList.find((x) => cleDomaine(x, hTous) === cleDomaine(f, hTous)) : undefined;
+    // Domaine filtré présélectionné (s'il est dans l'espace choisi)
+    const d = preselection?.domaine ? h.domaines.get(preselection.domaine) : undefined;
     setDraft(d ? [nodeOf('domaine', d as never, true)] : []);
     setSteps(levels);
     setStep(0);
@@ -208,7 +208,11 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
     const inDraft = (l: Level, id: string) => map.has(keyOf(l, id));
     const ds = draft.filter((n) => n.level === 'domaine').map((n) => n.id);
     const os = draft.filter((n) => n.level === 'objectif').map((n) => n.id);
-    if (level === 'domaine') return h.domaineList.filter((d) => !inDraft('domaine', d.id)).map((d) => ({ id: d.id, label: `${d.icone} ${d.nom}` }));
+    // Domaines : les principaux, puis les sous-domaines d'un domaine déjà choisi (même règle que les fiches)
+    if (level === 'domaine')
+      return h.domaineList
+        .filter((d) => !inDraft('domaine', d.id) && (!d.parent || !h.domaines.has(d.parent) || inDraft('domaine', d.parent)))
+        .map((d) => ({ id: d.id, label: nomDomaine(d, h.domaines, { espace: false }) }));
     if (level === 'objectif')
       return h.objectifList
         .filter((o) => !inDraft('objectif', o.id) && (!ds.length || ds.includes(o.domaine)))
@@ -307,7 +311,7 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
                 />
                 {(
                   [
-                    ['domaine', h.domaineList.map((d) => ({ id: d.id, label: `${d.icone} ${d.nom}` }))],
+                    ['domaine', h.domaineList.map((d) => ({ id: d.id, label: nomDomaine(d, h.domaines, { espace: false }) }))],
                     ['objectif', h.objectifList.map((o) => ({ id: o.id, label: o.titre }))],
                     ['epic', h.epicList.map((e) => ({ id: e.id, label: e.titre }))],
                     ...(safe.actif ? ([['feature', h.featureList.map((f) => ({ id: f.id, label: f.titre }))]] as const) : []),

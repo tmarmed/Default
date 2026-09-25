@@ -2,6 +2,7 @@ import { type Alerte, alertesEpic, alertesObjectif, fmtDate } from './alerts';
 import { addDays, addMonths, parseDate, toDateString } from './dates';
 import { domaineOf, progressObjectif, tasksOfEpic } from './hierarchy';
 import { inDomain, makeHierarchyValue } from './hierarchyContext';
+import { nomDomaine } from './nomsEspaces';
 import type { HierarchyValue } from './hierarchyContext';
 import { iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piStart, pointsOf, shiftIteration, shiftPi } from './pi';
 import { occurrencesBetween, recurrenceState } from './recurrence';
@@ -899,14 +900,19 @@ export function checksPortefeuille(h: HierarchyValue, today: string): Check[] {
   for (const d of h.domaineList) {
     // Un domaine créé il y a moins de 2 mois n'est pas « délaissé »
     if ((d.cree_le || '').slice(0, 10) > il60) continue;
+    // Un domaine vit aussi par ses sous-domaines (Perso n'est pas délaissé si Santé est actif)
+    const dansD = (t: Item) => {
+      const x = domaineOf(t, h);
+      return !!x && (x.id === d.id || x.parent === d.id);
+    };
     const vivant = h.items.some(
-      (t) => domaineOf(t, h)?.id === d.id && (t.statut === 'termine' ? (t.termine_le || (t.modifie_le || '').slice(0, 10)) >= il60 : prevue(t)),
+      (t) => dansD(t) && (t.statut === 'termine' ? (t.termine_le || (t.modifie_le || '').slice(0, 10)) >= il60 : prevue(t)),
     );
     if (!vivant)
       out.push({
         key: `domaine:${d.id}`,
         icone: '⚖️',
-        message: `Le domaine ${d.icone} ${d.nom} est délaissé : rien de fait depuis 2 mois et rien de prévu.`,
+        message: `Le domaine ${nomDomaine(d, h.domaines)} est délaissé : rien de fait depuis 2 mois et rien de prévu.`,
         actions: [
           { label: '+ Tâche dans ce domaine', action: { kind: 'new', target: 'task', defaults: { domaine: d.id } }, principal: true },
           { label: '+ Epic dans ce domaine', action: { kind: 'new', target: 'epic', defaults: { domaine: d.id } } },

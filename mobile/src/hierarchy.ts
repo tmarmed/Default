@@ -94,9 +94,12 @@ export interface DeletionCounts {
 export function childrenOf(kind: EntityKind, id: string, d: Data) {
   let objIds = new Set<string>();
   let epicIds = new Set<string>();
+  // Domaine : lui et ses sous-domaines (supprimés avec lui en cascade)
+  const sousIds = new Set(kind === 'domaine' ? d.domaines.filter((x) => x.parent === id).map((x) => x.id) : []);
+  const domIds = new Set([id, ...sousIds]);
   if (kind === 'domaine') {
-    objIds = new Set(d.objectifs.filter((o) => o.domaine === id).map((o) => o.id));
-    epicIds = new Set(d.epics.filter((e) => e.domaine === id || objIds.has(e.objectif)).map((e) => e.id));
+    objIds = new Set(d.objectifs.filter((o) => domIds.has(o.domaine)).map((o) => o.id));
+    epicIds = new Set(d.epics.filter((e) => domIds.has(e.domaine) || objIds.has(e.objectif)).map((e) => e.id));
   } else if (kind === 'objectif') {
     epicIds = new Set(d.epics.filter((e) => e.objectif === id).map((e) => e.id));
   } else if (kind === 'epic') {
@@ -114,13 +117,13 @@ export function childrenOf(kind: EntityKind, id: string, d: Data) {
                 featIds.has(t.feature) ||
                 epicIds.has(t.epic) ||
                 (kind === 'objectif' && t.objectif === id) ||
-                (kind === 'domaine' && (t.domaine === id || objIds.has(t.objectif))),
+                (kind === 'domaine' && (domIds.has(t.domaine) || objIds.has(t.objectif))),
             )
             .map((t) => t.id),
         );
   if (kind === 'epic') epicIds.delete(id);
   if (kind === 'feature') featIds.delete(id);
-  return { objIds, epicIds, featIds, taskIds };
+  return { objIds, epicIds, featIds, taskIds, sousIds };
 }
 
 /**
@@ -131,20 +134,22 @@ export function childrenOf(kind: EntityKind, id: string, d: Data) {
  *   enfants d'un domaine → sans domaine).
  */
 export function planDeletion(kind: EntityKind, id: string, cascade: boolean, d: Data): Data & { counts: DeletionCounts } {
-  const { objIds, epicIds, featIds, taskIds } = childrenOf(kind, id, d);
+  const { objIds, epicIds, featIds, taskIds, sousIds } = childrenOf(kind, id, d);
   const counts = { objectifs: objIds.size, epics: epicIds.size, features: featIds.size, taches: taskIds.size };
   const not = <T extends { id: string }>(k: EntityKind, list: T[]) => list.filter((x) => !(kind === k && x.id === id));
   let items = d.items;
   let epics = not('epic', d.epics);
   let objectifs = not('objectif', d.objectifs);
-  // Les sous-domaines d'un domaine supprimé deviennent des domaines principaux (jamais supprimés avec lui)
-  const domaines = not('domaine', d.domaines).map((x) => (kind === 'domaine' && x.parent === id ? { ...x, parent: '' } : x));
+  // Sous-domaines d'un domaine supprimé : supprimés avec lui en cascade, sinon ils deviennent des domaines principaux
+  const domaines = not('domaine', d.domaines)
+    .filter((x) => !(cascade && sousIds.has(x.id)))
+    .map((x) => (sousIds.has(x.id) ? { ...x, parent: '' } : x));
   let features = not('feature', d.features);
   // Objectifs du PI : jamais supprimés avec un domaine ou une epic, ils perdent le rattachement supprimé
   // (une epic supprimée : ils gardent leur domaine), comme dans le script
   const epicsPerdues = new Set([...(cascade ? epicIds : []), ...(kind === 'epic' ? [id] : [])]);
   const objectifsPI = not('objectifpi', d.objectifsPI).map((o) => {
-    let x = kind === 'domaine' && o.domaine === id ? { ...o, domaine: '' } : o;
+    let x = kind === 'domaine' && (o.domaine === id || (cascade && sousIds.has(o.domaine))) ? { ...o, domaine: '' } : o;
     if (x.epic && epicsPerdues.has(x.epic)) x = { ...x, epic: '' };
     return x;
   });

@@ -34,46 +34,27 @@ export function makeHierarchyValue(
   };
 }
 
-/** Domaines principaux par ordre alphabétique, chacun suivi de ses sous-domaines. */
+/**
+ * Domaines rangés par espace (Moi d'abord), puis domaines principaux par ordre alphabétique, chacun suivi de ses
+ * sous-domaines. Les domaines de deux espaces restent séparés, même s'ils ont le même nom.
+ */
 export function ordreDomaines(domaines: Domaine[]): Domaine[] {
   const ids = new Set(domaines.map((d) => d.id));
-  const tri = (l: Domaine[]) => [...l].sort((a, b) => a.nom.localeCompare(b.nom));
+  const esp = (d: Domaine) => d.espace || 'moi';
+  const tri = (l: Domaine[]) =>
+    [...l].sort((a, b) => (esp(a) === esp(b) ? a.nom.localeCompare(b.nom) : esp(a) === 'moi' ? -1 : esp(b) === 'moi' ? 1 : esp(a).localeCompare(esp(b))));
   const principal = (d: Domaine) => !d.parent || !ids.has(d.parent);
   return tri(domaines.filter(principal)).flatMap((p) => [p, ...tri(domaines.filter((d) => !principal(d) && d.parent === p.id))]);
 }
 
 /**
- * Domaines proposés dans un filtre : un seul par nom quand plusieurs espaces sont affichés
- * (chaque espace a sa copie des domaines ; « Pro » de Moi et « Pro » d'une équipe = le même domaine).
- */
-export function domainesDistincts(h: HierarchyValue): Domaine[] {
-  const vus = new Set<string>();
-  return h.domaineList.filter((d) => {
-    const k = cleDomaine(d, h);
-    if (vus.has(k)) return false;
-    vus.add(k);
-    return true;
-  });
-}
-const nomCle = (s: string) => s.trim().toLowerCase();
-/** Clé d'un domaine d'un espace à l'autre : son nom (et celui de son domaine principal pour un sous-domaine). */
-export function cleDomaine(d: Domaine, h: Pick<HierarchyValue, 'domaines'>): string {
-  const p = d.parent ? h.domaines.get(d.parent) : undefined;
-  return p ? `${nomCle(p.nom)}/${nomCle(d.nom)}` : nomCle(d.nom);
-}
-
-/**
- * Vrai si l'élément de domaine `dom` ('' = sans domaine) passe le filtre : même domaine, un de ses
- * sous-domaines (Perso montre aussi Santé), ou le même domaine d'un autre espace (même nom).
+ * Vrai si l'élément de domaine `dom` ('' = sans domaine) passe le filtre : même domaine, ou un de ses
+ * sous-domaines (Perso montre aussi Santé). Chaque espace a ses domaines : pas de lien entre deux espaces.
  */
 export function inDomain(filter: string, dom: string | undefined, h: Pick<HierarchyValue, 'domaines'>): boolean {
   if (filter === 'tous' || (dom ?? '') === filter) return true;
   const x = dom ? h.domaines.get(dom) : undefined;
-  const f = filter ? h.domaines.get(filter) : undefined;
-  if (!x || !f) return false;
-  const cf = cleDomaine(f, h);
-  const p = x.parent ? h.domaines.get(x.parent) : undefined;
-  return cleDomaine(x, h) === cf || (!!p && cleDomaine(p, h) === cf);
+  return !!x && !!filter && x.parent === filter;
 }
 
 /** Seulement les éléments d'un espace (une fiche ne propose que des rattachements de son propre espace). */

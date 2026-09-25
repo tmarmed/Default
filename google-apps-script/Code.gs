@@ -29,7 +29,7 @@ var HEADERS = [
   'statut_avant'
 ];
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 15;
+var API_VERSION = 16;
 
 /**
  * Niveaux au-dessus des tâches : Domaine > Objectif > Epic > Tâche.
@@ -702,9 +702,13 @@ function planDeletion_(kind, self, cascade, data) {
   var id = self.id;
   var ids = function (list, test) { var m = {}; list.filter(test).forEach(function (x) { m[x.id] = true; }); return m; };
   var objIds = {}, epicIds = {}, featIds = {}, taskIds = {};
+  // v16 : un domaine et ses sous-domaines (supprimés avec lui en cascade, sinon libérés)
+  var sousIds = kind === 'domaine' ? ids(data.domaine, function (d) { return d.parent === id; }) : {};
+  var domIds = copy_(sousIds);
+  domIds[id] = true;
   if (kind === 'domaine') {
-    objIds = ids(data.objectif, function (o) { return o.domaine === id; });
-    epicIds = ids(data.epic, function (e) { return e.domaine === id || objIds[e.objectif]; });
+    objIds = ids(data.objectif, function (o) { return domIds[o.domaine]; });
+    epicIds = ids(data.epic, function (e) { return domIds[e.domaine] || objIds[e.objectif]; });
   } else if (kind === 'objectif') {
     epicIds = ids(data.epic, function (e) { return e.objectif === id; });
   } else if (kind === 'epic') {
@@ -716,7 +720,7 @@ function planDeletion_(kind, self, cascade, data) {
     taskIds = ids(data.tache, function (t) {
       return featIds[t.feature] || epicIds[t.epic] ||
         (kind === 'objectif' && t.objectif === id) ||
-        (kind === 'domaine' && (t.domaine === id || objIds[t.objectif]));
+        (kind === 'domaine' && (domIds[t.domaine] || objIds[t.objectif]));
     });
   }
   if (kind === 'epic') delete epicIds[id];
@@ -732,17 +736,17 @@ function planDeletion_(kind, self, cascade, data) {
   // Les objectifs du PI (historique des engagements) ne sont jamais supprimés avec un domaine : ils perdent leur domaine.
   if (kind === 'domaine') {
     out.objectifpi = out.objectifpi.map(function (o) {
-      if (o.domaine !== id) return o;
+      if (o.domaine !== id && !(cascade && sousIds[o.domaine])) return o;
       var c = copy_(o);
       c.domaine = '';
       return c;
     });
   }
 
-  // Les sous-domaines d'un domaine supprimé deviennent des domaines principaux (jamais supprimés avec lui).
+  // Sous-domaines d'un domaine supprimé : supprimés avec lui en cascade, sinon ils deviennent des domaines principaux.
   if (kind === 'domaine') {
-    out.domaine = out.domaine.map(function (d) {
-      if (d.parent !== id) return d;
+    out.domaine = out.domaine.filter(function (d) { return !(cascade && sousIds[d.id]); }).map(function (d) {
+      if (!sousIds[d.id]) return d;
       var c = copy_(d);
       c.parent = '';
       return c;

@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext } from 'react';
 import { ScrollView, StyleProp, ViewStyle } from 'react-native';
-import { cleDomaine, domainesDistincts, inDomain, useHierarchy } from '../hierarchyContext';
+import { inDomain, useHierarchy } from '../hierarchyContext';
+import { nomDomaine } from '../nomsEspaces';
 import type { Domaine } from '../types';
 import { Chips } from './Chips';
 
@@ -32,27 +33,26 @@ export { inDomain };
 export function useFiltreDomaine() {
   const h = useHierarchy();
   const { value, set } = useDomainFilter();
-  const cle = (d: Domaine) => cleDomaine(d, h);
   const principal = (d: Domaine) => !d.parent || !h.domaines.has(d.parent);
-  const tous = domainesDistincts(h);
-  const principaux = tous.filter(principal);
+  // Un bouton par domaine et par espace (préfixe de l'espace quand plusieurs sont affichés)
+  const principaux = h.domaineList.filter(principal);
   const courant = value && value !== 'tous' ? h.domaines.get(value) : undefined;
   const parent = courant && !principal(courant) ? h.domaines.get(courant.parent) : courant;
-  // Sous-domaines du domaine choisi (dans tous les espaces affichés : même nom de domaine)
-  const sousDe = (p: Domaine) => tous.filter((d) => !principal(d) && cle(h.domaines.get(d.parent)!) === cle(p));
+  const sousDe = (p: Domaine) => h.domaineList.filter((d) => d.parent === p.id);
   const sous = parent ? sousDe(parent) : [];
   const choisir = (v: string) => {
     const p = v && v !== 'tous' ? h.domaines.get(v) : undefined;
     const s2 = p ? sousDe(p) : [];
     set(s2.length === 1 ? s2[0].id : v);
   };
-  const chip = (d: Domaine) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur });
   return {
     vide: !h.domaineList.length,
-    principaux: principaux.map(chip),
-    valeurPrincipale: parent ? (principaux.find((d) => cle(d) === cle(parent))?.id ?? parent.id) : value,
+    principaux: principaux.map((d) => ({ value: d.id, label: nomDomaine(d, h.domaines), color: d.couleur })),
+    valeurPrincipale: parent ? parent.id : value,
     choisir,
-    sous: parent && sous.length ? { tout: { value: parent.id, label: `Tout ${parent.nom}` }, options: sous.map(chip) } : null,
+    sous: parent && sous.length
+      ? { tout: { value: parent.id, label: `Tout ${parent.nom}` }, options: sous.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })) }
+      : null,
     value,
     set,
   };

@@ -19,12 +19,15 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   feature, objectif du PI) a une ligne « Espace » pour un nouvel élément (par défaut : l'espace de son rattachement,
   sinon le premier espace affiché) ; ses choix de rattachement ne montrent que cet espace. L'espace d'un élément
   existant ne change pas.
-- **Rendez-vous, appels et démarches** : toujours privés, enregistrés dans Moi.
+- **Cloisonnement** : chaque élément reste dans l'espace où il est créé, y compris les rendez-vous, appels et
+  démarches.
 - **Domaines** : au premier lancement, Moi reçoit les domaines de base 💼 Pro, 🏠 Perso (avec le sous-domaine
   🩺 Santé), 👪 Famille, 🎨 Loisirs. Un domaine peut avoir des **sous-domaines** (un seul niveau, facultatif, script
-  v15). À la création d'un espace, on coche ses domaines : ils sont copiés de Moi dans son Google Sheet. Avec
-  plusieurs espaces affichés, les domaines de même nom ne font qu'un dans le filtre ; filtrer un domaine montre aussi
-  ses sous-domaines.
+  v15) ; un sous-domaine n'est proposé qu'une fois son domaine choisi (seul, il est choisi d'office). Supprimer un
+  domaine en cascade supprime aussi ses sous-domaines, sinon ils deviennent des domaines principaux (v16). À la
+  création d'un espace, on coche ses domaines : ils sont copiés de Moi dans son Google Sheet. Chaque espace garde ses
+  domaines : avec plusieurs espaces affichés, ils sont préfixés de leur espace (« 🏢 ACME · 💼 Pro »). Filtrer un
+  domaine montre aussi ses sous-domaines.
 - **Pas de lien entre deux espaces** (une tâche de Moi ne peut pas être rattachée à une epic d'une entreprise).
 - **Mode Simple / SAFe** : choisi à la volée (en haut), comme avant, pour tous les espaces affichés.
 - **Onglets par type d'espace et par mode** (5 dans la barre, les autres dans « ⋯ Plus ») :

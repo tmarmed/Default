@@ -57,7 +57,7 @@ import {
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { API_URL, GOOGLE_AUTH } from './src/config';
 import { DEMO, demoApiFor, ESPACES_DEMO } from './src/demo';
-import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, loadEspaces, loadVisibles, onglets, saveEspaces, saveVisibles } from './src/espaces';
+import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, loadVisibles, onglets, saveEspaces, saveVisibles } from './src/espaces';
 import { EspacesBar } from './src/components/EspacesBar';
 import { EspacesSheet } from './src/components/EspacesSheet';
 import { EcranAVenir } from './src/components/EcranAVenir';
@@ -65,7 +65,8 @@ import { ChoiceSheet } from './src/components/ChoiceSheet';
 import { DomaineForm } from './src/components/DomaineForm';
 import { ObjectifForm } from './src/components/ObjectifForm';
 import { domaineOf } from './src/hierarchy';
-import { cleDomaine, HierarchyContext, makeHierarchyValue } from './src/hierarchyContext';
+import { HierarchyContext, makeHierarchyValue } from './src/hierarchyContext';
+import { definirNomsEspaces } from './src/nomsEspaces';
 import { loadSafe, SAFE_DEFAUT, SafeContext, SafeSettings, saveSafe } from './src/safe';
 import {
   clearSettings,
@@ -99,7 +100,6 @@ import {
   Statut,
   TYPE_LABELS,
   TYPE_ICONS,
-  TYPES_PRIVES,
   type ItemType,
   DOMAINES_DE_BASE,
 } from './src/types';
@@ -209,6 +209,8 @@ function Main() {
   /** Espaces connus, et espaces affichés (filtre du haut) */
   const [espaces, setEspacesState] = useState<Espace[]>([ESPACE_MOI]);
   const [visibles, setVisiblesState] = useState<string[]>(['moi']);
+  // Libellés « 🏢 ACME · 💼 Pro » (préfixe d'espace quand plusieurs espaces sont affichés), avant tout calcul d'affichage
+  definirNomsEspaces(Object.fromEntries(espaces.map((e) => [e.id, `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}`])), visibles);
   const espacesRef = useRef(espaces);
   espacesRef.current = espaces;
   const visiblesRef = useRef(visibles);
@@ -320,7 +322,7 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_SOUS_DOMAINES);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_SUPPR_SOUS_DOMAINES);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -863,20 +865,18 @@ function Main() {
     openNewTask({ iteration: key, date: '', ...preselection() });
   };
   /**
-   * Présélection de tout « + » : l'espace (celui du domaine filtré, sinon le premier espace affiché ; Moi si
-   * `moi`) et le domaine filtré (sa version dans cet espace, même nom), s'il y en a un.
+   * Présélection de tout « + » : l'espace (celui du domaine filtré, sinon le premier espace affiché) et le
+   * domaine filtré. Chaque élément reste dans l'espace où on le crée (y compris rendez-vous, appels, démarches).
    */
-  const preselection = (moi = false): { espace: string; domaine?: string } => {
+  const preselection = (): { espace: string; domaine?: string } => {
     const f = domFilter && domFilter !== 'tous' ? hv.domaines.get(domFilter) : undefined;
-    const espace = moi ? 'moi' : (f?.espace ?? visibles[0] ?? 'moi');
-    const dom = f ? hv.domaineList.find((d) => (d.espace || 'moi') === espace && cleDomaine(d, hv) === cleDomaine(f, hv)) : undefined;
-    return { espace, ...(dom ? { domaine: dom.id } : {}) };
+    return { espace: f?.espace || visibles[0] || 'moi', ...(f ? { domaine: f.id } : {}) };
   };
   /**
    * Mes tâches : nouvel élément du type choisi, pré-rempli avec le jour affiché (vues Jour et Mois, par la fiche)
-   * et le domaine filtré (celui de son espace ; rendez-vous, appels et démarches sont dans Moi).
+   * et le domaine filtré.
    */
-  const nouveauDuType = (type: ItemType) => openNewTask({ type, ...preselection(TYPES_PRIVES.includes(type)) });
+  const nouveauDuType = (type: ItemType) => openNewTask({ type, ...preselection() });
   const closeFiches = () => {
     setEpicFormOpen(false);
     setObjectifFormOpen(false);
@@ -1090,6 +1090,9 @@ function Main() {
   const deleteEntity = async (kind: EntityKind, x: { id: string }, cascade: boolean) => {
     if (!settings) return;
     checkScript();
+    if (kind === 'domaine' && hier.domaines.some((d) => d.parent === x.id) && apiVersion < api.API_VERSION_SUPPR_SOUS_DOMAINES) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour supprimer un domaine qui a des sous-domaines. Recollez le nouveau Code.gs et déployez une nouvelle version.");
+    }
     const counts = await api.deleteEntity(settings, kind, x.id, cascade);
     setEpicFormOpen(false);
     setObjectifFormOpen(false);
@@ -1310,7 +1313,7 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_SOUS_DOMAINES && (
+      {apiVersion < api.API_VERSION_SUPPR_SOUS_DOMAINES && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
             Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
@@ -1325,7 +1328,8 @@ function Main() {
             {apiVersion < api.API_VERSION_EPIC_PI ? "l'epic des objectifs du PI, " : ''}
             {apiVersion < api.API_VERSION_DATE_FIN ? 'la date de fin des démarches, ' : ''}
             {apiVersion < api.API_VERSION_TERMINE_LE ? 'le jour où une tâche est terminée, ' : ''}
-            {apiVersion < api.API_VERSION_STATUT_AVANT ? "le statut d'avant « Terminé », " : ''}les sous-domaines ne seront pas
+            {apiVersion < api.API_VERSION_STATUT_AVANT ? "le statut d'avant « Terminé », " : ''}
+            {apiVersion < api.API_VERSION_SOUS_DOMAINES ? 'les sous-domaines, ' : ''}la suppression des sous-domaines avec leur domaine ne seront pas
             enregistrés.
             Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
           </Text>

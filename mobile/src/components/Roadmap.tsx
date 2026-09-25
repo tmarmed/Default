@@ -3,7 +3,8 @@ import { ReactElement, useContext, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Alerte, alertesEpic, alertesObjectif, Alignement } from '../alerts';
 import { progressObjectif } from '../hierarchy';
-import { useHierarchy } from '../hierarchyContext';
+import { ordreDomaines, useHierarchy } from '../hierarchyContext';
+import { nomDomaine } from '../nomsEspaces';
 import { piLabel } from '../pi';
 import { useSafe } from '../safe';
 import { toDateString } from '../dates';
@@ -119,7 +120,8 @@ export function Roadmap({
     const known = new Set(domaines.map((d) => d.id));
     const objKnown = new Set(objectifs.map((o) => o.id));
     const list: { key: string; domaine: Domaine | null; objs: { o: Objectif; epics: Epic[] }[]; loose: Epic[] }[] = [];
-    const doms: (Domaine | null)[] = [...[...domaines].sort((a, b) => a.nom.localeCompare(b.nom)), null];
+    // Par espace, puis domaines principaux suivis de leurs sous-domaines (« Perso › Santé »)
+    const doms: (Domaine | null)[] = [...ordreDomaines(domaines), null];
     for (const d of doms) {
       const inDom = (id: string) => (d ? id === d.id : !known.has(id));
       const objs = objectifs
@@ -231,7 +233,7 @@ export function Roadmap({
                       <Pressable style={styles.groupToggle} onPress={() => toggle(dKey)} accessibilityRole="button" accessibilityState={{ expanded: open }}>
                         <Text style={styles.chevron}>{open ? '▾' : '▸'}</Text>
                         <Text style={[styles.groupTitle, g.domaine && { color: g.domaine.couleur }]} numberOfLines={1}>
-                          {g.domaine ? `${g.domaine.icone} ${g.domaine.nom}` : '📂 Sans domaine'}
+                          {g.domaine ? nomDomaine(g.domaine, hv.domaines) : '📂 Sans domaine'}
                         </Text>
                         <Text style={styles.groupCount}>
                           {g.objs.length ? `${g.objs.length} obj. · ` : ''}

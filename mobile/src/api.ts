@@ -158,6 +158,8 @@ export const API_VERSION_TERMINE_LE = 13;
 export const API_VERSION_STATUT_AVANT = 14;
 /** Version du script avec les sous-domaines. */
 export const API_VERSION_SOUS_DOMAINES = 15;
+/** Version du script qui supprime les sous-domaines avec leur domaine (cascade) ou les libère. */
+export const API_VERSION_SUPPR_SOUS_DOMAINES = 16;
 
 const normalizeDomaine = (d: Domaine): Domaine => ({ ...d, parent: d.parent ?? '' });
 
@@ -178,7 +180,7 @@ export async function listItems(settings: Settings, espace = 'moi'): Promise<Dat
       features: m(all.features),
       objectifsPI: m(all.objectifsPI),
       ignorees: m(all.ignorees ?? []),
-      version: API_VERSION_SOUS_DOMAINES,
+      version: API_VERSION_SUPPR_SOUS_DOMAINES,
     };
   }
   const data = await post<Partial<Data> & { items: Item[]; version?: number }>(s, { action: 'list' });

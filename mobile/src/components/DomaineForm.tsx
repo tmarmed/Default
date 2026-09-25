@@ -43,7 +43,13 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
   const principaux = h.domaineList.filter((d) => !d.parent && d.id !== domaine?.id);
   const objectifs = domaine ? h.objectifList.filter((o) => o.domaine === domaine.id) : [];
   const c = domaine ? childrenOf('domaine', domaine.id, h.data) : null;
-  const children = c && c.objIds.size + c.epicIds.size + c.taskIds.size ? describeCounts({ objectifs: c.objIds.size, epics: c.epicIds.size, taches: c.taskIds.size }) : '';
+  // Sous-domaines : supprimés avec lui (et leur contenu) en cascade, sinon ils deviennent des domaines principaux
+  const nomsSous = sousDomaines.map((d) => `${d.icone} ${d.nom}`).join(', ');
+  const contenu = c && c.objIds.size + c.epicIds.size + c.taskIds.size ? describeCounts({ objectifs: c.objIds.size, epics: c.epicIds.size, taches: c.taskIds.size }) : '';
+  const children = [sousDomaines.length ? `${sousDomaines.length > 1 ? 'les sous-domaines' : 'le sous-domaine'} ${nomsSous}` : '', contenu].filter(Boolean).join(', ');
+  const keepText = sousDomaines.length
+    ? `sans domaine pour ce qui est rangé directement dans ${domaine?.nom} ; ${nomsSous} ${sousDomaines.length > 1 ? 'deviennent des domaines principaux' : 'devient un domaine principal'}, avec son contenu`
+    : 'sans domaine';
 
   const save = async () => {
     if (!form.nom.trim()) return setError('Donnez un nom au domaine.');
@@ -129,7 +135,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
             label="Supprimer le domaine"
             name={domaine.nom}
             children={children}
-            keepText="sans domaine"
+            keepText={keepText}
             disabled={busy}
             onDelete={async (cascade) => {
               setBusy(true);

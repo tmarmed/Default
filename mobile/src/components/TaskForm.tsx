@@ -17,7 +17,6 @@ import { colors, prioriteColors, typeColors } from '../theme';
 import {
   aDateFin,
   sansEnCours,
-  TYPES_PRIVES,
   aHeureFin,
   Item,
   ItemInput,
@@ -159,7 +158,7 @@ export function TaskForm({
   const espace = form.espace || 'moi';
   const h = filtrerEspace(hTous, espace);
   const plusieursEspaces = esp.visibles.length > 1 || espace !== espaceDefaut;
-  /** Changer d'espace : les rattachements de l'ancien espace ne valent plus ; types privés = toujours Moi */
+  /** Changer d'espace : les rattachements de l'ancien espace ne valent plus */
   const choisirEspace = (e: string) =>
     setForm((f) => ({
       ...f,
@@ -169,7 +168,6 @@ export function TaskForm({
       domaine: '',
       feature: '',
       parent: '',
-      type: e !== 'moi' && TYPES_PRIVES.includes(f.type) ? 'tache' : f.type,
     }));
   // Sous-tâches
   const [cascadeDel, setCascadeDel] = useState(false);
@@ -201,15 +199,8 @@ export function TaskForm({
 
   useEffect(() => {
     if (visible) {
-      // (nouvel élément : dans le premier espace affiché, sauf espace imposé ; rendez-vous, appel, démarche : Moi)
-      setForm(
-        item
-          ? toInput(item)
-          : (() => {
-              const f = { ...empty(defaultType, defaultDate, defaultIteration), espace: espaceDefaut, ...defaults };
-              return TYPES_PRIVES.includes(f.type) ? { ...f, espace: 'moi' } : f;
-            })(),
-      );
+      // (nouvel élément : dans le premier espace affiché, sauf espace imposé ; chaque élément reste dans son espace)
+      setForm(item ? toInput(item) : { ...empty(defaultType, defaultDate, defaultIteration), espace: espaceDefaut, ...defaults });
       setError(null);
       setConfirmDelete(false);
       setCascadeDel(false);
@@ -355,9 +346,6 @@ export function TaskForm({
                     wrap
                   />
                 )}
-                {TYPES_PRIVES.includes(form.type) && (
-                  <Text style={styles.hint}>Rendez-vous, appels et démarches sont toujours privés : enregistrés dans Moi.</Text>
-                )}
               </>
             )}
 
@@ -402,15 +390,8 @@ export function TaskForm({
             <Chips
               options={TYPES}
               value={form.type}
-              // Rendez-vous, appel : pas d'« En cours » (il redevient « À faire ») ; types privés : toujours dans Moi
-              onChange={(v) =>
-                setForm((f) => {
-                  const next = { ...f, type: v, statut: sansEnCours(v) && f.statut === 'en_cours' ? 'a_faire' : f.statut };
-                  return TYPES_PRIVES.includes(v) && (f.espace || 'moi') !== 'moi'
-                    ? { ...next, espace: 'moi', epic: '', objectif: '', domaine: '', feature: '', parent: '' }
-                    : next;
-                })
-              }
+              // Rendez-vous, appel : pas d'« En cours » (il redevient « À faire »)
+              onChange={(v) => setForm((f) => ({ ...f, type: v, statut: sansEnCours(v) && f.statut === 'en_cours' ? 'a_faire' : f.statut }))}
               compact
               wrap
             />
