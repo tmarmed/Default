@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as api from './src/api';
-import { Chips } from './src/components/Chips';
 import { EpicForm } from './src/components/EpicForm';
 import { FeatureForm } from './src/components/FeatureForm';
 import { IterationView } from './src/components/IterationView';
@@ -25,7 +24,7 @@ import { TypeFilter, TypeFiltre } from './src/components/TypeFilter';
 import { PIAddSheet } from './src/components/PIAddSheet';
 import { PickerModal } from './src/components/ItemPicker';
 import { inDomain } from './src/components/DomainFilter';
-import { DomainFilterContext, loadDomainFilter, saveDomainFilter } from './src/components/DomainFilter';
+import { DomainesPrincipauxChips, DomainFilterContext, loadDomainFilter, saveDomainFilter, SousDomaineChips } from './src/components/DomainFilter';
 import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
 import { cascadeLinks, parentsLies, pointsCheck, subtaskMap } from './src/subtasks';
@@ -66,7 +65,7 @@ import { ChoiceSheet } from './src/components/ChoiceSheet';
 import { DomaineForm } from './src/components/DomaineForm';
 import { ObjectifForm } from './src/components/ObjectifForm';
 import { domaineOf } from './src/hierarchy';
-import { domainesDistincts, HierarchyContext, makeHierarchyValue } from './src/hierarchyContext';
+import { HierarchyContext, makeHierarchyValue } from './src/hierarchyContext';
 import { loadSafe, SAFE_DEFAUT, SafeContext, SafeSettings, saveSafe } from './src/safe';
 import {
   clearSettings,
@@ -1257,6 +1256,7 @@ function Main() {
           <Segmented options={MODES} value={mode} onChange={setMode} />
           <TypeFilter value={filter} onChange={setFilter} />
           {(domaines.length > 0 || safe.actif) && (
+            <>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
               {safe.actif && (
                 <Pressable
@@ -1268,17 +1268,10 @@ function Main() {
                   <Text style={[styles.itChipText, itFilter && styles.itChipTextOn]}>🏃 Itération en cours</Text>
                 </Pressable>
               )}
-              {domaines.length > 0 && <Chips
-                options={[
-                  { value: 'tous', label: 'Tous domaines' },
-                  ...domainesDistincts(hv).map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })),
-                  { value: '', label: 'Sans domaine' },
-                ]}
-                value={domFilter}
-                onChange={setDomFilter}
-                compact
-              />}
+              {domaines.length > 0 && <DomainesPrincipauxChips />}
             </ScrollView>
+            <SousDomaineChips style={styles.sousDomaines} />
+            </>
           )}
         </View>
       )}
@@ -1853,6 +1846,7 @@ const styles = StyleSheet.create({
   doneToggle: { alignItems: 'center', paddingVertical: 16 },
   doneToggleText: { color: colors.primary, fontSize: 15 },
   spacer: { height: 12 },
+  sousDomaines: { gap: 6 },
   filterLine: { gap: 6, alignItems: 'center' },
   itChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 18, borderWidth: 1, borderColor: colors.primary },
   itChipOn: { backgroundColor: colors.primary },
