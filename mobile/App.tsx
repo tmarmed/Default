@@ -140,7 +140,11 @@ const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches' };
 /** Écrans prévus, encore vides (règles de gestion à définir) */
 const A_VENIR: Tab[] = ['strategie', 'backlog', 'equipe', 'organisation', 'pilotage'];
 /** Nom de l'application : début du nom des fichiers des espaces */
-const NOM_APP = 'Mes tâches';
+/** Nom de l'application (début du nom des Google Sheets : « President | Moi ») ; anciens noms : fichiers renommés */
+const NOM_APP = 'President';
+const ANCIENS_NOMS = ['Mes tâches'];
+/** Domaines de base complétés dans Moi (une fois par fichier et par version de la liste) */
+const DOMAINES_BASE_VERSION = '2';
 
 type Hier = {
   epics: Epic[];
@@ -387,6 +391,11 @@ function Main() {
         await api.copierDomaines(s, 'moi', DOMAINES_DE_BASE);
       }
     }
+    // Nouveau nom de l'application : les fichiers qui portent un ancien nom sont renommés
+    for (const f of fichiers) {
+      const attendu = nomFichier(NOM_APP, f.type === 'moi' ? ESPACE_MOI : { type: f.type, nom: f.nomEspace });
+      if (f.nom !== attendu && ANCIENS_NOMS.some((n) => f.nom.startsWith(n))) await api.renommerFichier(f.id, attendu).catch(() => {});
+    }
     const retires = await loadRetires();
     const connus = new Set(liste.map((e) => e.fichier));
     const nouveaux = fichiers
@@ -422,6 +431,18 @@ function Main() {
         const list = [...tousItemsRef.current.filter(garde), ...ok.flatMap((o) => o.d.items)];
         const cat = <K extends keyof Omit<Hier, 'ignorees'>>(k: K) => [...(tousHierRef.current[k] as { espace?: string }[]).filter(garde), ...ok.flatMap((o) => o.d[k] as { espace?: string }[])] as Hier[K];
         const rest: Omit<Hier, 'ignorees'> = { epics: cat('epics'), objectifs: cat('objectifs'), domaines: cat('domaines'), features: cat('features'), objectifsPI: cat('objectifsPI') };
+        // Domaines de base de Moi (Pro › Projets, Travail ; Perso › Santé ; Famille ; Loisirs) : ceux qui manquent
+        // sont ajoutés au démarrage, une fois par fichier et par version de la liste (un domaine supprimé ensuite ne revient pas)
+        const fichierMoi = espacesRef.current[0]?.fichier;
+        const cleBase = `president:domaines-base-${DOMAINES_BASE_VERSION}:${fichierMoi}`;
+        if (!DEMO && fichierMoi && !(await AsyncStorage.getItem(cleBase).catch(() => '1'))) {
+          try {
+            rest.domaines = [...rest.domaines, ...(await api.copierDomaines(s, 'moi', DOMAINES_DE_BASE, moi.value.domaines))];
+            AsyncStorage.setItem(cleBase, '1').catch(() => {});
+          } catch {
+            // On réessaiera au prochain démarrage
+          }
+        }
         setItems(list);
         saveCache(list).catch(() => {});
         // Alertes ignorées : dans l'espace Moi
@@ -1173,7 +1194,11 @@ function Main() {
     <EspacesContext.Provider value={espacesValue}>
     <View style={styles.flex}>
       {/* Espaces affichés et « ＋ Espace », au-dessus du titre et du mode */}
-      <EspacesBar onChange={setVisibles} onGerer={() => setEspacesOpen(true)} />
+      <EspacesBar
+        onChange={setVisibles}
+        onGerer={() => setEspacesOpen(true)}
+        compte={!DEMO && settings.googleEmail ? { email: settings.googleEmail, onPress: openAccount } : undefined}
+      />
       <View style={styles.header}>
         <Text style={styles.title} numberOfLines={1}>
           {TAB_TITLES[tab]}
@@ -1188,11 +1213,6 @@ function Main() {
             onChange={(v) => updateSafe({ actif: v === 'safe' })}
           />
         </View>
-        {!DEMO && (
-          <Pressable onPress={openAccount} hitSlop={10} accessibilityLabel="Réglages">
-            <Text style={styles.gear}>⚙︎</Text>
-          </Pressable>
-        )}
       </View>
       {DEMO && (
         <View style={styles.demo}>
@@ -1794,8 +1814,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   title: { fontSize: 28, fontWeight: '700', color: colors.text, flexShrink: 1 },
-  modeSwitch: { width: 150, marginLeft: 'auto', marginRight: 10 },
-  gear: { fontSize: 26, color: colors.muted },
+  modeSwitch: { width: 150, marginLeft: 'auto', marginRight: 0 },
   filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   demo: { flexDirection: 'row', justifyContent: 'flex-end', marginHorizontal: 16, marginTop: 6 },
   demoReset: { color: colors.primary, fontSize: 13, fontWeight: '700' },

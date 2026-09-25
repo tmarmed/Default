@@ -39,7 +39,7 @@ export function LoginScreen({ onSignedIn, initialError }: Props) {
       <View style={styles.logo}>
         <Text style={styles.logoText}>✓</Text>
       </View>
-      <Text style={styles.title}>Mes tâches</Text>
+      <Text style={styles.title}>President</Text>
       <Text style={styles.subtitle}>
         Tâches, projets et rendez-vous, enregistrés dans des Google Sheets de votre Google Drive, créés par l'application.
       </Text>

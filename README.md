@@ -1,4 +1,4 @@
-# Mes tâches — application mobile iPhone & Android reliée à Google Sheets
+# President — application mobile iPhone & Android reliée à Google Sheets
 
 Application pour gérer une liste de **tâches**, **missions** et **rendez-vous**.
 Toutes les données sont lues et enregistrées dans des **Google Sheets** de votre Google Drive (un par espace),
@@ -17,7 +17,7 @@ qu'on peut donc aussi consulter depuis un ordinateur.
 
 - **Espaces** : chaque espace est un Google Sheet, d'un type choisi à sa création : 🔒 **Moi** (un seul, jamais
   partagé), 👥 **Équipe** (équipe indépendante), 🏢 **Entreprise** (avec ses équipes). Nom du fichier :
-  `Mes tâches | Moi`, `Mes tâches | Équipe | Mobile`, `Mes tâches | Entreprise | ACME` (séparateur `|`).
+  `President | Moi`, `President | Équipe | Mobile`, `President | Entreprise | ACME` (séparateur `|`).
 - **Filtre en haut** : un ou plusieurs espaces affichés, et « ＋ Espace » pour créer ou retirer un espace. Avec
   plusieurs espaces, chaque tâche porte l'étiquette de son espace. Chaque fiche (tâche, epic, objectif, domaine,
   feature, objectif du PI) a une ligne « Espace » pour un nouvel élément (par défaut : l'espace de son rattachement,
@@ -25,8 +25,9 @@ qu'on peut donc aussi consulter depuis un ordinateur.
   existant ne change pas.
 - **Cloisonnement** : chaque élément reste dans l'espace où il est créé, y compris les rendez-vous, appels et
   démarches.
-- **Domaines** : au premier lancement, Moi reçoit les domaines de base 💼 Pro, 🏠 Perso (avec le sous-domaine
-  🩺 Santé), 👪 Famille, 🎨 Loisirs. Un domaine peut avoir des **sous-domaines** (un seul niveau, facultatif) ; un sous-domaine n'est proposé qu'une fois son domaine choisi (seul, il est choisi d'office). Supprimer un
+- **Domaines** : au démarrage, Moi reçoit les domaines de base qui lui manquent : 💼 Pro (sous-domaines 📁 Projets
+  et 🛠️ Travail), 🏠 Perso (sous-domaine 🩺 Santé), 👪 Famille, 🎨 Loisirs (une fois par liste : un domaine supprimé
+  ensuite ne revient pas). Un domaine peut avoir des **sous-domaines** (un seul niveau, facultatif) ; un sous-domaine n'est proposé qu'une fois son domaine choisi (seul, il est choisi d'office). Supprimer un
   domaine en cascade supprime aussi ses sous-domaines, sinon ils deviennent des domaines principaux. À la
   création d'un espace, on coche ses domaines : ils sont copiés de Moi dans son Google Sheet. Chaque espace garde ses
   domaines : avec plusieurs espaces affichés, ils sont préfixés de leur espace (« 🏢 ACME · 💼 Pro »). Filtrer un
@@ -250,9 +251,9 @@ conception :
 
 1. Ouvrez l'application et touchez **« Se connecter avec Google »**, puis autorisez l'accès aux fichiers de
    l'application (case « Google Drive »).
-2. Au premier lancement, l'application crée dans votre Google Drive le fichier **« Mes tâches | Moi »**, avec ses
+2. Au premier lancement, l'application crée dans votre Google Drive le fichier **« President | Moi »**, avec ses
    onglets et les domaines de base. Chaque espace créé ensuite a son propre fichier
-   (« Mes tâches | Équipe | Mobile »…). Sur un autre appareil, ces fichiers sont retrouvés automatiquement.
+   (« President | Équipe | Mobile »… ; les fichiers de l'ancien nom « Mes tâches » sont renommés). Sur un autre appareil, ces fichiers sont retrouvés automatiquement.
 3. Accès limité : l'application ne voit **que les fichiers qu'elle a créés** (ou ouverts avec elle). Les Google
    Sheets de l'ancienne version (avec script) ne sont pas repris automatiquement.
 

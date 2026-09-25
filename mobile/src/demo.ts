@@ -15,7 +15,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '18';
+const DEMO_DATA_VERSION = '19';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -147,6 +147,8 @@ function sampleEntities(): {
       dom('dpro', 'Pro', '💼', '#1A73E8'),
       dom('dperso', 'Perso', '🏠', '#188038'),
       dom('dsante', 'Santé', '🩺', '#D93025', 'dperso'),
+      dom('dprojets', 'Projets', '📁', '#1967D2', 'dpro'),
+      dom('dtravail', 'Travail', '🛠️', '#0B57D0', 'dpro'),
       dom('dfamille', 'Famille', '👪', '#E37400'),
       dom('dloisirs', 'Loisirs', '🎨', '#8E24AA'),
     ],

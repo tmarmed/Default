@@ -249,7 +249,7 @@ export interface Domaine {
   modifie_le: string;
 }
 
-/** Domaines créés au premier lancement dans l'espace Moi (un seul sous-domaine : Santé sous Perso). */
+/** Domaines de base de l'espace Moi : Santé sous Perso ; Projets et Travail sous Pro. */
 export interface ModeleDomaine {
   nom: string;
   icone: string;
@@ -258,7 +258,15 @@ export interface ModeleDomaine {
   sous?: ModeleDomaine[];
 }
 export const DOMAINES_DE_BASE: ModeleDomaine[] = [
-  { nom: 'Pro', icone: '💼', couleur: '#1A73E8' },
+  {
+    nom: 'Pro',
+    icone: '💼',
+    couleur: '#1A73E8',
+    sous: [
+      { nom: 'Projets', icone: '📁', couleur: '#1967D2' },
+      { nom: 'Travail', icone: '🛠️', couleur: '#0B57D0' },
+    ],
+  },
   { nom: 'Perso', icone: '🏠', couleur: '#188038', sous: [{ nom: 'Santé', icone: '🩺', couleur: '#D93025' }] },
   { nom: 'Famille', icone: '👪', couleur: '#E37400' },
   { nom: 'Loisirs', icone: '🎨', couleur: '#8E24AA' },
@@ -281,7 +289,7 @@ export interface Ignoree {
 export type IgnoreeInput = Omit<Ignoree, 'id' | 'cree_le' | 'modifie_le'>;
 
 /** Icônes proposées pour les domaines. */
-export const DOMAINE_ICONES = ['💼', '🏠', '🩺', '💶', '❤️', '🎓', '🛠️', '🌱', '✈️', '👪', '📦', '⚽', '🎨'];
+export const DOMAINE_ICONES = ['💼', '📁', '🏠', '🩺', '💶', '❤️', '🎓', '🛠️', '🌱', '✈️', '👪', '📦', '⚽', '🎨'];
 
 /** Couleurs proposées pour les epics. */
 export const EPIC_COULEURS = ['#1A73E8', '#8E24AA', '#E37400', '#188038', '#D93025', '#00897B', '#5E35B1', '#C2185B'];

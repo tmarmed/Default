@@ -63,6 +63,11 @@ export async function fichiersEspaces(): Promise<FichierEspace[]> {
     .map((f) => ({ id: f.id, nom: f.name, type: f.appProperties!.type as TypeEspace, nomEspace: f.appProperties?.nom ?? f.name }));
 }
 
+/** Renomme un fichier (ex. nouveau nom de l'application) */
+export async function renommerFichier(id: string, nom: string): Promise<void> {
+  await appel(`${DRIVE}/${id}?fields=id`, { method: 'PATCH', body: JSON.stringify({ name: nom }) });
+}
+
 /** Crée le Google Sheet d'un espace, avec ses onglets et leurs colonnes */
 export async function creerFichierEspace(titre: string, type: TypeEspace, nomEspace: string): Promise<string> {
   const entete = (cols: string[]) => [
