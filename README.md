@@ -49,6 +49,36 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
   nom, création des fichiers et invitation des membres depuis l'application. En attendant, un espace se relie à
   son Google Sheet par l'adresse de son script et sa clé, comme l'espace Moi.
 
+#### Décisions et travaux à venir (branche `claude/version-safe`)
+
+Décisions prises :
+- **Espaces isolés** : chaque élément reste dans l'espace où il est créé (y compris rendez-vous, appels,
+  démarches) ; on ne déplace jamais un élément d'un espace à un autre.
+- **Mode Simple / SAFe** : il ne change que la présentation, jamais les données. En Simple, aucune feature n'est
+  affichée, mais le lien tâche → epic est toujours conservé ; itération, points et état d'epic sont en lecture seule ;
+  les objectifs du PI restent propres au mode SAFe.
+- **Alertes ignorées** : personnelles (enregistrées dans Moi), chacun ignore pour soi.
+
+Lot 1 (cohérence) :
+- **Alertes ignorées** : la « situation » d'une alerte ne dépend que des données, jamais de l'affichage (espaces
+  affichés, préfixe d'espace, unité jours / points, mode) ; calcul « neutre » commun à toutes les alertes, et test
+  automatique de garde.
+- **Capacité d'itération par espace** : une capacité par espace, charge calculée espace par espace (une jauge par
+  espace quand plusieurs sont affichés).
+
+Lot 2 (connexion Google directe) :
+- Connexion avec le compte Google, l'application lit, écrit et crée elle-même les Google Sheets des espaces ; plus
+  de script Code.gs ni de clé sur cette branche. Projet Google Cloud gratuit, mode production avec accès limité aux
+  fichiers créés ou ouverts par l'application (pas de validation Google, pas de reconnexion toutes les semaines) ;
+  un fichier existant s'ajoute en le choisissant dans la fenêtre Google.
+
+Ensuite (nouveaux écrans : Stratégie, Backlog, Équipe, Organisation, Pilotage), à prendre en compte dès leur
+conception :
+- **Calendrier PI / itérations** : commun à tous les espaces pour l'instant ; à décider avec l'écran Équipe.
+- **Entreprise et ses équipes** : à concevoir avec l'écran Organisation.
+- **Qui voit quoi dans un espace partagé** (rôles, « casquettes ») : à ne pas oublier ; en attendant, tout le
+  contenu d'un espace est visible par ceux qui partagent son Google Sheet.
+
 - **8 types**, les mêmes en mode Simple et SAFe : ✓ Tâche, 📅 Rendez-vous et 🚩 Mission avec **heure de fin** (proposée 1 h
   après le début, et durée affichée), 📞 Appel (numéro + bouton
   **Appeler** dans la fiche et dans la liste), 🗂️ Démarche administrative (avec **date de fin** facultative =
