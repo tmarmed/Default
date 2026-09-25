@@ -12,8 +12,8 @@ qu'on peut donc aussi consulter depuis un ordinateur.
 
 ### Version SAFe (branche `claude/version-safe`) : espaces
 
-**En ligne : <https://tmarmed.github.io/Default/safe/>** (publiée automatiquement avec la version simple, qui reste à
-<https://tmarmed.github.io/Default/>).
+**En ligne : <https://tmarmed.github.io/Default/safe/>**, publiée automatiquement à chaque modification (seule version
+publiée ; <https://tmarmed.github.io/Default/> y renvoie).
 
 - **Espaces** : chaque espace est un Google Sheet, d'un type choisi à sa création : 🔒 **Moi** (un seul, jamais
   partagé), 👥 **Équipe** (équipe indépendante), 🏢 **Entreprise** (avec ses équipes). Nom du fichier :
