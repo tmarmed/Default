@@ -1224,9 +1224,6 @@ function Main() {
       <EspacesBar onChange={setVisibles} onGerer={() => setEspacesOpen(true)} />
       {DEMO && (
         <View style={styles.demo}>
-          <Text style={styles.demoText}>
-            Démo : données d'exemple, gardées dans ce navigateur, sans lien avec Google Sheets.
-          </Text>
           <Pressable
             onPress={async () => {
               // Tous les espaces de la démo reviennent aux exemples
@@ -1807,17 +1804,7 @@ const styles = StyleSheet.create({
   modeSwitch: { width: 150, marginLeft: 'auto', marginRight: 10 },
   gear: { fontSize: 26, color: colors.muted },
   filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
-  demo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginHorizontal: 16,
-    marginTop: 8,
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: '#E8F0FE',
-  },
-  demoText: { flex: 1, color: '#174EA6', fontSize: 12.5, lineHeight: 17 },
+  demo: { flexDirection: 'row', justifyContent: 'flex-end', marginHorizontal: 16, marginTop: 6 },
   demoReset: { color: colors.primary, fontSize: 13, fontWeight: '700' },
   info: { marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, backgroundColor: '#E8F0FE' },
   infoText: { color: '#174EA6', fontSize: 13, lineHeight: 18 },
