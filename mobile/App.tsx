@@ -57,7 +57,11 @@ import {
 } from './src/dates';
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { API_URL, GOOGLE_AUTH } from './src/config';
-import { DEMO, demoApi } from './src/demo';
+import { DEMO, demoApiFor, ESPACES_DEMO } from './src/demo';
+import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, loadEspaces, loadVisibles, onglets, saveEspaces, saveVisibles } from './src/espaces';
+import { EspacesBar } from './src/components/EspacesBar';
+import { EspacesSheet } from './src/components/EspacesSheet';
+import { EcranAVenir } from './src/components/EcranAVenir';
 import { ChoiceSheet } from './src/components/ChoiceSheet';
 import { DomaineForm } from './src/components/DomaineForm';
 import { ObjectifForm } from './src/components/ObjectifForm';
@@ -107,26 +111,37 @@ const MODES: { value: Mode; label: string }[] = [
   { value: 'mois', label: 'Mois' },
 ];
 
-type Tab = 'taches' | 'iteration' | 'pi' | 'roadmap' | 'portefeuille';
+/** Onglets : ceux des espaces affichés, selon leur type et le mode (voir src/espaces.ts) */
+type Tab = Ecran;
 const TAB_TITLES: Record<Tab, string> = {
   taches: 'Mes tâches',
   iteration: 'Itération',
   pi: 'PI',
   roadmap: 'Roadmap',
   portefeuille: 'Portefeuille',
+  strategie: 'Stratégie',
+  backlog: 'Backlog',
+  equipe: 'Équipe',
+  organisation: 'Organisation',
+  pilotage: 'Pilotage',
 };
-const SIMPLE_TABS = [
-  ['taches', '✓', 'Tâches'],
-  ['roadmap', '▤', 'Roadmap'],
-] as const;
-/** Mode SAFe : de l'exécution à la stratégie */
-const SAFE_TABS = [
-  ['taches', '✓', 'Tâches'],
-  ['iteration', '🏃', 'Itération'],
-  ['pi', '🗓️', 'PI'],
-  ['roadmap', '▤', 'Roadmap'],
-  ['portefeuille', '🧭', 'Portefeuille'],
-] as const;
+const TAB_ICONS: Record<Tab, string> = {
+  taches: '✓',
+  iteration: '🏃',
+  pi: '🗓️',
+  roadmap: '▤',
+  portefeuille: '🧭',
+  strategie: '🎯',
+  backlog: '🌳',
+  equipe: '👥',
+  organisation: '🏛️',
+  pilotage: '📊',
+};
+const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches' };
+/** Écrans prévus, encore vides (règles de gestion à définir) */
+const A_VENIR: Tab[] = ['strategie', 'backlog', 'equipe', 'organisation', 'pilotage'];
+/** Nom de l'application : début du nom des fichiers des espaces */
+const NOM_APP = 'Mes tâches';
 
 type Hier = {
   epics: Epic[];
@@ -150,6 +165,7 @@ const subtaskInput = (parent: Item, titre: string): ItemInput => ({
   priorite: 'normale',
   statut: 'a_faire',
   parent: parent.id,
+  espace: parent.espace,
   feature: parent.feature,
   epic: parent.epic,
   objectif: parent.objectif,
@@ -181,9 +197,32 @@ function Main() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [booting, setBooting] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
-  const [items, setItems] = useState<Item[]>([]);
+  /** Données de tous les espaces (chaque élément porte son espace) ; seuls les espaces affichés sont montrés */
+  const [tousItems, setItems] = useState<Item[]>([]);
   /** Domaines, objectifs et epics */
-  const [hier, setHier] = useState<Hier>(EMPTY_HIER);
+  const [tousHier, setHier] = useState<Hier>(EMPTY_HIER);
+  /** Espaces connus, et espaces affichés (filtre du haut) */
+  const [espaces, setEspacesState] = useState<Espace[]>([ESPACE_MOI]);
+  const [visibles, setVisiblesState] = useState<string[]>(['moi']);
+  const espacesRef = useRef(espaces);
+  espacesRef.current = espaces;
+  const visiblesRef = useRef(visibles);
+  visiblesRef.current = visibles;
+  const [espacesOpen, setEspacesOpen] = useState(false);
+  const dansVisibles = useCallback((x: { espace?: string }) => visibles.includes(x.espace || 'moi'), [visibles]);
+  const items = useMemo(() => tousItems.filter(dansVisibles), [tousItems, dansVisibles]);
+  const hier = useMemo<Hier>(
+    () => ({
+      epics: tousHier.epics.filter(dansVisibles),
+      objectifs: tousHier.objectifs.filter(dansVisibles),
+      domaines: tousHier.domaines.filter(dansVisibles),
+      features: tousHier.features.filter(dansVisibles),
+      objectifsPI: tousHier.objectifsPI.filter(dansVisibles),
+      // Les alertes ignorées sont personnelles (espace Moi) : toujours toutes
+      ignorees: tousHier.ignorees,
+    }),
+    [tousHier, dansVisibles],
+  );
   const { epics, objectifs, domaines, features, objectifsPI } = hier;
   const hv = useMemo(
     () => makeHierarchyValue(epics, objectifs, domaines, items, features, objectifsPI),
@@ -206,9 +245,21 @@ function Main() {
       return next;
     });
   };
-  const updateHier = useCallback((next: typeof hier) => {
-    setHier(next);
-    saveHierarchyCache(next).catch(() => {});
+  /** Remplace les données des espaces affichés (les autres espaces restent tels quels) */
+  const updateHier = useCallback((next: Hier) => {
+    setHier((prev) => {
+      const garde = (x: { espace?: string }) => !visiblesRef.current.includes(x.espace || 'moi');
+      const all: Hier = {
+        epics: [...prev.epics.filter(garde), ...next.epics],
+        objectifs: [...prev.objectifs.filter(garde), ...next.objectifs],
+        domaines: [...prev.domaines.filter(garde), ...next.domaines],
+        features: [...prev.features.filter(garde), ...next.features],
+        objectifsPI: [...prev.objectifsPI.filter(garde), ...next.objectifsPI],
+        ignorees: next.ignorees,
+      };
+      saveHierarchyCache(all).catch(() => {});
+      return all;
+    });
   }, []);
   /** Filtre de domaine partagé par tous les écrans, mémorisé sur l'appareil */
   const [domFilter, setDomFilterState] = useState<string>('tous');
@@ -241,6 +292,17 @@ function Main() {
   const [featDefaults, setFeatDefaults] = useState<Partial<FeatureInput> | undefined>();
   const [wizard, setWizard] = useState<{ open: boolean; start: WizardStart }>({ open: false, start: null });
   const [tab, setTab] = useState<Tab>('taches');
+  /** Menu « ⋯ Plus » (écrans au-delà des 5 de la barre) */
+  const [plusOpen, setPlusOpen] = useState(false);
+  /** Onglets des espaces affichés, selon leur type et le mode : 5 dans la barre, les autres dans « ⋯ Plus » */
+  const tabs = useMemo(
+    () => onglets(visibles.map((id) => espaceParId(espaces, id)?.type ?? 'moi'), safe.actif),
+    [visibles, espaces, safe.actif],
+  );
+  // Onglet qui n'existe plus (autre mode ou autres espaces) : retour aux Tâches
+  useEffect(() => {
+    if (![...tabs.barre, ...tabs.plus].includes(tab)) setTab('taches');
+  }, [tabs, tab]);
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
   const [epicFormOpen, setEpicFormOpen] = useState(false);
   const insets = useSafeAreaInsets();
@@ -259,10 +321,36 @@ function Main() {
   const [mode, setMode] = useState<Mode>('liste');
   const [anchor, setAnchor] = useState(() => new Date());
 
-  const updateItems = useCallback((next: Item[]) => {
-    setItems(next);
-    saveCache(next).catch(() => {});
+  /** Filtre des espaces (en haut) ; les nouvelles créations vont dans le premier espace affiché */
+  const setVisibles = useCallback((v: string[]) => {
+    visiblesRef.current = v;
+    setVisiblesState(v);
+    saveVisibles(v);
+    api.definirEspaceParDefaut(v[0] ?? 'moi');
   }, []);
+
+  /** Remplace les éléments des espaces affichés (les autres espaces restent tels quels) */
+  const tousItemsRef = useRef(tousItems);
+  tousItemsRef.current = tousItems;
+  const tousHierRef = useRef(tousHier);
+  tousHierRef.current = tousHier;
+  const updateItems = useCallback((next: Item[]) => {
+    setItems((prev) => {
+      const all = [...prev.filter((i) => !visiblesRef.current.includes(i.espace || 'moi')), ...next];
+      saveCache(all).catch(() => {});
+      return all;
+    });
+  }, []);
+
+  /** Connexion de chaque espace : Moi = la connexion principale ; les autres = leur script (même compte Google) */
+  const connexions = useCallback(
+    (s: Settings) =>
+      espacesRef.current.map((e) => ({
+        id: e.id,
+        settings: e.id === 'moi' ? s : { url: DEMO ? 'demo' : (e.url ?? ''), key: e.key, googleEmail: s.googleEmail },
+      })),
+    [],
+  );
 
   const logout = useCallback(async () => {
     await signOut();
@@ -276,12 +364,28 @@ function Main() {
     async (s: Settings) => {
       setRefreshing(true);
       try {
-        const { items: list, version, ...rest } = await api.listItems(s);
-        updateItems(list);
-        let ignorees = rest.ignorees ?? [];
+        // Tous les espaces connus (changer le filtre du haut est alors immédiat)
+        api.definirEspaces(connexions(s), visiblesRef.current[0] ?? 'moi');
+        const liste = espacesRef.current;
+        const res = await Promise.allSettled(liste.map((e) => api.listItems(s, e.id)));
+        const moi = res[0];
+        if (moi.status === 'rejected') throw moi.reason;
+        const ok = res.flatMap((r, k) => (r.status === 'fulfilled' ? [{ id: liste[k].id, d: r.value }] : []));
+        const echecs = liste.filter((_, k) => res[k].status === 'rejected');
+        // Espace injoignable : on garde sa dernière copie
+        const chargés = new Set(ok.map((o) => o.id));
+        const garde = (x: { espace?: string }) => !chargés.has(x.espace || 'moi');
+        const list = [...tousItemsRef.current.filter(garde), ...ok.flatMap((o) => o.d.items)];
+        const cat = <K extends keyof Omit<Hier, 'ignorees'>>(k: K) => [...(tousHierRef.current[k] as { espace?: string }[]).filter(garde), ...ok.flatMap((o) => o.d[k] as { espace?: string }[])] as Hier[K];
+        const rest: Omit<Hier, 'ignorees'> = { epics: cat('epics'), objectifs: cat('objectifs'), domaines: cat('domaines'), features: cat('features'), objectifsPI: cat('objectifsPI') };
+        const version = Math.min(...ok.map((o) => o.d.version));
+        setItems(list);
+        saveCache(list).catch(() => {});
+        // Alertes ignorées : dans l'espace Moi
+        let ignorees = moi.value.ignorees ?? [];
         // Nettoyage : une alerte ignorée dont la situation n'existe plus est effacée du Google Sheet
         // (si le même problème revient un jour, il sera de nouveau signalé). Seulement sur des données fraîches.
-        if (version >= api.API_VERSION_IGNOREES && ignorees.length) {
+        if (version >= api.API_VERSION_IGNOREES && ignorees.length && !echecs.length) {
           const hvFrais = makeHierarchyValue(rest.epics, rest.objectifs, rest.domaines, list, rest.features, rest.objectifsPI);
           const existantes = signaturesExistantes(hvFrais, toDateString(new Date()), capaciteRef.current, joursRef.current);
           const perimees = ignorees.filter((i) => !existantes.has(`${i.cle}\u0000${i.signature}`));
@@ -294,9 +398,11 @@ function Main() {
             }
           }
         }
-        updateHier({ ...rest, ignorees });
+        const all: Hier = { ...rest, ignorees };
+        setHier(all);
+        saveHierarchyCache(all).catch(() => {});
         setApiVersion(version);
-        setOffline(null);
+        setOffline(echecs.length ? `Espace injoignable : ${echecs.map((e) => e.nom).join(', ')}.` : null);
       } catch (e) {
         if (e instanceof AuthError && s.googleEmail) {
           // Compte retiré de l'onglet « Utilisateurs » ou session Google terminée.
@@ -309,20 +415,41 @@ function Main() {
         setRefreshing(false);
       }
     },
-    [updateItems, updateHier, logout],
+    [logout, connexions],
   );
 
   useEffect(() => {
     (async () => {
-      const [stored, cache, cachedHier, dom] = await Promise.all([loadSettings(), loadCache(), loadHierarchyCache(), loadDomainFilter()]);
+      const [stored, cache, cachedHier, dom, liste, vis] = await Promise.all([
+        loadSettings(),
+        loadCache(),
+        loadHierarchyCache(),
+        loadDomainFilter(),
+        loadEspaces(DEMO ? [ESPACE_MOI, ...ESPACES_DEMO] : [ESPACE_MOI]),
+        loadVisibles(),
+      ]);
       setDomFilterState(dom);
+      // Espaces : la liste, et le filtre (sans les espaces qui n'existent plus)
+      const visOk = vis.filter((v) => liste.some((e) => e.id === v));
+      espacesRef.current = liste;
+      visiblesRef.current = visOk.length ? visOk : ['moi'];
+      setEspacesState(liste);
+      setVisiblesState(visiblesRef.current);
       let s = stored;
       if (GOOGLE_AUTH) {
         const email = await restoreSession();
         s = email ? { url: API_URL, googleEmail: email } : null;
       }
-      if (cache && s) setItems(cache.items.map(api.normalize));
-      if (s) setHier({ ...EMPTY_HIER, ...cachedHier });
+      if (cache && s) {
+        const list = cache.items.map(api.normalize);
+        api.retenirEspaces(list);
+        setItems(list);
+      }
+      if (s) {
+        const h = { ...EMPTY_HIER, ...cachedHier } as Hier;
+        for (const l of [h.epics, h.objectifs, h.domaines, h.features, h.objectifsPI]) api.retenirEspaces(l);
+        setHier(h);
+      }
       setSettings(s);
       setBooting(false);
       if (s) refresh(s);
@@ -665,10 +792,15 @@ function Main() {
     setFeatDefaults(defaults);
     setFeatureFormOpen(true);
   };
+  /** Espace d'un rattachement (feature, epic, objectif, domaine, parent), s'il y en a un */
+  const espaceLie = (x: Partial<Item>) =>
+    api.espaceDe(x.parent) ?? api.espaceDe(x.feature) ?? api.espaceDe(x.epic) ?? api.espaceDe(x.objectif) ?? api.espaceDe(x.domaine);
   /** Nouvelle tâche pré-rangée (epic, feature…) depuis une fiche. */
   const openNewTask = (defaults: Partial<ItemInput>) => {
     setEditing(null);
-    setTaskDefaults(defaults);
+    // Une tâche rattachée (feature, epic…) est créée dans l'espace de ce rattachement
+    const lie = espaceLie(defaults);
+    setTaskDefaults(lie ? { ...defaults, espace: lie } : defaults);
     setFormOpen(true);
   };
   /** Tâche mise à jour : remplace l'ancienne dans la liste et le cache. */
@@ -781,6 +913,9 @@ function Main() {
   const saveEntity = async <K extends EntityKind>(kind: K, editing: { id: string } | null, input: object) => {
     if (!settings) return;
     checkScript(kind, input);
+    // Création : dans l'espace de son rattachement (objectif, epic, domaine), sinon le premier espace affiché
+    if (!editing && !(input as { espace?: string }).espace)
+      input = { ...input, espace: espaceLie(input as Partial<Item>) ?? visiblesRef.current[0] ?? 'moi' };
     const saved = editing
       ? await api.updateEntity(settings, kind, { ...input, id: editing.id } as never)
       : await api.createEntity(settings, kind, input as never);
@@ -982,16 +1117,23 @@ function Main() {
   const ig = hier.ignorees;
   // Deux pastilles par onglet : alertes (rouge) et rappels (jaune)
   const compte = (cs: Check[]) => ({ rouge: nbAlertes(cs, ig, 'alerte'), jaune: nbAlertes(cs, ig, 'rappel') });
+  const zero = { rouge: 0, jaune: 0 };
   const badges: Record<Tab, { rouge: number; jaune: number }> = {
     taches: compte(checks.taches),
     iteration: compte(checks.iteration),
     pi: compte(checks.pi),
     roadmap: compte([...checks.roadmap, ...alertesDates]),
     portefeuille: compte(checks.portefeuille),
+    strategie: zero,
+    backlog: zero,
+    equipe: zero,
+    organisation: zero,
+    pilotage: zero,
   };
 
   // Écran Tâches : les alertes défilent avec le contenu (en tête de liste / de calendrier)
   const alertesTaches = <AlertsCard ecran="taches" checks={checks.taches} />;
+  const espacesValue = { liste: espaces, visibles };
 
   if (booting) {
     return <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />;
@@ -1057,6 +1199,7 @@ function Main() {
     <DomainFilterContext.Provider value={domFilterValue}>
     <CheckActionContext.Provider value={runAction}>
     <IgnoreContext.Provider value={ignoreValue}>
+    <EspacesContext.Provider value={espacesValue}>
     <View style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.title} numberOfLines={1}>
@@ -1069,11 +1212,7 @@ function Main() {
               { value: 'safe', label: 'SAFe' },
             ]}
             value={safe.actif ? 'safe' : 'simple'}
-            onChange={(v) => {
-              updateSafe({ actif: v === 'safe' });
-              // En mode Simple, seuls Tâches et Roadmap restent
-              if (v === 'simple' && tab !== 'taches' && tab !== 'roadmap') setTab('taches');
-            }}
+            onChange={(v) => updateSafe({ actif: v === 'safe' })}
           />
         </View>
         {!DEMO && (
@@ -1082,6 +1221,7 @@ function Main() {
           </Pressable>
         )}
       </View>
+      <EspacesBar onChange={setVisibles} onGerer={() => setEspacesOpen(true)} />
       {DEMO && (
         <View style={styles.demo}>
           <Text style={styles.demoText}>
@@ -1089,10 +1229,9 @@ function Main() {
           </Text>
           <Pressable
             onPress={async () => {
-              const r = await demoApi.reset();
-              updateItems(r.items);
-              const { items: _i, ...rest } = r;
-              updateHier({ ...rest, ignorees: rest.ignorees ?? [] });
+              // Tous les espaces de la démo reviennent aux exemples
+              for (const e of espaces) await demoApiFor(e.id).reset();
+              if (settings) await refresh(settings);
             }}
             hitSlop={8}
           >
@@ -1234,6 +1373,8 @@ function Main() {
         />
       )}
 
+      {A_VENIR.includes(tab) && <EcranAVenir ecran={tab} />}
+
       {tab === 'taches' && mode !== 'liste' && (
         <>
           <PeriodHeader
@@ -1318,17 +1459,31 @@ function Main() {
         }
       />}
 
-      <Pressable
+      {!A_VENIR.includes(tab) && <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 18 }]}
         onPress={() => (tab === 'pi' ? setPiAdd(true) : tab === 'roadmap' || tab === 'portefeuille' ? setAddMenu(true) : openForm(null))}
         accessibilityRole="button"
         accessibilityLabel={tab === 'roadmap' ? 'Nouvelle epic' : 'Ajouter'}
       >
         <Text style={styles.fabText}>+</Text>
-      </Pressable>
+      </Pressable>}
 
       <View style={[styles.tabBar, { height: TAB_BAR + insets.bottom, paddingBottom: insets.bottom }]}>
-        {(safe.actif ? SAFE_TABS : SIMPLE_TABS).map(([key, icon, label]) => (
+        {[...tabs.barre, ...(tabs.plus.length ? (['plus'] as const) : [])].map((key) => key === 'plus' ? (
+          <Pressable
+            key="plus"
+            style={styles.tabBtn}
+            onPress={() => setPlusOpen(true)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tabs.plus.includes(tab) }}
+            accessibilityLabel="Plus d'écrans"
+          >
+            <Text style={[styles.tabIcon, tabs.plus.includes(tab) && styles.tabOn]}>⋯</Text>
+            <Text style={[styles.tabLabel, tabs.plus.includes(tab) && styles.tabOn]} numberOfLines={1}>
+              {tabs.plus.includes(tab) ? TAB_LABELS[tab] : 'Plus'}
+            </Text>
+          </Pressable>
+        ) : (
           <Pressable
             key={key}
             style={styles.tabBtn}
@@ -1337,7 +1492,7 @@ function Main() {
             accessibilityState={{ selected: tab === key }}
           >
             <View>
-              <Text style={[styles.tabIcon, tab === key && styles.tabOn]}>{icon}</Text>
+              <Text style={[styles.tabIcon, tab === key && styles.tabOn]}>{TAB_ICONS[key]}</Text>
               {(badges[key].rouge > 0 || badges[key].jaune > 0) && (
                 <View style={styles.badges}>
                   {badges[key].rouge > 0 && (
@@ -1353,7 +1508,9 @@ function Main() {
                 </View>
               )}
             </View>
-            <Text style={[styles.tabLabel, tab === key && styles.tabOn]}>{label}</Text>
+            <Text style={[styles.tabLabel, tab === key && styles.tabOn]} numberOfLines={1}>
+              {TAB_LABELS[key]}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -1578,7 +1735,49 @@ function Main() {
           </View>
         </Pressable>
       </Modal>
+
+      <ChoiceSheet
+        visible={plusOpen}
+        title="Plus d'écrans"
+        choices={tabs.plus.map((t) => ({ label: `${TAB_ICONS[t]} ${TAB_LABELS[t]}`, principal: t === tab, onPress: () => setTab(t) }))}
+        onClose={() => setPlusOpen(false)}
+      />
+      <EspacesSheet
+        visible={espacesOpen}
+        espaces={espaces}
+        nomApp={NOM_APP}
+        demo={DEMO}
+        onClose={() => setEspacesOpen(false)}
+        onAdd={async (e) => {
+          const liste = [...espaces, e];
+          espacesRef.current = liste;
+          setEspacesState(liste);
+          await saveEspaces(liste);
+          setVisibles([...visibles, e.id]);
+          if (settings) await refresh(settings);
+        }}
+        onRemove={(e) => {
+          const liste = espaces.filter((x) => x.id !== e.id);
+          espacesRef.current = liste;
+          setEspacesState(liste);
+          saveEspaces(liste);
+          const v = visibles.filter((x) => x !== e.id);
+          setVisibles(v.length ? v : ['moi']);
+          // Ses données quittent l'application (son Google Sheet reste intact)
+          const autre = (x: { espace?: string }) => (x.espace || 'moi') !== e.id;
+          setItems((prev) => prev.filter(autre));
+          setHier((prev) => ({
+            epics: prev.epics.filter(autre),
+            objectifs: prev.objectifs.filter(autre),
+            domaines: prev.domaines.filter(autre),
+            features: prev.features.filter(autre),
+            objectifsPI: prev.objectifsPI.filter(autre),
+            ignorees: prev.ignorees,
+          }));
+        }}
+      />
     </View>
+    </EspacesContext.Provider>
     </IgnoreContext.Provider>
     </CheckActionContext.Provider>
     </DomainFilterContext.Provider>

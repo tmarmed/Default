@@ -3,6 +3,7 @@ import { domaineOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
 import { fmtPoints, pointsOf } from '../pi';
 import { useSafe } from '../safe';
+import { espaceParId, ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { formatDate, isOverdue, toDateString } from '../dates';
 import { callNumber } from '../phone';
@@ -31,6 +32,9 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle, expand
   const parentColor = parentFeature ? (h.epics.get(parentFeature.epic)?.couleur ?? colors.primary) : parent?.couleur;
   const domaine = domaineOf(item, h);
   const late = isOverdue(item);
+  // Plusieurs espaces affichés : l'étiquette de l'espace de la tâche
+  const esp = useEspaces();
+  const monEspace = esp.visibles.length > 1 ? espaceParId(esp.liste, item.espace) : undefined;
   return (
     <Pressable style={[styles.card, expanded && styles.cardOpen]} onPress={() => onPress(item)}>
       <View style={[styles.stripe, { backgroundColor: typeColors[item.type] }]} />
@@ -53,6 +57,11 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle, expand
           <Text style={[styles.badge, { color: typeColors[item.type] }]}>
             {TYPE_ICONS[item.type]} {TYPE_LABELS[item.type]}
           </Text>
+          {!!monEspace && (
+            <Text style={styles.espace} numberOfLines={1}>
+              {ICONE_ESPACE[monEspace.type]} {libelleEspace(monEspace)}
+            </Text>
+          )}
           {!!item.parentTitre && (
             <Text style={styles.metaText} numberOfLines={1}>
               ↳ {item.parentTitre}
@@ -244,6 +253,7 @@ const styles = StyleSheet.create({
   points: { fontSize: 12, fontWeight: '700', color: colors.muted, backgroundColor: '#EEF1F6', borderRadius: 8, paddingHorizontal: 6, overflow: 'hidden' },
   enCours: { fontSize: 13, color: colors.primary, fontWeight: '600' },
   late: { fontSize: 13, color: colors.danger, fontWeight: '600' },
+  espace: { fontSize: 12, color: colors.text, backgroundColor: '#EEF0F3', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1, overflow: 'hidden' },
   finLabel: { color: colors.warning, fontWeight: '700' },
   prio: { width: 8, height: 8, borderRadius: 4, marginRight: 14 },
 });

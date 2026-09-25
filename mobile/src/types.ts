@@ -4,6 +4,8 @@ export type ItemType = 'tache' | 'rendez-vous' | 'appel' | 'demarche' | 'mission
 /** Types qui ont une heure de fin (créneau dans l'agenda) */
 export const AVEC_FIN: ItemType[] = ['rendez-vous', 'mission'];
 export const aHeureFin = (type: ItemType) => AVEC_FIN.includes(type);
+/** Types toujours privés : enregistrés dans l'espace Moi, quel que soit l'espace affiché */
+export const TYPES_PRIVES: ItemType[] = ['rendez-vous', 'appel', 'demarche'];
 /** Types sans « En cours » : un rendez-vous a lieu ou pas, un appel est passé ou pas */
 export const sansEnCours = (type: ItemType) => type === 'rendez-vous' || type === 'appel';
 /** Types qui ont une date de fin (date limite) */
@@ -26,6 +28,8 @@ export type Periodicite = '' | 'hebdomadaire' | 'mensuelle' | 'trimestrielle' | 
 
 /** Une ligne de l'onglet « Taches » du Google Sheet. */
 export interface Item {
+  /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
+  espace?: string;
   id: string;
   titre: string;
   type: ItemType;
@@ -138,6 +142,8 @@ export const RECURRENCE_DEFAUTS = {
 
 /** Une ligne de l'onglet « Epics » : grand projet affiché dans la roadmap. */
 export interface Epic {
+  /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
+  espace?: string;
   id: string;
   titre: string;
   description: string;
@@ -168,6 +174,8 @@ export const ETATS_EPIC: { value: EtatEpic; label: string; color: string }[] = [
 
 /** SAFe : sous-epic prévue dans un PI (trimestre), éventuellement dans une itération. */
 export interface Feature {
+  /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
+  espace?: string;
   id: string;
   titre: string;
   description: string;
@@ -186,6 +194,8 @@ export type FeatureInput = Omit<Feature, 'id' | 'cree_le' | 'modifie_le'>;
 
 /** SAFe : objectif du PI, engagement d'un trimestre. */
 export interface ObjectifPI {
+  /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
+  espace?: string;
   id: string;
   titre: string;
   pi: string;
@@ -207,6 +217,8 @@ export type EpicInput = Omit<Epic, 'id' | 'cree_le' | 'modifie_le'>;
 
 /** Onglet « Objectifs » : résultat à atteindre, daté ou permanent. */
 export interface Objectif {
+  /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
+  espace?: string;
   id: string;
   titre: string;
   description: string;
@@ -227,6 +239,8 @@ export type ObjectifInput = Omit<Objectif, 'id' | 'cree_le' | 'modifie_le'>;
 
 /** Onglet « Domaines » : grande catégorie permanente (Pro, Perso…). */
 export interface Domaine {
+  /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
+  espace?: string;
   id: string;
   nom: string;
   icone: string;
@@ -241,6 +255,8 @@ export type EntityKind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectif
 
 /** Alerte ignorée : sa clé, et la situation (son message) au moment où on l'a ignorée. */
 export interface Ignoree {
+  /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
+  espace?: string;
   id: string;
   cle: string;
   signature: string;

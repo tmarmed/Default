@@ -17,6 +17,7 @@ import { colors, prioriteColors, typeColors } from '../theme';
 import {
   aDateFin,
   sansEnCours,
+  TYPES_PRIVES,
   aHeureFin,
   Item,
   ItemInput,
@@ -33,7 +34,8 @@ import { Chips } from './Chips';
 import { DateField } from './DateField';
 import { checkRecurrence, RecurrenceFields } from './RecurrenceFields';
 import { LinkPicker } from './LinkPicker';
-import { useHierarchy } from '../hierarchyContext';
+import { filtrerEspace, HierarchyContext, useHierarchy } from '../hierarchyContext';
+import { espaceParId, ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces';
 import { useSafe } from '../safe';
 import { iterationByKey, iterationOf, shiftIteration } from '../pi';
 import { toDateString } from '../dates';
@@ -116,6 +118,7 @@ const toInput = (i: Item): ItemInput => ({
   feature: i.feature,
   telephone: i.telephone ?? '',
   parent: i.parent ?? '',
+  espace: i.espace || 'moi',
 });
 
 const TYPES = (Object.keys(TYPE_LABELS) as ItemType[]).map((t) => ({
@@ -149,7 +152,25 @@ export function TaskForm({
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const safe = useSafe();
-  const h = useHierarchy();
+  const hTous = useHierarchy();
+  // Espaces : une tâche est créée dans un espace ; ses rattachements ne viennent que de cet espace
+  const esp = useEspaces();
+  const espaceDefaut = esp.visibles[0] ?? 'moi';
+  const espace = form.espace || 'moi';
+  const h = filtrerEspace(hTous, espace);
+  const plusieursEspaces = esp.visibles.length > 1 || espace !== espaceDefaut;
+  /** Changer d'espace : les rattachements de l'ancien espace ne valent plus ; types privés = toujours Moi */
+  const choisirEspace = (e: string) =>
+    setForm((f) => ({
+      ...f,
+      espace: e,
+      epic: '',
+      objectif: '',
+      domaine: '',
+      feature: '',
+      parent: '',
+      type: e !== 'moi' && TYPES_PRIVES.includes(f.type) ? 'tache' : f.type,
+    }));
   // Sous-tâches
   const [cascadeDel, setCascadeDel] = useState(false);
   const [nouvelles, setNouvelles] = useState<string[]>([]);
@@ -180,7 +201,15 @@ export function TaskForm({
 
   useEffect(() => {
     if (visible) {
-      setForm(item ? toInput(item) : { ...empty(defaultType, defaultDate, defaultIteration), ...defaults });
+      // (nouvel élément : dans le premier espace affiché, sauf espace imposé ; rendez-vous, appel, démarche : Moi)
+      setForm(
+        item
+          ? toInput(item)
+          : (() => {
+              const f = { ...empty(defaultType, defaultDate, defaultIteration), espace: espaceDefaut, ...defaults };
+              return TYPES_PRIVES.includes(f.type) ? { ...f, espace: 'moi' } : f;
+            })(),
+      );
       setError(null);
       setConfirmDelete(false);
       setCascadeDel(false);
@@ -276,6 +305,7 @@ export function TaskForm({
   };
 
   return (
+    <HierarchyContext.Provider value={h}>
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
@@ -303,6 +333,33 @@ export function TaskForm({
               autoFocus={!item}
               returnKeyType="done"
             />
+
+            {plusieursEspaces && (
+              <>
+                <Text style={styles.label}>Espace</Text>
+                {item ? (
+                  <Text style={styles.hint}>
+                    {(() => {
+                      const e = espaceParId(esp.liste, espace);
+                      return e ? `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` : espace;
+                    })()}
+                  </Text>
+                ) : (
+                  <Chips
+                    options={esp.liste
+                      .filter((e) => esp.visibles.includes(e.id) || e.id === espace)
+                      .map((e) => ({ value: e.id, label: `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` }))}
+                    value={espace}
+                    onChange={choisirEspace}
+                    compact
+                    wrap
+                  />
+                )}
+                {TYPES_PRIVES.includes(form.type) && (
+                  <Text style={styles.hint}>Rendez-vous, appels et démarches sont toujours privés : enregistrés dans Moi.</Text>
+                )}
+              </>
+            )}
 
             {parentItem && (
               <View style={styles.parentBox}>
@@ -345,8 +402,15 @@ export function TaskForm({
             <Chips
               options={TYPES}
               value={form.type}
-              // Rendez-vous, appel : pas d'« En cours » (il redevient « À faire »)
-              onChange={(v) => setForm((f) => ({ ...f, type: v, statut: sansEnCours(v) && f.statut === 'en_cours' ? 'a_faire' : f.statut }))}
+              // Rendez-vous, appel : pas d'« En cours » (il redevient « À faire ») ; types privés : toujours dans Moi
+              onChange={(v) =>
+                setForm((f) => {
+                  const next = { ...f, type: v, statut: sansEnCours(v) && f.statut === 'en_cours' ? 'a_faire' : f.statut };
+                  return TYPES_PRIVES.includes(v) && (f.espace || 'moi') !== 'moi'
+                    ? { ...next, espace: 'moi', epic: '', objectif: '', domaine: '', feature: '', parent: '' }
+                    : next;
+                })
+              }
               compact
               wrap
             />
@@ -634,6 +698,7 @@ export function TaskForm({
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
+    </HierarchyContext.Provider>
   );
 }
 

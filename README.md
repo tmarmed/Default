@@ -9,6 +9,36 @@ qu'on peut donc aussi consulter et modifier depuis un ordinateur.
 
 ## Fonctionnalités
 
+### Version SAFe (branche `claude/version-safe`) : espaces
+
+- **Espaces** : chaque espace est un Google Sheet, d'un type choisi à sa création : 🔒 **Moi** (un seul, jamais
+  partagé), 👥 **Équipe** (équipe indépendante), 🏢 **Entreprise** (avec ses équipes). Nom du fichier :
+  `Mes tâches | Moi`, `Mes tâches | Équipe | Mobile`, `Mes tâches | Entreprise | ACME` (séparateur `|`).
+- **Filtre en haut** : un ou plusieurs espaces affichés, et « ＋ Espace » pour créer ou retirer un espace. Avec
+  plusieurs espaces, chaque tâche porte l'étiquette de son espace. Une création va dans l'espace choisi dans la
+  fiche (par défaut le premier affiché) ; une tâche rattachée (feature, epic…) va dans l'espace de ce rattachement.
+- **Rendez-vous, appels et démarches** : toujours privés, enregistrés dans Moi.
+- **Pas de lien entre deux espaces** (une tâche de Moi ne peut pas être rattachée à une epic d'une entreprise).
+- **Mode Simple / SAFe** : choisi à la volée (en haut), comme avant, pour tous les espaces affichés.
+- **Onglets par type d'espace et par mode** (5 dans la barre, les autres dans « ⋯ Plus ») :
+
+  | Cas | Barre | ⋯ Plus |
+  |---|---|---|
+  | Moi · Simple | Tâches · Roadmap | — |
+  | Moi · SAFe | Tâches · Itération · PI · Stratégie · Roadmap | Backlog · Portefeuille · Pilotage |
+  | Équipe · Simple | Tâches · Roadmap · Équipe · Pilotage | — |
+  | Équipe · SAFe | Tâches · Itération · Backlog · PI · Équipe | Roadmap · Stratégie · Pilotage |
+  | Entreprise · Simple | Tâches · Roadmap · Organisation · Pilotage | — |
+  | Entreprise · SAFe | Tâches · Stratégie · Portefeuille · PI · Pilotage | Backlog · Itération · Roadmap · Organisation |
+
+  Plusieurs espaces affichés : l'union de leurs écrans, dans l'ordre Tâches → Itération → PI → Stratégie →
+  Backlog → Portefeuille → Roadmap → Équipe → Organisation → Pilotage.
+- **Écrans à venir** (vides pour l'instant) : Stratégie, Backlog, Équipe, Organisation, Pilotage.
+- Toutes les règles de gestion de la version précédente s'appliquent à chaque espace.
+- **À venir** : connexion Google directe (plus de script ni de clé), détection automatique des fichiers par leur
+  nom, création des fichiers et invitation des membres depuis l'application. En attendant, un espace se relie à
+  son Google Sheet par l'adresse de son script et sa clé, comme l'espace Moi.
+
 - **8 types**, les mêmes en mode Simple et SAFe : ✓ Tâche, 📅 Rendez-vous et 🚩 Mission avec **heure de fin** (proposée 1 h
   après le début, et durée affichée), 📞 Appel (numéro + bouton
   **Appeler** dans la fiche et dans la liste), 🗂️ Démarche administrative (avec **date de fin** facultative =

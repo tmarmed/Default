@@ -34,6 +34,20 @@ export function makeHierarchyValue(
   };
 }
 
+/** Seulement les éléments d'un espace (une fiche ne propose que des rattachements de son propre espace). */
+export function filtrerEspace(h: HierarchyValue, espace: string): HierarchyValue {
+  const dans = (x: { espace?: string }) => (x.espace || 'moi') === espace;
+  const d = h.data;
+  return makeHierarchyValue(
+    d.epics.filter(dans),
+    d.objectifs.filter(dans),
+    d.domaines.filter(dans),
+    d.items.filter(dans),
+    (d.features ?? []).filter(dans),
+    (d.objectifsPI ?? []).filter(dans),
+  );
+}
+
 /** Domaines, objectifs et epics connus : partagés par la liste, les formulaires et la roadmap. */
 export const HierarchyContext = createContext<HierarchyValue>(makeHierarchyValue([], [], [], []));
 
