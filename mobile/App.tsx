@@ -1468,7 +1468,16 @@ function Main() {
 
       {!A_VENIR.includes(tab) && <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 18 }]}
-        onPress={() => (tab === 'pi' ? setPiAdd(true) : tab === 'roadmap' || tab === 'portefeuille' ? setAddMenu(true) : openForm(null))}
+        onPress={() =>
+          tab === 'pi'
+            ? setPiAdd(true)
+            : tab === 'roadmap' || tab === 'portefeuille'
+              ? setAddMenu(true)
+              : // Itération : la nouvelle tâche est rangée dans l'itération affichée (modifiable dans la fiche)
+                tab === 'iteration'
+                ? addHorsFeature(itKey)
+                : openForm(null)
+        }
         accessibilityRole="button"
         accessibilityLabel={tab === 'roadmap' ? 'Nouvelle epic' : 'Ajouter'}
       >
