@@ -10,7 +10,7 @@ import { colors } from '../theme';
 import { Epic, ETATS_EPIC, EtatEpic, Objectif } from '../types';
 import { AlertsCard } from './AlertsCard';
 import { checksPortefeuille, filtrerDomaine } from '../checks';
-import { DomainChips, useDomainFilter } from './DomainFilter';
+import { DomainChips, inDomain, useDomainFilter } from './DomainFilter';
 
 interface Props {
   onOpenEpic: (e: Epic) => void;
@@ -28,8 +28,8 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
   const { value: dom } = useDomainFilter();
 
   const epicDom = (e: Epic) => domaineOf({ epic: e.id }, h)?.id ?? '';
-  const epics = h.epicList.filter((e) => dom === 'tous' || epicDom(e) === dom);
-  const objectifs = h.objectifList.filter((o) => dom === 'tous' || o.domaine === dom);
+  const epics = h.epicList.filter((e) => inDomain(dom, epicDom(e), h));
+  const objectifs = h.objectifList.filter((o) => inDomain(dom, o.domaine, h));
 
   const columns = useMemo(
     () => ETATS_EPIC.map((s) => ({ ...s, epics: epics.filter((e) => etatEpic(e, today) === s.value) })),

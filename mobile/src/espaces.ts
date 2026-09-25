@@ -14,12 +14,6 @@ export interface Espace {
   id: string;
   type: TypeEspace;
   nom: string;
-  /**
-   * Domaines concernés (les domaines sont transverses : ils ne sont contenus dans aucun espace).
-   * Choisis à la création de l'espace ; les éléments de l'espace ne se rattachent qu'à ces domaines.
-   * Moi est concerné par tous les domaines.
-   */
-  domaines?: string[];
   /** Connexion à son Google Sheet (script + clé), en attendant la connexion Google directe */
   url?: string;
   key?: string;
@@ -150,13 +144,3 @@ export interface EspacesValue {
 export const EspacesContext = createContext<EspacesValue>({ liste: [ESPACE_MOI], visibles: ['moi'] });
 export const useEspaces = () => useContext(EspacesContext);
 export const espaceParId = (liste: Espace[], id: string | undefined) => liste.find((e) => e.id === (id || 'moi'));
-/** Domaines proposés dans un espace : tous pour Moi (ou un espace sans domaine choisi), sinon ses domaines */
-export function domainesAutorises(liste: Espace[], id: string | undefined): string[] | null {
-  const e = espaceParId(liste, id);
-  return !e || e.type === 'moi' || !e.domaines?.length ? null : e.domaines;
-}
-/** Domaine proposé par défaut pour un nouvel élément de l'espace : son domaine, s'il n'en a qu'un */
-export function domaineParDefaut(liste: Espace[], id: string | undefined): string {
-  const d = domainesAutorises(liste, id);
-  return d && d.length === 1 ? d[0] : '';
-}

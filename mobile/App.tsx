@@ -66,7 +66,7 @@ import { ChoiceSheet } from './src/components/ChoiceSheet';
 import { DomaineForm } from './src/components/DomaineForm';
 import { ObjectifForm } from './src/components/ObjectifForm';
 import { domaineOf } from './src/hierarchy';
-import { HierarchyContext, makeHierarchyValue } from './src/hierarchyContext';
+import { domainesDistincts, HierarchyContext, makeHierarchyValue } from './src/hierarchyContext';
 import { loadSafe, SAFE_DEFAUT, SafeContext, SafeSettings, saveSafe } from './src/safe';
 import {
   clearSettings,
@@ -99,6 +99,7 @@ import {
   Settings,
   Statut,
   TYPE_LABELS,
+  DOMAINES_DE_BASE,
 } from './src/types';
 
 type Filter = TypeFiltre;
@@ -173,6 +174,8 @@ const subtaskInput = (parent: Item, titre: string): ItemInput => ({
   iteration: parent.date ? iterationOf(parent.date).key : parent.iteration,
 });
 
+/** Domaines de base déjà créés dans Moi (sur cet appareil) */
+const DOMAINES_BASE_KEY = 'mes-taches:domaines-de-base';
 const DEPLIES_KEY = 'mes-taches:deplies';
 /** Statut d'avant « Terminé » (« En cours »), pour décocher sans le perdre ; mémorisé sur l'appareil */
 const STATUT_AVANT_KEY = 'mes-taches:statut-avant';
@@ -313,7 +316,7 @@ function Main() {
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
-  const [apiVersion, setApiVersion] = useState(api.API_VERSION_STATUT_AVANT);
+  const [apiVersion, setApiVersion] = useState(api.API_VERSION_SOUS_DOMAINES);
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -379,6 +382,15 @@ function Main() {
         const cat = <K extends keyof Omit<Hier, 'ignorees'>>(k: K) => [...(tousHierRef.current[k] as { espace?: string }[]).filter(garde), ...ok.flatMap((o) => o.d[k] as { espace?: string }[])] as Hier[K];
         const rest: Omit<Hier, 'ignorees'> = { epics: cat('epics'), objectifs: cat('objectifs'), domaines: cat('domaines'), features: cat('features'), objectifsPI: cat('objectifsPI') };
         const version = Math.min(...ok.map((o) => o.d.version));
+        // Premier lancement : domaines de base dans Moi (une seule fois : ceux qu'on supprime ne reviennent pas)
+        if (!moi.value.domaines.length && moi.value.version >= api.API_VERSION_SOUS_DOMAINES && !(await AsyncStorage.getItem(DOMAINES_BASE_KEY).catch(() => '1'))) {
+          try {
+            rest.domaines = [...rest.domaines, ...(await api.copierDomaines(s, 'moi', DOMAINES_DE_BASE))];
+            AsyncStorage.setItem(DOMAINES_BASE_KEY, '1').catch(() => {});
+          } catch {
+            // On réessaiera au prochain chargement
+          }
+        }
         setItems(list);
         saveCache(list).catch(() => {});
         // Alertes ignorées : dans l'espace Moi
@@ -466,7 +478,7 @@ function Main() {
   const matches = useCallback(
     (i: Item) =>
       matchesType(i, filter) &&
-      (domFilter === 'tous' || (domaineOf(i, hv)?.id ?? '') === domFilter) &&
+      inDomain(domFilter, domaineOf(i, hv)?.id, hv) &&
       (!safe.actif || !itFilter || iterationOfItem(i) === iterationOf(new Date()).key),
     [filter, domFilter, hv, safe.actif, itFilter],
   );
@@ -903,6 +915,9 @@ function Main() {
     if (kind === 'objectifpi' && !!input && !!(input as { epic?: string }).epic && apiVersion < api.API_VERSION_EPIC_PI) {
       throw new Error("le script du Google Sheet n'est pas à jour pour l'epic des objectifs du PI. Recollez le nouveau Code.gs et déployez une nouvelle version.");
     }
+    if (kind === 'domaine' && !!input && !!(input as { parent?: string }).parent && apiVersion < api.API_VERSION_SOUS_DOMAINES) {
+      throw new Error("le script du Google Sheet n'est pas à jour pour les sous-domaines. Recollez le nouveau Code.gs et déployez une nouvelle version.");
+    }
     const needDomPi = kind === 'objectifpi' && !!input && !!(input as { domaine?: string }).domaine;
     if (apiVersion < (needDomPi ? api.API_VERSION_DOMAINE_PI : needSafe ? api.API_VERSION_SAFE : api.API_VERSION_HIERARCHIE)) {
       throw new Error("le script du Google Sheet n'est pas à jour. Recollez le nouveau Code.gs et déployez une nouvelle version.");
@@ -1074,7 +1089,7 @@ function Main() {
     piPicker?.kind === 'feature'
       ? hier.features
           // Pas encore à cet endroit : autre itération, ou (sans itération) pas encore dans ce PI
-          .filter((f) => (piPickerIt ? f.iteration !== piPickerIt : f.pi !== piKey) && inDomain(domFilter, domaineOf({ epic: f.epic }, hv)?.id))
+          .filter((f) => (piPickerIt ? f.iteration !== piPickerIt : f.pi !== piKey) && inDomain(domFilter, domaineOf({ epic: f.epic }, hv)?.id, hv))
           .map((f) => ({
             id: f.id,
             title: `🧩 ${f.titre}`,
@@ -1093,7 +1108,7 @@ function Main() {
                 !t.date &&
                 t.statut !== 'termine' &&
                 t.iteration !== piPickerIt &&
-                inDomain(domFilter, domaineOf(t, hv)?.id),
+                inDomain(domFilter, domaineOf(t, hv)?.id, hv),
             )
             .map((t) => ({
               id: t.id,
@@ -1255,7 +1270,7 @@ function Main() {
               {domaines.length > 0 && <Chips
                 options={[
                   { value: 'tous', label: 'Tous domaines' },
-                  ...hv.domaineList.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })),
+                  ...domainesDistincts(hv).map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })),
                   { value: '', label: 'Sans domaine' },
                 ]}
                 value={domFilter}
@@ -1277,7 +1292,7 @@ function Main() {
           <Text style={styles.noticeText}>{notice} ✕</Text>
         </Pressable>
       )}
-      {apiVersion < api.API_VERSION_STATUT_AVANT && (
+      {apiVersion < api.API_VERSION_SOUS_DOMAINES && (
         <View style={styles.offline}>
           <Text style={styles.offlineText}>
             Le script du Google Sheet n'est pas à jour : {apiVersion < api.API_VERSION_REPETITION ? 'la répétition, ' : ''}
@@ -1291,7 +1306,8 @@ function Main() {
             {apiVersion < api.API_VERSION_IGNOREES ? 'les alertes ignorées, ' : ''}
             {apiVersion < api.API_VERSION_EPIC_PI ? "l'epic des objectifs du PI, " : ''}
             {apiVersion < api.API_VERSION_DATE_FIN ? 'la date de fin des démarches, ' : ''}
-            {apiVersion < api.API_VERSION_TERMINE_LE ? 'le jour où une tâche est terminée, ' : ''}le statut d'avant « Terminé » ne seront pas
+            {apiVersion < api.API_VERSION_TERMINE_LE ? 'le jour où une tâche est terminée, ' : ''}
+            {apiVersion < api.API_VERSION_STATUT_AVANT ? "le statut d'avant « Terminé », " : ''}les sous-domaines ne seront pas
             enregistrés.
             Recollez le nouveau Code.gs puis Déployer › Gérer les déploiements › Nouvelle version.
           </Text>
@@ -1745,11 +1761,22 @@ function Main() {
         nomApp={NOM_APP}
         demo={DEMO}
         onClose={() => setEspacesOpen(false)}
-        onAdd={async (e) => {
+        domainesMoi={tousHier.domaines.filter((d) => (d.espace || 'moi') === 'moi')}
+        onAdd={async (e, domaines) => {
           const liste = [...espaces, e];
           espacesRef.current = liste;
           setEspacesState(liste);
           await saveEspaces(liste);
+          // Domaines choisis : copiés de Moi dans le Google Sheet du nouvel espace
+          if (settings && domaines.length) {
+            api.definirEspaces(connexions(settings), visiblesRef.current[0] ?? 'moi');
+            try {
+              const existants = (await api.listItems(settings, e.id)).domaines;
+              await api.copierDomaines(settings, e.id, domaines, existants);
+            } catch (err) {
+              setNotice(`Espace ajouté, mais ses domaines n'ont pas été copiés : ${(err as Error).message}`);
+            }
+          }
           setVisibles([...visibles, e.id]);
           if (settings) await refresh(settings);
         }}

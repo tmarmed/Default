@@ -137,7 +137,8 @@ export function planDeletion(kind: EntityKind, id: string, cascade: boolean, d: 
   let items = d.items;
   let epics = not('epic', d.epics);
   let objectifs = not('objectif', d.objectifs);
-  let domaines = not('domaine', d.domaines);
+  // Les sous-domaines d'un domaine supprimé deviennent des domaines principaux (jamais supprimés avec lui)
+  const domaines = not('domaine', d.domaines).map((x) => (kind === 'domaine' && x.parent === id ? { ...x, parent: '' } : x));
   let features = not('feature', d.features);
   // Objectifs du PI : jamais supprimés avec un domaine ou une epic, ils perdent le rattachement supprimé
   // (une epic supprimée : ils gardent leur domaine), comme dans le script

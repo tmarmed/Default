@@ -55,7 +55,7 @@ export function IterationView({
   // Éléments de l'itération (sous-tâches comprises) ; un parent dont les sous-tâches ont des points ne compte pas
   const allTasks = useMemo(() => items.filter((t) => iterationOfItem(t) === itKey), [items, itKey]);
   // Filtre de domaine : on ne voit que ses tâches, mais la capacité reste commune à tous les domaines
-  const tasks = useMemo(() => allTasks.filter((t) => inDomain(dom, domaineOf(t, h)?.id)), [allTasks, dom, h]);
+  const tasks = useMemo(() => allTasks.filter((t) => inDomain(dom, domaineOf(t, h)?.id, h)), [allTasks, dom, h]);
   const charge = (t: Item) => chargeOf(t, subs);
   const total = tasks.reduce((n, t) => n + charge(t), 0);
   const totalAll = allTasks.reduce((n, t) => n + charge(t), 0);

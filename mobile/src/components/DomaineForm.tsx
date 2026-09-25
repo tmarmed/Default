@@ -6,6 +6,7 @@ import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 import { colors } from '../theme';
 import { DOMAINE_ICONES, Domaine, DomaineInput, EPIC_COULEURS, Objectif } from '../types';
 import { DeleteSection } from './DeleteSection';
+import { Chips } from './Chips';
 import { ChildActions, ColorPicker, Field, FormSheet, formStyles as f, Label } from './FormSheet';
 
 interface Props {
@@ -24,17 +25,20 @@ interface Props {
 export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpenObjectif, onAddObjectif, onOpenWizard }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, domaine, undefined);
-  const [form, setForm] = useState<DomaineInput>({ nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0] });
+  const [form, setForm] = useState<DomaineInput>({ nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0], parent: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) {
-      setForm(domaine ? { nom: domaine.nom, icone: domaine.icone, couleur: domaine.couleur } : { nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0] });
+      setForm(domaine ? { nom: domaine.nom, icone: domaine.icone, couleur: domaine.couleur, parent: domaine.parent ?? '' } : { nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0], parent: '' });
       setError(null);
     }
   }, [visible, domaine]);
 
+  // Sous-domaine : un seul niveau, sous un domaine principal du même espace
+  const sousDomaines = domaine ? h.domaineList.filter((d) => d.parent === domaine.id) : [];
+  const principaux = h.domaineList.filter((d) => !d.parent && d.id !== domaine?.id);
   const objectifs = domaine ? h.objectifList.filter((o) => o.domaine === domaine.id) : [];
   const c = domaine ? childrenOf('domaine', domaine.id, h.data) : null;
   const children = c && c.objIds.size + c.epicIds.size + c.taskIds.size ? describeCounts({ objectifs: c.objIds.size, epics: c.epicIds.size, taches: c.taskIds.size }) : '';
@@ -61,7 +65,26 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
         </Text>
       </View>
       <Field style={f.titleInput} placeholder="Nom (ex. Pro, Perso, Administratif)" value={form.nom} onChangeText={(v) => setForm((x) => ({ ...x, nom: v }))} autoFocus={!domaine} />
-      <EspaceChoix espace={espace} fige={!!domaine} onChange={setEspace} />
+      <EspaceChoix
+        espace={espace}
+        fige={!!domaine}
+        onChange={(v) => {
+          setEspace(v);
+          setForm((x) => ({ ...x, parent: '' }));
+        }}
+      />
+      <Label>Sous-domaine de (facultatif)</Label>
+      {sousDomaines.length ? (
+        <Text style={f.muted}>Domaine principal · sous-domaines : {sousDomaines.map((d) => `${d.icone} ${d.nom}`).join(', ')}</Text>
+      ) : (
+        <Chips
+          options={[{ value: '', label: 'Aucun (domaine principal)' }, ...principaux.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur }))]}
+          value={form.parent && principaux.some((d) => d.id === form.parent) ? form.parent : ''}
+          onChange={(v) => setForm((x) => ({ ...x, parent: v }))}
+          compact
+          wrap
+        />
+      )}
       <Label>Icône</Label>
       <View style={styles.icons}>
         {DOMAINE_ICONES.map((i) => (

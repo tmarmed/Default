@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { type Espace, ICONE_ESPACE, LIBELLE_ESPACE, libelleEspace, nomFichier, type TypeEspace } from '../espaces';
+import { ordreDomaines } from '../hierarchyContext';
 import { colors } from '../theme';
+import type { Domaine, ModeleDomaine } from '../types';
 import { Chips } from './Chips';
 import { Field, FormSheet, formStyles as f, Label } from './FormSheet';
 
@@ -13,7 +15,10 @@ interface Props {
   /** Démo : un nouvel espace est stocké dans le navigateur, sans Google Sheet */
   demo: boolean;
   onClose: () => void;
-  onAdd: (e: Espace) => Promise<void>;
+  /** Domaines de Moi, proposés au nouvel espace */
+  domainesMoi: Domaine[];
+  /** Nouvel espace, avec les domaines choisis (copiés dans son Google Sheet) */
+  onAdd: (e: Espace, domaines: ModeleDomaine[]) => Promise<void>;
   onRemove: (e: Espace) => void;
 }
 
@@ -22,7 +27,8 @@ interface Props {
  * En attendant la connexion Google directe (détection et création automatiques des fichiers), un espace se
  * relie à son Google Sheet par l'adresse de son script et sa clé.
  */
-export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, onRemove }: Props) {
+export function EspacesSheet({ visible, espaces, nomApp, demo, domainesMoi, onClose, onAdd, onRemove }: Props) {
+  const [choisis, setChoisis] = useState<string[]>([]);
   const [type, setType] = useState<TypeEspace>('equipe');
   const [nom, setNom] = useState('');
   const [url, setUrl] = useState('');
@@ -39,8 +45,28 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, o
       setKey('');
       setError(null);
       setRetrait(null);
+      setChoisis([]);
     }
   }, [visible]);
+
+  const liste = ordreDomaines(domainesMoi);
+  const principal = (d: Domaine) => !d.parent || !liste.some((p) => p.id === d.parent);
+  // Un sous-domaine choisi emmène son domaine ; un domaine retiré emmène ses sous-domaines
+  const basculer = (d: Domaine) =>
+    setChoisis((c) =>
+      c.includes(d.id)
+        ? c.filter((x) => x !== d.id && !(principal(d) && liste.some((s2) => s2.id === x && s2.parent === d.id)))
+        : [...c, d.id, ...(principal(d) || c.includes(d.parent) ? [] : [d.parent])],
+    );
+  const modeles = (): ModeleDomaine[] =>
+    liste
+      .filter((d) => principal(d) && choisis.includes(d.id))
+      .map((d) => ({
+        nom: d.nom,
+        icone: d.icone,
+        couleur: d.couleur,
+        sous: liste.filter((x) => x.parent === d.id && choisis.includes(x.id)).map((x) => ({ nom: x.nom, icone: x.icone, couleur: x.couleur })),
+      }));
 
   const save = async () => {
     const n = nom.trim();
@@ -51,7 +77,7 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, o
     setError(null);
     setBusy(true);
     try {
-      await onAdd({ id: `${type}-${Date.now()}`, type, nom: n, ...(demo ? {} : { url: url.trim(), key: key.trim() }) });
+      await onAdd({ id: `${type}-${Date.now()}`, type, nom: n, ...(demo ? {} : { url: url.trim(), key: key.trim() }) }, modeles());
       onClose();
     } catch (e) {
       setError(`Espace non ajouté : ${(e as Error).message}`);
@@ -98,6 +124,32 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, o
       />
       <Field style={f.titleInput} placeholder={type === 'equipe' ? "Nom de l'équipe (ex. Mobile)" : "Nom de l'entreprise (ex. ACME)"} value={nom} onChangeText={setNom} />
       {!!nom.trim() && <Text style={f.hint}>Fichier : « {nomFichier(nomApp, { type, nom })} »</Text>}
+      {liste.length > 0 && (
+        <>
+          <Label>Domaines concernés</Label>
+          <View style={s.doms}>
+            {liste.map((d) => {
+              const on = choisis.includes(d.id);
+              return (
+                <Pressable
+                  key={d.id}
+                  onPress={() => basculer(d)}
+                  style={[s.dom, !principal(d) && s.sous, on && { borderColor: d.couleur, backgroundColor: `${d.couleur}1A` }]}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: on }}
+                >
+                  <Text style={[s.domText, on && s.domOn]}>
+                    {on ? '✓ ' : ''}
+                    {principal(d) ? '' : '↳ '}
+                    {d.icone} {d.nom}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={f.hint}>Les domaines choisis sont copiés dans l'espace ; Moi garde tous les domaines.</Text>
+        </>
+      )}
       {!demo && (
         <>
           <Label>Google Sheet de l'espace</Label>
@@ -109,7 +161,7 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, o
           </Text>
         </>
       )}
-      {demo && <Text style={f.hint}>Démo : l'espace est créé dans ce navigateur, vide.</Text>}
+      {demo && <Text style={f.hint}>Démo : l'espace est créé dans ce navigateur (avec les domaines choisis).</Text>}
     </FormSheet>
   );
 }
@@ -121,4 +173,9 @@ const s = StyleSheet.create({
   sub: { fontSize: 12, color: colors.muted, marginTop: 2 },
   retirer: { color: colors.muted, fontSize: 13, textDecorationLine: 'underline' },
   danger: { color: colors.danger, fontSize: 13, fontWeight: '700' },
+  doms: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  dom: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
+  sous: { borderStyle: 'dashed' },
+  domText: { fontSize: 14, color: colors.text },
+  domOn: { fontWeight: '600' },
 });

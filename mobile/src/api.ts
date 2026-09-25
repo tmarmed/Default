@@ -4,6 +4,7 @@ import { DEMO, demoApiFor } from './demo';
 import type { Data, DeletionCounts } from './hierarchy';
 import {
   Domaine,
+  ModeleDomaine,
   EntityKind,
   Epic,
   Feature,
@@ -155,6 +156,10 @@ export const API_VERSION_DATE_FIN = 12;
 export const API_VERSION_TERMINE_LE = 13;
 /** Version du script qui garde le statut d'avant « Terminé ». */
 export const API_VERSION_STATUT_AVANT = 14;
+/** Version du script avec les sous-domaines. */
+export const API_VERSION_SOUS_DOMAINES = 15;
+
+const normalizeDomaine = (d: Domaine): Domaine => ({ ...d, parent: d.parent ?? '' });
 
 const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '', etat: e.etat ?? '' });
 
@@ -169,11 +174,11 @@ export async function listItems(settings: Settings, espace = 'moi'): Promise<Dat
       items: m((await d.list()).map(normalize)),
       epics: m(all.epics),
       objectifs: m(all.objectifs),
-      domaines: m(all.domaines),
+      domaines: m(all.domaines.map(normalizeDomaine)),
       features: m(all.features),
       objectifsPI: m(all.objectifsPI),
       ignorees: m(all.ignorees ?? []),
-      version: API_VERSION_STATUT_AVANT,
+      version: API_VERSION_SOUS_DOMAINES,
     };
   }
   const data = await post<Partial<Data> & { items: Item[]; version?: number }>(s, { action: 'list' });
@@ -181,7 +186,7 @@ export async function listItems(settings: Settings, espace = 'moi'): Promise<Dat
     items: m(data.items.map(normalize)),
     epics: m((data.epics ?? []).map(normalizeEpic)),
     objectifs: m(data.objectifs ?? []),
-    domaines: m(data.domaines ?? []),
+    domaines: m((data.domaines ?? []).map(normalizeDomaine)),
     features: m(data.features ?? []),
     objectifsPI: m((data.objectifsPI ?? []).map((o) => ({ ...o, domaine: o.domaine ?? '', epic: o.epic ?? '' }))),
     ignorees: m(data.ignorees ?? []),
@@ -215,6 +220,27 @@ export async function updateEntity<K extends EntityKind>(
   verifierLiens(e, data as Record<string, unknown>, LIENS_ENTITE);
   if (DEMO) return marquer(await demoApiFor(e).updateEntity(kind, data as never), e) as unknown as EntityMap[K];
   return marquer((await post<{ entity: EntityMap[K] }>(s, { action: 'updateEntity', kind, data })).entity, e);
+}
+
+/**
+ * Crée des domaines (et leurs sous-domaines) dans un espace : domaines de base de Moi, ou copie à la création
+ * d'un espace. Ceux que l'espace a déjà (même nom) ne sont pas recréés.
+ */
+export async function copierDomaines(settings: Settings, espace: string, modeles: ModeleDomaine[], existants: Domaine[] = []): Promise<Domaine[]> {
+  const crees: Domaine[] = [];
+  const meme = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+  for (const m of modeles) {
+    let p = existants.find((d) => !d.parent && meme(d.nom, m.nom));
+    if (!p) {
+      p = await createEntity(settings, 'domaine', { nom: m.nom, icone: m.icone, couleur: m.couleur, parent: '', espace });
+      crees.push(p);
+    }
+    for (const x of m.sous ?? []) {
+      if (existants.some((d) => d.parent === p.id && meme(d.nom, x.nom))) continue;
+      crees.push(await createEntity(settings, 'domaine', { nom: x.nom, icone: x.icone, couleur: x.couleur, parent: p.id, espace }));
+    }
+  }
+  return crees.map(normalizeDomaine);
 }
 
 /** Supprime un domaine / objectif / epic ; `cascade` supprime aussi ce qui est en dessous. */

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext } from 'react';
 import { ScrollView, StyleProp, ViewStyle } from 'react-native';
-import { useHierarchy } from '../hierarchyContext';
+import { domainesDistincts, inDomain, useHierarchy } from '../hierarchyContext';
 import { Chips } from './Chips';
 
 /**
@@ -22,8 +22,7 @@ export const saveDomainFilter = (v: string) => AsyncStorage.setItem(DOMAINE_KEY,
 export const DomainFilterContext = createContext<{ value: string; set: (v: string) => void }>({ value: 'tous', set: () => {} });
 export const useDomainFilter = () => useContext(DomainFilterContext);
 
-/** Vrai si l'élément de domaine `dom` ('' = sans domaine) passe le filtre. */
-export const inDomain = (filter: string, dom: string | undefined) => filter === 'tous' || (dom ?? '') === filter;
+export { inDomain };
 
 /** Puces du filtre (rien si aucun domaine n'existe). */
 export function DomainChips({ style, label = 'Tous domaines' }: { style?: StyleProp<ViewStyle>; label?: string }) {
@@ -35,7 +34,7 @@ export function DomainChips({ style, label = 'Tous domaines' }: { style?: StyleP
       <Chips
         options={[
           { value: 'tous', label },
-          ...h.domaineList.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })),
+          ...domainesDistincts(h).map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })),
           { value: '', label: 'Sans domaine' },
         ]}
         value={value}

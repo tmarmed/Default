@@ -1,7 +1,7 @@
 import { type Alerte, alertesEpic, alertesObjectif, fmtDate } from './alerts';
 import { addDays, addMonths, parseDate, toDateString } from './dates';
 import { domaineOf, progressObjectif, tasksOfEpic } from './hierarchy';
-import { makeHierarchyValue } from './hierarchyContext';
+import { inDomain, makeHierarchyValue } from './hierarchyContext';
 import type { HierarchyValue } from './hierarchyContext';
 import { iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piStart, pointsOf, shiftIteration, shiftPi } from './pi';
 import { occurrencesBetween, recurrenceState } from './recurrence';
@@ -80,13 +80,13 @@ const minutes = (h: string) => {
  */
 export function filtrerDomaine(h: HierarchyValue, dom: string): HierarchyValue {
   if (dom === 'tous') return h;
-  const ok = (id: string | undefined) => (id ?? '') === dom;
+  const ok = (id: string | undefined) => inDomain(dom, id, h);
   const epics = h.epicList.filter((e) => ok(domaineOf({ epic: e.id }, h)?.id));
   const epicIds = new Set(epics.map((e) => e.id));
   return makeHierarchyValue(
     epics,
     h.objectifList.filter((o) => ok(o.domaine)),
-    h.domaineList.filter((d) => d.id === dom),
+    h.domaineList.filter((d) => d.id !== '' && ok(d.id)),
     h.items.filter((t) => ok(domaineOf(t, h)?.id)),
     h.featureList.filter((f) => epicIds.has(f.epic) || (!f.epic && dom === '')),
     h.objectifsPI.filter((o) => ok(o.domaine)),

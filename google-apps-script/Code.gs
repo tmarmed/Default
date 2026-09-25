@@ -29,7 +29,7 @@ var HEADERS = [
   'statut_avant'
 ];
 /** Version de l'API, lue par l'application pour savoir si le script est à jour. */
-var API_VERSION = 14;
+var API_VERSION = 15;
 
 /**
  * Niveaux au-dessus des tâches : Domaine > Objectif > Epic > Tâche.
@@ -59,7 +59,8 @@ var ENTITIES = {
   },
   domaine: {
     sheet: 'Domaines', min: 6,
-    headers: ['id', 'nom', 'icone', 'couleur', 'cree_le', 'modifie_le']
+    // v15 : parent = domaine au-dessus (sous-domaine, un seul niveau ; vide = domaine principal)
+    headers: ['id', 'nom', 'icone', 'couleur', 'cree_le', 'modifie_le', 'parent']
   },
   // v10 : alertes ignorées (clé de l'alerte + situation au moment où on l'a ignorée)
   ignoree: {
@@ -567,6 +568,7 @@ function sanitizeEntity_(kind, data, base) {
   if (kind === 'domaine') {
     if (!out.nom.trim()) throw new Error('Le nom du domaine est obligatoire.');
     out.icone = out.icone.slice(0, 8);
+    checkParentDomaine_(out, base ? String(base.id) : '');
   } else if (kind === 'feature') {
     if (!out.titre.trim()) throw new Error('Le titre est obligatoire.');
     checkSafe_(out);
@@ -599,6 +601,17 @@ function sanitizeEntity_(kind, data, base) {
   if (out.couleur !== undefined && !/^#[0-9A-Fa-f]{6}$/.test(out.couleur)) out.couleur = '#1A73E8';
   checkLinks_(out);
   return out;
+}
+
+/** Sous-domaine : un seul niveau, sous un domaine principal qui existe ; un domaine qui a des sous-domaines reste principal. */
+function checkParentDomaine_(o, id) {
+  if (!o.parent) return;
+  if (!/^[0-9A-Za-z\-]+$/.test(o.parent) || o.parent === id) throw new Error('Domaine parent invalide.');
+  var list = listEntities_('domaine');
+  var p = list.filter(function (d) { return d.id === o.parent; })[0];
+  if (!p) throw new Error('Domaine parent introuvable (peut-être supprimé).');
+  if (p.parent) throw new Error('Un sous-domaine ne peut pas avoir de sous-domaine.');
+  if (id && list.some(function (d) { return d.parent === id; })) throw new Error('Ce domaine a des sous-domaines : il reste un domaine principal.');
 }
 
 function createEntity_(kind, data) {
@@ -722,6 +735,16 @@ function planDeletion_(kind, self, cascade, data) {
       if (o.domaine !== id) return o;
       var c = copy_(o);
       c.domaine = '';
+      return c;
+    });
+  }
+
+  // Les sous-domaines d'un domaine supprimé deviennent des domaines principaux (jamais supprimés avec lui).
+  if (kind === 'domaine') {
+    out.domaine = out.domaine.map(function (d) {
+      if (d.parent !== id) return d;
+      var c = copy_(d);
+      c.parent = '';
       return c;
     });
   }

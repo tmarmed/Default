@@ -16,7 +16,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '17';
+const DEMO_DATA_VERSION = '18';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -67,13 +67,13 @@ function sample(): Item[] {
     // Date de fin (v12) : la carte expire dans 40 jours
     mk('d22', 'Renouveler la carte d’identité', 'demarche', d(10), '', {
       date_fin: d(40),
-      domaine: 'dadmin', description: 'Prendre rendez-vous en mairie, photo d’identité, justificatif de domicile',
+      domaine: 'dperso', description: 'Prendre rendez-vous en mairie, photo d’identité, justificatif de domicile',
     }),
     mk('d23', 'En tant que client, je vois les tarifs en ligne', 'story', '', '', { feature: 'f3', points: '3' }),
     // Sous-tâches (v8) : la démarche « carte d'identité » et la story « tarifs » (5 j de sous-tâches pour 3 j → alerte)
-    mk('d26', 'Faire les photos d’identité', 'tache', d(-3), '', { parent: 'd22', domaine: 'dadmin', statut: 'termine' }),
-    mk('d27', 'Appeler la mairie pour un rendez-vous', 'appel', d(0), '10:00', { parent: 'd22', domaine: 'dadmin', telephone: '01 23 45 67 89' }),
-    mk('d28', 'Déposer le dossier en mairie', 'tache', d(18), '', { parent: 'd22', domaine: 'dadmin' }),
+    mk('d26', 'Faire les photos d’identité', 'tache', d(-3), '', { parent: 'd22', domaine: 'dperso', statut: 'termine' }),
+    mk('d27', 'Appeler la mairie pour un rendez-vous', 'appel', d(0), '10:00', { parent: 'd22', domaine: 'dperso', telephone: '01 23 45 67 89' }),
+    mk('d28', 'Déposer le dossier en mairie', 'tache', d(18), '', { parent: 'd22', domaine: 'dperso' }),
     mk('d29', 'Rédiger les textes des tarifs', 'tache', '', '', { parent: 'd23', feature: 'f3', points: '1', statut: 'termine', iteration: `${pi2}-IT4` }),
     mk('d30', 'Mettre en page la grille', 'tache', '', '', { parent: 'd23', feature: 'f3', points: '2', iteration: `${pi2}-IT4` }),
     mk('d31', 'Relire et publier', 'tache', '', '', { parent: 'd23', feature: 'f3', points: '2', iteration: `${pi2}-IT5` }),
@@ -86,12 +86,14 @@ function sample(): Item[] {
     mk('d6', 'Envoyer les factures', 'tache', d(-2), '', { statut: 'termine', epic: 'e1' }),
     mk('d7', 'Visite du dépôt', 'mission', d(8), '11:00', { heure_fin: '12:30', epic: 'e3' }),
     // Date de fin dans 2 jours → rappel « doit être finie dans 2 jours »
-    mk('d34', 'Envoyer l’attestation d’assurance', 'demarche', '', '', { date_fin: d(2), domaine: 'dadmin' }),
+    mk('d34', 'Envoyer l’attestation d’assurance', 'demarche', '', '', { date_fin: d(2), domaine: 'dperso' }),
     // Epic « Salon professionnel » à l'état Prêt, mais une tâche est déjà faite → alerte du Portefeuille
     mk('d35', 'Réserver le stand', 'tache', d(-5), '', { epic: 'e2', statut: 'termine' }),
     // Chevauche la fin de la visite du dépôt (mission ↔ rendez-vous)
     mk('d33', 'Déjeuner fournisseur', 'rendez-vous', d(8), '12:00', { heure_fin: '13:30', domaine: 'dpro', lieu: 'Restaurant du port' }),
-    mk('d8', 'Dentiste', 'rendez-vous', d(15), '17:30', { heure_fin: '18:00', domaine: 'dperso' }),
+    mk('d8', 'Dentiste', 'rendez-vous', d(15), '17:30', { heure_fin: '18:00', domaine: 'dsante' }),
+    mk('d40', 'Préparer l’anniversaire de Léa', 'tache', d(6), '', { domaine: 'dfamille' }),
+    mk('d41', 'Cours de guitare', 'rendez-vous', d(4), '19:00', { heure_fin: '20:00', domaine: 'dloisirs' }),
     mk('d9', 'Commander le matériel', 'tache', d(1), '', { priorite: 'haute', epic: 'e3', points: '2' }),
     mk('d10', 'Relancer le devis Bernard', 'tache', '', '', { epic: 'e1' }),
     // Éléments répétés (débutent il y a deux mois pour montrer les retards à rattraper)
@@ -106,7 +108,7 @@ function sample(): Item[] {
     mk('d17', 'Appeler 10 prospects', 'tache', d(5), '', { objectif: 'o1' }),
     mk('d14', 'Déclaration de TVA', 'mission', '', '', { periodicite: 'trimestrielle' }),
     mk('d15', 'Renouveler l\'assurance', 'tache', '', '', {
-      domaine: 'dadmin',
+      domaine: 'dperso',
       periodicite: 'annuelle', echeance: String(now.getMonth() + 1).padStart(2, '0'),
     }),
   ];
@@ -124,7 +126,7 @@ function sampleEntities(): {
   const m = (months: number, day = 1) => toDateString(new Date(now.getFullYear(), now.getMonth() + months, day));
   const stamp = now.toISOString();
   const base = { cree_le: stamp, modifie_le: stamp };
-  const dom = (id: string, nom: string, icone: string, couleur: string): Domaine => ({ id, nom, icone, couleur, ...base });
+  const dom = (id: string, nom: string, icone: string, couleur: string, parent = ''): Domaine => ({ id, nom, icone, couleur, parent, ...base });
   const obj = (id: string, titre: string, domaine: string, debut: string, fin: string, couleur: string, extra: Partial<Objectif> = {}): Objectif => ({
     id, titre, domaine, debut, fin, couleur, description: '', cible: '', actuel: '', unite: '', ...base, ...extra,
   });
@@ -145,12 +147,14 @@ function sampleEntities(): {
     domaine: [
       dom('dpro', 'Pro', '💼', '#1A73E8'),
       dom('dperso', 'Perso', '🏠', '#188038'),
-      dom('dadmin', 'Administratif', '💶', '#E37400'),
+      dom('dsante', 'Santé', '🩺', '#D93025', 'dperso'),
+      dom('dfamille', 'Famille', '👪', '#E37400'),
+      dom('dloisirs', 'Loisirs', '🎨', '#8E24AA'),
     ],
     objectif: [
       obj('o1', 'Doubler le nombre de clients', 'dpro', m(-2), m(3, 0), '#1A73E8', { cible: '20', actuel: '8', unite: 'clients' }),
       obj('o2', 'Certification ISO 9001', 'dpro', m(4), m(15, 0), '#5E35B1'),
-      obj('o3', 'Tenir ses comptes à jour', 'dadmin', m(-6), '', '#E37400', { description: 'Objectif permanent' }),
+      obj('o3', 'Tenir ses comptes à jour', 'dperso', m(-6), '', '#E37400', { description: 'Objectif permanent' }),
     ],
     epic: [
       ep('e1', 'Refonte du site web', m(-1), m(4, 0), '#1A73E8', { objectif: 'o1', etat: 'en_cours' }, 'Nouveau site vitrine et prise de rendez-vous en ligne'),
@@ -172,8 +176,8 @@ function sampleEntities(): {
       opi('p2', 'Nouveau site en ligne', pi2, 'engage', '10'),
       opi('p3', 'Prise de rendez-vous en ligne', pi2, 'bonus', '6'),
       opi('p4', 'Stand prêt pour le salon', pi2, 'engage', '7', '', 'dpro', 'e2'),
-      opi('p5', 'Comptes du trimestre clôturés', pi, 'engage', '5', '5', 'dadmin'),
-      opi('p6', 'Déclaration de TVA sans retard', pi2, 'engage', '6', '', 'dadmin'),
+      opi('p5', 'Comptes du trimestre clôturés', pi, 'engage', '5', '5', 'dperso'),
+      opi('p6', 'Déclaration de TVA sans retard', pi2, 'engage', '6', '', 'dperso'),
     ],
     ignoree: [],
   };
@@ -357,7 +361,9 @@ const SEEDS_EQUIPE: Seeds = {
     const base = { cree_le: stamp, modifie_le: stamp };
     const now = new Date();
     const m = (n: number) => toDateString(new Date(now.getFullYear(), now.getMonth() + n, 1));
-    e.epic = [{ id: 'mobe1', titre: 'Application mobile v2', description: '', debut: m(-1), fin: m(3), couleur: '#C2185B', objectif: '', domaine: '', etat: 'en_cours', ...base }];
+    // Domaine copié de Moi à la création de l'espace
+    e.domaine = [{ id: 'mobdpro', nom: 'Pro', icone: '💼', couleur: '#1A73E8', parent: '', ...base }];
+    e.epic = [{ id: 'mobe1', titre: 'Application mobile v2', description: '', debut: m(-1), fin: m(3), couleur: '#C2185B', objectif: '', domaine: 'mobdpro', etat: 'en_cours', ...base }];
     e.feature = [{ id: 'mobf1', titre: 'Connexion et notifications', description: '', epic: 'mobe1', pi: piOf(now), iteration: iterationOf(now).key, points: '8', couleur: '', ...base }];
     return e;
   },
@@ -375,7 +381,8 @@ const SEEDS_ENTREPRISE: Seeds = {
     const base = { cree_le: stamp, modifie_le: stamp };
     const now = new Date();
     const m = (n: number) => toDateString(new Date(now.getFullYear(), now.getMonth() + n, 1));
-    e.objectif = [{ id: 'acmo1', titre: 'Fidéliser les clients', domaine: '', debut: m(-2), fin: m(10), couleur: '#1A73E8', description: '', cible: '90', actuel: '82', unite: '% de clients fidèles', ...base }];
+    e.domaine = [{ id: 'acmdpro', nom: 'Pro', icone: '💼', couleur: '#1A73E8', parent: '', ...base }];
+    e.objectif = [{ id: 'acmo1', titre: 'Fidéliser les clients', domaine: 'acmdpro', debut: m(-2), fin: m(10), couleur: '#1A73E8', description: '', cible: '90', actuel: '82', unite: '% de clients fidèles', ...base }];
     e.epic = [{ id: 'acme1', titre: 'Nouveau CRM', description: '', debut: m(0), fin: m(6), couleur: '#00897B', objectif: 'acmo1', domaine: '', etat: 'pret', ...base }];
     e.feature = [{ id: 'acmf1', titre: 'Reprise des données', description: '', epic: 'acme1', pi: piOf(now), iteration: '', points: '13', couleur: '', ...base }];
     return e;

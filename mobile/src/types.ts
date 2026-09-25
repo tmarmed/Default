@@ -237,7 +237,7 @@ export interface Objectif {
 
 export type ObjectifInput = Omit<Objectif, 'id' | 'cree_le' | 'modifie_le'>;
 
-/** Onglet « Domaines » : grande catégorie permanente (Pro, Perso…). */
+/** Onglet « Domaines » : grande catégorie permanente (Pro, Perso…), ou sous-domaine d'un domaine (Santé sous Perso). */
 export interface Domaine {
   /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
   espace?: string;
@@ -245,9 +245,26 @@ export interface Domaine {
   nom: string;
   icone: string;
   couleur: string;
+  /** Domaine au-dessus (sous-domaine, un seul niveau) ; vide = domaine principal */
+  parent: string;
   cree_le: string;
   modifie_le: string;
 }
+
+/** Domaines créés au premier lancement dans l'espace Moi (un seul sous-domaine : Santé sous Perso). */
+export interface ModeleDomaine {
+  nom: string;
+  icone: string;
+  couleur: string;
+  /** Sous-domaines */
+  sous?: ModeleDomaine[];
+}
+export const DOMAINES_DE_BASE: ModeleDomaine[] = [
+  { nom: 'Pro', icone: '💼', couleur: '#1A73E8' },
+  { nom: 'Perso', icone: '🏠', couleur: '#188038', sous: [{ nom: 'Santé', icone: '🩺', couleur: '#D93025' }] },
+  { nom: 'Famille', icone: '👪', couleur: '#E37400' },
+  { nom: 'Loisirs', icone: '🎨', couleur: '#8E24AA' },
+];
 
 export type DomaineInput = Omit<Domaine, 'id' | 'cree_le' | 'modifie_le'>;
 
@@ -266,7 +283,7 @@ export interface Ignoree {
 export type IgnoreeInput = Omit<Ignoree, 'id' | 'cree_le' | 'modifie_le'>;
 
 /** Icônes proposées pour les domaines. */
-export const DOMAINE_ICONES = ['💼', '🏠', '💶', '❤️', '🎓', '🛠️', '🌱', '✈️', '👪', '📦', '⚽', '🎨'];
+export const DOMAINE_ICONES = ['💼', '🏠', '🩺', '💶', '❤️', '🎓', '🛠️', '🌱', '✈️', '👪', '📦', '⚽', '🎨'];
 
 /** Couleurs proposées pour les epics. */
 export const EPIC_COULEURS = ['#1A73E8', '#8E24AA', '#E37400', '#188038', '#D93025', '#00897B', '#5E35B1', '#C2185B'];
