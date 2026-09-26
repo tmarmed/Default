@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   Modal,
   Platform,
   Pressable,
@@ -10,6 +11,7 @@ import {
   SectionList,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -104,6 +106,7 @@ import {
 type Filter = TypeFiltre;
 type Mode = 'liste' | 'jour' | 'semaine' | 'mois';
 
+const FILTRES_PLIES_KEY = 'president:filtres-plies';
 const MODES: { value: Mode; label: string }[] = [
   { value: 'liste', label: 'Liste' },
   { value: 'jour', label: 'Jour' },
@@ -309,12 +312,18 @@ function Main() {
   const [wizard, setWizard] = useState<{ open: boolean; start: WizardStart; pre?: { espace: string; domaine?: string } }>({ open: false, start: null });
   const [tab, setTab] = useState<Tab>('taches');
   /** Menu « ⋯ Plus » (écrans au-delà des 5 de la barre) */
-  const [plusOpen, setPlusOpen] = useState(false);
   /** Onglets des espaces affichés, selon leur type et le mode : 5 dans la barre, les autres dans « ⋯ Plus » */
   const tabs = useMemo(
     () => onglets(visibles.map((id) => espaceParId(espaces, id)?.type ?? 'moi'), safe.actif),
     [visibles, espaces, safe.actif],
   );
+  const tabsTous = useMemo(() => [...tabs.barre, ...tabs.plus], [tabs]);
+  const [largeur, setLargeur] = useState(Math.min(Dimensions.get('window').width, 480));
+  useEffect(() => {
+    const sub = Dimensions.addEventListener('change', ({ window }) => setLargeur(Math.min(window.width, 480)));
+    return () => sub.remove();
+  }, []);
+  const tabWidth = tabsTous.length > 5 ? 72 : largeur / tabsTous.length;
   // Onglet qui n'existe plus (autre mode ou autres espaces) : retour aux Tâches
   useEffect(() => {
     if (![...tabs.barre, ...tabs.plus].includes(tab)) setTab('taches');
@@ -331,6 +340,20 @@ function Main() {
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
+  /** Recherche par titre (écran Tâches) ; null = champ fermé */
+  const [recherche, setRecherche] = useState<string | null>(null);
+  /** Sous-bloc Filtres replié en une ligne de résumé (mémorisé sur l'appareil) */
+  const [filtresPlies, setFiltresPlies] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(FILTRES_PLIES_KEY)
+      .then((v) => setFiltresPlies(v === '1'))
+      .catch(() => {});
+  }, []);
+  const plierFiltres = () =>
+    setFiltresPlies((p) => {
+      AsyncStorage.setItem(FILTRES_PLIES_KEY, p ? '0' : '1').catch(() => {});
+      return !p;
+    });
   const [editing, setEditing] = useState<Item | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [mode, setMode] = useState<Mode>('liste');
@@ -565,8 +588,9 @@ function Main() {
     (i: Item) =>
       matchesType(i, filter) &&
       inDomain(domFilter, domaineOf(i, hv)?.id, hv) &&
-      (!safe.actif || !itFilter || iterationOfItem(i) === iterationOf(new Date()).key),
-    [filter, domFilter, hv, safe.actif, itFilter],
+      (!safe.actif || !itFilter || iterationOfItem(i) === iterationOf(new Date()).key) &&
+      (!recherche?.trim() || i.titre.toLowerCase().includes(recherche.trim().toLowerCase())),
+    [filter, domFilter, hv, safe.actif, itFilter, recherche],
   );
   const subs = useMemo(() => subtaskMap(items), [items]);
   const visible = useMemo(
@@ -600,6 +624,25 @@ function Main() {
       ),
     [items, subs, matches, showDone, today],
   );
+  /** Nombre d'éléments affichés (titre de l'écran Tâches) */
+  const nbTaches = useMemo(() => visible.reduce((n, sec) => n + sec.data.length, 0), [visible]);
+  /** Filtres actifs (l'affichage Liste / Jour / Semaine / Mois n'en est pas un) : type, domaine, itération, recherche */
+  const nbFiltres =
+    (filter !== 'tous' ? 1 : 0) + (domFilter !== 'tous' ? 1 : 0) + (safe.actif && itFilter ? 1 : 0) + (recherche?.trim() ? 1 : 0);
+  const reinitialiserFiltres = () => {
+    setFilter('tous');
+    setDomFilter('tous');
+    setItFilter(false);
+    setRecherche(null);
+  };
+  const resumeFiltres = [
+    filter === 'tous' ? 'Tous les types' : filter === 'recurrents' ? '🔁 Répétés' : `${TYPE_ICONS[filter]} ${TYPE_LABELS[filter]}`,
+    domFilter === 'tous' ? 'tous domaines' : domFilter === '' ? 'sans domaine' : (hv.domaines.get(domFilter)?.nom ?? ''),
+    safe.actif && itFilter ? '🏃 itération en cours' : '',
+    recherche?.trim() ? `« ${recherche.trim()} »` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
   /** Parents dépliés / repliés à la main (sinon : dépliés si une sous-tâche est due aujourd'hui ou en retard) */
   const [deplies, setDeplies] = useState<Record<string, boolean>>({});
   useEffect(() => {
@@ -1263,9 +1306,9 @@ function Main() {
     setVisibles([...visibles.filter((v) => v !== e.id), e.id]);
     if (settings) await refresh(settings);
   };
-  /** « Gérer » : lit les espaces retirés et la corbeille */
-  const ouvrirGestion = () => {
-    setGestionOpen(true);
+  /** ＋ (bloc Espaces) : ajouter un espace, ou en récupérer un (lit les espaces retirés et la corbeille) */
+  const ouvrirAjout = () => {
+    setEspacesOpen(true);
     loadRetires().then(setRetires);
     if (DEMO) loadSupprimes().then(setCorbeilleEsp);
     else {
@@ -1303,35 +1346,10 @@ function Main() {
     <IgnoreContext.Provider value={ignoreValue}>
     <EspacesContext.Provider value={espacesValue}>
     <View style={styles.flex}>
-      {/* Barre de l'application : nom, (démo) réinitialiser, compte Google */}
+      {/* Barre de l'application : nom, mode Simple / SAFe au milieu, compte Google (ou, en démo, réinitialiser) */}
       <View style={styles.appBar}>
         <Text style={styles.marque} numberOfLines={1}>
           {NOM_APP}
-        </Text>
-        {DEMO && (
-          <Pressable
-            onPress={async () => {
-              // Tous les espaces de la démo reviennent aux exemples
-              for (const e of espaces) await demoApiFor(e.id).reset();
-              if (settings) await refresh(settings);
-            }}
-            hitSlop={8}
-            style={styles.demoBtn}
-          >
-            <Text style={styles.demoReset}>Démo · Réinitialiser</Text>
-          </Pressable>
-        )}
-        {!DEMO && !!settings.googleEmail && (
-          <Pressable onPress={openAccount} style={styles.avatar} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Compte Google ${settings.googleEmail}`}>
-            <Text style={styles.avatarText}>{settings.googleEmail.charAt(0).toUpperCase()}</Text>
-          </Pressable>
-        )}
-      </View>
-      {/* Bloc des espaces affichés, au-dessus du titre et du mode */}
-      <EspacesBar onChange={setVisibles} onGerer={() => setEspacesOpen(true)} onGestion={ouvrirGestion} onOuvrir={setEspaceFiche} />
-      <View style={styles.header}>
-        <Text style={styles.title} numberOfLines={1}>
-          {TAB_TITLES[tab]}
         </Text>
         <View style={styles.modeSwitch}>
           <Segmented
@@ -1343,32 +1361,30 @@ function Main() {
             onChange={(v) => updateSafe({ actif: v === 'safe' })}
           />
         </View>
-      </View>
-      {tab === 'taches' && (
-        <View style={styles.filters}>
-          <Segmented options={MODES} value={mode} onChange={setMode} />
-          <TypeFilter value={filter} onChange={setFilter} />
-          {(domaines.length > 0 || safe.actif) && (
-            <>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-              {safe.actif && (
-                <Pressable
-                  onPress={() => setItFilter((v) => !v)}
-                  style={[styles.itChip, itFilter && styles.itChipOn]}
-                  accessibilityRole="switch"
-                  accessibilityState={{ checked: itFilter }}
-                >
-                  <Text style={[styles.itChipText, itFilter && styles.itChipTextOn]}>🏃 Itération en cours</Text>
-                </Pressable>
-              )}
-              {domaines.length > 0 && <DomainesPrincipauxChips />}
-            </ScrollView>
-            <SousDomaineChips style={styles.sousDomaines} />
-            </>
+        <View style={styles.appBarFin}>
+          {DEMO && (
+            <Pressable
+              onPress={async () => {
+                // Tous les espaces de la démo reviennent aux exemples
+                for (const e of espaces) await demoApiFor(e.id).reset();
+                if (settings) await refresh(settings);
+              }}
+              hitSlop={8}
+              style={styles.demoBtn}
+              accessibilityLabel="Démo : réinitialiser les exemples"
+            >
+              <Text style={styles.demoReset}>Démo ↺</Text>
+            </Pressable>
+          )}
+          {!DEMO && !!settings.googleEmail && (
+            <Pressable onPress={openAccount} style={styles.avatar} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Compte Google ${settings.googleEmail}`}>
+              <Text style={styles.avatarText}>{settings.googleEmail.charAt(0).toUpperCase()}</Text>
+            </Pressable>
           )}
         </View>
-      )}
-      {tab !== 'taches' && <View style={styles.spacer} />}
+      </View>
+      {/* Bloc des espaces affichés */}
+      <EspacesBar onChange={setVisibles} onAjouter={ouvrirAjout} onEnlever={() => setGestionOpen(true)} onOuvrir={setEspaceFiche} />
       {info && (
         <Pressable style={styles.info} onPress={() => setInfo(null)} accessibilityLabel="Fermer le message">
           <Text style={styles.infoText}>{info} ✕</Text>
@@ -1385,6 +1401,97 @@ function Main() {
         </Pressable>
       )}
 
+      {/* Bloc de l'écran : titre, affichage (Tâches), sous-bloc Filtres (Tâches), puis le contenu ; seul le contenu défile */}
+      <View style={[styles.bloc2, { marginBottom: TAB_BAR + insets.bottom + 8 }]}>
+        <View style={styles.titreEcran}>
+          <Text style={styles.titreTexte} numberOfLines={1}>
+            {TAB_ICONS[tab]} {TAB_TITLES[tab]}
+          </Text>
+          {tab === 'taches' && <Text style={styles.titreNb}>· {nbTaches}</Text>}
+        </View>
+        {tab === 'taches' && (
+          <View style={styles.barrette}>
+            <Segmented options={MODES} value={mode} onChange={setMode} />
+          </View>
+        )}
+        {tab === 'taches' && (
+          <View style={styles.filtresBloc}>
+            <View style={styles.filtresTete}>
+              {recherche === null ? (
+                <>
+                  <Text style={styles.filtresTitre}>FILTRES</Text>
+                  <Pressable onPress={() => setRecherche('')} style={styles.rond} hitSlop={6} accessibilityRole="button" accessibilityLabel="Rechercher">
+                    <Text style={styles.rondIcone}>🔍</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <View style={styles.champRecherche}>
+                  <Text style={styles.rondIcone}>🔍</Text>
+                  <TextInput
+                    autoFocus
+                    value={recherche}
+                    onChangeText={setRecherche}
+                    placeholder="Rechercher un titre…"
+                    placeholderTextColor={colors.muted}
+                    style={styles.champRechercheTexte}
+                    returnKeyType="search"
+                  />
+                  <Pressable onPress={() => setRecherche(null)} hitSlop={8} style={styles.fermerRecherche} accessibilityRole="button" accessibilityLabel="Fermer la recherche">
+                    <Text style={styles.fermerRechercheTexte}>✕</Text>
+                  </Pressable>
+                </View>
+              )}
+              <Pressable
+                onPress={reinitialiserFiltres}
+                disabled={!nbFiltres}
+                style={[styles.rond, !!nbFiltres && styles.rondActif]}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel={`Réinitialiser les filtres (${nbFiltres} actif${nbFiltres > 1 ? 's' : ''})`}
+              >
+                <Text style={[styles.reinitIcone, !!nbFiltres && styles.reinitIconeActif]}>↺</Text>
+                {!!nbFiltres && (
+                  <View style={styles.reinitPastille}>
+                    <Text style={styles.reinitPastilleTexte}>{nbFiltres}</Text>
+                  </View>
+                )}
+              </Pressable>
+              <Pressable onPress={plierFiltres} style={[styles.rond, styles.rondFin]} hitSlop={6} accessibilityRole="button" accessibilityLabel={filtresPlies ? 'Déplier les filtres' : 'Replier les filtres'}>
+                <Text style={[styles.chevron, filtresPlies && styles.chevronPlie]}>▾</Text>
+              </Pressable>
+            </View>
+            {filtresPlies ? (
+              <Pressable onPress={plierFiltres} accessibilityRole="button" accessibilityLabel="Déplier les filtres">
+                <Text style={styles.filtresResume} numberOfLines={1}>
+                  {resumeFiltres}
+                </Text>
+              </Pressable>
+            ) : (
+              <View style={styles.filtresCorps}>
+                <TypeFilter value={filter} onChange={setFilter} />
+                {(domaines.length > 0 || safe.actif) && (
+                  <>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
+                      {safe.actif && (
+                        <Pressable
+                          onPress={() => setItFilter((v) => !v)}
+                          style={[styles.itChip, itFilter && styles.itChipOn]}
+                          accessibilityRole="switch"
+                          accessibilityState={{ checked: itFilter }}
+                        >
+                          <Text style={[styles.itChipText, itFilter && styles.itChipTextOn]}>🏃 Itération en cours</Text>
+                        </Pressable>
+                      )}
+                      {domaines.length > 0 && <DomainesPrincipauxChips />}
+                    </ScrollView>
+                    <SousDomaineChips style={styles.sousDomaines} />
+                  </>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+        <View style={styles.contenu}>
       {tab === 'iteration' && (
         <IterationView
           itKey={itKey}
@@ -1537,6 +1644,8 @@ function Main() {
           ) : null
         }
       />}
+        </View>
+      </View>
 
       {!A_VENIR.includes(tab) && <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 18 }]}
@@ -1558,25 +1667,13 @@ function Main() {
         <Text style={styles.fabText}>+</Text>
       </Pressable>}
 
+      {/* Onglets : tous les écrans des espaces affichés ; au-delà de 5, la barre défile */}
       <View style={[styles.tabBar, { height: TAB_BAR + insets.bottom, paddingBottom: insets.bottom }]}>
-        {[...tabs.barre, ...(tabs.plus.length ? (['plus'] as const) : [])].map((key) => key === 'plus' ? (
-          <Pressable
-            key="plus"
-            style={styles.tabBtn}
-            onPress={() => setPlusOpen(true)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tabs.plus.includes(tab) }}
-            accessibilityLabel="Plus d'écrans"
-          >
-            <Text style={[styles.tabIcon, tabs.plus.includes(tab) && styles.tabOn]}>⋯</Text>
-            <Text style={[styles.tabLabel, tabs.plus.includes(tab) && styles.tabOn]} numberOfLines={1}>
-              {tabs.plus.includes(tab) ? TAB_LABELS[tab] : 'Plus'}
-            </Text>
-          </Pressable>
-        ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabBarContenu}>
+        {tabsTous.map((key) => (
           <Pressable
             key={key}
-            style={styles.tabBtn}
+            style={[styles.tabBtn, { width: tabWidth }, tab === key && styles.tabBtnOn]}
             onPress={() => setTab(key)}
             accessibilityRole="tab"
             accessibilityState={{ selected: tab === key }}
@@ -1603,6 +1700,7 @@ function Main() {
             </Text>
           </Pressable>
         ))}
+        </ScrollView>
       </View>
 
       <TaskForm
@@ -1873,20 +1971,20 @@ function Main() {
         </Pressable>
       </Modal>
 
-      <ChoiceSheet
-        visible={plusOpen}
-        title="Plus d'écrans"
-        choices={tabs.plus.map((t) => ({ label: `${TAB_ICONS[t]} ${TAB_LABELS[t]}`, principal: t === tab, onPress: () => setTab(t) }))}
-        onClose={() => setPlusOpen(false)}
-      />
       <GererEspacesSheet
         visible={gestionOpen}
         espaces={espaces}
         nomApp={NOM_APP}
-        demo={DEMO}
         onClose={() => setGestionOpen(false)}
         onRetirer={retirerEspace}
         onSupprimer={supprimerEspace}
+      />
+      <EspacesSheet
+        visible={espacesOpen}
+        espaces={espaces}
+        nomApp={NOM_APP}
+        demo={DEMO}
+        onClose={() => setEspacesOpen(false)}
         retires={retires}
         onRetablir={async (e) => {
           await saveRetires((await loadRetires()).filter((r) => r.id !== e.id));
@@ -1900,13 +1998,6 @@ function Main() {
           setCorbeilleEsp((c) => (c ?? []).filter((x) => x.id !== e.id));
           await remettreEspace(e);
         }}
-      />
-      <EspacesSheet
-        visible={espacesOpen}
-        espaces={espaces}
-        nomApp={NOM_APP}
-        demo={DEMO}
-        onClose={() => setEspacesOpen(false)}
         onAdd={async (nouveau, domaines) => {
           // Hors démo : le Google Sheet de l'espace est créé dans le Drive du compte connecté
           const e = DEMO ? nouveau : { ...nouveau, fichier: await api.creerFichierEspace(nomFichier(NOM_APP, nouveau), nouveau.type, nouveau.nom) };
@@ -1955,7 +2046,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   title: { fontSize: 28, fontWeight: '700', color: colors.text, flexShrink: 1 },
-  modeSwitch: { width: 150, marginLeft: 'auto', marginRight: 0 },
+  modeSwitch: { width: 150 },
+  appBarFin: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end' },
+  bloc2: { flex: 1, minHeight: 0, marginHorizontal: 12, backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  titreEcran: { flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8 },
+  titreTexte: { fontSize: 21, fontWeight: '800', color: colors.text, flexShrink: 1 },
+  titreNb: { fontSize: 13, fontWeight: '700', color: colors.muted },
+  barrette: { paddingHorizontal: 10, paddingBottom: 8 },
+  filtresBloc: { marginHorizontal: 10, marginBottom: 10, backgroundColor: colors.bg, borderRadius: 14, borderWidth: 1, borderColor: '#EEF1F5', padding: 9 },
+  filtresTete: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 30 },
+  filtresTitre: { fontSize: 11, fontWeight: '800', color: colors.muted, letterSpacing: 0.7, marginLeft: 2, marginRight: 2 },
+  rond: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
+  rondFin: { marginLeft: 'auto' },
+  rondActif: { borderColor: '#B9D2F8' },
+  rondIcone: { fontSize: 13 },
+  reinitIcone: { fontSize: 15, color: '#A5AEBB', fontWeight: '700' },
+  reinitIconeActif: { color: colors.primary },
+  reinitPastille: { position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  reinitPastilleTexte: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  chevron: { fontSize: 12, color: colors.muted },
+  chevronPlie: { transform: [{ rotate: '-90deg' }] },
+  champRecherche: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, borderRadius: 10, borderWidth: 1.5, borderColor: colors.primary, backgroundColor: colors.card, paddingLeft: 8, paddingRight: 4 },
+  champRechercheTexte: { flex: 1, minWidth: 0, fontSize: 14, color: colors.text, paddingVertical: 0, outlineStyle: 'none' } as never,
+  fermerRecherche: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#E6EAF0', alignItems: 'center', justifyContent: 'center' },
+  fermerRechercheTexte: { fontSize: 10, color: colors.muted, fontWeight: '800' },
+  filtresResume: { marginTop: 6, marginHorizontal: 2, fontSize: 12.5, color: colors.muted },
+  filtresCorps: { marginTop: 8, gap: 8 },
+  contenu: { flex: 1, minHeight: 0, borderTopWidth: 1, borderTopColor: '#EEF1F5' },
   filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   appBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 10 },
   marque: { flex: 1, fontSize: 15, fontWeight: '800', color: colors.text, letterSpacing: 0.2 },
@@ -1969,7 +2086,7 @@ const styles = StyleSheet.create({
   noticeText: { color: colors.danger, fontSize: 13 },
   offline: { marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, backgroundColor: '#FEF7E0' },
   offlineText: { color: '#7A4F01', fontSize: 13 },
-  list: { paddingBottom: 110 },
+  list: { paddingBottom: 90 },
   section: {
     marginHorizontal: 16,
     marginTop: 14,
@@ -2012,7 +2129,9 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     backgroundColor: colors.card,
   },
-  tabBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  tabBarContenu: { flexDirection: 'row', height: '100%' },
+  tabBtn: { alignItems: 'center', justifyContent: 'center', gap: 2 },
+  tabBtnOn: { borderTopWidth: 3, borderTopColor: colors.primary },
   tabIcon: { fontSize: 18, color: colors.muted },
   badges: { position: 'absolute', top: -5, left: 13, flexDirection: 'row', gap: 2 },
   badgeJaune: { backgroundColor: '#F2C230' },

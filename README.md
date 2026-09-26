@@ -18,12 +18,21 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
 - **Espaces** : chaque espace est un Google Sheet, d'un type choisi à sa création : 🔒 **Moi** (un seul, jamais
   partagé), 👥 **Équipe** (équipe indépendante), 🏢 **Entreprise** (avec ses équipes). Nom du fichier :
   `President | Moi`, `President | Équipe | Mobile`, `President | Entreprise | ACME` (séparateur `|`).
-- **Barre du haut** : « President » et, à droite, le compte Google (rond avec l'initiale : Se déconnecter).
-- **Bloc « Espaces »** (cadre à part, sous la barre du haut) : un ou plusieurs espaces affichés ; noms longs coupés
-  « … », la ligne défile s'il y a beaucoup d'espaces. « ＋ » crée un espace (avec ses domaines). « ⋯ » ouvre « Mes espaces » : **Retirer** (l'espace quitte l'application, son Google Sheet est
-  gardé) ou **Supprimer** (le Google Sheet part à la corbeille de Google Drive, récupérable 30 jours ; un espace partagé
-  disparaît aussi pour les autres) chaque espace sauf Moi ; **Rétablir** un espace retiré ; **Restaurer** un espace de la
-  corbeille. Raccourci : appui long sur un espace.
+- **Barre du haut** : « President », le mode **Simple | SAFe** au milieu, le compte Google à droite (rond avec
+  l'initiale : Se déconnecter ; en démo : « Démo ↺ » remet les exemples).
+- **Bloc « Espaces »** (cadre à part) : un ou plusieurs espaces affichés ; noms longs coupés « … », la ligne défile.
+  En-tête : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule
+  **＋ | −** et **▾** (replie le bloc en une ligne de résumé).
+  - **＋** : créer un espace (type, nom, **domaines rapides** « + Domaine », Entrée) ; un message « Espace créé »
+    confirme, **OK** referme. Aussi : **Rétablir** un espace retiré, **Restaurer** un espace de la corbeille (30 jours).
+  - **−** : **Retirer** (l'espace quitte l'application, son Google Sheet est gardé) ou **Supprimer** (le Google Sheet
+    part à la corbeille de Google Drive, récupérable 30 jours ; un espace partagé disparaît aussi pour les autres),
+    chaque espace sauf Moi. Raccourci : appui long sur un espace.
+- **Bloc de l'écran** : titre (« ✓ Mes tâches · 27 », le nombre suit les filtres), puis, sur Tâches, la **barrette
+  d'affichage** Liste · Jour · Semaine · Mois (ce n'est pas un filtre) et le sous-bloc **Filtres** : 🔍 recherche par
+  titre (le champ s'ouvre dans l'en-tête), ↺ réinitialiser (pastille rouge : nombre de filtres actifs — type, domaine,
+  itération, recherche), ▾ replier en une ligne de résumé ; puis types, 🏃 itération en cours (SAFe) et domaines.
+  Seul le contenu du bloc défile.
 - **Cloisonnement** : chaque élément reste dans l'espace où il est créé, y compris les rendez-vous, appels et
   démarches.
 - **Domaines** : au démarrage, Moi reçoit les domaines de base qui lui manquent : 💼 Pro (sous-domaines 📁 Projets
@@ -34,10 +43,10 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   Google Sheet. Chaque espace a ses propres domaines, aucun n'est partagé (deux domaines peuvent avoir le même nom) : avec plusieurs espaces affichés, ils sont préfixés de leur espace (« 🏢 ACME · 💼 Pro »). Filtrer un
   domaine montre aussi ses sous-domaines.
 - **Pas de lien entre deux espaces** (une tâche de Moi ne peut pas être rattachée à une epic d'une entreprise).
-- **Mode Simple / SAFe** : choisi à la volée (en haut), comme avant, pour tous les espaces affichés.
-- **Onglets par type d'espace et par mode** (5 dans la barre, les autres dans « ⋯ Plus ») :
+- **Mode Simple / SAFe** : choisi à la volée (au milieu de la barre du haut), pour tous les espaces affichés.
+- **Onglets par type d'espace et par mode** (au-delà de 5, la barre des onglets défile ; colonne « suite » = après les 5 premiers) :
 
-  | Cas | Barre | ⋯ Plus |
+  | Cas | 5 premiers | Suite |
   |---|---|---|
   | Moi · Simple | Tâches · Roadmap | — |
   | Moi · SAFe | Tâches · Itération · PI · Stratégie · Roadmap | Backlog · Portefeuille · Pilotage |

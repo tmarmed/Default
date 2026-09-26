@@ -8,24 +8,18 @@ interface Props {
   visible: boolean;
   espaces: Espace[];
   nomApp: string;
-  demo: boolean;
   onClose: () => void;
   /** Retirer : l'espace quitte l'application, son Google Sheet est gardé */
   onRetirer: (e: Espace) => Promise<void>;
   /** Supprimer : le Google Sheet part à la corbeille de Google Drive (30 jours) */
   onSupprimer: (e: Espace) => Promise<void>;
-  retires: Espace[];
-  onRetablir: (e: Espace) => Promise<void>;
-  /** Corbeille ; null = en cours de lecture */
-  corbeille: Espace[] | null;
-  onRestaurer: (e: Espace) => Promise<void>;
 }
 
 /**
- * « Gérer » : tous les espaces au même endroit. Mes espaces (Retirer / Supprimer, sauf Moi), espaces retirés
- * (Rétablir), corbeille de Google Drive (Restaurer, 30 jours). Créer un espace : « ＋ Espace ».
+ * − (bloc Espaces) : enlever un espace. Retirer (l'espace quitte l'application, son Google Sheet est gardé : on le
+ * récupère avec ＋) ou Supprimer (le Google Sheet part à la corbeille, 30 jours). Moi reste toujours.
  */
-export function GererEspacesSheet({ visible, espaces, nomApp, demo, onClose, onRetirer, onSupprimer, retires, onRetablir, corbeille, onRestaurer }: Props) {
+export function GererEspacesSheet({ visible, espaces, nomApp, onClose, onRetirer, onSupprimer }: Props) {
   const [enCours, setEnCours] = useState<string | null>(null);
   const [confirmer, setConfirmer] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,14 +65,19 @@ export function GererEspacesSheet({ visible, espaces, nomApp, demo, onClose, onR
   );
 
   return (
-    <FormSheet visible={visible} title="Mes espaces" busy={!!enCours} error={error} onClose={onClose}>
+    <FormSheet visible={visible} title="− Enlever un espace" busy={!!enCours} error={error} onClose={onClose}>
+      <Text style={f.hint}>
+        Retirer : l'espace quitte l'application, son Google Sheet est gardé (on le récupère avec ＋). Supprimer : le Google
+        Sheet part à la corbeille (30 jours). Raccourci : appui long sur un espace.
+      </Text>
       <Label>Mes espaces</Label>
-      {espaces.map((e) =>
+      {espaces.filter((e) => e.id !== 'moi').length === 0 && <Text style={f.muted}>Aucun espace à enlever : 🔒 Moi reste toujours.</Text>}
+      {espaces.filter((e) => e.id !== 'moi').map((e) =>
         confirmer === e.id ? (
           <View key={e.id} style={s.confirm}>
             <Text style={s.confirmText}>
               Supprimer « {libelleEspace(e)} » ? Son Google Sheet part à la corbeille de Google Drive : récupérable 30 jours ici
-              (Corbeille › Restaurer), puis effacé définitivement.{e.type !== 'moi' ? ' Espace partagé : il disparaît aussi pour les personnes qui y ont accès.' : ''}
+              (＋ › Récupérer), puis effacé définitivement.{e.type !== 'moi' ? ' Espace partagé : il disparaît aussi pour les personnes qui y ont accès.' : ''}
             </Text>
             <View style={s.confirmRow}>
               <Pressable onPress={() => setConfirmer(null)} style={s.btn} accessibilityRole="button">
@@ -99,34 +98,6 @@ export function GererEspacesSheet({ visible, espaces, nomApp, demo, onClose, onR
             )}
           </Ligne>
         ),
-      )}
-      <Text style={f.hint}>
-        Retirer : l'espace quitte l'application, son Google Sheet est gardé. Supprimer : le Google Sheet part à la corbeille
-        (30 jours). Raccourci : appui long sur un espace, en haut de l'écran.
-      </Text>
-
-      <Label>Espaces retirés</Label>
-      {retires.length === 0 ? (
-        <Text style={f.muted}>Aucun.</Text>
-      ) : (
-        retires.map((e) => (
-          <Ligne key={`r-${e.id}`} e={e} sous={`Google Sheet gardé · « ${nomFichier(nomApp, e)} »`}>
-            <Bouton label={`Rétablir ${libelleEspace(e)}`} busy={enCours === `r-${e.id}`} onPress={() => agir(`r-${e.id}`, () => onRetablir(e))} />
-          </Ligne>
-        ))
-      )}
-
-      <Label>Corbeille (30 jours)</Label>
-      {corbeille === null ? (
-        <Text style={f.muted}>Lecture de la corbeille de Google Drive…</Text>
-      ) : corbeille.length === 0 ? (
-        <Text style={f.muted}>Vide.</Text>
-      ) : (
-        corbeille.map((e) => (
-          <Ligne key={`c-${e.id}`} e={e} sous={demo ? 'Supprimé : récupérable 30 jours' : 'Dans la corbeille de Google Drive : récupérable 30 jours'}>
-            <Bouton label={`Restaurer ${libelleEspace(e)}`} busy={enCours === `c-${e.id}`} onPress={() => agir(`c-${e.id}`, () => onRestaurer(e))} />
-          </Ligne>
-        ))
       )}
     </FormSheet>
   );
