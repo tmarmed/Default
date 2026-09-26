@@ -18,7 +18,7 @@ export function Segmented<T extends string>({ options, value, onChange }: Props<
             key={o.value}
             style={[styles.segment, active && styles.active]}
             onPress={() => onChange(o.value)}
-            accessibilityRole="tab"
+            accessibilityRole="button"
             accessibilityState={{ selected: active }}
           >
             <Text style={[styles.label, active && styles.labelActive]}>{o.label}</Text>
