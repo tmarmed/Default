@@ -20,8 +20,8 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   `President | Moi`, `President | Équipe | Mobile`, `President | Entreprise | ACME` (séparateur `|`).
 - **En haut** : une barre fixe « President » avec, à droite, l'icône standard du compte (silhouette, point vert =
   connecté ; menu : Stockage Google Drive, Se déconnecter — en démo : Stockage Google Drive, Réinitialiser la démo).
-  Juste après « President », la **pastille des espaces de travail** (« 🔒 Moi · 👥 Mobile ② ▾ », noms longs
-  coupés « … ») : la toucher déplie la **carte des espaces de travail** sous la barre (▴ la replie ; mémorisé) : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule
+  Juste après « President », la **pastille des espaces de travail** (« 🔒 Moi · 👥 Mobile ② ▾ » ; jamais coupée
+  « … » : le texte rapetisse, puis les derniers noms deviennent « +N ») : la toucher déplie la **carte des espaces de travail** sous la barre (▴ la replie ; mémorisé) : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule
   **＋ | −**, puis les espaces (un ou plusieurs affichés ; noms longs coupés « … », la ligne défile).
   - **＋** : créer un espace (type, nom, **domaines rapides** « + Domaine », Entrée), un seul bouton « Créer l'espace
     de travail » ; un message « Espace de travail créé » confirme, **OK** referme. Aussi : **Rétablir** un espace retiré, **Restaurer** un espace de la corbeille (30 jours).
@@ -39,7 +39,7 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   tout moment et « Vérifier maintenant », et un **Drive simulé** pour tester (Plein : autres fichiers, Plein :
   President ; démo : Normal 41 % ; vraie version : Réel = le vrai Drive, et en test **rien n'est effacé**, le test
   s'arrête en quittant l'application). Calcul vérifié par `npm run verif:stockage`.
-- **Bloc de l'écran** : titre (« ✓ Mes tâches · 27 », le nombre suit les filtres), juste après la **pastille
+- **Bloc de l'écran** : titre (« ✓ Tâches · 27 », le nombre suit les filtres ; jamais coupé « … » : il rapetisse si la place manque), juste après la **pastille
   Filtres** (entonnoir ; bleue avec le nombre de filtres actifs), et à droite le mode **Simple | SAFe** (pour tous
   les espaces affichés). La pastille Filtres (tous les écrans à données : Tâches, Itération, PI, Roadmap,
   Portefeuille) déplie **sous le titre le sous-bloc Filtres** (▴ le replie ; mémorisé) : 🔍 recherche par titre (le

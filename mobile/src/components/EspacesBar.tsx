@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { type Espace, ICONE_ESPACE, libelleEspace, type TypeEspace, useEspaces } from '../espaces';
 import { colors } from '../theme';
+import { TexteAjuste } from './TexteAjuste';
 
 /**
  * Espaces de travail repliés : une pastille dans la barre, juste après « President » :
@@ -9,25 +10,32 @@ import { colors } from '../theme';
  */
 export function EspacesPastille({ plie, onPlier }: { plie: boolean; onPlier: () => void }) {
   const { liste, visibles } = useEspaces();
+  const [zone, setZone] = useState(0);
   const affiches = liste.filter((e) => visibles.includes(e.id));
+  const noms = affiches.map((e) => `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}`);
+  // Jamais coupé « … » : le texte rapetisse, puis les derniers noms deviennent « +N »
+  const variantes = noms.map((_, i) => noms.slice(0, noms.length - i).join(' · ') + (i ? ` +${i}` : ''));
   return (
-    <Pressable
-      onPress={onPlier}
-      style={s.pastille}
-      hitSlop={6}
-      accessibilityRole="button"
-      accessibilityLabel={plie ? 'Déplier les espaces de travail' : 'Replier les espaces de travail'}
-    >
-      <Text style={s.noms} numberOfLines={1}>
-        {affiches.map((e) => `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}`).join(' · ')}
-      </Text>
-      <View style={s.nb}>
-        <Text style={s.nbText}>{affiches.length}</Text>
-      </View>
-      <Text style={s.chevron}>{plie ? '▾' : '▴'}</Text>
-    </Pressable>
+    <View style={s.zone} onLayout={(e) => setZone(e.nativeEvent.layout.width)}>
+      <Pressable
+        onPress={onPlier}
+        style={s.pastille}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel={`${plie ? 'Déplier' : 'Replier'} les espaces de travail`}
+        accessibilityHint={noms.join(', ')}
+      >
+        <TexteAjuste variantes={variantes} taille={12.5} min={10} dispo={zone ? zone - FIXE_PASTILLE : null} style={s.noms} />
+        <View style={s.nb}>
+          <Text style={s.nbText}>{affiches.length}</Text>
+        </View>
+        <Text style={s.chevron}>{plie ? '▾' : '▴'}</Text>
+      </Pressable>
+    </View>
   );
 }
+/** Pastille des espaces : marges, nombre et chevron (ce qui n'est pas le texte des noms) */
+const FIXE_PASTILLE = 11 + 8 + 6 + 18 + 6 + 14 + 2;
 
 /**
  * Carte des espaces de travail, dépliée sous la barre (la pastille de la barre la replie) : petit filtre
@@ -116,7 +124,7 @@ export function EspacesBar({
                   accessibilityLabel={`Espace de travail ${libelleEspace(e)}`}
                   accessibilityHint={e.id === 'moi' ? undefined : 'Appui long : retirer ou supprimer l’espace de travail'}
                 >
-                  <Text style={[s.chipText, on && s.chipTextOn]} numberOfLines={1} ellipsizeMode="tail">
+                  <Text style={[s.chipText, on && s.chipTextOn]} numberOfLines={1}>
                     {ICONE_ESPACE[e.type]} {libelleEspace(e)}
                   </Text>
                 </Pressable>
@@ -130,8 +138,9 @@ export function EspacesBar({
 
 const s = StyleSheet.create({
   carte: { marginHorizontal: 12, marginTop: 6, marginBottom: 8, borderRadius: 19, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, flexShrink: 0 },
-  pastille: { flexShrink: 1, minWidth: 0, maxWidth: 200, flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingLeft: 11, paddingRight: 8, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
-  noms: { flexShrink: 1, minWidth: 0, fontSize: 12.5, fontWeight: '600', color: colors.text },
+  zone: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', marginRight: 8 },
+  pastille: { flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingLeft: 11, paddingRight: 8, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  noms: { fontSize: 12.5, fontWeight: '600', color: colors.text },
   nb: { minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' },
   nbText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   chevron: { width: 14, textAlign: 'center', fontSize: 11, color: colors.muted },
@@ -152,7 +161,7 @@ const s = StyleSheet.create({
   // Fondu à droite (navigateur) : d'autres espaces suivent
   fondu: { maskImage: 'linear-gradient(90deg, #000 88%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, #000 88%, transparent)' } as never,
   row: { paddingLeft: 10, paddingRight: 44, gap: 6, alignItems: 'center' },
-  chip: { maxWidth: 170, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  chip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
   chipOn: { backgroundColor: colors.text, borderColor: colors.text },
   chipText: { fontSize: 13, color: colors.text, fontWeight: '600' },
   chipTextOn: { color: '#fff' },

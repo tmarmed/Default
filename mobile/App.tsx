@@ -44,6 +44,7 @@ import { TaskItem } from './src/components/TaskItem';
 import { DayView, MonthView, WeekView } from './src/components/PeriodViews';
 import { PeriodHeader } from './src/components/PeriodHeader';
 import { Segmented } from './src/components/Segmented';
+import { TexteAjuste } from './src/components/TexteAjuste';
 import { type ActionStockage, StockagePanneau } from './src/components/Stockage';
 import { FormSheet } from './src/components/FormSheet';
 import { aPurger, copieCsv, moisAnnee, octetsLignes, type Plan, planifier, pourcent, type Quota, quotaSimule, SEUIL_ALERTE, SEUIL_CIBLE, type TestStockage } from './src/stockage';
@@ -133,7 +134,7 @@ const MODES: { value: Mode; label: string }[] = [
 /** Onglets : ceux des espaces affichés, selon leur type et le mode (voir src/espaces.ts) */
 type Tab = Ecran;
 const TAB_TITLES: Record<Tab, string> = {
-  taches: 'Mes tâches',
+  taches: 'Tâches',
   iteration: 'Itération',
   pi: 'PI',
   roadmap: 'Roadmap',
@@ -379,6 +380,8 @@ function Main() {
       AsyncStorage.setItem(ESPACES_PLIE_KEY, p ? '0' : '1').catch(() => {});
       return !p;
     });
+  /** Ligne du titre : largeurs mesurées (zone du titre, nombre, pastille Filtres) pour ajuster la taille du titre */
+  const [titreLargeurs, setTitreLargeurs] = useState({ zone: 0, nb: 0, pastille: 0 });
   const plierFiltres = () =>
     setFiltresPlies((p) => {
       AsyncStorage.setItem(FILTRES_PLIES_KEY, p ? '0' : '1').catch(() => {});
@@ -1544,7 +1547,6 @@ function Main() {
         </Text>
         {/* Espaces de travail : pastille juste après « President » (repliés), la carte se déplie dessous */}
         <EspacesPastille plie={espacesPlie} onPlier={plierEspaces} />
-        <View style={styles.flex} />
         <Pressable
           onPress={openAccount}
           hitSlop={8}
@@ -1593,14 +1595,25 @@ function Main() {
       {/* Bloc de l'écran : titre, sous-bloc Filtres, affichage (Tâches), puis le contenu ; seul le contenu défile */}
       <View style={[styles.bloc2, { marginBottom: TAB_BAR + insets.bottom + 8 }]}>
         <View style={styles.titreEcran}>
-          <Text style={styles.titreTexte} numberOfLines={1}>
-            {TAB_ICONS[tab]} {TAB_TITLES[tab]}
-          </Text>
-          {tab === 'taches' && <Text style={styles.titreNb}>· {nbTaches}</Text>}
+          {/* Titre, nombre et pastille Filtres : jamais coupés « … », le titre rapetisse si la place manque */}
+          <View style={styles.titreZone} onLayout={(e) => setTitreLargeurs((l) => ({ ...l, zone: e.nativeEvent.layout.width }))}>
+          <TexteAjuste
+            variantes={[`${TAB_ICONS[tab]} ${TAB_TITLES[tab]}`]}
+            taille={18}
+            min={12}
+            dispo={titreLargeurs.zone ? titreLargeurs.zone - (tab === 'taches' ? titreLargeurs.nb + 6 : 0) - (ECRANS_FILTRES.includes(tab) ? titreLargeurs.pastille + 6 : 0) : null}
+            style={styles.titreTexte}
+          />
+          {tab === 'taches' && (
+            <Text style={styles.titreNb} onLayout={(e) => setTitreLargeurs((l) => ({ ...l, nb: e.nativeEvent.layout.width }))}>
+              · {nbTaches}
+            </Text>
+          )}
           {/* Filtres repliés : pastille juste après le titre (bleue et chiffrée quand des filtres sont actifs) */}
           {ECRANS_FILTRES.includes(tab) && (
             <Pressable
               onPress={plierFiltres}
+              onLayout={(e) => setTitreLargeurs((l) => ({ ...l, pastille: e.nativeEvent.layout.width }))}
               hitSlop={6}
               style={[styles.pastilleFiltres, !!nbFiltres && styles.pastilleFiltresActive]}
               accessibilityRole="button"
@@ -1616,6 +1629,7 @@ function Main() {
               )}
             </Pressable>
           )}
+          </View>
           {/* Mode Simple / SAFe : pour tous les espaces affichés */}
           <View style={styles.modeSwitch}>
             <Segmented
@@ -2342,7 +2356,8 @@ const styles = StyleSheet.create({
   appBarFin: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end' },
   bloc2: { flex: 1, minHeight: 0, marginHorizontal: 12, backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   titreEcran: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8 },
-  titreTexte: { fontSize: 18, fontWeight: '800', color: colors.text, flexShrink: 1 },
+  titreZone: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  titreTexte: { fontSize: 18, fontWeight: '800', color: colors.text },
   titreNb: { fontSize: 12, fontWeight: '700', color: colors.muted, flexShrink: 0 },
   barrette: { paddingHorizontal: 10, paddingBottom: 8 },
   filtresBloc: { marginHorizontal: 10, marginBottom: 10, backgroundColor: colors.bg, borderRadius: 14, borderWidth: 1, borderColor: '#EEF1F5', padding: 9 },
