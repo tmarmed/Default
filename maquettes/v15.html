@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
-<title>President · maquette v16</title>
+<title>President · maquette v15</title>
 <style>
   :root {
     --fond:#EEF1F6; --carte:#fff; --texte:#18202C; --doux:#6B7686; --trait:#E1E6ED; --trait2:#EEF1F5;
@@ -273,16 +273,6 @@
   .r3 .pastilleN { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; border-radius:9px; background:#E53935; color:#fff; font-size:10.5px; font-weight:800; display:grid; place-items:center; padding:0 4px; border:2px solid var(--gris); }
   .pop { animation:pop .25s ease-out; }
   @keyframes pop { 0% { transform:scale(.8); } 60% { transform:scale(1.12); } 100% { transform:scale(1); } }
-  .bloc1 .ent3 { margin-bottom:0; }
-  .bloc1 .puces { margin-top:9px; }
-  .bloc1.ferme .puces { display:none; }
-  .bloc1 .resumeEsp { display:none; margin-top:6px; font-size:12.5px; color:var(--doux); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .bloc1.ferme .resumeEsp { display:block; }
-  .bloc1 .rond28.chev { transition:transform .2s; }
-  .bloc1.ferme .rond28.chev { transform:rotate(-90deg); }
-  .bloc1 .fin { display:flex; gap:6px; align-items:center; }
-  .bloc1 .rond28.plus { color:var(--bleu); font-weight:800; font-size:15px; }
-  .bloc1 .rond28.menu { font-weight:800; color:var(--texte); }
   .toast { position:absolute; left:50%; transform:translateX(-50%) translateY(6px); bottom:100%; margin-bottom:10px; background:rgba(24,32,44,.92); color:#fff; font-size:12px; font-weight:600; padding:7px 13px; border-radius:16px; opacity:0; transition:opacity .2s, transform .2s; pointer-events:none; white-space:nowrap; z-index:6; }
   .toast.vu { opacity:1; transform:translateX(-50%); }
   @media (max-width:440px) {
@@ -292,8 +282,14 @@
   </style>
 </head>
 <body>
-<h1 class="page">Maquette v16 : réinitialiser et ▾ aussi pour les espaces</h1>
-<p class="intro">Bouton réinitialiser retenu : <b>↺ avec pastille</b>. Le bloc Espaces reçoit le même bouton (retour à <b>🔒 Moi</b> seul) et un <b>▾</b> pour le replier. Essaie : allume ACME, puis ↺ ; replie les espaces avec ▾.</p>
+<h1 class="page">Maquette v15 : deux boutons séparés, le nombre dans « réinitialiser »</h1>
+<p class="intro">« Filtres », puis deux boutons à part : <b>🔍 recherche</b> et <b>réinitialiser</b> (qui porte le nombre de filtres actifs), et <b>▾</b> à droite. Trois styles pour le bouton réinitialiser. Essaie : choisis un type et un domaine, cherche « ma ».</p>
+<div class="choix" id="choix">
+  <span class="etiq">Réinitialiser</span>
+  <button data-ent="1" class="on">1 · « ↺ 3 » plein</button>
+  <button data-ent="2">2 · « 3 filtres ✕ »</button>
+  <button data-ent="3">3 · ↺ avec pastille</button>
+</div>
 
 <div class="scene">
   <div class="tel" id="tel"></div>
@@ -328,7 +324,7 @@ const ITEMS = [
 const SECTIONS = [['En retard','retard'],["Aujourd'hui",''],['Cette semaine',''],['Ce mois-ci','']];
 const NOM_ESP = Object.fromEntries(ESPACES), NOM_DOM = Object.fromEntries(DOMAINES);
 
-const st = { ent:'3', espFerme:false, dernierE:0, dernierN:0, rech:'5', edit:false, place:'milieu', variante:'1', compte:false, safe:false, ecran:'taches', vue:0, type:'tous', dom:'', espaces:['moi','mobile'], iteration:false,
+const st = { ent:'1', dernierN:0, rech:'5', edit:false, place:'milieu', variante:'1', compte:false, safe:false, ecran:'taches', vue:0, type:'tous', dom:'', espaces:['moi','mobile'], iteration:false,
   recherche:null, menu:false, ferme:false, toast:'' };
 const tel = document.getElementById('tel');
 
@@ -386,13 +382,6 @@ function effacer(n) {
   if (st.ent === '1') return `<button class="reinit r1 ${n ? 'actif' : ''} ${pop}" ${attrs}><span class="fl">↺</span>${n ? n : ''}</button>`;
   if (st.ent === '2') return `<button class="reinit r2 ${n ? 'actif' : ''} ${pop}" ${attrs}>${n ? `${n} filtre${n > 1 ? 's' : ''}<span class="xr">✕</span>` : '<span class="fl">↺</span>'}</button>`;
   return `<button class="reinit r3 ${n ? 'actif' : ''}" ${attrs}><span class="fl">↺</span>${n ? `<span class="pastilleN ${pop}">${n}</span>` : ''}</button>`;
-}
-function reinitEsp() {
-  // Écart avec l'état de départ « Moi seul » : espaces en plus, et Moi s'il est masqué
-  const n = st.espaces.filter((k) => k !== 'moi').length + (st.espaces.includes('moi') ? 0 : 1);
-  const pop = n !== st.dernierE ? 'pop' : '';
-  st.dernierE = n;
-  return `<button class="reinit r3 ${n ? 'actif' : ''}" data-reinitesp ${n ? '' : 'disabled'} aria-label="Revenir à Moi seul"><span class="fl">↺</span>${n ? `<span class="pastilleN ${pop}">${n}</span>` : ''}</button>`;
 }
 function enteteFiltres(n) {
   const cherche = st.recherche !== null;
@@ -458,11 +447,11 @@ const RECH = {
   3: `<h3>3 · Loupe du titre</h3><ul><li>Une loupe 🔍 à droite du titre de l'écran (« Mes tâches · 10 »).</li><li>Un appui transforme le titre en champ de recherche, avec « Annuler » pour revenir.</li><li>Le geste des applications de téléphone (Mail, Réglages…).</li></ul>`,
   4: `<h3>4 · « ＋ Filtre » → étiquette</h3><ul><li>Une puce « ＋ Filtre » ouvre un menu : Recherche (et plus tard Échéance, Statut…).</li><li>Après « OK » ou Entrée, la recherche devient une étiquette bleue « 🔍 « ma » ✕ » parmi les filtres ; un appui dessus la modifie.</li><li>Prêt pour ajouter d'autres filtres ensuite.</li></ul>`,
 };
-const ENT = { 3: `<h3>Bloc Espaces</h3><ul>
-  <li>En-tête : « Espaces », puis <b>↺</b> (même bouton que les filtres), et à droite ＋ (créer), ⋯ (gérer) et <b>▾</b>.</li>
-  <li><b>↺</b> est gris quand seul 🔒 Moi est affiché. Dès qu'un autre espace est allumé (ou Moi masqué), il devient bleu avec une pastille rouge qui compte l'écart. Un appui revient à <b>🔒 Moi seul</b>.</li>
-  <li><b>▾</b> replie le bloc en une ligne : « 🔒 Moi · 👥 Mobile (2 sur 4) ».</li></ul>
-<h3>Filtres</h3><ul><li>Bouton réinitialiser retenu : <b>↺ avec pastille</b> rouge du nombre de filtres actifs.</li></ul>` };
+const ENT = {
+  1: `<h3>1 · « ↺ 3 » plein</h3><ul><li>Gris et vide tant qu'aucun filtre n'est actif.</li><li>Dès qu'il y en a, il devient une pilule <b>bleue pleine « ↺ 3 »</b> ; le nombre grossit un instant à chaque changement.</li><li>Le plus visible.</li></ul>`,
+  2: `<h3>2 · « 3 filtres ✕ »</h3><ul><li>Gris « ↺ » au repos.</li><li>Actif : pilule bleu pâle <b>« 3 filtres ✕ »</b> — on lit exactement ce qu'on va effacer.</li><li>Le plus clair, un peu plus large.</li></ul>`,
+  3: `<h3>3 · ↺ avec pastille</h3><ul><li>Un rond ↺ comme la loupe ; quand des filtres sont actifs, il devient bleu avec une <b>pastille rouge « 3 »</b> dans le coin, comme une notification.</li><li>Le plus compact.</li></ul>`,
+};
 const FINALE = `<h3>Dans les trois</h3><ul>
   <li><b>🔍</b> transforme « Filtres » en champ de recherche dans l'en-tête ; le ✕ le ferme. La liste se filtre pendant la frappe, le mot est surligné.</li>
   <li><b>Réinitialiser</b> porte le nombre de filtres actifs (vue autre que Liste, type, domaine, itération, recherche) ; un appui remet tout à zéro.</li>
@@ -487,9 +476,8 @@ function rendre() {
     ${st.place === 'milieu'
       ? `<div class="appbar milieu"><div class="marque">President</div><div class="centre">${modeHaut()}</div>`
       : `<div class="appbar gauche2"><div class="gauche">${modeHaut()}<div class="marque">President</div></div>`}<div class="droiteBarre"><button class="avatarBtn" data-compte><div class="avatar">T</div></button></div></div>
-    <div class="bloc bloc1 ${st.espFerme ? 'ferme' : ''}">
-      <div class="ent3"><span class="lab">Espaces</span><div class="milieu">${reinitEsp()}</div><span class="fin"><button class="rond28 plus" aria-label="Créer un espace">＋</button><button class="rond28 menu" aria-label="Gérer les espaces">⋯</button><button class="rond28 chev" data-plieresp aria-label="Replier les espaces">▾</button></span></div>
-      <div class="resumeEsp">${ESPACES.filter(([k]) => st.espaces.includes(k)).map(([, l]) => l).join(' · ')} <span style="opacity:.7">(${st.espaces.length} sur ${ESPACES.length})</span></div>
+    <div class="bloc bloc1">
+      <div class="entete"><span class="lab">Espaces</span><span style="display:flex;gap:6px;align-items:center"><button class="petitBtn bleu">＋</button><button class="petitBtn">⋯</button></span></div>
       <div class="puces">${ESPACES.map(([k, l]) => `<button class="puce ${st.espaces.includes(k) ? 'noir' : ''}" data-esp="${k}">${l}</button>`).join('')}</div>
     </div>
     <div class="bloc bloc2">
@@ -518,8 +506,6 @@ function rendre() {
     if (focus || st.focusQ) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); st.focusQ = false; }
   }
   const on = (sel, f) => tel.querySelectorAll(sel).forEach((b) => (b.onclick = (e) => { f(b, e); rendre(); }));
-  on('[data-reinitesp]', () => (st.espaces = ['moi']));
-  on('[data-plieresp]', () => (st.espFerme = !st.espFerme));
   on('[data-esp]', (b) => { const k = b.dataset.esp; if (st.espaces.includes(k)) { if (st.espaces.length > 1) st.espaces = st.espaces.filter((x) => x !== k); } else st.espaces.push(k); });
   on('[data-vue]', (b) => (st.vue = +b.dataset.vue));
   on('[data-type]', (b) => (st.type = b.dataset.type));
@@ -589,7 +575,7 @@ document.querySelectorAll('#places button').forEach((b) => (b.onclick = () => {
   document.getElementById('notes').innerHTML = PLACES[st.place] + NOTES[st.variante] + COMMUN;
   rendre();
 }));
-document.getElementById('notes').innerHTML = ENT[3] + FINALE;
+document.getElementById('notes').innerHTML = ENT[1] + FINALE;
 rendre();
 </script>
 </body>
