@@ -59,6 +59,8 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   domaine montre aussi ses sous-domaines.
 - **Pas de lien entre deux espaces** (une tâche de Moi ne peut pas être rattachée à une epic d'une entreprise).
 - **Mode Simple / SAFe** : choisi à la volée (à droite du titre de chaque écran), pour tous les espaces affichés.
+- **Onglets** : dernière ligne du bloc de l'écran (une seule carte, du titre jusqu'aux onglets ; le ＋ flotte
+  au-dessus).
 - **Onglets par type d'espace et par mode** (au-delà de 5, la barre des onglets défile ; colonne « suite » = après les 5 premiers) :
 
   | Cas | 5 premiers | Suite |

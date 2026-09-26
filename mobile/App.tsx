@@ -342,7 +342,8 @@ function Main() {
     const sub = Dimensions.addEventListener('change', ({ window }) => setLargeur(Math.min(window.width, 480)));
     return () => sub.remove();
   }, []);
-  const tabWidth = tabsTous.length > 5 ? 72 : largeur / tabsTous.length;
+  // Onglets dans le bloc : largeur de l'écran moins les marges (12 + 12) et les bords du bloc
+  const tabWidth = tabsTous.length > 5 ? 72 : (largeur - 26) / tabsTous.length;
   // Onglet qui n'existe plus (autre mode ou autres espaces) : retour aux Tâches
   useEffect(() => {
     if (!tabsTous.includes(tab)) setTab('taches');
@@ -1593,8 +1594,8 @@ function Main() {
       )}
 
       {/* Bloc de l'écran : titre, sous-bloc Filtres, affichage (Tâches), puis le contenu ; seul le contenu défile */}
-      {/* Le bloc est une carte qui s'arrête juste avant la barre des onglets (petit espace, coins arrondis) */}
-      <View style={styles.bloc2}>
+      {/* Le bloc est une seule carte, du titre jusqu'aux onglets (petit espace en bas, coins arrondis) */}
+      <View style={[styles.bloc2, { marginBottom: 8 + insets.bottom }]}>
         <View style={styles.titreEcran}>
           {/* Titre, nombre et pastille Filtres : jamais coupés « … », le titre rapetisse si la place manque */}
           <View style={styles.titreZone} onLayout={(e) => setTitreLargeurs((l) => ({ ...l, zone: e.nativeEvent.layout.width }))}>
@@ -1884,30 +1885,8 @@ function Main() {
         }
       />}
         </View>
-      </View>
-
-      {!A_VENIR.includes(tab) && <Pressable
-        style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 18 }]}
-        onPress={() =>
-          tab === 'pi'
-            ? setPiAdd(true)
-            : tab === 'roadmap' || tab === 'portefeuille'
-              ? setAddMenu(true)
-              : // Itération : la nouvelle tâche est rangée dans l'itération affichée (modifiable dans la fiche)
-                tab === 'iteration'
-                ? addHorsFeature(itKey)
-                : tab === 'taches'
-                  ? setTypeMenu(true)
-                  : openForm(null)
-        }
-        accessibilityRole="button"
-        accessibilityLabel={tab === 'roadmap' ? 'Nouvelle epic' : 'Ajouter'}
-      >
-        <Text style={styles.fabText}>+</Text>
-      </Pressable>}
-
-      {/* Onglets : tous les écrans des espaces affichés ; au-delà de 5, la barre défile */}
-      <View style={[styles.tabBar, { height: TAB_BAR + insets.bottom, paddingBottom: insets.bottom }]}>
+        {/* Onglets : dernière ligne du bloc (tous les écrans des espaces affichés ; au-delà de 5, la ligne défile) */}
+        <View style={[styles.tabBar, { height: TAB_BAR }]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -1945,7 +1924,29 @@ function Main() {
           </Pressable>
         ))}
         </ScrollView>
+        </View>
       </View>
+
+      {!A_VENIR.includes(tab) && <Pressable
+        style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 8 + 12 }]}
+        onPress={() =>
+          tab === 'pi'
+            ? setPiAdd(true)
+            : tab === 'roadmap' || tab === 'portefeuille'
+              ? setAddMenu(true)
+              : // Itération : la nouvelle tâche est rangée dans l'itération affichée (modifiable dans la fiche)
+                tab === 'iteration'
+                ? addHorsFeature(itKey)
+                : tab === 'taches'
+                  ? setTypeMenu(true)
+                  : openForm(null)
+        }
+        accessibilityRole="button"
+        accessibilityLabel={tab === 'roadmap' ? 'Nouvelle epic' : 'Ajouter'}
+      >
+        <Text style={styles.fabText}>+</Text>
+      </Pressable>}
+
 
       <TaskForm
         visible={formOpen}
@@ -2355,7 +2356,7 @@ const styles = StyleSheet.create({
   pastilleFiltresTexte: { fontSize: 12, fontWeight: '700', color: colors.text },
   pastilleFiltresNb: { position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   appBarFin: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end' },
-  bloc2: { flex: 1, minHeight: 0, marginHorizontal: 12, marginBottom: 8, backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  bloc2: { flex: 1, minHeight: 0, marginHorizontal: 12, backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   titreEcran: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8 },
   titreZone: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
   titreTexte: { fontSize: 18, fontWeight: '800', color: colors.text },
@@ -2437,16 +2438,16 @@ const styles = StyleSheet.create({
   tabBar: {
     flexShrink: 0,
     flexDirection: 'row',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF1F5',
+    backgroundColor: '#FAFBFD',
   },
   tabBarContenu: { flexDirection: 'row', height: '100%' },
   tabBarDefile: { paddingRight: 36 },
   // Fondu à droite (navigateur) : d'autres onglets suivent
   tabBarFondu: { maskImage: 'linear-gradient(90deg, #000 85%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, #000 85%, transparent)' } as never,
   tabBtn: { alignItems: 'center', justifyContent: 'center', gap: 2 },
-  tabBtnOn: { borderTopWidth: 3, borderTopColor: colors.primary },
+  tabBtnOn: { borderTopWidth: 3, borderTopColor: colors.primary, borderTopLeftRadius: 2, borderTopRightRadius: 2 },
   tabIcon: { fontSize: 18, color: colors.muted },
   badges: { position: 'absolute', top: -5, left: 13, flexDirection: 'row', gap: 2 },
   badgeJaune: { backgroundColor: '#F2C230' },
