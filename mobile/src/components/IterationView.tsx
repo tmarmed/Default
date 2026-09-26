@@ -12,7 +12,7 @@ import { sansEnCours, TYPE_ICONS, type Item, type Statut } from '../types';
 import { chargeOf, pointsCheck, subtaskMap } from '../subtasks';
 import { AlertsCard } from './AlertsCard';
 import { checksIteration, filtrerDomaine } from '../checks';
-import { DomainChips, inDomain, useDomainFilter } from './DomainFilter';
+import { inDomain, useDomainFilter, useRecherche } from './DomainFilter';
 import { PeriodHeader } from './PeriodHeader';
 import { Swipe } from './Swipe';
 
@@ -58,7 +58,8 @@ export function IterationView({
   // Éléments de l'itération (sous-tâches comprises) ; un parent dont les sous-tâches ont des points ne compte pas
   const allTasks = useMemo(() => items.filter((t) => iterationOfItem(t) === itKey), [items, itKey]);
   // Filtre de domaine : on ne voit que ses tâches, mais la capacité reste commune à tous les domaines
-  const tasks = useMemo(() => allTasks.filter((t) => inDomain(dom, domaineOf(t, h)?.id, h)), [allTasks, dom, h]);
+  const cherche = useRecherche();
+  const tasks = useMemo(() => allTasks.filter((t) => inDomain(dom, domaineOf(t, h)?.id, h) && cherche(t.titre)), [allTasks, dom, h, cherche]);
   const charge = (t: Item) => chargeOf(t, subs);
   const total = tasks.reduce((n, t) => n + charge(t), 0);
   // Cartes du Kanban : les éléments sans parent, et les parents dont une sous-tâche est dans l'itération
@@ -101,7 +102,6 @@ export function IterationView({
             {it.label.split(' · ')[1]}
             {isIP ? ' · semaine d’innovation et de planification' : ''}
           </Text>
-          <DomainChips style={styles.chips} />
           <AlertsCard ecran="iteration" titre={`${it.code} · ${piLabel(it.pi)}`} checks={checksIteration(filtrerDomaine(h, dom), itKey, today, (e) => capaciteDe(safe, e), h, safe.pointsJours)} />
 
           {/* Charge : une jauge par espace affiché (chaque espace a sa capacité) */}

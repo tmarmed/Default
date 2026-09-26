@@ -28,11 +28,12 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   - **−** : **Retirer** (l'espace quitte l'application, son Google Sheet est gardé) ou **Supprimer** (le Google Sheet
     part à la corbeille de Google Drive, récupérable 30 jours ; un espace partagé disparaît aussi pour les autres),
     chaque espace sauf Moi. Raccourci : appui long sur un espace.
-- **Bloc de l'écran** : titre (« ✓ Mes tâches · 27 », le nombre suit les filtres), puis, sur Tâches, la **barrette
-  d'affichage** Liste · Jour · Semaine · Mois (ce n'est pas un filtre) et le sous-bloc **Filtres** : 🔍 recherche par
-  titre (le champ s'ouvre dans l'en-tête), ↺ réinitialiser (pastille rouge : nombre de filtres actifs — type, domaine,
-  itération, recherche), ▾ replier en une ligne de résumé ; puis types, 🏃 itération en cours (SAFe) et domaines.
-  Seul le contenu du bloc défile.
+- **Bloc de l'écran** : titre (« ✓ Mes tâches · 27 », le nombre suit les filtres), puis, **juste sous le titre, le
+  sous-bloc Filtres** sur tous les écrans à données (Tâches, Itération, PI, Roadmap, Portefeuille ; Simple et SAFe) :
+  🔍 recherche par titre (le champ s'ouvre dans l'en-tête ; il se referme en changeant d'écran), ↺ réinitialiser
+  (pastille rouge : nombre de filtres actifs), ▾ replier en une ligne de résumé ; puis les domaines (et, sur Tâches, les
+  types et 🏃 itération en cours en SAFe). Sur Tâches, la **barrette d'affichage** Liste · Jour · Semaine · Mois vient
+  ensuite (ce n'est pas un filtre). Seul le contenu du bloc défile.
 - **Cloisonnement** : chaque élément reste dans l'espace où il est créé, y compris les rendez-vous, appels et
   démarches.
 - **Domaines** : au démarrage, Moi reçoit les domaines de base qui lui manquent : 💼 Pro (sous-domaines 📁 Projets

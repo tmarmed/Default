@@ -13,7 +13,7 @@ import type { Feature, Item, ObjectifPI } from '../types';
 import { DateField } from './DateField';
 import { AlertsCard } from './AlertsCard';
 import { checksPI, filtrerDomaine } from '../checks';
-import { DomainChips, inDomain, useDomainFilter } from './DomainFilter';
+import { inDomain, useDomainFilter, useRecherche } from './DomainFilter';
 import { PeriodHeader } from './PeriodHeader';
 
 interface Props {
@@ -78,21 +78,22 @@ export function PIView({
   const filtered = dom !== 'tous';
   const domName = dom ? h.domaines.get(dom)?.nom : 'sans domaine';
   const featDom = (f: Feature) => domaineOf({ epic: f.epic }, h)?.id;
-  const taskIn = (t: Item) => inDomain(dom, domaineOf(t, h)?.id, h);
+  const cherche = useRecherche();
+  const taskIn = (t: Item) => inDomain(dom, domaineOf(t, h)?.id, h) && cherche(t.titre);
 
   // Objectifs du PI et prévisibilité (valeur obtenue / prévue, objectifs engagés notés)
-  const objs = h.objectifsPI.filter((o) => o.pi === piKey && inDomain(dom, o.domaine, h)).sort((a, b) => (a.type === b.type ? a.titre.localeCompare(b.titre) : a.type === 'engage' ? -1 : 1));
+  const objs = h.objectifsPI.filter((o) => o.pi === piKey && inDomain(dom, o.domaine, h) && cherche(o.titre)).sort((a, b) => (a.type === b.type ? a.titre.localeCompare(b.titre) : a.type === 'engage' ? -1 : 1));
   const notes = objs.filter((o) => o.type === 'engage' && o.valeur_prevue && o.valeur_obtenue);
   const prevue = notes.reduce((n, o) => n + +o.valeur_prevue, 0);
   const obtenue = notes.reduce((n, o) => n + +o.valeur_obtenue, 0);
   const previsibilite = prevue ? Math.round((obtenue / prevue) * 100) : null;
 
   // Features du PI, groupées par epic
-  const features = h.featureList.filter((f) => f.pi === piKey && inDomain(dom, featDom(f), h));
+  const features = h.featureList.filter((f) => f.pi === piKey && inDomain(dom, featDom(f), h) && cherche(f.titre));
   const groups = [...new Set(features.map((f) => f.epic))]
     .map((epicId) => ({ epic: h.epics.get(epicId), features: features.filter((f) => f.epic === epicId) }))
     .sort((a, b) => (a.epic?.titre ?? '~').localeCompare(b.epic?.titre ?? '~'));
-  const sansPi = h.featureList.filter((f) => !f.pi && inDomain(dom, featDom(f), h));
+  const sansPi = h.featureList.filter((f) => !f.pi && inDomain(dom, featDom(f), h) && cherche(f.titre));
 
   // Charge : points des tâches par itération
   const inIt = its.map((it) => h.items.filter((t) => iterationOfItem(t) === it.key));
@@ -175,7 +176,6 @@ export function PIView({
         <Text style={styles.dates}>
           {court(piStart(piKey))} → {court(piEnd(piKey))} · 6 itérations + semaine IP
         </Text>
-        <DomainChips style={styles.chips} />
         <AlertsCard ecran="pi" titre={`PI ${piLabel(piKey)}`} checks={checksPI(filtrerDomaine(h, dom), piKey, today, (e) => capaciteDe(safe, e), h, safe.pointsJours)} />
 
         <View style={styles.card}>

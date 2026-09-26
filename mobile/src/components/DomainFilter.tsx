@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, useContext } from 'react';
+import { createContext, useCallback, useContext } from 'react';
 import { ScrollView, StyleProp, ViewStyle } from 'react-native';
 import { inDomain, useHierarchy } from '../hierarchyContext';
 import { nomDomaine } from '../nomsEspaces';
@@ -25,6 +25,14 @@ export const DomainFilterContext = createContext<{ value: string; set: (v: strin
 export const useDomainFilter = () => useContext(DomainFilterContext);
 
 export { inDomain };
+
+/** Recherche par titre du sous-bloc Filtres (vide : tout passe), partagée par les écrans */
+export const RechercheContext = createContext('');
+/** Le titre correspond-il à la recherche en cours ? */
+export function useRecherche(): (titre: string) => boolean {
+  const q = useContext(RechercheContext).trim().toLowerCase();
+  return useCallback((titre: string) => !q || titre.toLowerCase().includes(q), [q]);
+}
 
 /**
  * Filtre à deux niveaux (même règle que dans les fiches) : les domaines principaux, puis — une fois un domaine

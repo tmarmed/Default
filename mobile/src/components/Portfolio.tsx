@@ -11,7 +11,7 @@ import { colors } from '../theme';
 import { Epic, ETATS_EPIC, EtatEpic, Objectif } from '../types';
 import { AlertsCard } from './AlertsCard';
 import { checksPortefeuille, filtrerDomaine } from '../checks';
-import { DomainChips, inDomain, useDomainFilter } from './DomainFilter';
+import { inDomain, useDomainFilter, useRecherche } from './DomainFilter';
 
 interface Props {
   onOpenEpic: (e: Epic) => void;
@@ -29,8 +29,9 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
   const { value: dom } = useDomainFilter();
 
   const epicDom = (e: Epic) => domaineOf({ epic: e.id }, h)?.id ?? '';
-  const epics = h.epicList.filter((e) => inDomain(dom, epicDom(e), h));
-  const objectifs = h.objectifList.filter((o) => inDomain(dom, o.domaine, h));
+  const cherche = useRecherche();
+  const epics = h.epicList.filter((e) => inDomain(dom, epicDom(e), h) && cherche(e.titre));
+  const objectifs = h.objectifList.filter((o) => inDomain(dom, o.domaine, h) && cherche(o.titre));
 
   const columns = useMemo(
     () => ETATS_EPIC.map((s) => ({ ...s, epics: epics.filter((e) => etatEpic(e, today) === s.value) })),
@@ -53,7 +54,6 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
           <Text style={styles.wizardText}>🚀 Aucune epic : lancer l’assistant projet</Text>
         </Pressable>
       )}
-      <DomainChips style={styles.pad} />
       <AlertsCard ecran="portefeuille" checks={checksPortefeuille(filtrerDomaine(h, dom), today)} />
 
       <View style={styles.stats}>

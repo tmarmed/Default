@@ -11,7 +11,7 @@ import { toDateString } from '../dates';
 import { barFor, formatEpicDates, positionOf, progress, roadmapWindow, shift, Window, Zoom } from '../roadmap';
 import { colors } from '../theme';
 import type { Domaine, Epic, Item, Objectif } from '../types';
-import { DomainChips, useDomainFilter } from './DomainFilter';
+import { useDomainFilter, useRecherche } from './DomainFilter';
 import { AlertsCard, estIgnoree, IgnoreContext } from './AlertsCard';
 import { checksRoadmap, dateCheck, filtrerDomaine } from '../checks';
 import { PeriodHeader } from './PeriodHeader';
@@ -67,6 +67,7 @@ export function Roadmap({
   const [zoom, setZoom] = useState<Zoom>('annee');
   const [anchor, setAnchor] = useState(() => new Date());
   const { value: domaineFiltre } = useDomainFilter();
+  const cherche = useRecherche();
   const [alertesSeules, setAlertesSeules] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const win = useMemo(() => roadmapWindow(zoom, anchor), [zoom, anchor]);
@@ -134,9 +135,9 @@ export function Roadmap({
     return list;
   }, [epics, objectifs, domaines]);
 
-  const epicShown = (e: Epic) => !!barFor(e, win) && (!alertesSeules || epicAlerts.get(e.id)!.length > 0);
+  const epicShown = (e: Epic) => cherche(e.titre) && !!barFor(e, win) && (!alertesSeules || epicAlerts.get(e.id)!.length > 0);
   const objShown = (o: Objectif, es: Epic[]) =>
-    es.some(epicShown) || (!!barFor(o, win) && (!alertesSeules || objAlerts.get(o.id)!.length > 0));
+    es.some(epicShown) || (cherche(o.titre) && !!barFor(o, win) && (!alertesSeules || objAlerts.get(o.id)!.length > 0));
 
   const visibleGroups = groups
     .filter((g) => domaineFiltre === 'tous' || g.key === domaineFiltre)
@@ -147,7 +148,7 @@ export function Roadmap({
   const outside = [
     ...objectifs.filter((o) => !barFor(o, win) && !epics.some((e) => e.objectif === o.id && barFor(e, win))).map((o) => ({ kind: 'o' as const, x: o, dom: o.domaine })),
     ...epics.filter((e) => !barFor(e, win)).map((e) => ({ kind: 'e' as const, x: e, dom: e.objectif ? objectifs.find((o) => o.id === e.objectif)?.domaine ?? '' : e.domaine })),
-  ].filter((r) => domaineFiltre === 'tous' || inFilter(r.dom));
+  ].filter((r) => (domaineFiltre === 'tous' || inFilter(r.dom)) && cherche(r.x.titre));
   const before = outside.filter((r) => r.x.fin && r.x.fin < win.start).sort((a, b) => byStart(a.x, b.x));
   const after = outside.filter((r) => r.x.debut > win.end).sort((a, b) => byStart(a.x, b.x));
 
@@ -163,9 +164,6 @@ export function Roadmap({
     <View style={styles.flex}>
       <View style={styles.controls}>
         <Segmented options={ZOOMS} value={zoom} onChange={setZoom} />
-        {domaines.length > 0 && (
-          <DomainChips style={styles.filterRow} />
-        )}
         <View style={styles.toolRow}>
           {nbAlertes > 0 && (
             <Pressable

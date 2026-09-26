@@ -24,7 +24,7 @@ import { PIView } from './src/components/PIView';
 import { TypeFilter, TypeFiltre } from './src/components/TypeFilter';
 import { PIAddSheet } from './src/components/PIAddSheet';
 import { PickerModal } from './src/components/ItemPicker';
-import { inDomain } from './src/components/DomainFilter';
+import { inDomain, RechercheContext } from './src/components/DomainFilter';
 import { DomainesPrincipauxChips, DomainFilterContext, loadDomainFilter, saveDomainFilter, SousDomaineChips } from './src/components/DomainFilter';
 import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
@@ -107,6 +107,8 @@ type Filter = TypeFiltre;
 type Mode = 'liste' | 'jour' | 'semaine' | 'mois';
 
 const FILTRES_PLIES_KEY = 'president:filtres-plies';
+/** Écrans avec le sous-bloc Filtres (juste sous leur titre) */
+const ECRANS_FILTRES: Tab[] = ['taches', 'iteration', 'pi', 'roadmap', 'portefeuille'];
 const MODES: { value: Mode; label: string }[] = [
   { value: 'liste', label: 'Liste' },
   { value: 'jour', label: 'Jour' },
@@ -318,6 +320,7 @@ function Main() {
     [visibles, espaces, safe.actif],
   );
   const tabsTous = useMemo(() => [...tabs.barre, ...tabs.plus], [tabs]);
+  useEffect(() => setRecherche(null), [tab]);
   const [largeur, setLargeur] = useState(Math.min(Dimensions.get('window').width, 480));
   useEffect(() => {
     const sub = Dimensions.addEventListener('change', ({ window }) => setLargeur(Math.min(window.width, 480)));
@@ -627,18 +630,25 @@ function Main() {
   /** Nombre d'éléments affichés (titre de l'écran Tâches) */
   const nbTaches = useMemo(() => visible.reduce((n, sec) => n + sec.data.length, 0), [visible]);
   /** Filtres actifs (l'affichage Liste / Jour / Semaine / Mois n'en est pas un) : type, domaine, itération, recherche */
+  // (Écran Tâches : aussi le type et l'itération en cours ; autres écrans : domaine et recherche)
+  const surTaches = tab === 'taches';
   const nbFiltres =
-    (filter !== 'tous' ? 1 : 0) + (domFilter !== 'tous' ? 1 : 0) + (safe.actif && itFilter ? 1 : 0) + (recherche?.trim() ? 1 : 0);
+    (surTaches && filter !== 'tous' ? 1 : 0) +
+    (domFilter !== 'tous' ? 1 : 0) +
+    (surTaches && safe.actif && itFilter ? 1 : 0) +
+    (recherche?.trim() ? 1 : 0);
   const reinitialiserFiltres = () => {
-    setFilter('tous');
+    if (surTaches) {
+      setFilter('tous');
+      setItFilter(false);
+    }
     setDomFilter('tous');
-    setItFilter(false);
     setRecherche(null);
   };
   const resumeFiltres = [
-    filter === 'tous' ? 'Tous les types' : filter === 'recurrents' ? '🔁 Répétés' : `${TYPE_ICONS[filter]} ${TYPE_LABELS[filter]}`,
+    !surTaches ? '' : filter === 'tous' ? 'Tous les types' : filter === 'recurrents' ? '🔁 Répétés' : `${TYPE_ICONS[filter]} ${TYPE_LABELS[filter]}`,
     domFilter === 'tous' ? 'tous domaines' : domFilter === '' ? 'sans domaine' : (hv.domaines.get(domFilter)?.nom ?? ''),
-    safe.actif && itFilter ? '🏃 itération en cours' : '',
+    surTaches && safe.actif && itFilter ? '🏃 itération en cours' : '',
     recherche?.trim() ? `« ${recherche.trim()} »` : '',
   ]
     .filter(Boolean)
@@ -1345,6 +1355,7 @@ function Main() {
     <CheckActionContext.Provider value={runAction}>
     <IgnoreContext.Provider value={ignoreValue}>
     <EspacesContext.Provider value={espacesValue}>
+    <RechercheContext.Provider value={recherche ?? ''}>
     <View style={styles.flex}>
       {/* Barre de l'application : nom, mode Simple / SAFe au milieu, compte Google (ou, en démo, réinitialiser) */}
       <View style={styles.appBar}>
@@ -1401,7 +1412,7 @@ function Main() {
         </Pressable>
       )}
 
-      {/* Bloc de l'écran : titre, affichage (Tâches), sous-bloc Filtres (Tâches), puis le contenu ; seul le contenu défile */}
+      {/* Bloc de l'écran : titre, sous-bloc Filtres, affichage (Tâches), puis le contenu ; seul le contenu défile */}
       <View style={[styles.bloc2, { marginBottom: TAB_BAR + insets.bottom + 8 }]}>
         <View style={styles.titreEcran}>
           <Text style={styles.titreTexte} numberOfLines={1}>
@@ -1409,12 +1420,7 @@ function Main() {
           </Text>
           {tab === 'taches' && <Text style={styles.titreNb}>· {nbTaches}</Text>}
         </View>
-        {tab === 'taches' && (
-          <View style={styles.barrette}>
-            <Segmented options={MODES} value={mode} onChange={setMode} />
-          </View>
-        )}
-        {tab === 'taches' && (
+        {ECRANS_FILTRES.includes(tab) && (
           <View style={styles.filtresBloc}>
             <View style={styles.filtresTete}>
               {recherche === null ? (
@@ -1468,11 +1474,11 @@ function Main() {
               </Pressable>
             ) : (
               <View style={styles.filtresCorps}>
-                <TypeFilter value={filter} onChange={setFilter} />
-                {(domaines.length > 0 || safe.actif) && (
+                {tab === 'taches' && <TypeFilter value={filter} onChange={setFilter} />}
+                {(domaines.length > 0 || (tab === 'taches' && safe.actif)) && (
                   <>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                      {safe.actif && (
+                      {tab === 'taches' && safe.actif && (
                         <Pressable
                           onPress={() => setItFilter((v) => !v)}
                           style={[styles.itChip, itFilter && styles.itChipOn]}
@@ -1489,6 +1495,11 @@ function Main() {
                 )}
               </View>
             )}
+          </View>
+        )}
+        {tab === 'taches' && (
+          <View style={styles.barrette}>
+            <Segmented options={MODES} value={mode} onChange={setMode} />
           </View>
         )}
         <View style={styles.contenu}>
@@ -2020,6 +2031,7 @@ function Main() {
         }}
       />
     </View>
+    </RechercheContext.Provider>
     </EspacesContext.Provider>
     </IgnoreContext.Provider>
     </CheckActionContext.Provider>
