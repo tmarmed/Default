@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { type Espace, ICONE_ESPACE, libelleEspace, type TypeEspace, useEspaces } from '../espaces';
@@ -7,16 +7,17 @@ import { colors } from '../theme';
 const PLIE_KEY = 'president:espaces-plie';
 
 /**
- * Bloc « Espaces », sous la barre de l'application : un ou plusieurs espaces affichés (au moins un).
- * En-tête : petit filtre Tous · 👥 · 🏢 (seulement s'il y a à la fois des équipes et des entreprises), pilule
- * ＋ | − (ajouter ou récupérer un espace / retirer ou supprimer un espace) et ▾ (replier le bloc en une ligne).
- * Appui long sur un espace : raccourci Retirer / Supprimer. Noms longs coupés « … » ; la ligne défile.
+ * Haut de l'écran : les espaces (et, à droite, le compte). Replié : une seule ligne « ESPACES 🔒 Moi · 👥 Mobile ② ▾ »
+ * (on la touche pour déplier). Déplié : petit filtre Tous · 👥 · 🏢 (seulement s'il y a à la fois des équipes et des
+ * entreprises), pilule ＋ | − (ajouter ou récupérer / retirer ou supprimer), ▴ (replier), puis les espaces : un ou
+ * plusieurs affichés (au moins un). Appui long sur un espace : raccourci Retirer / Supprimer.
  */
 export function EspacesBar({
   onChange,
   onAjouter,
   onEnlever,
   onOuvrir,
+  droite,
 }: {
   onChange: (visibles: string[]) => void;
   /** ＋ : créer un espace (avec ses domaines), rétablir un espace retiré, restaurer un espace de la corbeille */
@@ -25,6 +26,8 @@ export function EspacesBar({
   onEnlever: () => void;
   /** Appui long sur un espace (sauf Moi) : sa fiche (retirer, supprimer) — raccourci */
   onOuvrir: (e: Espace) => void;
+  /** À droite, dans les deux états : le compte (ou, en démo, réinitialiser) */
+  droite?: ReactNode;
 }) {
   const { liste, visibles } = useEspaces();
   const [plie, setPlie] = useState(false);
@@ -50,6 +53,22 @@ export function EspacesBar({
     onChange(on ? visibles.filter((v) => v !== id) : liste.map((e) => e.id).filter((v) => v === id || visibles.includes(v)));
   };
   const affiches = liste.filter((e) => visibles.includes(e.id));
+  if (plie)
+    return (
+      <View style={s.ligneHaut}>
+        <Pressable onPress={plier} style={s.ligne} accessibilityRole="button" accessibilityLabel="Déplier les espaces">
+          <Text style={s.titre}>ESPACES</Text>
+          <Text style={s.noms} numberOfLines={1}>
+            {affiches.map((e) => `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}`).join(' · ')}
+          </Text>
+          <View style={s.nb}>
+            <Text style={s.nbText}>{affiches.length}</Text>
+          </View>
+          <Text style={s.chevron}>▾</Text>
+        </Pressable>
+        {droite}
+      </View>
+    );
   return (
     <View style={s.bloc}>
       <View style={s.tete}>
@@ -80,20 +99,13 @@ export function EspacesBar({
               <Text style={[s.signe, s.moins]}>−</Text>
             </Pressable>
           </View>
-          <Pressable onPress={plier} style={s.rond} hitSlop={6} accessibilityRole="button" accessibilityLabel={plie ? 'Déplier les espaces' : 'Replier les espaces'}>
-            <Text style={[s.chevron, plie && s.chevronPlie]}>▾</Text>
+          <Pressable onPress={plier} style={s.rond} hitSlop={6} accessibilityRole="button" accessibilityLabel="Replier les espaces">
+            <Text style={s.chevron}>▴</Text>
           </Pressable>
+          {droite}
         </View>
       </View>
-      {plie ? (
-        <Pressable onPress={plier} accessibilityRole="button" accessibilityLabel="Déplier les espaces">
-          <Text style={s.resume} numberOfLines={1}>
-            {affiches.map((e) => `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}`).join(' · ')}
-            <Text style={s.resumeNb}>{`  (${affiches.length} sur ${liste.length})`}</Text>
-          </Text>
-        </Pressable>
-      ) : (
-        <ScrollView
+      <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={s.row}
@@ -119,16 +131,20 @@ export function EspacesBar({
               </Pressable>
             );
           })}
-        </ScrollView>
-      )}
+      </ScrollView>
     </View>
   );
 }
 
 const s = StyleSheet.create({
+  ligneHaut: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginTop: 8, marginBottom: 8, flexShrink: 0 },
+  ligne: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, height: 38, paddingHorizontal: 12, borderRadius: 19, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  noms: { flex: 1, minWidth: 0, fontSize: 13, fontWeight: '600', color: colors.text },
+  nb: { minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' },
+  nbText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   bloc: {
     marginHorizontal: 12,
-    marginTop: 4,
+    marginTop: 8,
     marginBottom: 8,
     paddingVertical: 9,
     borderRadius: 16,
@@ -153,9 +169,6 @@ const s = StyleSheet.create({
   moins: { color: colors.danger },
   rond: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   chevron: { fontSize: 12, color: colors.muted },
-  chevronPlie: { transform: [{ rotate: '-90deg' }] },
-  resume: { marginTop: 7, paddingHorizontal: 12, fontSize: 12.5, color: colors.muted },
-  resumeNb: { opacity: 0.7 },
   puces: { flexGrow: 0, marginTop: 9 },
   // Fondu à droite (navigateur) : d'autres espaces suivent
   fondu: { maskImage: 'linear-gradient(90deg, #000 88%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, #000 88%, transparent)' } as never,

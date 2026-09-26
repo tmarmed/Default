@@ -1357,45 +1357,36 @@ function Main() {
     <EspacesContext.Provider value={espacesValue}>
     <RechercheContext.Provider value={recherche ?? ''}>
     <View style={styles.flex}>
-      {/* Barre de l'application : nom, mode Simple / SAFe au milieu, compte Google (ou, en démo, réinitialiser) */}
-      <View style={styles.appBar}>
-        <Text style={styles.marque} numberOfLines={1}>
-          {NOM_APP}
-        </Text>
-        <View style={styles.modeSwitch}>
-          <Segmented
-            options={[
-              { value: 'simple', label: 'Simple' },
-              { value: 'safe', label: 'SAFe' },
-            ]}
-            value={safe.actif ? 'safe' : 'simple'}
-            onChange={(v) => updateSafe({ actif: v === 'safe' })}
-          />
-        </View>
-        <View style={styles.appBarFin}>
-          {DEMO && (
-            <Pressable
-              onPress={async () => {
-                // Tous les espaces de la démo reviennent aux exemples
-                for (const e of espaces) await demoApiFor(e.id).reset();
-                if (settings) await refresh(settings);
-              }}
-              hitSlop={8}
-              style={styles.demoBtn}
-              accessibilityLabel="Démo : réinitialiser les exemples"
-            >
-              <Text style={styles.demoReset}>Démo ↺</Text>
-            </Pressable>
-          )}
-          {!DEMO && !!settings.googleEmail && (
-            <Pressable onPress={openAccount} style={styles.avatar} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Compte Google ${settings.googleEmail}`}>
-              <Text style={styles.avatarText}>{settings.googleEmail.charAt(0).toUpperCase()}</Text>
-            </Pressable>
-          )}
-        </View>
-      </View>
-      {/* Bloc des espaces affichés */}
-      <EspacesBar onChange={setVisibles} onAjouter={ouvrirAjout} onEnlever={() => setGestionOpen(true)} onOuvrir={setEspaceFiche} />
+      {/* En haut : les espaces (replié : une ligne) et, à droite, le compte Google (ou, en démo, réinitialiser) */}
+      <EspacesBar
+        onChange={setVisibles}
+        onAjouter={ouvrirAjout}
+        onEnlever={() => setGestionOpen(true)}
+        onOuvrir={setEspaceFiche}
+        droite={
+          <>
+            {DEMO && (
+              <Pressable
+                onPress={async () => {
+                  // Tous les espaces de la démo reviennent aux exemples
+                  for (const e of espaces) await demoApiFor(e.id).reset();
+                  if (settings) await refresh(settings);
+                }}
+                hitSlop={8}
+                style={styles.demoBtn}
+                accessibilityLabel="Démo : réinitialiser les exemples"
+              >
+                <Text style={styles.demoReset}>Démo ↺</Text>
+              </Pressable>
+            )}
+            {!DEMO && !!settings.googleEmail && (
+              <Pressable onPress={openAccount} style={styles.avatar} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Compte Google ${settings.googleEmail}`}>
+                <Text style={styles.avatarText}>{settings.googleEmail.charAt(0).toUpperCase()}</Text>
+              </Pressable>
+            )}
+          </>
+        }
+      />
       {info && (
         <Pressable style={styles.info} onPress={() => setInfo(null)} accessibilityLabel="Fermer le message">
           <Text style={styles.infoText}>{info} ✕</Text>
@@ -1419,6 +1410,17 @@ function Main() {
             {TAB_ICONS[tab]} {TAB_TITLES[tab]}
           </Text>
           {tab === 'taches' && <Text style={styles.titreNb}>· {nbTaches}</Text>}
+          {/* Mode Simple / SAFe : pour tous les espaces affichés */}
+          <View style={styles.modeSwitch}>
+            <Segmented
+              options={[
+                { value: 'simple', label: 'Simple' },
+                { value: 'safe', label: 'SAFe' },
+              ]}
+              value={safe.actif ? 'safe' : 'simple'}
+              onChange={(v) => updateSafe({ actif: v === 'safe' })}
+            />
+          </View>
         </View>
         {ECRANS_FILTRES.includes(tab) && (
           <View style={styles.filtresBloc}>
@@ -2058,10 +2060,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   title: { fontSize: 28, fontWeight: '700', color: colors.text, flexShrink: 1 },
-  modeSwitch: { width: 150 },
+  modeSwitch: { width: 132, marginLeft: 'auto', alignSelf: 'center' },
   appBarFin: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end' },
   bloc2: { flex: 1, minHeight: 0, marginHorizontal: 12, backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  titreEcran: { flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8 },
+  titreEcran: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8 },
   titreTexte: { fontSize: 21, fontWeight: '800', color: colors.text, flexShrink: 1 },
   titreNb: { fontSize: 13, fontWeight: '700', color: colors.muted },
   barrette: { paddingHorizontal: 10, paddingBottom: 8 },
