@@ -41,7 +41,7 @@ export function StockagePanneau({
   quota: Quota;
   plan: Plan;
   onAction: (a: ActionStockage) => Promise<void>;
-  /** Carte d'alerte : « Plus tard » la cache jusqu'à demain */
+  /** Carte d'alerte : « Revoir demain » la cache jusqu’à la fin de la journée */
   onPlusTard?: () => void;
   /** Fiche du compte : affichée même sous 85 % */
   toujours?: boolean;
@@ -157,7 +157,7 @@ export function StockagePanneau({
       {!!erreur && <Text style={s.erreur}>{erreur}</Text>}
       {onPlusTard && !confirmer && (
         <Pressable onPress={onPlusTard} hitSlop={8} style={s.plusTard} accessibilityRole="button">
-          <Text style={s.plusTardText}>Plus tard</Text>
+          <Text style={s.plusTardText}>Revoir demain</Text>
         </Pressable>
       )}
         </>

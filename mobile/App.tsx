@@ -115,7 +115,7 @@ type Mode = 'liste' | 'jour' | 'semaine' | 'mois';
 
 const FILTRES_PLIES_KEY = 'president:filtres-plies';
 const ESPACES_PLIE_KEY = 'president:espaces-plie';
-/** Alerte de stockage cachée jusqu'à demain (« Plus tard ») : date du jour */
+/** Alerte de stockage cachée jusqu'à demain (« Revoir demain ») : date du jour */
 const PLUS_TARD_KEY = 'president:stockage-plus-tard';
 /** Démo : Drive simulé pour tester l'alerte de stockage */
 const TEST_STOCKAGE_KEY = 'president:stockage-test';
@@ -1493,7 +1493,7 @@ function Main() {
     testEfface.current = { corbeille: false, taches: new Set() };
     // Démo : le test est gardé ; vraie version : il s'arrête en quittant l'application
     if (DEMO) AsyncStorage.setItem(TEST_STOCKAGE_KEY, t).catch(() => {});
-    // Nouveau test : l'alerte n'est plus cachée (« Plus tard »)
+    // Nouveau test : l'alerte n'est plus cachée (« Revoir demain »)
     setPlusTard(null);
     AsyncStorage.removeItem(PLUS_TARD_KEY).catch(() => {});
     if (settings) verifierStockage(settings, true, t).catch((e) => setNotice(`Stockage non vérifié : ${(e as Error).message}`));

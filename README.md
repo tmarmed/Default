@@ -35,8 +35,8 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   effacés pour de bon) si cela suffit ; sinon 📦 **Supprimer les tâches terminées avant <mois>** : la plus courte
   période ancienne qui suffit (jamais les 3 derniers mois, ni les tâches répétées, ni un parent dont une sous-tâche
   reste ; **copie CSV** proposée avant) ; sinon ☁️ **Voir le stockage Google** (l'espace est pris par d'autres
-  fichiers). Son titre la replie en une ligne (« ⚠ Stockage Drive presque plein · 87 % ▾ ») et la déplie ; « Plus
-  tard » la cache jusqu'au lendemain. Menu du compte › **Stockage Google Drive** : l'état à
+  fichiers). Son titre la replie en une ligne (« ⚠ Stockage Drive presque plein · 87 % ▾ ») et la déplie ; « Revoir
+  demain » la cache jusqu'à la fin de la journée (elle revient le lendemain si le Drive est encore à 85 %). Menu du compte › **Stockage Google Drive** : l'état à
   tout moment et « Vérifier maintenant », et un **Drive simulé** pour tester (Plein : autres fichiers, Plein :
   President ; démo : Normal 41 % ; vraie version : Réel = le vrai Drive, et en test **rien n'est effacé**, le test
   s'arrête en quittant l'application). Calcul vérifié par `npm run verif:stockage`.
