@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
-<title>President · maquette v9</title>
+<title>President · maquette v8</title>
 <style>
   :root {
     --fond:#EEF1F6; --carte:#fff; --texte:#18202C; --doux:#6B7686; --trait:#E1E6ED; --trait2:#EEF1F5;
@@ -198,18 +198,6 @@
   .glissiere::after { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:left .2s; }
   .glissiere.on { background:var(--safe); }
   .glissiere.on::after { left:21px; }
-  .gauche { display:flex; align-items:center; gap:10px; min-width:0; }
-  .modeHaut { display:flex; background:var(--seg); border-radius:14px; padding:2px; }
-  .modeHaut button { border:0; background:none; border-radius:12px; padding:4px 11px; font-size:12px; font-weight:800; color:var(--doux); transition:all .2s; }
-  .modeHaut button.on { background:#fff; color:var(--texte); box-shadow:0 1px 3px rgba(0,0,0,.12); }
-  .modeHaut button.on.s { background:var(--safe); color:#fff; box-shadow:0 2px 8px rgba(123,47,191,.35); }
-  .boutonSafe { border:1.5px solid #CDB3E6; background:#fff; color:var(--safe); border-radius:14px; padding:4px 11px; font-size:12px; font-weight:800; display:flex; align-items:center; gap:5px; transition:all .2s; }
-  .boutonSafe .losange { display:inline-block; width:9px; height:9px; border:1.5px solid currentColor; transform:rotate(45deg); border-radius:2px; transition:background .2s; }
-  .boutonSafe.on { background:var(--safe); border-color:var(--safe); color:#fff; box-shadow:0 2px 8px rgba(123,47,191,.35); }
-  .boutonSafe.on .losange { background:#fff; border-color:#fff; }
-  .interHaut { border:0; background:none; padding:0; display:flex; align-items:center; gap:7px; font-size:12px; font-weight:800; color:var(--doux); }
-  .interHaut.on { color:var(--safe); }
-  .interHaut .glissiere { pointer-events:none; }
   .toast { position:absolute; left:50%; transform:translateX(-50%) translateY(6px); bottom:100%; margin-bottom:10px; background:rgba(24,32,44,.92); color:#fff; font-size:12px; font-weight:600; padding:7px 13px; border-radius:16px; opacity:0; transition:opacity .2s, transform .2s; pointer-events:none; white-space:nowrap; z-index:6; }
   .toast.vu { opacity:1; transform:translateX(-50%); }
   @media (max-width:440px) {
@@ -219,12 +207,12 @@
   </style>
 </head>
 <body>
-<h1 class="page">Le mode Simple / SAFe à côté de « President »</h1>
-<p class="intro">Trois formes pour le réglage, en haut à côté du titre. En bas : seulement les onglets. Tout se clique.</p>
+<h1 class="page">Le mode Simple / SAFe en bas, avec les onglets</h1>
+<p class="intro">Trois façons de le faire. Choisis-en une, puis essaie : tout se clique (mode, onglets, espaces, filtres, ＋).</p>
 <div class="choix" id="choix">
-  <button data-var="1" class="on">1 · Simple | SAFe</button>
-  <button data-var="2">2 · Bouton SAFe</button>
-  <button data-var="3">3 · Interrupteur SAFe</button>
+  <button data-var="1" class="on">1 · Encoche</button>
+  <button data-var="2">2 · Onglets SAFe dépliables</button>
+  <button data-var="3">3 · Ligne sous les onglets</button>
 </div>
 
 <div class="scene">
@@ -329,19 +317,26 @@ function liste() {
 function bas() {
   const ong = ONGLETS[st.safe ? 'safe' : 'simple'];
   const bouton = (k) => `<button class="onglet ${k === st.ecran ? 'on' : ''}" data-ecran="${k}"><span class="ic">${ECRANS[k][0]}</span>${ECRANS[k][1]}${k === 'taches' ? '<span class="pastille">4</span>' : ''}</button>`;
-  return `<div class="bas varC"><div class="toast ${st.toast ? 'vu' : ''}">${st.toast}</div><button class="fab" style="bottom:calc(100% + 12px)">+</button><div class="onglets">${ong.map(bouton).join('')}</div></div>`;
-}
-function modeHaut() {
-  if (st.variante === '1') return `<div class="modeHaut"><button class="${st.safe ? '' : 'on'}" data-mode="0">Simple</button><button class="${st.safe ? 'on s' : ''}" data-mode="1">SAFe</button></div>`;
-  if (st.variante === '2') return `<button class="boutonSafe ${st.safe ? 'on' : ''}" data-bascule aria-pressed="${st.safe}"><span class="losange"></span>SAFe</button>`;
-  return `<button class="interHaut ${st.safe ? 'on' : ''}" data-bascule aria-pressed="${st.safe}"><span class="glissiere ${st.safe ? 'on' : ''}"></span>SAFe</button>`;
+  const toast = `<div class="toast ${st.toast ? 'vu' : ''}">${st.toast}</div>`;
+  const fab = `<button class="fab" style="bottom:calc(100% + ${st.variante === '1' ? 24 : 12}px)">+</button>`;
+  if (st.variante === '1') return `<div class="bas varC n1 ${st.safe ? 'safe' : ''}">${toast}${fab}
+      <div class="encoche"><button class="${st.safe ? '' : 'on'}" data-mode="0">Simple</button><button class="${st.safe ? 'on s' : ''}" data-mode="1">◆ SAFe</button></div>
+      <div class="onglets">${ong.map(bouton).join('')}</div></div>`;
+  if (st.variante === '2') {
+    const base = ONGLETS.simple, safes = ONGLETS.safe.filter((k) => !base.includes(k));
+    return `<div class="bas varC n2">${toast}${fab}<div class="onglets">${bouton('taches')}
+      <div class="groupeSafe ${st.safe ? 'ouvert' : ''}"><button class="clefSafe" data-bascule aria-pressed="${st.safe}"><span class="losange"><span>${st.safe ? '✓' : ''}</span></span>SAFe</button>${st.safe ? `<div class="glisse">${safes.map(bouton).join('')}</div>` : ''}</div>
+      ${base.filter((k) => k !== 'taches').map(bouton).join('')}</div></div>`;
+  }
+  return `<div class="bas varC n3">${toast}${fab}<div class="onglets">${ong.map(bouton).join('')}</div>
+      <div class="sousLigne"><span class="lbl ${st.safe ? '' : 'on'}">Simple</span><button class="glissiere ${st.safe ? 'on' : ''}" data-bascule aria-label="Mode SAFe"></button><span class="lbl ${st.safe ? 'on s' : ''}">SAFe</span></div></div>`;
 }
 const segMode = () => `<div class="segTexte"><button class="${st.safe ? '' : 'on'}" data-mode="0">Simple</button><button class="${st.safe ? 'on s' : ''}" data-mode="1">SAFe</button></div>`;
 
 const NOTES = {
-  1: `<h3>1 · Simple | SAFe</h3><ul><li>Un petit sélecteur à deux choix juste après « President ».</li><li>Simple sur fond blanc ; SAFe devient violet quand il est choisi.</li><li>On voit toujours les deux modes et celui qui est actif.</li></ul>`,
-  2: `<h3>2 · Bouton SAFe</h3><ul><li>Un seul bouton « ◇ SAFe » à contour violet après « President ».</li><li>Un appui l'allume : il devient plein violet « ◆ SAFe ». Éteint = Simple.</li><li>Le plus court et le plus net visuellement.</li></ul>`,
-  3: `<h3>3 · Interrupteur SAFe</h3><ul><li>Un petit interrupteur suivi du mot « SAFe », après « President ».</li><li>Allumé, il devient violet. Éteint = Simple.</li><li>Le geste le plus familier (comme un réglage de téléphone).</li></ul>`,
+  1: `<h3>1 · Encoche</h3><ul><li>Une petite capsule <b>Simple | ◆ SAFe</b> posée à cheval sur le bord de la barre des onglets, au centre.</li><li>En SAFe, la capsule et le bord de la barre passent en violet.</li><li>Toujours visible, un seul appui, et les onglets gardent toute la largeur.</li></ul>`,
+  2: `<h3>2 · Onglets SAFe dépliables</h3><ul><li>Après Tâches, un onglet <b>◇ SAFe</b>.</li><li>Un appui l'allume : les écrans SAFe (Itération, PI, Stratégie, Backlog, Portefeuille) se déplient juste à côté, sur un fond violet pâle.</li><li>Un nouvel appui les replie et repasse en Simple.</li><li>On voit tout de suite ce que SAFe ajoute.</li></ul>`,
+  3: `<h3>3 · Ligne sous les onglets</h3><ul><li>Une ligne fine sous les onglets : <b>Simple ◯ SAFe</b>, avec une glissière au milieu.</li><li>Le mot actif est en gras (violet pour SAFe).</li><li>Sobre, et placé là où le pouce arrive naturellement.</li></ul>`,
 };
 const COMMUN = `<h3>Bloc 2 : sous-bloc « Filtres »</h3><ul>
   <li>Tous les filtres sont dans un sous-cadre gris : vue (Liste, Jour, Semaine, Mois), types, domaines et, en SAFe, 🏃 Itération en cours.</li>
@@ -358,13 +353,13 @@ function rendre() {
   const focus = document.activeElement?.id === 'q';
   tel.innerHTML = `
     <div class="statut"><span>9:41</span><span>●●● ◔</span></div>
-    <div class="appbar"><div class="gauche"><div class="marque">President</div>${modeHaut()}</div><div class="droiteBarre"><button class="avatarBtn" data-compte><div class="avatar">T</div></button></div></div>
+    <div class="appbar"><div class="marque">President</div><div class="droiteBarre"><button class="avatarBtn" data-compte><div class="avatar">T</div></button></div></div>
     <div class="bloc bloc1">
       <div class="entete"><span class="lab">Espaces</span><span style="display:flex;gap:6px;align-items:center"><button class="petitBtn bleu">＋</button><button class="petitBtn">⋯</button></span></div>
       <div class="puces">${ESPACES.map(([k, l]) => `<button class="puce ${st.espaces.includes(k) ? 'noir' : ''}" data-esp="${k}">${l}</button>`).join('')}</div>
     </div>
     <div class="bloc bloc2">
-      <div class="titre2"><b>${ic} ${titre}</b>${nb !== null ? `<span class="nb">· ${nb}</span>` : ''}</div>
+      <div class="titre2"><b>${ic} ${titre}</b>${nb !== null ? `<span class="nb">· ${nb}</span>` : ''}${st.safe ? '<span class="tagSafe">◆ SAFe</span>' : ''}</div>
       ${filtres()}
       <div class="liste">${liste()}</div>
     </div>
