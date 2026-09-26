@@ -18,8 +18,9 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
 - **Espaces** : chaque espace est un Google Sheet, d'un type choisi à sa création : 🔒 **Moi** (un seul, jamais
   partagé), 👥 **Équipe** (équipe indépendante), 🏢 **Entreprise** (avec ses équipes). Nom du fichier :
   `President | Moi`, `President | Équipe | Mobile`, `President | Entreprise | ACME` (séparateur `|`).
-- **Filtre en haut** : un ou plusieurs espaces affichés. « ＋ Espace » crée un espace (avec ses domaines). Le bouton
-  **⋯ (Gérer)**, à droite, ouvre « Mes espaces » : **Retirer** (l'espace quitte l'application, son Google Sheet est
+- **Barre du haut** : « President » et, à droite, le compte Google (rond avec l'initiale : Se déconnecter).
+- **Bloc « Espaces »** (cadre à part, sous la barre du haut) : un ou plusieurs espaces affichés ; noms longs coupés
+  « … », la ligne défile s'il y a beaucoup d'espaces. « ＋ » crée un espace (avec ses domaines). « ⋯ » ouvre « Mes espaces » : **Retirer** (l'espace quitte l'application, son Google Sheet est
   gardé) ou **Supprimer** (le Google Sheet part à la corbeille de Google Drive, récupérable 30 jours ; un espace partagé
   disparaît aussi pour les autres) chaque espace sauf Moi ; **Rétablir** un espace retiré ; **Restaurer** un espace de la
   corbeille. Raccourci : appui long sur un espace.

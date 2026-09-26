@@ -1303,14 +1303,32 @@ function Main() {
     <IgnoreContext.Provider value={ignoreValue}>
     <EspacesContext.Provider value={espacesValue}>
     <View style={styles.flex}>
-      {/* Espaces affichés et « ＋ Espace », au-dessus du titre et du mode */}
-      <EspacesBar
-        onChange={setVisibles}
-        onGerer={() => setEspacesOpen(true)}
-        onGestion={ouvrirGestion}
-        onOuvrir={setEspaceFiche}
-        compte={!DEMO && settings.googleEmail ? { email: settings.googleEmail, onPress: openAccount } : undefined}
-      />
+      {/* Barre de l'application : nom, (démo) réinitialiser, compte Google */}
+      <View style={styles.appBar}>
+        <Text style={styles.marque} numberOfLines={1}>
+          {NOM_APP}
+        </Text>
+        {DEMO && (
+          <Pressable
+            onPress={async () => {
+              // Tous les espaces de la démo reviennent aux exemples
+              for (const e of espaces) await demoApiFor(e.id).reset();
+              if (settings) await refresh(settings);
+            }}
+            hitSlop={8}
+            style={styles.demoBtn}
+          >
+            <Text style={styles.demoReset}>Démo · Réinitialiser</Text>
+          </Pressable>
+        )}
+        {!DEMO && !!settings.googleEmail && (
+          <Pressable onPress={openAccount} style={styles.avatar} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Compte Google ${settings.googleEmail}`}>
+            <Text style={styles.avatarText}>{settings.googleEmail.charAt(0).toUpperCase()}</Text>
+          </Pressable>
+        )}
+      </View>
+      {/* Bloc des espaces affichés, au-dessus du titre et du mode */}
+      <EspacesBar onChange={setVisibles} onGerer={() => setEspacesOpen(true)} onGestion={ouvrirGestion} onOuvrir={setEspaceFiche} />
       <View style={styles.header}>
         <Text style={styles.title} numberOfLines={1}>
           {TAB_TITLES[tab]}
@@ -1326,20 +1344,6 @@ function Main() {
           />
         </View>
       </View>
-      {DEMO && (
-        <View style={styles.demo}>
-          <Pressable
-            onPress={async () => {
-              // Tous les espaces de la démo reviennent aux exemples
-              for (const e of espaces) await demoApiFor(e.id).reset();
-              if (settings) await refresh(settings);
-            }}
-            hitSlop={8}
-          >
-            <Text style={styles.demoReset}>Réinitialiser</Text>
-          </Pressable>
-        </View>
-      )}
       {tab === 'taches' && (
         <View style={styles.filters}>
           <Segmented options={MODES} value={mode} onChange={setMode} />
@@ -1953,7 +1957,11 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '700', color: colors.text, flexShrink: 1 },
   modeSwitch: { width: 150, marginLeft: 'auto', marginRight: 0 },
   filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
-  demo: { flexDirection: 'row', justifyContent: 'flex-end', marginHorizontal: 16, marginTop: 6 },
+  appBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 10 },
+  marque: { flex: 1, fontSize: 15, fontWeight: '800', color: colors.text, letterSpacing: 0.2 },
+  demoBtn: { paddingVertical: 4 },
+  avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
+  avatarText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   demoReset: { color: colors.primary, fontSize: 13, fontWeight: '700' },
   info: { marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, backgroundColor: '#E8F0FE' },
   infoText: { color: '#174EA6', fontSize: 13, lineHeight: 18 },
