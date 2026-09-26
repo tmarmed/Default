@@ -59,6 +59,7 @@ import { GOOGLE_AUTH } from './src/config';
 import { DEMO, demoApiFor, ESPACES_DEMO } from './src/demo';
 import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, lireNomFichier, loadRetires, loadSupprimes, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveSupprimes, saveVisibles } from './src/espaces';
 import { EspacesBar } from './src/components/EspacesBar';
+import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
 import { GererEspacesSheet } from './src/components/GererEspacesSheet';
 import { EcranAVenir } from './src/components/EcranAVenir';
@@ -1357,36 +1358,22 @@ function Main() {
     <EspacesContext.Provider value={espacesValue}>
     <RechercheContext.Provider value={recherche ?? ''}>
     <View style={styles.flex}>
-      {/* En haut : les espaces (replié : une ligne) et, à droite, le compte Google (ou, en démo, réinitialiser) */}
-      <EspacesBar
-        onChange={setVisibles}
-        onAjouter={ouvrirAjout}
-        onEnlever={() => setGestionOpen(true)}
-        onOuvrir={setEspaceFiche}
-        droite={
-          <>
-            {DEMO && (
-              <Pressable
-                onPress={async () => {
-                  // Tous les espaces de la démo reviennent aux exemples
-                  for (const e of espaces) await demoApiFor(e.id).reset();
-                  if (settings) await refresh(settings);
-                }}
-                hitSlop={8}
-                style={styles.demoBtn}
-                accessibilityLabel="Démo : réinitialiser les exemples"
-              >
-                <Text style={styles.demoReset}>Démo ↺</Text>
-              </Pressable>
-            )}
-            {!DEMO && !!settings.googleEmail && (
-              <Pressable onPress={openAccount} style={styles.avatar} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Compte Google ${settings.googleEmail}`}>
-                <Text style={styles.avatarText}>{settings.googleEmail.charAt(0).toUpperCase()}</Text>
-              </Pressable>
-            )}
-          </>
-        }
-      />
+      {/* Barre fixe : nom de l'application et compte (en démo : même icône, menu « Réinitialiser la démo ») */}
+      <View style={styles.appBar}>
+        <Text style={styles.marque} numberOfLines={1}>
+          {NOM_APP}
+        </Text>
+        <Pressable
+          onPress={openAccount}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={DEMO ? 'Démo : compte et réinitialisation' : `Compte Google ${settings.googleEmail ?? ''}`}
+        >
+          <IconeCompte connecte={DEMO || !!settings.googleEmail} />
+        </Pressable>
+      </View>
+      {/* Carte des espaces : première ligne fixe, dépliée elle grandit vers le bas */}
+      <EspacesBar onChange={setVisibles} onAjouter={ouvrirAjout} onEnlever={() => setGestionOpen(true)} onOuvrir={setEspaceFiche} />
       {info && (
         <Pressable style={styles.info} onPress={() => setInfo(null)} accessibilityLabel="Fermer le message">
           <Text style={styles.infoText}>{info} ✕</Text>
@@ -1855,9 +1842,28 @@ function Main() {
       />
       <ChoiceSheet
         visible={compteOpen}
-        title="Compte Google"
-        message={settings.googleEmail ? `Connecté avec ${settings.googleEmail}. Vos espaces sont des Google Sheets de ce compte.` : undefined}
-        choices={[{ label: 'Se déconnecter', onPress: logout }]}
+        title={DEMO ? 'Démo' : 'Compte Google'}
+        message={
+          DEMO
+            ? 'Mode démonstration : les données sont enregistrées dans ce navigateur.'
+            : settings.googleEmail
+              ? `Connecté avec ${settings.googleEmail}. Vos espaces sont des Google Sheets de ce compte.`
+              : undefined
+        }
+        choices={
+          DEMO
+            ? [
+                {
+                  label: 'Réinitialiser la démo',
+                  onPress: async () => {
+                    // Tous les espaces de la démo reviennent aux exemples
+                    for (const e of espaces) await demoApiFor(e.id).reset();
+                    if (settings) await refresh(settings);
+                  },
+                },
+              ]
+            : [{ label: 'Se déconnecter', onPress: logout }]
+        }
         onClose={() => setCompteOpen(false)}
       />
       <ChoiceSheet
@@ -2088,7 +2094,7 @@ const styles = StyleSheet.create({
   filtresCorps: { marginTop: 8, gap: 8 },
   contenu: { flex: 1, minHeight: 0, borderTopWidth: 1, borderTopColor: '#EEF1F5' },
   filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
-  appBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 10 },
+  appBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 14, paddingTop: 10, height: 50 },
   marque: { flex: 1, fontSize: 15, fontWeight: '800', color: colors.text, letterSpacing: 0.2 },
   demoBtn: { paddingVertical: 4 },
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },

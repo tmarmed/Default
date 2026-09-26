@@ -18,10 +18,11 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
 - **Espaces** : chaque espace est un Google Sheet, d'un type choisi à sa création : 🔒 **Moi** (un seul, jamais
   partagé), 👥 **Équipe** (équipe indépendante), 🏢 **Entreprise** (avec ses équipes). Nom du fichier :
   `President | Moi`, `President | Équipe | Mobile`, `President | Entreprise | ACME` (séparateur `|`).
-- **En haut : les espaces** (et, à droite, le compte Google — rond avec l'initiale : Se déconnecter ; en démo
-  « Démo ↺ » remet les exemples). Replié : une seule ligne « ESPACES 🔒 Moi · 👥 Mobile ② ▾ » (la toucher déplie).
-  Déplié : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule
-  **＋ | −**, **▴** (replier), puis les espaces (un ou plusieurs affichés ; noms longs coupés « … », la ligne défile).
+- **En haut** : une barre fixe « President » avec, à droite, l'icône standard du compte (silhouette, point vert =
+  connecté ; menu : Se déconnecter — en démo : Réinitialiser la démo). Dessous, la **carte des espaces** : sa première
+  ligne ne change jamais (« ESPACES 🔒 Moi · 👥 Mobile ② ▾ », la toucher replie / déplie) ; dépliée, elle grandit vers
+  le bas : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule
+  **＋ | −**, puis les espaces (un ou plusieurs affichés ; noms longs coupés « … », la ligne défile).
   - **＋** : créer un espace (type, nom, **domaines rapides** « + Domaine », Entrée) ; un message « Espace créé »
     confirme, **OK** referme. Aussi : **Rétablir** un espace retiré, **Restaurer** un espace de la corbeille (30 jours).
   - **−** : **Retirer** (l'espace quitte l'application, son Google Sheet est gardé) ou **Supprimer** (le Google Sheet
