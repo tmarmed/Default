@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
-<title>President · maquette v7</title>
+<title>President · maquette v8</title>
 <style>
   :root {
     --fond:#EEF1F6; --carte:#fff; --texte:#18202C; --doux:#6B7686; --trait:#E1E6ED; --trait2:#EEF1F5;
@@ -166,6 +166,38 @@
   .choixMode button.on { border-color:var(--bleu); background:var(--bleuPale); }
   .choixMode button.on.s { border-color:var(--safe); background:var(--safePale); color:var(--safe); }
   .deconnexion { width:100%; border:0; background:var(--gris); border-radius:12px; padding:11px; font-size:14px; font-weight:700; color:#C62828; }
+  /* 1 · Encoche : capsule posée sur le bord de la barre */
+  .encoche { position:absolute; left:50%; top:0; transform:translate(-50%,-50%); z-index:5; display:flex; background:#fff; border:1px solid var(--trait); border-radius:16px; padding:3px; box-shadow:0 4px 14px rgba(24,32,44,.12); }
+  .encoche button { border:0; background:none; border-radius:13px; padding:4px 14px; font-size:12px; font-weight:800; color:var(--doux); transition:all .2s; }
+  .encoche button.on { background:var(--texte); color:#fff; }
+  .encoche button.on.s { background:var(--safe); color:#fff; }
+  .bas.n1 { padding-top:14px; height:74px; }
+  .bas.n1.safe { border-top:2px solid var(--safe); }
+  /* 2 · Onglets SAFe groupés */
+  .groupeSafe { flex:none; display:flex; align-items:stretch; margin:6px 4px; border-radius:14px; transition:background .25s; }
+  .groupeSafe.ouvert { background:var(--safePale); }
+  .clefSafe { flex:none; width:54px; border:0; background:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:10.5px; font-weight:800; color:var(--doux); }
+  .clefSafe .losange { width:22px; height:22px; border-radius:7px; border:2px solid #A5AEBB; display:grid; place-items:center; font-size:11px; transform:rotate(45deg); transition:all .25s; }
+  .clefSafe .losange span { transform:rotate(-45deg); }
+  .groupeSafe.ouvert .clefSafe { color:var(--safe); }
+  .groupeSafe.ouvert .clefSafe .losange { background:var(--safe); border-color:var(--safe); color:#fff; }
+  .groupeSafe .onglet { flex:none; width:60px; color:#8E6AAE; }
+  .groupeSafe .onglet.on { color:var(--safe); }
+  .groupeSafe .onglet.on::before { background:var(--safe); }
+  .glisse { display:flex; animation:deplie .28s ease-out; }
+  @keyframes deplie { from { opacity:0; transform:translateX(-12px); } }
+  .n2 .onglets { padding-right:4px; }
+  .n2 { height:64px; }
+  /* 3 · Ligne sous les onglets */
+  .bas.n3 { height:auto; flex-direction:column; }
+  .bas.n3 .onglets { height:54px; }
+  .sousLigne { display:flex; align-items:center; justify-content:center; gap:10px; padding:2px 0 10px; font-size:12px; font-weight:750; color:var(--doux); }
+  .sousLigne .lbl.on { color:var(--texte); }
+  .sousLigne .lbl.on.s { color:var(--safe); }
+  .glissiere { width:40px; height:22px; border-radius:11px; background:#C9D0DA; position:relative; border:0; padding:0; transition:background .2s; }
+  .glissiere::after { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:left .2s; }
+  .glissiere.on { background:var(--safe); }
+  .glissiere.on::after { left:21px; }
   .toast { position:absolute; left:50%; transform:translateX(-50%) translateY(6px); bottom:100%; margin-bottom:10px; background:rgba(24,32,44,.92); color:#fff; font-size:12px; font-weight:600; padding:7px 13px; border-radius:16px; opacity:0; transition:opacity .2s, transform .2s; pointer-events:none; white-space:nowrap; z-index:6; }
   .toast.vu { opacity:1; transform:translateX(-50%); }
   @media (max-width:440px) {
@@ -175,13 +207,12 @@
   </style>
 </head>
 <body>
-<h1 class="page">Maquette v7 : où mettre le mode Simple / SAFe ?</h1>
-<p class="intro">En bas : seulement les onglets. Choisis une proposition pour le mode, puis essaie : tout se clique (mode, espaces, filtres, « ＋ Filtre », onglets).</p>
+<h1 class="page">Le mode Simple / SAFe en bas, avec les onglets</h1>
+<p class="intro">Trois façons de le faire. Choisis-en une, puis essaie : tout se clique (mode, onglets, espaces, filtres, ＋).</p>
 <div class="choix" id="choix">
-  <button data-var="1" class="on">1 · Barre du haut</button>
-  <button data-var="2">2 · Menu du compte</button>
-  <button data-var="3">3 · Bloc Espaces</button>
-  <button data-var="4">4 · Sous-bloc filtres</button>
+  <button data-var="1" class="on">1 · Encoche</button>
+  <button data-var="2">2 · Onglets SAFe dépliables</button>
+  <button data-var="3">3 · Ligne sous les onglets</button>
 </div>
 
 <div class="scene">
@@ -250,18 +281,17 @@ function seg(options, actif, attr) {
 function filtres() {
   const taches = st.ecran === 'taches';
   const n = nbActifs();
-  const resume = [st.variante === '4' ? (st.safe ? 'SAFe' : 'Simple') : null, taches ? VUES[st.vue] : null, taches ? (TYPES.find((t) => t[0] === st.type)[1]) : null, st.dom ? NOM_DOM[st.dom] : 'tous domaines', st.recherche ? `« ${st.recherche} »` : null].filter(Boolean).join(' · ');
+  const resume = [taches ? VUES[st.vue] : null, taches ? (TYPES.find((t) => t[0] === st.type)[1]) : null, st.dom ? NOM_DOM[st.dom] : 'tous domaines', st.recherche ? `« ${st.recherche} »` : null].filter(Boolean).join(' · ');
   let h = `<div class="filtres ${st.ferme ? 'ferme' : ''}">
-    <div class="entete"><span class="lab">🔍 Recherche et filtres${n ? `<span class="compte">${n}</span>` : ''}</span>
+    <div class="entete"><span class="lab">Filtres${n ? `<span class="compte">${n}</span>` : ''}</span>
       <span class="droite">${n ? '<button class="lienBleu" data-reset>Effacer</button>' : ''}<button class="chevron" data-plier aria-label="Replier">▾</button></span></div>
     <div class="resume">${resume}</div>
     <div class="corps">`;
-  if (st.variante === '4') h += `<div class="ligneMode"><span class="lab">Affichage</span>${segMode()}</div>`;
-  if (st.recherche !== null) h += `<div class="champ">🔍<input id="q" placeholder="Rechercher un titre…" value="${esc(st.recherche)}"><button class="x" data-sansrecherche aria-label="Retirer la recherche">✕</button></div>`;
   if (taches) h += seg(VUES, st.vue, 'data-vue');
   if (taches) h += `<div class="puces">${TYPES.map(([k, l]) => `<button class="puce ${st.type === k ? 'bleu' : ''}" data-type="${k}">${l}</button>`).join('')}</div>`;
   h += `<div class="puces"><button class="puce ${!st.dom ? 'bleu' : ''}" data-dom="">Tous domaines</button>${DOMAINES.map(([k, l]) => `<button class="puce ${st.dom === k ? 'bleu' : ''}" data-dom="${k}">${l}</button>`).join('')}</div>`;
-  h += `<div class="rangee">${st.safe && taches ? `<button class="puce violet ${st.iteration ? 'actif' : ''}" data-iteration>🏃 Itération en cours</button>` : ''}<button class="puce ajout" data-ajout>＋ Filtre</button></div>`;
+  h += `<div class="rangee">${st.safe && taches ? `<button class="puce violet ${st.iteration ? 'actif' : ''}" data-iteration>🏃 Itération en cours</button>` : ''}${st.recherche === null ? '<button class="puce ajout" data-ajout>＋ 🔍 Recherche</button>' : ''}</div>`;
+  if (st.recherche !== null) h += `<div class="champ">🔍<input id="q" placeholder="Rechercher un titre…" value="${esc(st.recherche)}"><button class="x" data-sansrecherche aria-label="Retirer la recherche">✕</button></div>`;
   h += `</div></div>`;
   return h;
 }
@@ -286,20 +316,31 @@ function liste() {
 
 function bas() {
   const ong = ONGLETS[st.safe ? 'safe' : 'simple'];
-  const onglets = `<div class="onglets">${ong.map((k) => `<button class="onglet ${k === st.ecran ? 'on' : ''}" data-ecran="${k}"><span class="ic">${ECRANS[k][0]}</span>${ECRANS[k][1]}${k === 'taches' ? '<span class="pastille">4</span>' : ''}</button>`).join('')}</div>`;
-  return `<div class="bas varC"><div class="toast ${st.toast ? 'vu' : ''}">${st.toast}</div><button class="fab" style="bottom:calc(100% + 12px)">+</button>${onglets}</div>`;
+  const bouton = (k) => `<button class="onglet ${k === st.ecran ? 'on' : ''}" data-ecran="${k}"><span class="ic">${ECRANS[k][0]}</span>${ECRANS[k][1]}${k === 'taches' ? '<span class="pastille">4</span>' : ''}</button>`;
+  const toast = `<div class="toast ${st.toast ? 'vu' : ''}">${st.toast}</div>`;
+  const fab = `<button class="fab" style="bottom:calc(100% + ${st.variante === '1' ? 24 : 12}px)">+</button>`;
+  if (st.variante === '1') return `<div class="bas varC n1 ${st.safe ? 'safe' : ''}">${toast}${fab}
+      <div class="encoche"><button class="${st.safe ? '' : 'on'}" data-mode="0">Simple</button><button class="${st.safe ? 'on s' : ''}" data-mode="1">◆ SAFe</button></div>
+      <div class="onglets">${ong.map(bouton).join('')}</div></div>`;
+  if (st.variante === '2') {
+    const base = ONGLETS.simple, safes = ONGLETS.safe.filter((k) => !base.includes(k));
+    return `<div class="bas varC n2">${toast}${fab}<div class="onglets">${bouton('taches')}
+      <div class="groupeSafe ${st.safe ? 'ouvert' : ''}"><button class="clefSafe" data-bascule aria-pressed="${st.safe}"><span class="losange"><span>${st.safe ? '✓' : ''}</span></span>SAFe</button>${st.safe ? `<div class="glisse">${safes.map(bouton).join('')}</div>` : ''}</div>
+      ${base.filter((k) => k !== 'taches').map(bouton).join('')}</div></div>`;
+  }
+  return `<div class="bas varC n3">${toast}${fab}<div class="onglets">${ong.map(bouton).join('')}</div>
+      <div class="sousLigne"><span class="lbl ${st.safe ? '' : 'on'}">Simple</span><button class="glissiere ${st.safe ? 'on' : ''}" data-bascule aria-label="Mode SAFe"></button><span class="lbl ${st.safe ? 'on s' : ''}">SAFe</span></div></div>`;
 }
 const segMode = () => `<div class="segTexte"><button class="${st.safe ? '' : 'on'}" data-mode="0">Simple</button><button class="${st.safe ? 'on s' : ''}" data-mode="1">SAFe</button></div>`;
 
 const NOTES = {
-  1: `<h3>1 · Barre du haut</h3><ul><li>Une pilule à côté du rond du compte : grise « Simple », violette « SAFe ».</li><li>Un appui change de mode.</li><li>Toujours visible, sur tous les écrans, sans prendre de ligne.</li></ul>`,
-  2: `<h3>2 · Menu du compte</h3><ul><li>Touche le rond « T » : une feuille s'ouvre avec ton compte et deux grandes cartes <b>Simple</b> / <b>SAFe</b> expliquées.</li><li>En SAFe, un petit point violet sur le rond le rappelle.</li><li>Le plus épuré, mais il faut deux appuis.</li></ul>`,
-  3: `<h3>3 · Bloc Espaces</h3><ul><li>Un petit sélecteur Simple | SAFe dans l'en-tête du bloc Espaces, à côté de ＋ et ⋯.</li><li>Le mode vaut pour tous les espaces affichés.</li></ul>`,
-  4: `<h3>4 · Sous-bloc filtres</h3><ul><li>Première ligne du sous-bloc « Recherche et filtres » : <b>Affichage Simple | SAFe</b>.</li><li>Le mode est rangé avec tout ce qui change l'affichage.</li><li>Replié, le résumé l'indique.</li></ul>`,
+  1: `<h3>1 · Encoche</h3><ul><li>Une petite capsule <b>Simple | ◆ SAFe</b> posée à cheval sur le bord de la barre des onglets, au centre.</li><li>En SAFe, la capsule et le bord de la barre passent en violet.</li><li>Toujours visible, un seul appui, et les onglets gardent toute la largeur.</li></ul>`,
+  2: `<h3>2 · Onglets SAFe dépliables</h3><ul><li>Après Tâches, un onglet <b>◇ SAFe</b>.</li><li>Un appui l'allume : les écrans SAFe (Itération, PI, Stratégie, Backlog, Portefeuille) se déplient juste à côté, sur un fond violet pâle.</li><li>Un nouvel appui les replie et repasse en Simple.</li><li>On voit tout de suite ce que SAFe ajoute.</li></ul>`,
+  3: `<h3>3 · Ligne sous les onglets</h3><ul><li>Une ligne fine sous les onglets : <b>Simple ◯ SAFe</b>, avec une glissière au milieu.</li><li>Le mot actif est en gras (violet pour SAFe).</li><li>Sobre, et placé là où le pouce arrive naturellement.</li></ul>`,
 };
-const COMMUN = `<h3>Bloc 2 : sous-bloc « 🔍 Recherche et filtres »</h3><ul>
+const COMMUN = `<h3>Bloc 2 : sous-bloc « Filtres »</h3><ul>
   <li>Tous les filtres sont dans un sous-cadre gris : vue (Liste, Jour, Semaine, Mois), types, domaines et, en SAFe, 🏃 Itération en cours.</li>
-  <li><b>＋ Filtre</b> ajoute une <b>recherche</b> par titre. Elle filtre la liste en direct et surligne le mot. Le ✕ retire la recherche.</li>
+  <li>La recherche n'apparaît pas d'office : <b>＋ 🔍 Recherche</b> ajoute le champ. Il filtre la liste en direct et surligne le mot ; le ✕ le retire.</li>
   <li>Une pastille bleue compte les filtres actifs, et <b>Effacer</b> remet tout à zéro.</li>
   <li>▾ replie le sous-bloc en une ligne de résumé : la liste gagne de la place.</li>
   <li>Le titre de l'écran et le nombre d'éléments sont en haut du bloc. Seule la liste défile.</li></ul>`;
@@ -312,18 +353,18 @@ function rendre() {
   const focus = document.activeElement?.id === 'q';
   tel.innerHTML = `
     <div class="statut"><span>9:41</span><span>●●● ◔</span></div>
-    <div class="appbar"><div class="marque">President</div><div class="droiteBarre">${st.variante === '1' ? `<button class="pilule ${st.safe ? 'on' : ''}" data-bascule>${st.safe ? '◆ SAFe' : 'Simple'}</button>` : ''}<button class="avatarBtn" data-compte><div class="avatar">T</div>${st.variante === '2' && st.safe ? '<span class="point"></span>' : ''}</button></div></div>
+    <div class="appbar"><div class="marque">President</div><div class="droiteBarre"><button class="avatarBtn" data-compte><div class="avatar">T</div></button></div></div>
     <div class="bloc bloc1">
-      <div class="entete"><span class="lab">Espaces</span><span style="display:flex;gap:6px;align-items:center">${st.variante === '3' ? segMode() : ''}<button class="petitBtn bleu">＋</button><button class="petitBtn">⋯</button></span></div>
+      <div class="entete"><span class="lab">Espaces</span><span style="display:flex;gap:6px;align-items:center"><button class="petitBtn bleu">＋</button><button class="petitBtn">⋯</button></span></div>
       <div class="puces">${ESPACES.map(([k, l]) => `<button class="puce ${st.espaces.includes(k) ? 'noir' : ''}" data-esp="${k}">${l}</button>`).join('')}</div>
     </div>
     <div class="bloc bloc2">
-      <div class="titre2"><b>${ic} ${titre}</b>${nb !== null ? `<span class="nb">· ${nb}</span>` : ''}${st.safe && st.variante !== '1' ? '<span class="tagSafe">SAFe</span>' : ''}</div>
+      <div class="titre2"><b>${ic} ${titre}</b>${nb !== null ? `<span class="nb">· ${nb}</span>` : ''}${st.safe ? '<span class="tagSafe">◆ SAFe</span>' : ''}</div>
       ${filtres()}
       <div class="liste">${liste()}</div>
     </div>
     ${bas()}
-    ${st.variante === '2' && st.compte ? `<div class="voile" data-fermer><div class="feuille">
+    ${false ? `<div class="voile" data-fermer><div class="feuille">
       <div class="poignee"></div>
       <div class="compteLigne"><div class="avatar">T</div><div><b>tmar.mohamd</b><small>Compte Google connecté</small></div></div>
       <div class="lab" style="margin-top:14px">Mode d'affichage</div>
@@ -355,7 +396,7 @@ function rendre() {
   tel.querySelectorAll('[data-fermer]').forEach((v) => (v.onclick = (e) => { if (e.target === v) { st.compte = false; rendre(); } }));
   tel.querySelectorAll('.feuille [data-mode]').forEach((b) => (b.onclick = () => { changerMode(b.dataset.mode === '1'); rendre(); setTimeout(() => { st.compte = false; rendre(); }, 350); }));
   const ajout = tel.querySelector('[data-ajout]');
-  if (ajout) ajout.onclick = (e) => { e.stopPropagation(); ouvrirMenu(ajout); };
+  if (ajout) ajout.onclick = () => { st.recherche = ''; st.ferme = false; st.focusQ = true; rendre(); };
 }
 // Pendant la frappe : ne redessine que le compteur et la liste (le champ garde le curseur)
 function rendreGarde() {
@@ -364,7 +405,7 @@ function rendreGarde() {
   tel.querySelector('.liste').innerHTML = liste();
   const c = tel.querySelector('.filtres .compte'), n = nbActifs();
   const lab = tel.querySelector('.filtres .lab');
-  lab.innerHTML = `🔍 Recherche et filtres${n ? `<span class="compte">${n}</span>` : ''}`;
+  lab.innerHTML = `Filtres${n ? `<span class="compte">${n}</span>` : ''}`;
   tel.querySelectorAll('.liste [data-reset]').forEach((b) => (b.onclick = () => { st.type = 'tous'; st.dom = ''; st.iteration = false; st.recherche = null; st.vue = 0; rendre(); }));
 }
 function changerMode(safe) {
