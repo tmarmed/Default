@@ -15,19 +15,29 @@ qu'on peut donc aussi consulter depuis un ordinateur.
 **En ligne : <https://tmarmed.github.io/Default/safe/>**, publiée automatiquement à chaque modification (seule version
 publiée ; <https://tmarmed.github.io/Default/> y renvoie).
 
-- **Espaces** : chaque espace est un Google Sheet, d'un type choisi à sa création : 🔒 **Moi** (un seul, jamais
+- **Espaces de travail** (« espaces » ci-dessous) : chaque espace de travail est un Google Sheet, d'un type choisi à sa création : 🔒 **Moi** (un seul, jamais
   partagé), 👥 **Équipe** (équipe indépendante), 🏢 **Entreprise** (avec ses équipes). Nom du fichier :
   `President | Moi`, `President | Équipe | Mobile`, `President | Entreprise | ACME` (séparateur `|`).
 - **En haut** : une barre fixe « President » avec, à droite, l'icône standard du compte (silhouette, point vert =
-  connecté ; menu : Se déconnecter — en démo : Réinitialiser la démo). Dessous, la **carte des espaces** : sa première
-  ligne ne change jamais (« ESPACES 🔒 Moi · 👥 Mobile ② ▾ », la toucher replie / déplie) ; dépliée, elle grandit vers
+  connecté ; menu : Stockage Google Drive, Se déconnecter — en démo : Stockage Google Drive, Réinitialiser la démo).
+  Dessous, la **carte des espaces de travail** : sa première
+  ligne ne change jamais (« ESPACES DE TRAVAIL 🔒 Moi · 👥 Mobile ② ▾ », la toucher replie / déplie) ; dépliée, elle grandit vers
   le bas : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule
   **＋ | −**, puis les espaces (un ou plusieurs affichés ; noms longs coupés « … », la ligne défile).
-  - **＋** : créer un espace (type, nom, **domaines rapides** « + Domaine », Entrée) ; un message « Espace créé »
-    confirme, **OK** referme. Aussi : **Rétablir** un espace retiré, **Restaurer** un espace de la corbeille (30 jours).
+  - **＋** : créer un espace (type, nom, **domaines rapides** « + Domaine », Entrée), un seul bouton « Créer l'espace
+    de travail » ; un message « Espace de travail créé » confirme, **OK** referme. Aussi : **Rétablir** un espace retiré, **Restaurer** un espace de la corbeille (30 jours).
   - **−** : **Retirer** (l'espace quitte l'application, son Google Sheet est gardé) ou **Supprimer** (le Google Sheet
     part à la corbeille de Google Drive, récupérable 30 jours ; un espace partagé disparaît aussi pour les autres),
     chaque espace sauf Moi. Raccourci : appui long sur un espace.
+- **Alerte de stockage Google Drive** : à chaque ouverture, President mesure le stockage du compte Google. Dès
+  **85 %**, une carte rouge sous la carte des espaces montre la jauge et l'espace à libérer pour repasser sous 80 %,
+  puis les solutions, la meilleure marquée **Recommandé** : 🗑️ **Vider la corbeille de President** (espaces supprimés,
+  effacés pour de bon) si cela suffit ; sinon 📦 **Supprimer les tâches terminées avant <mois>** : la plus courte
+  période ancienne qui suffit (jamais les 3 derniers mois, ni les tâches répétées, ni un parent dont une sous-tâche
+  reste ; **copie CSV** proposée avant) ; sinon ☁️ **Voir le stockage Google** (l'espace est pris par d'autres
+  fichiers). « Plus tard » cache la carte jusqu'au lendemain. Menu du compte › **Stockage Google Drive** : l'état à
+  tout moment et « Vérifier maintenant » ; en démo, un **Drive simulé** pour tester (Normal 41 %, Plein : autres
+  fichiers, Plein : President). Calcul vérifié par `npm run verif:stockage`.
 - **Bloc de l'écran** : titre (« ✓ Mes tâches · 27 », le nombre suit les filtres) avec, à sa droite, le mode
   **Simple | SAFe** (pour tous les espaces affichés), puis, **juste sous le titre, le
   sous-bloc Filtres** sur tous les écrans à données (Tâches, Itération, PI, Roadmap, Portefeuille ; Simple et SAFe) :
@@ -102,10 +112,10 @@ conception :
 
 - **8 types**, les mêmes en mode Simple et SAFe : ✓ Tâche, 📅 Rendez-vous et 🚩 Mission avec **heure de fin** (proposée 1 h
   après le début, et durée affichée), 📞 Appel (numéro + bouton
-  **Appeler** dans la fiche et dans la liste), 🗂️ Démarche administrative (avec **date de fin** facultative =
+  **Appeler** dans la fiche et dans la liste), 🗂️ Démarche (démarche administrative, avec **date de fin** facultative =
   date limite, affichée « ⏳ fin … » dans la liste, rouge si dépassée ; script v12 ; sans date, c'est sa date de fin
   qui la range dans la liste, le calendrier et l'itération, avec l'étiquette « Date de fin dépassée » une fois passée ; avec une date ET une date de fin, le calendrier la montre aussi
-  le jour de sa date de fin : « ⏳ Fin : … », jusqu'à ce qu'elle soit terminée), 🚩 Mission, 📖 User story,
+  le jour de sa date de fin : « ⏳ Fin : … », jusqu'à ce qu'elle soit terminée), 🚩 Mission, 📖 Story (user story),
   🔍 Exploration, 🐞 Bug. Filtre de la liste : « Tous » ou un type (liste déroulante, avec 🔁 Répétés).
 - **Statut unique** (`statut` dans le Google Sheet), le même dans les deux modes : cocher = « Terminé » =
   colonne « Terminé » du Kanban. Décocher remet le statut d'avant (« En cours » s'il l'était ; gardé par le

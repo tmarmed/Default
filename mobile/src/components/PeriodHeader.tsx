@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 
@@ -6,16 +7,18 @@ interface Props {
   onPrev: () => void;
   onNext: () => void;
   onToday?: () => void;
+  /** Bouton à droite de la ligne (ex. « Tout replier » de la Roadmap) : « ‹ Titre › » passe alors à gauche */
+  action?: ReactNode;
 }
 
 /** ‹ Titre de la période › — les flèches doublent le geste de glissement. */
-export function PeriodHeader({ title, onPrev, onNext, onToday }: Props) {
+export function PeriodHeader({ title, onPrev, onNext, onToday, action }: Props) {
   return (
     <View style={styles.row}>
       <Pressable onPress={onPrev} hitSlop={12} accessibilityLabel="Période précédente" style={styles.arrow}>
         <Text style={styles.arrowText}>‹</Text>
       </Pressable>
-      <Text style={styles.title} numberOfLines={1}>
+      <Text style={[styles.title, !!action && styles.titleGauche]} numberOfLines={1}>
         {title}
       </Text>
       <Pressable onPress={onNext} hitSlop={12} accessibilityLabel="Période suivante" style={styles.arrow}>
@@ -32,6 +35,12 @@ export function PeriodHeader({ title, onPrev, onNext, onToday }: Props) {
       >
         <Text style={styles.todayText}>Aujourd'hui</Text>
       </Pressable>
+      {!!action && (
+        <>
+          <View style={styles.espace} />
+          {action}
+        </>
+      )}
     </View>
   );
 }
@@ -49,6 +58,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary,
   },
+  titleGauche: { flex: 0, minWidth: 48 },
+  espace: { flex: 1 },
   hidden: { opacity: 0 },
   todayText: { color: colors.primary, fontSize: 13, fontWeight: '600' },
 });

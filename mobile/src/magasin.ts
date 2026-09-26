@@ -1,5 +1,6 @@
 import { toDateString } from './dates';
 import { cleanLinks, type Data, type DeletionCounts, planDeletion } from './hierarchy';
+import { aPurger } from './stockage';
 import { cascadeLinks, checkParent } from './subtasks';
 import type { Domaine, Epic, Feature, Ignoree, Item, ItemInput, Objectif, ObjectifPI } from './types';
 
@@ -195,6 +196,16 @@ export function creerMagasin(p: Persistance) {
         'items',
         items.filter((i) => i.id !== id && !(cascade && i.parent === id)).map((i) => (i.parent === id ? { ...i, parent: '' } : i)),
       );
+    },
+    /** Stockage : supprime les tâches terminées avant `avant` (mêmes règles que le calcul de l'alerte) ; renvoie les supprimées */
+    async purgerTerminees(avant: string): Promise<Item[]> {
+      const items = await p.lire('items');
+      const parties = aPurger(items, avant);
+      if (parties.length) {
+        const ids = new Set(parties.map((t) => t.id));
+        await p.ecrire('items', items.filter((i) => !ids.has(i.id)));
+      }
+      return parties;
     },
     async listAll(): Promise<Omit<Data, 'items'>> {
       const [epics, objectifs, domaines, features, objectifsPI, ignorees] = await Promise.all([

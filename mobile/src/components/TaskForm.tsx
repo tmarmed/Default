@@ -36,7 +36,7 @@ import { LinkPicker } from './LinkPicker';
 import { filtrerEspace, HierarchyContext, useHierarchy } from '../hierarchyContext';
 import { espaceParId, ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces';
 import { useSafe } from '../safe';
-import { iterationByKey, iterationOf, shiftIteration } from '../pi';
+import { iterationByKey, iterationNom, iterationOf, shiftIteration } from '../pi';
 import { toDateString } from '../dates';
 import { callNumber } from '../phone';
 import { fmtPoints } from '../pi';
@@ -194,7 +194,7 @@ export function TaskForm({
   const itCourante = iterationOf(toDateString(new Date())).key;
   const itOptions = [0, 1, 2, 3, 4, 5].map((n) => {
     const key = n ? shiftIteration(itCourante, n) : itCourante;
-    return { value: key, label: `${key.split('-')[1]} ${iterationByKey(key)!.code}` };
+    return { value: key, label: iterationNom(key) };
   });
 
   useEffect(() => {
@@ -303,7 +303,7 @@ export function TaskForm({
           <Pressable onPress={onClose} hitSlop={10} disabled={busy}>
             <Text style={styles.headerBtn}>Annuler</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>{item ? 'Modifier' : 'Nouveau'}</Text>
+          <Text style={styles.headerTitle}>{item ? 'Tâche' : 'Nouvelle tâche'}</Text>
           <Pressable onPress={save} hitSlop={10} disabled={busy}>
             {busy ? (
               <ActivityIndicator color={colors.primary} />
@@ -327,7 +327,7 @@ export function TaskForm({
 
             {plusieursEspaces && (
               <>
-                <Text style={styles.label}>Espace</Text>
+                <Text style={styles.label}>Espace de travail</Text>
                 {item ? (
                   <Text style={styles.hint}>
                     {(() => {
@@ -487,7 +487,7 @@ export function TaskForm({
                           { value: '', label: 'Aucune' },
                           ...itOptions,
                           ...(form.iteration && !itOptions.some((o) => o.value === form.iteration)
-                            ? [{ value: form.iteration, label: form.iteration }]
+                            ? [{ value: form.iteration, label: iterationNom(form.iteration) }]
                             : []),
                         ]}
                         value={form.iteration}
@@ -502,7 +502,7 @@ export function TaskForm({
               <Text style={styles.hint}>
                 {[
                   form.iteration && iterationByKey(form.iteration)
-                    ? `Planifiée en ${iterationByKey(form.iteration)!.code} (${form.iteration.split('-')[1]} ${form.iteration.slice(0, 4)})`
+                    ? `Planifiée en ${iterationNom(form.iteration)}`
                     : '',
                   form.points ? fmtPoints(parseFloat(form.points.replace(',', '.')) || 0, safe.pointsJours) : '',
                 ]

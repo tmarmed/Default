@@ -3,12 +3,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
+  Linking,
   Modal,
   Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   SectionList,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -34,7 +36,7 @@ import { type Action, type Check, checksDatesDomaine, checksParEcran, signatures
 import { AlertsCard, CheckActionContext, IgnoreContext, nbAlertes } from './src/components/AlertsCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
-import { iterationOf, iterationOfItem, piOf } from './src/pi';
+import { iterationNom, iterationOf, iterationOfItem, piOf } from './src/pi';
 import { Roadmap } from './src/components/Roadmap';
 import { LoginScreen } from './src/components/LoginScreen';
 import { TaskForm } from './src/components/TaskForm';
@@ -42,6 +44,9 @@ import { TaskItem } from './src/components/TaskItem';
 import { DayView, MonthView, WeekView } from './src/components/PeriodViews';
 import { PeriodHeader } from './src/components/PeriodHeader';
 import { Segmented } from './src/components/Segmented';
+import { type ActionStockage, StockagePanneau } from './src/components/Stockage';
+import { FormSheet } from './src/components/FormSheet';
+import { aPurger, copieCsv, moisAnnee, octetsLignes, type Plan, planifier, pourcent, type Quota, quotaSimule, SEUIL_ALERTE, SEUIL_CIBLE, type TestStockage } from './src/stockage';
 import { Swipe } from './src/components/Swipe';
 import {
   addDays,
@@ -56,7 +61,7 @@ import {
 } from './src/dates';
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { GOOGLE_AUTH, VERSION } from './src/config';
-import { DEMO, demoApiFor, ESPACES_DEMO } from './src/demo';
+import { DEMO, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
 import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, lireNomFichier, loadRetires, loadSupprimes, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveSupprimes, saveVisibles } from './src/espaces';
 import { EspacesBar } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
@@ -108,6 +113,11 @@ type Filter = TypeFiltre;
 type Mode = 'liste' | 'jour' | 'semaine' | 'mois';
 
 const FILTRES_PLIES_KEY = 'president:filtres-plies';
+/** Alerte de stockage cachée jusqu'à demain (« Plus tard ») : date du jour */
+const PLUS_TARD_KEY = 'president:stockage-plus-tard';
+/** Démo : Drive simulé pour tester l'alerte de stockage */
+const TEST_STOCKAGE_KEY = 'president:stockage-test';
+const TEST_LIMITE_KEY = 'president:stockage-test-limite';
 /** Écrans avec le sous-bloc Filtres (juste sous leur titre) */
 const ECRANS_FILTRES: Tab[] = ['taches', 'iteration', 'pi', 'roadmap', 'portefeuille'];
 const MODES: { value: Mode; label: string }[] = [
@@ -528,7 +538,7 @@ function Main() {
         const all: Hier = { ...rest, ignorees };
         setHier(all);
         saveHierarchyCache(all).catch(() => {});
-        setOffline(echecs.length ? `Espace injoignable : ${echecs.map((e) => e.nom).join(', ')}.` : null);
+        setOffline(echecs.length ? `Espace de travail injoignable : ${echecs.map((e) => e.nom).join(', ')}.` : null);
       } catch (e) {
         if (e instanceof AuthError) {
           // Session Google expirée : un appui sur « Continuer avec … » suffit (les données restent affichées ensuite)
@@ -649,8 +659,8 @@ function Main() {
   };
   const resumeFiltres = [
     !surTaches ? '' : filter === 'tous' ? 'Tous les types' : filter === 'recurrents' ? '🔁 Répétés' : `${TYPE_ICONS[filter]} ${TYPE_LABELS[filter]}`,
-    domFilter === 'tous' ? 'tous domaines' : domFilter === '' ? 'sans domaine' : (hv.domaines.get(domFilter)?.nom ?? ''),
-    surTaches && safe.actif && itFilter ? '🏃 itération en cours' : '',
+    domFilter === 'tous' ? 'Tous les domaines' : domFilter === '' ? 'Sans domaine' : (hv.domaines.get(domFilter)?.nom ?? ''),
+    surTaches && safe.actif && itFilter ? '🏃 Itération en cours' : '',
     recherche?.trim() ? `« ${recherche.trim()} »` : '',
   ]
     .filter(Boolean)
@@ -1194,7 +1204,7 @@ function Main() {
             title: `🧩 ${f.titre}`,
             sub: [
               hv.epics.get(f.epic)?.titre ?? 'sans epic',
-              f.iteration ? `prévue en ${f.iteration.split('-').slice(1).join(' ')}` : f.pi ? `PI ${f.pi.split('-')[1]} ${f.pi.split('-')[0]}` : 'sans PI',
+              f.iteration ? `prévue en ${iterationNom(f.iteration)}` : f.pi ? `PI ${f.pi.split('-')[1]} ${f.pi.split('-')[0]}` : 'sans PI',
             ].join(' · '),
           }))
       : piPicker?.kind === 'tache'
@@ -1214,7 +1224,7 @@ function Main() {
               title: t.titre,
               sub: [
                 hv.epics.get(t.epic)?.titre ?? hv.objectifs.get(t.objectif)?.titre ?? hv.domaines.get(t.domaine)?.nom ?? 'non rangée',
-                t.iteration ? `prévue en ${t.iteration.split('-').slice(1).join(' ')}` : 'pas d’itération',
+                t.iteration ? `prévue en ${iterationNom(t.iteration)}` : 'pas d’itération',
               ].join(' · '),
             }))
         : [];
@@ -1248,6 +1258,85 @@ function Main() {
   // Écran Tâches : les alertes défilent avec le contenu (en tête de liste / de calendrier)
   const alertesTaches = <AlertsCard ecran="taches" checks={checks.taches} />;
   const espacesValue = { liste: espaces, visibles };
+
+  // -------------------------------------------------------------------------
+  // Stockage Google Drive : alerte dès 85 %, solutions calculées (src/stockage.ts)
+  // -------------------------------------------------------------------------
+  const [stockage, setStockage] = useState<{ quota: Quota; plan: Plan; taches: (Item & { espace?: string })[] } | null>(null);
+  const [stockageOpen, setStockageOpen] = useState(false);
+  const [stockageTest, setStockageTest] = useState<TestStockage>('normal');
+  const [plusTard, setPlusTard] = useState<string | null>(null);
+  /** Démo, test « Plein : President » : taille du Drive simulé, fixée au choix du test */
+  const limiteTest = useRef<number | null>(null);
+  const [stockagePret, setStockagePret] = useState(false);
+  useEffect(() => {
+    AsyncStorage.multiGet([PLUS_TARD_KEY, TEST_STOCKAGE_KEY, TEST_LIMITE_KEY])
+      .then(([[, p], [, t], [, l]]) => {
+        setPlusTard(p);
+        if (DEMO && t) setStockageTest(t as TestStockage);
+        if (DEMO && l) limiteTest.current = Number(l) || null;
+      })
+      .catch(() => {})
+      .finally(() => setStockagePret(true));
+  }, []);
+  /** Mesure le Drive et calcule les solutions (`detail` : même sous 85 %, pour la fiche du compte) */
+  const verifierStockage = useCallback(
+    async (s: Settings, detail = false, test?: TestStockage) => {
+      const liste = espacesRef.current;
+      let quota: Quota;
+      let corbeille = { nb: 0, octets: 0 };
+      let president = 0;
+      let taches: (Item & { espace?: string })[] = [];
+      /** Toutes les tâches de tous les espaces de travail (pas seulement ceux affichés), et leur poids */
+      const lireTout = async () => {
+        for (const e of liste) {
+          if (!DEMO && !e.fichier) continue;
+          const d = await api.listItems(s, e.id);
+          taches.push(...d.items);
+          if (DEMO) president += octetsLignes(d.items) + octetsLignes([...d.epics, ...d.objectifs, ...d.domaines, ...d.features, ...d.objectifsPI]);
+        }
+      };
+      if (DEMO) {
+        // Démo : le Drive est simulé (test choisi dans la fiche « Stockage Google Drive »), le poids des données est réel
+        await lireTout();
+        for (const e of await loadSupprimes()) {
+          const st = demoApiFor(e.id);
+          const [its, all] = await Promise.all([st.list(), st.listAll()]);
+          corbeille = { nb: corbeille.nb + 1, octets: corbeille.octets + octetsLignes(its) + octetsLignes(Object.values(all).flat() as object[]) };
+        }
+        quota = quotaSimule(test ?? stockageTest, president + corbeille.octets, test ? undefined : limiteTest.current ?? undefined);
+        if ((test ?? stockageTest) === 'president' && (test || !limiteTest.current)) {
+          limiteTest.current = quota.limite;
+          AsyncStorage.setItem(TEST_LIMITE_KEY, String(quota.limite)).catch(() => {});
+        }
+      } else {
+        quota = await api.quotaDrive();
+        if (!detail && planifier(quota, { corbeille, taches: [], president: 0 }).taux < SEUIL_ALERTE) {
+          setStockage(null);
+          return;
+        }
+        const poids = await api.poidsFichiers();
+        const trash = poids.filter((p) => p.corbeille);
+        corbeille = { nb: trash.length, octets: trash.reduce((n, p) => n + p.octets, 0) };
+        president = poids.filter((p) => !p.corbeille).reduce((n, p) => n + p.octets, 0);
+        await lireTout();
+      }
+      setStockage({ quota, plan: planifier(quota, { corbeille, taches, president }), taches });
+    },
+    [stockageTest],
+  );
+  // Vérification au démarrage (une fois la connexion prête), puis à chaque ouverture de l'application
+  const stockageVerifie = useRef(false);
+  useEffect(() => {
+    if (!settings || booting || !stockagePret || stockageVerifie.current) return;
+    stockageVerifie.current = true;
+    verifierStockage(settings).catch(() => {});
+  }, [settings, booting, stockagePret, verifierStockage]);
+  /** Fiche « Stockage Google Drive » (menu du compte) : mesure à jour, même sous 85 % */
+  const ouvrirStockage = () => {
+    setStockageOpen(true);
+    if (settings) verifierStockage(settings, true).catch((e) => setNotice(`Stockage non vérifié : ${(e as Error).message}`));
+  };
 
   if (booting) {
     return <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />;
@@ -1288,7 +1377,7 @@ function Main() {
       ignorees: prev.ignorees,
     }));
   };
-  /** Retirer : l'espace quitte l'application, son Google Sheet est gardé (rétabli dans « Gérer ») */
+  /** Retirer : l'espace de travail quitte l'application, son Google Sheet est gardé (rétabli dans « Gérer ») */
   const retirerEspace = async (e: Espace) => {
     await saveRetires([...(await loadRetires()).filter((r) => r.id !== e.id), e]);
     setRetires((r) => [...r.filter((x) => x.id !== e.id), e]);
@@ -1302,7 +1391,7 @@ function Main() {
       setCorbeilleEsp((c) => [...(c ?? []).filter((x) => x.id !== e.id), e]);
       enleverEspace(e);
     } catch (err) {
-      const m = `Espace non supprimé : ${(err as Error).message}`;
+      const m = `Espace de travail non supprimé : ${(err as Error).message}`;
       setNotice(m);
       throw new Error(m);
     }
@@ -1318,6 +1407,47 @@ function Main() {
     setVisibles([...visibles.filter((v) => v !== e.id), e.id]);
     if (settings) await refresh(settings);
   };
+  const actionStockage = async (a: ActionStockage) => {
+    if (!settings || !stockage) return;
+    if (a.kind === 'google') {
+      await Linking.openURL('https://one.google.com/storage');
+      return;
+    }
+    if (a.kind === 'copie') {
+      const csv = copieCsv(aPurger(stockage.taches, a.avant));
+      const nom = `President - taches terminees avant ${a.avant}.csv`;
+      if (Platform.OS === 'web') {
+        const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }));
+        const lien = Object.assign(document.createElement('a'), { href: url, download: nom });
+        lien.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } else await Share.share({ title: nom, message: csv });
+      return;
+    }
+    if (a.kind === 'corbeille') {
+      if (DEMO) {
+        for (const e of await loadSupprimes()) await effacerDemo(e.id);
+        await saveSupprimes([]);
+      } else for (const f of await api.fichiersCorbeille()) await api.effacerFichier(f.id);
+      setCorbeilleEsp([]);
+      setInfo('Corbeille de President vidée.');
+    } else {
+      let n = 0;
+      for (const e of espacesRef.current) if (DEMO || e.fichier) n += (await api.purgerTerminees(settings, e.id, a.avant)).length;
+      setInfo(`${n} tâche${n > 1 ? 's' : ''} terminée${n > 1 ? 's' : ''} avant ${moisAnnee(a.avant)} supprimée${n > 1 ? 's' : ''}.`);
+      await refresh(settings);
+    }
+    await verifierStockage(settings, stockageOpen);
+  };
+  const changerTestStockage = (t: TestStockage) => {
+    setStockageTest(t);
+    AsyncStorage.setItem(TEST_STOCKAGE_KEY, t).catch(() => {});
+    // Nouveau test : l'alerte n'est plus cachée (« Plus tard »)
+    setPlusTard(null);
+    AsyncStorage.removeItem(PLUS_TARD_KEY).catch(() => {});
+    if (settings) verifierStockage(settings, true, t).catch((e) => setNotice(`Stockage non vérifié : ${(e as Error).message}`));
+  };
+
   /** ＋ (bloc Espaces) : ajouter un espace, ou en récupérer un (lit les espaces retirés et la corbeille) */
   const ouvrirAjout = () => {
     setEspacesOpen(true);
@@ -1375,6 +1505,17 @@ function Main() {
       </View>
       {/* Carte des espaces : première ligne fixe, dépliée elle grandit vers le bas */}
       <EspacesBar onChange={setVisibles} onAjouter={ouvrirAjout} onEnlever={() => setGestionOpen(true)} onOuvrir={setEspaceFiche} />
+      {stockage?.plan.alerte && plusTard !== today && !stockageOpen && (
+        <StockagePanneau
+          quota={stockage.quota}
+          plan={stockage.plan}
+          onAction={actionStockage}
+          onPlusTard={() => {
+            setPlusTard(today);
+            AsyncStorage.setItem(PLUS_TARD_KEY, today).catch(() => {});
+          }}
+        />
+      )}
       {info && (
         <Pressable style={styles.info} onPress={() => setInfo(null)} accessibilityLabel="Fermer le message">
           <Text style={styles.infoText}>{info} ✕</Text>
@@ -1629,10 +1770,26 @@ function Main() {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           !refreshing ? (
-            <Text style={styles.empty}>
-              Rien à faire pour le moment.{'\n'}Touchez + pour ajouter{' '}
-              {filter === 'tous' || filter === 'recurrents' ? 'un élément' : TYPE_LABELS[filter].toLowerCase()}.
-            </Text>
+            recherche?.trim() || nbFiltres > 0 ? (
+              // Liste vide à cause de la recherche ou des filtres : le dire, et proposer de les enlever
+              <View style={styles.videFiltre}>
+                <Text style={styles.empty}>
+                  {recherche?.trim() ? `Aucun élément ne correspond à « ${recherche.trim()} ».` : 'Aucun élément ne correspond aux filtres.'}
+                </Text>
+                <Pressable
+                  onPress={recherche?.trim() ? () => setRecherche('') : reinitialiserFiltres}
+                  style={styles.videBtn}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.videBtnText}>{recherche?.trim() ? 'Effacer la recherche' : 'Réinitialiser les filtres'}</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Text style={styles.empty}>
+                Rien à faire pour le moment.{'\n'}Touchez + pour ajouter{' '}
+                {filter === 'tous' || filter === 'recurrents' ? 'un élément' : TYPE_LABELS[filter].toLowerCase()}.
+              </Text>
+            )
           ) : null
         }
         ListFooterComponent={
@@ -1824,7 +1981,7 @@ function Main() {
       <ChoiceSheet
         visible={!!espaceFiche}
         title={espaceFiche ? `${ICONE_ESPACE[espaceFiche.type]} ${libelleEspace(espaceFiche)}` : ''}
-        message={espaceFiche ? `Google Sheet « ${nomFichier(NOM_APP, espaceFiche)} ».\nRetirer : l'espace quitte l'application, son Google Sheet est gardé (« Rétablir » dans « Gérer »).\nSupprimer : le Google Sheet part à la corbeille (récupérable 30 jours dans « Gérer »).` : undefined}
+        message={espaceFiche ? `Google Sheet « ${nomFichier(NOM_APP, espaceFiche)} ».\nRetirer : l'espace de travail quitte l'application, son Google Sheet est gardé (« Rétablir » dans « Gérer »).\nSupprimer : le Google Sheet part à la corbeille (récupérable 30 jours dans « Gérer »).` : undefined}
         choices={
           espaceFiche
             ? [
@@ -1840,7 +1997,7 @@ function Main() {
         title={suppression ? `Supprimer « ${libelleEspace(suppression)} » ?` : ''}
         message={
           suppression
-            ? `Son Google Sheet part à la corbeille de Google Drive : récupérable 30 jours (« Gérer » › Corbeille › Restaurer), puis effacé définitivement.${suppression.type !== 'moi' ? ' Espace partagé : il disparaît aussi pour les personnes qui y ont accès.' : ''}`
+            ? `Son Google Sheet part à la corbeille de Google Drive : récupérable 30 jours (« Gérer » › Corbeille › Restaurer), puis effacé définitivement.${suppression.type !== 'moi' ? ' Espace de travail partagé : il disparaît aussi pour les personnes qui y ont accès.' : ''}`
             : undefined
         }
         choices={suppression ? [{ label: 'Supprimer', principal: true, onPress: () => supprimerEspace(suppression).catch(() => {}) }] : []}
@@ -1852,11 +2009,12 @@ function Main() {
         message={
           DEMO
             ? `Mode démonstration : les données sont enregistrées dans ce navigateur. Version ${VERSION}.`
-            : `${settings.googleEmail ? `Connecté avec ${settings.googleEmail}. Vos espaces sont des Google Sheets de ce compte. ` : ''}Version ${VERSION}.`
+            : `${settings.googleEmail ? `Connecté avec ${settings.googleEmail}. Vos espaces de travail sont des Google Sheets de ce compte. ` : ''}Version ${VERSION}.`
         }
         choices={
           DEMO
             ? [
+                { label: '☁️ Stockage Google Drive', onPress: ouvrirStockage },
                 {
                   label: 'Réinitialiser la démo',
                   onPress: async () => {
@@ -1866,7 +2024,10 @@ function Main() {
                   },
                 },
               ]
-            : [{ label: 'Se déconnecter', onPress: logout }]
+            : [
+                { label: '☁️ Stockage Google Drive', onPress: ouvrirStockage },
+                { label: 'Se déconnecter', onPress: logout },
+              ]
         }
         onClose={() => setCompteOpen(false)}
       />
@@ -1994,6 +2155,43 @@ function Main() {
         </Pressable>
       </Modal>
 
+      <FormSheet visible={stockageOpen} title="☁️ Stockage Google Drive" busy={false} error={null} onClose={() => setStockageOpen(false)}>
+        {stockage ? (
+          <StockagePanneau quota={stockage.quota} plan={stockage.plan} onAction={actionStockage} toujours />
+        ) : (
+          <ActivityIndicator style={{ marginTop: 24 }} color={colors.primary} />
+        )}
+        <Text style={styles.stockageNote}>
+          President vérifie le stockage de votre compte Google à chaque ouverture. Dès {pourcent(SEUIL_ALERTE)}, une alerte propose la meilleure solution pour
+          repasser sous {pourcent(SEUIL_CIBLE)} : vider la corbeille de President, supprimer une ancienne période de tâches terminées, ou voir le
+          stockage Google.
+        </Text>
+        <Pressable
+          onPress={() => settings && verifierStockage(settings, true).catch((e) => setNotice(`Stockage non vérifié : ${(e as Error).message}`))}
+          style={styles.stockageBtn}
+          accessibilityRole="button"
+        >
+          <Text style={styles.stockageBtnText}>↻ Vérifier maintenant</Text>
+        </Pressable>
+        {DEMO && (
+          <View style={styles.stockageTest}>
+            <Text style={styles.stockageTestTitre}>Test (démo) : Drive simulé</Text>
+            <Segmented
+              options={[
+                { value: 'normal', label: 'Normal' },
+                { value: 'autres', label: 'Plein : autres' },
+                { value: 'president', label: 'Plein : President' },
+              ]}
+              value={stockageTest}
+              onChange={changerTestStockage}
+            />
+            <Text style={styles.stockageNote}>
+              Normal : 41 %. Plein : autres = 87 % pris par d'autres fichiers (photos, e-mails). Plein : President = 87 % pris par les données de President
+              (espaces de travail, corbeille) : la solution recommandée change selon ce qu'il y a à libérer.
+            </Text>
+          </View>
+        )}
+      </FormSheet>
       <GererEspacesSheet
         visible={gestionOpen}
         espaces={espaces}
@@ -2035,7 +2233,7 @@ function Main() {
               const existants = (await api.listItems(settings, e.id)).domaines;
               await api.copierDomaines(settings, e.id, domaines, existants);
             } catch (err) {
-              setNotice(`Espace ajouté, mais ses domaines n'ont pas été copiés : ${(err as Error).message}`);
+              setNotice(`Espace de travail ajouté, mais ses domaines n'ont pas été copiés : ${(err as Error).message}`);
             }
           }
           setVisibles([...visibles, e.id]);
@@ -2121,6 +2319,14 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   empty: { textAlign: 'center', color: colors.muted, marginTop: 60, fontSize: 15, lineHeight: 22 },
+  videFiltre: { alignItems: 'center' },
+  stockageNote: { fontSize: 12.5, lineHeight: 18, color: colors.muted, marginTop: 12 },
+  stockageBtn: { alignSelf: 'flex-start', marginTop: 12, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  stockageBtnText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+  stockageTest: { marginTop: 20, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.border },
+  stockageTestTitre: { fontSize: 13, fontWeight: '800', color: colors.text, marginBottom: 8 },
+  videBtn: { marginTop: 12, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  videBtnText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
   doneToggle: { alignItems: 'center', paddingVertical: 16 },
   doneToggleText: { color: colors.primary, fontSize: 15 },
   spacer: { height: 12 },

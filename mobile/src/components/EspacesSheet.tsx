@@ -68,9 +68,9 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, r
 
   const save = async () => {
     const n = nom.trim();
-    if (!n) return setError("Donnez un nom à l'espace.");
+    if (!n) return setError("Donnez un nom à l'espace de travail.");
     if (espaces.some((e) => e.type === type && e.nom.trim().toLowerCase() === n.toLowerCase()))
-      return setError(`Un espace ${LIBELLE_ESPACE[type]} « ${n} » existe déjà.`);
+      return setError(`Un espace de travail ${LIBELLE_ESPACE[type]} « ${n} » existe déjà.`);
     setError(null);
     setBusy(true);
     try {
@@ -80,7 +80,7 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, r
         `${ICONE_ESPACE[type]} ${n}${doms.length ? ` avec ${doms.length} domaine${doms.length > 1 ? 's' : ''} (${doms.map((d) => d.nom).join(', ')})` : ''}`,
       );
     } catch (e) {
-      setError(`Espace non ajouté : ${(e as Error).message}`);
+      setError(`Espace de travail non ajouté : ${(e as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -100,14 +100,14 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, r
 
   if (cree)
     return (
-      <FormSheet visible={visible} title="＋ Ajouter un espace" busy={false} error={null} onClose={onClose}>
+      <FormSheet visible={visible} title="＋ Espace de travail" busy={false} error={null} onClose={onClose}>
         <View style={s.succes}>
           <View style={s.coche}>
             <Text style={s.cocheText}>✓</Text>
           </View>
-          <Text style={s.succesTitre}>Espace créé</Text>
+          <Text style={s.succesTitre}>Espace de travail créé</Text>
           <Text style={s.succesTexte}>{cree}</Text>
-          <Text style={f.hint}>Il est affiché dans le bloc Espaces.</Text>
+          <Text style={f.hint}>Il est affiché dans le bloc Espaces de travail.</Text>
           <Pressable onPress={onClose} style={[s.ok, s.okLarge]} accessibilityRole="button">
             <Text style={s.okText}>OK</Text>
           </Pressable>
@@ -116,8 +116,8 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, r
     );
 
   return (
-    <FormSheet visible={visible} title="＋ Ajouter un espace" busy={busy || !!enCours} error={error} onClose={onClose} onSave={save}>
-      <Label>Nouvel espace</Label>
+    <FormSheet visible={visible} title="＋ Espace de travail" busy={busy || !!enCours} error={error} onClose={onClose}>
+      <Label>Nouvel espace de travail</Label>
       <Chips
         options={[
           { value: 'equipe', label: `${ICONE_ESPACE.equipe} Équipe` },
@@ -128,7 +128,7 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, r
       />
       <Field style={f.titleInput} placeholder={type === 'equipe' ? "Nom de l'équipe (ex. Mobile)" : "Nom de l'entreprise (ex. ACME)"} value={nom} onChangeText={setNom} />
       {!!nom.trim() && <Text style={f.hint}>Fichier : « {nomFichier(nomApp, { type, nom })} »</Text>}
-      <Label>Domaines de l'espace (facultatif)</Label>
+      <Label>Domaines de l'espace de travail (facultatif)</Label>
       {domaines.length > 0 && (
         <View style={s.doms}>
           {domaines.map((d, i) => (
@@ -147,15 +147,15 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, r
         </View>
       )}
       <Field placeholder="+ Domaine (Entrée pour ajouter)" value={saisie} onChangeText={setSaisie} onSubmitEditing={ajouterDomaine} blurOnSubmit={false} returnKeyType="done" />
-      <Text style={f.hint}>Chaque espace a ses propres domaines. Icône et couleur modifiables ensuite dans la fiche du domaine.</Text>
-      {!demo && <Text style={f.hint}>Le Google Sheet de l'espace est créé dans votre Google Drive, avec ce nom.</Text>}
-      {demo && <Text style={f.hint}>Démo : l'espace est créé dans ce navigateur.</Text>}
+      <Text style={f.hint}>Chaque espace de travail a ses propres domaines. Icône et couleur modifiables ensuite dans la fiche du domaine.</Text>
+      {!demo && <Text style={f.hint}>Le Google Sheet de l'espace de travail est créé dans votre Google Drive, avec ce nom.</Text>}
+      {demo && <Text style={f.hint}>Démo : l'espace de travail est créé dans ce navigateur.</Text>}
       <Pressable onPress={save} disabled={busy} style={[s.ok, !nom.trim() && s.okOff]} accessibilityRole="button">
-        <Text style={s.okText}>{busy ? '…' : "Créer l'espace"}</Text>
+        <Text style={s.okText}>{busy ? '…' : "Créer l'espace de travail"}</Text>
       </Pressable>
 
       <Label>Récupérer</Label>
-      {retires.length === 0 && corbeille !== null && corbeille.length === 0 && <Text style={f.muted}>Aucun espace retiré ni dans la corbeille.</Text>}
+      {retires.length === 0 && corbeille !== null && corbeille.length === 0 && <Text style={f.muted}>Aucun espace de travail retiré ni dans la corbeille.</Text>}
       {retires.map((e) => (
         <View key={`r-${e.id}`} style={s.ligne}>
           <View style={s.flex}>

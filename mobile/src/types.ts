@@ -303,20 +303,8 @@ export interface Settings {
   googleEmail?: string;
 }
 
-/** Libellés, dans l'ordre d'affichage */
+/** Libellés, dans l'ordre d'affichage : les mêmes noms courts partout (fiche, filtre, liste, menu ＋) */
 export const TYPE_LABELS: Record<ItemType, string> = {
-  tache: 'Tâche',
-  'rendez-vous': 'Rendez-vous',
-  appel: 'Appel',
-  demarche: 'Démarche administrative',
-  mission: 'Mission',
-  story: 'User story',
-  exploration: 'Exploration',
-  bug: 'Bug',
-};
-
-/** Libellés courts (puces, filtres) */
-export const TYPE_SHORT: Record<ItemType, string> = {
   tache: 'Tâche',
   'rendez-vous': 'Rendez-vous',
   appel: 'Appel',
@@ -326,6 +314,9 @@ export const TYPE_SHORT: Record<ItemType, string> = {
   exploration: 'Exploration',
   bug: 'Bug',
 };
+
+/** Libellés courts (puces, filtres) : les mêmes que TYPE_LABELS */
+export const TYPE_SHORT = TYPE_LABELS;
 
 export const TYPE_ICONS: Record<ItemType, string> = {
   tache: '✓',

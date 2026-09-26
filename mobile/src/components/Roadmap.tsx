@@ -178,19 +178,26 @@ export function Roadmap({
             <Text style={[styles.alertChipAction, alertesSeules && styles.alertChipTextOn]}>{alertesSeules ? 'tout afficher' : 'voir seulement ▸'}</Text>
           </Pressable>
         )}
-        <View style={styles.toolRow}>
-          {!empty && (
-            <Pressable onPress={() => saveCollapsed(anyCollapsed ? new Set() : new Set(allKeys))} hitSlop={8} style={styles.foldAll}>
-              <Text style={styles.foldAllText}>{anyCollapsed ? 'Tout déplier' : 'Tout replier'}</Text>
-            </Pressable>
-          )}
-        </View>
       </View>
       <PeriodHeader
         title={win.title}
         onPrev={() => step(-1)}
         onNext={() => step(1)}
         onToday={todayPos !== null ? undefined : () => setAnchor(new Date())}
+        action={
+          // Tout replier / déplier : sur la ligne de l'année, juste au-dessus des groupes qu'il replie
+          !empty ? (
+            <Pressable
+              onPress={() => saveCollapsed(anyCollapsed ? new Set() : new Set(allKeys))}
+              hitSlop={8}
+              style={styles.foldAll}
+              accessibilityRole="button"
+              accessibilityLabel={anyCollapsed ? 'Déplier tous les groupes' : 'Replier tous les groupes'}
+            >
+              <Text style={styles.foldAllText}>{anyCollapsed ? '⊞ Tout déplier' : '⊟ Tout replier'}</Text>
+            </Pressable>
+          ) : undefined
+        }
       />
       <Swipe pageKey={`${zoom}:${win.start}`} onPrev={() => step(-1)} onNext={() => step(1)}>
         <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
@@ -541,9 +548,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   controls: { paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
   filterRow: { paddingRight: 16 },
-  toolRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 30 },
-  foldAll: { marginLeft: 'auto' },
-  foldAllText: { color: colors.primary, fontSize: 13, fontWeight: '600' },
+  foldAll: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: '#CFE0FB', backgroundColor: '#F1F6FE' },
+  foldAllText: { color: colors.primary, fontSize: 12.5, fontWeight: '700' },
   group: { marginTop: 6 },
   groupHead: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   groupToggle: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },

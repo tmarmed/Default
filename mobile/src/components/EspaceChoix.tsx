@@ -37,7 +37,7 @@ export function EspaceChoix({ espace, onChange, fige }: { espace: string; onChan
   const e = espaceParId(esp.liste, espace);
   return (
     <>
-      <Label>Espace</Label>
+      <Label>Espace de travail</Label>
       {fige ? (
         <Text style={s.fige}>{e ? `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` : espace}</Text>
       ) : (

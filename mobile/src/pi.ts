@@ -41,6 +41,12 @@ export function shiftPi(pi: string, n: number): string {
 /** « T4 2026 » */
 export const piLabel = (pi: string) => `${pi.split('-')[1]} ${pi.split('-')[0]}`;
 
+/** « IT1 · T4 2026 » : nom d'une itération, le même partout */
+export const iterationNom = (key: string) => {
+  const m = /^(\d{4})-(T[1-4])-(IT[1-6]|IP)$/.exec(key);
+  return m ? `${m[3]} · ${m[2]} ${m[1]}` : key;
+};
+
 export interface Iteration {
   /** « 2026-T4-IT3 » */
   key: string;

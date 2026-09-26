@@ -9,7 +9,7 @@ interface Props {
   espaces: Espace[];
   nomApp: string;
   onClose: () => void;
-  /** Retirer : l'espace quitte l'application, son Google Sheet est gardé */
+  /** Retirer : l'espace de travail quitte l'application, son Google Sheet est gardé */
   onRetirer: (e: Espace) => Promise<void>;
   /** Supprimer : le Google Sheet part à la corbeille de Google Drive (30 jours) */
   onSupprimer: (e: Espace) => Promise<void>;
@@ -65,19 +65,19 @@ export function GererEspacesSheet({ visible, espaces, nomApp, onClose, onRetirer
   );
 
   return (
-    <FormSheet visible={visible} title="− Enlever un espace" busy={!!enCours} error={error} onClose={onClose}>
+    <FormSheet visible={visible} title="− Espace de travail" busy={!!enCours} error={error} onClose={onClose}>
       <Text style={f.hint}>
-        Retirer : l'espace quitte l'application, son Google Sheet est gardé (on le récupère avec ＋). Supprimer : le Google
+        Retirer : l'espace de travail quitte l'application, son Google Sheet est gardé (on le récupère avec ＋). Supprimer : le Google
         Sheet part à la corbeille (30 jours). Raccourci : appui long sur un espace.
       </Text>
-      <Label>Mes espaces</Label>
-      {espaces.filter((e) => e.id !== 'moi').length === 0 && <Text style={f.muted}>Aucun espace à enlever : 🔒 Moi reste toujours.</Text>}
+      <Label>Mes espaces de travail</Label>
+      {espaces.filter((e) => e.id !== 'moi').length === 0 && <Text style={f.muted}>Aucun espace de travail à enlever : 🔒 Moi reste toujours.</Text>}
       {espaces.filter((e) => e.id !== 'moi').map((e) =>
         confirmer === e.id ? (
           <View key={e.id} style={s.confirm}>
             <Text style={s.confirmText}>
               Supprimer « {libelleEspace(e)} » ? Son Google Sheet part à la corbeille de Google Drive : récupérable 30 jours ici
-              (＋ › Récupérer), puis effacé définitivement.{e.type !== 'moi' ? ' Espace partagé : il disparaît aussi pour les personnes qui y ont accès.' : ''}
+              (＋ › Récupérer), puis effacé définitivement.{e.type !== 'moi' ? ' Espace de travail partagé : il disparaît aussi pour les personnes qui y ont accès.' : ''}
             </Text>
             <View style={s.confirmRow}>
               <Pressable onPress={() => setConfirmer(null)} style={s.btn} accessibilityRole="button">

@@ -78,14 +78,14 @@ export function SousDomaineChips({ style }: { style?: StyleProp<ViewStyle> }) {
 }
 
 /** Puces des domaines principaux du filtre (sans défilement : à placer dans une ligne qui défile). */
-export function DomainesPrincipauxChips({ label = 'Tous domaines' }: { label?: string }) {
+export function DomainesPrincipauxChips({ label = 'Tous les domaines' }: { label?: string }) {
   const f = useFiltreDomaine();
   if (f.vide) return null;
   return <Chips options={[{ value: 'tous', label }, ...f.principaux, { value: '', label: 'Sans domaine' }]} value={f.valeurPrincipale} onChange={f.choisir} compact />;
 }
 
 /** Puces du filtre (rien si aucun domaine n'existe). */
-export function DomainChips({ style, label = 'Tous domaines' }: { style?: StyleProp<ViewStyle>; label?: string }) {
+export function DomainChips({ style, label = 'Tous les domaines' }: { style?: StyleProp<ViewStyle>; label?: string }) {
   const f = useFiltreDomaine();
   if (f.vide) return null;
   return (

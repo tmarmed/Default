@@ -1,5 +1,5 @@
 import { DEMO, demoApiFor } from './demo';
-import { adopterFichier, corbeille, creerFichierEspace, fichiersCorbeille, fichiersEspaces, magasinSheets, renommerFichier } from './gsheets';
+import { adopterFichier, corbeille, creerFichierEspace, effacerFichier, fichiersCorbeille, fichiersEspaces, magasinSheets, poidsFichiers, quotaDrive, renommerFichier } from './gsheets';
 import type { Data, DeletionCounts } from './hierarchy';
 import {
   Domaine,
@@ -46,11 +46,11 @@ const route = (_settings: Settings, espace: string | undefined) => {
   const e = espace || espaceParDefaut;
   if (DEMO) return { e, m: demoApiFor(e) };
   const f = fichiers.get(e);
-  if (!f) throw new Error("Cet espace n'est relié à aucun Google Sheet.");
+  if (!f) throw new Error("Cet espace de travail n'est relié à aucun Google Sheet.");
   return { e, m: magasinSheets(f) };
 };
 
-export { adopterFichier, corbeille, creerFichierEspace, fichiersCorbeille, fichiersEspaces, renommerFichier };
+export { adopterFichier, corbeille, creerFichierEspace, effacerFichier, fichiersCorbeille, fichiersEspaces, poidsFichiers, quotaDrive, renommerFichier };
 function marquer<T extends { id: string }>(x: T, espace: string): T & { espace: string } {
   origine.set(x.id, espace);
   return { ...x, espace };
@@ -65,7 +65,7 @@ function verifierLiens(espace: string, data: Record<string, unknown>, champs: re
   for (const k of champs) {
     const v = data[k];
     const autre = typeof v === 'string' && v ? origine.get(v) : undefined;
-    if (autre && autre !== espace) throw new Error('Rattachement impossible : cet élément est dans un autre espace.');
+    if (autre && autre !== espace) throw new Error('Rattachement impossible : cet élément est dans un autre espace de travail.');
   }
 }
 
@@ -163,4 +163,9 @@ export async function updateItem(settings: Settings, item: Partial<Item> & { id:
 /** Supprime une tâche ; ses sous-tâches sont supprimées (cascade) ou deviennent des tâches normales. */
 export async function deleteItem(settings: Settings, id: string, cascade = false): Promise<void> {
   await route(settings, espaceDe(id)).m.remove(id, cascade);
+}
+
+/** Stockage : supprime d'un espace les tâches terminées avant `avant` ; renvoie les tâches supprimées */
+export async function purgerTerminees(settings: Settings, espace: string, avant: string): Promise<Item[]> {
+  return route(settings, espace).m.purgerTerminees(avant);
 }

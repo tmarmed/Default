@@ -15,7 +15,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '19';
+const DEMO_DATA_VERSION = '20';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -110,7 +110,31 @@ function sample(): Item[] {
       domaine: 'dperso',
       periodicite: 'annuelle', echeance: String(now.getMonth() + 1).padStart(2, '0'),
     }),
+    ...historique(now, mk),
   ];
+}
+
+/**
+ * Historique : tâches terminées il y a 4 à 18 mois (une ou deux par mois), pour essayer l'alerte de stockage
+ * (« Supprimer les tâches terminées avant … »).
+ */
+function historique(now: Date, mk: (id: string, titre: string, type: Item['type'], date: string, heure: string, extra?: Partial<Item>) => Item): Item[] {
+  const titres = ['Bilan du mois', 'Relancer les factures impayées', 'Classer les justificatifs', 'Mettre à jour le site'];
+  const out: Item[] = [];
+  for (let m = 18; m >= 4; m--) {
+    for (let k = 0; k < (m % 3 === 0 ? 2 : 1); k++) {
+      const jour = toDateString(new Date(now.getFullYear(), now.getMonth() - m, 8 + 10 * k));
+      out.push(
+        mk(`h${m}-${k}`, titres[(m + k) % titres.length], 'tache', jour, '', {
+          statut: 'termine',
+          termine_le: jour,
+          domaine: k ? 'dperso' : 'dpro',
+          description: 'Tâche terminée (historique de la démo) : compte rendu, pièces jointes et remarques de suivi.',
+        }),
+      );
+    }
+  }
+  return out;
 }
 
 function sampleEntities(): {
@@ -308,6 +332,18 @@ export function demoApiFor(espace = 'moi') {
     stores.set(espace, st);
   }
   return st;
+}
+/** Démo : efface pour de bon les données d'un espace (vider la corbeille de President) */
+export async function effacerDemo(espace: string): Promise<void> {
+  if (espace === 'moi') return;
+  const key = espace === 'moi' ? KEY : `${KEY}@${espace}`;
+  stores.delete(espace);
+  try {
+    const cles = (await AsyncStorage.getAllKeys()).filter((k) => k === key || k.startsWith(`${key}-`));
+    await AsyncStorage.multiRemove(cles);
+  } catch {
+    // Stockage indisponible : rien à effacer
+  }
 }
 /** Données d'exemple d'un espace de la démo (sans stockage) : pour les vérifications automatiques */
 export function donneesDemo(espace = 'moi') {

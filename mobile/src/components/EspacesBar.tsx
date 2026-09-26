@@ -53,8 +53,8 @@ export function EspacesBar({
   return (
     <View style={s.carte}>
       {/* Première ligne : toujours la même, repliée comme dépliée (la toucher replie / déplie) */}
-      <Pressable onPress={plier} style={s.tete} accessibilityRole="button" accessibilityLabel={plie ? 'Déplier les espaces' : 'Replier les espaces'}>
-        <Text style={s.titre}>ESPACES</Text>
+      <Pressable onPress={plier} style={s.tete} accessibilityRole="button" accessibilityLabel={plie ? 'Déplier les espaces de travail' : 'Replier les espaces de travail'}>
+        <Text style={s.titre}>ESPACES DE TRAVAIL</Text>
         <Text style={s.noms} numberOfLines={1}>
           {affiches.map((e) => `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}`).join(' · ')}
         </Text>
@@ -75,7 +75,7 @@ export function EspacesBar({
                     style={[s.type, filtre === t && s.typeOn]}
                     accessibilityRole="button"
                     accessibilityState={{ selected: filtre === t }}
-                    accessibilityLabel={t === 'tous' ? 'Tous les espaces' : t === 'equipe' ? 'Équipes seulement' : 'Entreprises seulement'}
+                    accessibilityLabel={t === 'tous' ? 'Tous les espaces de travail' : t === 'equipe' ? 'Équipes seulement' : 'Entreprises seulement'}
                   >
                     <Text style={[s.typeText, filtre === t && s.typeTextOn]}>{t === 'tous' ? 'Tous' : ICONE_ESPACE[t]}</Text>
                   </Pressable>
@@ -85,11 +85,11 @@ export function EspacesBar({
               <View />
             )}
             <View style={s.pilule}>
-              <Pressable onPress={onAjouter} style={s.moitie} hitSlop={4} accessibilityRole="button" accessibilityLabel="Ajouter ou récupérer un espace">
+              <Pressable onPress={onAjouter} style={s.moitie} hitSlop={4} accessibilityRole="button" accessibilityLabel="Ajouter ou récupérer un espace de travail">
                 <Text style={[s.signe, s.plus]}>＋</Text>
               </Pressable>
               <View style={s.sep} />
-              <Pressable onPress={onEnlever} style={s.moitie} hitSlop={4} accessibilityRole="button" accessibilityLabel="Retirer ou supprimer un espace">
+              <Pressable onPress={onEnlever} style={s.moitie} hitSlop={4} accessibilityRole="button" accessibilityLabel="Retirer ou supprimer un espace de travail">
                 <Text style={[s.signe, s.moins]}>−</Text>
               </Pressable>
             </View>
@@ -111,8 +111,8 @@ export function EspacesBar({
                   style={[s.chip, on && s.chipOn]}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: on }}
-                  accessibilityLabel={`Espace ${libelleEspace(e)}`}
-                  accessibilityHint={e.id === 'moi' ? undefined : 'Appui long : retirer ou supprimer l’espace'}
+                  accessibilityLabel={`Espace de travail ${libelleEspace(e)}`}
+                  accessibilityHint={e.id === 'moi' ? undefined : 'Appui long : retirer ou supprimer l’espace de travail'}
                 >
                   <Text style={[s.chipText, on && s.chipTextOn]} numberOfLines={1} ellipsizeMode="tail">
                     {ICONE_ESPACE[e.type]} {libelleEspace(e)}
