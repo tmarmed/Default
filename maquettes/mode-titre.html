@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="fr" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="google" content="notranslate">
+<title>President · mode près du titre</title>
+<style>
+  :root { --fond:#EEF1F6; --carte:#fff; --texte:#18202C; --doux:#6B7686; --trait:#E1E6ED; --trait2:#EEF1F5; --bleu:#1A73E8; --bleuPale:#E8F0FE; --rouge:#D93025; --seg:#E6EAF0; --safe:#7B2FBF; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:linear-gradient(180deg,#E3E8F0,#D6DDE8); font-family:-apple-system, system-ui, "Segoe UI", Roboto, sans-serif; color:var(--texte); min-height:100vh; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+  h1 { font-size:19px; text-align:center; margin:20px 16px 4px; }
+  h1 .reco { display:inline-block; background:#FFF4CC; color:#7A5A00; border:1px solid #F2D675; border-radius:10px; padding:2px 9px; font-size:14px; vertical-align:middle; margin-left:6px; }
+  p.intro { text-align:center; color:var(--doux); font-size:14px; margin:0 auto 12px; max-width:640px; padding:0 16px; line-height:1.45; }
+  .choix { display:flex; justify-content:center; gap:6px; margin:0 16px 16px; flex-wrap:wrap; }
+  .choix button { border:1px solid #C9D2DE; background:#fff; border-radius:18px; padding:7px 14px; font-size:13px; font-weight:700; color:var(--doux); }
+  .choix button.on { background:var(--texte); border-color:var(--texte); color:#fff; }
+  .choix button .etoile { color:#E0A800; }
+  .scene { display:flex; justify-content:center; gap:22px; flex-wrap:wrap; padding:0 12px 20px; }
+  .col h2 { font-size:14px; text-align:center; margin:0 0 8px; color:#3A4556; }
+  .tel { width:375px; max-width:calc(100vw - 24px); height:470px; background:var(--fond); border-radius:30px; overflow:hidden; box-shadow:0 0 0 7px #1B2230, 0 18px 44px rgba(24,32,44,.3); }
+  .notes { max-width:640px; margin:0 auto 34px; padding:0 16px; font-size:13.5px; line-height:1.55; color:#3A4556; }
+
+  /* Barre du haut : 3 variantes */
+  .barre { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:8px; padding:12px 12px 8px; min-height:52px; }
+  .barre > .mode { justify-self:center; }
+  .marque { font-weight:800; font-size:16px; letter-spacing:-.2px; white-space:nowrap; }
+  .fin { display:flex; justify-content:flex-end; align-items:center; gap:6px; }
+  .mode { display:flex; background:var(--seg); border-radius:15px; padding:2px; }
+  .mode button { border:0; background:none; border-radius:13px; padding:5px 10px; font-size:12.5px; font-weight:800; color:var(--doux); }
+  .mode button.on { background:#fff; color:var(--texte); box-shadow:0 1px 3px rgba(0,0,0,.12); }
+  .mode button.on.s { background:var(--safe); color:#fff; }
+  .avatar { width:32px; height:32px; border-radius:50%; background:var(--bleu); color:#fff; font-weight:800; display:grid; place-items:center; font-size:14px; border:0; flex:none; }
+  .esp { flex:none; display:flex; align-items:center; gap:3px; height:32px; padding:0 7px; border-radius:16px; border:1px solid var(--trait); background:#fff; font-size:13px; white-space:nowrap; transition:all .2s; }
+  .esp .n { font-size:11px; font-weight:800; min-width:18px; height:18px; border-radius:9px; display:grid; place-items:center; background:var(--texte); color:#fff; padding:0 4px; }
+  .esp .ch { font-size:10px; color:var(--doux); transition:transform .2s; }
+  .esp.ouvert { background:var(--texte); border-color:var(--texte); color:#fff; }
+  .esp.ouvert .n { background:#fff; color:var(--texte); }
+  .esp.ouvert .ch { color:#fff; transform:rotate(180deg); }
+  /* 2 : capsule d'outils */
+  .capsule { display:flex; align-items:center; gap:3px; background:#fff; border:1px solid var(--trait); border-radius:20px; padding:3px; box-shadow:0 1px 4px rgba(24,32,44,.06); }
+  .capsule .mode { background:var(--seg); }
+  .capsule .mode button { padding:4px 8px; font-size:12px; }
+  .capsule .esp { border:0; height:30px; background:var(--gris, #F4F6FA); }
+  .capsule .avatar { width:30px; height:30px; }
+  .capsule .esp.ouvert { background:var(--texte); color:#fff; }
+  .barre.v2 { grid-template-columns:auto 1fr; }
+  /* 3 : logo court, espacement régulier */
+  .barre.v3 { display:flex; justify-content:space-between; }
+  .logo { width:32px; height:32px; border-radius:10px; background:linear-gradient(135deg,#2B82F0,#1A63D0); color:#fff; font-weight:900; font-size:16px; display:grid; place-items:center; flex:none; }
+  .esp.v3 { width:auto; }
+
+  /* Bloc Espaces */
+  .bloc { margin:0 12px; background:var(--carte); border:1px solid var(--trait); border-radius:16px; }
+  .bloc1 { padding:9px 10px 10px; margin-bottom:8px; animation:ouvre .2s ease-out; }
+  @keyframes ouvre { from { opacity:0; transform:translateY(-6px); } }
+  .tete { display:flex; align-items:center; gap:8px; margin:0 2px 9px; }
+  .lab { font-size:11px; font-weight:800; color:var(--doux); letter-spacing:.7px; }
+  .types { display:flex; background:var(--seg); border-radius:13px; padding:2px; }
+  .types span { padding:3px 8px; border-radius:11px; font-size:11.5px; font-weight:800; color:var(--doux); }
+  .types span.on { background:#fff; color:var(--texte); }
+  .pm { margin-left:auto; display:flex; border:1px solid var(--trait); border-radius:15px; height:30px; overflow:hidden; }
+  .pm span { padding:0 10px; display:grid; place-items:center; font-weight:800; font-size:16px; }
+  .pm span:first-child { color:var(--bleu); border-right:1px solid var(--trait2); }
+  .pm span:last-child { color:var(--rouge); }
+  .puces { display:flex; gap:6px; overflow:hidden; -webkit-mask-image:linear-gradient(90deg,#000 85%,transparent); mask-image:linear-gradient(90deg,#000 85%,transparent); }
+  .puce { flex:none; border:1px solid var(--trait); background:#fff; border-radius:16px; padding:6px 11px; font-size:13px; font-weight:650; }
+  .puce.noir { background:var(--texte); border-color:var(--texte); color:#fff; }
+
+  /* Début du bloc de l'écran */
+  .bloc2 { padding:12px 12px 0; height:100%; }
+  .titre { font-size:20px; font-weight:800; }
+  .titre small { font-size:13px; color:var(--doux); font-weight:650; }
+  .filtres { margin-top:10px; background:#F4F6FA; border:1px solid var(--trait2); border-radius:14px; padding:9px; }
+  .ligne { display:flex; gap:6px; align-items:center; }
+  .ligne + .ligne { margin-top:8px; }
+  .rond { width:30px; height:30px; border-radius:15px; border:1px solid var(--trait); background:#fff; display:grid; place-items:center; font-size:12px; }
+  .pp { border:1px solid var(--trait); background:#fff; border-radius:16px; padding:5px 10px; font-size:12px; font-weight:650; }
+  .pp.bleu { background:var(--bleu); border-color:var(--bleu); color:#fff; }
+  .seg { display:flex; background:var(--seg); border-radius:10px; padding:2px; margin-top:10px; }
+  .seg span { flex:1; text-align:center; padding:6px 0; font-size:13px; font-weight:650; color:var(--doux); border-radius:8px; }
+  .seg span.on { background:#fff; color:var(--texte); }
+  .titreL { display:flex; align-items:center; gap:8px; }
+  .titreL .titre { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .droiteTitre { display:flex; gap:6px; align-items:center; flex:none; }
+  .ligneOutils { display:flex; justify-content:space-between; align-items:center; margin-top:8px; }
+  .barre.b2 { grid-template-columns:auto 1fr; }
+  .barre.mini { min-height:44px; padding-top:8px; padding-bottom:4px; }
+  .barreEsp { display:flex; align-items:center; gap:6px; padding:10px 12px 8px; }
+  .barreEsp.ouverte { background:#fff; margin:8px 12px 0; padding:8px 8px 6px 12px; border:1px solid var(--trait); border-bottom:0; border-radius:16px 16px 0 0; }
+  .barreEsp.ouverte .avatar { margin-left:4px; }
+  .barreEsp .pm { margin-left:auto; }
+  .rond28 { width:30px; height:30px; border-radius:15px; border:1px solid var(--trait); background:#fff; font-size:11px; color:var(--doux); }
+  .ligneEsp { flex:1; min-width:0; display:flex; align-items:center; gap:8px; height:36px; padding:0 12px; border-radius:18px; border:1px solid var(--trait); background:#fff; font-size:13px; font-weight:650; }
+  .ligneEsp .noms { flex:1; min-width:0; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ligneEsp .n2 { font-size:11px; font-weight:800; min-width:18px; height:18px; border-radius:9px; display:grid; place-items:center; background:var(--texte); color:#fff; }
+  .ligneEsp .ch { font-size:10px; color:var(--doux); }
+  .bloc1.sansTete { margin-top:0; border-top:0; border-radius:0 0 16px 16px; padding-top:4px; }
+  .item { padding:11px 2px; border-bottom:1px solid var(--trait2); font-size:14px; font-weight:650; }
+  .item small { display:block; color:var(--doux); font-weight:500; font-size:12px; margin-top:2px; }
+</style>
+</head>
+<body>
+<h1>Simple | SAFe à côté du titre de l'écran <span class="reco">⭐ Recommandé : 1</span></h1>
+<p class="intro">Simple | SAFe descend à côté du titre de chaque écran (Mes tâches, Roadmap…), juste au-dessus des filtres. Chaque proposition est montrée <b>espaces repliés</b> (à gauche) et <b>dépliés</b> (à droite). Touche Simple / SAFe et l'écran (Tâches / Roadmap) pour essayer.</p>
+<div class="choix" id="choix">
+  <button data-v="1" class="on"><span class="etoile">⭐</span> 1 · En haut : seulement les espaces (recommandé)</button>
+  <button data-v="2">2 · En haut : President + espaces</button>
+  <button data-v="3">3 · Espaces aussi à côté du titre</button>
+  <button data-v="4">4 · Tout près du titre, barre du haut minimale</button>
+</div>
+<div class="choix" id="ecrans"><button data-ecran="taches" class="on">✓ Tâches</button><button data-ecran="roadmap">🗺️ Roadmap</button></div>
+<div class="scene" id="scene"></div>
+<div class="notes" id="notes"></div>
+
+<script>
+const ESP = [['🔒','Moi',true],['👥','Mobile',true],['🏢','ACME',false],['👥','Marketing',false]];
+const st = { v:'1', safe:false, ecran:'taches' };
+const NOTES = {
+  1: `<b>⭐ 1 · En haut : seulement les espaces (recommandé)</b><br>La barre du haut ne contient plus que les espaces et le compte : repliée, une ligne « 🔒 Moi · 👥 Mobile ② ▾ » sur toute la largeur ; dépliée, le bloc Espaces complet. Simple | SAFe est à droite du titre de l'écran (« ✓ Mes tâches · 27 »), juste au-dessus des filtres, sur tous les écrans. <b>Pourquoi :</b> chaque zone a un seul rôle — en haut <i>quoi</i> (les espaces), dans le bloc <i>comment</i> (mode, filtres, affichage). Le nom « President » reste dans l'onglet du navigateur et l'icône de l'application.`,
+  2: `<b>2 · En haut : President + espaces</b><br>La barre du haut garde « President », la pastille des espaces « 🔒👥 ② ▾ » et le compte. Simple | SAFe est à droite du titre de l'écran. On garde le nom, mais les espaces sont une petite pastille (moins lisible).`,
+  3: `<b>3 · Espaces aussi à côté du titre</b><br>En haut : seulement « President » et le compte. À droite du titre : la pastille des espaces puis Simple | SAFe. Tout est près du titre, mais la ligne est chargée, surtout pour un long titre (Portefeuille, Organisation).`,
+  4: `<b>4 · Tout près du titre, barre du haut minimale</b><br>Pas de barre « President » : en haut seulement le compte, à droite. À droite du titre : pastille des espaces et Simple | SAFe sur une seconde ligne. Le plus de place pour la liste, mais tout est concentré dans le bloc.`,
+};
+const TITRES = { taches: ['✓ Mes tâches', '· 27'], roadmap: ['🗺️ Roadmap', ''] };
+function pastille(ouvert) {
+  const vis = ESP.filter((e) => e[2]);
+  return `<button class="esp ${ouvert ? 'ouvert' : ''}">${vis.map((e) => e[0]).join('')}<span class="n">${vis.length}</span><span class="ch">▾</span></button>`;
+}
+function modeSeg() {
+  return `<div class="mode"><button class="${st.safe ? '' : 'on'}" data-mode="0">Simple</button><button class="${st.safe ? 'on s' : ''}" data-mode="1">SAFe</button></div>`;
+}
+function barre(ouvert) {
+  const avatar = `<button class="avatar">T</button>`;
+  const vis = ESP.filter((e) => e[2]);
+  if (st.v === '1') return ouvert ? `<div class="barreEsp ouverte"><span class="lab">ESPACES</span><div class="types"><span class="on">Tous</span><span>👥</span><span>🏢</span></div><div class="pm"><span>＋</span><span>−</span></div><button class="rond28">▴</button>${avatar}</div>`
+    : `<div class="barreEsp"><button class="ligneEsp"><span class="lab">ESPACES</span><span class="noms">${vis.map((e) => e[0] + ' ' + e[1]).join(' · ')}</span><span class="n2">${vis.length}</span><span class="ch">▾</span></button>${avatar}</div>`;
+  if (st.v === '2') return `<div class="barre b2"><div class="marque">President</div><div class="fin">${pastille(ouvert)}${avatar}</div></div>`;
+  if (st.v === '3') return `<div class="barre b2"><div class="marque">President</div><div class="fin">${avatar}</div></div>`;
+  return `<div class="barre b2 mini"><div></div><div class="fin">${avatar}</div></div>`;
+}
+function bloc() {
+  if (st.v === '1') return `<div class="bloc bloc1 sansTete"><div class="puces">${ESP.map((e) => `<span class="puce ${e[2] ? 'noir' : ''}">${e[0]} ${e[1]}</span>`).join('')}</div></div>`;
+  return blocComplet();
+}
+function blocComplet() {
+  return `<div class="bloc bloc1"><div class="tete"><span class="lab">ESPACES</span><div class="types"><span class="on">Tous</span><span>👥</span><span>🏢</span></div><div class="pm"><span>＋</span><span>−</span></div></div>
+    <div class="puces">${ESP.map((e) => `<span class="puce ${e[2] ? 'noir' : ''}">${e[0]} ${e[1]}</span>`).join('')}</div></div>`;
+}
+let ouvertCourant = false;
+function ecran() {
+  const [t, n] = TITRES[st.ecran];
+  const droite = st.v === '3' ? `<div class="droiteTitre">${pastille(ouvertCourant)}${modeSeg()}</div>` : st.v === '4' ? '' : `<div class="droiteTitre">${modeSeg()}</div>`;
+  const ligne2 = st.v === '4' ? `<div class="ligneOutils">${pastille(ouvertCourant)}${modeSeg()}</div>` : '';
+  return `<div class="bloc bloc2"><div class="titreL"><div class="titre">${t} <small>${n}</small></div>${droite}</div>${ligne2}
+    <div class="filtres"><div class="ligne"><span class="lab">FILTRES</span><span class="rond">🔍</span><span class="rond">↺</span><span class="rond" style="margin-left:auto">▾</span></div>
+    ${st.ecran === 'taches' ? '<div class="ligne"><span class="pp bleu">Tous</span><span class="pp">Type ▾</span></div>' : ''}<div class="ligne"><span class="pp bleu">Tous domaines</span><span class="pp">💼 Pro</span><span class="pp">🌿 Perso</span></div></div>
+    ${st.ecran === 'taches' ? '<div class="seg"><span class="on">Liste</span><span>Jour</span><span>Semaine</span><span>Mois</span></div>' : '<div class="seg"><span>3 ans</span><span class="on">Année</span><span>Trimestre</span><span>Mois</span></div>'}
+    <div class="item">Payer le loyer<small>🔒 Moi · 🌿 Perso · en retard</small></div>
+    <div class="item">Appeler le fournisseur<small>🔒 Moi · 💼 Pro · 09:00</small></div>
+    <div class="item">Maquette de la page contact<small>👥 Mobile · 💼 Pro</small></div></div>`;
+}
+function tel(ouvert) {
+  ouvertCourant = ouvert;
+  return `<div class="tel" data-ouvert="${ouvert}">${barre(ouvert)}${ouvert ? bloc() : ''}${ecran()}</div>`;
+}
+function rendre() {
+  document.getElementById('scene').innerHTML = `<div class="col"><h2>Espaces repliés</h2>${tel(false)}</div><div class="col"><h2>Espaces dépliés</h2>${tel(true)}</div>`;
+  document.querySelectorAll('[data-ecran]').forEach((b) => b.classList.toggle('on', b.dataset.ecran === st.ecran));
+  document.getElementById('notes').innerHTML = NOTES[st.v];
+  document.querySelectorAll('[data-mode]').forEach((b) => (b.onclick = () => { st.safe = b.dataset.mode === '1'; rendre(); }));
+}
+document.querySelectorAll('#ecrans button').forEach((b) => (b.onclick = () => { st.ecran = b.dataset.ecran; rendre(); }));
+document.querySelectorAll('#choix button').forEach((b) => (b.onclick = () => {
+  st.v = b.dataset.v;
+  document.querySelectorAll('#choix button').forEach((x) => x.classList.toggle('on', x === b));
+  rendre();
+}));
+rendre();
+</script>
+</body>
+</html>
