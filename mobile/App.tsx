@@ -1593,7 +1593,7 @@ function Main() {
       )}
 
       {/* Bloc de l'écran : titre, sous-bloc Filtres, affichage (Tâches), puis le contenu ; seul le contenu défile */}
-      {/* Le bloc descend jusqu'à la barre des onglets (le contenu défile, avec de la place en bas pour le bouton ＋) */}
+      {/* Le bloc est une carte qui s'arrête juste avant la barre des onglets (petit espace, coins arrondis) */}
       <View style={styles.bloc2}>
         <View style={styles.titreEcran}>
           {/* Titre, nombre et pastille Filtres : jamais coupés « … », le titre rapetisse si la place manque */}
@@ -2355,7 +2355,7 @@ const styles = StyleSheet.create({
   pastilleFiltresTexte: { fontSize: 12, fontWeight: '700', color: colors.text },
   pastilleFiltresNb: { position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   appBarFin: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end' },
-  bloc2: { flex: 1, minHeight: 0, marginHorizontal: 12, backgroundColor: colors.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, borderWidth: 1, borderBottomWidth: 0, borderColor: colors.border, overflow: 'hidden' },
+  bloc2: { flex: 1, minHeight: 0, marginHorizontal: 12, marginBottom: 8, backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   titreEcran: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8 },
   titreZone: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
   titreTexte: { fontSize: 18, fontWeight: '800', color: colors.text },
