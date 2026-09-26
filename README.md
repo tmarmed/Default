@@ -21,7 +21,8 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
 - **En haut** : une barre fixe « President » avec, à droite, l'icône standard du compte (silhouette, point vert =
   connecté ; menu : Stockage Google Drive, Se déconnecter — en démo : Stockage Google Drive, Réinitialiser la démo).
   Juste après « President », la **pastille des espaces de travail** (« 🔒 Moi · 👥 Mobile ② ▾ » ; jamais coupée
-  « … » : le texte rapetisse, puis les derniers noms deviennent « +N ») : la toucher déplie la **carte des espaces de travail** sous la barre (▴ la replie ; mémorisé) : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule
+  « … » : le texte rapetisse, puis les derniers noms deviennent « +N ») : la toucher déplie la **carte des espaces de travail** sous la barre (ouverte par défaut, avec son titre
+  « ESPACES DE TRAVAIL » ; ▴ la replie ; mémorisé) : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule
   **＋ | −**, puis les espaces (un ou plusieurs affichés ; noms longs coupés « … », la ligne défile).
   - **＋** : créer un espace (type, nom, **domaines rapides** « + Domaine », Entrée), un seul bouton « Créer l'espace
     de travail » ; un message « Espace de travail créé » confirme, **OK** referme. Aussi : **Rétablir** un espace retiré, **Restaurer** un espace de la corbeille (30 jours).

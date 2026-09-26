@@ -62,6 +62,8 @@ export function EspacesBar({
 }) {
   const { liste, visibles } = useEspaces();
   const [type, setType] = useState<'tous' | TypeEspace>('tous');
+  /** Ligne du titre : largeurs mesurées (ligne, filtre par type, ＋ | −) pour ajuster la taille du titre */
+  const [largeurs, setLargeurs] = useState({ ligne: 0, types: 0, pilule: 0 });
   // Le filtre par type n'a de sens que s'il y a à la fois des équipes et des entreprises
   const avecFiltre = liste.some((e) => e.type === 'equipe') && liste.some((e) => e.type === 'entreprise');
   const filtre = avecFiltre ? type : 'tous';
@@ -75,9 +77,17 @@ export function EspacesBar({
   return (
     <View style={s.carte}>
         <View style={s.corps}>
-          <View style={s.outils}>
-            {avecFiltre ? (
-              <View style={s.types}>
+          <View style={s.outils} onLayout={(e) => setLargeurs((l) => ({ ...l, ligne: e.nativeEvent.layout.width }))}>
+            {/* Ouverte, la carte garde son titre (jamais coupé : il rapetisse si la place manque) */}
+            <TexteAjuste
+              variantes={['ESPACES DE TRAVAIL']}
+              taille={11}
+              min={8}
+              dispo={largeurs.ligne ? largeurs.ligne - 22 - (avecFiltre ? largeurs.types + 8 : 0) - largeurs.pilule - 8 : null}
+              style={s.titre}
+            />
+            {avecFiltre && (
+              <View style={s.types} onLayout={(e) => setLargeurs((l) => ({ ...l, types: e.nativeEvent.layout.width }))}>
                 {(['tous', 'equipe', 'entreprise'] as const).map((t) => (
                   <Pressable
                     key={t}
@@ -91,10 +101,8 @@ export function EspacesBar({
                   </Pressable>
                 ))}
               </View>
-            ) : (
-              <View />
             )}
-            <View style={s.pilule}>
+            <View style={[s.pilule, s.droite]} onLayout={(e) => setLargeurs((l) => ({ ...l, pilule: e.nativeEvent.layout.width }))}>
               <Pressable onPress={onAjouter} style={s.moitie} hitSlop={4} accessibilityRole="button" accessibilityLabel="Ajouter ou récupérer un espace de travail">
                 <Text style={[s.signe, s.plus]}>＋</Text>
               </Pressable>
@@ -145,7 +153,9 @@ const s = StyleSheet.create({
   nbText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   chevron: { width: 14, textAlign: 'center', fontSize: 11, color: colors.muted },
   corps: { paddingTop: 8, paddingBottom: 10 },
-  outils: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, marginBottom: 8 },
+  outils: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 12, paddingRight: 10, marginBottom: 8 },
+  titre: { fontSize: 11, fontWeight: '800', color: colors.muted, letterSpacing: 0.7 },
+  droite: { marginLeft: 'auto' },
   types: { flexDirection: 'row', backgroundColor: '#E6EAF0', borderRadius: 13, padding: 2 },
   type: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 11 },
   typeOn: { backgroundColor: colors.card },
