@@ -65,7 +65,7 @@
   .pm span:first-child { color:var(--bleu); border-right:1px solid var(--trait2); }
   .pm span:last-child { color:var(--rouge); }
   .puces { display:flex; gap:6px; overflow:hidden; -webkit-mask-image:linear-gradient(90deg,#000 85%,transparent); mask-image:linear-gradient(90deg,#000 85%,transparent); }
-  .puce { flex:none; border:1px solid var(--trait); background:#fff; border-radius:16px; padding:6px 11px; font-size:13px; font-weight:650; }
+  .puce { cursor:pointer; flex:none; border:1px solid var(--trait); background:#fff; border-radius:16px; padding:6px 11px; font-size:13px; font-weight:650; }
   .puce.noir { background:var(--texte); border-color:var(--texte); color:#fff; }
 
   /* Début du bloc de l'écran */
@@ -100,7 +100,7 @@
   .tel { position:relative; }
   .haut { display:flex; align-items:flex-start; gap:8px; padding:10px 12px 8px; }
   .carteEsp { flex:1; min-width:0; background:#fff; border:1px solid var(--trait); border-radius:19px; transition:all .2s; }
-  .teteEsp { display:flex; align-items:center; gap:8px; height:38px; padding:0 8px 0 12px; font-size:13px; font-weight:650; }
+  .teteEsp { cursor:pointer; display:flex; align-items:center; gap:8px; height:38px; padding:0 8px 0 12px; font-size:13px; font-weight:650; }
   .teteEsp .noms { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .teteEsp .n2 { font-size:11px; font-weight:800; min-width:18px; height:18px; border-radius:9px; display:grid; place-items:center; background:var(--texte); color:#fff; }
   .teteEsp .ch2 { font-size:11px; color:var(--doux); width:14px; text-align:center; }
@@ -121,7 +121,10 @@
   .marque.petite { font-size:14px; }
   .sepV { width:1px; height:18px; background:var(--trait); }
   .surTitre { font-size:10.5px; font-weight:800; letter-spacing:1.2px; color:var(--bleu); margin-bottom:2px; }
-  .compteStd { flex:none; width:32px; height:32px; border-radius:50%; border:2px solid #fff; background:var(--bleu); color:#fff; font-weight:800; font-size:14px; display:grid; place-items:center; padding:0; box-shadow:0 1px 4px rgba(26,115,232,.35); cursor:pointer; }
+  .compteStd { position:relative; flex:none; width:32px; height:32px; border-radius:50%; border:1px solid var(--trait); background:#fff; color:#3A4556; display:grid; place-items:center; padding:0; box-shadow:0 1px 3px rgba(24,32,44,.08); cursor:pointer; }
+  .compteStd:hover { background:#F4F6FA; }
+  .compteStd .connecte { position:absolute; right:-1px; bottom:-1px; width:10px; height:10px; border-radius:50%; background:#1E8E3E; border:2px solid #fff; }
+  .menuCompte .qui .compteStd { width:38px; height:38px; }
   .barreNom { padding-right:14px; }
   .haut .compte { width:32px; }
   .teteNom { padding-right:2px; height:44px; }
@@ -136,7 +139,7 @@
 </head>
 <body>
 <h1>Avec le nom « President » affiché <span class="reco">⭐ Recommandé : A</span></h1>
-<p class="intro"><b>Bouton du compte standardisé</b> : partout le même rond bleu de 32 px, à 14 px du bord droit, centré sur la première ligne ; un appui ouvre le même petit menu (compte, Se déconnecter). Le nom de l'application reste visible, le compte ne bouge jamais, et la ligne des espaces garde la même forme : déplier ajoute seulement le contenu en dessous. À gauche <b>replié</b>, à droite <b>déplié</b>.</p>
+<p class="intro"><b>Bouton du compte standardisé</b> : partout la même icône de compte (silhouette, point vert = connecté), 32 px, à 14 px du bord droit, centrée sur la première ligne ; un appui ouvre le même petit menu (compte, Se déconnecter). <b>Tout est cliquable</b> : la ligne des espaces (replier / déplier), les espaces, Simple / SAFe, le compte. Le nom de l'application reste visible, le compte ne bouge jamais, et la ligne des espaces garde la même forme : déplier ajoute seulement le contenu en dessous. À gauche <b>replié</b>, à droite <b>déplié</b>.</p>
 <div class="choix" id="choix">
   <button data-v="A" class="on"><span class="etoile">⭐</span> A · Barre « President » + compte, espaces dessous (recommandé)</button>
   <button data-v="B">B · Une seule carte : nom, compte et espaces</button>
@@ -149,13 +152,14 @@
 
 <script>
 const ESP = [['🔒','Moi',true],['👥','Mobile',true],['🏢','ACME',false],['👥','Marketing',false]];
-const st = { v:'A', safe:false, ecran:'taches' };
+const st = { ouv:[false, true], v:'A', safe:false, ecran:'taches' };
 const NOTES = {
   A: `<b>⭐ A · Barre « President » + compte, espaces dessous (recommandé)</b><br>Une barre fixe : « President » à gauche, le compte à droite — elle ne change jamais. Dessous, la carte des espaces avec sa première ligne toujours identique (« ESPACES 🔒 Moi · 👥 Mobile ② ▾ ») ; déplier la fait seulement grandir vers le bas. <b>Pourquoi :</b> c'est la disposition la plus habituelle (nom + compte en haut), chaque élément a sa place fixe, et on voit toujours quels espaces sont affichés.`,
   B: `<b>B · Une seule carte : nom, compte et espaces</b><br>Tout le haut tient dans une carte : 1re ligne « President » et le compte, 2e ligne les espaces (toujours identique), le reste apparaît en dessous quand on déplie. Très rangé, même hauteur que A.`,
   C: `<b>C · « President » à la place de « ESPACES »</b><br>Une seule ligne en haut : « President » puis les espaces affichés, ② ▾ et le compte à côté. Le plus compact (une ligne), mais le mot « ESPACES » disparaît : on comprend moins que c'est là qu'on choisit les espaces.`,
   D: `<b>D · « President » au-dessus du titre de l'écran</b><br>En haut : la carte des espaces et le compte (comme la proposition précédente). Le nom « PRESIDENT » s'affiche en petit au-dessus du titre de l'écran (« ✓ Mes tâches »). Pas de ligne en plus, mais le nom est discret.`,
 };
+const ICONE_COMPTE = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.6 4.4-5.5 8-5.5s6.5 1.9 8 5.5"/></svg>`;
 const TITRES = { taches: ['✓ Mes tâches', '· 27'], roadmap: ['🗺️ Roadmap', ''] };
 function pastille(ouvert) {
   const vis = ESP.filter((e) => e[2]);
@@ -166,15 +170,15 @@ function modeSeg() {
 }
 function barre(ouvert) {
   const vis = ESP.filter((e) => e[2]);
-  const avatar = `<button class="compteStd" data-compte aria-label="Compte : se déconnecter">T</button>`;
+  const avatar = `<button class="compteStd" data-compte aria-label="Compte : se déconnecter">${ICONE_COMPTE}<span class="connecte"></span></button>`;
   const noms = `<span class="noms">${vis.map((e) => e[0] + ' ' + e[1]).join(' · ')}</span><span class="n2">${vis.length}</span><span class="ch2">${ouvert ? '▴' : '▾'}</span>`;
   const corps = ouvert ? `<div class="corpsEsp"><div class="outils"><div class="types"><span class="on">Tous</span><span>👥</span><span>🏢</span></div><div class="pm"><span>＋</span><span>−</span></div></div>
-    <div class="puces">${ESP.map((e) => `<span class="puce ${e[2] ? 'noir' : ''}">${e[0]} ${e[1]}</span>`).join('')}</div></div>` : '';
+    <div class="puces">${ESP.map((e, i) => `<span class="puce ${e[2] ? 'noir' : ''}" data-esp="${i}">${e[0]} ${e[1]}</span>`).join('')}</div></div>` : '';
   if (st.v === 'A') return `<div class="barreNom"><span class="marque">President</span>${avatar}</div>
-    <div class="haut serre"><div class="carteEsp">${`<div class="teteEsp"><span class="lab">ESPACES</span>${noms}</div>`}${corps}</div></div>`;
-  if (st.v === 'B') return `<div class="haut"><div class="carteEsp"><div class="teteNom"><span class="marque">President</span>${avatar}</div><div class="teteEsp bordHaut"><span class="lab">ESPACES</span>${noms}</div>${corps}</div></div>`;
-  if (st.v === 'C') return `<div class="haut"><div class="carteEsp"><div class="teteEsp"><span class="marque petite">President</span><span class="sepV"></span>${noms}</div>${corps}</div><div class="compte">${avatar}</div></div>`;
-  return `<div class="haut"><div class="carteEsp"><div class="teteEsp"><span class="lab">ESPACES</span>${noms}</div>${corps}</div><div class="compte">${avatar}</div></div>`;
+    <div class="haut serre"><div class="carteEsp">${`<div class="teteEsp" data-plier><span class="lab">ESPACES</span>${noms}</div>`}${corps}</div></div>`;
+  if (st.v === 'B') return `<div class="haut"><div class="carteEsp"><div class="teteNom"><span class="marque">President</span>${avatar}</div><div class="teteEsp bordHaut" data-plier><span class="lab">ESPACES</span>${noms}</div>${corps}</div></div>`;
+  if (st.v === 'C') return `<div class="haut"><div class="carteEsp"><div class="teteEsp" data-plier><span class="marque petite">President</span><span class="sepV"></span>${noms}</div>${corps}</div><div class="compte">${avatar}</div></div>`;
+  return `<div class="haut"><div class="carteEsp"><div class="teteEsp" data-plier><span class="lab">ESPACES</span>${noms}</div>${corps}</div><div class="compte">${avatar}</div></div>`;
 }
 function bloc() { return ''; }
 let ouvertCourant = false;
@@ -192,12 +196,19 @@ function ecran() {
     <div class="item">Maquette de la page contact<small>👥 Mobile · 💼 Pro</small></div></div>
     <div class="onglets">${['✓ Tâches','🗺️ Roadmap','👥 Équipe','📊 Pilotage'].concat(st.v === '3' ? ['👤 Compte'] : []).map((o, i) => `<span class="${i === 0 ? 'on' : ''}"><b>${o.split(' ')[0]}</b>${o.split(' ').slice(1).join(' ')}</span>`).join('')}</div>`;
 }
-function tel(ouvert) {
+function tel(i) {
+  const ouvert = st.ouv[i];
   ouvertCourant = ouvert;
-  return `<div class="tel" data-ouvert="${ouvert}">${barre(ouvert)}${ouvert ? bloc() : ''}${ecran()}</div>`;
+  return `<div class="tel" data-i="${i}">${barre(ouvert)}${ouvert ? bloc() : ''}${ecran()}</div>`;
 }
 function rendre() {
-  document.getElementById('scene').innerHTML = `<div class="col"><h2>Espaces repliés</h2>${tel(false)}</div><div class="col"><h2>Espaces dépliés</h2>${tel(true)}</div>`;
+  document.getElementById('scene').innerHTML = `<div class="col"><h2>${st.ouv[0] ? 'Déplié' : 'Replié'} (touche la ligne des espaces)</h2>${tel(0)}</div><div class="col"><h2>${st.ouv[1] ? 'Déplié' : 'Replié'} (touche la ligne des espaces)</h2>${tel(1)}</div>`;
+  document.querySelectorAll('[data-plier]').forEach((b) => (b.onclick = () => { const i = +b.closest('.tel').dataset.i; st.ouv[i] = !st.ouv[i]; rendre(); }));
+  document.querySelectorAll('[data-esp]').forEach((b) => (b.onclick = () => {
+    const e = ESP[+b.dataset.esp];
+    if (e[2] && ESP.filter((x) => x[2]).length === 1) return;
+    e[2] = !e[2]; rendre();
+  }));
   document.querySelectorAll('[data-ecran]').forEach((b) => b.classList.toggle('on', b.dataset.ecran === st.ecran));
   document.getElementById('notes').innerHTML = NOTES[st.v];
   document.querySelectorAll('[data-mode]').forEach((b) => (b.onclick = () => { st.safe = b.dataset.mode === '1'; rendre(); }));
@@ -211,7 +222,7 @@ function rendre() {
     const m = document.createElement('div');
     m.className = 'menuCompte';
     m.style.top = (r.bottom - rt.top + 6) + 'px';
-    m.innerHTML = '<div class="qui"><span class="compteStd">T</span><div><b>tmar.mohamd</b><small>Compte Google connecté</small></div></div><button class="dec">Se déconnecter</button>';
+    m.innerHTML = '<div class="qui"><span class="compteStd">' + ICONE_COMPTE + '<span class="connecte"></span></span><div><b>tmar.mohamd</b><small>Compte Google connecté</small></div></div><button class="dec">Se déconnecter</button>';
     t.appendChild(m);
   }));
 }
