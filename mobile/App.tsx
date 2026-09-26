@@ -2360,7 +2360,7 @@ const styles = StyleSheet.create({
   fermerRecherche: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#E6EAF0', alignItems: 'center', justifyContent: 'center' },
   fermerRechercheTexte: { fontSize: 10, color: colors.muted, fontWeight: '800' },
   filtresCorps: { marginTop: 8, gap: 8 },
-  contenu: { flex: 1, minHeight: 0, borderTopWidth: 1, borderTopColor: '#EEF1F5' },
+  contenu: { flex: 1, minHeight: 0 },
   filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   appBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 14, paddingTop: 10, height: 50 },
   marque: { fontSize: 15, fontWeight: '800', color: colors.text, letterSpacing: 0.2, marginRight: 8 },
