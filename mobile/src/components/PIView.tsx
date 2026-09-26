@@ -210,7 +210,7 @@ export function PIView({
         <View style={styles.cardHead2}>
           <Text style={styles.section}>Tableau du PI</Text>
           {lesEspaces.map((e) => (
-            <Text key={e} style={styles.muted}>
+            <Text key={e} style={[styles.muted, styles.chargeLigne]}>
               {nomE(e) ? `${nomE(e)} : ` : ''}Features {fmt(featurePts(e))} · capacité {fmt(capaPi(e))}
               {featurePts(e) > capaPi(e) ? ' ⚠' : ''}
             </Text>
@@ -470,7 +470,8 @@ const styles = StyleSheet.create({
   dates: { textAlign: 'center', color: colors.muted, fontSize: 13, marginBottom: 8 },
   card: { marginHorizontal: 16, marginBottom: 12, backgroundColor: colors.card, borderRadius: 12, padding: 12, gap: 8 },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardHead2: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 16, marginBottom: 6 },
+  cardHead2: { marginHorizontal: 16, marginBottom: 6, gap: 2 },
+  chargeLigne: { marginTop: 2 },
   cardTitle: { fontSize: 13, fontWeight: '700', color: colors.muted, textTransform: 'uppercase' },
   section: { fontSize: 13, fontWeight: '700', color: colors.muted, textTransform: 'uppercase' },
   badge: { fontSize: 13, fontWeight: '800' },

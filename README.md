@@ -59,7 +59,8 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
 
   Plusieurs espaces affichés : l'union de leurs écrans, dans l'ordre Tâches → Itération → PI → Stratégie →
   Backlog → Portefeuille → Roadmap → Équipe → Organisation → Pilotage.
-- **Écrans à venir** (vides pour l'instant) : Stratégie, Backlog, Équipe, Organisation, Pilotage.
+- **Écrans à venir** (Stratégie, Backlog, Équipe, Organisation, Pilotage) : cachés des onglets tant que leur lot
+  n'est pas fait (voir docs/mission.html). Au-delà de 5 onglets, la barre défile (fondu à droite).
 - Toutes les règles de gestion de la version précédente s'appliquent à chaque espace.
 - **Connexion Google directe** : l'application crée le Google Sheet de chaque espace dans le Drive du compte
   connecté et retrouve ceux créés sur un autre appareil (un espace retiré n'est plus ajouté). À venir :

@@ -164,19 +164,21 @@ export function Roadmap({
     <View style={styles.flex}>
       <View style={styles.controls}>
         <Segmented options={ZOOMS} value={zoom} onChange={setZoom} />
+        {/* Même bandeau rouge que sur les autres écrans ; un appui ne montre que les éléments en alerte */}
+        {nbAlertes > 0 && (
+          <Pressable
+            style={[styles.alertChip, alertesSeules && styles.alertChipOn]}
+            onPress={() => setAlertesSeules((v) => !v)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: alertesSeules }}
+          >
+            <Text style={[styles.alertChipText, alertesSeules && styles.alertChipTextOn]}>
+              ⚠ {nbAlertes} alerte{nbAlertes > 1 ? 's' : ''}
+            </Text>
+            <Text style={[styles.alertChipAction, alertesSeules && styles.alertChipTextOn]}>{alertesSeules ? 'tout afficher' : 'voir seulement ▸'}</Text>
+          </Pressable>
+        )}
         <View style={styles.toolRow}>
-          {nbAlertes > 0 && (
-            <Pressable
-              style={[styles.alertChip, alertesSeules && styles.alertChipOn]}
-              onPress={() => setAlertesSeules((v) => !v)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: alertesSeules }}
-            >
-              <Text style={[styles.alertChipText, alertesSeules && styles.alertChipTextOn]}>
-                ⚠ {nbAlertes} alerte{nbAlertes > 1 ? 's' : ''} {alertesSeules ? '· tout afficher' : '· voir seulement'}
-              </Text>
-            </Pressable>
-          )}
           {!empty && (
             <Pressable onPress={() => saveCollapsed(anyCollapsed ? new Set() : new Set(allKeys))} hitSlop={8} style={styles.foldAll}>
               <Text style={styles.foldAllText}>{anyCollapsed ? 'Tout déplier' : 'Tout replier'}</Text>
@@ -557,15 +559,19 @@ const styles = StyleSheet.create({
   trackBig: { height: 30 },
   barBig: { height: 24, borderWidth: 2 },
   alertChip: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.danger,
+    borderColor: '#F6C7C1',
+    backgroundColor: '#FFF4F2',
   },
-  alertChipOn: { backgroundColor: colors.danger },
-  alertChipText: { color: colors.danger, fontSize: 13, fontWeight: '600' },
+  alertChipOn: { backgroundColor: colors.danger, borderColor: colors.danger },
+  alertChipText: { color: colors.danger, fontSize: 15, fontWeight: '700' },
+  alertChipAction: { color: colors.danger, fontSize: 13, fontWeight: '600' },
   alertChipTextOn: { color: '#fff' },
   warn: { color: colors.danger, fontSize: 14, fontWeight: '700' },
   alert: { marginTop: 6, padding: 8, borderRadius: 8, backgroundColor: '#FCE8E6', gap: 6 },

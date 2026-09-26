@@ -135,7 +135,7 @@ const TAB_ICONS: Record<Tab, string> = {
   taches: '✓',
   iteration: '🏃',
   pi: '🗓️',
-  roadmap: '▤',
+  roadmap: '🗺️',
   portefeuille: '🧭',
   strategie: '🎯',
   backlog: '🌳',
@@ -320,7 +320,8 @@ function Main() {
     () => onglets(visibles.map((id) => espaceParId(espaces, id)?.type ?? 'moi'), safe.actif),
     [visibles, espaces, safe.actif],
   );
-  const tabsTous = useMemo(() => [...tabs.barre, ...tabs.plus], [tabs]);
+  // Les écrans encore vides (à venir) n'apparaissent pas dans les onglets tant que leur lot n'est pas fait
+  const tabsTous = useMemo(() => [...tabs.barre, ...tabs.plus].filter((t) => !A_VENIR.includes(t)), [tabs]);
   useEffect(() => setRecherche(null), [tab]);
   const [largeur, setLargeur] = useState(Math.min(Dimensions.get('window').width, 480));
   useEffect(() => {
@@ -330,8 +331,8 @@ function Main() {
   const tabWidth = tabsTous.length > 5 ? 72 : largeur / tabsTous.length;
   // Onglet qui n'existe plus (autre mode ou autres espaces) : retour aux Tâches
   useEffect(() => {
-    if (![...tabs.barre, ...tabs.plus].includes(tab)) setTab('taches');
-  }, [tabs, tab]);
+    if (!tabsTous.includes(tab)) setTab('taches');
+  }, [tabsTous, tab]);
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
   const [epicFormOpen, setEpicFormOpen] = useState(false);
   const insets = useSafeAreaInsets();
@@ -1669,7 +1670,12 @@ function Main() {
 
       {/* Onglets : tous les écrans des espaces affichés ; au-delà de 5, la barre défile */}
       <View style={[styles.tabBar, { height: TAB_BAR + insets.bottom, paddingBottom: insets.bottom }]}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabBarContenu}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.tabBarContenu, tabsTous.length > 5 && styles.tabBarDefile]}
+          style={tabsTous.length > 5 && Platform.OS === 'web' ? (styles.tabBarFondu as object) : undefined}
+        >
         {tabsTous.map((key) => (
           <Pressable
             key={key}
@@ -2148,6 +2154,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   tabBarContenu: { flexDirection: 'row', height: '100%' },
+  tabBarDefile: { paddingRight: 36 },
+  // Fondu à droite (navigateur) : d'autres onglets suivent
+  tabBarFondu: { maskImage: 'linear-gradient(90deg, #000 85%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, #000 85%, transparent)' } as never,
   tabBtn: { alignItems: 'center', justifyContent: 'center', gap: 2 },
   tabBtnOn: { borderTopWidth: 3, borderTopColor: colors.primary },
   tabIcon: { fontSize: 18, color: colors.muted },

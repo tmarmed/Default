@@ -55,6 +55,13 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
         </Pressable>
       )}
       <AlertsCard ecran="portefeuille" checks={checksPortefeuille(filtrerDomaine(h, dom), today)} />
+      {nbAlertes > 0 && (
+        <Pressable style={styles.alertBox} onPress={onShowAlerts} accessibilityRole="link" hitSlop={6}>
+          <Text style={styles.alertText}>
+            + {nbAlertes} alerte{nbAlertes > 1 ? 's' : ''} de dates : voir dans la Roadmap ›
+          </Text>
+        </Pressable>
+      )}
 
       <View style={styles.stats}>
         {ETATS_EPIC.map((s) => (
@@ -65,11 +72,6 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
         ))}
       </View>
 
-      {nbAlertes > 0 && (
-        <Pressable style={styles.alertBox} onPress={onShowAlerts} accessibilityRole="button">
-          <Text style={styles.alertText}>⚠ {nbAlertes} alerte{nbAlertes > 1 ? 's' : ''} de dates · voir dans la roadmap ›</Text>
-        </Pressable>
-      )}
 
       <Text style={styles.section}>Kanban des epics</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.board}>
@@ -181,7 +183,7 @@ const styles = StyleSheet.create({
   stat: { flex: 1, alignItems: 'center' },
   statNum: { fontSize: 22, fontWeight: '800' },
   statLabel: { fontSize: 11, color: colors.muted, fontWeight: '600' },
-  alertBox: { marginHorizontal: 16, marginTop: 10, padding: 10, borderRadius: 10, backgroundColor: '#FCE8E6' },
+  alertBox: { marginHorizontal: 16, marginTop: -2, marginBottom: 6, paddingVertical: 4 },
   alertText: { color: colors.danger, fontSize: 13, fontWeight: '600' },
   section: {
     marginHorizontal: 16,
