@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
-<title>President · maquette v15</title>
+<title>President · maquette v14</title>
 <style>
   :root {
     --fond:#EEF1F6; --carte:#fff; --texte:#18202C; --doux:#6B7686; --trait:#E1E6ED; --trait2:#EEF1F5;
@@ -258,21 +258,6 @@
   .ent3.centre .milieu { justify-content:center; }
   .ent3 .milieu .champEnt { flex:1; }
   .ent3 .lab { white-space:nowrap; }
-  .reinit { flex:none; height:30px; border-radius:15px; border:1px solid var(--trait); background:#fff; color:#A5AEBB; display:flex; align-items:center; gap:5px; padding:0 10px; font-size:12.5px; font-weight:800; position:relative; transition:all .2s; }
-  .reinit[disabled] { cursor:default; }
-  .reinit .fl { font-size:14px; line-height:1; display:inline-block; transition:transform .35s; }
-  .reinit.actif:active .fl, .reinit.actif:hover .fl { transform:rotate(-180deg); }
-  /* 1 : pilule pleine */
-  .r1.actif { background:linear-gradient(135deg,#2B82F0,#1A63D0); border-color:#1A63D0; color:#fff; box-shadow:0 3px 10px rgba(26,115,232,.35); }
-  /* 2 : texte « 3 filtres ✕ » */
-  .r2.actif { background:var(--bleuPale); border-color:#B9D2F8; color:#174EA6; }
-  .r2 .xr { font-size:10px; width:16px; height:16px; border-radius:50%; display:grid; place-items:center; background:rgba(23,78,166,.12); }
-  /* 3 : rond + pastille */
-  .r3 { width:30px; padding:0; justify-content:center; }
-  .r3.actif { color:var(--bleu); border-color:#B9D2F8; }
-  .r3 .pastilleN { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; border-radius:9px; background:#E53935; color:#fff; font-size:10.5px; font-weight:800; display:grid; place-items:center; padding:0 4px; border:2px solid var(--gris); }
-  .pop { animation:pop .25s ease-out; }
-  @keyframes pop { 0% { transform:scale(.8); } 60% { transform:scale(1.12); } 100% { transform:scale(1); } }
   .toast { position:absolute; left:50%; transform:translateX(-50%) translateY(6px); bottom:100%; margin-bottom:10px; background:rgba(24,32,44,.92); color:#fff; font-size:12px; font-weight:600; padding:7px 13px; border-radius:16px; opacity:0; transition:opacity .2s, transform .2s; pointer-events:none; white-space:nowrap; z-index:6; }
   .toast.vu { opacity:1; transform:translateX(-50%); }
   @media (max-width:440px) {
@@ -282,13 +267,13 @@
   </style>
 </head>
 <body>
-<h1 class="page">Maquette v15 : deux boutons séparés, le nombre dans « réinitialiser »</h1>
-<p class="intro">« Filtres », puis deux boutons à part : <b>🔍 recherche</b> et <b>réinitialiser</b> (qui porte le nombre de filtres actifs), et <b>▾</b> à droite. Trois styles pour le bouton réinitialiser. Essaie : choisis un type et un domaine, cherche « ma ».</p>
+<h1 class="page">Maquette v14 : outils au milieu, ▾ à droite</h1>
+<p class="intro">En-tête des filtres : « Filtres » à gauche, les outils <b>recherche + réinitialiser</b> au milieu, <b>▾</b> toujours à droite. Trois variantes. Essaie : choisis un type, touche 🔍 et tape « ma », puis ▾.</p>
 <div class="choix" id="choix">
-  <span class="etiq">Réinitialiser</span>
-  <button data-ent="1" class="on">1 · « ↺ 3 » plein</button>
-  <button data-ent="2">2 · « 3 filtres ✕ »</button>
-  <button data-ent="3">3 · ↺ avec pastille</button>
+  <span class="etiq">Outils</span>
+  <button data-ent="1" class="on">1 · Collés au titre</button>
+  <button data-ent="2">2 · Centrés</button>
+  <button data-ent="3">3 · Centrés, étiquette</button>
 </div>
 
 <div class="scene">
@@ -324,7 +309,7 @@ const ITEMS = [
 const SECTIONS = [['En retard','retard'],["Aujourd'hui",''],['Cette semaine',''],['Ce mois-ci','']];
 const NOM_ESP = Object.fromEntries(ESPACES), NOM_DOM = Object.fromEntries(DOMAINES);
 
-const st = { ent:'1', dernierN:0, rech:'5', edit:false, place:'milieu', variante:'1', compte:false, safe:false, ecran:'taches', vue:0, type:'tous', dom:'', espaces:['moi','mobile'], iteration:false,
+const st = { ent:'1', rech:'5', edit:false, place:'milieu', variante:'1', compte:false, safe:false, ecran:'taches', vue:0, type:'tous', dom:'', espaces:['moi','mobile'], iteration:false,
   recherche:null, menu:false, ferme:false, toast:'' };
 const tel = document.getElementById('tel');
 
@@ -376,17 +361,21 @@ function champEnt() {
   return `<div class="champEnt">🔍<input id="q" placeholder="Rechercher un titre…" value="${esc(st.recherche)}"><button class="x" data-sansrecherche aria-label="Fermer la recherche">✕</button></div>`;
 }
 function effacer(n) {
-  const pop = n !== st.dernierN ? 'pop' : '';
-  st.dernierN = n;
-  const attrs = `data-reset ${n ? '' : 'disabled'} aria-label="Réinitialiser les filtres (${n} actif${n > 1 ? 's' : ''})"`;
-  if (st.ent === '1') return `<button class="reinit r1 ${n ? 'actif' : ''} ${pop}" ${attrs}><span class="fl">↺</span>${n ? n : ''}</button>`;
-  if (st.ent === '2') return `<button class="reinit r2 ${n ? 'actif' : ''} ${pop}" ${attrs}>${n ? `${n} filtre${n > 1 ? 's' : ''}<span class="xr">✕</span>` : '<span class="fl">↺</span>'}</button>`;
-  return `<button class="reinit r3 ${n ? 'actif' : ''}" ${attrs}><span class="fl">↺</span>${n ? `<span class="pastilleN ${pop}">${n}</span>` : ''}</button>`;
+  if (st.ent === '1' || st.ent === '2') return `<button class="eff ${n ? 'actif' : ''}" data-reset ${n ? '' : 'disabled'} aria-label="Effacer les filtres">↺${n ? `<span class="compte">${n}</span>` : ''}</button>`;
+  return n ? `<button class="effacer" data-reset aria-label="Effacer les filtres"><span class="compte">${n}</span>Effacer<span class="xe">✕</span></button>` : '';
 }
 function enteteFiltres(n) {
   const cherche = st.recherche !== null;
-  const milieu = (cherche ? champEnt() : '<button class="rond28" data-ajout aria-label="Rechercher">🔍</button>') + `<span id="zoneEff" style="display:flex">${effacer(n)}</span>`;
-  return `<div class="ent3"><span class="lab">Filtres</span><div class="milieu">${milieu}</div><button class="rond28 chev" data-plier aria-label="Replier">▾</button></div>`;
+  const lab = `<span class="lab">Filtres</span>`;
+  let milieu;
+  if (st.ent === '3') {
+    milieu = (cherche ? champEnt() : '<button class="rond28" data-ajout aria-label="Rechercher">🔍</button>') + `<span id="zoneEff">${effacer(n)}</span>`;
+  } else {
+    milieu = cherche
+      ? champEnt() + `<div class="outils"><span id="zoneEff" style="display:contents">${effacer(n)}</span></div>`
+      : `<div class="outils"><button data-ajout aria-label="Rechercher">🔍</button><span id="zoneEff" style="display:contents">${effacer(n)}</span></div>`;
+  }
+  return `<div class="ent3 ${st.ent === '1' ? '' : 'centre'}">${lab}<div class="milieu">${milieu}</div><button class="rond28 chev" data-plier aria-label="Replier">▾</button></div>`;
 }
 function actionsTitre() {
   const n = nbActifs();
@@ -448,14 +437,13 @@ const RECH = {
   4: `<h3>4 · « ＋ Filtre » → étiquette</h3><ul><li>Une puce « ＋ Filtre » ouvre un menu : Recherche (et plus tard Échéance, Statut…).</li><li>Après « OK » ou Entrée, la recherche devient une étiquette bleue « 🔍 « ma » ✕ » parmi les filtres ; un appui dessus la modifie.</li><li>Prêt pour ajouter d'autres filtres ensuite.</li></ul>`,
 };
 const ENT = {
-  1: `<h3>1 · « ↺ 3 » plein</h3><ul><li>Gris et vide tant qu'aucun filtre n'est actif.</li><li>Dès qu'il y en a, il devient une pilule <b>bleue pleine « ↺ 3 »</b> ; le nombre grossit un instant à chaque changement.</li><li>Le plus visible.</li></ul>`,
-  2: `<h3>2 · « 3 filtres ✕ »</h3><ul><li>Gris « ↺ » au repos.</li><li>Actif : pilule bleu pâle <b>« 3 filtres ✕ »</b> — on lit exactement ce qu'on va effacer.</li><li>Le plus clair, un peu plus large.</li></ul>`,
-  3: `<h3>3 · ↺ avec pastille</h3><ul><li>Un rond ↺ comme la loupe ; quand des filtres sont actifs, il devient bleu avec une <b>pastille rouge « 3 »</b> dans le coin, comme une notification.</li><li>Le plus compact.</li></ul>`,
+  1: `<h3>1 · Collés au titre</h3><ul><li>« Filtres » puis, juste à côté, la petite barre <b>🔍 | ↺ ③</b>.</li><li><b>▾</b> seul tout à droite.</li><li>En recherche, le champ prend la place de la loupe et s'étire jusqu'à ▾ ; ↺ reste à côté.</li></ul>`,
+  2: `<h3>2 · Centrés</h3><ul><li>La barre <b>🔍 | ↺ ③</b> est au centre de l'en-tête, « Filtres » à gauche, <b>▾</b> à droite.</li><li>En recherche, le champ occupe tout le milieu.</li></ul>`,
+  3: `<h3>3 · Centrés, étiquette</h3><ul><li>Au centre : un rond <b>🔍</b> et, dès qu'un filtre est actif, l'étiquette bleue <b>« ③ Effacer ✕ »</b>.</li><li><b>▾</b> à droite. Plus parlant (le mot « Effacer » est écrit), un peu plus large.</li></ul>`,
 };
 const FINALE = `<h3>Dans les trois</h3><ul>
   <li><b>🔍</b> transforme « Filtres » en champ de recherche dans l'en-tête ; le ✕ le ferme. La liste se filtre pendant la frappe, le mot est surligné.</li>
-  <li><b>Réinitialiser</b> porte le nombre de filtres actifs (vue autre que Liste, type, domaine, itération, recherche) ; un appui remet tout à zéro.</li>
-  <li>🔍 et réinitialiser sont deux boutons séparés, juste après « Filtres » ; ▾ reste à droite.</li>
+  <li><b>Effacer</b> remet tout à zéro : vue, type, domaine, itération, recherche. La pastille bleue compte les filtres actifs.</li>
   <li><b>▾</b> replie le sous-bloc en une ligne de résumé ; l'en-tête (recherche, Effacer) reste utilisable replié.</li>
   <li>Le titre « ✓ Mes tâches · 10 » suit les filtres ; seule la liste défile. Pastille Simple | SAFe au milieu de la barre du haut.</li></ul>`;
 const COMMUN = `<h3>Bloc 2 : sous-bloc « Filtres »</h3><ul>
