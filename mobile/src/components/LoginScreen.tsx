@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { dernierCompte, signIn } from '../auth';
+import { VERSION } from '../config';
 import { colors } from '../theme';
 
 interface Props {
@@ -61,11 +62,13 @@ export function LoginScreen({ onSignedIn, initialError }: Props) {
           </>
         )}
       </Pressable>
+      <Text style={styles.version}>Version {VERSION}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  version: { marginTop: 24, textAlign: 'center', fontSize: 11, color: colors.muted },
   container: { flex: 1, justifyContent: 'center', padding: 28 },
   logo: {
     width: 64,

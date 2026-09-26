@@ -12,5 +12,8 @@ export const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
 /** Accès demandés : seulement les fichiers créés ou ouverts par l'application, et l'adresse e-mail du compte */
 export const GOOGLE_SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/userinfo.email'];
 
+/** Version publiée (commit), pour vérifier ce qu'affiche le navigateur */
+export const VERSION = process.env.EXPO_PUBLIC_VERSION || 'locale';
+
 /** Connexion Google (hors démo) */
 export const GOOGLE_AUTH = !DEMO;

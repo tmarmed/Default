@@ -44,7 +44,10 @@ jobs:
           cache-dependency-path: safe/mobile/package-lock.json
       - name: Compiler la version SAFe
         working-directory: safe/mobile
-        run: npm ci && npx tsc --noEmit && npm run verif:alertes && npm run verif:sheets && npx expo export --platform web --clear
+        run: |
+          # Version affichée dans l'application (menu du compte, écran de connexion) : commit publié
+          export EXPO_PUBLIC_VERSION="$(git rev-parse --short HEAD) · $(TZ=Europe/Paris date '+%d/%m %H:%M')"
+          npm ci && npx tsc --noEmit && npm run verif:alertes && npm run verif:sheets && npx expo export --platform web --clear
         env:
           EXPO_BASE_URL: /${{ github.event.repository.name }}/safe
       - name: Assembler le site

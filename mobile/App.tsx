@@ -55,7 +55,7 @@ import {
   toDateString,
 } from './src/dates';
 import { AuthError, restoreSession, signOut } from './src/auth';
-import { GOOGLE_AUTH } from './src/config';
+import { GOOGLE_AUTH, VERSION } from './src/config';
 import { DEMO, demoApiFor, ESPACES_DEMO } from './src/demo';
 import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, lireNomFichier, loadRetires, loadSupprimes, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveSupprimes, saveVisibles } from './src/espaces';
 import { EspacesBar } from './src/components/EspacesBar';
@@ -1845,10 +1845,8 @@ function Main() {
         title={DEMO ? 'Démo' : 'Compte Google'}
         message={
           DEMO
-            ? 'Mode démonstration : les données sont enregistrées dans ce navigateur.'
-            : settings.googleEmail
-              ? `Connecté avec ${settings.googleEmail}. Vos espaces sont des Google Sheets de ce compte.`
-              : undefined
+            ? `Mode démonstration : les données sont enregistrées dans ce navigateur. Version ${VERSION}.`
+            : `${settings.googleEmail ? `Connecté avec ${settings.googleEmail}. Vos espaces sont des Google Sheets de ce compte. ` : ''}Version ${VERSION}.`
         }
         choices={
           DEMO
