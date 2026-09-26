@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
-<title>President · maquette v14</title>
+<title>President · maquette v13</title>
 <style>
   :root {
     --fond:#EEF1F6; --carte:#fff; --texte:#18202C; --doux:#6B7686; --trait:#E1E6ED; --trait2:#EEF1F5;
@@ -253,11 +253,6 @@
   .icone.chev { transition:transform .2s; }
   .ferme .icone.chev { transform:rotate(-90deg); }
   .filtres .entete .droite { gap:6px; }
-  .ent3 { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:8px; width:100%; }
-  .ent3 .milieu { display:flex; align-items:center; gap:6px; min-width:0; }
-  .ent3.centre .milieu { justify-content:center; }
-  .ent3 .milieu .champEnt { flex:1; }
-  .ent3 .lab { white-space:nowrap; }
   .toast { position:absolute; left:50%; transform:translateX(-50%) translateY(6px); bottom:100%; margin-bottom:10px; background:rgba(24,32,44,.92); color:#fff; font-size:12px; font-weight:600; padding:7px 13px; border-radius:16px; opacity:0; transition:opacity .2s, transform .2s; pointer-events:none; white-space:nowrap; z-index:6; }
   .toast.vu { opacity:1; transform:translateX(-50%); }
   @media (max-width:440px) {
@@ -267,13 +262,13 @@
   </style>
 </head>
 <body>
-<h1 class="page">Maquette v14 : outils au milieu, ▾ à droite</h1>
-<p class="intro">En-tête des filtres : « Filtres » à gauche, les outils <b>recherche + réinitialiser</b> au milieu, <b>▾</b> toujours à droite. Trois variantes. Essaie : choisis un type, touche 🔍 et tape « ma », puis ▾.</p>
+<h1 class="page">Maquette v13 : recherche, Effacer et ▾ dans l'en-tête des filtres</h1>
+<p class="intro">Trois dessins pour l'en-tête du sous-bloc Filtres. Essaie : choisis un type ou un domaine, touche 🔍 et tape « ma », puis ▾ pour replier.</p>
 <div class="choix" id="choix">
-  <span class="etiq">Outils</span>
-  <button data-ent="1" class="on">1 · Collés au titre</button>
-  <button data-ent="2">2 · Centrés</button>
-  <button data-ent="3">3 · Centrés, étiquette</button>
+  <span class="etiq">En-tête</span>
+  <button data-ent="A" class="on">A · Boutons séparés</button>
+  <button data-ent="B">B · Barre d'outils</button>
+  <button data-ent="C">C · Étiquette Effacer</button>
 </div>
 
 <div class="scene">
@@ -309,7 +304,7 @@ const ITEMS = [
 const SECTIONS = [['En retard','retard'],["Aujourd'hui",''],['Cette semaine',''],['Ce mois-ci','']];
 const NOM_ESP = Object.fromEntries(ESPACES), NOM_DOM = Object.fromEntries(DOMAINES);
 
-const st = { ent:'1', rech:'5', edit:false, place:'milieu', variante:'1', compte:false, safe:false, ecran:'taches', vue:0, type:'tous', dom:'', espaces:['moi','mobile'], iteration:false,
+const st = { ent:'A', rech:'5', edit:false, place:'milieu', variante:'1', compte:false, safe:false, ecran:'taches', vue:0, type:'tous', dom:'', espaces:['moi','mobile'], iteration:false,
   recherche:null, menu:false, ferme:false, toast:'' };
 const tel = document.getElementById('tel');
 
@@ -361,21 +356,18 @@ function champEnt() {
   return `<div class="champEnt">🔍<input id="q" placeholder="Rechercher un titre…" value="${esc(st.recherche)}"><button class="x" data-sansrecherche aria-label="Fermer la recherche">✕</button></div>`;
 }
 function effacer(n) {
-  if (st.ent === '1' || st.ent === '2') return `<button class="eff ${n ? 'actif' : ''}" data-reset ${n ? '' : 'disabled'} aria-label="Effacer les filtres">↺${n ? `<span class="compte">${n}</span>` : ''}</button>`;
+  if (st.ent === 'A') return n ? `<button class="lienEff" data-reset>Effacer</button>` : '';
+  if (st.ent === 'B') return `<button class="eff ${n ? 'actif' : ''}" data-reset ${n ? '' : 'disabled'} aria-label="Effacer les filtres">↺${n ? `<span class="compte">${n}</span>` : ''}</button>`;
   return n ? `<button class="effacer" data-reset aria-label="Effacer les filtres"><span class="compte">${n}</span>Effacer<span class="xe">✕</span></button>` : '';
 }
 function enteteFiltres(n) {
   const cherche = st.recherche !== null;
-  const lab = `<span class="lab">Filtres</span>`;
-  let milieu;
-  if (st.ent === '3') {
-    milieu = (cherche ? champEnt() : '<button class="rond28" data-ajout aria-label="Rechercher">🔍</button>') + `<span id="zoneEff">${effacer(n)}</span>`;
-  } else {
-    milieu = cherche
-      ? champEnt() + `<div class="outils"><span id="zoneEff" style="display:contents">${effacer(n)}</span></div>`
-      : `<div class="outils"><button data-ajout aria-label="Rechercher">🔍</button><span id="zoneEff" style="display:contents">${effacer(n)}</span></div>`;
-  }
-  return `<div class="ent3 ${st.ent === '1' ? '' : 'centre'}">${lab}<div class="milieu">${milieu}</div><button class="rond28 chev" data-plier aria-label="Replier">▾</button></div>`;
+  const gauche = cherche ? champEnt() : `<span class="lab">Filtres${n && st.ent !== 'C' ? `<span class="compte">${n}</span>` : ''}</span>`;
+  let droite;
+  if (st.ent === 'A') droite = `<span id="zoneEff">${effacer(n)}</span>${cherche ? '' : '<button class="rond28" data-ajout aria-label="Rechercher">🔍</button>'}<button class="rond28 chev" data-plier aria-label="Replier">▾</button>`;
+  else if (st.ent === 'B') droite = `<div class="outils">${cherche ? '' : '<button data-ajout aria-label="Rechercher">🔍</button>'}<span id="zoneEff" style="display:contents">${effacer(n)}</span><button class="chev" data-plier aria-label="Replier"><span>▾</span></button></div>`;
+  else droite = `<span id="zoneEff">${effacer(n)}</span>${cherche ? '' : '<button class="icone" data-ajout aria-label="Rechercher">🔍</button>'}<button class="icone chev" data-plier aria-label="Replier">▾</button>`;
+  return `<div class="gaucheEnt">${gauche}</div><span class="droite">${droite}</span>`;
 }
 function actionsTitre() {
   const n = nbActifs();
@@ -437,9 +429,9 @@ const RECH = {
   4: `<h3>4 · « ＋ Filtre » → étiquette</h3><ul><li>Une puce « ＋ Filtre » ouvre un menu : Recherche (et plus tard Échéance, Statut…).</li><li>Après « OK » ou Entrée, la recherche devient une étiquette bleue « 🔍 « ma » ✕ » parmi les filtres ; un appui dessus la modifie.</li><li>Prêt pour ajouter d'autres filtres ensuite.</li></ul>`,
 };
 const ENT = {
-  1: `<h3>1 · Collés au titre</h3><ul><li>« Filtres » puis, juste à côté, la petite barre <b>🔍 | ↺ ③</b>.</li><li><b>▾</b> seul tout à droite.</li><li>En recherche, le champ prend la place de la loupe et s'étire jusqu'à ▾ ; ↺ reste à côté.</li></ul>`,
-  2: `<h3>2 · Centrés</h3><ul><li>La barre <b>🔍 | ↺ ③</b> est au centre de l'en-tête, « Filtres » à gauche, <b>▾</b> à droite.</li><li>En recherche, le champ occupe tout le milieu.</li></ul>`,
-  3: `<h3>3 · Centrés, étiquette</h3><ul><li>Au centre : un rond <b>🔍</b> et, dès qu'un filtre est actif, l'étiquette bleue <b>« ③ Effacer ✕ »</b>.</li><li><b>▾</b> à droite. Plus parlant (le mot « Effacer » est écrit), un peu plus large.</li></ul>`,
+  A: `<h3>A · Boutons séparés</h3><ul><li>À droite de « Filtres ② » : le lien <b>Effacer</b> (seulement si un filtre est actif), puis deux petits ronds <b>🔍</b> et <b>▾</b>.</li><li>Clair et aéré.</li></ul>`,
+  B: `<h3>B · Barre d'outils</h3><ul><li>Les trois actions dans une seule petite barre : <b>🔍 | ↺ ② | ▾</b>.</li><li>↺ reste à sa place, grisé tant qu'aucun filtre n'est actif, bleu avec le nombre dès qu'il y en a.</li><li>Compact, et rien ne bouge quand on filtre.</li></ul>`,
+  C: `<h3>C · Étiquette Effacer</h3><ul><li>Une étiquette bleue <b>« ② Effacer ✕ »</b> apparaît quand un filtre est actif, puis deux icônes légères <b>🔍</b> et <b>▾</b>.</li><li>Le nombre est dans l'étiquette, pas à côté de « Filtres ».</li></ul>`,
 };
 const FINALE = `<h3>Dans les trois</h3><ul>
   <li><b>🔍</b> transforme « Filtres » en champ de recherche dans l'en-tête ; le ✕ le ferme. La liste se filtre pendant la frappe, le mot est surligné.</li>
@@ -524,7 +516,7 @@ function rendreGarde() {
   const lab = tel.querySelector('.filtres .lab');
   const z = tel.querySelector('#zoneEff');
   if (z) { z.innerHTML = effacer(n); z.querySelectorAll('[data-reset]').forEach((b) => (b.onclick = () => { st.type = 'tous'; st.dom = ''; st.iteration = false; st.recherche = null; st.vue = 0; rendre(); })); }
-
+  if (lab) lab.innerHTML = `Filtres${n && st.ent !== 'C' ? `<span class="compte">${n}</span>` : ''}`;
   tel.querySelectorAll('.liste [data-reset]').forEach((b) => (b.onclick = () => { st.type = 'tous'; st.dom = ''; st.iteration = false; st.recherche = null; st.vue = 0; rendre(); }));
 }
 function changerMode(safe) {
@@ -563,7 +555,7 @@ document.querySelectorAll('#places button').forEach((b) => (b.onclick = () => {
   document.getElementById('notes').innerHTML = PLACES[st.place] + NOTES[st.variante] + COMMUN;
   rendre();
 }));
-document.getElementById('notes').innerHTML = ENT[1] + FINALE;
+document.getElementById('notes').innerHTML = ENT.A + FINALE;
 rendre();
 </script>
 </body>
