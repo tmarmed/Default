@@ -100,11 +100,14 @@ export function planifier(q: Quota, s: Sources, aujourdhui = new Date()): Plan {
   return { taux, aLiberer, alerte, options, recommande };
 }
 
-/** Démo : Drive simulé pour essayer l'alerte (le poids des données de President, lui, est réel) */
-export type TestStockage = 'normal' | 'autres' | 'president';
+/**
+ * Drive simulé pour essayer l'alerte (le poids des données de President, lui, est réel) : dans la démo, et dans la
+ * vraie version (« Réel » = le vrai Drive ; en test, rien n'est effacé).
+ */
+export type TestStockage = 'reel' | 'normal' | 'autres' | 'president';
 const GO = 1024 ** 3;
 export function quotaSimule(test: TestStockage, presidentEtCorbeille: number, limiteFixee?: number): Quota {
-  if (test === 'normal') return { limite: 15 * GO, utilise: 6.2 * GO };
+  if (test === 'normal' || test === 'reel') return { limite: 15 * GO, utilise: 6.2 * GO };
   if (test === 'autres') return { limite: 15 * GO, utilise: 13.1 * GO };
   // Drive rempli par President seul : un petit Drive, fixé au choix du test à 87 % des données ; ce qu'on libère
   // ensuite fait baisser le taux

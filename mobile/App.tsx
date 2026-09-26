@@ -1264,7 +1264,9 @@ function Main() {
   // -------------------------------------------------------------------------
   const [stockage, setStockage] = useState<{ quota: Quota; plan: Plan; taches: (Item & { espace?: string })[] } | null>(null);
   const [stockageOpen, setStockageOpen] = useState(false);
-  const [stockageTest, setStockageTest] = useState<TestStockage>('normal');
+  const [stockageTest, setStockageTest] = useState<TestStockage>(DEMO ? 'normal' : 'reel');
+  /** Vraie version, en test : ce que les solutions auraient effacé (rien n'est effacé pour de bon) */
+  const testEfface = useRef<{ corbeille: boolean; taches: Set<string> }>({ corbeille: false, taches: new Set() });
   const [plusTard, setPlusTard] = useState<string | null>(null);
   /** Démo, test « Plein : President » : taille du Drive simulé, fixée au choix du test */
   const limiteTest = useRef<number | null>(null);
@@ -1310,8 +1312,9 @@ function Main() {
           AsyncStorage.setItem(TEST_LIMITE_KEY, String(quota.limite)).catch(() => {});
         }
       } else {
-        quota = await api.quotaDrive();
-        if (!detail && planifier(quota, { corbeille, taches: [], president: 0 }).taux < SEUIL_ALERTE) {
+        const t = test ?? stockageTest;
+        quota = t === 'reel' ? await api.quotaDrive() : quotaSimule(t, 0);
+        if (t === 'reel' && !detail && planifier(quota, { corbeille, taches: [], president: 0 }).taux < SEUIL_ALERTE) {
           setStockage(null);
           return;
         }
@@ -1320,6 +1323,18 @@ function Main() {
         corbeille = { nb: trash.length, octets: trash.reduce((n, p) => n + p.octets, 0) };
         president = poids.filter((p) => !p.corbeille).reduce((n, p) => n + p.octets, 0);
         await lireTout();
+        if (t !== 'reel') {
+          // Test sur la vraie version : ce que le test a « effacé » est retiré du calcul, rien n'est effacé pour de bon
+          taches = taches.filter((x) => !testEfface.current.taches.has(x.id));
+          if (testEfface.current.corbeille) corbeille = { nb: 0, octets: 0 };
+          // Google compte parfois 0 octet pour un Google Sheet : poids estimé d'après les tâches
+          president = Math.max(president, octetsLignes(taches));
+          if (!test && limiteTest.current) quota = quotaSimule(t, president + corbeille.octets, t === 'president' ? limiteTest.current : undefined);
+          else {
+            quota = quotaSimule(t, president + corbeille.octets);
+            if (t === 'president') limiteTest.current = quota.limite;
+          }
+        }
       }
       setStockage({ quota, plan: planifier(quota, { corbeille, taches, president }), taches });
     },
@@ -1424,6 +1439,19 @@ function Main() {
       } else await Share.share({ title: nom, message: csv });
       return;
     }
+    if (!DEMO && stockageTest !== 'reel') {
+      // Vraie version en test : rien n'est effacé, le calcul fait comme si
+      if (a.kind === 'corbeille') {
+        testEfface.current.corbeille = true;
+        setInfo("Test : la corbeille de President aurait été vidée. Rien n'est effacé en mode test.");
+      } else {
+        const l = aPurger(stockage.taches, a.avant);
+        for (const t of l) testEfface.current.taches.add(t.id);
+        setInfo(`Test : ${l.length} tâche${l.length > 1 ? 's' : ''} terminée${l.length > 1 ? 's' : ''} avant ${moisAnnee(a.avant)} auraient été supprimées. Rien n'est effacé en mode test.`);
+      }
+      await verifierStockage(settings, stockageOpen);
+      return;
+    }
     if (a.kind === 'corbeille') {
       if (DEMO) {
         for (const e of await loadSupprimes()) await effacerDemo(e.id);
@@ -1441,7 +1469,9 @@ function Main() {
   };
   const changerTestStockage = (t: TestStockage) => {
     setStockageTest(t);
-    AsyncStorage.setItem(TEST_STOCKAGE_KEY, t).catch(() => {});
+    testEfface.current = { corbeille: false, taches: new Set() };
+    // Démo : le test est gardé ; vraie version : il s'arrête en quittant l'application
+    if (DEMO) AsyncStorage.setItem(TEST_STOCKAGE_KEY, t).catch(() => {});
     // Nouveau test : l'alerte n'est plus cachée (« Plus tard »)
     setPlusTard(null);
     AsyncStorage.removeItem(PLUS_TARD_KEY).catch(() => {});
@@ -2173,12 +2203,12 @@ function Main() {
         >
           <Text style={styles.stockageBtnText}>↻ Vérifier maintenant</Text>
         </Pressable>
-        {DEMO && (
+        {(
           <View style={styles.stockageTest}>
-            <Text style={styles.stockageTestTitre}>Test (démo) : Drive simulé</Text>
+            <Text style={styles.stockageTestTitre}>{DEMO ? 'Test (démo) : Drive simulé' : "Test : Drive simulé (rien n'est effacé)"}</Text>
             <Segmented
               options={[
-                { value: 'normal', label: 'Normal' },
+                DEMO ? { value: 'normal', label: 'Normal' } : { value: 'reel', label: 'Réel' },
                 { value: 'autres', label: 'Plein : autres' },
                 { value: 'president', label: 'Plein : President' },
               ]}
@@ -2186,7 +2216,7 @@ function Main() {
               onChange={changerTestStockage}
             />
             <Text style={styles.stockageNote}>
-              Normal : 41 %. Plein : autres = 87 % pris par d'autres fichiers (photos, e-mails). Plein : President = 87 % pris par les données de President
+              {DEMO ? 'Normal : 41 %.' : 'Réel : votre vrai Drive. En test, les solutions montrent ce qui serait effacé, sans rien effacer ; le test s’arrête en quittant l’application.'} Plein : autres = 87 % pris par d'autres fichiers (photos, e-mails). Plein : President = 87 % pris par les données de President
               (espaces de travail, corbeille) : la solution recommandée change selon ce qu'il y a à libérer.
             </Text>
           </View>
