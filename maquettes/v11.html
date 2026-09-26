@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
-<title>President · maquette v12</title>
+<title>President · maquette v11</title>
 <style>
   :root {
     --fond:#EEF1F6; --carte:#fff; --texte:#18202C; --doux:#6B7686; --trait:#E1E6ED; --trait2:#EEF1F5;
@@ -226,11 +226,6 @@
   .jeton { display:inline-flex; align-items:center; gap:6px; background:var(--bleuPale) !important; border-color:#B9D2F8 !important; color:#174EA6; }
   .jeton .xj { width:18px; height:18px; border-radius:50%; background:#fff; display:grid; place-items:center; font-size:10px; color:var(--doux); }
   .champ .ok { border:0; background:var(--bleu); color:#fff; border-radius:8px; padding:3px 9px; font-size:12px; font-weight:800; }
-  .actionsTitre { margin-left:auto; align-self:center; display:flex; gap:6px; align-items:center; }
-  .actionsTitre .loupe { margin-left:0; }
-  .effacer { display:flex; align-items:center; gap:6px; border:1px solid #B9D2F8; background:var(--bleuPale); color:#174EA6; border-radius:14px; height:28px; padding:0 8px 0 4px; font-size:12px; font-weight:800; animation:entre .18s ease-out; }
-  .effacer .compte { margin:0; min-width:20px; height:20px; border-radius:10px; display:grid; place-items:center; padding:0 5px; font-size:11px; }
-  .effacer .xe { font-size:11px; opacity:.7; }
   .toast { position:absolute; left:50%; transform:translateX(-50%) translateY(6px); bottom:100%; margin-bottom:10px; background:rgba(24,32,44,.92); color:#fff; font-size:12px; font-weight:600; padding:7px 13px; border-radius:16px; opacity:0; transition:opacity .2s, transform .2s; pointer-events:none; white-space:nowrap; z-index:6; }
   .toast.vu { opacity:1; transform:translateX(-50%); }
   @media (max-width:440px) {
@@ -240,8 +235,15 @@
   </style>
 </head>
 <body>
-<h1 class="page">Maquette finale v12</h1>
-<p class="intro">Pastille <b>Simple | SAFe</b> au milieu, recherche par la <b>loupe du titre</b>, et <b>effacer les filtres</b> à côté de la loupe. Essaie : choisis un type ou un domaine, cherche « ma », replie les filtres avec ▾.</p>
+<h1 class="page">Maquette finale : comment ajouter la recherche ?</h1>
+<p class="intro">Base retenue : pastille <b>Simple | SAFe au milieu</b> de la barre du haut. Quatre façons d'ajouter la recherche : choisis-en une, puis essaie (tape par exemple « ma »).</p>
+<div class="choix" id="choix">
+  <span class="etiq">Recherche</span>
+  <button data-rech="1" class="on">1 · Puce « ＋ Recherche »</button>
+  <button data-rech="2">2 · Loupe des filtres</button>
+  <button data-rech="3">3 · Loupe du titre</button>
+  <button data-rech="4">4 · « ＋ Filtre » → étiquette</button>
+</div>
 
 <div class="scene">
   <div class="tel" id="tel"></div>
@@ -276,7 +278,7 @@ const ITEMS = [
 const SECTIONS = [['En retard','retard'],["Aujourd'hui",''],['Cette semaine',''],['Ce mois-ci','']];
 const NOM_ESP = Object.fromEntries(ESPACES), NOM_DOM = Object.fromEntries(DOMAINES);
 
-const st = { rech:'3', edit:false, place:'milieu', variante:'1', compte:false, safe:false, ecran:'taches', vue:0, type:'tous', dom:'', espaces:['moi','mobile'], iteration:false,
+const st = { rech:'1', edit:false, place:'milieu', variante:'1', compte:false, safe:false, ecran:'taches', vue:0, type:'tous', dom:'', espaces:['moi','mobile'], iteration:false,
   recherche:null, menu:false, ferme:false, toast:'' };
 const tel = document.getElementById('tel');
 
@@ -299,7 +301,7 @@ function visibles() {
 }
 
 function nbActifs() {
-  return (st.vue !== 0) + (st.type !== 'tous') + !!st.dom + (st.safe && st.iteration) + !!(st.recherche && st.recherche.trim());
+  return (st.type !== 'tous') + !!st.dom + (st.safe && st.iteration) + !!(st.recherche && st.recherche.trim());
 }
 
 function seg(options, actif, attr) {
@@ -312,7 +314,7 @@ function filtres() {
   const resume = [taches ? VUES[st.vue] : null, taches ? (TYPES.find((t) => t[0] === st.type)[1]) : null, st.dom ? NOM_DOM[st.dom] : 'tous domaines', st.recherche ? `« ${st.recherche} »` : null].filter(Boolean).join(' · ');
   let h = `<div class="filtres ${st.ferme ? 'ferme' : ''}">
     <div class="entete"><span class="lab">Filtres${n ? `<span class="compte">${n}</span>` : ''}</span>
-      <span class="droite">${st.rech === '2' && st.recherche === null ? '<button class="loupe" data-ajout aria-label="Rechercher">🔍</button>' : ''}<button class="chevron" data-plier aria-label="Replier">▾</button></span></div>
+      <span class="droite">${n ? '<button class="lienBleu" data-reset>Effacer</button>' : ''}${st.rech === '2' && st.recherche === null ? '<button class="loupe" data-ajout aria-label="Rechercher">🔍</button>' : ''}<button class="chevron" data-plier aria-label="Replier">▾</button></span></div>
     <div class="resume">${resume}</div>
     <div class="corps">`;
   if (st.rech === '2' && st.recherche !== null) h += `<div class="champ">🔍<input id="q" placeholder="Rechercher un titre…" value="${esc(st.recherche)}">${st.rech === '4' ? '<button class="ok" data-ok>OK</button>' : '<button class="x" data-sansrecherche aria-label="Retirer la recherche">✕</button>'}</div>`;
@@ -323,12 +325,6 @@ function filtres() {
   if (st.recherche !== null && (st.rech === '1' || (st.rech === '4' && st.edit))) h += `<div class="champ">🔍<input id="q" placeholder="Rechercher un titre…" value="${esc(st.recherche)}">${st.rech === '4' ? '<button class="ok" data-ok>OK</button>' : '<button class="x" data-sansrecherche aria-label="Retirer la recherche">✕</button>'}</div>`;
   h += `</div></div>`;
   return h;
-}
-
-function actionsTitre() {
-  const n = nbActifs();
-  return (n ? `<button class="effacer" data-reset aria-label="Effacer les filtres"><span class="compte">${n}</span>Effacer<span class="xe">✕</span></button>` : '')
-    + '<button class="loupe" data-ajout aria-label="Rechercher">🔍</button>';
 }
 
 function ajoutRangee() {
@@ -384,16 +380,6 @@ const RECH = {
   3: `<h3>3 · Loupe du titre</h3><ul><li>Une loupe 🔍 à droite du titre de l'écran (« Mes tâches · 10 »).</li><li>Un appui transforme le titre en champ de recherche, avec « Annuler » pour revenir.</li><li>Le geste des applications de téléphone (Mail, Réglages…).</li></ul>`,
   4: `<h3>4 · « ＋ Filtre » → étiquette</h3><ul><li>Une puce « ＋ Filtre » ouvre un menu : Recherche (et plus tard Échéance, Statut…).</li><li>Après « OK » ou Entrée, la recherche devient une étiquette bleue « 🔍 « ma » ✕ » parmi les filtres ; un appui dessus la modifie.</li><li>Prêt pour ajouter d'autres filtres ensuite.</li></ul>`,
 };
-const FINALE = `<h3>Barre du haut</h3><ul><li>« President » à gauche, la pastille <b>Simple | SAFe</b> au milieu, le compte à droite.</li></ul>
-<h3>Titre de l'écran</h3><ul>
-  <li>« ✓ Mes tâches · 10 » en haut du bloc : le nombre suit les filtres et la recherche.</li>
-  <li>À droite : la <b>loupe 🔍</b>. Un appui transforme le titre en champ de recherche ; « Annuler » revient au titre.</li>
-  <li>Dès qu'un filtre est actif, un bouton <b>« 2 Effacer ✕ »</b> apparaît à côté de la loupe : la pastille bleue compte les filtres actifs, et un appui remet tout à zéro (vue, type, domaine, itération, recherche).</li></ul>
-<h3>Sous-bloc Filtres</h3><ul>
-  <li>Vue (Liste, Jour, Semaine, Mois), types, domaines et, en SAFe, 🏃 Itération en cours.</li>
-  <li>La pastille bleue à côté de « Filtres » rappelle le nombre de filtres actifs.</li>
-  <li><b>▾</b> replie le sous-bloc en une seule ligne de résumé (ex. « Jour · Tâches · Pro ») pour laisser plus de place à la liste ; un nouvel appui le rouvre.</li>
-  <li>Seule la liste défile : le titre et les filtres restent en place.</li></ul>`;
 const COMMUN = `<h3>Bloc 2 : sous-bloc « Filtres »</h3><ul>
   <li>Tous les filtres sont dans un sous-cadre gris : vue (Liste, Jour, Semaine, Mois), types, domaines et, en SAFe, 🏃 Itération en cours.</li>
   <li>La recherche n'apparaît jamais d'office. Une fois ajoutée, elle filtre la liste en direct et surligne le mot.</li>
@@ -419,7 +405,7 @@ function rendre() {
     <div class="bloc bloc2">
       ${st.rech === '3' && st.recherche !== null
         ? `<div class="titre2 cherche"><div class="champ">🔍<input id="q" placeholder="Rechercher dans ${titre.toLowerCase()}…" value="${esc(st.recherche)}"></div><button class="annuler" data-sansrecherche>Annuler</button></div>`
-        : `<div class="titre2"><b>${ic} ${titre}</b>${nb !== null ? `<span class="nb">· ${nb}</span>` : ''}<span class="actionsTitre" id="actionsTitre">${actionsTitre()}</span></div>`}
+        : `<div class="titre2"><b>${ic} ${titre}</b>${nb !== null ? `<span class="nb">· ${nb}</span>` : ''}${st.rech === '3' ? '<button class="loupe" data-ajout aria-label="Rechercher">🔍</button>' : ''}</div>`}
       ${filtres()}
       <div class="liste">${liste()}</div>
     </div>
@@ -470,8 +456,6 @@ function rendreGarde() {
   tel.querySelector('.liste').innerHTML = liste();
   const c = tel.querySelector('.filtres .compte'), n = nbActifs();
   const lab = tel.querySelector('.filtres .lab');
-  const at = tel.querySelector('#actionsTitre');
-  if (at) at.innerHTML = actionsTitre();
   if (lab) lab.innerHTML = `Filtres${n ? `<span class="compte">${n}</span>` : ''}`;
   tel.querySelectorAll('.liste [data-reset]').forEach((b) => (b.onclick = () => { st.type = 'tous'; st.dom = ''; st.iteration = false; st.recherche = null; st.vue = 0; rendre(); }));
 }
@@ -499,7 +483,7 @@ function ouvrirMenu(ancre) {
 }
 function fermerMenu() { document.querySelectorAll('.menuAjout').forEach((m) => m.remove()); }
 
-[].forEach((b) => (b.onclick = () => {
+document.querySelectorAll('#choix button').forEach((b) => (b.onclick = () => {
   st.rech = b.dataset.rech; st.recherche = null; st.edit = false;
   document.querySelectorAll('#choix button').forEach((x) => x.classList.toggle('on', x === b));
   document.getElementById('notes').innerHTML = RECH[st.rech] + COMMUN;
@@ -511,7 +495,7 @@ document.querySelectorAll('#places button').forEach((b) => (b.onclick = () => {
   document.getElementById('notes').innerHTML = PLACES[st.place] + NOTES[st.variante] + COMMUN;
   rendre();
 }));
-document.getElementById('notes').innerHTML = FINALE;
+document.getElementById('notes').innerHTML = RECH[1] + COMMUN;
 rendre();
 </script>
 </body>
