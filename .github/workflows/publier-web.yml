@@ -1,5 +1,5 @@
 # Publie la version SAFe (branche claude/version-safe) sur GitHub Pages à chaque modification :
-# https://tmarmed.github.io/Default/safe/ ; l'adresse racine https://tmarmed.github.io/Default/ y renvoie.
+# https://tmarmed.github.io/Default/safe/ (et la démo : https://tmarmed.github.io/Default/demo/) ; l'adresse racine https://tmarmed.github.io/Default/ y renvoie.
 # La version simple (branche claude/mobile-task-management-app-q8jysq) n'est plus publiée.
 name: Publier la version web
 
@@ -47,13 +47,16 @@ jobs:
         run: |
           # Version affichée dans l'application (menu du compte, écran de connexion) : commit publié
           export EXPO_PUBLIC_VERSION="$(git rev-parse --short HEAD) · $(TZ=Europe/Paris date '+%d/%m %H:%M')"
-          npm ci && npx tsc --noEmit && npm run verif:alertes && npm run verif:sheets && npx expo export --platform web --clear
+          npm ci && npx tsc --noEmit && npm run verif:alertes && npm run verif:sheets && npm run verif:stockage && npx expo export --platform web --clear
+          # Démo (données dans le navigateur, sans compte Google) : https://tmarmed.github.io/Default/demo/
+          EXPO_PUBLIC_DEMO=1 EXPO_BASE_URL=/${{ github.event.repository.name }}/demo npx expo export --platform web --clear --output-dir dist-demo
         env:
           EXPO_BASE_URL: /${{ github.event.repository.name }}/safe
       - name: Assembler le site
         run: |
-          mkdir -p site/safe
+          mkdir -p site/safe site/demo
           cp -r safe/mobile/dist/. site/safe/
+          cp -r safe/mobile/dist-demo/. site/demo/
           # Adresse racine : renvoie vers la version SAFe
           printf '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=safe/"><title>President</title></head><body><a href="safe/">President</a></body></html>' > site/index.html
       - uses: actions/upload-pages-artifact@v3
