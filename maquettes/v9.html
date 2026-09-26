@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
-<title>President · maquette v10</title>
+<title>President · maquette v9</title>
 <style>
   :root {
     --fond:#EEF1F6; --carte:#fff; --texte:#18202C; --doux:#6B7686; --trait:#E1E6ED; --trait2:#EEF1F5;
@@ -210,14 +210,6 @@
   .interHaut { border:0; background:none; padding:0; display:flex; align-items:center; gap:7px; font-size:12px; font-weight:800; color:var(--doux); }
   .interHaut.on { color:var(--safe); }
   .interHaut .glissiere { pointer-events:none; }
-  .choix .etiq { align-self:center; font-size:12px; font-weight:800; color:var(--doux); text-transform:uppercase; letter-spacing:.6px; margin-right:4px; }
-  .appbar.milieu { display:grid; grid-template-columns:1fr auto 1fr; }
-  .appbar.milieu .centre { justify-self:center; }
-  .appbar.milieu .droiteBarre { justify-self:end; }
-  .appbar.gauche2 .gauche { gap:10px; }
-  /* 4 · pastille ronde qui bascule S / SAFe */
-  .pastilleRonde { border:0; height:28px; min-width:28px; border-radius:14px; padding:0 9px; font-size:12px; font-weight:900; background:var(--seg); color:var(--doux); display:grid; place-items:center; transition:all .25s; }
-  .pastilleRonde.on { background:linear-gradient(135deg,#8E3FD6,#6A1B9A); color:#fff; box-shadow:0 3px 10px rgba(123,47,191,.4); }
   .toast { position:absolute; left:50%; transform:translateX(-50%) translateY(6px); bottom:100%; margin-bottom:10px; background:rgba(24,32,44,.92); color:#fff; font-size:12px; font-weight:600; padding:7px 13px; border-radius:16px; opacity:0; transition:opacity .2s, transform .2s; pointer-events:none; white-space:nowrap; z-index:6; }
   .toast.vu { opacity:1; transform:translateX(-50%); }
   @media (max-width:440px) {
@@ -227,19 +219,12 @@
   </style>
 </head>
 <body>
-<h1 class="page">La pastille Simple / SAFe : à gauche ou au milieu</h1>
-<p class="intro">Choisis la place, puis la forme de la pastille. Tout se clique.</p>
-<div class="choix" id="places">
-  <span class="etiq">Place</span>
-  <button data-place="gauche" class="on">À gauche</button>
-  <button data-place="milieu">Au milieu</button>
-</div>
+<h1 class="page">Le mode Simple / SAFe à côté de « President »</h1>
+<p class="intro">Trois formes pour le réglage, en haut à côté du titre. En bas : seulement les onglets. Tout se clique.</p>
 <div class="choix" id="choix">
-  <span class="etiq">Forme</span>
-  <button data-var="1" class="on">Simple | SAFe</button>
-  <button data-var="2">Bouton SAFe</button>
-  <button data-var="3">Interrupteur</button>
-  <button data-var="4">Pastille S / SAFe</button>
+  <button data-var="1" class="on">1 · Simple | SAFe</button>
+  <button data-var="2">2 · Bouton SAFe</button>
+  <button data-var="3">3 · Interrupteur SAFe</button>
 </div>
 
 <div class="scene">
@@ -275,7 +260,7 @@ const ITEMS = [
 const SECTIONS = [['En retard','retard'],["Aujourd'hui",''],['Cette semaine',''],['Ce mois-ci','']];
 const NOM_ESP = Object.fromEntries(ESPACES), NOM_DOM = Object.fromEntries(DOMAINES);
 
-const st = { place:'gauche', variante:'1', compte:false, safe:false, ecran:'taches', vue:0, type:'tous', dom:'', espaces:['moi','mobile'], iteration:false,
+const st = { variante:'1', compte:false, safe:false, ecran:'taches', vue:0, type:'tous', dom:'', espaces:['moi','mobile'], iteration:false,
   recherche:null, menu:false, ferme:false, toast:'' };
 const tel = document.getElementById('tel');
 
@@ -349,20 +334,14 @@ function bas() {
 function modeHaut() {
   if (st.variante === '1') return `<div class="modeHaut"><button class="${st.safe ? '' : 'on'}" data-mode="0">Simple</button><button class="${st.safe ? 'on s' : ''}" data-mode="1">SAFe</button></div>`;
   if (st.variante === '2') return `<button class="boutonSafe ${st.safe ? 'on' : ''}" data-bascule aria-pressed="${st.safe}"><span class="losange"></span>SAFe</button>`;
-  if (st.variante === '4') return `<button class="pastilleRonde ${st.safe ? 'on' : ''}" data-bascule aria-pressed="${st.safe}" title="Simple / SAFe">${st.safe ? 'SAFe' : 'S'}</button>`;
   return `<button class="interHaut ${st.safe ? 'on' : ''}" data-bascule aria-pressed="${st.safe}"><span class="glissiere ${st.safe ? 'on' : ''}"></span>SAFe</button>`;
 }
 const segMode = () => `<div class="segTexte"><button class="${st.safe ? '' : 'on'}" data-mode="0">Simple</button><button class="${st.safe ? 'on s' : ''}" data-mode="1">SAFe</button></div>`;
 
-const PLACES = {
-  gauche: `<h3>À gauche</h3><p>La pastille ouvre la barre du haut, avant « President ». Le pouce gauche l'atteint facilement, et le nom de l'application reste lisible juste après.</p>`,
-  milieu: `<h3>Au milieu</h3><p>« President » à gauche, la pastille au centre de la barre, le compte à droite. La barre est équilibrée, et le mode se trouve bien en vue.</p>`,
-};
 const NOTES = {
-  1: `<h3>Forme : Simple | SAFe</h3><ul><li>Deux choix côte à côte ; SAFe devient violet quand il est choisi.</li><li>On voit toujours les deux modes.</li></ul>`,
-  2: `<h3>Forme : bouton SAFe</h3><ul><li>Contour violet « ◇ SAFe » ; un appui le remplit « ◆ SAFe ».</li><li>Éteint = Simple.</li></ul>`,
-  3: `<h3>Forme : interrupteur</h3><ul><li>Un petit interrupteur suivi de « SAFe », violet quand il est allumé.</li></ul>`,
-  4: `<h3>Forme : pastille S / SAFe</h3><ul><li>La plus petite : un rond gris « S » (Simple) qui s'allonge en pastille violette « SAFe » quand on appuie.</li></ul>`,
+  1: `<h3>1 · Simple | SAFe</h3><ul><li>Un petit sélecteur à deux choix juste après « President ».</li><li>Simple sur fond blanc ; SAFe devient violet quand il est choisi.</li><li>On voit toujours les deux modes et celui qui est actif.</li></ul>`,
+  2: `<h3>2 · Bouton SAFe</h3><ul><li>Un seul bouton « ◇ SAFe » à contour violet après « President ».</li><li>Un appui l'allume : il devient plein violet « ◆ SAFe ». Éteint = Simple.</li><li>Le plus court et le plus net visuellement.</li></ul>`,
+  3: `<h3>3 · Interrupteur SAFe</h3><ul><li>Un petit interrupteur suivi du mot « SAFe », après « President ».</li><li>Allumé, il devient violet. Éteint = Simple.</li><li>Le geste le plus familier (comme un réglage de téléphone).</li></ul>`,
 };
 const COMMUN = `<h3>Bloc 2 : sous-bloc « Filtres »</h3><ul>
   <li>Tous les filtres sont dans un sous-cadre gris : vue (Liste, Jour, Semaine, Mois), types, domaines et, en SAFe, 🏃 Itération en cours.</li>
@@ -379,9 +358,7 @@ function rendre() {
   const focus = document.activeElement?.id === 'q';
   tel.innerHTML = `
     <div class="statut"><span>9:41</span><span>●●● ◔</span></div>
-    ${st.place === 'milieu'
-      ? `<div class="appbar milieu"><div class="marque">President</div><div class="centre">${modeHaut()}</div>`
-      : `<div class="appbar gauche2"><div class="gauche">${modeHaut()}<div class="marque">President</div></div>`}<div class="droiteBarre"><button class="avatarBtn" data-compte><div class="avatar">T</div></button></div></div>
+    <div class="appbar"><div class="gauche"><div class="marque">President</div>${modeHaut()}</div><div class="droiteBarre"><button class="avatarBtn" data-compte><div class="avatar">T</div></button></div></div>
     <div class="bloc bloc1">
       <div class="entete"><span class="lab">Espaces</span><span style="display:flex;gap:6px;align-items:center"><button class="petitBtn bleu">＋</button><button class="petitBtn">⋯</button></span></div>
       <div class="puces">${ESPACES.map(([k, l]) => `<button class="puce ${st.espaces.includes(k) ? 'noir' : ''}" data-esp="${k}">${l}</button>`).join('')}</div>
@@ -463,16 +440,10 @@ function fermerMenu() { document.querySelectorAll('.menuAjout').forEach((m) => m
 document.querySelectorAll('#choix button').forEach((b) => (b.onclick = () => {
   st.variante = b.dataset.var; st.compte = false;
   document.querySelectorAll('#choix button').forEach((x) => x.classList.toggle('on', x === b));
-  document.getElementById('notes').innerHTML = PLACES[st.place] + NOTES[st.variante] + COMMUN;
+  document.getElementById('notes').innerHTML = NOTES[st.variante] + COMMUN;
   rendre();
 }));
-document.querySelectorAll('#places button').forEach((b) => (b.onclick = () => {
-  st.place = b.dataset.place;
-  document.querySelectorAll('#places button').forEach((x) => x.classList.toggle('on', x === b));
-  document.getElementById('notes').innerHTML = PLACES[st.place] + NOTES[st.variante] + COMMUN;
-  rendre();
-}));
-document.getElementById('notes').innerHTML = PLACES.gauche + NOTES[1] + COMMUN;
+document.getElementById('notes').innerHTML = NOTES[1] + COMMUN;
 rendre();
 </script>
 </body>
