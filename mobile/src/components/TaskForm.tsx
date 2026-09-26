@@ -42,6 +42,7 @@ import { callNumber } from '../phone';
 import { fmtPoints } from '../pi';
 import { canHaveSubtasks, PARENT_TYPES, pointsCheck, subtaskMap } from '../subtasks';
 import { ItemPicker } from './ItemPicker';
+import { LiaisonOrg } from './LiaisonOrg';
 
 interface Props {
   visible: boolean;
@@ -117,6 +118,8 @@ const toInput = (i: Item): ItemInput => ({
   feature: i.feature,
   telephone: i.telephone ?? '',
   parent: i.parent ?? '',
+  equipe: i.equipe ?? '',
+  responsable: i.responsable ?? '',
   espace: i.espace || 'moi',
 });
 
@@ -168,6 +171,8 @@ export function TaskForm({
       domaine: '',
       feature: '',
       parent: '',
+      equipe: '',
+      responsable: '',
     }));
   // Sous-tâches
   const [cascadeDel, setCascadeDel] = useState(false);
@@ -527,6 +532,12 @@ export function TaskForm({
                 }
               />
             )}
+            <LiaisonOrg
+              espace={espace}
+              niveau="item"
+              valeurs={{ equipe: form.equipe, responsable: form.responsable, feature: form.feature, epic: form.epic }}
+              onChange={(p) => setForm((f) => ({ ...f, ...p }))}
+            />
             {!!enfants.length && <Text style={styles.hint}>Les sous-tâches suivent le rangement de cette tâche.</Text>}
 
             {peutAvoir && (

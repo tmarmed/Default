@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
 import { iterationOf, piOf, shiftPi } from './pi';
-import { creerMagasin, type Kind, type Persistance, type Table, TABLES } from './magasin';
+import { creerMagasin, type Kind, type Persistance, type Table, TABLES, TABLES_ORG } from './magasin';
+import { CLE_ORG, type KindOrg, type Org } from './organisation';
 import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI } from './types';
 
 /**
@@ -15,7 +16,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '20';
+const DEMO_DATA_VERSION = '21';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -208,7 +209,7 @@ function sampleEntities(): {
   };
 }
 
-type Seeds = { items: () => Item[]; entities: () => ReturnType<typeof sampleEntities> };
+type Seeds = { items: () => Item[]; entities: () => ReturnType<typeof sampleEntities>; org?: () => Org };
 
 /**
  * Stockage d'un espace de la démo (« moi » : clés historiques ; autres : « mes-taches:demo@<espace> »), avec
@@ -218,7 +219,8 @@ function creerStore(espace: string, seeds: Seeds) {
   const key = espace === 'moi' ? KEY : `${KEY}@${espace}`;
   const memoire: Partial<Record<Table, unknown[]>> = {};
   const cle = (t: Table) => (t === 'items' ? key : `${key}-${t}`);
-  const exemples = (t: Table): unknown[] => (t === 'items' ? seeds.items() : seeds.entities()[t as Kind]);
+  const exemples = (t: Table): unknown[] =>
+    t === 'items' ? seeds.items() : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : seeds.entities()[t as Kind];
 
   const persistance: Persistance = {
     async lire(t) {
@@ -246,7 +248,7 @@ function creerStore(espace: string, seeds: Seeds) {
   return {
     ...creerMagasin(persistance),
     async reset(): Promise<void> {
-      for (const t of TABLES) await persistance.ecrire(t, exemples(t) as never);
+      for (const t of [...TABLES, ...TABLES_ORG]) await persistance.ecrire(t, exemples(t) as never);
       await persistance.ecrire('ignoree', []);
     },
   };
@@ -292,8 +294,11 @@ const SEEDS_ENTREPRISE: Seeds = {
   items: () =>
     exemple('acm', [
       ['Choisir le prestataire du nouveau CRM', 'tache', 5, { epic: 'acme1', points: '2' }],
-      ['Migrer les contacts clients', 'story', SANS_DATE, { feature: 'acmf1', points: '8' }],
+      ['Migrer les contacts clients', 'story', SANS_DATE, { feature: 'acmf1', points: '8', equipe: 'acmeqmob', responsable: 'acmp7' }],
       ['Former les commerciaux', 'mission', 20, { epic: 'acme1' }],
+      ['Écran de connexion', 'story', 3, { feature: 'acmf2', points: '3', equipe: 'acmeqmob', responsable: 'acmp8' }],
+      ['Paiement en ligne', 'story', 8, { feature: 'acmf2', points: '5', equipe: 'acmeqmob' }],
+      ['Page d’accueil du site', 'story', 6, { feature: 'acmf3', points: '3', equipe: 'acmeqweb', responsable: 'acmp10' }],
     ]),
   entities: () => {
     const e = vide();
@@ -303,9 +308,51 @@ const SEEDS_ENTREPRISE: Seeds = {
     const m = (n: number) => toDateString(new Date(now.getFullYear(), now.getMonth() + n, 1));
     e.domaine = [{ id: 'acmdpro', nom: 'Pro', icone: '💼', couleur: '#1A73E8', parent: '', ...base }];
     e.objectif = [{ id: 'acmo1', titre: 'Fidéliser les clients', domaine: 'acmdpro', debut: m(-2), fin: m(10), couleur: '#1A73E8', description: '', cible: '90', actuel: '82', unite: '% de clients fidèles', ...base }];
-    e.epic = [{ id: 'acme1', titre: 'Nouveau CRM', description: '', debut: m(0), fin: m(6), couleur: '#00897B', objectif: 'acmo1', domaine: '', etat: 'pret', ...base }];
-    e.feature = [{ id: 'acmf1', titre: 'Reprise des données', description: '', epic: 'acme1', pi: piOf(now), iteration: '', points: '13', couleur: '', ...base }];
+    e.epic = [
+      { id: 'acme1', titre: 'Nouveau CRM', description: '', debut: m(0), fin: m(6), couleur: '#00897B', objectif: 'acmo1', domaine: '', etat: 'pret', portfolio: 'acmpf1', ...base },
+      { id: 'acme2', titre: 'Application client', description: '', debut: m(-1), fin: m(8), couleur: '#C2185B', objectif: 'acmo1', domaine: '', etat: 'en_cours', portfolio: 'acmpf1', ...base },
+    ];
+    e.feature = [
+      { id: 'acmf1', titre: 'Reprise des données', description: '', epic: 'acme1', pi: piOf(now), iteration: '', points: '13', couleur: '', train: 'acmtr1', equipe: 'acmeqmob', ...base },
+      { id: 'acmf2', titre: 'Compte client mobile', description: '', epic: 'acme2', pi: piOf(now), iteration: '', points: '8', couleur: '', train: 'acmtr1', equipe: 'acmeqmob', ...base },
+      { id: 'acmf3', titre: 'Nouveau site vitrine', description: '', epic: 'acme2', pi: piOf(now), iteration: '', points: '5', couleur: '', train: 'acmtr1', equipe: 'acmeqweb', ...base },
+    ];
     return e;
+  },
+  // Organisation d'ACME : hiérarchie (directions, services) et delivery SAFe (portfolio › train › équipes)
+  org: () => {
+    const stamp = new Date().toISOString();
+    const base = { cree_le: stamp, modifie_le: stamp };
+    const p = (id: string, nom: string, unite: string, manager: string, capacite = '') => ({
+      id, nom, email: `${nom.split(' ')[0].toLowerCase()}.${nom.split(' ').slice(1).join('').toLowerCase()}@acme.example`.normalize('NFD').replace(/[̀-ͯ]/g, ''), unite, manager, capacite, ...base,
+    });
+    return {
+      personnes: [
+        p('acmp1', 'Claire Vidal', 'acmu1', ''),
+        p('acmp2', 'Karim Haddad', 'acmu2', 'acmp1'),
+        p('acmp3', 'Julie Morel', 'acmu4', 'acmp1'),
+        p('acmp4', 'Sara Martin', 'acmu2', 'acmp2'),
+        p('acmp5', 'Marc Petit', 'acmu4', 'acmp3'),
+        p('acmp6', 'Paul Leroy', 'acmu3', 'acmp2', '8'),
+        p('acmp7', 'Nina Dupont', 'acmu3', 'acmp2', '8'),
+        p('acmp8', 'Tom Faure', 'acmu3', 'acmp2', '8'),
+        p('acmp9', 'Emma Roy', 'acmu3', 'acmp2', '6'),
+        p('acmp10', 'Léa Roux', 'acmu3', 'acmp2', '8'),
+        p('acmp11', 'Hugo Blanc', 'acmu3', 'acmp2', '8'),
+      ],
+      unites: [
+        { id: 'acmu1', nom: 'Direction générale', type: 'direction' as const, parent: '', responsable: 'acmp1', ...base },
+        { id: 'acmu2', nom: 'Direction technique', type: 'direction' as const, parent: 'acmu1', responsable: 'acmp2', ...base },
+        { id: 'acmu3', nom: 'Développement', type: 'service' as const, parent: 'acmu2', responsable: 'acmp2', ...base },
+        { id: 'acmu4', nom: 'Direction commerciale', type: 'direction' as const, parent: 'acmu1', responsable: 'acmp3', ...base },
+      ],
+      portfolios: [{ id: 'acmpf1', nom: 'Digital', epic_owner: 'acmp3', ...base }],
+      trains: [{ id: 'acmtr1', nom: 'Clients', portfolio: 'acmpf1', rte: 'acmp4', pm: 'acmp5', ...base }],
+      equipes: [
+        { id: 'acmeqmob', nom: 'Mobile', train: 'acmtr1', po: 'acmp6', sm: 'acmp7', membres: 'acmp6;acmp7;acmp8;acmp9', ...base },
+        { id: 'acmeqweb', nom: 'Web', train: 'acmtr1', po: 'acmp10', sm: 'acmp11', membres: 'acmp10;acmp11', ...base },
+      ],
+    };
   },
 };
 
@@ -349,6 +396,11 @@ export async function effacerDemo(espace: string): Promise<void> {
 export function donneesDemo(espace = 'moi') {
   const seeds = espace === 'moi' ? { items: sample, entities: sampleEntities } : espace === 'demo-equipe' ? SEEDS_EQUIPE : SEEDS_ENTREPRISE;
   return { items: seeds.items(), entities: seeds.entities() };
+}
+/** Organisation d'exemple d'un espace de la démo (sans stockage) : pour les vérifications automatiques */
+export function orgDemo(espace: string): Org {
+  const seeds = espace === 'demo-entreprise' ? SEEDS_ENTREPRISE : undefined;
+  return seeds?.org?.() ?? { personnes: [], unites: [], portfolios: [], trains: [], equipes: [] };
 }
 /** Espace « Moi » de la démo */
 export const demoApi = demoApiFor('moi');

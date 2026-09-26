@@ -12,6 +12,7 @@ import { Epic, ETATS_EPIC, EtatEpic, Objectif } from '../types';
 import { AlertsCard } from './AlertsCard';
 import { checksPortefeuille, filtrerDomaine } from '../checks';
 import { inDomain, useDomainFilter, useRecherche } from './DomainFilter';
+import { useFiltreOrg, useOrg } from '../organisation';
 
 interface Props {
   onOpenEpic: (e: Epic) => void;
@@ -30,8 +31,11 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
 
   const epicDom = (e: Epic) => domaineOf({ epic: e.id }, h)?.id ?? '';
   const cherche = useRecherche();
-  const epics = h.epicList.filter((e) => inDomain(dom, epicDom(e), h) && cherche(e.titre));
-  const objectifs = h.objectifList.filter((o) => inDomain(dom, o.domaine, h) && cherche(o.titre));
+  const fo = useFiltreOrg();
+  const org = useOrg();
+  const epics = h.epicList.filter((e) => inDomain(dom, epicDom(e), h) && cherche(e.titre) && fo.epic(e));
+  // Filtre Portfolio / Train / Équipe : seulement les objectifs qui ont une epic dans le filtre
+  const objectifs = h.objectifList.filter((o) => inDomain(dom, o.domaine, h) && cherche(o.titre) && (!fo.actif || epics.some((e) => e.objectif === o.id)));
 
   const columns = useMemo(
     () => ETATS_EPIC.map((s) => ({ ...s, epics: epics.filter((e) => etatEpic(e, today) === s.value) })),
@@ -99,6 +103,11 @@ export function Portfolio({ onOpenEpic, onOpenObjectif, onMoveEpic, onShowAlerts
                       {d ? `${d.icone} ${d.nom} · ` : ''}
                       {formatEpicDates(e).split(' · ')[0]}
                     </Text>
+                    {!!e.portfolio && org.portfolio.has(e.portfolio) && (
+                      <Text style={styles.cardMeta} numberOfLines={1}>
+                        💼 {org.portfolio.get(e.portfolio)!.nom}
+                      </Text>
+                    )}
                     {p.total > 0 && (
                       <View style={styles.progressRow}>
                         <View style={styles.track}>

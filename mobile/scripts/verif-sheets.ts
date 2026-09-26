@@ -154,6 +154,50 @@ const ok = (cond: unknown, msg: string) => {
   await corbeille(id2, false);
   ok((await fichiersEspaces()).espaces.some((f) => f.id === id2) && !(await fichiersCorbeille()).length, 'espace restauré depuis la corbeille');
 
+  // Organisation d'une entreprise : onglets créés au premier usage, seulement dans le fichier de l'entreprise
+  const idE = await creerFichierEspace('President | Entreprise | ACME', 'entreprise', 'ACME');
+  const e = magasinSheets(idE);
+  ok(!fichiers.get(idE)!.feuilles.has('Personnes'), "Organisation : pas d'onglet tant qu'elle ne sert pas");
+  const vide = await e.listOrg();
+  ok(!vide.personnes.length && ['Personnes', 'Unites', 'Portfolios', 'Trains', 'EquipesAgiles'].every((n) => fichiers.get(idE)!.feuilles.get(n)?.[0]?.[0] === 'id'), 'Organisation : 5 onglets créés au premier usage, avec leurs colonnes');
+  ok(!fichiers.get(id)!.feuilles.has('Personnes'), "Organisation : rien dans le fichier de Moi");
+  const dt = await e.saveOrg('unite', { nom: 'Direction technique', type: 'direction', parent: '', responsable: '' });
+  const dev = await e.saveOrg('unite', { nom: 'Développement', type: 'service', parent: dt.id, responsable: '' });
+  let boucle = '';
+  await e.saveOrg('unite', { id: dt.id, parent: dev.id }).catch((x) => (boucle = x.message));
+  ok(boucle.includes('elle-même'), 'unité : pas de boucle dans la hiérarchie');
+  const karim = await e.saveOrg('personne', { nom: 'Karim Haddad', email: 'Karim@Example.com', unite: dt.id, manager: '', capacite: '' });
+  ok(karim.email === 'karim@example.com', 'personne : e-mail en minuscules');
+  const tom = await e.saveOrg('personne', { nom: 'Tom Faure', email: 'tom@example.com', unite: dev.id, manager: karim.id, capacite: '8' });
+  let doublon = '';
+  await e.saveOrg('personne', { nom: 'Autre', email: 'TOM@example.com', unite: '', manager: '', capacite: '' }).catch((x) => (doublon = x.message));
+  ok(doublon.includes('e-mail'), 'personne : e-mail unique');
+  let mauvais = '';
+  await e.saveOrg('personne', { nom: 'X', email: 'pas-un-email', unite: '', manager: '', capacite: '' }).catch((x) => (mauvais = x.message));
+  ok(mauvais.includes('invalide'), 'personne : e-mail vérifié');
+  const pf = await e.saveOrg('portfolio', { nom: 'Digital', epic_owner: karim.id });
+  const tr = await e.saveOrg('train', { nom: 'Clients', portfolio: pf.id, rte: karim.id, pm: '' });
+  const eq = await e.saveOrg('equipeagile', { nom: 'Mobile', train: tr.id, po: karim.id, sm: tom.id, membres: `${tom.id};${tom.id};${karim.id}` });
+  ok(eq.membres === `${tom.id};${karim.id}`, 'équipe : membres sans doublon');
+  let nomPris = '';
+  await e.saveOrg('equipeagile', { nom: 'mobile', train: '', po: '', sm: '', membres: '' }).catch((x) => (nomPris = x.message));
+  ok(nomPris.includes('existe déjà'), 'équipe : nom unique');
+  const epic = await e.createEntity('epic', { titre: 'Nouveau CRM', description: '', debut: '2026-10-01', fin: '', couleur: '#1A73E8', objectif: '', domaine: '', etat: '', portfolio: pf.id });
+  const feat = await e.createEntity('feature', { titre: 'Paiement', description: '', epic: epic.id, pi: '', iteration: '', points: '', couleur: '', train: tr.id, equipe: eq.id });
+  const story = await e.create({ ...base, titre: 'Écran de paiement', type: 'story', domaine: '', feature: feat.id, equipe: eq.id, responsable: tom.id });
+  ok(story.equipe === eq.id && story.responsable === tom.id, 'story : équipe et responsable enregistrés');
+  ok((await e.listAll()).epics[0].portfolio === pf.id && (await e.listAll()).features[0].train === tr.id, 'epic → portfolio, feature → train et équipe enregistrés');
+  await e.deleteOrg('personne', tom.id);
+  const apresTom = await e.listOrg();
+  ok(apresTom.personnes.length === 1 && apresTom.equipes[0].sm === '' && apresTom.equipes[0].membres === karim.id, 'personne supprimée : rôles et membres vidés');
+  ok((await e.list())[0].responsable === '', 'personne supprimée : tâche sans responsable, gardée');
+  await e.deleteOrg('equipeagile', eq.id);
+  ok((await e.list())[0].equipe === '' && (await e.listAll()).features[0].equipe === '', 'équipe supprimée : features et tâches gardées, sans équipe');
+  await e.deleteOrg('portfolio', pf.id);
+  ok((await e.listOrg()).trains[0].portfolio === '' && (await e.listAll()).epics[0].portfolio === '', 'portfolio supprimé : trains et epics gardés, sans portfolio');
+  await e.deleteOrg('unite', dt.id);
+  ok((await e.listOrg()).unites[0].parent === '' && (await e.listOrg()).personnes[0].unite === '', 'unité supprimée : sous-unité remontée, personnes sans service');
+
   // Erreur de règle
   let refus = '';
   await m.create({ ...base, titre: '', type: 'tache', domaine: '' }).catch((e) => (refus = e.message));

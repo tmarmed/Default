@@ -45,6 +45,9 @@ import { DayView, MonthView, WeekView } from './src/components/PeriodViews';
 import { PeriodHeader } from './src/components/PeriodHeader';
 import { Segmented } from './src/components/Segmented';
 import { TexteAjuste } from './src/components/TexteAjuste';
+import { OrganisationView, type VueOrg } from './src/components/OrganisationView';
+import { OrgForm } from './src/components/OrgForm';
+import { dansOrgFiltre, type EntiteOrg, ICONE_ORG, type KindOrg, libelleOrgFiltre, makeOrgValue, NOM_ORG, type Org, ORG_VIDE, OrgContext, type OrgFiltre, OrgFiltreContext } from './src/organisation';
 import { type ActionStockage, StockagePanneau } from './src/components/Stockage';
 import { FormSheet } from './src/components/FormSheet';
 import { aPurger, copieCsv, moisAnnee, octetsLignes, type Plan, planifier, pourcent, type Quota, quotaSimule, SEUIL_ALERTE, SEUIL_CIBLE, type TestStockage } from './src/stockage';
@@ -114,6 +117,8 @@ type Filter = TypeFiltre;
 type Mode = 'liste' | 'jour' | 'semaine' | 'mois';
 
 const FILTRES_PLIES_KEY = 'president:filtres-plies';
+/** Organisation des entreprises : dernière copie (hors connexion) */
+const ORG_CACHE_KEY = 'president:org-cache';
 const ESPACES_PLIE_KEY = 'president:espaces-plie';
 /** Alerte de stockage cachée jusqu'à demain (« Revoir demain ») : date du jour */
 const PLUS_TARD_KEY = 'president:stockage-plus-tard';
@@ -159,7 +164,7 @@ const TAB_ICONS: Record<Tab, string> = {
 };
 const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches' };
 /** Écrans prévus, encore vides (règles de gestion à définir) */
-const A_VENIR: Tab[] = ['strategie', 'backlog', 'equipe', 'organisation', 'pilotage'];
+const A_VENIR: Tab[] = ['strategie', 'backlog', 'equipe', 'pilotage'];
 /** Nom de l'application : début du nom des fichiers des espaces */
 /** Nom de l'application (début du nom des Google Sheets : « President | Moi ») ; anciens noms : fichiers renommés */
 const NOM_APP = 'President';
@@ -262,6 +267,28 @@ function Main() {
     () => makeHierarchyValue(epics, objectifs, domaines, items, features, objectifsPI),
     [epics, objectifs, domaines, items, features, objectifsPI],
   );
+  /** Organisation des entreprises connues (vue Entreprise et vue Delivery SAFe), et celle des entreprises affichées */
+  const [orgTous, setOrgTous] = useState<Org>(ORG_VIDE);
+  const orgTousRef = useRef(orgTous);
+  orgTousRef.current = orgTous;
+  const orgDe = useCallback(
+    (garde: (x: { espace?: string }) => boolean) =>
+      makeOrgValue({
+        personnes: orgTous.personnes.filter(garde),
+        unites: orgTous.unites.filter(garde),
+        portfolios: orgTous.portfolios.filter(garde),
+        trains: orgTous.trains.filter(garde),
+        equipes: orgTous.equipes.filter(garde),
+      }),
+    [orgTous],
+  );
+  const orgValue = useMemo(() => orgDe(dansVisibles), [orgDe, dansVisibles]);
+  /** Filtre Portfolio / Train / Équipe (bloc Filtres, en SAFe) : aussi posé par les liens de l'Organisation */
+  const [orgFiltre, setOrgFiltre] = useState<OrgFiltre>(null);
+  const [vueOrg, setVueOrg] = useState<VueOrg>('delivery');
+  /** Fiche de l'Organisation ouverte (élément existant, ou nouveau avec ses valeurs proposées) */
+  const [orgFiche, setOrgFiche] = useState<{ kind: KindOrg; entite: EntiteOrg<KindOrg> | null; espace: string; defaults?: Record<string, string> } | null>(null);
+  const [orgMenu, setOrgMenu] = useState(false);
   /** Mode Simple (Tâches + Roadmap) ou SAFe (5 onglets), capacité, points en jours */
   const [safe, setSafe] = useState<SafeSettings>(SAFE_DEFAUT);
   /** Capacité courante, lue au chargement (nettoyage des alertes ignorées) */
@@ -537,6 +564,17 @@ function Main() {
         }
         setItems(list);
         saveCache(list).catch(() => {});
+        // Organisation des entreprises (dans leur Google Sheet) ; une entreprise injoignable garde sa dernière copie
+        const entreprises = liste.filter((e) => e.type === 'entreprise');
+        const resOrg = await Promise.allSettled(entreprises.map((e) => api.listOrg(s, e.id)));
+        const okOrg = resOrg.flatMap((r, k) => (r.status === 'fulfilled' ? [{ id: entreprises[k].id, o: r.value }] : []));
+        const chargesOrg = new Set(okOrg.map((x) => x.id));
+        const connus = new Set(liste.map((e) => e.id));
+        const gardeOrg = (x: { espace?: string }) => !chargesOrg.has(x.espace || 'moi') && connus.has(x.espace || 'moi');
+        const catOrg = <K extends keyof Org>(k: K) => [...(orgTousRef.current[k] as { espace?: string }[]).filter(gardeOrg), ...okOrg.flatMap((x) => x.o[k] as { espace?: string }[])] as Org[K];
+        const org: Org = { personnes: catOrg('personnes'), unites: catOrg('unites'), portfolios: catOrg('portfolios'), trains: catOrg('trains'), equipes: catOrg('equipes') };
+        setOrgTous(org);
+        AsyncStorage.setItem(ORG_CACHE_KEY, JSON.stringify(org)).catch(() => {});
         // Alertes ignorées : dans l'espace Moi
         let ignorees = moi.value.ignorees ?? [];
         // Nettoyage : une alerte ignorée dont la situation n'existe plus est effacée du Google Sheet
@@ -604,12 +642,26 @@ function Main() {
         const h = { ...EMPTY_HIER, ...cachedHier } as Hier;
         for (const l of [h.epics, h.objectifs, h.domaines, h.features, h.objectifsPI]) api.retenirEspaces(l);
         setHier(h);
+        try {
+          const o = { ...ORG_VIDE, ...JSON.parse((await AsyncStorage.getItem(ORG_CACHE_KEY)) ?? '{}') } as Org;
+          for (const l of Object.values(o)) api.retenirEspaces(l);
+          setOrgTous(o);
+        } catch {
+          // Pas de copie : l'Organisation arrive avec le chargement
+        }
       }
       setSettings(s);
       setBooting(false);
       if (s) refresh(s);
     })();
   }, [refresh]);
+
+  // Portfolio / train / équipe filtré qui n'est plus affiché (supprimé, ou son entreprise masquée) : filtre enlevé
+  useEffect(() => {
+    if (!orgFiltre) return;
+    const existe = orgFiltre.kind === 'portfolio' ? orgValue.portfolio.has(orgFiltre.id) : orgFiltre.kind === 'train' ? orgValue.train.has(orgFiltre.id) : orgValue.equipe.has(orgFiltre.id);
+    if (!existe && !booting) setOrgFiltre(null);
+  }, [orgFiltre, orgValue, booting]);
 
   // Domaine filtré supprimé entre-temps : retour à « Tous »
   useEffect(() => {
@@ -623,8 +675,9 @@ function Main() {
       matchesType(i, filter) &&
       inDomain(domFilter, domaineOf(i, hv)?.id, hv) &&
       (!safe.actif || !itFilter || iterationOfItem(i) === iterationOf(new Date()).key) &&
-      (!recherche?.trim() || i.titre.toLowerCase().includes(recherche.trim().toLowerCase())),
-    [filter, domFilter, hv, safe.actif, itFilter, recherche],
+      (!recherche?.trim() || i.titre.toLowerCase().includes(recherche.trim().toLowerCase())) &&
+      (!safe.actif || dansOrgFiltre(i, orgFiltre, hv, orgValue)),
+    [filter, domFilter, hv, safe.actif, itFilter, recherche, orgFiltre, orgValue],
   );
   const subs = useMemo(() => subtaskMap(items), [items]);
   const visible = useMemo(
@@ -667,7 +720,8 @@ function Main() {
     (surTaches && filter !== 'tous' ? 1 : 0) +
     (domFilter !== 'tous' ? 1 : 0) +
     (surTaches && safe.actif && itFilter ? 1 : 0) +
-    (recherche?.trim() ? 1 : 0);
+    (recherche?.trim() ? 1 : 0) +
+    (safe.actif && orgFiltre ? 1 : 0);
   const reinitialiserFiltres = () => {
     if (surTaches) {
       setFilter('tous');
@@ -675,12 +729,14 @@ function Main() {
     }
     setDomFilter('tous');
     setRecherche(null);
+    setOrgFiltre(null);
   };
   const resumeFiltres = [
     !surTaches ? '' : filter === 'tous' ? 'Tous les types' : filter === 'recurrents' ? '🔁 Répétés' : `${TYPE_ICONS[filter]} ${TYPE_LABELS[filter]}`,
     domFilter === 'tous' ? 'Tous les domaines' : domFilter === '' ? 'Sans domaine' : (hv.domaines.get(domFilter)?.nom ?? ''),
     surTaches && safe.actif && itFilter ? '🏃 Itération en cours' : '',
     recherche?.trim() ? `« ${recherche.trim()} »` : '',
+    safe.actif && orgFiltre ? libelleOrgFiltre(orgFiltre, orgValue) : '',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -1375,6 +1431,25 @@ function Main() {
     if (settings) verifierStockage(settings, true).catch((e) => setNotice(`Stockage non vérifié : ${(e as Error).message}`));
   };
 
+  /** Espaces de travail Entreprise affichés (Organisation) */
+  const entreprisesAffichees = espaces.filter((e) => e.type === 'entreprise' && visibles.includes(e.id));
+  /** Relit l'Organisation d'une entreprise après une modification */
+  const rechargerOrg = async (s: Settings, espace: string) => {
+    const o = await api.listOrg(s, espace);
+    const autre = (x: { espace?: string }) => (x.espace || 'moi') !== espace;
+    setOrgTous((prev) => {
+      const n: Org = {
+        personnes: [...prev.personnes.filter(autre), ...o.personnes],
+        unites: [...prev.unites.filter(autre), ...o.unites],
+        portfolios: [...prev.portfolios.filter(autre), ...o.portfolios],
+        trains: [...prev.trains.filter(autre), ...o.trains],
+        equipes: [...prev.equipes.filter(autre), ...o.equipes],
+      };
+      AsyncStorage.setItem(ORG_CACHE_KEY, JSON.stringify(n)).catch(() => {});
+      return n;
+    });
+  };
+
   if (booting) {
     return <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />;
   }
@@ -1540,6 +1615,8 @@ function Main() {
     <IgnoreContext.Provider value={ignoreValue}>
     <EspacesContext.Provider value={espacesValue}>
     <RechercheContext.Provider value={recherche ?? ''}>
+    <OrgContext.Provider value={orgValue}>
+    <OrgFiltreContext.Provider value={safe.actif ? orgFiltre : null}>
     <View style={styles.flex}>
       {/* Barre fixe : nom de l'application et compte (en démo : même icône, menu « Réinitialiser la démo ») */}
       <View style={styles.appBar}>
@@ -1707,6 +1784,32 @@ function Main() {
                     <SousDomaineChips style={styles.sousDomaines} />
                   </>
                 )}
+                {/* Portfolio / Train / Équipe (delivery SAFe d'une entreprise) : liaison entre l'organisation et le travail */}
+                {safe.actif && orgValue.delivery && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
+                    {(
+                      [
+                        { kind: null, id: '', label: 'Tout le delivery' },
+                        ...orgValue.portfolios.map((x) => ({ kind: 'portfolio' as const, id: x.id, label: `💼 ${x.nom}` })),
+                        ...orgValue.trains.map((x) => ({ kind: 'train' as const, id: x.id, label: `🚆 ${x.nom}` })),
+                        ...orgValue.equipes.map((x) => ({ kind: 'equipeagile' as const, id: x.id, label: `👥 ${x.nom}` })),
+                      ]
+                    ).map((c) => {
+                      const on = c.kind ? orgFiltre?.kind === c.kind && orgFiltre.id === c.id : !orgFiltre;
+                      return (
+                        <Pressable
+                          key={`${c.kind}-${c.id}`}
+                          onPress={() => setOrgFiltre(c.kind ? (on ? null : { kind: c.kind, id: c.id }) : null)}
+                          style={[styles.itChip, on && styles.itChipOn]}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: on }}
+                        >
+                          <Text style={[styles.itChipText, on && styles.itChipTextOn]}>{c.label}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                )}
               </View>
           </View>
         )}
@@ -1780,6 +1883,24 @@ function Main() {
           onAlign={alignChild}
           refreshControl={refreshControl}
           onOpenWizard={() => openWizard(null)}
+        />
+      )}
+
+      {tab === 'organisation' && (
+        <OrganisationView
+          org={orgValue}
+          entreprises={espaces.filter((e) => e.type === 'entreprise' && visibles.includes(e.id))}
+          safe={safe.actif}
+          vue={vueOrg}
+          onChangeVue={setVueOrg}
+          onOuvrir={(kind, e) => setOrgFiche({ kind, entite: e, espace: e.espace || 'moi' })}
+          onAjouter={(kind, espace, defaults) => setOrgFiche({ kind, entite: null, espace, defaults })}
+          onVoirBacklog={(kind, id) => {
+            // Lien vers le travail, filtré : portfolio → Portefeuille, train → PI, équipe → Itération
+            setOrgFiltre({ kind, id });
+            setTab(kind === 'portfolio' ? 'portefeuille' : kind === 'train' ? 'pi' : 'iteration');
+          }}
+          refreshControl={refreshControl}
         />
       )}
 
@@ -1918,19 +2039,20 @@ function Main() {
                 </View>
               )}
             </View>
-            <Text style={[styles.tabLabel, tab === key && styles.tabOn]} numberOfLines={1}>
-              {TAB_LABELS[key]}
-            </Text>
+            {/* Nom de l'onglet jamais coupé « … » : il rapetisse si la place manque (ex. « Organisation ») */}
+            <TexteAjuste variantes={[TAB_LABELS[key]]} taille={12} min={9} dispo={tabWidth - 6} style={[styles.tabLabel, tab === key && styles.tabOn]} />
           </Pressable>
         ))}
         </ScrollView>
         </View>
       </View>
 
-      {!A_VENIR.includes(tab) && <Pressable
+      {!A_VENIR.includes(tab) && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 8 + 12 }]}
         onPress={() =>
-          tab === 'pi'
+          tab === 'organisation'
+            ? setOrgMenu(true)
+            : tab === 'pi'
             ? setPiAdd(true)
             : tab === 'roadmap' || tab === 'portefeuille'
               ? setAddMenu(true)
@@ -2274,6 +2396,39 @@ function Main() {
           </View>
         )}
       </FormSheet>
+      <ChoiceSheet
+        visible={orgMenu}
+        title={`Ajouter à l'Organisation${entreprisesAffichees.length > 1 ? ` · 🏢 ${entreprisesAffichees[0]?.nom ?? ''}` : ''}`}
+        choices={(safe.actif ? (['personne', 'unite', 'portfolio', 'train', 'equipeagile'] as KindOrg[]) : (['personne', 'unite'] as KindOrg[])).map((k) => ({
+          label: `${ICONE_ORG[k]} ${k === 'equipeagile' ? 'Équipe agile' : NOM_ORG[k]}`,
+          principal: k === (vueOrg === 'delivery' && safe.actif ? 'equipeagile' : 'personne'),
+          onPress: () => entreprisesAffichees[0] && setOrgFiche({ kind: k, entite: null, espace: entreprisesAffichees[0].id }),
+        }))}
+        onClose={() => setOrgMenu(false)}
+      />
+      {orgFiche && (
+        <OrgForm
+          visible
+          kind={orgFiche.kind}
+          entite={orgFiche.entite}
+          defaults={orgFiche.defaults}
+          org={orgDe((x) => (x.espace || 'moi') === orgFiche.espace)}
+          nomEntreprise={espaces.find((e) => e.id === orgFiche.espace)?.nom ?? ''}
+          onClose={() => setOrgFiche(null)}
+          onSave={async (data) => {
+            await api.saveOrg(settings, orgFiche.espace, orgFiche.kind, { ...data, id: orgFiche.entite?.id } as never);
+            await rechargerOrg(settings, orgFiche.espace);
+            setOrgFiche(null);
+          }}
+          onDelete={async () => {
+            if (!orgFiche.entite) return;
+            await api.deleteOrg(settings, orgFiche.espace, orgFiche.kind, orgFiche.entite.id);
+            if (orgFiltre?.id === orgFiche.entite.id) setOrgFiltre(null);
+            setOrgFiche(null);
+            await refresh(settings);
+          }}
+        />
+      )}
       <GererEspacesSheet
         visible={gestionOpen}
         espaces={espaces}
@@ -2323,6 +2478,8 @@ function Main() {
         }}
       />
     </View>
+    </OrgFiltreContext.Provider>
+    </OrgContext.Provider>
     </RechercheContext.Provider>
     </EspacesContext.Provider>
     </IgnoreContext.Provider>

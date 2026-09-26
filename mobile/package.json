@@ -27,7 +27,8 @@
     "web": "expo start --web",
     "verif:alertes": "npx tsx scripts/verif-alertes.ts",
     "verif:sheets": "npx tsx scripts/verif-sheets.ts",
-    "verif:stockage": "npx tsx scripts/verif-stockage.ts"
+    "verif:stockage": "npx tsx scripts/verif-stockage.ts",
+    "verif:organisation": "npx tsx scripts/verif-organisation.ts"
   },
   "private": true
 }

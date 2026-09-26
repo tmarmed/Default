@@ -29,6 +29,19 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   - **−** : **Retirer** (l'espace quitte l'application, son Google Sheet est gardé) ou **Supprimer** (le Google Sheet
     part à la corbeille de Google Drive, récupérable 30 jours ; un espace partagé disparaît aussi pour les autres),
     chaque espace sauf Moi. Raccourci : appui long sur un espace.
+- **Organisation d'une entreprise** (onglet 🏛️ Organisation des espaces de travail 🏢 Entreprise) : vue **Entreprise**
+  (hiérarchie : directions, services, responsables, personnes avec service, manager et capacité) et, en mode SAFe,
+  vue **Delivery SAFe** (portfolios › trains › équipes agiles, avec Epic Owner, RTE, Product Manager, Product Owner,
+  Scrum Master et membres). Tout est enregistré dans le Google Sheet de l'entreprise (onglets Personnes, Unites,
+  Portfolios, Trains, EquipesAgiles, créés au premier usage). Ajouter une personne ne donne aucun accès.
+  **Liaison avec le travail** : chaque élément du delivery montre son backlog avec un lien vers l'écran filtré
+  (portfolio → epics › Portefeuille, train → features › PI, équipe → stories et tâches › Itération) ; une epic a son
+  portfolio, une feature son train et son équipe, une story ou tâche son équipe et son responsable (fiche : section
+  « Delivery » avec fil d'Ariane) ; les listes affichent 👥 équipe · 👤 responsable ; le bloc Filtres ajoute
+  Portfolio / Train / Équipe. Supprimer un élément de l'Organisation vide seulement ce qui le désignait.
+  À venir (étapes 2 et 3) : Google Sheet par équipe créé et partagé automatiquement d'après les rôles, onglet par
+  personne, « Autoriser » à la connexion, attribution et registre des attributions. Vérifié par
+  `npm run verif:organisation` et `npm run verif:sheets`.
 - **Alerte de stockage Google Drive** : à chaque ouverture, President mesure le stockage du compte Google. Dès
   **85 %**, une carte rouge sous la carte des espaces montre la jauge et l'espace à libérer pour repasser sous 80 %,
   puis les solutions, la meilleure marquée **Recommandé** : 🗑️ **Vider la corbeille de President** (espaces supprimés,

@@ -3,6 +3,7 @@ import { cleanLinks, type Data, type DeletionCounts, planDeletion } from './hier
 import { aPurger } from './stockage';
 import { cascadeLinks, checkParent } from './subtasks';
 import type { Domaine, Epic, Feature, Ignoree, Item, ItemInput, Objectif, ObjectifPI } from './types';
+import { CLE_ORG, type EntiteOrg, type KindOrg, membresDe, type Org } from './organisation';
 
 /**
  * Règles d'enregistrement d'un espace (celles de l'ancien script Google Apps Script), communes à la démo
@@ -11,7 +12,10 @@ import type { Domaine, Epic, Feature, Ignoree, Item, ItemInput, Objectif, Object
  */
 
 export type Kind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'ignoree';
-export type Table = 'items' | Kind;
+/** Tables de base (tous les espaces) */
+export type TableBase = 'items' | Kind;
+/** Tables de l'Organisation (seulement dans le Google Sheet d'une entreprise, onglets créés au premier usage) */
+export type Table = TableBase | KindOrg;
 export type EntityOf<K extends Kind> = K extends 'epic'
   ? Epic
   : K extends 'objectif'
@@ -23,26 +27,38 @@ export type EntityOf<K extends Kind> = K extends 'epic'
         : K extends 'objectifpi'
           ? ObjectifPI
           : Ignoree;
-type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : never;
+type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : never;
 
 /** Onglets du Google Sheet d'un espace et leurs colonnes (mêmes noms que l'ancien script : fichiers compatibles) */
-export const ONGLETS: Record<Table, { nom: string; colonnes: string[] }> = {
+export const ONGLETS: Record<TableBase, { nom: string; colonnes: string[] }> = {
   items: {
     nom: 'Taches',
     colonnes: [
       'id', 'titre', 'type', 'date', 'heure', 'lieu', 'description', 'priorite', 'statut', 'cree_le', 'modifie_le',
       'periodicite', 'echeance', 'debut', 'fin', 'faits', 'epic', 'objectif', 'domaine', 'points', 'iteration', 'feature',
-      'telephone', 'parent', 'heure_fin', 'date_fin', 'termine_le', 'statut_avant',
+      'telephone', 'parent', 'heure_fin', 'date_fin', 'termine_le', 'statut_avant', 'equipe', 'responsable',
     ],
   },
-  epic: { nom: 'Epics', colonnes: ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le', 'objectif', 'domaine', 'etat'] },
-  feature: { nom: 'Features', colonnes: ['id', 'titre', 'description', 'epic', 'pi', 'iteration', 'points', 'couleur', 'cree_le', 'modifie_le'] },
+  epic: { nom: 'Epics', colonnes: ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le', 'objectif', 'domaine', 'etat', 'portfolio'] },
+  feature: { nom: 'Features', colonnes: ['id', 'titre', 'description', 'epic', 'pi', 'iteration', 'points', 'couleur', 'cree_le', 'modifie_le', 'train', 'equipe'] },
   objectifpi: { nom: 'ObjectifsPI', colonnes: ['id', 'titre', 'pi', 'type', 'valeur_prevue', 'valeur_obtenue', 'cree_le', 'modifie_le', 'domaine', 'epic'] },
   objectif: { nom: 'Objectifs', colonnes: ['id', 'titre', 'description', 'domaine', 'debut', 'fin', 'couleur', 'cible', 'actuel', 'unite', 'cree_le', 'modifie_le'] },
   domaine: { nom: 'Domaines', colonnes: ['id', 'nom', 'icone', 'couleur', 'cree_le', 'modifie_le', 'parent'] },
   ignoree: { nom: 'Ignorees', colonnes: ['id', 'cle', 'signature', 'cree_le', 'modifie_le'] },
 };
-export const TABLES = Object.keys(ONGLETS) as Table[];
+export const TABLES = Object.keys(ONGLETS) as TableBase[];
+
+/** Onglets de l'Organisation d'une entreprise (vue Entreprise et vue Delivery SAFe) */
+export const ONGLETS_ORG: Record<KindOrg, { nom: string; colonnes: string[] }> = {
+  personne: { nom: 'Personnes', colonnes: ['id', 'nom', 'email', 'unite', 'manager', 'capacite', 'cree_le', 'modifie_le'] },
+  unite: { nom: 'Unites', colonnes: ['id', 'nom', 'type', 'parent', 'responsable', 'cree_le', 'modifie_le'] },
+  portfolio: { nom: 'Portfolios', colonnes: ['id', 'nom', 'epic_owner', 'cree_le', 'modifie_le'] },
+  train: { nom: 'Trains', colonnes: ['id', 'nom', 'portfolio', 'rte', 'pm', 'cree_le', 'modifie_le'] },
+  equipeagile: { nom: 'EquipesAgiles', colonnes: ['id', 'nom', 'train', 'po', 'sm', 'membres', 'cree_le', 'modifie_le'] },
+};
+export const TABLES_ORG = Object.keys(ONGLETS_ORG) as KindOrg[];
+/** Toutes les tables et leurs onglets */
+export const ONGLETS_TOUS: Record<Table, { nom: string; colonnes: string[] }> = { ...ONGLETS, ...ONGLETS_ORG };
 
 /** Lecture et écriture d'une table : sur l'appareil (démo) ou dans un Google Sheet */
 export interface Persistance {
@@ -74,7 +90,7 @@ const txt = (v: unknown) => (v === null || v === undefined ? '' : String(v).slic
 
 /** Liens : format, et seul le plus précis est gardé (feature > epic > objectif > domaine) */
 function verifierLiens(o: Record<string, string>) {
-  for (const k of ['feature', 'epic', 'objectif', 'domaine', 'parent']) {
+  for (const k of ['feature', 'epic', 'objectif', 'domaine', 'parent', 'equipe', 'responsable', 'portfolio', 'train']) {
     if (o[k] !== undefined && !RE_ID.test(o[k])) throw new Error(`Lien « ${k} » invalide.`);
   }
 }
@@ -166,6 +182,42 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
   return cleanLinks(out) as unknown as EntityOf<K>;
 }
 
+const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Élément de l'Organisation enregistré : champs connus et vérifiés (noms, e-mail, liens, pas de boucle) */
+export function nettoyerOrg<K extends KindOrg>(kind: K, data: Partial<EntiteOrg<K>>, base: EntiteOrg<K> | undefined, org: Org): EntiteOrg<K> {
+  const out = {} as Record<string, string>;
+  for (const k of ONGLETS_ORG[kind].colonnes) out[k] = txt((data as Record<string, unknown>)[k] ?? (base as Record<string, unknown> | undefined)?.[k]);
+  out.nom = out.nom.trim();
+  if (!out.nom) throw new Error('Le nom est obligatoire.');
+  const id = base?.id ?? '';
+  for (const k of ['unite', 'manager', 'parent', 'responsable', 'epic_owner', 'portfolio', 'rte', 'pm', 'train', 'po', 'sm']) {
+    if (out[k] !== undefined && !RE_ID.test(out[k])) throw new Error(`Lien « ${k} » invalide.`);
+  }
+  if (kind === 'personne') {
+    out.email = out.email.trim().toLowerCase();
+    if (out.email && !RE_EMAIL.test(out.email)) throw new Error('Adresse e-mail invalide.');
+    if (out.email && org.personnes.some((p) => p.id !== id && p.email.toLowerCase() === out.email)) throw new Error('Une personne a déjà cette adresse e-mail.');
+    if (out.manager === id && id) throw new Error('Une personne ne peut pas être son propre manager.');
+    out.capacite = out.capacite.replace(',', '.');
+    if (out.capacite && !RE_NOMBRE.test(out.capacite)) throw new Error('Capacité : nombre de jours attendu.');
+  } else if (kind === 'unite') {
+    if (out.type !== 'direction') out.type = 'service';
+    // Pas de boucle : une unité ne peut pas être placée sous elle-même ou sous une de ses sous-unités
+    for (let p = out.parent, n = 0; p; n++) {
+      if (p === id || n > 50) throw new Error('Une unité ne peut pas être placée sous elle-même.');
+      p = org.unites.find((u) => u.id === p)?.parent ?? '';
+    }
+  } else if (kind === 'equipeagile') {
+    out.membres = [...new Set(out.membres.split(';').map((m) => m.trim()).filter(Boolean))].join(';');
+    if (!/^[0-9A-Za-z;-]*$/.test(out.membres)) throw new Error('Liste des membres invalide.');
+  }
+  const liste = org[CLE_ORG[kind]] as { id: string; nom: string }[];
+  if (liste.some((x) => x.id !== id && x.nom.trim().toLowerCase() === out.nom.toLowerCase()))
+    throw new Error(`Ce nom existe déjà (${out.nom}).`);
+  return out as unknown as EntiteOrg<K>;
+}
+
 /** Opérations d'un espace, sur une persistance donnée */
 export function creerMagasin(p: Persistance) {
   return {
@@ -234,6 +286,69 @@ export function creerMagasin(p: Persistance) {
       const o = { ...nettoyerEntite(kind, patch, current, domaines), id: current.id, cree_le: current.cree_le, modifie_le: new Date().toISOString() } as EntityOf<K>;
       await p.ecrire(kind, list.map((e) => (e.id === o.id ? o : e)) as never);
       return o;
+    },
+    /** Organisation de l'entreprise (onglets créés au premier usage) */
+    async listOrg(): Promise<Org> {
+      const [personnes, unites, portfolios, trains, equipes] = await Promise.all([p.lire('personne'), p.lire('unite'), p.lire('portfolio'), p.lire('train'), p.lire('equipeagile')]);
+      return { personnes, unites, portfolios, trains, equipes };
+    },
+    /** Crée (sans id) ou modifie (avec id) un élément de l'Organisation */
+    async saveOrg<K extends KindOrg>(kind: K, data: Partial<EntiteOrg<K>> & { id?: string }): Promise<EntiteOrg<K>> {
+      const org = await this.listOrg();
+      const liste = org[CLE_ORG[kind]] as unknown as EntiteOrg<K>[];
+      const now = new Date().toISOString();
+      const base = data.id ? liste.find((x) => x.id === data.id) : undefined;
+      if (data.id && !base) throw new Error('Élément introuvable (peut-être supprimé).');
+      const o = {
+        ...nettoyerOrg(kind, data, base, org),
+        id: base?.id ?? nouvelId(),
+        cree_le: base?.cree_le ?? now,
+        modifie_le: now,
+      } as EntiteOrg<K>;
+      await p.ecrire(kind, (base ? liste.map((x) => (x.id === o.id ? o : x)) : [...liste, o]) as never);
+      return o;
+    },
+    /**
+     * Supprime un élément de l'Organisation ; ce qui le désignait est vidé (rien d'autre n'est supprimé) :
+     * personne → rôles, manager, responsable, membres, tâches ; unité → sous-unités remontées, personnes sans
+     * service ; portfolio → trains et epics sans portfolio ; train → équipes et features sans train ; équipe →
+     * features et tâches sans équipe.
+     */
+    async deleteOrg(kind: KindOrg, id: string): Promise<void> {
+      const org = await this.listOrg();
+      const vide = <T extends object>(l: T[], champs: string[]) => l.map((x) => (champs.some((c) => (x as Record<string, string>)[c] === id) ? { ...x, ...Object.fromEntries(champs.filter((c) => (x as Record<string, string>)[c] === id).map((c) => [c, ''])) } : x));
+      const ecrireSiChange = async (t: Table, avant: unknown[], apres: unknown[]) => {
+        if (JSON.stringify(avant) !== JSON.stringify(apres)) await p.ecrire(t, apres as never);
+      };
+      const sans = <T extends { id: string }>(l: T[]) => l.filter((x) => x.id !== id);
+      if (kind === 'personne') {
+        await ecrireSiChange('personne', org.personnes, vide(sans(org.personnes), ['manager']));
+        await ecrireSiChange('unite', org.unites, vide(org.unites, ['responsable']));
+        await ecrireSiChange('portfolio', org.portfolios, vide(org.portfolios, ['epic_owner']));
+        await ecrireSiChange('train', org.trains, vide(org.trains, ['rte', 'pm']));
+        await ecrireSiChange('equipeagile', org.equipes, vide(org.equipes, ['po', 'sm']).map((e) => ({ ...e, membres: membresDe(e).filter((m) => m !== id).join(';') })));
+        const items = await p.lire('items');
+        await ecrireSiChange('items', items, vide(items, ['responsable']));
+      } else if (kind === 'unite') {
+        const u = org.unites.find((x) => x.id === id);
+        await ecrireSiChange('unite', org.unites, sans(org.unites).map((x) => (x.parent === id ? { ...x, parent: u?.parent ?? '' } : x)));
+        await ecrireSiChange('personne', org.personnes, vide(org.personnes, ['unite']));
+      } else if (kind === 'portfolio') {
+        await ecrireSiChange('portfolio', org.portfolios, sans(org.portfolios));
+        await ecrireSiChange('train', org.trains, vide(org.trains, ['portfolio']));
+        const epics = await p.lire('epic');
+        await ecrireSiChange('epic', epics, vide(epics, ['portfolio']));
+      } else if (kind === 'train') {
+        await ecrireSiChange('train', org.trains, sans(org.trains));
+        await ecrireSiChange('equipeagile', org.equipes, vide(org.equipes, ['train']));
+        const features = await p.lire('feature');
+        await ecrireSiChange('feature', features, vide(features, ['train']));
+      } else {
+        await ecrireSiChange('equipeagile', org.equipes, sans(org.equipes));
+        const [features, items] = await Promise.all([p.lire('feature'), p.lire('items')]);
+        await ecrireSiChange('feature', features, vide(features, ['equipe']));
+        await ecrireSiChange('items', items, vide(items, ['equipe']));
+      }
     },
     async deleteEntity(kind: Kind, id: string, cascade: boolean): Promise<DeletionCounts> {
       const [items, all] = await Promise.all([p.lire('items'), this.listAll()]);

@@ -47,7 +47,7 @@ jobs:
         run: |
           # Version affichée dans l'application (menu du compte, écran de connexion) : commit publié
           export EXPO_PUBLIC_VERSION="$(git rev-parse --short HEAD) · $(TZ=Europe/Paris date '+%d/%m %H:%M')"
-          npm ci && npx tsc --noEmit && npm run verif:alertes && npm run verif:sheets && npm run verif:stockage && npx expo export --platform web --clear
+          npm ci && npx tsc --noEmit && npm run verif:alertes && npm run verif:sheets && npm run verif:stockage && npm run verif:organisation && npx expo export --platform web --clear
           # Démo (données dans le navigateur, sans compte Google) : https://tmarmed.github.io/Default/demo/
           EXPO_PUBLIC_DEMO=1 EXPO_BASE_URL=/${{ github.event.repository.name }}/demo npx expo export --platform web --clear --output-dir dist-demo
         env:

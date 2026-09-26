@@ -1,6 +1,6 @@
 import { getAccessToken } from './auth';
 import { AuthError } from './authError';
-import { creerMagasin, type Magasin, ONGLETS, type Persistance, type Table, TABLES } from './magasin';
+import { creerMagasin, type Magasin, ONGLETS, ONGLETS_TOUS, type Persistance, type Table, TABLES } from './magasin';
 import type { TypeEspace } from './espaces';
 
 /**
@@ -176,37 +176,66 @@ function persistanceSheets(fichier: string): Persistance {
   const entetes = new Map<Table, string[]>();
   /** Nombre de lignes de données au dernier passage (pour effacer ce qui dépasse) */
   const lignes = new Map<Table, number>();
-  let ongletsVerifies: Promise<void> | null = null;
+  let ongletsVerifies: Promise<Set<string>> | null = null;
+  /** Onglets de l'Organisation déjà vérifiés (créés au premier usage, seulement dans le fichier d'une entreprise) */
+  const ongletsOrg = new Map<Table, Promise<void>>();
 
-  /** Onglets manquants (fichier ancien ou modifié à la main) : ajoutés avec leurs colonnes */
+  /** Ajoute des onglets avec leur ligne de colonnes */
+  const ajouterOnglets = async (tables: Table[]) => {
+    await appel(`${SHEETS}/${fichier}:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({ requests: tables.map((t) => ({ addSheet: { properties: { title: ONGLETS_TOUS[t].nom, gridProperties: { frozenRowCount: 1 } } } })) }),
+    });
+    await appel(`${SHEETS}/${fichier}/values:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({ valueInputOption: 'RAW', data: tables.map((t) => ({ range: plage(ONGLETS_TOUS[t].nom, 'A1'), values: [ONGLETS_TOUS[t].colonnes] })) }),
+    });
+  };
+
+  /** Onglets de base manquants (fichier ancien ou modifié à la main) : ajoutés avec leurs colonnes ; renvoie les onglets existants */
   const verifierOnglets = () =>
     (ongletsVerifies ??= (async () => {
       const s = await appel<{ sheets: { properties: { title: string } }[] }>(`${SHEETS}/${fichier}?fields=sheets.properties.title`);
       const existants = new Set(s.sheets.map((x) => x.properties.title));
       const manquants = TABLES.filter((t) => !existants.has(ONGLETS[t].nom));
-      if (!manquants.length) return;
-      await appel(`${SHEETS}/${fichier}:batchUpdate`, {
-        method: 'POST',
-        body: JSON.stringify({ requests: manquants.map((t) => ({ addSheet: { properties: { title: ONGLETS[t].nom, gridProperties: { frozenRowCount: 1 } } } })) }),
-      });
-      await appel(`${SHEETS}/${fichier}/values:batchUpdate`, {
-        method: 'POST',
-        body: JSON.stringify({ valueInputOption: 'RAW', data: manquants.map((t) => ({ range: plage(ONGLETS[t].nom, 'A1'), values: [ONGLETS[t].colonnes] })) }),
-      });
+      if (manquants.length) {
+        await ajouterOnglets(manquants);
+        for (const t of manquants) existants.add(ONGLETS[t].nom);
+      }
+      return existants;
     })().catch((e) => {
       ongletsVerifies = null;
       throw e;
     }));
 
+  /** Onglet d'une table (Organisation comprise) : créé s'il manque */
+  const assurerOnglet = async (t: Table) => {
+    const existants = await verifierOnglets();
+    if (existants.has(ONGLETS_TOUS[t].nom)) return;
+    let p = ongletsOrg.get(t);
+    if (!p) {
+      p = ajouterOnglets([t])
+        .then(() => {
+          existants.add(ONGLETS_TOUS[t].nom);
+        })
+        .catch((e) => {
+          ongletsOrg.delete(t);
+          throw e;
+        });
+      ongletsOrg.set(t, p);
+    }
+    await p;
+  };
+
   return {
     async lire(t) {
-      await verifierOnglets();
-      const nom = ONGLETS[t].nom;
+      await assurerOnglet(t);
+      const nom = ONGLETS_TOUS[t].nom;
       const r = await appel<{ values?: string[][] }>(`${SHEETS}/${fichier}/values/${encodeURIComponent(plage(nom, 'A1:ZZ'))}?majorDimension=ROWS`);
       const [entete = [], ...rows] = r.values ?? [];
       const cols = entete.map((h) => String(h).trim());
       // Colonnes de l'application absentes du fichier : ajoutées à la fin
-      const nouvelles = ONGLETS[t].colonnes.filter((c) => !cols.includes(c));
+      const nouvelles = ONGLETS_TOUS[t].colonnes.filter((c) => !cols.includes(c));
       if (nouvelles.length) {
         await appel(`${SHEETS}/${fichier}/values/${encodeURIComponent(plage(nom, `${colonne(cols.length + 1)}1`))}?valueInputOption=RAW`, {
           method: 'PUT',
@@ -221,8 +250,9 @@ function persistanceSheets(fichier: string): Persistance {
         .filter((o) => o.id) as never;
     },
     async ecrire(t, rows) {
-      const nom = ONGLETS[t].nom;
-      const cols = entetes.get(t) ?? ONGLETS[t].colonnes;
+      await assurerOnglet(t);
+      const nom = ONGLETS_TOUS[t].nom;
+      const cols = entetes.get(t) ?? ONGLETS_TOUS[t].colonnes;
       const values = (rows as unknown as Record<string, unknown>[]).map((r) => cols.map((c) => (r[c] === undefined || r[c] === null ? '' : String(r[c]))));
       if (values.length) {
         await appel(`${SHEETS}/${fichier}/values/${encodeURIComponent(plage(nom, 'A2'))}?valueInputOption=RAW`, {

@@ -1,4 +1,5 @@
 import { DEMO, demoApiFor } from './demo';
+import type { EntiteOrg, KindOrg, Org } from './organisation';
 import { adopterFichier, corbeille, creerFichierEspace, effacerFichier, fichiersCorbeille, fichiersEspaces, magasinSheets, poidsFichiers, quotaDrive, renommerFichier } from './gsheets';
 import type { Data, DeletionCounts } from './hierarchy';
 import {
@@ -55,11 +56,11 @@ function marquer<T extends { id: string }>(x: T, espace: string): T & { espace: 
   origine.set(x.id, espace);
   return { ...x, espace };
 }
-const LIENS_ITEM = ['parent', 'feature', 'epic', 'objectif', 'domaine'] as const;
+const LIENS_ITEM = ['parent', 'feature', 'epic', 'objectif', 'domaine', 'equipe', 'responsable'] as const;
 /** Espace d'un rattachement (le premier trouvé) */
 const espaceDesLiens = (data: Record<string, unknown>, champs: readonly string[]) =>
   champs.map((k) => (typeof data[k] === 'string' ? origine.get(data[k] as string) : undefined)).find(Boolean);
-const LIENS_ENTITE = ['epic', 'objectif', 'domaine'] as const;
+const LIENS_ENTITE = ['epic', 'objectif', 'domaine', 'portfolio', 'train', 'equipe'] as const;
 /** Pas de lien vers un élément d'un autre espace */
 function verifierLiens(espace: string, data: Record<string, unknown>, champs: readonly string[]) {
   for (const k of champs) {
@@ -79,7 +80,8 @@ export const API_VERSION_SUPPR_SOUS_DOMAINES = 16;
 
 const normalizeDomaine = (d: Domaine): Domaine => ({ ...d, parent: d.parent ?? '' });
 
-const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '', etat: e.etat ?? '' });
+const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '', etat: e.etat ?? '', portfolio: e.portfolio ?? '' });
+const normalizeFeature = (f: Feature): Feature => ({ ...f, train: f.train ?? '', equipe: f.equipe ?? '' });
 
 /** Charge un espace (par défaut : Moi) ; chaque élément est marqué de son espace. */
 export async function listItems(settings: Settings, espace = 'moi'): Promise<Data & { version: number }> {
@@ -91,7 +93,7 @@ export async function listItems(settings: Settings, espace = 'moi'): Promise<Dat
     epics: m(all.epics.map(normalizeEpic)),
     objectifs: m(all.objectifs),
     domaines: m(all.domaines.map(normalizeDomaine)),
-    features: m(all.features),
+    features: m(all.features.map(normalizeFeature)),
     objectifsPI: m(all.objectifsPI.map((o) => ({ ...o, domaine: o.domaine ?? '', epic: o.epic ?? '' }))),
     ignorees: m(all.ignorees ?? []),
     version: API_VERSION_SUPPR_SOUS_DOMAINES,
@@ -168,4 +170,23 @@ export async function deleteItem(settings: Settings, id: string, cascade = false
 /** Stockage : supprime d'un espace les tâches terminées avant `avant` ; renvoie les tâches supprimées */
 export async function purgerTerminees(settings: Settings, espace: string, avant: string): Promise<Item[]> {
   return route(settings, espace).m.purgerTerminees(avant);
+}
+
+// ---------------------------------------------------------------------------
+// Organisation d'une entreprise (vue Entreprise et vue Delivery SAFe) : dans le Google Sheet de l'entreprise
+// ---------------------------------------------------------------------------
+/** Organisation d'un espace de travail Entreprise ; chaque élément est marqué de son espace */
+export async function listOrg(settings: Settings, espace: string): Promise<Org> {
+  const o = await route(settings, espace).m.listOrg();
+  const m = <T extends { id: string }>(l: T[]) => l.map((x) => marquer(x, espace));
+  return { personnes: m(o.personnes), unites: m(o.unites), portfolios: m(o.portfolios), trains: m(o.trains), equipes: m(o.equipes) };
+}
+/** Crée (sans id) ou modifie (avec id) un élément de l'Organisation de l'entreprise `espace` */
+export async function saveOrg<K extends KindOrg>(settings: Settings, espace: string, kind: K, data: Partial<EntiteOrg<K>> & { id?: string }): Promise<EntiteOrg<K>> {
+  const { espace: _e, ...propre } = data as Record<string, unknown>;
+  return marquer(await route(settings, espace).m.saveOrg(kind, propre as never), espace) as unknown as EntiteOrg<K>;
+}
+/** Supprime un élément de l'Organisation (ce qui le désignait est vidé, rien d'autre n'est supprimé) */
+export async function deleteOrg(settings: Settings, espace: string, kind: KindOrg, id: string): Promise<void> {
+  await route(settings, espace).m.deleteOrg(kind, id);
 }

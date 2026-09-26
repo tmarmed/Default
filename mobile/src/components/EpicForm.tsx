@@ -27,6 +27,7 @@ import { ChildActions } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
+import { LiaisonOrg } from './LiaisonOrg';
 
 interface Props {
   visible: boolean;
@@ -96,6 +97,7 @@ export function EpicForm({
               couleur: epic.couleur,
               objectif: epic.objectif,
               domaine: epic.domaine,
+              portfolio: epic.portfolio ?? '',
               // État enregistré seulement s'il a été choisi à la main (vide = déduit des dates)
               etat: epic.etat,
             }
@@ -231,6 +233,7 @@ export function EpicForm({
                   onChange={(v) => set('etat', v)}
                 />
                 {!form.etat && <Text style={styles.hint}>Déduit des dates tant que vous n'en choisissez pas un.</Text>}
+                <LiaisonOrg espace={espace} niveau="epic" valeurs={{ portfolio: form.portfolio, epic: epic?.id }} onChange={(p) => setForm((x) => ({ ...x, ...p }))} />
               </>
             )}
             {/* Mode Simple : état choisi en lecture seule */}

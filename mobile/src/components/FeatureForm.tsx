@@ -12,6 +12,7 @@ import { Chips } from './Chips';
 import { ItemPicker } from './ItemPicker';
 import { DeleteSection } from './DeleteSection';
 import { ChildActions, Field, FormSheet, formStyles as f, Label, Progress } from './FormSheet';
+import { LiaisonOrg } from './LiaisonOrg';
 
 interface Props {
   visible: boolean;
@@ -161,6 +162,8 @@ export function FeatureForm({
         value={form.epic}
         onChange={(v) => set('epic', v)}
       />
+
+      <LiaisonOrg espace={espace} niveau="feature" valeurs={{ train: form.train, equipe: form.equipe, epic: form.epic }} onChange={(p) => setForm((x) => ({ ...x, ...p }))} />
 
       <Label>PI (trimestre)</Label>
       <Chips

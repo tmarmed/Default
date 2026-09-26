@@ -15,6 +15,7 @@ import { checksIteration, filtrerDomaine } from '../checks';
 import { inDomain, useDomainFilter, useRecherche } from './DomainFilter';
 import { PeriodHeader } from './PeriodHeader';
 import { Swipe } from './Swipe';
+import { nomPersonne, porteurs, useFiltreOrg, useOrg } from '../organisation';
 
 interface Props {
   itKey: string;
@@ -59,7 +60,9 @@ export function IterationView({
   const allTasks = useMemo(() => items.filter((t) => iterationOfItem(t) === itKey), [items, itKey]);
   // Filtre de domaine : on ne voit que ses tâches, mais la capacité reste commune à tous les domaines
   const cherche = useRecherche();
-  const tasks = useMemo(() => allTasks.filter((t) => inDomain(dom, domaineOf(t, h)?.id, h) && cherche(t.titre)), [allTasks, dom, h, cherche]);
+  const fo = useFiltreOrg();
+  const org = useOrg();
+  const tasks = useMemo(() => allTasks.filter((t) => inDomain(dom, domaineOf(t, h)?.id, h) && cherche(t.titre) && fo.item(t)), [allTasks, dom, h, cherche, fo]);
   const charge = (t: Item) => chargeOf(t, subs);
   const total = tasks.reduce((n, t) => n + charge(t), 0);
   // Cartes du Kanban : les éléments sans parent, et les parents dont une sous-tâche est dans l'itération
@@ -230,6 +233,17 @@ export function IterationView({
                           {f ? ` · 🧩 ${f.titre}` : e ? ` · ${e.titre}` : ''}
                           {t.date ? ` · ${t.date.slice(8)}/${t.date.slice(5, 7)}` : ''}
                         </Text>
+                        {(() => {
+                          // Delivery SAFe : équipe et responsable
+                          const p = org.delivery ? porteurs(t, h, org) : null;
+                          const eq = p?.equipe ? org.equipe.get(p.equipe)?.nom : '';
+                          const resp = nomPersonne(org, t.responsable);
+                          return eq || resp ? (
+                            <Text style={styles.muted} numberOfLines={1}>
+                              {[eq ? `👥 ${eq}` : '', resp ? `👤 ${resp}` : ''].filter(Boolean).join(' · ')}
+                            </Text>
+                          ) : null;
+                        })()}
                       </Pressable>
                       <View style={styles.moves}>
                         {prev && (

@@ -75,6 +75,9 @@ export interface Item {
   telephone: string;
   /** Sous-tâche : id de la tâche parente (un seul niveau) */
   parent: string;
+  /** Entreprise (delivery SAFe) : équipe agile qui porte l'élément, et personne responsable (ids de l'Organisation) */
+  equipe?: string;
+  responsable?: string;
 
   // --- Champs calculés par l'application (non enregistrés) ---
   /** Occurrence affichée d'un élément répété : clé de sa période */
@@ -136,6 +139,8 @@ export const RECURRENCE_DEFAUTS = {
   date_fin: '',
   termine_le: '',
   statut_avant: '',
+  equipe: '',
+  responsable: '',
 } as const;
 
 /** Une ligne de l'onglet « Epics » : grand projet affiché dans la roadmap. */
@@ -158,6 +163,8 @@ export interface Epic {
   domaine: string;
   /** SAFe : état dans le Kanban du portefeuille ; vide = déduit des dates */
   etat: EtatEpic | '';
+  /** Entreprise (delivery SAFe) : portfolio qui porte l'epic (id de l'Organisation) */
+  portfolio?: string;
 }
 
 export type EtatEpic = 'idee' | 'analyse' | 'pret' | 'en_cours' | 'termine';
@@ -186,6 +193,9 @@ export interface Feature {
   couleur: string;
   cree_le: string;
   modifie_le: string;
+  /** Entreprise (delivery SAFe) : train qui porte la feature, et équipe qui la réalise (ids de l'Organisation) */
+  train?: string;
+  equipe?: string;
 }
 
 export type FeatureInput = Omit<Feature, 'id' | 'cree_le' | 'modifie_le'>;
