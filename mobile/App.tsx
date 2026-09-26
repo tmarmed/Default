@@ -58,6 +58,7 @@ import { DEMO, demoApiFor, ESPACES_DEMO } from './src/demo';
 import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, lireNomFichier, loadRetires, loadSupprimes, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveSupprimes, saveVisibles } from './src/espaces';
 import { EspacesBar } from './src/components/EspacesBar';
 import { EspacesSheet } from './src/components/EspacesSheet';
+import { GererEspacesSheet } from './src/components/GererEspacesSheet';
 import { EcranAVenir } from './src/components/EcranAVenir';
 import { ChoiceSheet } from './src/components/ChoiceSheet';
 import { DomaineForm } from './src/components/DomaineForm';
@@ -203,8 +204,9 @@ function Main() {
   const [compteOpen, setCompteOpen] = useState(false);
   // Fiche d'un espace (appui long) : retirer / supprimer ; confirmation de la suppression
   const [espaceFiche, setEspaceFiche] = useState<Espace | null>(null);
+  const [gestionOpen, setGestionOpen] = useState(false);
   const [suppression, setSuppression] = useState<Espace | null>(null);
-  // « ＋ Espace » : espaces retirés et supprimés (corbeille ; null = en cours de lecture)
+  // « Gérer » : espaces retirés et supprimés (corbeille ; null = en cours de lecture)
   const [retires, setRetires] = useState<Espace[]>([]);
   const [corbeilleEsp, setCorbeilleEsp] = useState<Espace[] | null>([]);
   /** Données de tous les espaces (chaque élément porte son espace) ; seuls les espaces affichés sont montrés */
@@ -1231,19 +1233,23 @@ function Main() {
       ignorees: prev.ignorees,
     }));
   };
-  /** Retirer : l'espace quitte l'application, son Google Sheet est gardé (rétabli depuis « ＋ Espace ») */
+  /** Retirer : l'espace quitte l'application, son Google Sheet est gardé (rétabli dans « Gérer ») */
   const retirerEspace = async (e: Espace) => {
     await saveRetires([...(await loadRetires()).filter((r) => r.id !== e.id), e]);
+    setRetires((r) => [...r.filter((x) => x.id !== e.id), e]);
     enleverEspace(e);
   };
-  /** Supprimer : le Google Sheet part à la corbeille de Google Drive (restauré depuis « ＋ Espace » pendant 30 jours) */
+  /** Supprimer : le Google Sheet part à la corbeille de Google Drive (restauré dans « Gérer » pendant 30 jours) */
   const supprimerEspace = async (e: Espace) => {
     try {
       if (DEMO) await saveSupprimes([...(await loadSupprimes()), { ...e, supprime_le: new Date().toISOString() }]);
       else await api.corbeille(e.fichier!, true);
+      setCorbeilleEsp((c) => [...(c ?? []).filter((x) => x.id !== e.id), e]);
       enleverEspace(e);
     } catch (err) {
-      setNotice(`Espace non supprimé : ${(err as Error).message}`);
+      const m = `Espace non supprimé : ${(err as Error).message}`;
+      setNotice(m);
+      throw new Error(m);
     }
   };
   /** Un espace retiré ou restauré revient dans l'application, affiché */
@@ -1257,9 +1263,9 @@ function Main() {
     setVisibles([...visibles.filter((v) => v !== e.id), e.id]);
     if (settings) await refresh(settings);
   };
-  /** « ＋ Espace » : lit les espaces retirés et la corbeille */
-  const ouvrirEspaces = () => {
-    setEspacesOpen(true);
+  /** « Gérer » : lit les espaces retirés et la corbeille */
+  const ouvrirGestion = () => {
+    setGestionOpen(true);
     loadRetires().then(setRetires);
     if (DEMO) loadSupprimes().then(setCorbeilleEsp);
     else {
@@ -1300,7 +1306,8 @@ function Main() {
       {/* Espaces affichés et « ＋ Espace », au-dessus du titre et du mode */}
       <EspacesBar
         onChange={setVisibles}
-        onGerer={ouvrirEspaces}
+        onGerer={() => setEspacesOpen(true)}
+        onGestion={ouvrirGestion}
         onOuvrir={setEspaceFiche}
         compte={!DEMO && settings.googleEmail ? { email: settings.googleEmail, onPress: openAccount } : undefined}
       />
@@ -1709,7 +1716,7 @@ function Main() {
       <ChoiceSheet
         visible={!!espaceFiche}
         title={espaceFiche ? `${ICONE_ESPACE[espaceFiche.type]} ${libelleEspace(espaceFiche)}` : ''}
-        message={espaceFiche ? `Google Sheet « ${nomFichier(NOM_APP, espaceFiche)} ».\nRetirer : l'espace quitte l'application, son Google Sheet est gardé (« Rétablir » depuis « ＋ Espace »).\nSupprimer : le Google Sheet part à la corbeille (récupérable 30 jours depuis « ＋ Espace »).` : undefined}
+        message={espaceFiche ? `Google Sheet « ${nomFichier(NOM_APP, espaceFiche)} ».\nRetirer : l'espace quitte l'application, son Google Sheet est gardé (« Rétablir » dans « Gérer »).\nSupprimer : le Google Sheet part à la corbeille (récupérable 30 jours dans « Gérer »).` : undefined}
         choices={
           espaceFiche
             ? [
@@ -1725,10 +1732,10 @@ function Main() {
         title={suppression ? `Supprimer « ${libelleEspace(suppression)} » ?` : ''}
         message={
           suppression
-            ? `Son Google Sheet part à la corbeille de Google Drive : récupérable 30 jours (« ＋ Espace » › Restaurer), puis effacé définitivement.${suppression.type !== 'moi' ? ' Espace partagé : il disparaît aussi pour les personnes qui y ont accès.' : ''}`
+            ? `Son Google Sheet part à la corbeille de Google Drive : récupérable 30 jours (« Gérer » › Corbeille › Restaurer), puis effacé définitivement.${suppression.type !== 'moi' ? ' Espace partagé : il disparaît aussi pour les personnes qui y ont accès.' : ''}`
             : undefined
         }
-        choices={suppression ? [{ label: 'Supprimer', principal: true, onPress: () => supprimerEspace(suppression) }] : []}
+        choices={suppression ? [{ label: 'Supprimer', principal: true, onPress: () => supprimerEspace(suppression).catch(() => {}) }] : []}
         onClose={() => setSuppression(null)}
       />
       <ChoiceSheet
@@ -1868,6 +1875,28 @@ function Main() {
         choices={tabs.plus.map((t) => ({ label: `${TAB_ICONS[t]} ${TAB_LABELS[t]}`, principal: t === tab, onPress: () => setTab(t) }))}
         onClose={() => setPlusOpen(false)}
       />
+      <GererEspacesSheet
+        visible={gestionOpen}
+        espaces={espaces}
+        nomApp={NOM_APP}
+        demo={DEMO}
+        onClose={() => setGestionOpen(false)}
+        onRetirer={retirerEspace}
+        onSupprimer={supprimerEspace}
+        retires={retires}
+        onRetablir={async (e) => {
+          await saveRetires((await loadRetires()).filter((r) => r.id !== e.id));
+          setRetires((r) => r.filter((x) => x.id !== e.id));
+          await remettreEspace(e);
+        }}
+        corbeille={corbeilleEsp}
+        onRestaurer={async (e) => {
+          if (DEMO) await saveSupprimes((await loadSupprimes()).filter((x) => x.id !== e.id));
+          else await api.corbeille(e.fichier!, false);
+          setCorbeilleEsp((c) => (c ?? []).filter((x) => x.id !== e.id));
+          await remettreEspace(e);
+        }}
+      />
       <EspacesSheet
         visible={espacesOpen}
         espaces={espaces}
@@ -1893,19 +1922,6 @@ function Main() {
           }
           setVisibles([...visibles, e.id]);
           if (settings) await refresh(settings);
-        }}
-        retires={retires}
-        corbeille={corbeilleEsp}
-        onRetablir={async (e) => {
-          await saveRetires((await loadRetires()).filter((r) => r.id !== e.id));
-          setRetires((r) => r.filter((x) => x.id !== e.id));
-          await remettreEspace(e);
-        }}
-        onRestaurer={async (e) => {
-          if (DEMO) await saveSupprimes((await loadSupprimes()).filter((x) => x.id !== e.id));
-          else await api.corbeille(e.fichier!, false);
-          setCorbeilleEsp((c) => (c ?? []).filter((x) => x.id !== e.id));
-          await remettreEspace(e);
         }}
       />
     </View>

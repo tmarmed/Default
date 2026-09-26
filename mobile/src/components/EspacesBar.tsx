@@ -10,12 +10,15 @@ import { colors } from '../theme';
 export function EspacesBar({
   onChange,
   onGerer,
+  onGestion,
   onOuvrir,
   compte,
 }: {
   onChange: (visibles: string[]) => void;
   onGerer: () => void;
-  /** Appui long sur un espace (sauf Moi) : sa fiche (retirer, supprimer) */
+  /** « Gérer » : mes espaces, retirés, corbeille */
+  onGestion: () => void;
+  /** Appui long sur un espace (sauf Moi) : sa fiche (retirer, supprimer) — raccourci */
   onOuvrir: (e: Espace) => void;
   /** Compte Google connecté (rien dans la démo) */
   compte?: { email: string; onPress: () => void };
@@ -53,6 +56,10 @@ export function EspacesBar({
         <Text style={s.addText}>＋ Espace</Text>
       </Pressable>
     </ScrollView>
+      {/* Gérer les espaces : toujours visible, à droite */}
+      <Pressable onPress={onGestion} style={[s.gerer, !compte && s.gererSeul]} hitSlop={8} accessibilityRole="button" accessibilityLabel="Gérer les espaces">
+        <Text style={s.gererText}>⋯</Text>
+      </Pressable>
       {compte && (
         <Pressable onPress={compte.onPress} style={s.avatar} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Compte Google ${compte.email}`}>
           <Text style={s.avatarText}>{compte.email.charAt(0).toUpperCase()}</Text>
@@ -72,6 +79,20 @@ const s = StyleSheet.create({
   chipTextOn: { color: '#fff' },
   add: { paddingHorizontal: 10, paddingVertical: 6 },
   addText: { fontSize: 13, color: colors.primary, fontWeight: '700' },
+  gerer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+    marginTop: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  gererSeul: { marginRight: 16 },
+  gererText: { fontSize: 18, lineHeight: 20, color: colors.text, fontWeight: '700' },
   avatar: {
     width: 32,
     height: 32,

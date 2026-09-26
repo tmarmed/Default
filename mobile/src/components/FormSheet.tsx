@@ -23,7 +23,8 @@ interface Props {
   busy: boolean;
   error: string | null;
   onClose: () => void;
-  onSave: () => void;
+  /** Absent : fenêtre de consultation (« Fermer », pas d'« Enregistrer ») */
+  onSave?: () => void;
   children: ReactNode;
 }
 
@@ -34,12 +35,16 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
           <Pressable onPress={onClose} hitSlop={10} disabled={busy}>
-            <Text style={styles.headerBtn}>Annuler</Text>
+            <Text style={styles.headerBtn}>{onSave ? 'Annuler' : 'Fermer'}</Text>
           </Pressable>
           <Text style={styles.headerTitle}>{title}</Text>
-          <Pressable onPress={onSave} hitSlop={10} disabled={busy}>
-            {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>}
-          </Pressable>
+          {onSave ? (
+            <Pressable onPress={onSave} hitSlop={10} disabled={busy}>
+              {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>}
+            </Pressable>
+          ) : (
+            <View style={{ width: 60, alignItems: 'flex-end' }}>{busy && <ActivityIndicator color={colors.primary} />}</View>
+          )}
         </View>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
