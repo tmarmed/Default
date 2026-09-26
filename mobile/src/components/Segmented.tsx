@@ -5,23 +5,25 @@ interface Props<T extends string> {
   options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
+  /** Petit format (ligne du titre : Simple | SAFe) */
+  compact?: boolean;
 }
 
 /** Sélecteur à segments de même largeur (Liste / Jour / Semaine / Mois). */
-export function Segmented<T extends string>({ options, value, onChange }: Props<T>) {
+export function Segmented<T extends string>({ options, value, onChange, compact }: Props<T>) {
   return (
-    <View style={styles.bar}>
+    <View style={[styles.bar, compact && styles.barCompact]}>
       {options.map((o) => {
         const active = o.value === value;
         return (
           <Pressable
             key={o.value}
-            style={[styles.segment, active && styles.active]}
+            style={[styles.segment, compact && styles.segmentCompact, active && styles.active]}
             onPress={() => onChange(o.value)}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
           >
-            <Text style={[styles.label, active && styles.labelActive]}>{o.label}</Text>
+            <Text style={[styles.label, compact && styles.labelCompact, active && styles.labelActive]}>{o.label}</Text>
           </Pressable>
         );
       })}
@@ -40,6 +42,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 2,
   },
+  barCompact: { padding: 2, borderRadius: 9 },
+  segmentCompact: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', paddingVertical: 5, paddingHorizontal: 7, borderRadius: 7 },
   label: { fontSize: 14, color: colors.muted, fontWeight: '500' },
+  labelCompact: { fontSize: 12.5 },
   labelActive: { color: colors.text, fontWeight: '700' },
 });

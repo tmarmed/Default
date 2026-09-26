@@ -63,7 +63,7 @@ import { AuthError, restoreSession, signOut } from './src/auth';
 import { GOOGLE_AUTH, VERSION } from './src/config';
 import { DEMO, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
 import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, lireNomFichier, loadRetires, loadSupprimes, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveSupprimes, saveVisibles } from './src/espaces';
-import { EspacesBar } from './src/components/EspacesBar';
+import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
 import { GererEspacesSheet } from './src/components/GererEspacesSheet';
@@ -113,11 +113,14 @@ type Filter = TypeFiltre;
 type Mode = 'liste' | 'jour' | 'semaine' | 'mois';
 
 const FILTRES_PLIES_KEY = 'president:filtres-plies';
+const ESPACES_PLIE_KEY = 'president:espaces-plie';
 /** Alerte de stockage cachée jusqu'à demain (« Plus tard ») : date du jour */
 const PLUS_TARD_KEY = 'president:stockage-plus-tard';
 /** Démo : Drive simulé pour tester l'alerte de stockage */
 const TEST_STOCKAGE_KEY = 'president:stockage-test';
 const TEST_LIMITE_KEY = 'president:stockage-test-limite';
+/** Alerte de stockage repliée en une ligne */
+const STOCKAGE_PLIE_KEY = 'president:stockage-plie';
 /** Écrans avec le sous-bloc Filtres (juste sous leur titre) */
 const ECRANS_FILTRES: Tab[] = ['taches', 'iteration', 'pi', 'roadmap', 'portefeuille'];
 const MODES: { value: Mode; label: string }[] = [
@@ -364,6 +367,18 @@ function Main() {
       .then((v) => setFiltresPlies(v === '1'))
       .catch(() => {});
   }, []);
+  /** Carte des espaces de travail repliée dans la pastille de la barre (mémorisé sur l'appareil) */
+  const [espacesPlie, setEspacesPlie] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(ESPACES_PLIE_KEY)
+      .then((v) => setEspacesPlie(v === '1'))
+      .catch(() => {});
+  }, []);
+  const plierEspaces = () =>
+    setEspacesPlie((p) => {
+      AsyncStorage.setItem(ESPACES_PLIE_KEY, p ? '0' : '1').catch(() => {});
+      return !p;
+    });
   const plierFiltres = () =>
     setFiltresPlies((p) => {
       AsyncStorage.setItem(FILTRES_PLIES_KEY, p ? '0' : '1').catch(() => {});
@@ -1268,13 +1283,16 @@ function Main() {
   /** Vraie version, en test : ce que les solutions auraient effacé (rien n'est effacé pour de bon) */
   const testEfface = useRef<{ corbeille: boolean; taches: Set<string> }>({ corbeille: false, taches: new Set() });
   const [plusTard, setPlusTard] = useState<string | null>(null);
+  /** Alerte de stockage repliée en une ligne (mémorisé sur l'appareil) */
+  const [stockagePlie, setStockagePlie] = useState(false);
   /** Démo, test « Plein : President » : taille du Drive simulé, fixée au choix du test */
   const limiteTest = useRef<number | null>(null);
   const [stockagePret, setStockagePret] = useState(false);
   useEffect(() => {
-    AsyncStorage.multiGet([PLUS_TARD_KEY, TEST_STOCKAGE_KEY, TEST_LIMITE_KEY])
-      .then(([[, p], [, t], [, l]]) => {
+    AsyncStorage.multiGet([PLUS_TARD_KEY, TEST_STOCKAGE_KEY, TEST_LIMITE_KEY, STOCKAGE_PLIE_KEY])
+      .then(([[, p], [, t], [, l], [, pl]]) => {
         setPlusTard(p);
+        setStockagePlie(pl === '1');
         if (DEMO && t) setStockageTest(t as TestStockage);
         if (DEMO && l) limiteTest.current = Number(l) || null;
       })
@@ -1524,6 +1542,9 @@ function Main() {
         <Text style={styles.marque} numberOfLines={1}>
           {NOM_APP}
         </Text>
+        {/* Espaces de travail : pastille juste après « President » (repliés), la carte se déplie dessous */}
+        <EspacesPastille plie={espacesPlie} onPlier={plierEspaces} />
+        <View style={styles.flex} />
         <Pressable
           onPress={openAccount}
           hitSlop={8}
@@ -1533,13 +1554,20 @@ function Main() {
           <IconeCompte connecte={DEMO || !!settings.googleEmail} />
         </Pressable>
       </View>
-      {/* Carte des espaces : première ligne fixe, dépliée elle grandit vers le bas */}
-      <EspacesBar onChange={setVisibles} onAjouter={ouvrirAjout} onEnlever={() => setGestionOpen(true)} onOuvrir={setEspaceFiche} />
+      {/* Carte des espaces de travail : dépliée sous la barre (la pastille la replie) */}
+      <EspacesBar plie={espacesPlie} onChange={setVisibles} onAjouter={ouvrirAjout} onEnlever={() => setGestionOpen(true)} onOuvrir={setEspaceFiche} />
       {stockage?.plan.alerte && plusTard !== today && !stockageOpen && (
         <StockagePanneau
           quota={stockage.quota}
           plan={stockage.plan}
           onAction={actionStockage}
+          plie={stockagePlie}
+          onPlier={() =>
+            setStockagePlie((p) => {
+              AsyncStorage.setItem(STOCKAGE_PLIE_KEY, p ? '0' : '1').catch(() => {});
+              return !p;
+            })
+          }
           onPlusTard={() => {
             setPlusTard(today);
             AsyncStorage.setItem(PLUS_TARD_KEY, today).catch(() => {});
@@ -1569,6 +1597,25 @@ function Main() {
             {TAB_ICONS[tab]} {TAB_TITLES[tab]}
           </Text>
           {tab === 'taches' && <Text style={styles.titreNb}>· {nbTaches}</Text>}
+          {/* Filtres repliés : pastille juste après le titre (bleue et chiffrée quand des filtres sont actifs) */}
+          {ECRANS_FILTRES.includes(tab) && (
+            <Pressable
+              onPress={plierFiltres}
+              hitSlop={6}
+              style={[styles.pastilleFiltres, !!nbFiltres && styles.pastilleFiltresActive]}
+              accessibilityRole="button"
+              accessibilityHint={resumeFiltres}
+              accessibilityLabel={`${filtresPlies ? 'Déplier' : 'Replier'} les filtres${nbFiltres ? ` (${nbFiltres} actif${nbFiltres > 1 ? 's' : ''})` : ''}`}
+            >
+              <Entonnoir couleur={nbFiltres ? colors.primary : colors.text} />
+              <Text style={[styles.pastilleFiltresTexte, !!nbFiltres && { color: colors.primary }]}>Filtres {filtresPlies ? '▾' : '▴'}</Text>
+              {!!nbFiltres && (
+                <View style={styles.pastilleFiltresNb}>
+                  <Text style={styles.reinitPastilleTexte}>{nbFiltres}</Text>
+                </View>
+              )}
+            </Pressable>
+          )}
           {/* Mode Simple / SAFe : pour tous les espaces affichés */}
           <View style={styles.modeSwitch}>
             <Segmented
@@ -1578,15 +1625,15 @@ function Main() {
               ]}
               value={safe.actif ? 'safe' : 'simple'}
               onChange={(v) => updateSafe({ actif: v === 'safe' })}
+              compact
             />
           </View>
         </View>
-        {ECRANS_FILTRES.includes(tab) && (
+        {ECRANS_FILTRES.includes(tab) && !filtresPlies && (
           <View style={styles.filtresBloc}>
             <View style={styles.filtresTete}>
               {recherche === null ? (
                 <>
-                  <Text style={styles.filtresTitre}>FILTRES</Text>
                   <Pressable onPress={() => setRecherche('')} style={styles.rond} hitSlop={6} accessibilityRole="button" accessibilityLabel="Rechercher">
                     <Text style={styles.rondIcone}>🔍</Text>
                   </Pressable>
@@ -1623,18 +1670,8 @@ function Main() {
                   </View>
                 )}
               </Pressable>
-              <Pressable onPress={plierFiltres} style={[styles.rond, styles.rondFin]} hitSlop={6} accessibilityRole="button" accessibilityLabel={filtresPlies ? 'Déplier les filtres' : 'Replier les filtres'}>
-                <Text style={[styles.chevron, filtresPlies && styles.chevronPlie]}>▾</Text>
-              </Pressable>
             </View>
-            {filtresPlies ? (
-              <Pressable onPress={plierFiltres} accessibilityRole="button" accessibilityLabel="Déplier les filtres">
-                <Text style={styles.filtresResume} numberOfLines={1}>
-                  {resumeFiltres}
-                </Text>
-              </Pressable>
-            ) : (
-              <View style={styles.filtresCorps}>
+            <View style={styles.filtresCorps}>
                 {tab === 'taches' && <TypeFilter value={filter} onChange={setFilter} />}
                 {(domaines.length > 0 || (tab === 'taches' && safe.actif)) && (
                   <>
@@ -1655,7 +1692,6 @@ function Main() {
                   </>
                 )}
               </View>
-            )}
           </View>
         )}
         {tab === 'taches' && (
@@ -2298,18 +2334,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   title: { fontSize: 28, fontWeight: '700', color: colors.text, flexShrink: 1 },
-  modeSwitch: { width: 132, marginLeft: 'auto', alignSelf: 'center' },
+  modeSwitch: { marginLeft: 'auto', alignSelf: 'center', flexShrink: 0 },
+  pastilleFiltres: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 28, paddingHorizontal: 8, borderRadius: 15, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, flexShrink: 0 },
+  pastilleFiltresActive: { backgroundColor: '#EAF2FE', borderColor: '#CFE0FB' },
+  pastilleFiltresTexte: { fontSize: 12, fontWeight: '700', color: colors.text },
+  pastilleFiltresNb: { position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   appBarFin: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end' },
   bloc2: { flex: 1, minHeight: 0, marginHorizontal: 12, backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  titreEcran: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8 },
-  titreTexte: { fontSize: 21, fontWeight: '800', color: colors.text, flexShrink: 1 },
-  titreNb: { fontSize: 13, fontWeight: '700', color: colors.muted },
+  titreEcran: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8 },
+  titreTexte: { fontSize: 18, fontWeight: '800', color: colors.text, flexShrink: 1 },
+  titreNb: { fontSize: 12, fontWeight: '700', color: colors.muted, flexShrink: 0 },
   barrette: { paddingHorizontal: 10, paddingBottom: 8 },
   filtresBloc: { marginHorizontal: 10, marginBottom: 10, backgroundColor: colors.bg, borderRadius: 14, borderWidth: 1, borderColor: '#EEF1F5', padding: 9 },
   filtresTete: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 30 },
-  filtresTitre: { fontSize: 11, fontWeight: '800', color: colors.muted, letterSpacing: 0.7, marginLeft: 2, marginRight: 2 },
   rond: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  rondFin: { marginLeft: 'auto' },
   rondActif: { borderColor: '#B9D2F8' },
   rondIcone: { fontSize: 13 },
   reinitIcone: { fontSize: 15, color: '#A5AEBB', fontWeight: '700' },
@@ -2317,17 +2355,15 @@ const styles = StyleSheet.create({
   reinitPastille: { position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   reinitPastilleTexte: { color: '#fff', fontSize: 10, fontWeight: '800' },
   chevron: { fontSize: 12, color: colors.muted },
-  chevronPlie: { transform: [{ rotate: '-90deg' }] },
   champRecherche: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, borderRadius: 10, borderWidth: 1.5, borderColor: colors.primary, backgroundColor: colors.card, paddingLeft: 8, paddingRight: 4 },
   champRechercheTexte: { flex: 1, minWidth: 0, fontSize: 14, color: colors.text, paddingVertical: 0, outlineStyle: 'none' } as never,
   fermerRecherche: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#E6EAF0', alignItems: 'center', justifyContent: 'center' },
   fermerRechercheTexte: { fontSize: 10, color: colors.muted, fontWeight: '800' },
-  filtresResume: { marginTop: 6, marginHorizontal: 2, fontSize: 12.5, color: colors.muted },
   filtresCorps: { marginTop: 8, gap: 8 },
   contenu: { flex: 1, minHeight: 0, borderTopWidth: 1, borderTopColor: '#EEF1F5' },
   filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   appBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 14, paddingTop: 10, height: 50 },
-  marque: { flex: 1, fontSize: 15, fontWeight: '800', color: colors.text, letterSpacing: 0.2 },
+  marque: { fontSize: 15, fontWeight: '800', color: colors.text, letterSpacing: 0.2, marginRight: 8 },
   demoBtn: { paddingVertical: 4 },
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
   avatarText: { color: '#fff', fontSize: 15, fontWeight: '700' },
@@ -2429,3 +2465,13 @@ const styles = StyleSheet.create({
   },
   fabText: { color: '#fff', fontSize: 32, lineHeight: 34 },
 });
+
+/** Entonnoir des filtres (dessiné, sans image) */
+function Entonnoir({ couleur }: { couleur: string }) {
+  return (
+    <View style={{ alignItems: 'center', width: 12 }}>
+      <View style={{ width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 6, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: couleur }} />
+      <View style={{ width: 2.5, height: 5, backgroundColor: couleur, marginTop: -1 }} />
+    </View>
+  );
+}

@@ -35,6 +35,8 @@ export function StockagePanneau({
   onAction,
   onPlusTard,
   toujours = false,
+  plie = false,
+  onPlier,
 }: {
   quota: Quota;
   plan: Plan;
@@ -43,6 +45,9 @@ export function StockagePanneau({
   onPlusTard?: () => void;
   /** Fiche du compte : affichée même sous 85 % */
   toujours?: boolean;
+  /** Carte d'alerte : repliée en une ligne (le titre la replie / déplie) */
+  plie?: boolean;
+  onPlier?: () => void;
 }) {
   const [confirmer, setConfirmer] = useState<Option | null>(null);
   const [enCours, setEnCours] = useState<string | null>(null);
@@ -66,10 +71,21 @@ export function StockagePanneau({
   const couleur = plan.alerte ? ROUGE : plan.taux >= SEUIL_CIBLE ? colors.warning : colors.success;
 
   return (
-    <View style={[s.carte, !plan.alerte && s.carteOk]} accessibilityRole="summary">
-      <Text style={[s.titre, { color: plan.alerte ? ROUGE : colors.text }]}>
-        {plan.alerte ? '⚠ Stockage Google Drive presque plein' : '☁️ Stockage Google Drive'}
-      </Text>
+    <View style={[s.carte, !plan.alerte && s.carteOk, plie && s.cartePliee]} accessibilityRole="summary">
+      <Pressable
+        onPress={onPlier}
+        disabled={!onPlier}
+        style={s.tete}
+        accessibilityRole={onPlier ? 'button' : undefined}
+        accessibilityLabel={onPlier ? `${plie ? 'Déplier' : 'Replier'} l'alerte de stockage` : undefined}
+      >
+        <Text style={[s.titre, { color: plan.alerte ? ROUGE : colors.text }]} numberOfLines={1}>
+          {plie ? `⚠ Stockage Drive presque plein · ${pourcent(plan.taux)}` : plan.alerte ? '⚠ Stockage Google Drive presque plein' : '☁️ Stockage Google Drive'}
+        </Text>
+        {!!onPlier && <Text style={s.chevron}>{plie ? '▾' : '▴'}</Text>}
+      </Pressable>
+      {!plie && (
+        <>
       {!illimite && (
         <View style={[s.jauge, { backgroundColor: plan.alerte ? '#F1D4D0' : '#E6EAF0' }]}>
           <View style={[s.plein, { width: `${Math.min(100, Math.round(plan.taux * 100))}%`, backgroundColor: couleur }]} />
@@ -144,6 +160,8 @@ export function StockagePanneau({
           <Text style={s.plusTardText}>Plus tard</Text>
         </Pressable>
       )}
+        </>
+      )}
     </View>
   );
 }
@@ -151,7 +169,10 @@ export function StockagePanneau({
 const s = StyleSheet.create({
   carte: { marginHorizontal: 12, marginBottom: 8, backgroundColor: '#FFF4F2', borderWidth: 1, borderColor: '#F6C7C1', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 },
   carteOk: { backgroundColor: colors.card, borderColor: colors.border, marginHorizontal: 0 },
-  titre: { fontSize: 15, fontWeight: '800' },
+  cartePliee: { paddingVertical: 9 },
+  tete: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  titre: { flex: 1, fontSize: 15, fontWeight: '800' },
+  chevron: { fontSize: 12, color: ROUGE },
   jauge: { height: 10, borderRadius: 5, overflow: 'hidden', marginTop: 8, marginBottom: 4 },
   plein: { height: '100%' },
   petit: { fontSize: 12, color: colors.muted },

@@ -20,9 +20,8 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   `President | Moi`, `President | Équipe | Mobile`, `President | Entreprise | ACME` (séparateur `|`).
 - **En haut** : une barre fixe « President » avec, à droite, l'icône standard du compte (silhouette, point vert =
   connecté ; menu : Stockage Google Drive, Se déconnecter — en démo : Stockage Google Drive, Réinitialiser la démo).
-  Dessous, la **carte des espaces de travail** : sa première
-  ligne ne change jamais (« ESPACES DE TRAVAIL 🔒 Moi · 👥 Mobile ② ▾ », la toucher replie / déplie) ; dépliée, elle grandit vers
-  le bas : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule
+  Juste après « President », la **pastille des espaces de travail** (« 🔒 Moi · 👥 Mobile ② ▾ », noms longs
+  coupés « … ») : la toucher déplie la **carte des espaces de travail** sous la barre (▴ la replie ; mémorisé) : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule
   **＋ | −**, puis les espaces (un ou plusieurs affichés ; noms longs coupés « … », la ligne défile).
   - **＋** : créer un espace (type, nom, **domaines rapides** « + Domaine », Entrée), un seul bouton « Créer l'espace
     de travail » ; un message « Espace de travail créé » confirme, **OK** referme. Aussi : **Rétablir** un espace retiré, **Restaurer** un espace de la corbeille (30 jours).
@@ -35,15 +34,17 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   effacés pour de bon) si cela suffit ; sinon 📦 **Supprimer les tâches terminées avant <mois>** : la plus courte
   période ancienne qui suffit (jamais les 3 derniers mois, ni les tâches répétées, ni un parent dont une sous-tâche
   reste ; **copie CSV** proposée avant) ; sinon ☁️ **Voir le stockage Google** (l'espace est pris par d'autres
-  fichiers). « Plus tard » cache la carte jusqu'au lendemain. Menu du compte › **Stockage Google Drive** : l'état à
+  fichiers). Son titre la replie en une ligne (« ⚠ Stockage Drive presque plein · 87 % ▾ ») et la déplie ; « Plus
+  tard » la cache jusqu'au lendemain. Menu du compte › **Stockage Google Drive** : l'état à
   tout moment et « Vérifier maintenant », et un **Drive simulé** pour tester (Plein : autres fichiers, Plein :
   President ; démo : Normal 41 % ; vraie version : Réel = le vrai Drive, et en test **rien n'est effacé**, le test
   s'arrête en quittant l'application). Calcul vérifié par `npm run verif:stockage`.
-- **Bloc de l'écran** : titre (« ✓ Mes tâches · 27 », le nombre suit les filtres) avec, à sa droite, le mode
-  **Simple | SAFe** (pour tous les espaces affichés), puis, **juste sous le titre, le
-  sous-bloc Filtres** sur tous les écrans à données (Tâches, Itération, PI, Roadmap, Portefeuille ; Simple et SAFe) :
-  🔍 recherche par titre (le champ s'ouvre dans l'en-tête ; il se referme en changeant d'écran), ↺ réinitialiser
-  (pastille rouge : nombre de filtres actifs), ▾ replier en une ligne de résumé ; puis les domaines (et, sur Tâches, les
+- **Bloc de l'écran** : titre (« ✓ Mes tâches · 27 », le nombre suit les filtres), juste après la **pastille
+  Filtres** (entonnoir ; bleue avec le nombre de filtres actifs), et à droite le mode **Simple | SAFe** (pour tous
+  les espaces affichés). La pastille Filtres (tous les écrans à données : Tâches, Itération, PI, Roadmap,
+  Portefeuille) déplie **sous le titre le sous-bloc Filtres** (▴ le replie ; mémorisé) : 🔍 recherche par titre (le
+  champ s'ouvre dans l'en-tête ; il se referme en changeant d'écran), ↺ réinitialiser (pastille rouge : nombre de
+  filtres actifs) ; puis les domaines (et, sur Tâches, les
   types et 🏃 itération en cours en SAFe). Sur Tâches, la **barrette d'affichage** Liste · Jour · Semaine · Mois vient
   ensuite (ce n'est pas un filtre). Seul le contenu du bloc défile.
 - **Cloisonnement** : chaque élément reste dans l'espace où il est créé, y compris les rendez-vous, appels et

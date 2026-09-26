@@ -1,23 +1,49 @@
-import { useEffect, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { type Espace, ICONE_ESPACE, libelleEspace, type TypeEspace, useEspaces } from '../espaces';
 import { colors } from '../theme';
 
-const PLIE_KEY = 'president:espaces-plie';
+/**
+ * Espaces de travail repliés : une pastille dans la barre, juste après « President » :
+ * « 🔒 Moi · 👥 Mobile ② ▾ » (la toucher déplie la carte dessous ; ▴ la replie). Noms longs coupés « … ».
+ */
+export function EspacesPastille({ plie, onPlier }: { plie: boolean; onPlier: () => void }) {
+  const { liste, visibles } = useEspaces();
+  const affiches = liste.filter((e) => visibles.includes(e.id));
+  return (
+    <Pressable
+      onPress={onPlier}
+      style={s.pastille}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={plie ? 'Déplier les espaces de travail' : 'Replier les espaces de travail'}
+    >
+      <Text style={s.noms} numberOfLines={1}>
+        {affiches.map((e) => `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}`).join(' · ')}
+      </Text>
+      <View style={s.nb}>
+        <Text style={s.nbText}>{affiches.length}</Text>
+      </View>
+      <Text style={s.chevron}>{plie ? '▾' : '▴'}</Text>
+    </Pressable>
+  );
+}
 
 /**
- * Carte des espaces, sous la barre « President ». Sa première ligne ne change jamais : « ESPACES 🔒 Moi · 👥 Mobile ② ▾ »
- * (la toucher replie / déplie). Dépliée, la carte grandit vers le bas : petit filtre Tous · 👥 · 🏢 (seulement s'il y a
- * à la fois des équipes et des entreprises), pilule ＋ | − (ajouter ou récupérer / retirer ou supprimer), puis les
- * espaces : un ou plusieurs affichés (au moins un). Appui long sur un espace : raccourci Retirer / Supprimer.
+ * Carte des espaces de travail, dépliée sous la barre (la pastille de la barre la replie) : petit filtre
+ * Tous · 👥 · 🏢 (seulement s'il y a à la fois des équipes et des entreprises), pilule ＋ | − (ajouter ou
+ * récupérer / retirer ou supprimer), puis les espaces : un ou plusieurs affichés (au moins un). Appui long sur un
+ * espace : raccourci Retirer / Supprimer.
  */
 export function EspacesBar({
+  plie,
   onChange,
   onAjouter,
   onEnlever,
   onOuvrir,
 }: {
+  /** Replié : la carte disparaît, il reste la pastille de la barre */
+  plie: boolean;
   onChange: (visibles: string[]) => void;
   /** ＋ : créer un espace (avec ses domaines), rétablir un espace retiré, restaurer un espace de la corbeille */
   onAjouter: () => void;
@@ -27,19 +53,7 @@ export function EspacesBar({
   onOuvrir: (e: Espace) => void;
 }) {
   const { liste, visibles } = useEspaces();
-  const [plie, setPlie] = useState(false);
   const [type, setType] = useState<'tous' | TypeEspace>('tous');
-  useEffect(() => {
-    AsyncStorage.getItem(PLIE_KEY)
-      .then((v) => setPlie(v === '1'))
-      .catch(() => {});
-  }, []);
-  const plier = () => {
-    setPlie((p) => {
-      AsyncStorage.setItem(PLIE_KEY, p ? '0' : '1').catch(() => {});
-      return !p;
-    });
-  };
   // Le filtre par type n'a de sens que s'il y a à la fois des équipes et des entreprises
   const avecFiltre = liste.some((e) => e.type === 'equipe') && liste.some((e) => e.type === 'entreprise');
   const filtre = avecFiltre ? type : 'tous';
@@ -49,21 +63,9 @@ export function EspacesBar({
     if (on && visibles.length === 1) return; // au moins un espace affiché
     onChange(on ? visibles.filter((v) => v !== id) : liste.map((e) => e.id).filter((v) => v === id || visibles.includes(v)));
   };
-  const affiches = liste.filter((e) => visibles.includes(e.id));
+  if (plie) return null;
   return (
     <View style={s.carte}>
-      {/* Première ligne : toujours la même, repliée comme dépliée (la toucher replie / déplie) */}
-      <Pressable onPress={plier} style={s.tete} accessibilityRole="button" accessibilityLabel={plie ? 'Déplier les espaces de travail' : 'Replier les espaces de travail'}>
-        <Text style={s.titre}>ESPACES DE TRAVAIL</Text>
-        <Text style={s.noms} numberOfLines={1}>
-          {affiches.map((e) => `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}`).join(' · ')}
-        </Text>
-        <View style={s.nb}>
-          <Text style={s.nbText}>{affiches.length}</Text>
-        </View>
-        <Text style={s.chevron}>{plie ? '▾' : '▴'}</Text>
-      </Pressable>
-      {!plie && (
         <View style={s.corps}>
           <View style={s.outils}>
             {avecFiltre ? (
@@ -122,20 +124,18 @@ export function EspacesBar({
             })}
           </ScrollView>
         </View>
-      )}
     </View>
   );
 }
 
 const s = StyleSheet.create({
   carte: { marginHorizontal: 12, marginTop: 6, marginBottom: 8, borderRadius: 19, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, flexShrink: 0 },
-  tete: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 38, paddingLeft: 12, paddingRight: 10 },
-  titre: { fontSize: 11, fontWeight: '800', color: colors.muted, letterSpacing: 0.7 },
-  noms: { flex: 1, minWidth: 0, fontSize: 13, fontWeight: '600', color: colors.text },
+  pastille: { flexShrink: 1, minWidth: 0, maxWidth: 200, flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingLeft: 11, paddingRight: 8, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  noms: { flexShrink: 1, minWidth: 0, fontSize: 12.5, fontWeight: '600', color: colors.text },
   nb: { minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' },
   nbText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   chevron: { width: 14, textAlign: 'center', fontSize: 11, color: colors.muted },
-  corps: { borderTopWidth: 1, borderTopColor: '#EEF1F5', paddingTop: 8, paddingBottom: 10 },
+  corps: { paddingTop: 8, paddingBottom: 10 },
   outils: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, marginBottom: 8 },
   types: { flexDirection: 'row', backgroundColor: '#E6EAF0', borderRadius: 13, padding: 2 },
   type: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 11 },
