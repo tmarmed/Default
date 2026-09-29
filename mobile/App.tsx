@@ -1727,11 +1727,13 @@ function Main() {
   };
   const injectionDe = (kind: KindTravail) => pileTravail.find((x) => x.kind === kind)?.injection;
   /** « ＋ Nouveau … » d'un rattachement : la fiche s'ouvre par-dessus, l'élément créé sera choisi dans `champ` */
-  const nouveauTravail = (niveau: 'feature' | 'epic' | 'objectif' | 'domaine', espace: string) => {
+  const nouveauTravail = (niveau: 'feature' | 'epic' | 'objectif' | 'domaine', espace: string, defauts?: Record<string, string | undefined>) => {
     if (pileTravail.some((x) => x.kind === niveau)) return setNotice('Cette fiche est déjà ouverte plus bas dans la pile.');
-    if (niveau === 'feature') openFeature(null, { espace } as Partial<FeatureInput>, undefined, 'feature');
-    else if (niveau === 'epic') openEpic(null, { espace } as Partial<EpicInput>, 'epic');
-    else if (niveau === 'objectif') openObjectif(null, { espace } as Partial<ObjectifInput>, 'objectif');
+    // « Vers une nouvelle feature » : elle prend la place de l'actuelle, sous le même parent (même epic…)
+    const d = { espace, ...Object.fromEntries(Object.entries(defauts ?? {}).filter(([, v]) => !!v)) };
+    if (niveau === 'feature') openFeature(null, d as Partial<FeatureInput>, undefined, 'feature');
+    else if (niveau === 'epic') openEpic(null, d as Partial<EpicInput>, 'epic');
+    else if (niveau === 'objectif') openObjectif(null, d as Partial<ObjectifInput>, 'objectif');
     else openDomaine(null, espace, 'domaine');
   };
   /** « ＋ Nouvelle équipe / personne… » d'une fiche de travail : fiche de l'Organisation par-dessus */
@@ -2243,7 +2245,7 @@ function Main() {
         onAddTask={(e) => openNewTask({ epic: e.id })}
         pile={pileDe('epic')}
         injection={injectionDe('epic')}
-        onNouveau={(n) => nouveauTravail(n, editingEpic?.espace || epicDefaults?.espace || visibles[0] || 'moi')}
+        onNouveau={(n, d) => nouveauTravail(n, editingEpic?.espace || epicDefaults?.espace || visibles[0] || 'moi', d)}
         onOpenFeature={(f) => openFeature(f)}
         onNouveauOrg={(espace) => nouveauOrgPour('epic', 'portfolio', 'portfolio', espace)}
         onOpenWizard={(e) => openWizard({ level: 'epic', id: e.id })}
@@ -2316,7 +2318,7 @@ function Main() {
         defaults={featDefaults}
         pile={pileDe('feature')}
         injection={injectionDe('feature')}
-        onNouvelleEpic={() => nouveauTravail('epic', editingFeature?.espace || featDefaults?.espace || visibles[0] || 'moi')}
+        onNouvelleEpic={(d) => nouveauTravail('epic', editingFeature?.espace || featDefaults?.espace || visibles[0] || 'moi', d)}
         onAddTask={(x) => openNewTask({ feature: x.id, ...(x.iteration ? { iteration: x.iteration } : {}) })}
         onNouveauOrg={(k, champ, espace) => nouveauOrgPour('feature', k, champ, espace)}
         onQuickAddTask={quickAddTask}

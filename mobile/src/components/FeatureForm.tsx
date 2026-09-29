@@ -12,6 +12,7 @@ import { Chips } from './Chips';
 import { ItemPicker } from './ItemPicker';
 import { DeleteSection } from './DeleteSection';
 import { ChildActions, Field, FormSheet, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
+import { Rattachement } from './Rattachement';
 import { LiaisonOrg } from './LiaisonOrg';
 
 interface Props {
@@ -25,7 +26,7 @@ interface Props {
   pile?: PileProps;
   injection?: Injection;
   /** « ＋ Nouvelle epic » depuis le choix de l'epic */
-  onNouvelleEpic?: () => void;
+  onNouvelleEpic?: (defauts?: Record<string, string | undefined>) => void;
   /** « ＋ Tâche » : fiche complète d'une nouvelle tâche de la feature, par-dessus */
   onAddTask?: (f: Feature) => void;
   /** « ＋ Nouveau train / Nouvelle équipe » (section Delivery) */
@@ -197,16 +198,29 @@ export function FeatureForm({
         />
       )}
       <Label>Epic</Label>
-      <Chips
-        options={[{ value: '', label: 'Aucune' }, ...epicsProposees.map((e) => ({ value: e.id, label: e.titre, color: e.couleur }))]}
-        value={form.epic}
-        onChange={(v) => set('epic', v)}
-      />
-      {onNouvelleEpic && (
-        <Pressable onPress={onNouvelleEpic} hitSlop={6} style={{ alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4 }} accessibilityRole="button">
-          <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#1A73E8' }}>＋ Nouvelle epic</Text>
-        </Pressable>
-      )}
+      {/* Feature déjà dans une epic : on en change par « Déplacer » (la nouvelle epic prend la place de l'actuelle) */}
+      <Rattachement
+        verrouille={!!feature?.epic}
+        resume={epic ? `🗂️ ${epic.titre}` : ''}
+        deplace={!!feature?.epic && form.epic !== feature.epic}
+        onAnnuler={() => set('epic', feature?.epic ?? '')}
+      >
+        <Chips
+          options={[{ value: '', label: 'Aucune' }, ...epicsProposees.map((e) => ({ value: e.id, label: e.titre, color: e.couleur }))]}
+          value={form.epic}
+          onChange={(v) => set('epic', v)}
+        />
+        {onNouvelleEpic && (
+          <Pressable
+            onPress={() => onNouvelleEpic(feature?.epic && epic ? (epic.objectif ? { objectif: epic.objectif } : { domaine: epic.domaine }) : undefined)}
+            hitSlop={6}
+            style={{ alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4 }}
+            accessibilityRole="button"
+          >
+            <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#1A73E8' }}>＋ {feature?.epic ? 'Vers une nouvelle epic' : 'Nouvelle epic'}</Text>
+          </Pressable>
+        )}
+      </Rattachement>
 
       <LiaisonOrg
         espace={espace}

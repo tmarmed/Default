@@ -144,7 +144,13 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
         }}
       />
 
-      <LinkPicker levels={['domaine']} value={form} onChange={(p) => set('domaine', p.domaine ?? '')} onNouveau={onNouveauDomaine ? () => onNouveauDomaine() : undefined} />
+      <LinkPicker
+        levels={['domaine']}
+        value={form}
+        onChange={(p) => set('domaine', p.domaine ?? '')}
+        onNouveau={onNouveauDomaine ? () => onNouveauDomaine() : undefined}
+        initial={objectif ? { domaine: objectif.domaine } : undefined}
+      />
 
       <Label>Début</Label>
       <DateField mode="date" value={form.debut} onChange={(v) => set('debut', v)} placeholder="Date de début" />

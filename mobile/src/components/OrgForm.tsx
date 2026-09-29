@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, membresDe, NOM_ORG, nomPersonne, type OrgValue, type Personne } from '../organisation';
 import { colors } from '../theme';
+import { Rattachement } from './Rattachement';
 import { Chips } from './Chips';
 import { DeleteSection } from './DeleteSection';
 import { Field, FormSheet, formStyles as f, Label } from './FormSheet';
@@ -154,21 +155,38 @@ export function OrgForm({
     onOuvrir(k, null, { [champParent]: parentId, ...extra });
   };
 
-  const Choix = ({ label, k, options, nouveau }: { label: string; k: string; options: { value: string; label: string }[]; nouveau?: { kind: KindOrg; label: string; defaults?: Donnees } }) => (
-    <>
-      <Label>{label}</Label>
-      {options.length <= 1 ? (
-        <Text style={f.muted}>Rien à choisir pour l'instant.</Text>
-      ) : (
-        <Chips options={options} value={options.some((o) => o.value === form[k]) ? form[k] : ''} onChange={set(k)} compact wrap />
-      )}
-      {nouveau && onOuvrir && (
-        <Pressable onPress={() => onOuvrir(nouveau.kind, null, nouveau.defaults, k)} hitSlop={6} style={s.nouveau} accessibilityRole="button">
-          <Text style={s.nouveauTexte}>＋ {nouveau.label}</Text>
-        </Pressable>
-      )}
-    </>
-  );
+  /**
+   * Choix d'un champ. `parent` : champ de rattachement (service, unité au-dessus, portfolio, train) ; s'il était
+   * rempli à l'ouverture, on en change par « Déplacer » et « ＋ Vers un nouveau … » (même grand-parent).
+   */
+  const Choix = ({ label, k, options, nouveau, parent }: { label: string; k: string; options: { value: string; label: string }[]; nouveau?: { kind: KindOrg; label: string; defaults?: Donnees }; parent?: { vers: string; defaults?: Donnees } }) => {
+    const depart = parent ? String((entite as unknown as Donnees | null)?.[k] ?? '') : '';
+    const verrouille = !!depart;
+    return (
+      <>
+        <Label>{label}</Label>
+        <Rattachement
+          verrouille={verrouille}
+          resume={options.find((o) => o.value && o.value === form[k])?.label ?? ''}
+          deplace={verrouille && (form[k] ?? '') !== depart}
+          onAnnuler={() => set(k)(depart)}
+        >
+          {options.length <= 1 ? (
+            <Text style={f.muted}>Rien à choisir pour l'instant.</Text>
+          ) : (
+            <Chips options={options} value={options.some((o) => o.value === form[k]) ? form[k] : ''} onChange={set(k)} compact wrap />
+          )}
+          {nouveau && onOuvrir && (
+            <Pressable onPress={() => onOuvrir(nouveau.kind, null, verrouille ? parent?.defaults : nouveau.defaults, k)} hitSlop={6} style={s.nouveau} accessibilityRole="button">
+              <Text style={s.nouveauTexte}>＋ {verrouille ? parent!.vers : nouveau.label}</Text>
+            </Pressable>
+          )}
+        </Rattachement>
+      </>
+    );
+  };
+  /** Valeurs par défaut sans les champs vides */
+  const sansVide = (d: Record<string, string | undefined>): Donnees => Object.fromEntries(Object.entries(d).filter(([, v]) => !!v)) as Donnees;
   const nouvellePersonne = { kind: 'personne' as const, label: 'Nouvelle personne' };
 
   /** Liste d'enfants (trains d'un portfolio…) : toucher en ouvre la fiche par-dessus ; « ＋ » en crée un */
@@ -229,7 +247,7 @@ export function OrgForm({
         <>
           <Label>E-mail (compte Google)</Label>
           <Field placeholder="prenom.nom@gmail.com" value={form.email} onChangeText={set('email')} autoCapitalize="none" keyboardType="email-address" />
-          <Choix label="Service (vue Entreprise)" k="unite" options={[{ value: '', label: 'Aucun' }, ...org.unites.map((u) => ({ value: u.id, label: `${u.type === 'direction' ? '🏛️' : '🧩'} ${u.nom}` }))]} nouveau={{ kind: 'unite', label: 'Nouvelle unité' }} />
+          <Choix label="Service (vue Entreprise)" k="unite" options={[{ value: '', label: 'Aucun' }, ...org.unites.map((u) => ({ value: u.id, label: `${u.type === 'direction' ? '🏛️' : '🧩'} ${u.nom}` }))]} nouveau={{ kind: 'unite', label: 'Nouvelle unité' }} parent={{ vers: 'Vers une nouvelle unité', defaults: sansVide({ parent: org.unite.get(form.unite)?.parent }) }} />
           <Choix label="Manager" k="manager" options={optionsPersonnes(id).map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={{ ...nouvellePersonne, defaults: { unite: form.unite } }} />
           <Label>Capacité par itération (jours, facultatif)</Label>
           <Field placeholder="ex. 8" value={form.capacite} onChangeText={set('capacite')} keyboardType="decimal-pad" />
@@ -241,7 +259,7 @@ export function OrgForm({
         <>
           <Label>Type</Label>
           <Chips options={[{ value: 'direction', label: '🏛️ Direction' }, { value: 'service', label: '🧩 Service' }]} value={form.type === 'direction' ? 'direction' : 'service'} onChange={set('type')} compact />
-          <Choix label="Au-dessus (facultatif)" k="parent" options={[{ value: '', label: 'Aucune (premier niveau)' }, ...org.unites.filter((u) => !descendants.has(u.id)).map((u) => ({ value: u.id, label: u.nom }))]} />
+          <Choix label="Au-dessus (facultatif)" k="parent" options={[{ value: '', label: 'Aucune (premier niveau)' }, ...org.unites.filter((u) => !descendants.has(u.id)).map((u) => ({ value: u.id, label: u.nom }))]} nouveau={{ kind: 'unite', label: 'Nouvelle unité au-dessus' }} parent={{ vers: 'Vers une nouvelle unité au-dessus', defaults: sansVide({ parent: org.unite.get(form.parent)?.parent }) }} />
           <Choix label="Responsable" k="responsable" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={{ ...nouvellePersonne, defaults: id ? { unite: id } : undefined }} />
           <Enfants
             titre="Sous-unités"
@@ -277,7 +295,7 @@ export function OrgForm({
 
       {kind === 'train' && (
         <>
-          <Choix label="Portfolio" k="portfolio" options={[{ value: '', label: 'Aucun' }, ...org.portfolios.map((p) => ({ value: p.id, label: `💼 ${p.nom}` }))]} nouveau={{ kind: 'portfolio', label: 'Nouveau portfolio' }} />
+          <Choix label="Portfolio" k="portfolio" options={[{ value: '', label: 'Aucun' }, ...org.portfolios.map((p) => ({ value: p.id, label: `💼 ${p.nom}` }))]} nouveau={{ kind: 'portfolio', label: 'Nouveau portfolio' }} parent={{ vers: 'Vers un nouveau portfolio' }} />
           <Choix label="RTE (Release Train Engineer)" k="rte" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
           <Choix label="Product Manager" k="pm" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
           <Enfants
@@ -293,7 +311,7 @@ export function OrgForm({
 
       {kind === 'equipeagile' && (
         <>
-          <Choix label="Train" k="train" options={[{ value: '', label: 'Aucun' }, ...org.trains.map((t) => ({ value: t.id, label: `🚆 ${t.nom}` }))]} nouveau={{ kind: 'train', label: 'Nouveau train' }} />
+          <Choix label="Train" k="train" options={[{ value: '', label: 'Aucun' }, ...org.trains.map((t) => ({ value: t.id, label: `🚆 ${t.nom}` }))]} nouveau={{ kind: 'train', label: 'Nouveau train' }} parent={{ vers: 'Vers un nouveau train', defaults: sansVide({ portfolio: org.train.get(form.train)?.portfolio }) }} />
           <Choix label="Product Owner" k="po" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
           <Choix label="Scrum Master" k="sm" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
           <Label>Membres · {membres.length}</Label>

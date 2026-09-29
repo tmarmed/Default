@@ -44,6 +44,10 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   personne… » dans un choix, ouvre la fiche par-dessus ; un parent nouveau est enregistré d'abord ; à l'enregistrement
   on revient à la fiche d'en dessous avec l'élément créé déjà choisi. En haut : fil d'Ariane, « ‹ Parent » au lieu
   d'Annuler, « ✕ Tout fermer » (avec confirmation). Toucher une feature ou une tâche d'une epic l'ouvre par-dessus.
+  Créer un parent n'est proposé qu'à un élément qui n'en a pas ; un élément qui a déjà un parent l'affiche sur une
+  ligne avec « ↪ Déplacer » (parents existants, « ＋ Vers une nouvelle feature / epic… » sous le même grand-parent,
+  Aucun) ; le déplacement est annoncé puis fait à l'enregistrement (« Annuler le déplacement »). Même chose dans
+  l'Organisation (service, unité au-dessus, portfolio d'un train, train d'une équipe).
   **Assistant projet**, même logique : « ＋ Objectif / Epic / Feature / Tâche » sous chaque élément passe à l'étape
   suivante avec l'élément créé, « ＋ Nouveau … » dans Déplacer crée le parent, « ‹ Revenir à … » ramène à l'étape
   d'origine ; Fermer demande confirmation s'il y a des changements.

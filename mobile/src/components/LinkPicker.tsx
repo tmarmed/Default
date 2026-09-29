@@ -4,6 +4,7 @@ import { useHierarchy } from '../hierarchyContext';
 import { colors } from '../theme';
 import { Chips } from './Chips';
 import { DomaineChoix } from './DomaineChoix';
+import { Rattachement } from './Rattachement';
 
 type Links = { feature?: string; epic?: string; objectif?: string; domaine?: string };
 
@@ -13,16 +14,22 @@ interface Props {
   value: Links;
   onChange: (patch: Links) => void;
   /** « ＋ Nouvelle feature / epic / objectif / nouveau domaine » : la fiche s'ouvre par-dessus, l'élément créé est choisi */
-  onNouveau?: (niveau: 'feature' | 'epic' | 'objectif' | 'domaine') => void;
+  onNouveau?: (niveau: 'feature' | 'epic' | 'objectif' | 'domaine', defauts: Links) => void;
+  /** Rattachement de l'élément enregistré : s'il en a un, on passe par « Déplacer » pour en changer */
+  initial?: Links;
 }
 
+/** Lien le plus précis (« f:… », « e:… »…) pour comparer deux rattachements */
+const precis = (v: Links) => (v.feature ? `f:${v.feature}` : v.epic ? `e:${v.epic}` : v.objectif ? `o:${v.objectif}` : v.domaine ? `d:${v.domaine}` : '');
+
 const NOUVEAU = { feature: 'Nouvelle feature', epic: 'Nouvelle epic', objectif: 'Nouvel objectif', domaine: 'Nouveau domaine' } as const;
+const VERS = { feature: 'Vers une nouvelle feature', epic: 'Vers une nouvelle epic', objectif: 'Vers un nouvel objectif', domaine: 'Vers un nouveau domaine' } as const;
 
 /**
  * Rattachement à un niveau supérieur : on choisit le plus précis (epic, sinon objectif, sinon domaine) ;
  * les niveaux au-dessus s'en déduisent et sont simplement affichés.
  */
-export function LinkPicker({ levels, value, onChange, onNouveau }: Props) {
+export function LinkPicker({ levels, value, onChange, onNouveau, initial }: Props) {
   const h = useHierarchy();
   const has = (l: 'feature' | 'epic' | 'objectif' | 'domaine') => levels.includes(l);
   const feature = has('feature') && value.feature ? h.features.get(value.feature) : undefined;
@@ -36,13 +43,42 @@ export function LinkPicker({ levels, value, onChange, onNouveau }: Props) {
   const inheritedDom = feature || epic || objectif ? domaineOf(value, h) : undefined;
 
   const none = (label: string) => ({ value: '', label });
+  // Un parent au départ : on en change par « Déplacer » ; le nouveau parent prend la place de l'actuel (même grand-parent)
+  const verrouille = !!initial && !!precis(initial);
+  const epicCourante = feature ? inheritedEpic : epic;
+  const objCourant = objectif ?? inheritedObj;
+  const domCourant = inheritedDom ?? (value.domaine ? h.domaines.get(value.domaine) : undefined);
+  const defauts = (niveau: 'feature' | 'epic' | 'objectif' | 'domaine'): Links =>
+    niveau === 'feature'
+      ? { epic: epicCourante?.id }
+      : niveau === 'epic'
+        ? objCourant
+          ? { objectif: objCourant.id }
+          : { domaine: domCourant?.id }
+        : niveau === 'objectif'
+          ? { domaine: domCourant?.id }
+          : {};
+  const resume = [
+    domCourant ? `${domCourant.icone} ${domCourant.nom}` : '',
+    objCourant ? `🎯 ${objCourant.titre}` : '',
+    epicCourante ? `🗂️ ${epicCourante.titre}` : '',
+    feature ? `🧩 ${feature.titre}` : '',
+  ]
+    .filter(Boolean)
+    .join(' › ');
   const Nouveau = ({ niveau }: { niveau: 'feature' | 'epic' | 'objectif' | 'domaine' }) =>
     onNouveau ? (
-      <Pressable onPress={() => onNouveau(niveau)} hitSlop={6} style={styles.nouveau} accessibilityRole="button">
-        <Text style={styles.nouveauTexte}>＋ {NOUVEAU[niveau]}</Text>
+      <Pressable onPress={() => onNouveau(niveau, verrouille ? defauts(niveau) : {})} hitSlop={6} style={styles.nouveau} accessibilityRole="button">
+        <Text style={styles.nouveauTexte}>＋ {verrouille ? VERS[niveau] : NOUVEAU[niveau]}</Text>
       </Pressable>
     ) : null;
   return (
+    <Rattachement
+      verrouille={verrouille}
+      resume={resume}
+      deplace={verrouille && precis(value) !== precis(initial!)}
+      onAnnuler={() => onChange({ feature: initial!.feature ?? '', epic: initial!.epic ?? '', objectif: initial!.objectif ?? '', domaine: initial!.domaine ?? '' })}
+    >
     <View>
       {has('feature') && (h.featureList.length > 0 || !!onNouveau) && (
         <>
@@ -111,6 +147,7 @@ export function LinkPicker({ levels, value, onChange, onNouveau }: Props) {
         </Text>
       )}
     </View>
+    </Rattachement>
   );
 }
 

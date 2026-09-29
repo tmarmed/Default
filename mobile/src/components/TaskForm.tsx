@@ -71,7 +71,7 @@ interface Props {
   /** Élément créé dans une fiche du dessus (« ＋ Nouvelle feature », « ＋ Nouvelle personne »…) : choisi ici */
   injection?: Injection;
   /** « ＋ Nouvelle feature / epic / objectif / domaine » depuis le rattachement */
-  onNouveau?: (niveau: 'feature' | 'epic' | 'objectif' | 'domaine', espace: string) => void;
+  onNouveau?: (niveau: 'feature' | 'epic' | 'objectif' | 'domaine', espace: string, defauts?: Record<string, string | undefined>) => void;
   /** « ＋ Nouvelle équipe / personne » depuis la section Delivery */
   onNouveauOrg?: (kind: 'equipeagile' | 'personne', champ: 'equipe' | 'responsable', espace: string) => void;
 }
@@ -558,7 +558,8 @@ export function TaskForm({
                     return next;
                   })
                 }
-                onNouveau={onNouveau ? (n) => onNouveau(n, espace) : undefined}
+                onNouveau={onNouveau ? (n, d) => onNouveau(n, espace, d) : undefined}
+                initial={item ? { feature: item.feature, epic: item.epic, objectif: item.objectif, domaine: item.domaine } : undefined}
               />
             )}
             <LiaisonOrg

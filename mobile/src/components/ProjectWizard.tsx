@@ -472,7 +472,7 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
                           onRemoveNew={() => setDraft((d) => d.filter((x) => x.key !== n.key).map((x) => (x.parentKey === n.key ? { ...x, parentKey: n.parentKey } : x)))}
                           autoFocus={focusKey === n.key}
                           enfant={niveauEnfant(n.level) ? { label: LEVEL_LABEL[niveauEnfant(n.level)!], onPress: () => ajouterEnfant(n) } : undefined}
-                          nouveauParent={niveauParent(n.level) ? { label: NOUVEAU[niveauParent(n.level)!], onPress: () => nouveauParent(n) } : undefined}
+                          nouveauParent={niveauParent(n.level) ? { label: (n.parentKey ? VERS : NOUVEAU)[niveauParent(n.level)!], onPress: () => nouveauParent(n) } : undefined}
                         />
                       ))}
                       {canAdd && <AddInput level={level} onAdd={(t) => add(level, sec.key, t)} />}
@@ -600,6 +600,15 @@ const NOUVEAU: Record<Level, string> = {
   epic: 'Nouvelle epic',
   feature: 'Nouvelle feature',
   tache: 'Nouvelle tâche',
+};
+
+/** Déplacer un élément qui a déjà un parent vers un parent nouveau */
+const VERS: Record<Level, string> = {
+  domaine: 'Vers un nouveau domaine',
+  objectif: 'Vers un nouvel objectif',
+  epic: 'Vers une nouvelle epic',
+  feature: 'Vers une nouvelle feature',
+  tache: 'Vers une nouvelle tâche',
 };
 
 const HINTS: Record<Level, string> = {

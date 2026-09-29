@@ -114,7 +114,6 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle, expand
                 styles.epic,
                 { color: parentColor ?? domaine!.couleur, borderColor: parentColor ?? domaine!.couleur },
               ]}
-              numberOfLines={1}
             >
               {domaine ? `${domaine.icone} ` : ''}
               {parentFeature ? '🧩 ' : ''}
@@ -263,7 +262,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 6,
     overflow: 'hidden',
-    maxWidth: 160,
+    // Nom entier (jamais de « … ») : la ligne passe à la suivante si besoin
+    maxWidth: '100%',
   },
   points: { fontSize: 12, fontWeight: '700', color: colors.muted, backgroundColor: '#EEF1F6', borderRadius: 8, paddingHorizontal: 6, overflow: 'hidden' },
   enCours: { fontSize: 13, color: colors.primary, fontWeight: '600' },

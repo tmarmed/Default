@@ -43,7 +43,7 @@ interface Props {
   /** Élément créé dans une fiche du dessus (« ＋ Nouvel objectif ») : choisi ici */
   injection?: Injection;
   /** « ＋ Nouvel objectif / domaine » depuis le choix du rattachement */
-  onNouveau?: (niveau: 'objectif' | 'domaine') => void;
+  onNouveau?: (niveau: 'objectif' | 'domaine', defauts?: Record<string, string | undefined>) => void;
   /** Consulter une feature de l'epic (par-dessus) */
   onOpenFeature?: (f: Feature) => void;
   /** « ＋ Nouveau portfolio » (section Delivery) */
@@ -251,7 +251,8 @@ export function EpicForm({
               levels={['objectif', 'domaine']}
               value={form}
               onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
-              onNouveau={onNouveau ? (n) => (n === 'objectif' || n === 'domaine') && onNouveau(n) : undefined}
+              onNouveau={onNouveau ? (n, d) => (n === 'objectif' || n === 'domaine') && onNouveau(n, d) : undefined}
+              initial={epic ? { objectif: epic.objectif, domaine: epic.domaine } : undefined}
             />
 
             {safe.actif && (
