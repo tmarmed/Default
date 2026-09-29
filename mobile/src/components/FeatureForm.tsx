@@ -7,13 +7,13 @@ import { fmtPoints, iterationNom, piLabel, pointsOf } from '../pi';
 import { useSafe } from '../safe';
 import { colors } from '../theme';
 import type { Feature, FeatureInput, Item } from '../types';
-import { chargeOf, estimationOf, subtaskMap } from '../subtasks';
+import { chargeOf, subtaskMap } from '../subtasks';
 import { DeleteSection } from './DeleteSection';
-import { ChildActions, Field, FormSheet, TitreFiche, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
+import { ChildActions, Field, FormSheet, TitreFiche, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
 import { LiaisonOrg } from './LiaisonOrg';
 import { ChoiceSheet } from './ChoiceSheet';
-import { FeuilleMulti, LigneChoix, LigneEnfant, SectionFiche } from './Choix';
-import { filTravail, listeEpics, listeIterations, listePI } from '../choixTravail';
+import { ChampEstimation, ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, SaisieFiche, SectionFiche } from './Choix';
+import { filTravail, listeEpics, listeIterations, listePI, metaTache } from '../choixTravail';
 
 interface Props {
   visible: boolean;
@@ -33,6 +33,8 @@ interface Props {
   onNouveauOrg?: (kind: 'train' | 'equipeagile', champ: 'train' | 'equipe', espace: string) => void;
   onDelete: (x: Feature, cascade: boolean) => Promise<void>;
   onOpenTask: (t: Item) => void;
+  /** Case à cocher d'une tâche de la liste : la terminer (ou la rouvrir) */
+  onCocherTache?: (t: Item) => void;
   defaults?: Partial<FeatureInput>;
   /** Saisie rapide : crée une tâche dans la feature (avec son itération) */
   onQuickAddTask?: (f: Feature, titre: string) => Promise<void>;
@@ -52,6 +54,7 @@ export function FeatureForm({
   onSave,
   onDelete,
   onOpenTask,
+  onCocherTache,
   defaults,
   onQuickAddTask,
   onOpenWizard,
@@ -94,15 +97,14 @@ export function FeatureForm({
 
   const set = <K extends keyof FeatureInput>(k: K, v: FeatureInput[K]) => setForm((x) => ({ ...x, [k]: v }));
   const tasks = feature ? h.items.filter((t) => t.feature === feature.id) : [];
-  const sousTitre = (p: Item) => {
+  const sousDe = (p: Item) => {
     const k = tasks.filter((t) => t.parent === p.id);
-    return k.length ? `  (${k.filter((t) => t.statut === 'termine').length}/${k.length})` : '';
+    return { faites: k.filter((t) => t.statut === 'termine').length, total: k.length };
   };
   const doneTasks = tasks.filter((t) => t.statut === 'termine');
   // Total des tâches : un parent ne compte pas en plus de ses sous-tâches
-  const subs = subtaskMap(tasks);
-  const ptsTasks = tasks.reduce((n, t) => n + chargeOf(t, subs), 0);
-  const estim = (t: Item) => estimationOf(t, subs.get(t.id)).points;
+  const subsTasks = subtaskMap(tasks);
+  const ptsTasks = tasks.reduce((n, t) => n + chargeOf(t, subsTasks), 0);
   const kids = feature ? childrenOf('feature', feature.id, h.data) : null;
   const epic = form.epic ? h.epics.get(form.epic) : undefined;
   // Tâches qu'on peut rattacher : ni répétées, ni terminées, pas déjà dans cette feature
@@ -111,7 +113,7 @@ export function FeatureForm({
     .filter((t) => !t.periodicite && !t.parent && t.statut !== 'termine' && (!feature || t.feature !== feature.id) && !existantes.includes(t.id))
     .map((t) => {
       const ft = h.features.get(t.feature);
-      const where = ft ? `🧩 ${ft.titre}` : h.epics.get(t.epic)?.titre ?? h.objectifs.get(t.objectif)?.titre ?? h.domaines.get(t.domaine)?.nom ?? 'non rangée';
+      const where = ft ? `🧩 ${ft.titre}` : h.epics.get(t.epic)?.titre ?? h.objectifs.get(t.objectif)?.titre ?? h.domaines.get(t.domaine)?.nom ?? 'sans rattachement';
       const quand = t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}` : t.iteration ? t.iteration.split('-').pop() : '';
       return { id: t.id, title: t.titre, sub: [where, quand].filter(Boolean).join(' · '), dans: !!ft };
     });
@@ -234,13 +236,14 @@ export function FeatureForm({
             onChange={(v) => set('iteration', v)}
           />
         )}
+        <ChampEstimation value={form.points} onChange={(v) => set('points', v)} jours={safe.pointsJours} placeholder="Facultatif (globale, ex. 8)" />
       </SectionFiche>
 
-      <Label>{safe.pointsJours ? 'Points (jours)' : 'Points'}</Label>
-      <Field placeholder="Estimation globale, ex. 8" value={form.points} onChangeText={(v) => set('points', v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
-
-      <Label>Description</Label>
-      <Field style={f.notes} placeholder="Résultat attendu, critères d'acceptation…" value={form.description} onChangeText={(v) => set('description', v)} multiline />
+      <SectionFiche titre="Détails">
+        <ChampFiche label="Description" colonne>
+          <SaisieFiche placeholder="Résultat attendu, critères d'acceptation…" value={form.description} onChangeText={(v) => set('description', v)} multiline />
+        </ChampFiche>
+      </SectionFiche>
 
       <SectionFiche
         titre={`Tâches · ${tasks.filter((t) => !t.parent).length + existantes.length + nouvelles.length}${feature && tasks.length ? ` · ${doneTasks.length} terminée${doneTasks.length > 1 ? 's' : ''}` : ''}${feature && ptsTasks ? ` · ${fmtPoints(ptsTasks, safe.pointsJours)}` : ''}`}
@@ -257,7 +260,9 @@ export function FeatureForm({
           .map((t) => (
             <LigneEnfant
               key={t.id}
-              texte={`${t.statut === 'termine' ? '✓' : t.statut === 'en_cours' ? '▶' : '○'} ${t.titre}${sousTitre(t)}${estim(t) ? ` · ${fmtPoints(estim(t), safe.pointsJours)}` : ''}`}
+              texte={t.titre}
+              coche={{ fait: t.statut === 'termine', enCours: t.statut === 'en_cours', onPress: onCocherTache ? () => onCocherTache(t) : undefined }}
+              meta={metaTache(t, safe.pointsJours, sousDe(t))}
               onPress={() => onOpenTask(t)}
             />
           ))}
@@ -267,7 +272,8 @@ export function FeatureForm({
           return (
             <LigneEnfant
               key={id}
-              texte={`○ ${t?.titre ?? '?'}`}
+              texte={t?.titre ?? '?'}
+              coche={{ fait: false }}
               ajoute
               avant={avant ? `🧩 ${avant.titre}` : undefined}
               onAnnuler={() => setExistantes((l) => l.filter((x) => x !== id))}
@@ -275,13 +281,13 @@ export function FeatureForm({
           );
         })}
         {nouvelles.map((titre, i) => (
-          <LigneEnfant key={`n${i}`} texte={`○ ${titre}`} ajoute onAnnuler={() => setNouvelles((l) => l.filter((_, k) => k !== i))} />
+          <LigneEnfant key={`n${i}`} texte={titre} coche={{ fait: false }} ajoute onAnnuler={() => setNouvelles((l) => l.filter((_, k) => k !== i))} />
         ))}
         {!tasks.length && !existantes.length && !nouvelles.length && <Text style={[f.muted, { padding: 12 }]}>Aucune tâche pour l'instant.</Text>}
         {(!feature || onQuickAddTask) && (
           <TextInput
             style={styles.saisie}
-            placeholder={adding ? 'Ajout…' : `Nouvelle tâche (Entrée pour ajouter${form.iteration ? `, en ${form.iteration.split('-').pop()}` : ''})`}
+            placeholder={adding ? 'Ajout…' : '＋ Nouvelle tâche'}
             placeholderTextColor={colors.muted}
             value={quick}
             onChangeText={setQuick}
@@ -308,26 +314,29 @@ export function FeatureForm({
             }}
           />
         )}
+        {(!feature || onQuickAddTask) && (
+          <Text style={styles.entree}>{`Entrée pour ajouter${form.iteration ? ` · en ${form.iteration.split('-').pop()}` : ''}`}</Text>
+        )}
       </SectionFiche>
-      {(existantes.length > 0 || nouvelles.length > 0) && <Text style={f.hint}>Rangées dans la feature à l'enregistrement.</Text>}
+      {(existantes.length > 0 || nouvelles.length > 0) && <Text style={f.hint}>Ajoutées à la feature à l'enregistrement.</Text>}
       <ChoiceSheet
         key={`plus-${menuPlus}`}
         visible={menuPlus}
         title="Ajouter une tâche"
         choices={[
           ...(onAddTask ? [{ label: '＋ Nouvelle tâche', principal: true, onPress: () => enregistrerPuis(onAddTask) }] : []),
-          { label: '↘ Ranger une tâche existante', onPress: () => setPicking(true) },
+          { label: '☑ Choisir des tâches', suite: true, onPress: () => setPicking(true) },
         ]}
         onClose={() => setMenuPlus(false)}
       />
       {picking && (
         <FeuilleMulti
-          titre="Ranger dans la feature"
+          titre="Ajouter à la feature"
           groupes={[{ titre: 'Sans feature', options: candidats.filter((c) => !c.dans).map((c) => ({ value: c.id, label: c.title, meta: c.sub })) }]}
           autres={{ titre: 'Dans une autre feature', groupes: [{ options: candidats.filter((c) => c.dans).map((c) => ({ value: c.id, label: c.title, meta: c.sub })) }] }}
           selection={[]}
-          vide="Aucune tâche à ranger."
-          libelleValider={(n) => (n ? `Ranger ${n} tâche${n > 1 ? 's' : ''}` : 'Ranger')}
+          vide="Aucune tâche à ajouter."
+          libelleValider={(n) => (n ? `Ajouter ${n} tâche${n > 1 ? 's' : ''}` : 'Ajouter')}
           onValider={(l) => {
             setExistantes((x) => [...x, ...l.filter((id) => !x.includes(id))]);
             setPicking(false);
@@ -364,5 +373,6 @@ export function FeatureForm({
 }
 
 const styles = StyleSheet.create({
-  saisie: { paddingHorizontal: 12, paddingVertical: 12, fontSize: 15, color: colors.text, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  entree: { fontSize: 11.5, color: colors.muted, paddingHorizontal: 12, paddingBottom: 10 },
+  saisie: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 4, fontSize: 15, color: colors.text, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
 });

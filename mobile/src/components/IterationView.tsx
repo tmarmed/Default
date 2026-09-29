@@ -9,7 +9,7 @@ import { useEspaces } from '../espaces';
 import { prefixeEspace } from '../nomsEspaces';
 import { colors } from '../theme';
 import { sansEnCours, TYPE_ICONS, type Item, type Statut } from '../types';
-import { chargeOf, estimationOf, subtaskMap } from '../subtasks';
+import { chargeOf, pointsCheck, subtaskMap } from '../subtasks';
 import { AlertsCard } from './AlertsCard';
 import { checksIteration, filtrerDomaine } from '../checks';
 import { inDomain, useDomainFilter, useRecherche } from './DomainFilter';
@@ -220,6 +220,7 @@ export function IterationView({
                   const kids = subs.get(t.id) ?? [];
                   const kidsDone = kids.filter((c) => c.statut === 'termine').length;
                   const open = ouverts[t.id] ?? kids.some((c) => tasks.includes(c) && c.statut !== 'termine');
+                  const alerte = pointsCheck(t, kids).alerte;
                   return (
                     <View key={t.id} style={[styles.taskOuter, { borderLeftColor: e?.couleur ?? colors.border }]}>
                     <View style={styles.task}>
@@ -228,7 +229,7 @@ export function IterationView({
                           {t.titre}
                         </Text>
                         <Text style={styles.muted} numberOfLines={1}>
-                          {TYPE_ICONS[t.type]} {estimationOf(t, kids).points ? fmt(estimationOf(t, kids).points) : 'sans points'}
+                          {TYPE_ICONS[t.type]} {pointsOf(t) ? fmt(pointsOf(t)) : 'sans points'}
                           {f ? ` · 🧩 ${f.titre}` : e ? ` · ${e.titre}` : ''}
                           {t.date ? ` · ${t.date.slice(8)}/${t.date.slice(5, 7)}` : ''}
                         </Text>
@@ -265,6 +266,7 @@ export function IterationView({
                         accessibilityLabel={`${open ? 'Replier' : 'Déplier'} les sous-tâches de ${t.titre}`}
                       >
                         <Text style={styles.kidsToggleText}>
+                          {alerte ? '⚠ ' : ''}
                           {open ? '▾' : '▸'} Sous-tâches {kidsDone}/{kids.length}
                         </Text>
                       </Pressable>

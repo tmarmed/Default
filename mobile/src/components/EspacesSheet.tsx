@@ -146,7 +146,7 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, r
           ))}
         </View>
       )}
-      <Field placeholder="+ Domaine (Entrée pour ajouter)" value={saisie} onChangeText={setSaisie} onSubmitEditing={ajouterDomaine} blurOnSubmit={false} returnKeyType="done" />
+      <Field placeholder="＋ Nouveau domaine (Entrée pour ajouter)" value={saisie} onChangeText={setSaisie} onSubmitEditing={ajouterDomaine} blurOnSubmit={false} returnKeyType="done" />
       <Text style={f.hint}>Chaque espace de travail a ses propres domaines. Icône et couleur modifiables ensuite dans la fiche du domaine.</Text>
       {!demo && <Text style={f.hint}>Le Google Sheet de l'espace de travail est créé dans votre Google Drive, avec ce nom.</Text>}
       {demo && <Text style={f.hint}>Démo : l'espace de travail est créé dans ce navigateur.</Text>}

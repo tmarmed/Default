@@ -9,10 +9,12 @@ interface Props {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  /** Dans une ligne de fiche : sans cadre, sur la carte blanche */
+  nu?: boolean;
 }
 
 /** Champ date ou heure utilisant le sélecteur natif d'iOS / Android. */
-export function DateField({ mode, value, onChange, placeholder }: Props) {
+export function DateField({ mode, value, onChange, placeholder, nu }: Props) {
   const current = value
     ? mode === 'date'
       ? parseDate(value)
@@ -45,7 +47,7 @@ export function DateField({ mode, value, onChange, placeholder }: Props) {
           style={styles.iosPicker}
         />
       ) : (
-        <Pressable style={styles.field} onPress={open} accessibilityRole="button">
+        <Pressable style={[styles.field, nu && styles.fieldNu]} onPress={open} accessibilityRole="button">
           <Text style={value ? styles.value : styles.placeholder}>
             {value ? (mode === 'date' ? formatDate(value) : value) : placeholder}
           </Text>
@@ -71,6 +73,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: colors.card,
   },
+  fieldNu: { borderWidth: 0, paddingHorizontal: 0, paddingVertical: 4, backgroundColor: 'transparent' },
   iosPicker: { flex: 1, alignSelf: 'flex-start' },
   value: { fontSize: 16, color: colors.text },
   placeholder: { fontSize: 16, color: colors.muted },

@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
 import { colors } from '../theme';
 import { ChoiceSheet } from './ChoiceSheet';
 
@@ -79,6 +79,73 @@ export function SectionFiche({
 }
 
 /** « ou » entre deux lignes attendues au choix (le trait orange reste continu) */
+/**
+ * Écart ou question : alerte jaune, toujours deux choix — appliquer (bouton plein) ou garder tel quel (contour).
+ * (Une valeur calculée s'affiche en gris sans alerte ; une erreur qui empêche d'enregistrer est rouge, sans bouton.)
+ */
+export function AlerteChoix({ texte, oui, non }: { texte: string; oui: { label: string; onPress: () => void }; non: { label: string; onPress: () => void } }) {
+  return (
+    <View style={s.alerteChoix} accessibilityRole="alert">
+      <Text style={s.alerteTexte}>{texte}</Text>
+      <View style={s.alerteBoutons}>
+        <Pressable onPress={oui.onPress} style={[s.alerteBtn, s.alerteOui]} accessibilityRole="button">
+          <Text style={s.alerteOuiTexte}>{oui.label}</Text>
+        </Pressable>
+        <Pressable onPress={non.onPress} style={[s.alerteBtn, s.alerteNon]} accessibilityRole="button">
+          <Text style={s.alerteNonTexte}>{non.label}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Ligne d'une section de fiche pour une saisie libre (date, heure, estimation, lieu, notes…) : même dessin que les
+ * lignes de choix — le libellé à gauche, le champ à droite, sur la carte blanche.
+ */
+export function ChampFiche({ label, children, sous, colonne }: { label: string; children: ReactNode; sous?: string; colonne?: boolean }) {
+  return (
+    <View style={s.ligneBloc}>
+      <View style={[s.ligne, colonne && s.champColonne]}>
+        <Text style={[s.cle, colonne && s.cleColonne]}>{label}</Text>
+        <View style={s.champ}>{children}</View>
+      </View>
+      {!!sous && <Text style={s.sous}>{sous}</Text>}
+    </View>
+  );
+}
+
+/** Champ de texte d'une ligne de fiche (sans cadre) ; vide : « Facultatif » en gris, comme les lignes de choix */
+export function SaisieFiche(props: TextInputProps) {
+  return (
+    <TextInput
+      placeholder="Facultatif"
+      placeholderTextColor={colors.muted}
+      {...props}
+      style={[s.saisie, !props.value && s.saisieVide, props.multiline && s.saisieMulti, props.style]}
+    />
+  );
+}
+
+/** Estimation d'une fiche (tâche, feature) : le nombre suivi de son unité (« 3 j », « 5 pts »), le même partout */
+export function ChampEstimation({ value, onChange, jours, placeholder }: { value: string; onChange: (v: string) => void; jours: boolean; placeholder?: string }) {
+  return (
+    <ChampFiche label="Estimation">
+      <View style={s.estimation}>
+        <SaisieFiche
+          style={value ? { width: Math.max(12, value.length * 9 + 2), flexGrow: 0 } : s.estimationVide}
+          placeholder={placeholder ?? 'Facultatif'}
+          value={value}
+          onChangeText={(v) => onChange(v.replace(/[^0-9.,]/g, ''))}
+          keyboardType="decimal-pad"
+          accessibilityLabel="Estimation"
+        />
+        {!!value && <Text style={s.unite}>{jours ? 'j' : parseFloat(value) > 1 ? 'pts' : 'pt'}</Text>}
+      </View>
+    </ChampFiche>
+  );
+}
+
 export function SeparateurOu() {
   return (
     <View style={s.ou}>
@@ -528,9 +595,15 @@ export function LigneEnfant({
   ajoute,
   avant,
   onAnnuler,
+  coche,
+  meta,
 }: {
   texte: string;
   sous?: string;
+  /** Tâche : case à cocher pour la terminer (même ligne pour les tâches d'une feature, d'une epic, les sous-tâches) */
+  coche?: { fait: boolean; enCours?: boolean; onPress?: () => void };
+  /** Détail en gris sous le titre (date, estimation…) */
+  meta?: string;
   onPress?: () => void;
   /** Rangée ici, pas encore enregistrée */
   ajoute?: boolean;
@@ -542,7 +615,23 @@ export function LigneEnfant({
   return (
     <View style={s.ligneBloc}>
       <Pressable onPress={onPress} disabled={!onPress} style={s.ligne} accessibilityRole="button">
-        <Text style={[s.valeur, { fontWeight: '500' }]}>{texte}</Text>
+        {coche && (
+          <Pressable
+            onPress={coche.onPress}
+            disabled={!coche.onPress}
+            hitSlop={8}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: coche.fait }}
+            accessibilityLabel={`Terminer ${texte}`}
+            style={[s.caseRonde, coche.enCours && s.caseEnCours, coche.fait && s.caseFaite]}
+          >
+            {coche.fait && <Text style={s.caseMarque}>✓</Text>}
+          </Pressable>
+        )}
+        <View style={s.enfantCorps}>
+          <Text style={[s.enfantTexte, coche?.fait && s.enfantFait]}>{texte}</Text>
+          {!!meta && <Text style={s.optMeta}>{meta}</Text>}
+        </View>
         {ajoute && !avant && <Text style={[s.badge, s.badgeVert]}>ajoutée</Text>}
         {ajoute && !!avant && <Pastille texte="déplacée" ouvert={ch.ouvert} onPress={ch.basculer} />}
         {onPress && <Text style={s.chev}>›</Text>}
@@ -610,7 +699,7 @@ export function ListeEnfants({
         key={`menu-${menu}`}
         visible={menu}
         title={`Ajouter : ${mots.nouveau.replace(/^Nouvel(le)? /, '')}`}
-        choices={[...(nouveau ? [{ label: `＋ ${mots.nouveau}`, principal: true, onPress: nouveau }] : []), { label: `↘ ${mots.ranger}`, onPress: () => setFeuille(true) }]}
+        choices={[...(nouveau ? [{ label: `＋ ${mots.nouveau}`, principal: true, onPress: nouveau }] : []), { label: `☑ ${mots.ranger}`, suite: true, onPress: () => setFeuille(true) }]}
         onClose={() => setMenu(false)}
       />
       {feuille && (
@@ -619,8 +708,8 @@ export function ListeEnfants({
           groupes={[{ titre: mots.libres, options: libres.map((c) => ({ value: c.id, label: c.titre })) }]}
           autres={ailleurs.length ? { titre: mots.autres, groupes: [{ options: ailleurs.map((c) => ({ value: c.id, label: c.titre, meta: c.ailleurs })) }] } : undefined}
           selection={[]}
-          vide="Rien à ranger."
-          libelleValider={(n) => (n ? `Ranger (${n})` : 'Ranger')}
+          vide="Rien à ajouter."
+          libelleValider={(n) => (n ? `Ajouter (${n})` : 'Ajouter')}
           onValider={(l) => {
             setRanger([...ranger, ...l.filter((id) => !ranger.includes(id))]);
             setFeuille(false);
@@ -643,6 +732,30 @@ const s = StyleSheet.create({
   carte: { backgroundColor: colors.card, borderRadius: 12, overflow: 'hidden' },
   ligneBloc: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   ligne: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 12, minHeight: 46 },
+  champColonne: { flexDirection: 'column', alignItems: 'stretch', gap: 4 },
+  cleColonne: { width: 'auto' as unknown as number },
+  champ: { flex: 1, minWidth: 0 },
+  saisie: { fontSize: 15, fontWeight: '600', color: colors.text, paddingVertical: 4, outlineStyle: 'none' as never },
+  saisieVide: { fontWeight: '400' },
+  estimation: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  estimationVide: { flex: 1 },
+  unite: { fontSize: 15, fontWeight: '600', color: colors.text },
+  saisieMulti: { minHeight: 70, fontWeight: '400', textAlignVertical: 'top' },
+  caseRonde: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#B8BFCA', alignItems: 'center', justifyContent: 'center' },
+  caseEnCours: { borderColor: colors.primary },
+  caseFaite: { backgroundColor: colors.success, borderColor: colors.success },
+  caseMarque: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  enfantCorps: { flex: 1, minWidth: 0 },
+  enfantTexte: { fontSize: 15, color: colors.text },
+  enfantFait: { color: colors.muted, textDecorationLine: 'line-through' },
+  alerteChoix: { backgroundColor: JAUNE, borderWidth: 1, borderColor: '#F3D98B', borderRadius: 10, padding: 10, marginBottom: 10, gap: 8 },
+  alerteTexte: { color: JAUNE_TEXTE, fontSize: 13.5, lineHeight: 19 },
+  alerteBoutons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  alerteBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14 },
+  alerteOui: { backgroundColor: colors.primary },
+  alerteOuiTexte: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  alerteNon: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.primary },
+  alerteNonTexte: { color: colors.primary, fontSize: 13, fontWeight: '700' },
   ligneAFaire: { backgroundColor: ORANGE_FOND, borderLeftWidth: 3, borderLeftColor: ORANGE, paddingLeft: 9 },
   cle: { width: 104, fontSize: 13, color: colors.muted },
   valeur: { flex: 1, minWidth: 0, fontSize: 15, fontWeight: '600', color: colors.text },

@@ -1,8 +1,7 @@
-import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { describeRecurrence } from '../recurrence';
-import { colors } from '../theme';
 import type { ItemInput, Periodicite } from '../types';
 import { Chips } from './Chips';
+import { ChampFiche, LigneChoix, SaisieFiche } from './Choix';
 import { DateField } from './DateField';
 
 type Value = Pick<ItemInput, 'periodicite' | 'echeance' | 'debut' | 'fin'>;
@@ -19,7 +18,7 @@ const REPETITIONS: { value: Periodicite | 'aucune'; label: string }[] = [
   { value: 'trimestrielle', label: 'Trimestre' },
   { value: 'annuelle', label: 'Année' },
 ];
-const JOURS = ['Libre', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((label, i) => ({
+const JOURS = ['Libre', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map((label, i) => ({
   value: i === 0 ? '' : String(i),
   label,
 }));
@@ -27,99 +26,77 @@ const MOIS_TRIMESTRE = ['Libre', '1er mois', '2e mois', '3e mois'].map((label, i
   value: i === 0 ? '' : String(i),
   label,
 }));
-const MOIS = ['Janv', 'Févr', 'Mars', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'].map((label, i) => ({
+const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'].map((label, i) => ({
   value: String(i + 1).padStart(2, '0'),
   label,
 }));
 
-/** Réglages de répétition du formulaire. */
+/**
+ * Réglages de répétition : des lignes de la section « Quand » de la fiche. 5 choix ou plus : ligne de choix avec sa
+ * feuille (répétition, jour de la semaine, mois) ; 4 ou moins : pastilles (moment dans le trimestre).
+ */
 export function RecurrenceFields({ value, onChange }: Props) {
   const p = value.periodicite;
   const [a = '', b = ''] = value.echeance.split('-');
   const compose = (x: string, y: string) => (x ? (y ? `${x}-${y}` : x) : '');
   const dayOnly = (t: string) => t.replace(/\D/g, '').slice(0, 2);
+  const jour = (x: string, placeholder: string) => (
+    <SaisieFiche value={x} onChangeText={(t) => onChange({ echeance: compose(a, dayOnly(t)) })} placeholder={placeholder} keyboardType="number-pad" maxLength={2} />
+  );
 
   return (
-    <View>
-      <Text style={styles.label}>Répétition</Text>
-      <Chips
-        options={REPETITIONS}
-        value={p || 'aucune'}
+    <>
+      <LigneChoix
+        label="Répétition"
+        value={p}
+        groupes={[{ options: REPETITIONS.filter((r) => r.value !== 'aucune').map((r) => ({ value: r.value, label: `🔁 ${r.label}` })) }]}
+        vide="Aucune"
+        sans="Aucune"
         onChange={(v) => {
-          const periodicite = v === 'aucune' ? '' : v;
+          const periodicite = v as Periodicite | '';
           // L'année demande un mois : on propose le mois en cours.
           const echeance = periodicite === 'annuelle' ? String(new Date().getMonth() + 1).padStart(2, '0') : '';
           onChange({ periodicite, echeance });
         }}
-        compact
       />
 
       {p === 'hebdomadaire' && (
-        <>
-          <Text style={styles.label}>Jour de la semaine</Text>
-          <Chips options={JOURS} value={a} onChange={(v) => onChange({ echeance: v })} compact wrap />
-        </>
+        <LigneChoix label="Jour" value={a} groupes={[{ options: JOURS.filter((j) => j.value) }]} vide="Libre" sans="Libre" onChange={(v) => onChange({ echeance: v })} />
       )}
 
       {p === 'mensuelle' && (
-        <>
-          <Text style={styles.label}>Jour du mois</Text>
-          <TextInput
-            style={styles.input}
-            value={a}
-            onChangeText={(t) => onChange({ echeance: dayOnly(t) })}
-            placeholder="Libre : à faire dans le mois"
-            placeholderTextColor={colors.muted}
-            keyboardType="number-pad"
-            maxLength={2}
-          />
-        </>
+        <ChampFiche label="Jour du mois">
+          <SaisieFiche value={a} onChangeText={(t) => onChange({ echeance: dayOnly(t) })} placeholder="Libre : dans le mois" keyboardType="number-pad" maxLength={2} />
+        </ChampFiche>
       )}
 
       {p === 'trimestrielle' && (
         <>
-          <Text style={styles.label}>Moment dans le trimestre</Text>
-          <Chips options={MOIS_TRIMESTRE} value={a} onChange={(v) => onChange({ echeance: compose(v, v ? b : '') })} compact wrap />
-          {!!a && (
-            <TextInput
-              style={[styles.input, styles.spaced]}
-              value={b}
-              onChangeText={(t) => onChange({ echeance: compose(a, dayOnly(t)) })}
-              placeholder="Jour (libre : dans le mois)"
-              placeholderTextColor={colors.muted}
-              keyboardType="number-pad"
-              maxLength={2}
-            />
-          )}
+          <ChampFiche label="Moment">
+            <Chips options={MOIS_TRIMESTRE} value={a} onChange={(v) => onChange({ echeance: compose(v, v ? b : '') })} compact wrap />
+          </ChampFiche>
+          {!!a && <ChampFiche label="Jour">{jour(b, 'Libre : dans le mois')}</ChampFiche>}
         </>
       )}
 
       {p === 'annuelle' && (
         <>
-          <Text style={styles.label}>Mois</Text>
-          <Chips options={MOIS} value={a} onChange={(v) => onChange({ echeance: compose(v, b) })} compact wrap />
-          <TextInput
-            style={[styles.input, styles.spaced]}
-            value={b}
-            onChangeText={(t) => onChange({ echeance: compose(a, dayOnly(t)) })}
-            placeholder="Jour (libre : dans le mois)"
-            placeholderTextColor={colors.muted}
-            keyboardType="number-pad"
-            maxLength={2}
-          />
+          <LigneChoix label="Mois" value={a} groupes={[{ options: MOIS }]} onChange={(v) => v && onChange({ echeance: compose(v, b) })} />
+          <ChampFiche label="Jour">{jour(b, 'Libre : dans le mois')}</ChampFiche>
         </>
       )}
 
       {!!p && (
         <>
-          <Text style={styles.summary}>🔁 {describeRecurrence(value)}</Text>
-          <Text style={styles.label}>À partir du</Text>
-          <DateField mode="date" value={value.debut} onChange={(v) => onChange({ debut: v })} placeholder="Aujourd'hui" />
-          <Text style={styles.label}>Jusqu'au</Text>
-          <DateField mode="date" value={value.fin} onChange={(v) => onChange({ fin: v })} placeholder="Sans fin" />
+          <ChampFiche label="À partir du" sous={`🔁 ${describeRecurrence(value)}`}>
+            <DateField nu mode="date" value={value.debut} onChange={(v) => onChange({ debut: v })} placeholder="Aujourd'hui" />
+          </ChampFiche>
+          <ChampFiche label="Jusqu'au">
+            <DateField nu mode="date" value={value.fin} onChange={(v) => onChange({ fin: v })} placeholder="Sans fin" />
+          </ChampFiche>
         </>
       )}
-    </View>
+    </>
   );
 }
 
@@ -133,19 +110,3 @@ export function checkRecurrence(v: Value): string | null {
   if (v.debut && v.fin && v.fin < v.debut) return 'La date de fin est avant la date de début.';
   return null;
 }
-
-const styles = StyleSheet.create({
-  label: { marginTop: 18, marginBottom: 8, fontSize: 13, fontWeight: '600', color: colors.muted },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.card,
-  },
-  spaced: { marginTop: 10 },
-  summary: { marginTop: 14, fontSize: 14, fontWeight: '600', color: colors.primary },
-});

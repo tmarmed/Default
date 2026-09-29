@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { LigneChoix, LigneFiche, ListeEnfants, SectionFiche } from './Choix';
+import { ChampFiche, LigneChoix, LigneFiche, ListeEnfants, SectionFiche } from './Choix';
 import { childrenOf, describeCounts } from '../hierarchy';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
 import { colors } from '../theme';
 import { DOMAINE_ICONES, Domaine, DomaineInput, EPIC_COULEURS, Objectif } from '../types';
 import { DeleteSection } from './DeleteSection';
-import { ColorPicker, TitreFiche, Field, FormSheet, formStyles as f, Label, type PileProps } from './FormSheet';
+import { ColorPicker, TitreFiche, Field, FormSheet, formStyles as f, type PileProps } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -54,7 +54,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
   const contenu = c && c.objIds.size + c.epicIds.size + c.taskIds.size ? describeCounts({ objectifs: c.objIds.size, epics: c.epicIds.size, taches: c.taskIds.size }) : '';
   const children = [sousDomaines.length ? `${sousDomaines.length > 1 ? 'les sous-domaines' : 'le sous-domaine'} ${nomsSous}` : '', contenu].filter(Boolean).join(', ');
   const keepText = sousDomaines.length
-    ? `sans domaine pour ce qui est rangé directement dans ${domaine?.nom} ; ${nomsSous} ${sousDomaines.length > 1 ? 'deviennent des domaines principaux' : 'devient un domaine principal'}, avec son contenu`
+    ? `sans domaine pour ce qui est directement dans ${domaine?.nom} ; ${nomsSous} ${sousDomaines.length > 1 ? 'deviennent des domaines principaux' : 'devient un domaine principal'}, avec son contenu`
     : 'sans domaine';
 
   const save = async (rester = false): Promise<Domaine | undefined> => {
@@ -120,7 +120,8 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
           />
         )}
       </SectionFiche>
-      <Label>Icône</Label>
+      <SectionFiche titre="Apparence">
+      <ChampFiche label="Icône" colonne>
       <View style={styles.icons}>
         {DOMAINE_ICONES.map((i) => (
           <Pressable
@@ -134,8 +135,11 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
           </Pressable>
         ))}
       </View>
-      <Label>Couleur</Label>
-      <ColorPicker value={form.couleur} onChange={(col) => setForm((x) => ({ ...x, couleur: col }))} />
+      </ChampFiche>
+      <ChampFiche label="Couleur" colonne>
+        <ColorPicker value={form.couleur} onChange={(col) => setForm((x) => ({ ...x, couleur: col }))} />
+      </ChampFiche>
+      </SectionFiche>
 
       <ListeEnfants
         titre={`Objectifs · ${objectifs.length}`}
@@ -151,12 +155,12 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
         nouveau={onAddObjectif ? () => enregistrerPuis(onAddObjectif) : undefined}
         mots={{
           nouveau: 'Nouvel objectif',
-          ranger: 'Ranger un objectif existant',
-          feuille: 'Ranger dans le domaine',
+          ranger: 'Choisir des objectifs',
+          feuille: 'Ajouter au domaine',
           libres: 'Sans domaine',
           autres: 'Dans un autre domaine',
-          un: "Rangé dans le domaine à l'enregistrement.",
-          plusieurs: "Rangés dans le domaine à l'enregistrement.",
+          un: "Ajouté au domaine à l'enregistrement.",
+          plusieurs: "Ajoutés au domaine à l'enregistrement.",
         }}
         vide="Aucun objectif dans ce domaine."
       />

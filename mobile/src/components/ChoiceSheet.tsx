@@ -1,13 +1,22 @@
-import { Modal, Pressable, StyleSheet, Text } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 
 export interface Choice {
   label: string;
   onPress: () => void;
+  /** Ligne mise en avant (bleu, gras) : « ＋ Nouvelle … », l'action attendue */
   principal?: boolean;
+  /** Action qui détruit (supprimer) : en rouge */
+  danger?: boolean;
+  /** Ligne qui ouvre une autre feuille : « › » à droite */
+  suite?: boolean;
 }
 
-/** Petite fenêtre de choix (le navigateur n'affiche pas les boîtes de dialogue natives). */
+/**
+ * Feuille de choix (menus du ＋, confirmations) : même modèle que les feuilles de choix — « Annuler » en haut à
+ * gauche, titre centré, explication en gris, puis une ligne par choix. (Le navigateur n'affiche pas les boîtes
+ * de dialogue natives.)
+ */
 export function ChoiceSheet({
   visible,
   title,
@@ -25,24 +34,33 @@ export function ChoiceSheet({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.backdrop} onPress={onClose}>
         <Pressable style={s.sheet} onPress={() => {}} accessibilityRole="alert">
-          <Text style={s.title}>{title}</Text>
-          {!!message && <Text style={s.message}>{message}</Text>}
-          {choices.map((c) => (
-            <Pressable
-              key={c.label}
-              style={[s.btn, c.principal ? s.btnMain : s.btnSec]}
-              onPress={() => {
-                onClose();
-                c.onPress();
-              }}
-              accessibilityRole="button"
-            >
-              <Text style={[s.btnText, !c.principal && s.btnTextSec]}>{c.label}</Text>
+          <View style={s.poignee} />
+          <View style={s.entete}>
+            <Pressable onPress={onClose} hitSlop={8} style={s.annuler} accessibilityRole="button">
+              <Text style={s.annulerTexte}>Annuler</Text>
             </Pressable>
-          ))}
-          <Pressable style={s.cancel} onPress={onClose} accessibilityRole="button">
-            <Text style={s.cancelText}>Annuler</Text>
-          </Pressable>
+            <Text style={s.title} numberOfLines={2}>
+              {title}
+            </Text>
+            <View style={s.annuler} />
+          </View>
+          {!!message && <Text style={s.message}>{message}</Text>}
+          <View style={s.liste}>
+            {choices.map((c) => (
+              <Pressable
+                key={c.label}
+                style={s.ligne}
+                onPress={() => {
+                  onClose();
+                  c.onPress();
+                }}
+                accessibilityRole="button"
+              >
+                <Text style={[s.ligneTexte, c.principal && s.principal, c.danger && s.danger]}>{c.label}</Text>
+                {c.suite && <Text style={s.chev}>›</Text>}
+              </Pressable>
+            ))}
+          </View>
         </Pressable>
       </Pressable>
     </Modal>
@@ -54,20 +72,29 @@ const s = StyleSheet.create({
   sheet: {
     width: '100%',
     maxWidth: 480,
-    backgroundColor: colors.card,
+    backgroundColor: colors.bg,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    padding: 16,
-    paddingBottom: 28,
-    gap: 10,
+    paddingBottom: 24,
   },
-  title: { fontSize: 17, fontWeight: '700', color: colors.text },
-  message: { fontSize: 14, lineHeight: 20, color: colors.muted },
-  btn: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, alignItems: 'center' },
-  btnMain: { backgroundColor: colors.primary },
-  btnSec: { borderWidth: 1, borderColor: colors.primary },
-  btnText: { color: '#fff', fontWeight: '700', fontSize: 15, textAlign: 'center' },
-  btnTextSec: { color: colors.primary },
-  cancel: { paddingVertical: 8, alignItems: 'center' },
-  cancelText: { color: colors.muted, fontSize: 15 },
+  poignee: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#C9CED6', marginTop: 8 },
+  entete: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10, gap: 8 },
+  annuler: { width: 70 },
+  annulerTexte: { color: colors.primary, fontSize: 16 },
+  title: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: colors.text },
+  message: { fontSize: 13.5, lineHeight: 19, color: colors.muted, paddingHorizontal: 16, paddingBottom: 10 },
+  liste: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  ligne: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  ligneTexte: { flex: 1, fontSize: 15, color: colors.text },
+  principal: { color: colors.primary, fontWeight: '700' },
+  danger: { color: colors.danger, fontWeight: '700' },
+  chev: { fontSize: 18, color: '#A0A6B1', marginLeft: 8 },
 });

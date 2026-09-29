@@ -42,8 +42,8 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
 - **Pile de fiches** (création et consultation en cascade) : depuis une fiche, « ＋ Train » (portfolio), « ＋ Équipe »
   (train), « ＋ Personne », « ＋ Objectif / Epic / Feature / Tâche », ou « ＋ Nouvelle feature / epic / équipe /
   personne… » dans un choix, ouvre la fiche par-dessus ; un parent nouveau est enregistré d'abord ; à l'enregistrement
-  on revient à la fiche d'en dessous avec l'élément créé déjà choisi. En haut : fil d'Ariane, « ‹ Parent » au lieu
-  d'Annuler, « ✕ Tout fermer » (avec confirmation). Toucher une feature ou une tâche d'une epic l'ouvre par-dessus.
+  on revient à la fiche d'en dessous avec l'élément créé déjà choisi. En haut : « Annuler », fil d'Ariane gris,
+  « ✕ » pour tout fermer (avec confirmation). Toucher une feature ou une tâche d'une epic l'ouvre par-dessus.
 - **Fiches : lignes de choix** (tâche, feature, epic, objectif, domaine, objectif du PI, Organisation) : chaque
   affectation est une ligne « Feature — 🧩 Compte client mobile › » (chemin en petit dessous) qui ouvre une feuille :
   « Annuler », recherche, « ＋ Nouvelle … » en tête, le même parent d'abord, « Autres … · n ▸ » fermé (la même ligne
@@ -57,13 +57,27 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   gras (« 🏢 ACME › … ») ; la ligne « Espace de travail » ne reste que pour un nouvel élément. Itération : le PI de la feature d'abord
   (dates, « en cours », « prévue »), les autres PI repliés.
 - **Enfants d'une fiche** (features et tâches d'une epic, tâches d'une feature, epics d'un objectif, objectifs d'un
-  domaine, sous-tâches d'une tâche, trains, équipes, sous-unités, personnes) : ＋ rond à droite du titre → « ＋ Nouvelle … » (fiche
-  par-dessus) ou « ↘ Ranger … existante » (cases à cocher, ceux d'un autre parent repliés) ; rangés à
-  l'enregistrement, avec la pastille « ajoutée » / « déplacée ». Même ＋ rond dans l'arbre de l'Organisation (à droite
-  d'une unité, d'un portfolio, d'un train, et des titres de section) à la place des liens « ＋ … ». « Sans … » : le
-  Feuilles de tâches (tâche parente, ranger une sous-tâche) : rangées par feature (sinon epic), celles de la même
-  feature d'abord, les autres repliées dans « Rangées ailleurs », comme partout. « Sans … » : le
-  même libellé que la valeur vide (« Aucune (tâche principale) », « Aucun (domaine principal) »).
+  domaine, sous-tâches d'une tâche, trains, équipes, sous-unités, personnes) : ＋ rond à droite du titre → une feuille
+  « ＋ Nouvelle … » (fiche par-dessus) ou « ☑ Choisir des … » (cases à cocher : les libres d'abord, ceux d'un autre
+  parent repliés dans « Dans une autre … · n ▸ », bouton « Ajouter n … ») ; ajoutés à l'enregistrement, avec la
+  pastille « ajoutée » / « déplacée ». Le mot « ranger » n'est plus utilisé. **Même ligne pour tous les enfants** :
+  case à cocher pour terminer une tâche, titre, détail gris (date, « En cours », sous-tâches, estimation), « › ».
+  **Arbre de l'Organisation** : le même ＋ rond et le même menu — unité : nouvelle personne, nouvelle sous-unité,
+  choisir des personnes, choisir des unités (ni elle-même ni celles au-dessus) ; portfolio : train ; train : équipe ;
+  sans bouton Enregistrer, le choix s'applique tout de suite, surligné, avec « Annuler » dans un bandeau.
+  Feuilles de tâches (tâche parente, choisir des sous-tâches) : par feature (sinon epic), celles de la même feature
+  d'abord, les autres repliées. « Sans … » : le même libellé que la valeur vide (« Aucune (tâche principale) »).
+- **Toutes les feuilles** (choix, menus du ＋, confirmations) : « Annuler » en haut, titre centré, des lignes.
+  **Pastilles** seulement pour 4 choix courts ou moins (priorité, statut, engagé / bonus) ; au-delà, ligne de choix
+  (type, répétition, jour, mois, état d'une epic, valeurs d'un objectif du PI). **Champs en sections à carte
+  blanche**, même ordre partout : Élément, Quand (répétition, date, heure), Rattachement, Delivery, Planification
+  (itération, estimation), sous-éléments, Suivi, Détails (lieu, notes, couleur, description). « Estimation »
+  partout, l'unité dans la valeur (« 3 j », « 5 pts ») ; saisies rapides « ＋ Nouvelle … » avec « Entrée pour ajouter ».
+- **Messages** : une valeur calculée s'affiche en gris sans alerte (estimation « 5 j d'après les sous-tâches ») ; un
+  écart ou une question est une alerte jaune à deux boutons — estimation ≠ total des sous-tâches (ou des tâches d'une
+  feature) : « Passer à 5 j » / « Garder 3 j » (garder = ignorer jusqu'à ce que les chiffres changent, dans la fiche
+  comme dans le centre d'alertes ; toucher le message ouvre l'élément) ; « Terminer les 2 sous-tâches » / « Seulement
+  la story » ; une erreur qui empêche d'enregistrer est rouge, sans bouton.
 - **En-tête des fiches** : « Annuler » à gauche, un seul fil d'Ariane (où est rangé l'élément) en petite ligne grise
   sous le titre, ✕ gris pour fermer toutes les fiches (confirmation courte) ; entre Annuler et Enregistrer, le type
   en noir (« Nouvelle story », « Nouveau rendez-vous »… pour un nouvel élément) ; le nom de l'élément est le titre de la
@@ -177,13 +191,12 @@ conception :
 - **Sous-tâches** (un seul niveau) pour les Story, Démarche, Mission et Exploration : chaque sous-tâche a son
   type, sa date, ses points, son statut et son itération, et le même rangement que son parent. Dans la
   **liste**, le parent se déplie (bouton ▸ 1/3, mémorisé ; déplié tout seul si une sous-tâche est due ou en
-  retard), avec cases à cocher et « + Sous-tâche » ; il se range à la date la plus proche de ses sous-tâches.
+  retard), avec cases à cocher et « ＋ Nouvelle sous-tâche » ; il se range à la date la plus proche de ses sous-tâches.
   **Jour / Semaine / Mois** : une sous-tâche datée apparaît à sa date (« ↳ parent »). **Itération** : la carte
   du parent se déplie (sous-tâches d'une autre itération en gris), bouton « terminer » quand tout est fait.
   **Charge** : si les sous-tâches ont des points, ce sont elles qui comptent (dans leur itération) ; si
-  seule la tâche en a, la tâche l'emporte. **Estimation automatique** : dès qu'une sous-tâche a des points,
-  l'estimation de la tâche est leur total (« 5 j · Total des sous-tâches (2 + 3) »), toujours à jour, dans la
-  fiche, la liste, l'Itération et le PI ; rien à décider, donc plus d'alerte « parent ≠ sous-tâches ».
+  seule la tâche en a, la tâche l'emporte ; si les deux diffèrent, **alerte jaune** dans la fiche et le centre
+  d'alertes (« Passer à … » / « Garder … »), ⚠ sur la ligne et dans l'Itération.
   Supprimer un parent : avec ses sous-tâches (case à cocher) ou en les gardant comme tâches normales.
 - 4 vues : **Liste** (En retard, Aujourd'hui, Demain, dates suivantes, Sans date), **Jour**, **Semaine**, **Mois**
 - Glisser le doigt à gauche / à droite pour passer au jour, à la semaine ou au mois suivant / précédent ;

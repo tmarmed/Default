@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Text } from 'react-native';
 import { domaineOf } from '../hierarchy';
 import { HierarchyContext, inDomain } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
@@ -7,10 +6,10 @@ import { piLabel, piOf, shiftPi } from '../pi';
 import type { ObjectifPI, ObjectifPIInput } from '../types';
 import { colors } from '../theme';
 import { Chips } from './Chips';
-import { LigneChoix, SectionFiche } from './Choix';
+import { ChampFiche, LigneChoix, SectionFiche } from './Choix';
 import { listeDomaines, listeEpics } from '../choixTravail';
 import { DeleteSection } from './DeleteSection';
-import { Field, FormSheet, formStyles as f, Label, TitreFiche } from './FormSheet';
+import { Field, FormSheet, formStyles as f, TitreFiche } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -116,20 +115,38 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
           onChange={(v) => setForm((x) => ({ ...x, epic: v, domaine: v ? domEpic(v) || x.domaine : x.domaine }))}
         />
       </SectionFiche>
-      <Label>Type</Label>
-      <Chips
-        options={[
-          { value: 'engage', label: '🤝 Engagé', color: '#1A73E8' },
-          { value: 'bonus', label: '✨ Bonus', color: '#9AA3AF' },
-        ]}
-        value={form.type}
-        onChange={(v) => set('type', v)}
-      />
-      <Text style={f.hint}>Engagé : je m'y engage. Bonus : si j'ai le temps (ne compte pas dans la prévisibilité).</Text>
-      <Label>Valeur prévue (importance, en début de PI)</Label>
-      <Chips options={VALEURS} value={form.valeur_prevue} onChange={(v) => set('valeur_prevue', v)} compact wrap />
-      <Label>Valeur obtenue (à noter en fin de PI)</Label>
-      <Chips options={VALEURS} value={form.valeur_obtenue} onChange={(v) => set('valeur_obtenue', v)} compact wrap />
+      {/* Engagement : type (2 choix : pastilles) ; valeurs sur 10 (ligne de choix) */}
+      <SectionFiche titre="Engagement">
+        <ChampFiche label="Type" sous="Engagé : je m'y engage. Bonus : si j'ai le temps (ne compte pas dans la prévisibilité).">
+          <Chips
+            options={[
+              { value: 'engage', label: '🤝 Engagé', color: '#1A73E8' },
+              { value: 'bonus', label: '✨ Bonus', color: '#9AA3AF' },
+            ]}
+            value={form.type}
+            onChange={(v) => set('type', v)}
+            compact
+          />
+        </ChampFiche>
+        <LigneChoix
+          label="Valeur prévue"
+          value={form.valeur_prevue}
+          depart={objectif?.valeur_prevue}
+          groupes={[{ options: VALEURS.filter((v) => v.value).map((v) => ({ value: v.value, label: `${v.label} / 10` })) }]}
+          sous="Importance, en début de PI"
+          sans="Sans valeur"
+          onChange={(v) => set('valeur_prevue', v)}
+        />
+        <LigneChoix
+          label="Valeur obtenue"
+          value={form.valeur_obtenue}
+          depart={objectif?.valeur_obtenue}
+          groupes={[{ options: VALEURS.filter((v) => v.value).map((v) => ({ value: v.value, label: `${v.label} / 10` })) }]}
+          sous="À noter en fin de PI"
+          sans="Sans valeur"
+          onChange={(v) => set('valeur_obtenue', v)}
+        />
+      </SectionFiche>
       {objectif && (
         <DeleteSection
           label="Supprimer l'objectif du PI"

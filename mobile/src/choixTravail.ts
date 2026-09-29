@@ -1,8 +1,29 @@
 import type { AutresChoix, GroupeChoix, OptionChoix } from './components/Choix';
 import type { Domaine } from './types';
-import { iterationOf, iterationsOf, piLabel, piOf, shiftPi } from './pi';
+import { fmtPoints, iterationOf, iterationsOf, piLabel, piOf, pointsOf, shiftPi } from './pi';
 import { toDateString } from './dates';
 import { domaineOf, epicOf, objectifOf, type Hierarchy } from './hierarchy';
+
+/**
+ * Détail gris d'une tâche dans une liste d'enfants (feature, epic, sous-tâches) : quand (date, sinon itération),
+ * « En cours », répétée, estimation et avancement des sous-tâches — le même partout.
+ */
+export function metaTache(
+  t: { date: string; iteration: string; statut: string; periodicite: string; points: string },
+  jours: boolean,
+  sous?: { faites: number; total: number },
+): string {
+  const quand = t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}` : t.iteration ? t.iteration.split('-').pop() : '';
+  return [
+    t.periodicite ? '🔁 Répétée' : '',
+    quand ?? '',
+    t.statut === 'en_cours' ? 'En cours' : '',
+    sous && sous.total ? `${sous.faites}/${sous.total} sous-tâches` : '',
+    pointsOf(t) ? fmtPoints(pointsOf(t), jours) : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
 
 /**
  * Fil d'Ariane de l'élément principal d'une fiche : où il est rangé (« 💼 Pro › 🎯 Fidéliser les clients ›
@@ -130,14 +151,14 @@ export function listeTaches(
   return grouper(
     items,
     cle,
-    (k) => (k.startsWith('f:') ? `🧩 ${titreF(k.slice(2))}` : k.startsWith('e:') ? `🗂️ ${h.epics.get(k.slice(2))?.titre ?? '?'}` : 'Non rangées'),
+    (k) => (k.startsWith('f:') ? `🧩 ${titreF(k.slice(2))}` : k.startsWith('e:') ? `🗂️ ${h.epics.get(k.slice(2))?.titre ?? '?'}` : 'Sans feature ni epic'),
     (x) => ({
       value: x.id,
       label: `${icone(x)} ${x.titre}`,
       meta: x.date ? `${x.date.slice(8)}/${x.date.slice(5, 7)}` : x.iteration ? x.iteration.split('-').pop() : undefined,
     }),
     ref ? cle(ref) : undefined,
-    'Rangées ailleurs',
+    'Dans une autre feature ou epic',
   );
 }
 

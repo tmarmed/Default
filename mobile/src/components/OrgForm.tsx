@@ -5,9 +5,9 @@ import { useSafe } from '../safe';
 import { useEspaces } from '../espaces';
 import { colors } from '../theme';
 import { Chips } from './Chips';
-import { type GroupeChoix, LigneChoix, LigneMulti, ListeEnfants, SectionFiche, type AutresChoix } from './Choix';
+import { ChampFiche, LigneChoix, LigneMulti, ListeEnfants, SaisieFiche, SectionFiche, type AutresChoix, type GroupeChoix } from './Choix';
 import { DeleteSection } from './DeleteSection';
-import { Field, FormSheet, formStyles as f, Label, TitreFiche } from './FormSheet';
+import { Field, FormSheet, formStyles as f, TitreFiche } from './FormSheet';
 
 type Donnees = Record<string, string>;
 /** Éléments existants rangés dans la fiche : leur champ `champ` prendra l'id de la fiche */
@@ -261,7 +261,7 @@ export function OrgForm({
       ranger={rangerDe(kindEnfant, champ)}
       setRanger={setRanger(kindEnfant, champ)}
       nouveau={onOuvrir ? () => ouvrirEnfant(kindEnfant, champ, extra) : undefined}
-      mots={{ ...mots, feuille: `Ranger dans : ${form.nom || TITRES[kind][1].toLowerCase()}` }}
+      mots={{ ...mots, feuille: `Ajouter à : ${form.nom || TITRES[kind][1].toLowerCase()}` }}
       vide="Aucun pour l'instant."
     />
   );
@@ -322,8 +322,11 @@ export function OrgForm({
 
       {kind === 'personne' && (
         <>
-          <Label>E-mail (compte Google)</Label>
-          <Field placeholder="prenom.nom@gmail.com" value={form.email} onChangeText={set('email')} autoCapitalize="none" keyboardType="email-address" />
+          <SectionFiche titre="Contact">
+            <ChampFiche label="E-mail" sous="Compte Google. L'ajouter ne donne aucun accès : l'accès vient de son équipe et de ses rôles delivery.">
+              <SaisieFiche placeholder="prenom.nom@gmail.com" value={form.email} onChangeText={set('email')} autoCapitalize="none" keyboardType="email-address" />
+            </ChampFiche>
+          </SectionFiche>
           <SectionFiche titre="Hiérarchie">
             {choix({
               label: 'Service',
@@ -341,17 +344,20 @@ export function OrgForm({
               sans: 'Sans manager',
             })}
           </SectionFiche>
-          <Label>Capacité par itération (jours, facultatif)</Label>
-          <Field placeholder="ex. 8" value={form.capacite} onChangeText={set('capacite')} keyboardType="decimal-pad" />
-          <Text style={f.hint}>Ajouter une personne ne lui donne aucun accès : l'accès viendra de son équipe et de ses rôles delivery.</Text>
+          <SectionFiche titre="Planification">
+            <ChampFiche label="Capacité" sous="Jours par itération.">
+              <SaisieFiche placeholder="Facultatif (ex. 8)" value={form.capacite} onChangeText={set('capacite')} keyboardType="decimal-pad" />
+            </ChampFiche>
+          </SectionFiche>
         </>
       )}
 
       {kind === 'unite' && (
         <>
-          <Label>Type</Label>
-          <Chips options={[{ value: 'direction', label: '🏛️ Direction' }, { value: 'service', label: '🧩 Service' }]} value={form.type === 'direction' ? 'direction' : 'service'} onChange={set('type')} compact />
           <SectionFiche titre="Hiérarchie">
+            <ChampFiche label="Type">
+              <Chips options={[{ value: 'direction', label: '🏛️ Direction' }, { value: 'service', label: '🧩 Service' }]} value={form.type === 'direction' ? 'direction' : 'service'} onChange={set('type')} compact />
+            </ChampFiche>
             {choix({
               label: 'Au-dessus',
               k: 'parent',
@@ -376,7 +382,7 @@ export function OrgForm({
             champ: 'parent',
             extra: { type: 'service' },
             candidats: org.unites.filter((u) => !descendants.has(u.id) && (!id || u.parent !== id)).map((u) => ({ id: u.id, nom: u.nom, ailleurs: u.parent ? nomUnite(u.parent) : undefined })),
-            mots: { nouveau: 'Nouvelle sous-unité', ranger: 'Ranger une unité existante', libres: 'Premier niveau', autres: 'Sous une autre unité', un: "Rangée ici à l'enregistrement.", plusieurs: "Rangées ici à l'enregistrement." },
+            mots: { nouveau: 'Nouvelle sous-unité', ranger: 'Choisir des unités', libres: 'Unités principales', autres: 'Dans une autre unité', un: "Ajoutée ici à l'enregistrement.", plusieurs: "Ajoutées ici à l'enregistrement." },
           })}
           {enfants({
             titre: 'Personnes',
@@ -390,7 +396,7 @@ export function OrgForm({
             champ: 'unite',
             extra: form.responsable ? { manager: form.responsable } : {},
             candidats: org.personnes.filter((p) => !id || p.unite !== id).map((p) => ({ id: p.id, nom: p.nom, ailleurs: p.unite ? nomUnite(p.unite) : undefined })),
-            mots: { nouveau: 'Nouvelle personne', ranger: 'Ranger une personne existante', libres: 'Sans service', autres: 'Dans un autre service', un: "Rangée ici à l'enregistrement.", plusieurs: "Rangées ici à l'enregistrement." },
+            mots: { nouveau: 'Nouvelle personne', ranger: 'Choisir des personnes', libres: 'Sans service', autres: 'Dans une autre unité', un: "Ajoutée ici à l'enregistrement.", plusieurs: "Ajoutées ici à l'enregistrement." },
           })}
         </>
       )}
@@ -408,7 +414,7 @@ export function OrgForm({
             sous: (x) => `${org.equipes.filter((e) => e.train === x.id).length} équipe(s)`,
             champ: 'portfolio',
             candidats: org.trains.filter((t) => !id || t.portfolio !== id).map((t) => ({ id: t.id, nom: t.nom, ailleurs: t.portfolio ? `💼 ${org.portfolio.get(t.portfolio)?.nom ?? '?'}` : undefined })),
-            mots: { nouveau: 'Nouveau train', ranger: 'Ranger un train existant', libres: 'Sans portfolio', autres: 'Dans un autre portfolio', un: "Rangé ici à l'enregistrement.", plusieurs: "Rangés ici à l'enregistrement." },
+            mots: { nouveau: 'Nouveau train', ranger: 'Choisir des trains', libres: 'Sans portfolio', autres: 'Dans un autre portfolio', un: "Ajouté ici à l'enregistrement.", plusieurs: "Ajoutés ici à l'enregistrement." },
           })}
         </>
       )}
@@ -438,7 +444,7 @@ export function OrgForm({
             sous: (x) => `${membresDe(x as EquipeAgile).length} membre(s)`,
             champ: 'train',
             candidats: org.equipes.filter((e) => !id || e.train !== id).map((e) => ({ id: e.id, nom: e.nom, ailleurs: e.train ? `🚆 ${org.train.get(e.train)?.nom ?? '?'}` : undefined })),
-            mots: { nouveau: 'Nouvelle équipe agile', ranger: 'Ranger une équipe existante', libres: 'Sans train', autres: 'Dans un autre train', un: "Rangée ici à l'enregistrement.", plusieurs: "Rangées ici à l'enregistrement." },
+            mots: { nouveau: 'Nouvelle équipe agile', ranger: 'Choisir des équipes', libres: 'Sans train', autres: 'Dans un autre train', un: "Ajoutée ici à l'enregistrement.", plusieurs: "Ajoutées ici à l'enregistrement." },
           })}
         </>
       )}

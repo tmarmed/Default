@@ -4,7 +4,32 @@ import type { Espace } from '../espaces';
 import { useHierarchy } from '../hierarchyContext';
 import { type EntiteOrg, type KindOrg, makeOrgValue, membresDe, nomPersonne, type OrgValue, porteurs, type Unite } from '../organisation';
 import { colors } from '../theme';
+import { ChoiceSheet } from './ChoiceSheet';
+import { type AutresChoix, FeuilleMulti, type GroupeChoix } from './Choix';
 import { Segmented } from './Segmented';
+
+/** Un changement de rattachement dans l'arbre (appliqué tout de suite ; l'inverse sert à « Annuler ») */
+export type Deplacement = { kind: KindOrg; id: string; champ: string; valeur: string; avant: string };
+
+/**
+ * ＋ d'un élément de l'arbre : le même menu que dans sa fiche — « ＋ Nouvelle … » ou « ☑ Choisir des … » existants
+ * (cases à cocher : les libres d'abord, ceux d'un autre parent repliés).
+ */
+type Plus = {
+  titre: string;
+  nouveaux: { label: string; onPress: () => void }[];
+  choisir: { label: string; titre: string; kind: KindOrg; champ: string; valeur: string; un: string; plusieurs: string; groupes: GroupeChoix[]; autres?: AutresChoix; avant: (id: string) => string }[];
+};
+
+/** Candidats rangés par parent actuel : « libres » (sans parent) d'abord, les autres repliés, un groupe par parent */
+function grouperOrg<T extends { id: string }>(items: T[], parent: (x: T) => string, nomParent: (id: string) => string, label: (x: T) => string, libres: string, autres: string) {
+  const par = new Map<string, T[]>();
+  for (const x of items) par.set(parent(x), [...(par.get(parent(x)) ?? []), x]);
+  const opt = (x: T) => ({ value: x.id, label: label(x) });
+  const g: GroupeChoix[] = [{ titre: libres, options: (par.get('') ?? []).map(opt) }];
+  const a = [...par.entries()].filter(([k]) => k).map(([k, l]) => ({ titre: nomParent(k), options: l.map(opt) }));
+  return { groupes: g, autres: a.length ? { titre: autres, groupes: a } : undefined };
+}
 
 export type VueOrg = 'entreprise' | 'delivery';
 
@@ -21,6 +46,7 @@ export function OrganisationView({
   onChangeVue,
   onOuvrir,
   onAjouter,
+  onDeplacer,
   onVoirBacklog,
   refreshControl,
 }: {
@@ -33,6 +59,8 @@ export function OrganisationView({
   onChangeVue: (v: VueOrg) => void;
   onOuvrir: (kind: KindOrg, e: EntiteOrg<KindOrg>) => void;
   onAjouter: (kind: KindOrg, espace: string, defaults?: Record<string, string>) => void;
+  /** « Choisir des … » dans l'arbre : rattachements changés tout de suite (et « Annuler ») */
+  onDeplacer: (espace: string, d: Deplacement[]) => Promise<void>;
   /** Lien vers le travail : portfolio → Portefeuille, train → PI, équipe → Itération (filtrés) */
   onVoirBacklog: (kind: 'portfolio' | 'train' | 'equipeagile', id: string) => void;
   refreshControl?: ReactElement<RefreshControlProps>;
@@ -41,6 +69,33 @@ export function OrganisationView({
   const [replies, setReplies] = useState<Set<string>>(new Set());
   const basculer = (id: string) => setReplies((r) => new Set(r.has(id) ? [...r].filter((x) => x !== id) : [...r, id]));
   const v = safe ? vue : 'entreprise';
+  // ＋ : menu, feuille « Choisir des … », bandeau « Annuler » et éléments surlignés après un choix
+  const [plus, setPlus] = useState<(Plus & { espace: string }) | null>(null);
+  const [choix, setChoix] = useState<(Plus['choisir'][number] & { espace: string }) | null>(null);
+  const [bandeau, setBandeau] = useState<{ texte: string; espace: string; d: Deplacement[] } | null>(null);
+  const [flash, setFlash] = useState<Set<string>>(new Set());
+  const [erreur, setErreur] = useState('');
+  const appliquer = async (espace: string, d: Deplacement[], texte: string) => {
+    try {
+      setErreur('');
+      await onDeplacer(espace, d);
+      setFlash(new Set(d.map((x) => x.id)));
+      setBandeau({ texte, espace, d });
+    } catch (e) {
+      setErreur(`Non enregistré : ${(e as Error).message}`);
+    }
+  };
+  const annuler = async () => {
+    if (!bandeau) return;
+    const { espace, d } = bandeau;
+    setBandeau(null);
+    setFlash(new Set());
+    try {
+      await onDeplacer(espace, d.map((x) => ({ ...x, valeur: x.avant, avant: x.valeur })));
+    } catch (e) {
+      setErreur(`Non annulé : ${(e as Error).message}`);
+    }
+  };
 
   if (!entreprises.length) {
     return (
@@ -76,14 +131,70 @@ export function OrganisationView({
             <View key={esp.id}>
               {entreprises.length > 1 && <Text style={s.entreprise}>🏢 {esp.nom}</Text>}
               {v === 'entreprise' ? (
-                <VueEntreprise o={o} espace={esp.id} replies={replies} basculer={basculer} onOuvrir={onOuvrir} onAjouter={onAjouter} />
+                <VueEntreprise o={o} espace={esp.id} replies={replies} basculer={basculer} onOuvrir={onOuvrir} onAjouter={onAjouter} onPlus={(p) => setPlus({ ...p, espace: esp.id })} flash={flash} />
               ) : (
-                <VueDelivery o={o} espace={esp.id} replies={replies} basculer={basculer} onOuvrir={onOuvrir} onAjouter={onAjouter} onVoirBacklog={onVoirBacklog} hv={hv} />
+                <VueDelivery o={o} espace={esp.id} replies={replies} basculer={basculer} onOuvrir={onOuvrir} onAjouter={onAjouter} onPlus={(p) => setPlus({ ...p, espace: esp.id })} flash={flash} onVoirBacklog={onVoirBacklog} hv={hv} />
               )}
             </View>
           );
         })}
       </ScrollView>
+      {!!erreur && <Text style={s.erreur}>{erreur}</Text>}
+      {bandeau && (
+        <View style={s.bandeau} accessibilityRole="alert">
+          <Text style={s.bandeauTexte}>{bandeau.texte}</Text>
+          <Pressable onPress={annuler} hitSlop={8} accessibilityRole="button">
+            <Text style={s.bandeauBtn}>Annuler</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setBandeau(null);
+              setFlash(new Set());
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Fermer"
+          >
+            <Text style={s.bandeauBtn}>✕</Text>
+          </Pressable>
+        </View>
+      )}
+      <ChoiceSheet
+        key={`plus-${plus?.titre ?? ''}`}
+        visible={!!plus}
+        title={plus?.titre ?? ''}
+        choices={
+          plus
+            ? [
+                ...plus.nouveaux.map((n) => ({ label: `＋ ${n.label}`, principal: true, onPress: n.onPress })),
+                ...plus.choisir.map((c) => ({ label: `☑ ${c.label}`, suite: true, onPress: () => setChoix({ ...c, espace: plus.espace }) })),
+              ]
+            : []
+        }
+        onClose={() => setPlus(null)}
+      />
+      {choix && (
+        <FeuilleMulti
+          titre={choix.titre}
+          groupes={choix.groupes}
+          autres={choix.autres}
+          selection={[]}
+          vide="Rien à ajouter."
+          libelleValider={(n) => (n ? `Ajouter ${n} ${n > 1 ? choix.plusieurs : choix.un}` : 'Ajouter')}
+          onValider={(ids) => {
+            const c = choix;
+            setChoix(null);
+            if (!ids.length) return;
+            const noms = ids.map((id) => c.groupes.concat(c.autres?.groupes ?? []).flatMap((g) => g.options).find((x) => x.value === id)?.label ?? '?');
+            appliquer(
+              c.espace,
+              ids.map((id) => ({ kind: c.kind, id, champ: c.champ, valeur: c.valeur, avant: c.avant(id) })),
+              `${ids.length > 1 ? `${ids.length} ${c.plusieurs} ajoutés` : `« ${noms[0]} » ajouté`} ${c.titre.replace(/^Ajouter /, '')}`,
+            );
+          }}
+          onFermer={() => setChoix(null)}
+        />
+      )}
     </View>
   );
 }
@@ -95,6 +206,9 @@ type Commun = {
   basculer: (id: string) => void;
   onOuvrir: (kind: KindOrg, e: EntiteOrg<KindOrg>) => void;
   onAjouter: (kind: KindOrg, espace: string, defaults?: Record<string, string>) => void;
+  onPlus: (p: Plus) => void;
+  /** Éléments qui viennent d'être ajoutés (surlignés) */
+  flash: Set<string>;
 };
 
 function Noeud({
@@ -108,6 +222,7 @@ function Noeud({
   children,
   lien,
   ajout,
+  surligne,
 }: {
   niveau: number;
   couleur: string;
@@ -120,10 +235,11 @@ function Noeud({
   lien?: { label: string; onPress: () => void };
   /** ＋ rond à droite de l'en-tête (même bouton que les sections des fiches) */
   ajout?: { label: string; onPress: () => void };
+  surligne?: boolean;
 }) {
   return (
     <View style={{ marginLeft: niveau * 14 }}>
-      <Pressable onPress={onPress} style={[s.noeud, { borderLeftColor: couleur }]} accessibilityRole="button" accessibilityLabel={`Ouvrir ${titre}`}>
+      <Pressable onPress={onPress} style={[s.noeud, { borderLeftColor: couleur }, surligne && s.surligne]} accessibilityRole="button" accessibilityLabel={`Ouvrir ${titre}`}>
         <View style={s.tete}>
           {onBasculer ? (
             <Pressable onPress={onBasculer} hitSlop={10} accessibilityRole="button" accessibilityLabel={deplie ? `Replier ${titre}` : `Déplier ${titre}`}>
@@ -166,8 +282,52 @@ function Section({ titre, ajout }: { titre: string; ajout?: { label: string; onP
 }
 
 /** Vue Entreprise : unités (directions › services) avec leur responsable et leurs personnes */
-function VueEntreprise({ o, espace, replies, basculer, onOuvrir, onAjouter }: Commun) {
+function VueEntreprise({ o, espace, replies, basculer, onOuvrir, onAjouter, onPlus, flash }: Commun) {
   const ids = new Set(o.unites.map((u) => u.id));
+  const nomU = (id: string) => {
+    const u = o.unites.find((x) => x.id === id);
+    return u ? `${u.type === 'direction' ? '🏛️' : '🧩'} ${u.nom}` : '?';
+  };
+  /** ＋ d'une unité : nouvelle personne ou sous-unité, ou choisir des personnes / unités existantes */
+  const plusUnite = (u: Unite): Plus => {
+    // Pas l'unité elle-même ni celles au-dessus d'elle (une unité ne va pas dans sa propre sous-unité)
+    const au_dessus = new Set<string>();
+    for (let x: Unite | undefined = u; x && !au_dessus.has(x.id); x = o.unites.find((y) => y.id === x!.parent)) au_dessus.add(x.id);
+    const parentDe = (id: string) => (id && ids.has(id) ? id : '');
+    const personnes = o.personnes.filter((p) => p.unite !== u.id);
+    const unites = o.unites.filter((x) => !au_dessus.has(x.id) && x.parent !== u.id);
+    return {
+      titre: `Ajouter dans ${u.nom}`,
+      nouveaux: [
+        { label: 'Nouvelle personne', onPress: () => onAjouter('personne', espace, { unite: u.id, manager: u.responsable }) },
+        { label: 'Nouvelle sous-unité', onPress: () => onAjouter('unite', espace, { parent: u.id }) },
+      ],
+      choisir: [
+        {
+          label: 'Choisir des personnes',
+          titre: `Ajouter à ${u.nom}`,
+          kind: 'personne',
+          champ: 'unite',
+          valeur: u.id,
+          un: 'personne',
+          plusieurs: 'personnes',
+          avant: (id) => o.personnes.find((p) => p.id === id)?.unite ?? '',
+          ...grouperOrg(personnes, (p) => parentDe(p.unite), nomU, (p) => p.nom, 'Sans service', 'Dans une autre unité'),
+        },
+        {
+          label: 'Choisir des unités',
+          titre: `Ajouter à ${u.nom}`,
+          kind: 'unite',
+          champ: 'parent',
+          valeur: u.id,
+          un: 'unité',
+          plusieurs: 'unités',
+          avant: (id) => o.unites.find((x) => x.id === id)?.parent ?? '',
+          ...grouperOrg(unites, (x) => parentDe(x.parent), nomU, (x) => nomU(x.id), 'Unités principales', 'Dans une autre unité'),
+        },
+      ],
+    };
+  };
   const racines = o.unites.filter((u) => !u.parent || !ids.has(u.parent));
   const tri = <T extends { nom: string }>(l: T[]) => [...l].sort((a, b) => a.nom.localeCompare(b.nom));
   const unite = (u: Unite, niveau: number): React.ReactNode => {
@@ -185,11 +345,12 @@ function VueEntreprise({ o, espace, replies, basculer, onOuvrir, onAjouter }: Co
         deplie={!replies.has(u.id)}
         onBasculer={() => basculer(u.id)}
         onPress={() => onOuvrir('unite', u)}
-        ajout={{ label: `Nouvelle personne dans ${u.nom}`, onPress: () => onAjouter('personne', espace, { unite: u.id, manager: u.responsable }) }}
+        ajout={{ label: `Ajouter dans ${u.nom}`, onPress: () => onPlus(plusUnite(u)) }}
+        surligne={flash.has(u.id)}
       >
         {enfants.map((x) => unite(x, niveau + 1))}
         {gens.map((p) => (
-          <Personne key={p.id} niveau={niveau + 1} p={p} o={o} onPress={() => onOuvrir('personne', p)} />
+          <Personne key={p.id} niveau={niveau + 1} p={p} o={o} surligne={flash.has(p.id)} onPress={() => onOuvrir('personne', p)} />
         ))}
       </Noeud>
     );
@@ -207,7 +368,7 @@ function VueEntreprise({ o, espace, replies, basculer, onOuvrir, onAjouter }: Co
   );
 }
 
-function Personne({ niveau, p, o, onPress }: { niveau: number; p: OrgValue['personnes'][number]; o: OrgValue; onPress: () => void }) {
+function Personne({ niveau, p, o, onPress, surligne }: { niveau: number; p: OrgValue['personnes'][number]; o: OrgValue; onPress: () => void; surligne?: boolean }) {
   const equipes = o.equipes.filter((e) => membresDe(e).includes(p.id) || e.po === p.id || e.sm === p.id).map((e) => `👥 ${e.nom}`);
   const initiales = p.nom
     .split(/\s+/)
@@ -216,7 +377,7 @@ function Personne({ niveau, p, o, onPress }: { niveau: number; p: OrgValue['pers
     .slice(0, 2)
     .toUpperCase();
   return (
-    <Pressable onPress={onPress} style={[s.personne, { marginLeft: niveau * 14 + 4 }]} accessibilityRole="button" accessibilityLabel={`Ouvrir ${p.nom}`}>
+    <Pressable onPress={onPress} style={[s.personne, { marginLeft: niveau * 14 + 4 }, surligne && s.surligne]} accessibilityRole="button" accessibilityLabel={`Ouvrir ${p.nom}`}>
       <View style={s.avatar}>
         <Text style={s.avatarTexte}>{initiales}</Text>
       </View>
@@ -231,7 +392,7 @@ function Personne({ niveau, p, o, onPress }: { niveau: number; p: OrgValue['pers
 }
 
 /** Vue Delivery SAFe : portfolios › trains › équipes, rôles et backlog de chacun */
-function VueDelivery({ o, espace, replies, basculer, onOuvrir, onAjouter, onVoirBacklog, hv }: Commun & { onVoirBacklog: (kind: 'portfolio' | 'train' | 'equipeagile', id: string) => void; hv: ReturnType<typeof useHierarchy> }) {
+function VueDelivery({ o, espace, replies, basculer, onOuvrir, onAjouter, onPlus, flash, onVoirBacklog, hv }: Commun & { onVoirBacklog: (kind: 'portfolio' | 'train' | 'equipeagile', id: string) => void; hv: ReturnType<typeof useHierarchy> }) {
   const dansEsp = <T extends { espace?: string }>(l: T[]) => l.filter((x) => (x.espace || 'moi') === espace);
   const epics = dansEsp(hv.epicList);
   const features = dansEsp(hv.featureList);
@@ -245,6 +406,44 @@ function VueDelivery({ o, espace, replies, basculer, onOuvrir, onAjouter, onVoir
   const equipesDe = (tr: string) => o.equipes.filter((e) => e.train === tr);
   const pfIds = new Set(o.portfolios.map((p) => p.id));
   const trIds = new Set(o.trains.map((t) => t.id));
+  const nomPf = (id: string) => `💼 ${o.portfolios.find((p) => p.id === id)?.nom ?? '?'}`;
+  const nomTr = (id: string) => `🚆 ${o.trains.find((t) => t.id === id)?.nom ?? '?'}`;
+  /** ＋ d'un portfolio : nouveau train, ou choisir des trains existants */
+  const plusPortfolio = (p: OrgValue['portfolios'][number]): Plus => ({
+    titre: `Ajouter dans ${p.nom}`,
+    nouveaux: [{ label: 'Nouveau train', onPress: () => onAjouter('train', espace, { portfolio: p.id }) }],
+    choisir: [
+      {
+        label: 'Choisir des trains',
+        titre: `Ajouter à ${p.nom}`,
+        kind: 'train',
+        champ: 'portfolio',
+        valeur: p.id,
+        un: 'train',
+        plusieurs: 'trains',
+        avant: (id) => o.trains.find((t) => t.id === id)?.portfolio ?? '',
+        ...grouperOrg(o.trains.filter((t) => t.portfolio !== p.id), (t) => (pfIds.has(t.portfolio) ? t.portfolio : ''), nomPf, (t) => `🚆 ${t.nom}`, 'Sans portfolio', 'Dans un autre portfolio'),
+      },
+    ],
+  });
+  /** ＋ d'un train : nouvelle équipe, ou choisir des équipes existantes */
+  const plusTrain = (t: OrgValue['trains'][number]): Plus => ({
+    titre: `Ajouter dans ${t.nom}`,
+    nouveaux: [{ label: 'Nouvelle équipe', onPress: () => onAjouter('equipeagile', espace, { train: t.id }) }],
+    choisir: [
+      {
+        label: 'Choisir des équipes',
+        titre: `Ajouter à ${t.nom}`,
+        kind: 'equipeagile',
+        champ: 'train',
+        valeur: t.id,
+        un: 'équipe',
+        plusieurs: 'équipes',
+        avant: (id) => o.equipes.find((e) => e.id === id)?.train ?? '',
+        ...grouperOrg(o.equipes.filter((e) => e.train !== t.id), (e) => (trIds.has(e.train) ? e.train : ''), nomTr, (e) => `👥 ${e.nom}`, 'Sans train', 'Dans un autre train'),
+      },
+    ],
+  });
 
   const equipe = (e: OrgValue['equipes'][number], niveau: number) => (
     <Noeud
@@ -254,6 +453,7 @@ function VueDelivery({ o, espace, replies, basculer, onOuvrir, onAjouter, onVoir
       titre={`👥 ${e.nom}`}
       sous={[role('PO', e.po), role('SM', e.sm), nb(membresDe(e).length, 'membre', 'membres')].filter(Boolean).join(' · ')}
       onPress={() => onOuvrir('equipeagile', e)}
+      surligne={flash.has(e.id)}
       lien={{ label: `${nb(nbStories(e.id), 'story ou tâche', 'stories et tâches')} en cours › Itération`, onPress: () => onVoirBacklog('equipeagile', e.id) }}
     />
   );
@@ -268,7 +468,8 @@ function VueDelivery({ o, espace, replies, basculer, onOuvrir, onAjouter, onVoir
       onBasculer={() => basculer(t.id)}
       onPress={() => onOuvrir('train', t)}
       lien={{ label: `${nb(nbFeatures(t.id), 'feature', 'features')} › PI`, onPress: () => onVoirBacklog('train', t.id) }}
-      ajout={{ label: `Nouvelle équipe dans ${t.nom}`, onPress: () => onAjouter('equipeagile', espace, { train: t.id }) }}
+      ajout={{ label: `Ajouter dans ${t.nom}`, onPress: () => onPlus(plusTrain(t)) }}
+      surligne={flash.has(t.id)}
     >
       {equipesDe(t.id).map((e) => equipe(e, niveau + 1))}
     </Noeud>
@@ -289,7 +490,7 @@ function VueDelivery({ o, espace, replies, basculer, onOuvrir, onAjouter, onVoir
           onBasculer={() => basculer(p.id)}
           onPress={() => onOuvrir('portfolio', p)}
           lien={{ label: `${nb(nbEpics(p.id), 'epic', 'epics')} › Portefeuille`, onPress: () => onVoirBacklog('portfolio', p.id) }}
-          ajout={{ label: `Nouveau train dans ${p.nom}`, onPress: () => onAjouter('train', espace, { portfolio: p.id }) }}
+          ajout={{ label: `Ajouter dans ${p.nom}`, onPress: () => onPlus(plusPortfolio(p)) }}
         >
           {trainsDe(p.id).map((t) => train(t, 1))}
         </Noeud>
@@ -310,6 +511,11 @@ const s = StyleSheet.create({
   vues: { paddingHorizontal: 10, paddingBottom: 8 },
   scroll: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 130 },
   entreprise: { fontSize: 12.5, fontWeight: '800', color: colors.muted, letterSpacing: 0.4, marginTop: 8, marginBottom: 6 },
+  surligne: { backgroundColor: '#FEF7E0', borderColor: '#F3D98B' },
+  bandeau: { position: 'absolute', left: 12, right: 12, bottom: 96, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#1B2330', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11 },
+  bandeauTexte: { flex: 1, color: '#fff', fontSize: 13.5 },
+  bandeauBtn: { color: '#8AB4F8', fontSize: 14, fontWeight: '800' },
+  erreur: { color: colors.danger, fontSize: 13, paddingHorizontal: 14, paddingVertical: 6 },
   noeud: { borderWidth: 1, borderColor: colors.border, borderLeftWidth: 4, borderRadius: 12, backgroundColor: colors.card, paddingHorizontal: 10, paddingVertical: 9, marginBottom: 7 },
   tete: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   chev: { width: 14, fontSize: 11, color: colors.muted, textAlign: 'center' },

@@ -30,7 +30,7 @@ import { inDomain, RechercheContext } from './src/components/DomainFilter';
 import { DomainesPrincipauxChips, DomainFilterContext, loadDomainFilter, saveDomainFilter, SousDomaineChips } from './src/components/DomainFilter';
 import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
-import { cascadeLinks, parentsLies, subtaskMap } from './src/subtasks';
+import { cascadeLinks, parentsLies, pointsCheck, subtaskMap } from './src/subtasks';
 import type { Alignement } from './src/alerts';
 import { type Action, type Check, checksDatesDomaine, checksParEcran, signaturesExistantes, situationDe } from './src/checks';
 import { AlertsCard, CheckActionContext, IgnoreContext, nbAlertes } from './src/components/AlertsCard';
@@ -777,6 +777,7 @@ function Main() {
                 sousTaches: showDone ? shown : shown.filter((k) => k.statut !== 'termine' || i.statut === 'termine'),
                 sousTotal: kids.length,
                 sousFaites: kids.filter((k) => k.statut === 'termine').length,
+                alertePoints: pointsCheck(i, kids).alerte,
               },
             ];
           })
@@ -1298,6 +1299,8 @@ function Main() {
       case 'iteration':
         setItKey(a.itKey);
         return setTab('iteration');
+      case 'ignorer':
+        return;
     }
   };
 
@@ -1385,7 +1388,7 @@ function Main() {
               id: t.id,
               title: t.titre,
               sub: [
-                hv.epics.get(t.epic)?.titre ?? hv.objectifs.get(t.objectif)?.titre ?? hv.domaines.get(t.domaine)?.nom ?? 'non rangée',
+                hv.epics.get(t.epic)?.titre ?? hv.objectifs.get(t.objectif)?.titre ?? hv.domaines.get(t.domaine)?.nom ?? 'sans rattachement',
                 t.iteration ? `prévue en ${iterationNom(t.iteration)}` : 'pas d’itération',
               ].join(' · '),
             }))
@@ -2032,6 +2035,16 @@ function Main() {
           onChangeVue={setVueOrg}
           onOuvrir={(kind, e) => ouvrirOrg({ kind, entite: e, espace: e.espace || 'moi' })}
           onAjouter={(kind, espace, defaults) => ouvrirOrg({ kind, entite: null, espace, defaults })}
+          onDeplacer={async (espace, d) => {
+            // « Choisir des … » dans l'arbre : chaque élément change de parent, tout de suite
+            if (!settings) return;
+            const dansEsp = orgDe((x) => (x.espace || 'moi') === espace);
+            for (const x of d) {
+              const e = (dansEsp[CLE_ORG[x.kind]] as unknown as { id: string }[]).find((y) => y.id === x.id);
+              if (e) await api.saveOrg(settings, espace, x.kind, { ...e, [x.champ]: x.valeur } as never);
+            }
+            await rechargerOrg(settings, espace);
+          }}
           onVoirBacklog={(kind, id) => {
             // Lien vers le travail, filtré : portfolio → Portefeuille, train → PI, équipe → Itération
             setOrgFiltre({ kind, id });
@@ -2245,6 +2258,7 @@ function Main() {
         }}
         onDelete={(e, cascade) => deleteEntity('epic', e, cascade)}
         onOpenTask={(t) => openForm(t)}
+        onCocherTache={toggle}
         defaults={epicDefaults}
         onAddFeature={(e) => openFeature(null, { epic: e.id })}
         onAddTask={(e) => openNewTask({ epic: e.id })}
@@ -2322,6 +2336,7 @@ function Main() {
         onLinkTask={linkTaskToFeature}
         onDelete={(f, cascade) => deleteEntity('feature', f, cascade)}
         onOpenTask={(t) => openForm(t)}
+        onCocherTache={toggle}
         defaults={featDefaults}
         pile={pileDe('feature')}
         injection={injectionDe('feature')}
@@ -2353,7 +2368,7 @@ function Main() {
             ? `Son Google Sheet va à la corbeille : récupérable 30 jours dans « Gérer ».${suppression.type !== 'moi' ? ' Il disparaît aussi pour les personnes qui y ont accès.' : ''}`
             : undefined
         }
-        choices={suppression ? [{ label: 'Supprimer', principal: true, onPress: () => supprimerEspace(suppression).catch(() => {}) }] : []}
+        choices={suppression ? [{ label: 'Supprimer', danger: true, onPress: () => supprimerEspace(suppression).catch(() => {}) }] : []}
         onClose={() => setSuppression(null)}
       />
       <ChoiceSheet
@@ -2402,11 +2417,11 @@ function Main() {
           askSubs
             ? [
                 {
-                  label: `Oui, tout terminer (${askSubs.kids.length + 1})`,
+                  label: askSubs.kids.length > 1 ? `Terminer les ${askSubs.kids.length} sous-tâches` : 'Terminer la sous-tâche',
                   principal: true,
                   onPress: () => enregistrerStatuts([askSubs.parent, ...askSubs.kids].map((item) => ({ item, statut: 'termine' as const }))),
                 },
-                { label: `Non, seulement « ${askSubs.parent.titre} »`, onPress: () => enregistrerStatuts([{ item: askSubs.parent, statut: 'termine' }]) },
+                { label: `Seulement « ${askSubs.parent.titre} »`, onPress: () => enregistrerStatuts([{ item: askSubs.parent, statut: 'termine' }]) },
               ]
             : []
         }

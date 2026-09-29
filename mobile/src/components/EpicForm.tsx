@@ -20,7 +20,6 @@ import { colors } from '../theme';
 import { Epic, EPIC_COULEURS, EpicInput, Feature, Item } from '../types';
 import { etatEpic, useSafe } from '../safe';
 import { ETATS_EPIC } from '../types';
-import { Chips } from './Chips';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
 import { TitreBarre, TitreFiche, BoutonRetour, ChildActions, CheminPile, type Injection, type PileProps } from './FormSheet';
@@ -28,9 +27,9 @@ import { LinkPicker } from './LinkPicker';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
 import { LiaisonOrg } from './LiaisonOrg';
-import { filTravail } from '../choixTravail';
+import { filTravail, metaTache } from '../choixTravail';
 import { ChoiceSheet } from './ChoiceSheet';
-import { FeuilleMulti, LigneEnfant, ListeEnfants, SectionFiche } from './Choix';
+import { ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, ListeEnfants, SaisieFiche, SectionFiche } from './Choix';
 
 interface Props {
   visible: boolean;
@@ -52,6 +51,8 @@ interface Props {
   /** « ＋ Nouveau portfolio » (section Delivery) */
   onNouveauOrg?: (espace: string) => void;
   onOpenTask: (item: Item) => void;
+  /** Case à cocher d'une tâche de la liste : la terminer (ou la rouvrir) */
+  onCocherTache?: (item: Item) => void;
   /** Valeurs proposées pour une nouvelle epic (ex. objectif) */
   defaults?: Partial<EpicInput>;
   onAddFeature?: (e: Epic) => void;
@@ -85,6 +86,7 @@ export function EpicForm({
   onSave,
   onDelete,
   onOpenTask,
+  onCocherTache,
   defaults,
   onAddFeature,
   onAddTask,
@@ -286,58 +288,56 @@ export function EpicForm({
             />
 
             {safe.actif && (
-              <>
-                <Text style={styles.label}>État (portefeuille)</Text>
-                <Chips
-                  options={ETATS_EPIC.map((e) => ({ value: e.value, label: e.label, color: e.color }))}
-                  value={form.etat || etatEpic(form, toDateString(new Date()))}
-                  onChange={(v) => set('etat', v)}
-                />
-                {!form.etat && <Text style={styles.hint}>Déduit des dates tant que vous n'en choisissez pas un.</Text>}
-                <LiaisonOrg
-                  espace={espace}
-                  niveau="epic"
-                  valeurs={{ portfolio: form.portfolio, epic: epic?.id }}
-                  initial={epic ? { portfolio: epic.portfolio ?? '' } : undefined}
-                  onChange={(p) => setForm((x) => ({ ...x, ...p }))}
-                  onNouveau={onNouveauOrg ? () => onNouveauOrg(espace) : undefined}
-                />
-              </>
+              <LiaisonOrg
+                espace={espace}
+                niveau="epic"
+                valeurs={{ portfolio: form.portfolio, epic: epic?.id }}
+                initial={epic ? { portfolio: epic.portfolio ?? '' } : undefined}
+                onChange={(p) => setForm((x) => ({ ...x, ...p }))}
+                onNouveau={onNouveauOrg ? () => onNouveauOrg(espace) : undefined}
+              />
             )}
 
-            <Text style={styles.label}>Début</Text>
-            <DateField mode="date" value={form.debut} onChange={(v) => set('debut', v)} placeholder="Date de début" />
-            <Text style={styles.label}>Fin</Text>
-            <DateField mode="date" value={form.fin} onChange={(v) => set('fin', v)} placeholder="Sans fin (epic infinie)" />
-            <Text style={styles.hint}>
-              Vide = epic sans fin. Si une tâche de l'epic sort de ces dates, une alerte le signale avec un bouton
-              pour ajuster.
-            </Text>
-
-            <Text style={styles.label}>Couleur</Text>
-            <View style={styles.swatches}>
-              {EPIC_COULEURS.map((c) => (
-                <Pressable
-                  key={c}
-                  onPress={() => set('couleur', c)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: form.couleur === c }}
-                  accessibilityLabel={`Couleur ${c}`}
-                  style={[styles.swatch, { backgroundColor: c }, form.couleur === c && styles.swatchOn]}
+            {/* Quand : dates ; État du portefeuille (5 choix → ligne de choix), déduit des dates s'il n'est pas choisi */}
+            <SectionFiche titre="Quand">
+              <ChampFiche label="Début">
+                <DateField nu mode="date" value={form.debut} onChange={(v) => set('debut', v)} placeholder="Date de début" />
+              </ChampFiche>
+              <ChampFiche label="Fin" sous="Vide : epic sans fin. Une tâche hors de ces dates est signalée par une alerte.">
+                <DateField nu mode="date" value={form.fin} onChange={(v) => set('fin', v)} placeholder="Sans fin (epic infinie)" />
+              </ChampFiche>
+              {safe.actif && (
+                <LigneChoix
+                  label="État"
+                  value={form.etat}
+                  depart={epic?.etat}
+                  groupes={[{ options: ETATS_EPIC.map((e) => ({ value: e.value, label: e.label })) }]}
+                  vide={`${ETATS_EPIC.find((e) => e.value === etatEpic(form, toDateString(new Date())))?.label ?? '?'} (d'après les dates)`}
+                  sans="D'après les dates"
+                  onChange={(v) => set('etat', v as typeof form.etat)}
                 />
-              ))}
-            </View>
+              )}
+            </SectionFiche>
 
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.notes]}
-              placeholder="Objectif, périmètre, contacts…"
-              placeholderTextColor={colors.muted}
-              value={form.description}
-              onChangeText={(v) => set('description', v)}
-              multiline
-              textAlignVertical="top"
-            />
+            <SectionFiche titre="Détails">
+              <ChampFiche label="Couleur" colonne>
+                <View style={styles.swatches}>
+                  {EPIC_COULEURS.map((c) => (
+                    <Pressable
+                      key={c}
+                      onPress={() => set('couleur', c)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: form.couleur === c }}
+                      accessibilityLabel={`Couleur ${c}`}
+                      style={[styles.swatch, { backgroundColor: c }, form.couleur === c && styles.swatchOn]}
+                    />
+                  ))}
+                </View>
+              </ChampFiche>
+              <ChampFiche label="Description" colonne>
+                <SaisieFiche placeholder="Objectif, périmètre, contacts…" value={form.description} onChangeText={(v) => set('description', v)} multiline />
+              </ChampFiche>
+            </SectionFiche>
 
             {safe.actif && (
               <ListeEnfants
@@ -351,12 +351,12 @@ export function EpicForm({
                 nouveau={onAddFeature ? () => enregistrerPuis(onAddFeature) : undefined}
                 mots={{
                   nouveau: 'Nouvelle feature',
-                  ranger: 'Ranger une feature existante',
-                  feuille: "Ranger dans l'epic",
+                  ranger: 'Choisir des features',
+                  feuille: "Ajouter à l'epic",
                   libres: 'Sans epic',
                   autres: 'Dans une autre epic',
-                  un: "Rangée dans l'epic à l'enregistrement.",
-                  plusieurs: "Rangées dans l'epic à l'enregistrement.",
+                  un: "Ajoutée à l'epic à l'enregistrement.",
+                  plusieurs: "Ajoutées à l'epic à l'enregistrement.",
                 }}
                 vide="Aucune feature pour l'instant."
               />
@@ -379,7 +379,9 @@ export function EpicForm({
                   return (
                     <LigneEnfant
                       key={t.id}
-                      texte={`${t.periodicite ? '🔁' : t.statut === 'termine' ? '✓' : '○'} ${t.titre}${k.length ? `  (${k.filter((c) => c.statut === 'termine').length}/${k.length})` : ''}${t.date ? ` · ${t.date.split('-').reverse().join('/')}` : ''}`}
+                      texte={t.titre}
+                      coche={{ fait: t.statut === 'termine', enCours: t.statut === 'en_cours', onPress: onCocherTache ? () => onCocherTache(t) : undefined }}
+                      meta={metaTache(t, safe.pointsJours, { faites: k.filter((c) => c.statut === 'termine').length, total: k.length })}
                       onPress={() => onOpenTask(t)}
                     />
                   );
@@ -391,7 +393,8 @@ export function EpicForm({
                 return (
                   <LigneEnfant
                     key={id}
-                    texte={`○ ${t?.titre ?? '?'}`}
+                    texte={t?.titre ?? '?'}
+                    coche={{ fait: false }}
                     ajoute
                     avant={avant ? `🧩 ${avant.titre}` : avantEpic ? `🗂️ ${avantEpic.titre}` : undefined}
                     onAnnuler={() => setRanger((l) => l.filter((x) => x !== id))}
@@ -400,25 +403,25 @@ export function EpicForm({
               })}
               {!tasks.length && !ranger.length && <Text style={[styles.muted, { padding: 12 }]}>Aucune tâche pour l'instant.</Text>}
             </SectionFiche>
-            {ranger.length > 0 && <Text style={styles.hint}>Rangées dans l'epic à l'enregistrement.</Text>}
+            {ranger.length > 0 && <Text style={styles.hint}>Ajoutées à l'epic à l'enregistrement.</Text>}
             <ChoiceSheet
               key={`plus-${menuPlus}`}
               visible={menuPlus}
               title="Ajouter une tâche"
               choices={[
                 ...(onAddTask ? [{ label: '＋ Nouvelle tâche', principal: true, onPress: () => enregistrerPuis(onAddTask) }] : []),
-                { label: '↘ Ranger une tâche existante', onPress: () => setPicking(true) },
+                { label: '☑ Choisir des tâches', suite: true, onPress: () => setPicking(true) },
               ]}
               onClose={() => setMenuPlus(false)}
             />
             {picking && (
               <FeuilleMulti
-                titre="Ranger dans l'epic"
+                titre="Ajouter à l'epic"
                 groupes={[{ titre: 'Sans rattachement', options: candidats.filter((c) => !c.dans).map((c) => ({ value: c.id, label: c.titre, meta: c.sub })) }]}
-                autres={{ titre: 'Rangées ailleurs', groupes: [{ options: candidats.filter((c) => c.dans).map((c) => ({ value: c.id, label: c.titre, meta: c.sub })) }] }}
+                autres={{ titre: 'Dans une autre feature ou epic', groupes: [{ options: candidats.filter((c) => c.dans).map((c) => ({ value: c.id, label: c.titre, meta: c.sub })) }] }}
                 selection={[]}
-                vide="Aucune tâche à ranger."
-                libelleValider={(n) => (n ? `Ranger ${n} tâche${n > 1 ? 's' : ''}` : 'Ranger')}
+                vide="Aucune tâche à ajouter."
+                libelleValider={(n) => (n ? `Ajouter ${n} tâche${n > 1 ? 's' : ''}` : 'Ajouter')}
                 onValider={(l) => {
                   setRanger((x) => [...x, ...l.filter((id) => !x.includes(id))]);
                   setPicking(false);

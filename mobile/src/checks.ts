@@ -7,7 +7,7 @@ import type { HierarchyValue } from './hierarchyContext';
 import { iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piStart, pointsOf, shiftIteration, shiftPi } from './pi';
 import { occurrencesBetween, recurrenceState } from './recurrence';
 import { etatEpic } from './safe';
-import { chargeOf, subtaskMap } from './subtasks';
+import { chargeOf, pointsCheck, subtaskMap } from './subtasks';
 import { aDateFin, aHeureFin, ETATS_EPIC, type Item } from './types';
 
 /**
@@ -23,7 +23,9 @@ export type Action =
   | { kind: 'open'; target: 'task' | 'epic' | 'objectif' | 'feature' | 'objectifpi'; id: string }
   | { kind: 'new'; target: 'task'; defaults: Partial<Item> }
   | { kind: 'new'; target: 'epic'; defaults: { objectif?: string; domaine?: string } }
-  | { kind: 'iteration'; itKey: string };
+  | { kind: 'iteration'; itKey: string }
+  /** « Garder … » : ignore l'alerte jusqu'à ce que sa situation change */
+  | { kind: 'ignorer' };
 
 export interface Check {
   key: string;
@@ -38,6 +40,8 @@ export interface Check {
   situation?: string;
   icone: string;
   message: string;
+  /** Toucher le message ouvre l'élément (au lieu d'un bouton « Ouvrir ») */
+  ouvrir?: Action;
   actions: { label: string; action: Action; principal?: boolean }[];
 }
 
@@ -167,8 +171,28 @@ function avecSituations(calc: () => Check[]): Check[] {
 }
 
 /** Unité choisie dans les réglages : « 5 j » ou « 5 pts » */
-const unite = (jours: boolean) => (n: number) => (estNeutre() ? `${nb(n)} u` : jours ? `${nb(n)} j` : `${nb(n)} pt${n > 1 ? 's' : ''}`);
+export const unite = (jours: boolean) => (n: number) => (estNeutre() ? `${nb(n)} u` : jours ? `${nb(n)} j` : `${nb(n)} pt${n > 1 ? 's' : ''}`);
 const prevu = (n: number) => `prévu${n > 1 ? 's' : ''}`;
+
+/**
+ * Estimation d'une tâche ≠ total de ses sous-tâches (même alerte dans la fiche, l'Itération et le PI) : un écart,
+ * donc une alerte jaune à deux choix — « Passer à … » ou « Garder … » (ignorée jusqu'à ce que les chiffres changent).
+ */
+export function checkPoints(p: Item, kids: Item[] | undefined, u: (n: number) => string): Check | null {
+  const c = pointsCheck(p, kids);
+  if (!c.alerte) return null;
+  return {
+    key: `points:${p.id}`,
+    niveau: 'rappel',
+    icone: '🔢',
+    message: `« ${p.titre} » : ${u(c.parent)} ${prevu(c.parent)}, ${u(c.sous)} dans ses sous-tâches.`,
+    ouvrir: { kind: 'open', target: 'task', id: p.id },
+    actions: [
+      { label: `Passer à ${u(c.sous)}`, action: { kind: 'task', id: p.id, patch: { points: String(c.sous) } }, principal: true },
+      { label: `Garder ${u(c.parent)}`, action: { kind: 'ignorer' } },
+    ],
+  };
+}
 
 // ---------------------------------------------------------------------------
 // 1. Tâches : « qu'est-ce qui cloche aujourd'hui ? »
@@ -497,7 +521,14 @@ function checksIterationBrut(
   // Surcharge : la capacité est commune à tous les domaines, propre à chaque espace
   if (it.code !== 'IP') out.push(...surcharges(complet.items, itKey, it.code, capacite, u));
 
-  // (Plus d'alerte « parent ≠ sous-tâches » : l'estimation d'un parent est le total de ses sous-tâches)
+  // Points incohérents : parent ≠ total de ses sous-tâches (parents présents dans l'itération)
+  const parents = new Set<string>();
+  for (const t of h.items) if (iterationOfItem(t) === itKey) parents.add(t.parent || t.id);
+  for (const pid of parents) {
+    const p = h.items.find((t) => t.id === pid);
+    const c = p && checkPoints(p, subs.get(pid), u);
+    if (c) out.push(c);
+  }
   const tasks = h.items.filter((t) => iterationOfItem(t) === itKey);
   const total = tasks.reduce((n, t) => n + chargeOf(t, subs), 0);
   const done = tasks.filter((t) => t.statut === 'termine').reduce((n, t) => n + chargeOf(t, subs), 0);
@@ -684,13 +715,25 @@ function checksPIBrut(h: HierarchyValue, piKey: string, today: string, capacite:
     if (fp > 0 && tp > 0 && Math.abs(fp - tp) > 1e-9)
       out.push({
         key: `fpoints:${f.id}`,
+        niveau: 'rappel',
         icone: '🔢',
-        message: `La feature « ${f.titre} » : ${u(fp)} ${prevu(fp)}, ${u(tp)} dans ses tâches.`,
+        message: `« ${f.titre} » : ${u(fp)} ${prevu(fp)}, ${u(tp)} dans ses tâches.`,
+        ouvrir: { kind: 'open', target: 'feature', id: f.id },
         actions: [
-          { label: `Passer la feature à ${u(tp)}`, action: { kind: 'entity', entity: 'feature', id: f.id, patch: { points: String(+tp.toFixed(1)) } }, principal: true },
-          { label: 'Ouvrir la feature', action: { kind: 'open', target: 'feature', id: f.id } },
+          { label: `Passer à ${u(tp)}`, action: { kind: 'entity', entity: 'feature', id: f.id, patch: { points: String(+tp.toFixed(1)) } }, principal: true },
+          { label: `Garder ${u(fp)}`, action: { kind: 'ignorer' } },
         ],
       });
+  }
+
+  // Points d'une tâche ≠ total de ses sous-tâches, pour toutes les itérations du PI
+  const keys = new Set(its.map((it) => it.key));
+  const parents = new Set<string>();
+  for (const t of h.items) if (keys.has(iterationOfItem(t))) parents.add(t.parent || t.id);
+  for (const pid of parents) {
+    const p = h.items.find((t) => t.id === pid);
+    const c = p && checkPoints(p, subs.get(pid), u);
+    if (c) out.push(c);
   }
 
   // Objectif du PI engagé sans rien pour le porter : aucune feature ni tâche de son epic (si elle est

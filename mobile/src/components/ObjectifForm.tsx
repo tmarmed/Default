@@ -9,12 +9,11 @@ import { formatEpicDates } from '../roadmap';
 import { EPIC_COULEURS, Epic, Objectif, ObjectifInput } from '../types';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
-import { AlertList, ColorPicker, TitreFiche, Field, FormSheet, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
+import { AlertList, ColorPicker, TitreFiche, Field, FormSheet, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
-import { ListeEnfants } from './Choix';
+import { ChampFiche, ListeEnfants, SaisieFiche, SectionFiche } from './Choix';
 import { filTravail } from '../choixTravail';
 import { useSafe } from '../safe';
-import { View } from 'react-native';
 
 interface Props {
   visible: boolean;
@@ -167,35 +166,43 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
         attendu={safe.actif ? 'domaine' : undefined}
       />
 
-      <Label>Début</Label>
-      <DateField mode="date" value={form.debut} onChange={(v) => set('debut', v)} placeholder="Date de début" />
-      <Label>Échéance</Label>
-      <DateField mode="date" value={form.fin} onChange={(v) => set('fin', v)} placeholder="Permanent (sans échéance)" />
-      <Text style={f.hint}>
-        Vide = objectif permanent. L'échéance n'est jamais modifiée automatiquement : si une epic la dépasse, une alerte
-        le signale avec un bouton pour l'ajuster.
-      </Text>
+      <SectionFiche titre="Quand">
+        <ChampFiche label="Début">
+          <DateField nu mode="date" value={form.debut} onChange={(v) => set('debut', v)} placeholder="Date de début" />
+        </ChampFiche>
+        <ChampFiche label="Échéance" sous="Vide : objectif permanent. Jamais modifiée d'office : une epic qui la dépasse est signalée par une alerte.">
+          <DateField nu mode="date" value={form.fin} onChange={(v) => set('fin', v)} placeholder="Permanent (sans échéance)" />
+        </ChampFiche>
+      </SectionFiche>
 
-      <Label>Indicateur (facultatif)</Label>
-      <View style={f.row}>
-        <Field style={f.flex} placeholder="Actuel" value={form.actuel} onChangeText={(v) => set('actuel', number(v))} keyboardType="decimal-pad" />
-        <Field style={f.flex} placeholder="Cible" value={form.cible} onChangeText={(v) => set('cible', number(v))} keyboardType="decimal-pad" />
-        <Field style={f.flex} placeholder="Unité" value={form.unite} onChangeText={(v) => set('unite', v)} maxLength={30} />
-      </View>
-      <Text style={f.hint}>Ex. 8 sur 20 clients. Sans indicateur, l'avancement suit les tâches terminées.</Text>
+      {/* Indicateur (résultat clé) : sans indicateur, l'avancement suit les tâches terminées */}
+      <SectionFiche titre="Indicateur">
+        <ChampFiche label="Actuel">
+          <SaisieFiche placeholder="Facultatif (ex. 8)" value={form.actuel} onChangeText={(v) => set('actuel', number(v))} keyboardType="decimal-pad" />
+        </ChampFiche>
+        <ChampFiche label="Cible">
+          <SaisieFiche placeholder="Facultatif (ex. 20)" value={form.cible} onChangeText={(v) => set('cible', number(v))} keyboardType="decimal-pad" />
+        </ChampFiche>
+        <ChampFiche label="Unité" sous="Sans indicateur, l'avancement suit les tâches terminées.">
+          <SaisieFiche placeholder="Facultatif (ex. clients)" value={form.unite} onChangeText={(v) => set('unite', v)} maxLength={30} />
+        </ChampFiche>
+        {objectif && progress && (
+          <ChampFiche label="Avancement" colonne>
+            {!!progress.label && <Text style={f.hint}>{progress.label}</Text>}
+            <Progress ratio={progress.ratio} color={form.couleur} />
+          </ChampFiche>
+        )}
+      </SectionFiche>
 
-      <Label>Couleur</Label>
-      <ColorPicker value={form.couleur} onChange={(c) => set('couleur', c)} />
+      <SectionFiche titre="Détails">
+        <ChampFiche label="Couleur" colonne>
+          <ColorPicker value={form.couleur} onChange={(c) => set('couleur', c)} />
+        </ChampFiche>
+        <ChampFiche label="Description" colonne>
+          <SaisieFiche placeholder="Pourquoi, comment mesurer…" value={form.description} onChangeText={(v) => set('description', v)} multiline />
+        </ChampFiche>
+      </SectionFiche>
 
-      <Label>Description</Label>
-      <Field style={f.notes} placeholder="Pourquoi, comment mesurer…" value={form.description} onChangeText={(v) => set('description', v)} multiline />
-
-      {objectif && progress && (
-        <>
-          <Label>Avancement {progress.label ? `· ${progress.label}` : ''}</Label>
-          <Progress ratio={progress.ratio} color={form.couleur} />
-        </>
-      )}
       <ListeEnfants
         titre={`Epics · ${epics.length}`}
         enfants={epics.map((e) => ({ id: e.id, texte: `🗂️ ${e.titre} · ${formatEpicDates(e).split(' · ')[0]}`, onPress: () => onOpenEpic(e) }))}
@@ -211,12 +218,12 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
         nouveau={onAddEpic ? () => enregistrerPuis(onAddEpic) : undefined}
         mots={{
           nouveau: 'Nouvelle epic',
-          ranger: 'Ranger une epic existante',
-          feuille: "Ranger dans l'objectif",
+          ranger: 'Choisir des epics',
+          feuille: "Ajouter à l'objectif",
           libres: 'Sans objectif',
           autres: 'Dans un autre objectif',
-          un: "Rangée dans l'objectif à l'enregistrement.",
-          plusieurs: "Rangées dans l'objectif à l'enregistrement.",
+          un: "Ajoutée à l'objectif à l'enregistrement.",
+          plusieurs: "Ajoutées à l'objectif à l'enregistrement.",
         }}
         vide="Aucune epic pour l'instant."
       />

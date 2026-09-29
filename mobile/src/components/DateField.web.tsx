@@ -6,10 +6,12 @@ interface Props {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  /** Dans une ligne de fiche : sans cadre, sur la carte blanche */
+  nu?: boolean;
 }
 
 /** Version navigateur : champ date / heure natif du navigateur. */
-export function DateField({ mode, value, onChange, placeholder }: Props) {
+export function DateField({ mode, value, onChange, placeholder, nu }: Props) {
   return (
     <View style={styles.row}>
       <input
@@ -20,13 +22,16 @@ export function DateField({ mode, value, onChange, placeholder }: Props) {
         style={{
           flex: 1,
           font: 'inherit',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
           fontSize: 16,
           color: colors.text,
-          background: colors.card,
-          border: `1px solid ${colors.border}`,
+          background: nu ? 'transparent' : colors.card,
+          border: nu ? 'none' : `1px solid ${colors.border}`,
           borderRadius: 10,
-          padding: '11px 12px',
-          minHeight: 46,
+          padding: nu ? '4px 0' : '11px 12px',
+          minHeight: nu ? 30 : 46,
+          fontWeight: nu && value ? 600 : undefined,
+          outline: nu ? 'none' : undefined,
           boxSizing: 'border-box',
           width: '100%',
         }}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -38,11 +38,13 @@ import { espaceParId, ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces
 import { useSafe } from '../safe';
 import { iterationByKey, iterationNom, iterationOf } from '../pi';
 import { callNumber } from '../phone';
-import { fmtPoints, pointsOf } from '../pi';
+import { fmtPoints } from '../pi';
 import { canHaveSubtasks, PARENT_TYPES, pointsCheck, subtaskMap } from '../subtasks';
 import { ChoiceSheet } from './ChoiceSheet';
-import { FeuilleMulti, LigneChoix, LigneEnfant, LigneFiche, SectionFiche } from './Choix';
-import { filTravail, listeIterations, listeTaches } from '../choixTravail';
+import { estIgnoree, IgnoreContext } from './AlertsCard';
+import { checkPoints, unite } from '../checks';
+import { AlerteChoix, ChampEstimation, ChampFiche, FeuilleMulti, LigneChoix, SaisieFiche, LigneEnfant, LigneFiche, SectionFiche } from './Choix';
+import { filTravail, listeIterations, listeTaches, metaTache } from '../choixTravail';
 import { LiaisonOrg } from './LiaisonOrg';
 import { useEspaceFil } from './EspaceChoix';
 import { BoutonRetour, CheminPile, TitreBarre, TitreFiche, type Injection, type PileProps } from './FormSheet';
@@ -156,6 +158,18 @@ const NOUVEAU: Record<ItemType, string> = {
   bug: 'Nouveau bug',
 };
 
+/** « la story », « le rendez-vous »… (réponses aux questions) */
+const TYPE_ARTICLE: Record<ItemType, string> = {
+  tache: 'la tâche',
+  'rendez-vous': 'le rendez-vous',
+  appel: "l'appel",
+  demarche: 'la démarche',
+  mission: 'la mission',
+  story: 'la story',
+  exploration: "l'exploration",
+  bug: 'le bug',
+};
+
 const STATUTS = (Object.keys(STATUT_LABELS) as Statut[]).map((s) => ({ value: s, label: STATUT_LABELS[s] }));
 
 export function TaskForm({
@@ -217,10 +231,10 @@ export function TaskForm({
   const parentItem = form.parent ? h.items.find((t) => t.id === form.parent) : undefined;
   const peutAvoir = canHaveSubtasks(form) && !(item && form.parent);
   const check = item ? pointsCheck({ ...item, points: form.points }, enfants) : { parent: 0, sous: 0, alerte: false };
-  // Estimation automatique : le total des sous-tâches qui ont des points
-  const sousAvecPoints = enfants.filter((t) => pointsOf(t) > 0);
-  const estAuto = sousAvecPoints.length > 0;
-  const detailSous = sousAvecPoints.map((t) => String(pointsOf(t))).join(' + ');
+  // Estimation ≠ total des sous-tâches : alerte jaune « Passer à … / Garder … » (la même que le centre d'alertes)
+  const { ignorees, ignorer } = useContext(IgnoreContext);
+  const alertePointsBrute = item ? checkPoints({ ...item, points: form.points }, enfants, unite(safe.pointsJours)) : null;
+  const alertePoints = alertePointsBrute && !estIgnoree(alertePointsBrute, ignorees) ? alertePointsBrute : null;
   const tousFaits = enfants.length > 0 && enfants.every((t) => t.statut === 'termine');
   // Même règle que la case à cocher : passer un parent à « Terminé » → terminer aussi ses sous-tâches ouvertes ?
   const sousOuvertes = enfants.filter((t) => t.statut !== 'termine');
@@ -328,8 +342,6 @@ export function TaskForm({
         // Date de fin : démarches non répétées seulement
         date_fin: aDateFin(form.type) && !form.periodicite ? form.date_fin : '',
       };
-      // Estimation automatique : enregistrée telle quelle (le total des sous-tâches)
-      if (estAuto) base.points = String(check.sous);
       const input = base.periodicite ? { ...base, date: '', statut: 'a_faire' as const } : base;
       await onSave({ ...input, titre: input.titre.trim() }, peutAvoir ? nouvelles : [], { terminerSousTaches: passeTermine && !!terminerSous, rangerSous: peutAvoir ? rangees : [] });
     } catch (e) {
@@ -421,84 +433,83 @@ export function TaskForm({
               </SectionFiche>
             )}
 
-            <Text style={styles.label}>Type</Text>
-            <Chips
-              options={TYPES}
-              value={form.type}
-              // Rendez-vous, appel : pas d'« En cours » (il redevient « À faire »)
-              onChange={(v) => setForm((f) => ({ ...f, type: v, statut: sansEnCours(v) && f.statut === 'en_cours' ? 'a_faire' : f.statut }))}
-              compact
-              wrap
-            />
+            {/* Élément : type (8 choix → ligne de choix), numéro d'un appel */}
+            <SectionFiche titre="Élément">
+              <LigneChoix
+                label="Type"
+                value={form.type}
+                groupes={[{ options: TYPES.map((o) => ({ value: o.value, label: o.label })) }]}
+                // Rendez-vous, appel : pas d'« En cours » (il redevient « À faire »)
+                onChange={(v) => v && setForm((f) => ({ ...f, type: v as ItemType, statut: sansEnCours(v as ItemType) && f.statut === 'en_cours' ? 'a_faire' : f.statut }))}
+              />
+              {form.type === 'appel' && (
+                <ChampFiche label="Numéro">
+                  <View style={styles.phoneRow}>
+                    <SaisieFiche
+                      style={{ flex: 1 }}
+                      placeholder="06 12 34 56 78"
+                      value={form.telephone}
+                      onChangeText={(v) => set('telephone', v.replace(/[^0-9+().\s-]/g, ''))}
+                      keyboardType="phone-pad"
+                      autoComplete="tel"
+                    />
+                    {!!form.telephone.trim() && (
+                      <Pressable
+                        style={styles.callBtn}
+                        onPress={() => callNumber(form.telephone)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Appeler le ${form.telephone}`}
+                      >
+                        <Text style={styles.callText}>📞 Appeler</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </ChampFiche>
+              )}
+            </SectionFiche>
 
-            {form.type === 'appel' && (
-              <>
-                <Text style={styles.label}>Numéro</Text>
-                <View style={styles.phoneRow}>
-                  <TextInput
-                    style={[styles.input, styles.phoneInput]}
-                    placeholder="06 12 34 56 78"
-                    placeholderTextColor={colors.muted}
-                    value={form.telephone}
-                    onChangeText={(v) => set('telephone', v.replace(/[^0-9+().\s-]/g, ''))}
-                    keyboardType="phone-pad"
-                    autoComplete="tel"
-                  />
-                  {!!form.telephone.trim() && (
-                    <Pressable
-                      style={styles.callBtn}
-                      onPress={() => callNumber(form.telephone)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Appeler le ${form.telephone}`}
-                    >
-                      <Text style={styles.callText}>📞 Appeler</Text>
-                    </Pressable>
+            {/* Quand : répétition, date, heure */}
+            <SectionFiche titre="Quand">
+              {!form.parent && !enfants.length && !nouvelles.length && (
+                <RecurrenceFields value={form} onChange={(patch) => setForm((f) => ({ ...f, ...patch }))} />
+              )}
+              {!form.periodicite && (
+                <>
+                  <ChampFiche label="Date">
+                    <DateField nu mode="date" value={form.date} onChange={(v) => set('date', v)} placeholder="Choisir une date" />
+                  </ChampFiche>
+                  {aDateFin(form.type) && (
+                    <ChampFiche label="Date de fin" sous="La date où la démarche doit être finie (ex. expiration du document).">
+                      <DateField nu mode="date" value={form.date_fin} onChange={(v) => set('date_fin', v)} placeholder="Date limite (facultatif)" />
+                    </ChampFiche>
                   )}
-                </View>
-              </>
-            )}
-
-            {!form.parent && !enfants.length && !nouvelles.length && (
-              <RecurrenceFields value={form} onChange={(patch) => setForm((f) => ({ ...f, ...patch }))} />
-            )}
-
-            {!form.periodicite && (
-              <>
-                <Text style={styles.label}>Date</Text>
-                <DateField mode="date" value={form.date} onChange={(v) => set('date', v)} placeholder="Choisir une date" />
-                {aDateFin(form.type) && (
-                  <>
-                    <Text style={styles.label}>Date de fin</Text>
-                    <DateField mode="date" value={form.date_fin} onChange={(v) => set('date_fin', v)} placeholder="Date limite (facultatif)" />
-                    <Text style={styles.hint}>La date où la démarche doit être finie (ex. expiration du document).</Text>
-                  </>
-                )}
-              </>
-            )}
-
-            <Text style={styles.label}>Heure</Text>
-            <DateField
-              mode="time"
-              value={form.heure}
-              onChange={(v) =>
-                setForm((f) => ({
-                  ...f,
-                  heure: v,
-                  // Rendez-vous, mission : fin proposée une heure après le début (si pas encore choisie)
-                  heure_fin: aHeureFin(f.type) && v && (!f.heure_fin || f.heure_fin <= v) ? plusUneHeure(v) : f.heure_fin,
-                }))
-              }
-              placeholder="Choisir une heure"
-            />
-            {aHeureFin(form.type) && (
-              <>
-                <Text style={styles.label}>Heure de fin</Text>
-                <DateField mode="time" value={form.heure_fin} onChange={(v) => set('heure_fin', v)} placeholder="Choisir l'heure de fin" />
-                {!!form.heure && !!form.heure_fin && form.heure_fin > form.heure && (
-                  <Text style={styles.hint}>Durée : {duree(form.heure, form.heure_fin)}</Text>
-                )}
-              </>
-            )}
+                </>
+              )}
+              <ChampFiche label="Heure">
+                <DateField
+                  nu
+                  mode="time"
+                  value={form.heure}
+                  onChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      heure: v,
+                      // Rendez-vous, mission : fin proposée une heure après le début (si pas encore choisie)
+                      heure_fin: aHeureFin(f.type) && v && (!f.heure_fin || f.heure_fin <= v) ? plusUneHeure(v) : f.heure_fin,
+                    }))
+                  }
+                  placeholder="Choisir une heure"
+                />
+              </ChampFiche>
+              {aHeureFin(form.type) && (
+                <ChampFiche
+                  label="Heure de fin"
+                  sous={!!form.heure && !!form.heure_fin && form.heure_fin > form.heure ? `Durée : ${duree(form.heure, form.heure_fin)}` : undefined}
+                >
+                  <DateField nu mode="time" value={form.heure_fin} onChange={(v) => set('heure_fin', v)} placeholder="Choisir l'heure de fin" />
+                </ChampFiche>
+              )}
+            </SectionFiche>
 
             {form.parent && parentItem ? (
               <SectionFiche titre="Rattachement">
@@ -509,7 +520,7 @@ export function TaskForm({
                   parent
                   {...listeParents}
                   libelle={() => `${TYPE_ICONS[parentItem.type]} ${parentItem.titre}`}
-                  sous="Même rangement que la tâche parente"
+                  sous="Même rattachement que la tâche parente"
                   sans="Aucune (tâche principale)"
                   onChange={choisirParent}
                 />
@@ -552,27 +563,11 @@ export function TaskForm({
               onChange={(p) => setForm((f) => ({ ...f, ...p }))}
               onNouveau={onNouveauOrg ? (k, champ) => (k === 'equipeagile' || k === 'personne') && (champ === 'equipe' || champ === 'responsable') && onNouveauOrg(k, champ, espace) : undefined}
             />
-            {/* Estimation : en SAFe, les points ; en Simple, une estimation facultative (même champ) */}
-            <Text style={styles.label}>{safe.actif ? (safe.pointsJours ? 'Points (jours)' : 'Points') : safe.pointsJours ? 'Estimation (jours, facultatif)' : 'Estimation (facultatif)'}</Text>
-            {estAuto ? (
-              // Sous-tâches avec des points : l'estimation est leur total, toujours à jour
-              <View style={[styles.input, styles.estAuto]} accessibilityLabel={`Estimation : ${fmtPoints(check.sous, safe.pointsJours)}, total des sous-tâches`}>
-                <Text style={styles.estAutoValeur}>{fmtPoints(check.sous, safe.pointsJours)}</Text>
-                <Text style={styles.estAutoSous}>Total des sous-tâches ({detailSous})</Text>
-              </View>
-            ) : (
-              <TextInput
-                style={styles.input}
-                placeholder="Estimation, ex. 2"
-                placeholderTextColor={colors.muted}
-                value={form.points}
-                onChangeText={(v) => set('points', v.replace(/[^0-9.,]/g, ''))}
-                keyboardType="decimal-pad"
-              />
-            )}
-            {safe.actif && !form.periodicite && (
-              <SectionFiche titre="Planification">
-                {form.date ? (
+            {/* Planification : itération (SAFe) et estimation (« Estimation » partout ; l'unité est dans la valeur) */}
+            <SectionFiche titre="Planification">
+              {safe.actif &&
+                !form.periodicite &&
+                (form.date ? (
                   <LigneFiche label="Itération" valeur={iterationOf(form.date).label} sous="D'après la date de la tâche" />
                 ) : (
                   <LigneChoix
@@ -584,11 +579,17 @@ export function TaskForm({
                     sans="Sans itération"
                     onChange={(v) => set('iteration', v)}
                   />
-                )}
-              </SectionFiche>
-            )}
+                ))}
+              <ChampEstimation
+                value={form.points}
+                onChange={(v) => set('points', v)}
+                jours={safe.pointsJours}
+                // Sans estimation : celle des sous-tâches, en gris (elle compte déjà, rien à décider)
+                placeholder={check.sous > 0 ? `${fmtPoints(check.sous, safe.pointsJours)} d'après les sous-tâches` : undefined}
+              />
+            </SectionFiche>
 
-            {!!enfants.length && <Text style={styles.hint}>Les sous-tâches suivent le rangement de cette tâche.</Text>}
+            {!!enfants.length && <Text style={styles.hint}>Les sous-tâches suivent le rattachement de cette tâche.</Text>}
 
             {peutAvoir && (
               <>
@@ -596,91 +597,76 @@ export function TaskForm({
                   titre={`Sous-tâches${enfants.length ? ` · ${enfants.filter((t) => t.statut === 'termine').length}/${enfants.length}` : ''}${check.sous ? ` · ${fmtPoints(check.sous, safe.pointsJours)}` : ''}`}
                   onAjouter={() => setMenuSous(true)}
                   ajouterLabel="Ajouter une sous-tâche"
-                />
-                {enfants.map((t) => {
-                  const done = t.statut === 'termine';
-                  return (
-                    <View key={t.id} style={styles.subRow}>
-                      <Pressable
-                        onPress={() => onUpdateTask?.({ id: t.id, statut: done ? 'a_faire' : 'termine' }).catch((e) => setError(`Sous-tâche non modifiée : ${(e as Error).message}`))}
-                        hitSlop={6}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: done }}
-                        accessibilityLabel={`Terminer ${t.titre}`}
-                        style={[styles.subCheck, done && styles.subCheckOn]}
-                      >
-                        {done && <Text style={styles.subCheckMark}>✓</Text>}
-                      </Pressable>
-                      <Pressable style={{ flex: 1, minWidth: 0 }} onPress={() => onOpenTask?.(t)} accessibilityRole="button">
-                        <Text style={[styles.subTitle, done && styles.subDone]} numberOfLines={2}>
-                          {t.type !== 'tache' ? `${TYPE_ICONS[t.type]} ` : ''}
-                          {t.titre}
-                        </Text>
-                        {(t.date || t.iteration) && (
-                          <Text style={styles.subMeta}>
-                            {t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}${t.heure ? ` ${t.heure}` : ''}` : t.iteration.split('-').pop()}
-                          </Text>
-                        )}
-                      </Pressable>
-                      {safe.actif && (
-                        <PointsInput
-                          value={t.points}
-                          onCommit={(v) =>
-                            v !== t.points && onUpdateTask?.({ id: t.id, points: v }).catch((e) => setError(`Points non enregistrés : ${(e as Error).message}`))
-                          }
-                        />
-                      )}
-                    </View>
-                  );
-                })}
-                {nouvelles.map((titre, i) => (
-                  <View key={`n${i}`} style={styles.subRow}>
-                    <Text style={styles.subMeta}>＋</Text>
-                    <Text style={[styles.subTitle, { flex: 1 }]}>{titre}</Text>
-                    <Pressable onPress={() => setNouvelles((l) => l.filter((_, k) => k !== i))} hitSlop={8} accessibilityLabel={`Retirer ${titre}`}>
-                      <Text style={styles.subMeta}>✕</Text>
-                    </Pressable>
-                  </View>
-                ))}
-                {rangees.map((id) => {
-                  const t = h.items.find((x) => x.id === id);
-                  const avant = t ? filTravail(t, h) : '';
-                  return (
+                >
+                  {/* Même ligne que les tâches d'une feature ou d'une epic : case à cocher, titre, détail gris, › */}
+                  {enfants.map((t) => (
                     <LigneEnfant
-                      key={`r${id}`}
-                      texte={`○ ${t?.titre ?? '?'}`}
-                      ajoute
-                      avant={avant || undefined}
-                      onAnnuler={() => setRangees((l) => l.filter((x) => x !== id))}
+                      key={t.id}
+                      texte={`${t.type !== 'tache' ? `${TYPE_ICONS[t.type]} ` : ''}${t.titre}`}
+                      coche={{
+                        fait: t.statut === 'termine',
+                        enCours: t.statut === 'en_cours',
+                        onPress: onUpdateTask
+                          ? () => onUpdateTask({ id: t.id, statut: t.statut === 'termine' ? 'a_faire' : 'termine' }).catch((e) => setError(`Sous-tâche non modifiée : ${(e as Error).message}`))
+                          : undefined,
+                      }}
+                      meta={metaTache(t, safe.pointsJours)}
+                      onPress={onOpenTask ? () => onOpenTask(t) : undefined}
                     />
-                  );
-                })}
-                {rangees.length > 0 && <Text style={styles.hint}>Rangées sous cette tâche à l'enregistrement.</Text>}
-                <TextInput
-                  ref={saisieSous}
-                  style={styles.input}
-                  placeholder="+ Sous-tâche (Entrée pour ajouter)"
-                  placeholderTextColor={colors.muted}
-                  value={quick}
-                  onChangeText={setQuick}
-                  returnKeyType="done"
-                  blurOnSubmit={false}
-                  onSubmitEditing={async () => {
-                    const titre = quick.trim();
-                    if (!titre) return;
-                    if (!item || !onAddSubtask) {
-                      setNouvelles((l) => [...l, titre]);
-                      setQuick('');
-                      return;
-                    }
-                    try {
-                      await onAddSubtask({ ...item, ...form }, titre);
-                      setQuick('');
-                    } catch (e) {
-                      setError(`Sous-tâche non ajoutée : ${(e as Error).message}`);
-                    }
-                  }}
-                />
+                  ))}
+                  {nouvelles.map((titre, i) => (
+                    <LigneEnfant key={`n${i}`} texte={titre} coche={{ fait: false }} ajoute onAnnuler={() => setNouvelles((l) => l.filter((_, k) => k !== i))} />
+                  ))}
+                  {rangees.map((id) => {
+                    const t = h.items.find((x) => x.id === id);
+                    const avant = t ? filTravail(t, h) : '';
+                    return (
+                      <LigneEnfant
+                        key={`r${id}`}
+                        texte={t?.titre ?? '?'}
+                        coche={{ fait: false }}
+                        ajoute
+                        avant={avant || undefined}
+                        onAnnuler={() => setRangees((l) => l.filter((x) => x !== id))}
+                      />
+                    );
+                  })}
+                  {!enfants.length && !nouvelles.length && !rangees.length && <Text style={styles.rien}>Aucune sous-tâche pour l'instant.</Text>}
+                  <TextInput
+                    ref={saisieSous}
+                    style={styles.saisieRapide}
+                    placeholder="＋ Nouvelle sous-tâche"
+                    placeholderTextColor={colors.muted}
+                    value={quick}
+                    onChangeText={setQuick}
+                    returnKeyType="done"
+                    blurOnSubmit={false}
+                    onSubmitEditing={async () => {
+                      const titre = quick.trim();
+                      if (!titre) return;
+                      if (!item || !onAddSubtask) {
+                        setNouvelles((l) => [...l, titre]);
+                        setQuick('');
+                        return;
+                      }
+                      try {
+                        await onAddSubtask({ ...item, ...form }, titre);
+                        setQuick('');
+                      } catch (e) {
+                        setError(`Sous-tâche non ajoutée : ${(e as Error).message}`);
+                      }
+                    }}
+                  />
+                  <Text style={styles.entree}>Entrée pour ajouter</Text>
+                </SectionFiche>
+                {alertePoints && (
+                  <AlerteChoix
+                    texte={alertePoints.message}
+                    oui={{ label: alertePoints.actions[0].label, onPress: () => set('points', String(check.sous)) }}
+                    non={{ label: alertePoints.actions[1].label, onPress: () => ignorer(alertePoints) }}
+                  />
+                )}
+                {rangees.length > 0 && <Text style={styles.hint}>Ajoutées à cette tâche à l'enregistrement.</Text>}
                 {!item && nouvelles.length > 0 && <Text style={styles.hint}>Créées à l'enregistrement de la tâche.</Text>}
                 {tousFaits && form.statut !== 'termine' && (
                   <Pressable style={styles.finish} onPress={() => set('statut', 'termine')} accessibilityRole="button">
@@ -693,17 +679,17 @@ export function TaskForm({
                   title="Ajouter une sous-tâche"
                   choices={[
                     { label: '＋ Nouvelle sous-tâche', principal: true, onPress: () => setTimeout(() => saisieSous.current?.focus(), 50) },
-                    { label: '↘ Ranger une tâche existante', onPress: () => setRangerOuvert(true) },
+                    { label: '☑ Choisir des tâches', suite: true, onPress: () => setRangerOuvert(true) },
                   ]}
                   onClose={() => setMenuSous(false)}
                 />
                 {rangerOuvert && (
                   <FeuilleMulti
-                    titre="Ranger sous cette tâche"
+                    titre="Ajouter à cette tâche"
                     {...candidatsSous}
                     selection={[]}
-                    vide="Aucune tâche à ranger."
-                    libelleValider={(n) => (n ? `Ranger ${n} tâche${n > 1 ? 's' : ''}` : 'Ranger')}
+                    vide="Aucune tâche à ajouter."
+                    libelleValider={(n) => (n ? `Ajouter ${n} tâche${n > 1 ? 's' : ''}` : 'Ajouter')}
                     onValider={(l) => {
                       setRangees((x) => [...x, ...l.filter((id) => !x.includes(id))]);
                       setRangerOuvert(false);
@@ -714,51 +700,47 @@ export function TaskForm({
               </>
             )}
 
-            <Text style={styles.label}>Lieu</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Adresse, salle, client…"
-              placeholderTextColor={colors.muted}
-              value={form.lieu}
-              onChangeText={(v) => set('lieu', v)}
-            />
-
-            <Text style={styles.label}>Priorité</Text>
-            <Chips options={PRIORITES} value={form.priorite} onChange={(v) => set('priorite', v)} />
-
+            {/* Suivi : priorité et statut (3 choix : pastilles) */}
+            <SectionFiche titre="Suivi">
+              <ChampFiche label="Priorité">
+                <Chips options={PRIORITES} value={form.priorite} onChange={(v) => set('priorite', v)} compact />
+              </ChampFiche>
+              {!form.periodicite && (
+                <ChampFiche label="Statut">
+                  <Chips options={statuts} value={form.statut} onChange={(v) => set('statut', v)} compact />
+                </ChampFiche>
+              )}
+            </SectionFiche>
             {!form.periodicite && (
               <>
-                <Text style={styles.label}>Statut</Text>
-                <Chips options={statuts} value={form.statut} onChange={(v) => set('statut', v)} />
-                {passeTermine && sousOuvertes.length > 0 && (
-                  <View style={styles.askBox}>
-                    <Text style={styles.askText}>
-                      Terminer aussi {sousOuvertes.length > 1 ? `les ${sousOuvertes.length} sous-tâches non faites` : 'la sous-tâche non faite'} (
-                      {sousOuvertes.map((t) => `« ${t.titre} »`).join(', ')}) ?
-                    </Text>
-                    <Chips
-                      options={[
-                        { value: 'oui', label: 'Oui, tout terminer' },
-                        { value: 'non', label: 'Non, seulement la tâche' },
-                      ]}
-                      value={terminerSous === null ? '' : terminerSous ? 'oui' : 'non'}
-                      onChange={(v) => setTerminerSous(v === 'oui')}
+                {passeTermine && sousOuvertes.length > 0 &&
+                  // Une question : alerte jaune à deux boutons ; une fois répondue, la réponse en gris (modifiable)
+                  (terminerSous === null ? (
+                    <AlerteChoix
+                      texte={`${sousOuvertes.length > 1 ? `${sousOuvertes.length} sous-tâches ne sont pas faites` : 'Une sous-tâche n’est pas faite'} (${sousOuvertes.map((t) => `« ${t.titre} »`).join(', ')}).`}
+                      oui={{ label: sousOuvertes.length > 1 ? `Terminer les ${sousOuvertes.length} sous-tâches` : 'Terminer la sous-tâche', onPress: () => setTerminerSous(true) }}
+                      non={{ label: `Seulement ${TYPE_ARTICLE[form.type]}`, onPress: () => setTerminerSous(false) }}
                     />
-                  </View>
-                )}
+                  ) : (
+                    <Text style={styles.hint}>
+                      {terminerSous ? (sousOuvertes.length > 1 ? `Les ${sousOuvertes.length} sous-tâches seront aussi terminées. ` : 'La sous-tâche sera aussi terminée. ') : `Seulement ${TYPE_ARTICLE[form.type]} : ${sousOuvertes.length > 1 ? 'les sous-tâches restent ouvertes' : 'la sous-tâche reste ouverte'}. `}
+                      <Text style={styles.lien} onPress={() => setTerminerSous(null)}>
+                        Changer
+                      </Text>
+                    </Text>
+                  ))}
               </>
             )}
 
-            <Text style={styles.label}>Notes</Text>
-            <TextInput
-              style={[styles.input, styles.notes]}
-              placeholder="Détails, contacts, matériel…"
-              placeholderTextColor={colors.muted}
-              value={form.description}
-              onChangeText={(v) => set('description', v)}
-              multiline
-              textAlignVertical="top"
-            />
+            {/* Détails : lieu et notes */}
+            <SectionFiche titre="Détails">
+              <ChampFiche label="Lieu">
+                <SaisieFiche placeholder="Adresse, salle, client…" value={form.lieu} onChangeText={(v) => set('lieu', v)} />
+              </ChampFiche>
+              <ChampFiche label="Notes" colonne>
+                <SaisieFiche placeholder="Détails, contacts, matériel…" value={form.description} onChangeText={(v) => set('description', v)} multiline />
+              </ChampFiche>
+            </SectionFiche>
 
             {item && enfants.length > 0 && (
               <Pressable style={styles.cascade} onPress={() => setCascadeDel((v) => !v)} accessibilityRole="checkbox" accessibilityState={{ checked: cascadeDel }}>
@@ -796,38 +778,15 @@ export function duree(debut: string, fin: string): string {
   return d >= 60 ? `${Math.floor(d / 60)} h${d % 60 ? ` ${String(d % 60).padStart(2, '0')}` : ''}` : `${d} min`;
 }
 
-/** Points d'une sous-tâche, enregistrés en quittant le champ. */
-function PointsInput({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
-  const [v, setV] = useState(value);
-  useEffect(() => setV(value), [value]);
-  return (
-    <TextInput
-      style={styles.subPoints}
-      value={v}
-      onChangeText={(x) => setV(x.replace(/[^0-9.,]/g, '').replace(',', '.'))}
-      onEndEditing={() => onCommit(v)}
-      onBlur={() => onCommit(v)}
-      keyboardType="decimal-pad"
-      placeholder="—"
-      placeholderTextColor={colors.muted}
-      accessibilityLabel="Points"
-    />
-  );
-}
 
 const styles = StyleSheet.create({
+  saisieRapide: { fontSize: 15, color: colors.text, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  entree: { fontSize: 11.5, color: colors.muted, paddingHorizontal: 12, paddingBottom: 10 },
+  rien: { fontSize: 13.5, color: colors.muted, padding: 12 },
+  unite: { fontSize: 15, fontWeight: '600', color: colors.muted },
+  lien: { color: colors.primary, fontWeight: '700' },
   parentBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#EEF4FE', borderRadius: 10, padding: 10, marginTop: 12 },
   parentText: { fontSize: 14.5, fontWeight: '600', color: colors.primary },
-  estAuto: { backgroundColor: '#F6F7F9' },
-  estAutoValeur: { fontSize: 15, fontWeight: '700', color: colors.text },
-  estAutoSous: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  subRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 6 },
-  subCheck: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  subCheckOn: { backgroundColor: colors.success, borderColor: colors.success },
-  subCheckMark: { color: '#fff', fontSize: 13, fontWeight: '800' },
-  subTitle: { fontSize: 15, color: colors.text },
-  subDone: { textDecorationLine: 'line-through', color: colors.muted },
-  subMeta: { fontSize: 12, color: colors.muted },
   subPoints: { width: 52, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 6, textAlign: 'center', fontSize: 14, color: colors.text },
   finish: { marginTop: 10, backgroundColor: '#E6F4EA', borderRadius: 10, padding: 12 },
   finishText: { color: colors.success, fontWeight: '700', fontSize: 14 },
@@ -874,8 +833,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FCE8E6',
   },
   hint: { marginTop: 10, fontSize: 13, color: colors.muted },
-  askBox: { marginTop: 10, padding: 10, borderRadius: 10, backgroundColor: '#EEF3FE', gap: 8 },
-  askText: { fontSize: 14, lineHeight: 19, color: colors.text },
   error: {
     color: colors.danger,
     backgroundColor: '#FCE8E6',

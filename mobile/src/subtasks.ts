@@ -62,15 +62,6 @@ export function pointsCheck(parent: Item, enfants: Item[] = []) {
   return { parent: p, sous: s, alerte: p > 0 && s > 0 && Math.abs(p - s) > 1e-9 };
 }
 
-/**
- * Estimation affichée d'un élément : si ses sous-tâches ont des points, leur total (toujours à jour, rien à
- * décider) ; sinon ses propres points.
- */
-export function estimationOf(t: Item, enfants: Item[] = []): { points: number; auto: boolean } {
-  const avec = enfants.filter((c) => pointsOf(c) > 0);
-  return avec.length ? { points: avec.reduce((n, c) => n + pointsOf(c), 0), auto: true } : { points: pointsOf(t), auto: false };
-}
-
 /** Charge d'un élément : un parent dont les sous-tâches ont des points ne compte pas (ses sous-tâches comptent). */
 export const chargeOf = (t: Item, subs: Map<string, Item[]>) =>
   (subs.get(t.id) ?? []).some((c) => pointsOf(c) > 0) ? 0 : pointsOf(t);

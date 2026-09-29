@@ -121,7 +121,11 @@ function Carte({ checks, ignorees, cle, titre, jaune = false }: { checks: Check[
         <>
           {shown.map((c) => (
             <View key={c.key} style={[s.item, j && s.itemJaune]}>
-              <Text style={[s.msg, j && s.msgJaune]}>
+              <Text
+                style={[s.msg, j && s.msgJaune]}
+                onPress={c.ouvrir ? () => run(c.ouvrir!) : undefined}
+                accessibilityRole={c.ouvrir ? 'link' : undefined}
+              >
                 {c.icone} {c.message}
               </Text>
               {c.actions.length > 0 && (
@@ -130,7 +134,7 @@ function Carte({ checks, ignorees, cle, titre, jaune = false }: { checks: Check[
                     <Pressable
                       key={a.label}
                       style={[s.btn, a.principal ? (j ? s.btnMainJaune : s.btnMain) : j ? s.btnSecJaune : s.btnSec]}
-                      onPress={() => run(a.action)}
+                      onPress={() => (a.action.kind === 'ignorer' ? ignorer(c) : run(a.action))}
                       accessibilityRole="button"
                     >
                       <Text style={[s.btnText, !a.principal && s.btnTextSec, j && (a.principal ? s.btnTextJaune : s.btnTextSecJaune)]}>{a.label}</Text>
@@ -138,9 +142,12 @@ function Carte({ checks, ignorees, cle, titre, jaune = false }: { checks: Check[
                   ))}
                 </View>
               )}
-              <Pressable onPress={() => ignorer(c)} hitSlop={6} style={s.ignorer} accessibilityRole="button" accessibilityLabel={`Ignorer : ${c.message}`}>
-                <Text style={s.ignorerText}>Ignorer</Text>
-              </Pressable>
+              {/* « Garder … » vaut déjà « Ignorer » */}
+              {!c.actions.some((a) => a.action.kind === 'ignorer') && (
+                <Pressable onPress={() => ignorer(c)} hitSlop={6} style={s.ignorer} accessibilityRole="button" accessibilityLabel={`Ignorer : ${c.message}`}>
+                  <Text style={s.ignorerText}>Ignorer</Text>
+                </Pressable>
+              )}
             </View>
           ))}
           {reste > 0 && (
