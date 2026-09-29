@@ -270,11 +270,13 @@ export function FeuilleChoix({
     return (
       <Pressable onPress={() => onChoisir(o.value)} style={[s.opt, on && s.optOn]} accessibilityRole="radio" accessibilityState={{ checked: on }}>
         <View style={[s.radio, on && s.radioOn]}>{on && <View style={s.radioPoint} />}</View>
-        <Text style={[s.optTexte, on && s.optTexteOn, o.retrait && { paddingLeft: 14 }]}>{o.label}</Text>
+        <View style={s.optCorps}>
+          <Text style={[s.optLibelle, on && s.optTexteOn, o.retrait && { paddingLeft: 14 }]}>{o.label}</Text>
+          {!!o.meta && <Text style={s.optMeta}>{o.meta}</Text>}
+        </View>
         {o.badge && (
           <Text style={[s.badge, o.badge.ton === 'vert' ? s.badgeVert : s.badgeBleu]}>{o.badge.texte}</Text>
         )}
-        {!!o.meta && <Text style={s.optMeta}>{o.meta}</Text>}
       </Pressable>
     );
   };
@@ -454,8 +456,10 @@ export function FeuilleMulti({
     return (
       <Pressable onPress={() => basculer(o.value)} style={s.opt} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
         <View style={[s.coche, on && s.cocheOn]}>{on && <Text style={s.cocheMarque}>✓</Text>}</View>
-        <Text style={s.optTexte}>{o.label}</Text>
-        {!!o.meta && <Text style={s.optMeta}>{o.meta}</Text>}
+        <View style={s.optCorps}>
+          <Text style={s.optLibelle}>{o.label}</Text>
+          {!!o.meta && <Text style={s.optMeta}>{o.meta}</Text>}
+        </View>
       </Pressable>
     );
   };
@@ -669,7 +673,9 @@ const s = StyleSheet.create({
   optOn: { backgroundColor: '#EEF4FE' },
   optTexte: { flex: 1, minWidth: 0, fontSize: 15, color: colors.text },
   optTexteOn: { fontWeight: '700' },
-  optMeta: { fontSize: 12, color: colors.muted },
+  optCorps: { flex: 1, minWidth: 0 },
+  optLibelle: { fontSize: 15, color: colors.text },
+  optMeta: { fontSize: 12, color: colors.muted, marginTop: 2 },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#C4C9D2', alignItems: 'center', justifyContent: 'center' },
   radioOn: { borderColor: colors.primary },
   radioPoint: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },

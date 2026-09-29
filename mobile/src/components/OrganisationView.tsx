@@ -107,6 +107,7 @@ function Noeud({
   onPress,
   children,
   lien,
+  ajout,
 }: {
   niveau: number;
   couleur: string;
@@ -117,6 +118,8 @@ function Noeud({
   onPress: () => void;
   children?: React.ReactNode;
   lien?: { label: string; onPress: () => void };
+  /** ＋ rond à droite de l'en-tête (même bouton que les sections des fiches) */
+  ajout?: { label: string; onPress: () => void };
 }) {
   return (
     <View style={{ marginLeft: niveau * 14 }}>
@@ -130,6 +133,7 @@ function Noeud({
             <Text style={s.chev}> </Text>
           )}
           <Text style={s.titre}>{titre}</Text>
+          {ajout && <Rond label={ajout.label} onPress={ajout.onPress} />}
         </View>
         {!!sous && <Text style={s.sous}>{sous}</Text>}
         {lien && (
@@ -143,11 +147,21 @@ function Noeud({
   );
 }
 
-function Ajout({ niveau, label, onPress }: { niveau: number; label: string; onPress: () => void }) {
+function Rond({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={[s.ajout, { marginLeft: niveau * 14 + 16 }]} accessibilityRole="button" hitSlop={4}>
-      <Text style={s.ajoutTexte}>＋ {label}</Text>
+    <Pressable onPress={onPress} hitSlop={10} style={s.rond} accessibilityRole="button" accessibilityLabel={label}>
+      <Text style={s.rondTexte}>＋</Text>
     </Pressable>
+  );
+}
+
+/** Titre de section (capitales, nombre) avec le ＋ rond à droite */
+function Section({ titre, ajout }: { titre: string; ajout?: { label: string; onPress: () => void } }) {
+  return (
+    <View style={s.sectionLigne}>
+      <Text style={[s.section, s.flex]}>{titre}</Text>
+      {ajout && <Rond label={ajout.label} onPress={ajout.onPress} />}
+    </View>
   );
 }
 
@@ -171,25 +185,24 @@ function VueEntreprise({ o, espace, replies, basculer, onOuvrir, onAjouter }: Co
         deplie={!replies.has(u.id)}
         onBasculer={() => basculer(u.id)}
         onPress={() => onOuvrir('unite', u)}
+        ajout={{ label: `Nouvelle personne dans ${u.nom}`, onPress: () => onAjouter('personne', espace, { unite: u.id, manager: u.responsable }) }}
       >
         {enfants.map((x) => unite(x, niveau + 1))}
         {gens.map((p) => (
           <Personne key={p.id} niveau={niveau + 1} p={p} o={o} onPress={() => onOuvrir('personne', p)} />
         ))}
-        <Ajout niveau={niveau + 1} label={`Personne dans ${u.nom}`} onPress={() => onAjouter('personne', espace, { unite: u.id, manager: u.responsable })} />
       </Noeud>
     );
   };
   const sansService = tri(o.personnes.filter((p) => !p.unite || !ids.has(p.unite)));
   return (
     <View>
+      <Section titre={`DIRECTIONS ET SERVICES · ${racines.length}`} ajout={{ label: 'Nouvelle unité (direction, service)', onPress: () => onAjouter('unite', espace) }} />
       {tri(racines).map((u) => unite(u, 0))}
-      <Ajout niveau={0} label="Unité (direction, service)" onPress={() => onAjouter('unite', espace)} />
-      {(sansService.length > 0 || !o.personnes.length) && <Text style={s.section}>SANS SERVICE · {sansService.length}</Text>}
+      <Section titre={`SANS SERVICE · ${sansService.length}`} ajout={{ label: 'Nouvelle personne sans service', onPress: () => onAjouter('personne', espace) }} />
       {sansService.map((p) => (
         <Personne key={p.id} niveau={0} p={p} o={o} onPress={() => onOuvrir('personne', p)} />
       ))}
-      <Ajout niveau={0} label="Personne" onPress={() => onAjouter('personne', espace)} />
     </View>
   );
 }
@@ -255,15 +268,16 @@ function VueDelivery({ o, espace, replies, basculer, onOuvrir, onAjouter, onVoir
       onBasculer={() => basculer(t.id)}
       onPress={() => onOuvrir('train', t)}
       lien={{ label: `${nb(nbFeatures(t.id), 'feature', 'features')} › PI`, onPress: () => onVoirBacklog('train', t.id) }}
+      ajout={{ label: `Nouvelle équipe dans ${t.nom}`, onPress: () => onAjouter('equipeagile', espace, { train: t.id }) }}
     >
       {equipesDe(t.id).map((e) => equipe(e, niveau + 1))}
-      <Ajout niveau={niveau + 1} label={`Équipe dans ${t.nom}`} onPress={() => onAjouter('equipeagile', espace, { train: t.id })} />
     </Noeud>
   );
   const orphelinsT = o.trains.filter((t) => !t.portfolio || !pfIds.has(t.portfolio));
   const orphelinsE = o.equipes.filter((e) => !e.train || !trIds.has(e.train));
   return (
     <View>
+      <Section titre={`PORTFOLIOS · ${o.portfolios.length}`} ajout={{ label: 'Nouveau portfolio', onPress: () => onAjouter('portfolio', espace) }} />
       {o.portfolios.map((p) => (
         <Noeud
           key={p.id}
@@ -275,12 +289,11 @@ function VueDelivery({ o, espace, replies, basculer, onOuvrir, onAjouter, onVoir
           onBasculer={() => basculer(p.id)}
           onPress={() => onOuvrir('portfolio', p)}
           lien={{ label: `${nb(nbEpics(p.id), 'epic', 'epics')} › Portefeuille`, onPress: () => onVoirBacklog('portfolio', p.id) }}
+          ajout={{ label: `Nouveau train dans ${p.nom}`, onPress: () => onAjouter('train', espace, { portfolio: p.id }) }}
         >
           {trainsDe(p.id).map((t) => train(t, 1))}
-          <Ajout niveau={1} label={`Train dans ${p.nom}`} onPress={() => onAjouter('train', espace, { portfolio: p.id })} />
         </Noeud>
       ))}
-      <Ajout niveau={0} label="Portfolio" onPress={() => onAjouter('portfolio', espace)} />
       {orphelinsT.length > 0 && <Text style={s.section}>TRAINS SANS PORTFOLIO · {orphelinsT.length}</Text>}
       {orphelinsT.map((t) => train(t, 0))}
       {orphelinsE.length > 0 && <Text style={s.section}>ÉQUIPES SANS TRAIN · {orphelinsE.length}</Text>}
@@ -304,8 +317,9 @@ const s = StyleSheet.create({
   sous: { fontSize: 12, color: colors.muted, marginTop: 3, marginLeft: 20, lineHeight: 17 },
   lien: { marginTop: 5, marginLeft: 20, alignSelf: 'flex-start' },
   lienTexte: { fontSize: 12.5, fontWeight: '700', color: colors.primary },
-  ajout: { paddingVertical: 5, marginBottom: 6, alignSelf: 'flex-start' },
-  ajoutTexte: { fontSize: 13, fontWeight: '700', color: colors.primary },
+  rond: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  rondTexte: { color: '#fff', fontSize: 16, fontWeight: '800', lineHeight: 18 },
+  sectionLigne: { flexDirection: 'row', alignItems: 'center', marginTop: 6, marginBottom: 2 },
   section: { fontSize: 11.5, fontWeight: '800', color: colors.muted, letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
   personne: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, paddingHorizontal: 6, marginBottom: 2 },
   avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#E6EAF0', alignItems: 'center', justifyContent: 'center' },

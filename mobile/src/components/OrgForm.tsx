@@ -492,5 +492,4 @@ export function OrgForm({
 
 const s = StyleSheet.create({
   consequence: { marginTop: 18 },
-  entreprise: { fontSize: 12.5, fontWeight: '700', color: colors.muted, marginBottom: 6 },
 });

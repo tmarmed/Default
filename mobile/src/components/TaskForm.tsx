@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -40,7 +40,8 @@ import { iterationByKey, iterationNom, iterationOf } from '../pi';
 import { callNumber } from '../phone';
 import { fmtPoints } from '../pi';
 import { canHaveSubtasks, PARENT_TYPES, pointsCheck, subtaskMap } from '../subtasks';
-import { LigneChoix, LigneFiche, SectionFiche } from './Choix';
+import { ChoiceSheet } from './ChoiceSheet';
+import { FeuilleMulti, LigneChoix, LigneEnfant, LigneFiche, SectionFiche } from './Choix';
 import { listeIterations } from '../choixTravail';
 import { filTravail } from '../choixTravail';
 import { LiaisonOrg } from './LiaisonOrg';
@@ -60,7 +61,7 @@ interface Props {
   defaults?: Partial<ItemInput>;
   onClose: () => void;
   /** Enregistre ; `sousTaches` = titres des sous-tâches à créer avec une nouvelle tâche parente */
-  onSave: (input: ItemInput, sousTaches: string[], opts?: { terminerSousTaches?: boolean }) => Promise<void>;
+  onSave: (input: ItemInput, sousTaches: string[], opts?: { terminerSousTaches?: boolean; rangerSous?: string[] }) => Promise<void>;
   /** Supprime ; `cascade` = supprimer aussi les sous-tâches (sinon elles deviennent des tâches normales) */
   onDelete: (item: Item, cascade: boolean) => Promise<void>;
   /** Ouvre une autre fiche (sous-tâche ou parent) */
@@ -144,6 +145,18 @@ const PRIORITES = (Object.keys(PRIORITE_LABELS) as Priorite[]).map((p) => ({
   label: PRIORITE_LABELS[p],
   color: prioriteColors[p],
 }));
+/** Titre de la barre pour un nouvel élément, selon son type */
+const NOUVEAU: Record<ItemType, string> = {
+  tache: 'Nouvelle tâche',
+  'rendez-vous': 'Nouveau rendez-vous',
+  appel: 'Nouvel appel',
+  demarche: 'Nouvelle démarche',
+  mission: 'Nouvelle mission',
+  story: 'Nouvelle story',
+  exploration: 'Nouvelle exploration',
+  bug: 'Nouveau bug',
+};
+
 const STATUTS = (Object.keys(STATUT_LABELS) as Statut[]).map((s) => ({ value: s, label: STATUT_LABELS[s] }));
 
 export function TaskForm({
@@ -194,6 +207,11 @@ export function TaskForm({
   const [cascadeDel, setCascadeDel] = useState(false);
   const [nouvelles, setNouvelles] = useState<string[]>([]);
   const [quick, setQuick] = useState('');
+  /** ＋ rond des sous-tâches : menu, feuille « Ranger », tâches existantes rangées à l'enregistrement */
+  const [menuSous, setMenuSous] = useState(false);
+  const [rangerOuvert, setRangerOuvert] = useState(false);
+  const [rangees, setRangees] = useState<string[]>([]);
+  const saisieSous = useRef<TextInput>(null);
   /** Passée à « Terminé » avec des sous-tâches ouvertes : les terminer aussi ? (null = pas encore répondu) */
   const [terminerSous, setTerminerSous] = useState<boolean | null>(null);
   const enfants = item ? (subtaskMap(h.items).get(item.id) ?? []) : [];
@@ -210,6 +228,11 @@ export function TaskForm({
   const parentsPossibles = h.items
     .filter((t) => canHaveSubtasks(t) && t.id !== item?.id)
     .map((t) => ({ id: t.id, title: `${TYPE_ICONS[t.type]} ${t.titre}`, sub: TYPE_LABELS[t.type] }));
+  // Tâches qu'on peut ranger comme sous-tâches : principales, sans sous-tâches, ni répétées ni terminées
+  const aDesEnfants = new Set(h.items.map((t) => t.parent).filter(Boolean));
+  const candidatsSous = h.items
+    .filter((t) => t.id !== item?.id && !t.parent && !t.periodicite && t.statut !== 'termine' && !aDesEnfants.has(t.id) && !rangees.includes(t.id))
+    .map((t) => ({ value: t.id, label: `${TYPE_ICONS[t.type]} ${t.titre}`, meta: filTravail(t, h) || 'non rangée' }));
   // Tâches : toutes les affectations sont facultatives (rien en orange)
   const featureCourante = form.feature ? h.features.get(form.feature) : undefined;
 
@@ -238,6 +261,7 @@ export function TaskForm({
       setCascadeDel(false);
       setNouvelles([]);
       setQuick('');
+      setRangees([]);
       setTerminerSous(null);
     }
     // Réinitialiser seulement à l'ouverture, pas si la date affichée change derrière.
@@ -280,7 +304,7 @@ export function TaskForm({
       setError('Cette tâche a des sous-tâches : gardez le type Story, Démarche, Mission ou Exploration.');
       return;
     }
-    if ((enfants.length || nouvelles.length) && form.periodicite) {
+    if ((enfants.length || nouvelles.length || rangees.length) && form.periodicite) {
       setError('Une tâche avec des sous-tâches ne peut pas être répétée.');
       return;
     }
@@ -299,7 +323,7 @@ export function TaskForm({
         date_fin: aDateFin(form.type) && !form.periodicite ? form.date_fin : '',
       };
       const input = base.periodicite ? { ...base, date: '', statut: 'a_faire' as const } : base;
-      await onSave({ ...input, titre: input.titre.trim() }, peutAvoir ? nouvelles : [], { terminerSousTaches: passeTermine && !!terminerSous });
+      await onSave({ ...input, titre: input.titre.trim() }, peutAvoir ? nouvelles : [], { terminerSousTaches: passeTermine && !!terminerSous, rangerSous: peutAvoir ? rangees : [] });
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
     } finally {
@@ -343,7 +367,7 @@ export function TaskForm({
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={[styles.header, (!!pile?.chemin || !!fil || !!espaceFil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
           <BoutonRetour pile={pile} onPress={onClose} disabled={busy} style={styles.headerBtn} />
-          <TitreBarre texte={item ? TYPE_LABELS[form.type] : 'Nouvelle tâche'} couleur={typeColors[form.type]} avecFil={!!pile?.chemin || !!fil || !!espaceFil} />
+          <TitreBarre texte={item ? TYPE_LABELS[form.type] : NOUVEAU[form.type]} couleur={typeColors[form.type]} avecFil={!!pile?.chemin || !!fil || !!espaceFil} />
           <Pressable onPress={save} hitSlop={10} disabled={busy}>
             {busy ? (
               <ActivityIndicator color={colors.primary} />
@@ -478,7 +502,7 @@ export function TaskForm({
                   groupes={[{ options: parentsPossibles.map((p) => ({ value: p.id, label: p.title })) }]}
                   libelle={() => `${TYPE_ICONS[parentItem.type]} ${parentItem.titre}`}
                   sous="Même rangement que la tâche parente"
-                  sans="Pas une sous-tâche"
+                  sans="Aucune (tâche principale)"
                   onChange={choisirParent}
                 />
               </SectionFiche>
@@ -499,7 +523,7 @@ export function TaskForm({
                 initial={item ? { feature: item.feature, epic: item.epic, objectif: item.objectif, domaine: item.domaine } : undefined}
               >
                 {/* Faire de cette tâche une sous-tâche (pas si elle a des sous-tâches ou se répète) */}
-                {!enfants.length && !nouvelles.length && !form.periodicite && parentsPossibles.length > 0 && (
+                {!enfants.length && !nouvelles.length && !rangees.length && !form.periodicite && parentsPossibles.length > 0 && (
                   <LigneChoix
                     label="Tâche parente"
                     value=""
@@ -554,6 +578,8 @@ export function TaskForm({
               <>
                 <SectionFiche
                   titre={`Sous-tâches${enfants.length ? ` · ${enfants.filter((t) => t.statut === 'termine').length}/${enfants.length}` : ''}${check.sous ? ` · ${fmtPoints(check.sous, safe.pointsJours)}` : ''}`}
+                  onAjouter={() => setMenuSous(true)}
+                  ajouterLabel="Ajouter une sous-tâche"
                 />
                 {check.alerte && (
                   <View style={styles.alert}>
@@ -615,7 +641,22 @@ export function TaskForm({
                     </Pressable>
                   </View>
                 ))}
+                {rangees.map((id) => {
+                  const t = h.items.find((x) => x.id === id);
+                  const avant = t ? filTravail(t, h) : '';
+                  return (
+                    <LigneEnfant
+                      key={`r${id}`}
+                      texte={`○ ${t?.titre ?? '?'}`}
+                      ajoute
+                      avant={avant || undefined}
+                      onAnnuler={() => setRangees((l) => l.filter((x) => x !== id))}
+                    />
+                  );
+                })}
+                {rangees.length > 0 && <Text style={styles.hint}>Rangées sous cette tâche à l'enregistrement.</Text>}
                 <TextInput
+                  ref={saisieSous}
                   style={styles.input}
                   placeholder="+ Sous-tâche (Entrée pour ajouter)"
                   placeholderTextColor={colors.muted}
@@ -644,6 +685,30 @@ export function TaskForm({
                   <Pressable style={styles.finish} onPress={() => set('statut', 'termine')} accessibilityRole="button">
                     <Text style={styles.finishText}>✓ Toutes les sous-tâches sont faites : terminer la tâche</Text>
                   </Pressable>
+                )}
+                <ChoiceSheet
+                  key={`sous-${menuSous}`}
+                  visible={menuSous}
+                  title="Ajouter une sous-tâche"
+                  choices={[
+                    { label: '＋ Nouvelle sous-tâche', principal: true, onPress: () => setTimeout(() => saisieSous.current?.focus(), 50) },
+                    { label: '↘ Ranger une tâche existante', onPress: () => setRangerOuvert(true) },
+                  ]}
+                  onClose={() => setMenuSous(false)}
+                />
+                {rangerOuvert && (
+                  <FeuilleMulti
+                    titre="Ranger sous cette tâche"
+                    groupes={[{ titre: 'Tâches principales', options: candidatsSous }]}
+                    selection={[]}
+                    vide="Aucune tâche à ranger."
+                    libelleValider={(n) => (n ? `Ranger ${n} tâche${n > 1 ? 's' : ''}` : 'Ranger')}
+                    onValider={(l) => {
+                      setRangees((x) => [...x, ...l.filter((id) => !x.includes(id))]);
+                      setRangerOuvert(false);
+                    }}
+                    onFermer={() => setRangerOuvert(false)}
+                  />
                 )}
               </>
             )}

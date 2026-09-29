@@ -57,12 +57,15 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   gras (« 🏢 ACME › … ») ; la ligne « Espace de travail » ne reste que pour un nouvel élément. Itération : le PI de la feature d'abord
   (dates, « en cours », « prévue »), les autres PI repliés.
 - **Enfants d'une fiche** (features et tâches d'une epic, tâches d'une feature, epics d'un objectif, objectifs d'un
-  domaine, trains, équipes, sous-unités, personnes) : ＋ rond à droite du titre → « ＋ Nouvelle … » (fiche
+  domaine, sous-tâches d'une tâche, trains, équipes, sous-unités, personnes) : ＋ rond à droite du titre → « ＋ Nouvelle … » (fiche
   par-dessus) ou « ↘ Ranger … existante » (cases à cocher, ceux d'un autre parent repliés) ; rangés à
-  l'enregistrement, avec la pastille « ajoutée » / « déplacée ».
+  l'enregistrement, avec la pastille « ajoutée » / « déplacée ». Même ＋ rond dans l'arbre de l'Organisation (à droite
+  d'une unité, d'un portfolio, d'un train, et des titres de section) à la place des liens « ＋ … ». « Sans … » : le
+  même libellé que la valeur vide (« Aucune (tâche principale) », « Aucun (domaine principal) »).
 - **En-tête des fiches** : « Annuler » à gauche, un seul fil d'Ariane (où est rangé l'élément) en petite ligne grise
-  sous le titre, ✕ gris pour fermer toutes les fiches (confirmation courte) ; le nom de l'élément est le titre de la
-  page, centré, sans cadre (dates dessous, petit trait de sa couleur). En mode Simple, jamais le mot « SAFe » ;
+  sous le titre, ✕ gris pour fermer toutes les fiches (confirmation courte) ; entre Annuler et Enregistrer, le type
+  en noir (« Nouvelle story », « Nouveau rendez-vous »… pour un nouvel élément) ; le nom de l'élément est le titre de la
+  page, centré, précédé de son logo (dates dessous). En mode Simple, jamais le mot « SAFe » ;
   l'estimation d'une tâche y est facultative.
   À venir (étapes 2 et 3) : Google Sheet par équipe créé et partagé automatiquement d'après les rôles, onglet par
   personne, « Autoriser » à la connexion, attribution et registre des attributions. Vérifié par

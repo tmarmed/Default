@@ -20,7 +20,6 @@ export function LiaisonOrg({
   onChange,
   onNouveau,
   initial,
-  attendu,
 }: {
   espace: string;
   niveau: 'epic' | 'feature' | 'item';
@@ -30,8 +29,6 @@ export function LiaisonOrg({
   onNouveau?: (kind: KindNouveau, champ: Champ) => void;
   /** Valeurs de l'élément enregistré (pastille « changée ») */
   initial?: Valeurs;
-  /** Affectations attendues (SAFe) : orange tant qu'elles sont vides */
-  attendu?: boolean;
 }) {
   const safe = useSafe();
   const tout = useOrg();
@@ -60,12 +57,11 @@ export function LiaisonOrg({
 
   if (niveau === 'epic') {
     return (
-      <SectionFiche titre="Delivery" aDefinir={attendu && !valeurs.portfolio ? 1 : 0}>
+      <SectionFiche titre="Delivery">
         <LigneChoix
           label="Portfolio"
           value={valeurs.portfolio ?? ''}
           depart={initial?.portfolio}
-          attendu={attendu}
           groupes={[{ options: o.portfolios.map((x) => ({ value: x.id, label: `💼 ${x.nom}` })) }]}
           nouveau={nouveau('portfolio', 'portfolio', 'Nouveau portfolio')}
           sans="Sans portfolio"
@@ -77,14 +73,12 @@ export function LiaisonOrg({
 
   if (niveau === 'feature') {
     const equipe = valeurs.equipe ? o.equipe.get(valeurs.equipe) : undefined;
-    const manque = (attendu && !valeurs.train ? 1 : 0) + (attendu && !valeurs.equipe ? 1 : 0);
     return (
-      <SectionFiche titre="Delivery" aDefinir={manque}>
+      <SectionFiche titre="Delivery">
         <LigneChoix
           label="Train"
           value={valeurs.train ?? ''}
           depart={initial?.train}
-          attendu={attendu}
           groupes={[{ options: o.trains.map((x) => ({ value: x.id, label: `🚆 ${x.nom}` })) }]}
           nouveau={nouveau('train', 'train', 'Nouveau train')}
           sans="Sans train"
@@ -95,7 +89,6 @@ export function LiaisonOrg({
           label="Équipe"
           value={valeurs.equipe ?? ''}
           depart={initial?.equipe}
-          attendu={attendu}
           {...listeEquipes(valeurs.train || initial?.train || undefined)}
           nouveau={nouveau('equipeagile', 'equipe', 'Nouvelle équipe')}
           sans="Sans équipe"
@@ -111,15 +104,12 @@ export function LiaisonOrg({
   const gens = equipe ? new Set([...membresDe(equipe), equipe.po, equipe.sm].filter(Boolean)) : null;
   const personnes = [...o.personnes].sort((a, b) => a.nom.localeCompare(b.nom));
   const trainFeature = feature?.train || (feature?.equipe ? o.equipe.get(feature.equipe)?.train : '') || '';
-  const equipeAttendue = !!attendu && !valeurs.equipe && !feature?.equipe;
-  const manque = (equipeAttendue ? 1 : 0) + (attendu && !valeurs.responsable ? 1 : 0);
   return (
-    <SectionFiche titre="Delivery" aDefinir={manque}>
+    <SectionFiche titre="Delivery">
       <LigneChoix
         label="Équipe"
         value={valeurs.equipe ?? ''}
         depart={initial?.equipe}
-        attendu={equipeAttendue}
         vide={feature?.equipe ? `Celle de la feature : 👥 ${o.equipe.get(feature.equipe)?.nom ?? '?'}` : undefined}
         {...listeEquipes(trainFeature || (valeurs.equipe ? o.equipe.get(valeurs.equipe)?.train : undefined) || undefined)}
         nouveau={nouveau('equipeagile', 'equipe', 'Nouvelle équipe')}
@@ -134,7 +124,6 @@ export function LiaisonOrg({
         label="Responsable"
         value={valeurs.responsable ?? ''}
         depart={initial?.responsable}
-        attendu={attendu}
         libelle={(v) => nomPersonne(o, v) || '?'}
         {...(gens
           ? {

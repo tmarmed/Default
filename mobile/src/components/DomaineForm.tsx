@@ -115,7 +115,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
             parent
             groupes={[{ options: principaux.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}` })) }]}
             vide="Aucun (domaine principal)"
-            sans="Domaine principal"
+            sans="Aucun (domaine principal)"
             onChange={(v) => setForm((x) => ({ ...x, parent: v }))}
           />
         )}

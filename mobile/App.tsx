@@ -1004,7 +1004,7 @@ function Main() {
   /** Écran Itération : déplacer une carte du Kanban (statut). */
   const setStatut = (item: Item, statut: Item['statut']) => changerStatut(item, statut);
 
-  const save = async (input: ItemInput, sousTaches: string[] = [], opts: { terminerSousTaches?: boolean } = {}) => {
+  const save = async (input: ItemInput, sousTaches: string[] = [], opts: { terminerSousTaches?: boolean; rangerSous?: string[] } = {}) => {
     if (!settings) return;
     let next: Item[];
     let saved: Item;
@@ -1019,6 +1019,11 @@ function Main() {
     // Les sous-tâches suivent le rangement de leur parent (le script fait de même)
     next = cascadeLinks(saved, next);
     for (const titre of sousTaches) next = [...next, await api.createItem(settings, subtaskInput(saved, titre))];
+    // Tâches existantes rangées sous celle-ci (＋ rond des sous-tâches) : même rangement que le parent
+    for (const id of opts.rangerSous ?? []) {
+      const s = await api.updateItem(settings, { id, parent: saved.id, feature: saved.feature, epic: saved.epic, objectif: saved.objectif, domaine: saved.domaine });
+      next = next.map((i) => (i.id === s.id ? s : i));
+    }
     updateItems(next);
     depiler('tache', editing ? undefined : saved);
     // Parent enregistré « Terminé » avec de nouvelles sous-tâches à faire : il est « En cours »
