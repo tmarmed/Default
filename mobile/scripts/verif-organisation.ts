@@ -5,7 +5,7 @@
  */
 import { donneesDemo, orgDemo } from '../src/demo';
 import { buildHierarchy } from '../src/hierarchy';
-import { aCompleter, dansOrgFiltre, epicDansOrgFiltre, makeOrgValue, porteurs } from '../src/organisation';
+import { dansOrgFiltre, epicDansOrgFiltre, makeOrgValue, porteurs } from '../src/organisation';
 
 let erreurs = 0;
 const ok = (cond: boolean, msg: string) => {
@@ -47,18 +47,6 @@ const crm = d.entities.epic.find((e) => e.id === 'acme1')!;
 const appli = d.entities.epic.find((e) => e.id === 'acme2')!;
 ok(epicDansOrgFiltre(crm, portfolio, d.entities.feature, o), 'epic : dans le filtre de son portfolio');
 ok(epicDansOrgFiltre(appli, web, d.entities.feature, o) && !epicDansOrgFiltre(crm, web, d.entities.feature, o), 'epic : dans le filtre d’une équipe si une de ses features y est');
-
-// Affectations attendues (SAFe) : feature, équipe, responsable d'une story
-const complete = { ...story, type: 'story', statut: 'a_faire' };
-ok(aCompleter(complete, h, o).length === 0, 'story complète : rien à compléter');
-ok(aCompleter({ ...complete, responsable: '' }, h, o).join() === 'responsable', 'story sans responsable : « responsable » à compléter');
-ok(!aCompleter({ ...complete, equipe: '' }, h, o).includes('équipe'), 'story sans équipe mais feature avec équipe : équipe héritée, rien à compléter');
-ok(aCompleter({ ...complete, feature: '', epic: '', equipe: '' }, h, o).join() === 'feature ou epic,équipe', 'story sans feature ni epic ni équipe : « feature ou epic » et équipe à compléter');
-ok(!aCompleter({ ...complete, feature: '', epic: 'acme1' }, h, o).some((m) => m.startsWith('feature')), 'story rangée dans une epic : la feature devient facultative');
-ok(aCompleter({ ...complete, type: 'tache', feature: '', equipe: '', responsable: '' }, h, o).length === 0, 'simple tâche : rien d’attendu');
-ok(aCompleter({ ...complete, statut: 'termine', responsable: '' }, h, o).length === 0, 'story terminée : plus rien à compléter');
-const espaceOrg = o.equipes[0]?.espace || 'moi';
-ok(aCompleter({ ...complete, espace: espaceOrg === 'autre' ? 'autre2' : 'autre', equipe: '', responsable: '' }, h, o).length === 0, 'espace sans delivery : rien de plus que la feature');
 
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Organisation : OK');
 process.exit(erreurs ? 1 : 0);

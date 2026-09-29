@@ -51,9 +51,9 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   choisit et referme la feuille. Ligne vide attendue (SAFe) en orange « À définir » (compte « n à définir » au titre
   de la section), vide facultative en gris « Facultatif ». Un autre choix que celui du départ : pastille « changée ▸ »
   (« déplacée ▸ » pour un parent), ouverte : « Avant : … » et « Annuler le changement » ; fait à l'enregistrement.
-  Attendu en SAFe : story / bug / exploration → feature, équipe, responsable ; feature → epic, train, équipe, PI ;
-  epic → objectif ou domaine, portfolio ; objectif → domaine ; équipe → train, PO, SM, membres ; train → portfolio,
-  RTE. Les listes affichent « À compléter : … » sur une story incomplète. Itération : le PI de la feature d'abord
+  Attendu en SAFe : feature → epic, train, équipe, PI ; epic → objectif ou domaine (au choix, reliés par « ou »),
+  portfolio ; objectif → domaine ; équipe → train, PO, SM, membres ; train → portfolio, RTE. Tâches (tous types) :
+  tout est facultatif. Itération : le PI de la feature d'abord
   (dates, « en cours », « prévue »), les autres PI repliés.
 - **Enfants d'une fiche** (features et tâches d'une epic, tâches d'une feature, epics d'un objectif, objectifs d'un
   domaine, trains, équipes, sous-unités, personnes) : ＋ rond à droite du titre → « ＋ Nouvelle … » (fiche

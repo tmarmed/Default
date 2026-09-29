@@ -208,8 +208,7 @@ export function TaskForm({
   const parentsPossibles = h.items
     .filter((t) => canHaveSubtasks(t) && t.id !== item?.id)
     .map((t) => ({ id: t.id, title: `${TYPE_ICONS[t.type]} ${t.titre}`, sub: TYPE_LABELS[t.type] }));
-  // Affectations attendues (SAFe) : une story, un bug, une exploration ont leur feature, leur équipe, leur responsable
-  const attendu = safe.actif && (form.type === 'story' || form.type === 'bug' || form.type === 'exploration');
+  // Tâches : toutes les affectations sont facultatives (rien en orange)
   const featureCourante = form.feature ? h.features.get(form.feature) : undefined;
 
   // Élément créé dans une fiche du dessus : choisi ici (rattachement : seulement le plus précis)
@@ -485,7 +484,6 @@ export function TaskForm({
               <LinkPicker
                 levels={safe.actif ? ['feature', 'epic', 'objectif', 'domaine'] : ['epic', 'objectif', 'domaine']}
                 value={form}
-                attendu={attendu ? ['feature', 'epic'] : undefined}
                 onChange={(patch) =>
                   setForm((f) => {
                     const next = { ...f, ...patch };
@@ -517,7 +515,6 @@ export function TaskForm({
               niveau="item"
               valeurs={{ equipe: form.equipe, responsable: form.responsable, feature: form.feature, epic: form.epic }}
               initial={item ? { equipe: item.equipe, responsable: item.responsable } : undefined}
-              attendu={attendu}
               onChange={(p) => setForm((f) => ({ ...f, ...p }))}
               onNouveau={onNouveauOrg ? (k, champ) => (k === 'equipeagile' || k === 'personne') && (champ === 'equipe' || champ === 'responsable') && onNouveauOrg(k, champ, espace) : undefined}
             />
