@@ -198,17 +198,18 @@ export function FeatureForm({
         />
       )}
       <Label>Epic</Label>
-      {/* Feature déjà dans une epic : on en change par « Déplacer » (la nouvelle epic prend la place de l'actuelle) */}
+      {/* Feature déjà dans une epic : en choisir une autre la déplace (annoncé, fait à l'enregistrement) */}
       <Rattachement
-        verrouille={!!feature?.epic}
-        resume={epic ? `🗂️ ${epic.titre}` : ''}
         deplace={!!feature?.epic && form.epic !== feature.epic}
+        depuis={feature?.epic ? `🗂️ ${h.epics.get(feature.epic)?.titre ?? '?'}` : ''}
+        vers={epic ? `🗂️ ${epic.titre}` : ''}
         onAnnuler={() => set('epic', feature?.epic ?? '')}
       >
         <Chips
           options={[{ value: '', label: 'Aucune' }, ...epicsProposees.map((e) => ({ value: e.id, label: e.titre, color: e.couleur }))]}
           value={form.epic}
           onChange={(v) => set('epic', v)}
+          depart={feature?.epic || undefined}
         />
         {onNouvelleEpic && (
           <Pressable

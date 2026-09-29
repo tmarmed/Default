@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { domaineOf, epicOf, objectifOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
@@ -15,7 +16,7 @@ interface Props {
   onChange: (patch: Links) => void;
   /** « ＋ Nouvelle feature / epic / objectif / nouveau domaine » : la fiche s'ouvre par-dessus, l'élément créé est choisi */
   onNouveau?: (niveau: 'feature' | 'epic' | 'objectif' | 'domaine', defauts: Links) => void;
-  /** Rattachement de l'élément enregistré : s'il en a un, on passe par « Déplacer » pour en changer */
+  /** Rattachement de l'élément enregistré : en choisir un autre est annoncé comme un déplacement */
   initial?: Links;
 }
 
@@ -43,8 +44,23 @@ export function LinkPicker({ levels, value, onChange, onNouveau, initial }: Prop
   const inheritedDom = feature || epic || objectif ? domaineOf(value, h) : undefined;
 
   const none = (label: string) => ({ value: '', label });
-  // Un parent au départ : on en change par « Déplacer » ; le nouveau parent prend la place de l'actuel (même grand-parent)
+  const [voirTout, setVoirTout] = useState(false);
+  // Un parent au départ : en choisir un autre le déplace ; un nouveau parent prend la place de l'actuel (même grand-parent)
   const verrouille = !!initial && !!precis(initial);
+  const nomLien = (v: Links) =>
+    v.feature
+      ? `🧩 ${h.features.get(v.feature)?.titre ?? '?'}`
+      : v.epic
+        ? `🗂️ ${h.epics.get(v.epic)?.titre ?? '?'}`
+        : v.objectif
+          ? `🎯 ${h.objectifs.get(v.objectif)?.titre ?? '?'}`
+          : v.domaine
+            ? `${h.domaines.get(v.domaine)?.icone ?? ''} ${h.domaines.get(v.domaine)?.nom ?? '?'}`.trim()
+            : '';
+  // Features proposées : celles de l'epic de départ (avec « Voir les features des autres epics »)
+  const epicDepart = verrouille && initial!.feature ? h.features.get(initial!.feature)?.epic : undefined;
+  const autresFeatures = epicDepart ? h.featureList.filter((f) => f.epic !== epicDepart && f.id !== value.feature) : [];
+  const featuresProposees = epicDepart && !voirTout ? h.featureList.filter((f) => f.epic === epicDepart || f.id === value.feature) : h.featureList;
   const epicCourante = feature ? inheritedEpic : epic;
   const objCourant = objectif ?? inheritedObj;
   const domCourant = inheritedDom ?? (value.domaine ? h.domaines.get(value.domaine) : undefined);
@@ -74,9 +90,9 @@ export function LinkPicker({ levels, value, onChange, onNouveau, initial }: Prop
     ) : null;
   return (
     <Rattachement
-      verrouille={verrouille}
-      resume={resume}
       deplace={verrouille && precis(value) !== precis(initial!)}
+      depuis={verrouille ? nomLien(initial!) : ''}
+      vers={nomLien(value)}
       onAnnuler={() => onChange({ feature: initial!.feature ?? '', epic: initial!.epic ?? '', objectif: initial!.objectif ?? '', domaine: initial!.domaine ?? '' })}
     >
     <View>
@@ -86,14 +102,20 @@ export function LinkPicker({ levels, value, onChange, onNouveau, initial }: Prop
           <Chips
             options={[
               none('Aucune'),
-              ...h.featureList.map((f) => {
+              ...featuresProposees.map((f) => {
                 const e = f.epic ? h.epics.get(f.epic) : undefined;
                 return { value: f.id, label: `🧩 ${f.titre}`, color: e?.couleur };
               }),
             ]}
             value={feature ? feature.id : ''}
             onChange={(v) => onChange({ feature: v, epic: '', objectif: '', domaine: '' })}
+            depart={initial?.feature}
           />
+          {autresFeatures.length > 0 && !voirTout && (
+            <Pressable onPress={() => setVoirTout(true)} hitSlop={6} style={styles.nouveau} accessibilityRole="button">
+              <Text style={styles.voir}>Voir les features des autres epics ({autresFeatures.length})</Text>
+            </Pressable>
+          )}
           <Nouveau niveau="feature" />
         </>
       )}
@@ -103,6 +125,7 @@ export function LinkPicker({ levels, value, onChange, onNouveau, initial }: Prop
           <Chips
             options={[none('Aucune'), ...h.epicList.map((e) => ({ value: e.id, label: e.titre, color: e.couleur }))]}
             value={epic ? epic.id : ''}
+            depart={initial?.feature ? undefined : initial?.epic}
             onChange={(v) =>
               onChange(
                 featureCachee && v === featureCachee.epic
@@ -120,6 +143,7 @@ export function LinkPicker({ levels, value, onChange, onNouveau, initial }: Prop
           <Chips
             options={[none('Aucun'), ...h.objectifList.map((o) => ({ value: o.id, label: o.titre, color: o.couleur }))]}
             value={objectif ? objectif.id : ''}
+            depart={initial?.feature || initial?.epic ? undefined : initial?.objectif}
             onChange={(v) => onChange({ feature: '', epic: '', objectif: v, domaine: '' })}
           />
           <Nouveau niveau="objectif" />
@@ -136,16 +160,8 @@ export function LinkPicker({ levels, value, onChange, onNouveau, initial }: Prop
           <Nouveau niveau="domaine" />
         </>
       )}
-      {(inheritedEpic || inheritedObj || inheritedDom) && (
-        <Text style={styles.inherited}>
-          {inheritedEpic ? `Epic : ${inheritedEpic.titre}` : ''}
-          {inheritedEpic && (inheritedObj || inheritedDom) ? ' · ' : ''}
-          {inheritedObj ? `Objectif : ${inheritedObj.titre}` : ''}
-          {inheritedObj && inheritedDom ? ' · ' : ''}
-          {inheritedDom ? `Domaine : ${inheritedDom.icone} ${inheritedDom.nom}` : ''}
-          {feature ? ' (via la feature)' : epic ? " (via l'epic)" : " (via l'objectif)"}
-        </Text>
-      )}
+      {/* Chemin complet du rattachement choisi */}
+      {!!resume && resume.includes('›') && <Text style={styles.inherited}>{resume}</Text>}
     </View>
     </Rattachement>
   );
@@ -155,5 +171,6 @@ const styles = StyleSheet.create({
   label: { marginTop: 18, marginBottom: 8, fontSize: 13, fontWeight: '600', color: colors.muted },
   inherited: { marginTop: 8, fontSize: 13, color: colors.muted },
   nouveau: { alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4 },
+  voir: { fontSize: 13, fontWeight: '600', color: colors.primary },
   nouveauTexte: { fontSize: 13.5, fontWeight: '700', color: colors.primary },
 });

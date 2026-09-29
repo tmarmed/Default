@@ -157,7 +157,8 @@ export function OrgForm({
 
   /**
    * Choix d'un champ. `parent` : champ de rattachement (service, unité au-dessus, portfolio, train) ; s'il était
-   * rempli à l'ouverture, on en change par « Déplacer » et « ＋ Vers un nouveau … » (même grand-parent).
+   * rempli à l'ouverture, en choisir un autre est annoncé comme un déplacement, et « ＋ Vers un nouveau … » crée le
+   * nouveau parent sous le même grand-parent.
    */
   const Choix = ({ label, k, options, nouveau, parent }: { label: string; k: string; options: { value: string; label: string }[]; nouveau?: { kind: KindOrg; label: string; defaults?: Donnees }; parent?: { vers: string; defaults?: Donnees } }) => {
     const depart = parent ? String((entite as unknown as Donnees | null)?.[k] ?? '') : '';
@@ -166,15 +167,15 @@ export function OrgForm({
       <>
         <Label>{label}</Label>
         <Rattachement
-          verrouille={verrouille}
-          resume={options.find((o) => o.value && o.value === form[k])?.label ?? ''}
           deplace={verrouille && (form[k] ?? '') !== depart}
+          depuis={options.find((o) => o.value === depart)?.label ?? ''}
+          vers={options.find((o) => o.value && o.value === form[k])?.label ?? ''}
           onAnnuler={() => set(k)(depart)}
         >
           {options.length <= 1 ? (
             <Text style={f.muted}>Rien à choisir pour l'instant.</Text>
           ) : (
-            <Chips options={options} value={options.some((o) => o.value === form[k]) ? form[k] : ''} onChange={set(k)} compact wrap />
+            <Chips options={options} value={options.some((o) => o.value === form[k]) ? form[k] : ''} onChange={set(k)} compact wrap depart={depart || undefined} />
           )}
           {nouveau && onOuvrir && (
             <Pressable onPress={() => onOuvrir(nouveau.kind, null, verrouille ? parent?.defaults : nouveau.defaults, k)} hitSlop={6} style={s.nouveau} accessibilityRole="button">
