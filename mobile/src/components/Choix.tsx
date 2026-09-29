@@ -46,6 +46,7 @@ const toutes = (groupes: GroupeChoix[], autres?: AutresChoix) => [...groupes, ..
 export function SectionFiche({
   titre,
   aDefinir = 0,
+  auChoix,
   onAjouter,
   ajouterLabel,
   children,
@@ -53,6 +54,8 @@ export function SectionFiche({
 }: {
   titre: string;
   aDefinir?: number;
+  /** Les lignes à définir sont au choix (une seule suffit) */
+  auChoix?: boolean;
   onAjouter?: () => void;
   ajouterLabel?: string;
   children?: ReactNode;
@@ -63,7 +66,7 @@ export function SectionFiche({
     <View>
       <View style={s.titreSec}>
         <Text style={s.titreSecTexte}>{titre}</Text>
-        {aDefinir > 0 && <Text style={s.aDefinir}>{aDefinir} à définir</Text>}
+        {aDefinir > 0 && <Text style={s.aDefinir}>{aDefinir} à définir{auChoix ? ' (au choix)' : ''}</Text>}
         {onAjouter && (
           <Pressable onPress={onAjouter} hitSlop={10} style={s.rond} accessibilityRole="button" accessibilityLabel={ajouterLabel ?? `Ajouter : ${titre}`}>
             <Text style={s.rondTexte}>＋</Text>
@@ -71,6 +74,15 @@ export function SectionFiche({
         )}
       </View>
       {children != null && (carte ? <View style={s.carte}>{children}</View> : children)}
+    </View>
+  );
+}
+
+/** « ou » entre deux lignes attendues au choix (le trait orange reste continu) */
+export function SeparateurOu() {
+  return (
+    <View style={s.ou}>
+      <Text style={s.ouTexte}>ou</Text>
     </View>
   );
 }
@@ -620,6 +632,8 @@ const s = StyleSheet.create({
   titreSec: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 7, paddingHorizontal: 4, minHeight: 24 },
   titreSecTexte: { flex: 1, fontSize: 11.5, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
   aDefinir: { fontSize: 12, fontWeight: '700', color: ORANGE },
+  ou: { backgroundColor: ORANGE_FOND, borderLeftWidth: 3, borderLeftColor: ORANGE, paddingLeft: 9, paddingVertical: 1, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  ouTexte: { fontSize: 11.5, fontWeight: '700', color: ORANGE, fontStyle: 'italic' },
   rond: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   rondTexte: { color: '#fff', fontSize: 16, fontWeight: '800', lineHeight: 18 },
   carte: { backgroundColor: colors.card, borderRadius: 12, overflow: 'hidden' },

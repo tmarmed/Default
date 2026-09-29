@@ -485,7 +485,7 @@ export function TaskForm({
               <LinkPicker
                 levels={safe.actif ? ['feature', 'epic', 'objectif', 'domaine'] : ['epic', 'objectif', 'domaine']}
                 value={form}
-                attendu={attendu ? 'feature' : undefined}
+                attendu={attendu ? ['feature', 'epic'] : undefined}
                 onChange={(patch) =>
                   setForm((f) => {
                     const next = { ...f, ...patch };

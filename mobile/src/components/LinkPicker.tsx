@@ -1,8 +1,8 @@
-import { ReactNode } from 'react';
+import { Fragment, ReactNode } from 'react';
 import { domaineOf, epicOf, objectifOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
 import { listeDomaines, listeEpics, listeFeatures, listeObjectifs } from '../choixTravail';
-import { LigneChoix, SectionFiche } from './Choix';
+import { LigneChoix, SectionFiche, SeparateurOu } from './Choix';
 
 type Niveau = 'feature' | 'epic' | 'objectif' | 'domaine';
 type Links = { feature?: string; epic?: string; objectif?: string; domaine?: string };
@@ -16,8 +16,11 @@ interface Props {
   onNouveau?: (niveau: Niveau, defauts: Links) => void;
   /** Rattachement de l'élément enregistré : en choisir un autre est annoncé (« déplacée ») */
   initial?: Links;
-  /** Rattachement attendu (orange tant qu'il est vide) : un niveau précis, ou « un » = au moins un niveau */
-  attendu?: Niveau | 'un';
+  /**
+   * Rattachement attendu (orange tant qu'il est vide) : un niveau, ou plusieurs au choix (« feature ou epic ») ;
+   * au choix, les lignes vides sont reliées par « ou » et, dès qu'une est remplie, les autres deviennent facultatives
+   */
+  attendu?: Niveau | Niveau[];
   /** Titre de la section (par défaut « Rattachement ») */
   titre?: string;
   /** Lignes en plus dans la même section (tâche parente…) */
@@ -61,8 +64,12 @@ export function LinkPicker({ levels, value, onChange, onNouveau, initial, attend
           ? `🎯 ${h.objectifs.get(ini.objectif!)?.titre ?? '?'}`
           : `${h.domaines.get(ini.domaine!)?.icone ?? ''} ${h.domaines.get(ini.domaine!)?.nom ?? '?'}`.trim()
     : '';
-  const estAttendu = (l: Niveau) => (attendu === 'un' ? vide : attendu === l && !cur[l]);
-  const aDefinir = attendu === 'un' ? (vide ? 1 : 0) : attendu && !cur[attendu] && visibles.includes(attendu) ? 1 : 0;
+  // Niveaux attendus (au choix) : tant qu'aucun n'est rempli, ils sont tous en orange ; l'un rempli suffit
+  const groupe = !attendu ? [] : Array.isArray(attendu) ? attendu : [attendu];
+  const aucun = groupe.length > 0 && !groupe.some((l) => !!cur[l]);
+  const estAttendu = (l: Niveau) => aucun && groupe.includes(l);
+  const aDefinir = aucun && groupe.some((l) => visibles.includes(l)) ? 1 : 0;
+  const auChoix = groupe.filter((l) => visibles.includes(l)).length > 1;
 
   // Nouveau parent : sous le même grand-parent que le parent actuel (ex. une feature dans la même epic)
   const defauts = (l: Niveau): Links => {
@@ -89,10 +96,14 @@ export function LinkPicker({ levels, value, onChange, onNouveau, initial, attend
   };
 
   return (
-    <SectionFiche titre={titre} aDefinir={aDefinir}>
-      {visibles.map((l) => {
+    <SectionFiche titre={titre} aDefinir={aDefinir} auChoix={aDefinir > 0 && auChoix}>
+      {visibles.map((l, i) => {
         const { groupes, autres } = liste(l);
+        // « ou » entre deux lignes attendues au choix
+        const ou = i > 0 && estAttendu(l) && estAttendu(visibles[i - 1]);
         return (
+          <Fragment key={l}>
+          {ou && <SeparateurOu />}
           <LigneChoix
             key={l}
             label={LIBELLE[l]}
@@ -107,6 +118,7 @@ export function LinkPicker({ levels, value, onChange, onNouveau, initial, attend
             sans={SANS[l]}
             onChange={(v) => choisir(l, v)}
           />
+          </Fragment>
         );
       })}
       {children}

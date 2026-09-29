@@ -281,7 +281,7 @@ export function EpicForm({
               onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
               onNouveau={onNouveau ? (n, d) => (n === 'objectif' || n === 'domaine') && onNouveau(n, d) : undefined}
               initial={epic ? { objectif: epic.objectif, domaine: epic.domaine } : undefined}
-              attendu={safe.actif ? 'un' : undefined}
+              attendu={safe.actif ? ['objectif', 'domaine'] : undefined}
             />
 
             {safe.actif && (

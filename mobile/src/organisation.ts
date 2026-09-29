@@ -148,12 +148,12 @@ type Travail = {
 export const TYPES_ATTENDUS = ['story', 'bug', 'exploration'];
 
 /**
- * Affectations attendues encore vides d'une story, d'un bug ou d'une exploration (mode SAFe) : sa feature (sauf
- * sous-tâche), et, si l'entreprise a un delivery, son équipe (la sienne ou celle de sa feature) et son responsable.
+ * Affectations attendues encore vides d'une story, d'un bug ou d'une exploration (mode SAFe) : sa feature ou son
+ * epic (au choix ; sauf sous-tâche), et, si l'entreprise a un delivery, son équipe (la sienne ou celle de sa feature) et son responsable.
  * Une tâche terminée n'a plus rien à compléter.
  */
 export function aCompleter(
-  t: { type: string; statut: string; feature: string; parent?: string; equipe?: string; responsable?: string; espace?: string },
+  t: { type: string; statut: string; feature: string; epic?: string; parent?: string; equipe?: string; responsable?: string; espace?: string },
   h: Travail,
   o: Pick<OrgValue, 'portfolios' | 'trains' | 'equipes'>,
 ): string[] {
@@ -161,7 +161,8 @@ export function aCompleter(
   const esp = t.espace || 'moi';
   const delivery = [...o.portfolios, ...o.trains, ...o.equipes].some((x) => (x.espace || 'moi') === esp);
   const manque: string[] = [];
-  if (!t.feature && !t.parent) manque.push('feature');
+  // Rangée dans une feature ou une epic (au choix)
+  if (!t.feature && !t.epic && !t.parent) manque.push('feature ou epic');
   if (delivery) {
     if (!t.equipe && !(t.feature && h.features.get(t.feature)?.equipe)) manque.push('équipe');
     if (!t.responsable) manque.push('responsable');
