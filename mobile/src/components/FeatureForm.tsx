@@ -8,7 +8,7 @@ import { useSafe } from '../safe';
 import { colors } from '../theme';
 import type { Feature, FeatureInput, Item } from '../types';
 import { DeleteSection } from './DeleteSection';
-import { ChildActions, Field, FormSheet, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
+import { ChildActions, Field, FormSheet, TitreFiche, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
 import { LiaisonOrg } from './LiaisonOrg';
 import { ChoiceSheet } from './ChoiceSheet';
 import { FeuilleMulti, LigneChoix, LigneEnfant, SectionFiche } from './Choix';
@@ -157,16 +157,12 @@ export function FeatureForm({
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}
     >
-      <View style={[f.preview, { backgroundColor: epic?.couleur ?? '#5E6B7D' }]}>
-        <Text style={f.previewTitle} numberOfLines={2}>
-          🧩 {form.titre || 'Titre de la feature'}
-        </Text>
-        <Text style={f.previewSub}>
-          {epic ? epic.titre : 'Sans epic'}
-          {form.pi ? ` · PI ${piLabel(form.pi)}` : ''}
-          {form.iteration ? ` · ${form.iteration.split('-').pop()}` : ''}
-        </Text>
-      </View>
+      <TitreFiche
+        titre={form.titre ? `🧩 ${form.titre}` : ''}
+        vide="Titre de la feature"
+        sous={[form.pi ? `PI ${piLabel(form.pi)}` : '', form.iteration ? form.iteration.split('-').pop() : ''].filter(Boolean).join(' · ') || undefined}
+        couleur={epic?.couleur}
+      />
       <Field style={f.titleInput} placeholder="Titre (ex. Prise de rendez-vous en ligne)" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!feature} />
       <EspaceChoix
         espace={espace}

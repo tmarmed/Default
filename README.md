@@ -59,8 +59,10 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   domaine, trains, équipes, sous-unités, personnes) : ＋ rond à droite du titre → « ＋ Nouvelle … » (fiche
   par-dessus) ou « ↘ Ranger … existante » (cases à cocher, ceux d'un autre parent repliés) ; rangés à
   l'enregistrement, avec la pastille « ajoutée » / « déplacée ».
-- **En-tête des fiches** : « Annuler » à gauche, fil d'Ariane en petite ligne grise sous le titre, ✕ gris pour
-  fermer toutes les fiches (confirmation).
+- **En-tête des fiches** : « Annuler » à gauche, un seul fil d'Ariane (où est rangé l'élément) en petite ligne grise
+  sous le titre, ✕ gris pour fermer toutes les fiches (confirmation courte) ; le nom de l'élément est le titre de la
+  page, centré, sans cadre (dates dessous, petit trait de sa couleur). En mode Simple, jamais le mot « SAFe » ;
+  l'estimation d'une tâche y est facultative.
   À venir (étapes 2 et 3) : Google Sheet par équipe créé et partagé automatiquement d'après les rôles, onglet par
   personne, « Autoriser » à la connexion, attribution et registre des attributions. Vérifié par
   `npm run verif:organisation` et `npm run verif:sheets`.

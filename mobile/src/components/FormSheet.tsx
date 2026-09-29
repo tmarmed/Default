@@ -127,6 +127,20 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
   );
 }
 
+/**
+ * Titre d'une fiche : le nom de l'élément, centré en haut de la page (pas dans un cadre), avec une petite ligne
+ * dessous (dates, type…) et un trait de sa couleur. Le même dans toutes les fiches de modification.
+ */
+export function TitreFiche({ titre, vide, sous, couleur }: { titre: string; vide: string; sous?: string; couleur?: string }) {
+  return (
+    <View style={styles.titreFiche}>
+      <Text style={[styles.titreFicheTexte, !titre && styles.titreFicheVide]}>{titre || vide}</Text>
+      {!!sous && <Text style={styles.titreFicheSous}>{sous}</Text>}
+      {!!couleur && <View style={[styles.titreFicheTrait, { backgroundColor: couleur }]} />}
+    </View>
+  );
+}
+
 export function Label({ children }: { children: ReactNode }) {
   return <Text style={styles.label}>{children}</Text>;
 }
@@ -256,6 +270,11 @@ const styles = StyleSheet.create({
   bold: { fontWeight: '600' },
   content: { padding: 16, paddingBottom: 48 },
   error: { color: colors.danger, backgroundColor: '#FCE8E6', padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 14 },
+  titreFiche: { alignItems: 'center', gap: 4, paddingTop: 4, paddingBottom: 16, paddingHorizontal: 8 },
+  titreFicheTexte: { fontSize: 22, fontWeight: '700', color: colors.text, textAlign: 'center' },
+  titreFicheVide: { color: colors.muted, fontWeight: '600' },
+  titreFicheSous: { fontSize: 13, color: colors.muted, textAlign: 'center' },
+  titreFicheTrait: { width: 36, height: 3, borderRadius: 2, marginTop: 6 },
   label: { marginTop: 18, marginBottom: 8, fontSize: 13, fontWeight: '600', color: colors.muted },
   input: {
     borderWidth: 1,

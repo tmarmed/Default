@@ -9,7 +9,7 @@ import { Chips } from './Chips';
 import { LigneChoix, SectionFiche } from './Choix';
 import { listeDomaines } from '../choixTravail';
 import { DeleteSection } from './DeleteSection';
-import { Field, FormSheet, formStyles as f, Label } from './FormSheet';
+import { Field, FormSheet, formStyles as f, Label, TitreFiche } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -69,6 +69,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
   return (
     <HierarchyContext.Provider value={h}>
     <FormSheet visible={visible} title={objectif ? 'Objectif du PI' : 'Nouvel objectif du PI'} busy={busy} error={error} onClose={onClose} onSave={save}>
+      <TitreFiche titre={form.titre ? `🎯 ${form.titre}` : ''} vide="Titre de l’objectif du PI" sous={form.pi ? `PI ${piLabel(form.pi)}` : undefined} />
       <Field style={f.titleInput} placeholder="Résultat à livrer (ex. Nouveau site en ligne)" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!objectif} />
       <EspaceChoix
         espace={espace}

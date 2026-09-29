@@ -2330,7 +2330,7 @@ function Main() {
       <ChoiceSheet
         visible={!!espaceFiche}
         title={espaceFiche ? `${ICONE_ESPACE[espaceFiche.type]} ${libelleEspace(espaceFiche)}` : ''}
-        message={espaceFiche ? `Google Sheet « ${nomFichier(NOM_APP, espaceFiche)} ».\nRetirer : l'espace de travail quitte l'application, son Google Sheet est gardé (« Rétablir » dans « Gérer »).\nSupprimer : le Google Sheet part à la corbeille (récupérable 30 jours dans « Gérer »).` : undefined}
+        message={espaceFiche ? `Retirer : il quitte l'application, son Google Sheet est gardé.\nSupprimer : son Google Sheet va à la corbeille (30 jours).` : undefined}
         choices={
           espaceFiche
             ? [
@@ -2346,7 +2346,7 @@ function Main() {
         title={suppression ? `Supprimer « ${libelleEspace(suppression)} » ?` : ''}
         message={
           suppression
-            ? `Son Google Sheet part à la corbeille de Google Drive : récupérable 30 jours (« Gérer » › Corbeille › Restaurer), puis effacé définitivement.${suppression.type !== 'moi' ? ' Espace de travail partagé : il disparaît aussi pour les personnes qui y ont accès.' : ''}`
+            ? `Son Google Sheet va à la corbeille : récupérable 30 jours dans « Gérer ».${suppression.type !== 'moi' ? ' Il disparaît aussi pour les personnes qui y ont accès.' : ''}`
             : undefined
         }
         choices={suppression ? [{ label: 'Supprimer', principal: true, onPress: () => supprimerEspace(suppression).catch(() => {}) }] : []}
@@ -2391,7 +2391,7 @@ function Main() {
         title="Terminer aussi les sous-tâches ?"
         message={
           askSubs
-            ? `« ${askSubs.parent.titre} » a encore ${askSubs.kids.length} sous-tâche${askSubs.kids.length > 1 ? 's' : ''} non faite${askSubs.kids.length > 1 ? 's' : ''} : ${askSubs.kids.map((k) => `« ${k.titre} »`).join(', ')}.`
+            ? `${askSubs.kids.length} sous-tâche${askSubs.kids.length > 1 ? 's' : ''} pas encore faite${askSubs.kids.length > 1 ? 's' : ''}.`
             : undefined
         }
         choices={
@@ -2630,7 +2630,7 @@ function Main() {
         key={`fermer-travail-${confirmerFermerTravail}`}
         visible={confirmerFermerTravail}
         title="Tout fermer ?"
-        message="Toutes les fiches ouvertes se ferment ; les changements non enregistrés sont perdus."
+        message="Les changements non enregistrés seront perdus."
         choices={[{ label: 'Fermer toutes les fiches', principal: true, onPress: fermerToutTravail }]}
         onClose={() => setConfirmerFermerTravail(false)}
       />
@@ -2638,7 +2638,7 @@ function Main() {
         key={`fermer-org-${confirmerFermerOrg}`}
         visible={confirmerFermerOrg}
         title="Tout fermer ?"
-        message="Toutes les fiches ouvertes se ferment ; les changements non enregistrés sont perdus."
+        message="Les changements non enregistrés seront perdus."
         choices={[
           {
             label: 'Fermer toutes les fiches',

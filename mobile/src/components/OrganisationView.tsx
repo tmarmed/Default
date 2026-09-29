@@ -47,7 +47,7 @@ export function OrganisationView({
       <View style={s.vide}>
         <Text style={s.videTitre}>🏛️ L'Organisation concerne une entreprise</Text>
         <Text style={s.videTexte}>
-          Affichez un espace de travail 🏢 Entreprise dans la carte des espaces de travail pour décrire sa hiérarchie et, en mode SAFe, son delivery
+          Affichez un espace de travail 🏢 Entreprise dans la carte des espaces de travail pour décrire sa hiérarchie et son delivery
           (portfolios, trains, équipes).
         </Text>
       </View>
@@ -83,7 +83,6 @@ export function OrganisationView({
             </View>
           );
         })}
-        {!safe && <Text style={s.astuce}>La vue Delivery SAFe (portfolios, trains, équipes) s'affiche en mode SAFe.</Text>}
       </ScrollView>
     </View>
   );

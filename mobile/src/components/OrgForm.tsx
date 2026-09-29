@@ -6,7 +6,7 @@ import { colors } from '../theme';
 import { Chips } from './Chips';
 import { type GroupeChoix, LigneChoix, LigneMulti, ListeEnfants, SectionFiche, type AutresChoix } from './Choix';
 import { DeleteSection } from './DeleteSection';
-import { Field, FormSheet, formStyles as f, Label } from './FormSheet';
+import { Field, FormSheet, formStyles as f, Label, TitreFiche } from './FormSheet';
 
 type Donnees = Record<string, string>;
 /** Éléments existants rangés dans la fiche : leur champ `champ` prendra l'id de la fiche */
@@ -311,6 +311,7 @@ export function OrgForm({
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}
     >
+      <TitreFiche titre={form.nom ? `${ICONE_ORG[kind]} ${form.nom}` : ''} vide="Nom" />
       <Text style={s.entreprise}>🏢 {nomEntreprise} · Organisation</Text>
       <Field style={f.titleInput} placeholder={PLACEHOLDERS[kind]} value={form.nom} onChangeText={set('nom')} autoFocus={!entite} />
 

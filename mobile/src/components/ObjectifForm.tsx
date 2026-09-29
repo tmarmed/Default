@@ -9,7 +9,7 @@ import { formatEpicDates } from '../roadmap';
 import { EPIC_COULEURS, Epic, Objectif, ObjectifInput } from '../types';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
-import { AlertList, ColorPicker, Field, FormSheet, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
+import { AlertList, ColorPicker, TitreFiche, Field, FormSheet, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { ListeEnfants } from './Choix';
 import { filTravail } from '../choixTravail';
@@ -131,12 +131,12 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
     >
       <AlertList alertes={alertes} onFix={(a) => setForm((x) => ({ ...x, ...a.patch }))} onAlign={onAlign} />
 
-      <View style={[f.preview, { backgroundColor: form.couleur }]}>
-        <Text style={f.previewTitle} numberOfLines={2}>
-          🎯 {form.titre || "Titre de l'objectif"}
-        </Text>
-        {!!form.debut && <Text style={f.previewSub}>{form.fin ? formatEpicDates(form) : `${formatEpicDates(form).split(' →')[0]} → permanent`}</Text>}
-      </View>
+      <TitreFiche
+        titre={form.titre ? `🎯 ${form.titre}` : ''}
+        vide="Titre de l'objectif"
+        sous={form.debut ? (form.fin ? formatEpicDates(form) : `${formatEpicDates(form).split(' →')[0]} → permanent`) : undefined}
+        couleur={form.couleur}
+      />
 
       <Field
         style={f.titleInput}

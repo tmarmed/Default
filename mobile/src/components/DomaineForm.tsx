@@ -7,7 +7,7 @@ import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 import { colors } from '../theme';
 import { DOMAINE_ICONES, Domaine, DomaineInput, EPIC_COULEURS, Objectif } from '../types';
 import { DeleteSection } from './DeleteSection';
-import { ColorPicker, Field, FormSheet, formStyles as f, Label, type PileProps } from './FormSheet';
+import { ColorPicker, TitreFiche, Field, FormSheet, formStyles as f, Label, type PileProps } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -91,11 +91,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}
     >
-      <View style={[f.preview, { backgroundColor: form.couleur }]}>
-        <Text style={f.previewTitle}>
-          {form.icone} {form.nom || 'Nom du domaine'}
-        </Text>
-      </View>
+      <TitreFiche titre={form.nom ? `${form.icone} ${form.nom}` : ''} vide="Nom du domaine" couleur={form.couleur} />
       <Field style={f.titleInput} placeholder="Nom (ex. Pro, Perso, Administratif)" value={form.nom} onChangeText={(v) => setForm((x) => ({ ...x, nom: v }))} autoFocus={!domaine} />
       <EspaceChoix
         espace={espace}

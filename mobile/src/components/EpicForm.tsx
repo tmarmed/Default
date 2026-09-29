@@ -23,7 +23,7 @@ import { ETATS_EPIC } from '../types';
 import { Chips } from './Chips';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
-import { BoutonRetour, ChildActions, CheminPile, type Injection, type PileProps } from './FormSheet';
+import { TitreFiche, BoutonRetour, ChildActions, CheminPile, type Injection, type PileProps } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
@@ -250,14 +250,12 @@ export function EpicForm({
               </View>
             ))}
 
-            <View style={[styles.preview, { backgroundColor: form.couleur }]}>
-              <Text style={styles.previewTitle} numberOfLines={2}>
-                {form.titre || 'Titre de l’epic'}
-              </Text>
-              {!!form.debut && (!form.fin || form.fin >= form.debut) && (
-                <Text style={styles.previewDates}>{formatEpicDates(form)}</Text>
-              )}
-            </View>
+            <TitreFiche
+              titre={form.titre ? `🗂️ ${form.titre}` : ''}
+              vide="Titre de l’epic"
+              sous={form.debut && (!form.fin || form.fin >= form.debut) ? formatEpicDates(form) : undefined}
+              couleur={form.couleur}
+            />
 
             <TextInput
               style={[styles.input, styles.titleInput]}
@@ -304,12 +302,6 @@ export function EpicForm({
                   onNouveau={onNouveauOrg ? () => onNouveauOrg(espace) : undefined}
                 />
               </>
-            )}
-            {/* Mode Simple : état choisi en lecture seule */}
-            {!safe.actif && !!form.etat && (
-              <Text style={styles.hint}>
-                État : {ETATS_EPIC.find((e) => e.value === form.etat)?.label ?? form.etat} — modifiable en mode SAFe.
-              </Text>
             )}
 
             <Text style={styles.label}>Début</Text>

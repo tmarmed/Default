@@ -44,7 +44,7 @@ import { LigneChoix, LigneFiche, SectionFiche } from './Choix';
 import { listeIterations } from '../choixTravail';
 import { filTravail } from '../choixTravail';
 import { LiaisonOrg } from './LiaisonOrg';
-import { BoutonRetour, CheminPile, type Injection, type PileProps } from './FormSheet';
+import { BoutonRetour, CheminPile, TitreFiche, type Injection, type PileProps } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -355,6 +355,7 @@ export function TaskForm({
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error && <Text style={styles.error}>{error}</Text>}
+            <TitreFiche titre={form.titre ? `${TYPE_ICONS[form.type]} ${form.titre}` : ''} vide="Titre de la tâche" couleur={typeColors[form.type]} />
             <TextInput
               style={[styles.input, styles.titleInput]}
               placeholder="Titre"
@@ -520,49 +521,32 @@ export function TaskForm({
               onChange={(p) => setForm((f) => ({ ...f, ...p }))}
               onNouveau={onNouveauOrg ? (k, champ) => (k === 'equipeagile' || k === 'personne') && (champ === 'equipe' || champ === 'responsable') && onNouveauOrg(k, champ, espace) : undefined}
             />
-            {safe.actif && (
-              <>
-                <Text style={styles.label}>{safe.pointsJours ? 'Points (jours)' : 'Points'}</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Estimation, ex. 2"
-                  placeholderTextColor={colors.muted}
-                  value={form.points}
-                  onChangeText={(v) => set('points', v.replace(/[^0-9.,]/g, ''))}
-                  keyboardType="decimal-pad"
-                />
-                {!form.periodicite && (
-                  <SectionFiche titre="Planification">
-                    {form.date ? (
-                      <LigneFiche label="Itération" valeur={iterationOf(form.date).label} sous="D'après la date de la tâche" />
-                    ) : (
-                      <LigneChoix
-                        label="Itération"
-                        value={form.iteration}
-                        depart={item?.iteration}
-                        {...listeIterations(featureCourante?.pi, featureCourante?.iteration, form.iteration)}
-                        libelle={(v) => iterationNom(v)}
-                        sans="Sans itération"
-                        onChange={(v) => set('iteration', v)}
-                      />
-                    )}
-                  </SectionFiche>
+            {/* Estimation : en SAFe, les points ; en Simple, une estimation facultative (même champ) */}
+            <Text style={styles.label}>{safe.actif ? (safe.pointsJours ? 'Points (jours)' : 'Points') : safe.pointsJours ? 'Estimation (jours, facultatif)' : 'Estimation (facultatif)'}</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Estimation, ex. 2"
+              placeholderTextColor={colors.muted}
+              value={form.points}
+              onChangeText={(v) => set('points', v.replace(/[^0-9.,]/g, ''))}
+              keyboardType="decimal-pad"
+            />
+            {safe.actif && !form.periodicite && (
+              <SectionFiche titre="Planification">
+                {form.date ? (
+                  <LigneFiche label="Itération" valeur={iterationOf(form.date).label} sous="D'après la date de la tâche" />
+                ) : (
+                  <LigneChoix
+                    label="Itération"
+                    value={form.iteration}
+                    depart={item?.iteration}
+                    {...listeIterations(featureCourante?.pi, featureCourante?.iteration, form.iteration)}
+                    libelle={(v) => iterationNom(v)}
+                    sans="Sans itération"
+                    onChange={(v) => set('iteration', v)}
+                  />
                 )}
-              </>
-            )}
-            {/* Mode Simple : planification SAFe en lecture seule (rien n'est caché ni perdu) */}
-            {!safe.actif && (!!form.iteration || !!form.points) && (
-              <Text style={styles.hint}>
-                {[
-                  form.iteration && iterationByKey(form.iteration)
-                    ? `Planifiée en ${iterationNom(form.iteration)}`
-                    : '',
-                  form.points ? fmtPoints(parseFloat(form.points.replace(',', '.')) || 0, safe.pointsJours) : '',
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}{' '}
-                — modifiable en mode SAFe.
-              </Text>
+              </SectionFiche>
             )}
 
             {!!enfants.length && <Text style={styles.hint}>Les sous-tâches suivent le rangement de cette tâche.</Text>}
