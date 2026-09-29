@@ -2398,10 +2398,12 @@ function Main() {
       </FormSheet>
       <ChoiceSheet
         visible={orgMenu}
-        title={`Ajouter à l'Organisation${entreprisesAffichees.length > 1 ? ` · 🏢 ${entreprisesAffichees[0]?.nom ?? ''}` : ''}`}
-        choices={(safe.actif ? (['personne', 'unite', 'portfolio', 'train', 'equipeagile'] as KindOrg[]) : (['personne', 'unite'] as KindOrg[])).map((k) => ({
+        title={`${safe.actif && vueOrg === 'delivery' ? 'Ajouter au delivery SAFe' : "Ajouter à l'organisation de l'entreprise"}${entreprisesAffichees.length > 1 ? ` · 🏢 ${entreprisesAffichees[0]?.nom ?? ''}` : ''}`}
+        // ＋ de l'Organisation : seulement les éléments de la vue affichée (Entreprise : personnes et unités ;
+        // Delivery SAFe : portfolios, trains, équipes agiles)
+        choices={(safe.actif && vueOrg === 'delivery' ? (['portfolio', 'train', 'equipeagile'] as KindOrg[]) : (['personne', 'unite'] as KindOrg[])).map((k, i) => ({
           label: `${ICONE_ORG[k]} ${k === 'equipeagile' ? 'Équipe agile' : NOM_ORG[k]}`,
-          principal: k === (vueOrg === 'delivery' && safe.actif ? 'equipeagile' : 'personne'),
+          principal: i === 0,
           onPress: () => entreprisesAffichees[0] && setOrgFiche({ kind: k, entite: null, espace: entreprisesAffichees[0].id }),
         }))}
         onClose={() => setOrgMenu(false)}
