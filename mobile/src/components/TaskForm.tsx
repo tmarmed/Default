@@ -43,6 +43,7 @@ import { fmtPoints } from '../pi';
 import { canHaveSubtasks, PARENT_TYPES, pointsCheck, subtaskMap } from '../subtasks';
 import { ItemPicker } from './ItemPicker';
 import { LiaisonOrg } from './LiaisonOrg';
+import { BoutonRetour, CheminPile, type Injection, type PileProps } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -65,6 +66,14 @@ interface Props {
   /** Sous-tâches d'une tâche déjà enregistrée : ajout et modifications immédiats */
   onAddSubtask?: (parent: Item, titre: string) => Promise<void>;
   onUpdateTask?: (patch: Partial<Item> & { id: string }) => Promise<void>;
+  /** Pile de fiches (ouverte depuis une autre fiche) */
+  pile?: PileProps;
+  /** Élément créé dans une fiche du dessus (« ＋ Nouvelle feature », « ＋ Nouvelle personne »…) : choisi ici */
+  injection?: Injection;
+  /** « ＋ Nouvelle feature / epic / objectif / domaine » depuis le rattachement */
+  onNouveau?: (niveau: 'feature' | 'epic' | 'objectif' | 'domaine', espace: string) => void;
+  /** « ＋ Nouvelle équipe / personne » depuis la section Delivery */
+  onNouveauOrg?: (kind: 'equipeagile' | 'personne', champ: 'equipe' | 'responsable', espace: string) => void;
 }
 
 const empty = (type: ItemType, date: string, defaultIteration = ''): ItemInput => ({
@@ -148,6 +157,10 @@ export function TaskForm({
   onOpenTask,
   onAddSubtask,
   onUpdateTask,
+  pile,
+  injection,
+  onNouveau,
+  onNouveauOrg,
 }: Props) {
   const [form, setForm] = useState<ItemInput>(empty(defaultType, defaultDate, defaultIteration));
   const [busy, setBusy] = useState(false);
@@ -201,6 +214,22 @@ export function TaskForm({
     const key = n ? shiftIteration(itCourante, n) : itCourante;
     return { value: key, label: iterationNom(key) };
   });
+
+  // Élément créé dans une fiche du dessus : choisi ici (rattachement : seulement le plus précis)
+  useEffect(() => {
+    if (!injection) return;
+    const { champ, id } = injection;
+    setForm((f) => {
+      if (champ === 'feature' || champ === 'epic' || champ === 'objectif' || champ === 'domaine') {
+        const next = { ...f, feature: '', epic: '', objectif: '', domaine: '', [champ]: id };
+        const feat = champ === 'feature' ? hTous.features.get(id) : undefined;
+        if (feat?.iteration && !next.date && !next.periodicite && !f.iteration) next.iteration = feat.iteration;
+        return next;
+      }
+      return champ === 'equipe' || champ === 'responsable' ? { ...f, [champ]: id } : f;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [injection]);
 
   useEffect(() => {
     if (visible) {
@@ -305,9 +334,7 @@ export function TaskForm({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
-          <Pressable onPress={onClose} hitSlop={10} disabled={busy}>
-            <Text style={styles.headerBtn}>Annuler</Text>
-          </Pressable>
+          <BoutonRetour pile={pile} onPress={onClose} disabled={busy} style={styles.headerBtn} />
           <Text style={styles.headerTitle}>{item ? 'Tâche' : 'Nouvelle tâche'}</Text>
           <Pressable onPress={save} hitSlop={10} disabled={busy}>
             {busy ? (
@@ -317,6 +344,7 @@ export function TaskForm({
             )}
           </Pressable>
         </View>
+        <CheminPile pile={pile} />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error && <Text style={styles.error}>{error}</Text>}
@@ -530,6 +558,7 @@ export function TaskForm({
                     return next;
                   })
                 }
+                onNouveau={onNouveau ? (n) => onNouveau(n, espace) : undefined}
               />
             )}
             <LiaisonOrg
@@ -537,6 +566,7 @@ export function TaskForm({
               niveau="item"
               valeurs={{ equipe: form.equipe, responsable: form.responsable, feature: form.feature, epic: form.epic }}
               onChange={(p) => setForm((f) => ({ ...f, ...p }))}
+              onNouveau={onNouveauOrg ? (k, champ) => (k === 'equipeagile' || k === 'personne') && (champ === 'equipe' || champ === 'responsable') && onNouveauOrg(k, champ, espace) : undefined}
             />
             {!!enfants.length && <Text style={styles.hint}>Les sous-tâches suivent le rangement de cette tâche.</Text>}
 

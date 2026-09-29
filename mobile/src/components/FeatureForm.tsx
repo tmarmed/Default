@@ -11,7 +11,7 @@ import type { Feature, FeatureInput, Item } from '../types';
 import { Chips } from './Chips';
 import { ItemPicker } from './ItemPicker';
 import { DeleteSection } from './DeleteSection';
-import { ChildActions, Field, FormSheet, formStyles as f, Label, Progress } from './FormSheet';
+import { ChildActions, Field, FormSheet, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
 import { LiaisonOrg } from './LiaisonOrg';
 
 interface Props {
@@ -21,7 +21,15 @@ interface Props {
   defaultPi: string;
   onClose: () => void;
   /** Enregistre la feature, puis ses tâches choisies pendant la création */
-  onSave: (input: FeatureInput, taches: { nouvelles: string[]; existantes: string[] }) => Promise<void>;
+  onSave: (input: FeatureInput, taches: { nouvelles: string[]; existantes: string[] }, rester?: boolean) => Promise<Feature | void | undefined>;
+  pile?: PileProps;
+  injection?: Injection;
+  /** « ＋ Nouvelle epic » depuis le choix de l'epic */
+  onNouvelleEpic?: () => void;
+  /** « ＋ Tâche » : fiche complète d'une nouvelle tâche de la feature, par-dessus */
+  onAddTask?: (f: Feature) => void;
+  /** « ＋ Nouveau train / Nouvelle équipe » (section Delivery) */
+  onNouveauOrg?: (kind: 'train' | 'equipeagile', champ: 'train' | 'equipe', espace: string) => void;
   onDelete: (x: Feature, cascade: boolean) => Promise<void>;
   onOpenTask: (t: Item) => void;
   defaults?: Partial<FeatureInput>;
@@ -48,6 +56,11 @@ export function FeatureForm({
   onLinkTask,
   onOpenWizard,
   defaultDomaine,
+  pile,
+  injection,
+  onNouvelleEpic,
+  onAddTask,
+  onNouveauOrg,
 }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, feature, defaults);
@@ -107,24 +120,51 @@ export function FeatureForm({
       return { id: t.id, title: t.titre, sub: [where, quand].filter(Boolean).join(' · ') };
     });
 
-  const save = async () => {
-    if (!form.titre.trim()) return setError('Donnez un titre à la feature.');
+  const save = async (rester = false): Promise<Feature | undefined> => {
+    if (!form.titre.trim()) return void setError('Donnez un titre à la feature.');
     setError(null);
     setBusy(true);
     try {
       // L'itération doit appartenir au PI choisi
       const iteration = form.iteration && form.pi && form.iteration.startsWith(form.pi) ? form.iteration : '';
-      await onSave({ ...form, espace, iteration, titre: form.titre.trim() }, { nouvelles, existantes });
+      const saved = await onSave({ ...form, espace, iteration, titre: form.titre.trim() }, { nouvelles, existantes }, rester);
+      if (rester) {
+        setNouvelles([]);
+        setExistantes([]);
+      }
+      return saved || undefined;
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
+      return undefined;
     } finally {
       setBusy(false);
     }
   };
+  /** Nouvelle feature : enregistrée d'abord, puis la tâche s'ouvre par-dessus */
+  const enregistrerPuis = async (suite: (x: Feature) => void) => {
+    const x = feature ?? (await save(true));
+    if (x) suite(x);
+  };
+  // Epic créée dans la fiche du dessus : choisie ici
+  useEffect(() => {
+    if (injection?.champ === 'epic') setForm((x) => ({ ...x, epic: injection.id }));
+    if (injection?.champ === 'train') setForm((x) => ({ ...x, train: injection.id }));
+    if (injection?.champ === 'equipe') setForm((x) => ({ ...x, equipe: injection.id }));
+  }, [injection]);
 
   return (
     <HierarchyContext.Provider value={h}>
-    <FormSheet visible={visible} title={feature ? 'Feature' : 'Nouvelle feature'} busy={busy} error={error} onClose={onClose} onSave={save}>
+    <FormSheet
+      visible={visible}
+      title={feature ? 'Feature' : 'Nouvelle feature'}
+      busy={busy}
+      error={error}
+      onClose={onClose}
+      onSave={() => save()}
+      retour={pile?.retour}
+      chemin={pile?.chemin}
+      onFermerTout={pile?.onFermerTout}
+    >
       <View style={[f.preview, { backgroundColor: epic?.couleur ?? '#5E6B7D' }]}>
         <Text style={f.previewTitle} numberOfLines={2}>
           🧩 {form.titre || 'Titre de la feature'}
@@ -162,8 +202,19 @@ export function FeatureForm({
         value={form.epic}
         onChange={(v) => set('epic', v)}
       />
+      {onNouvelleEpic && (
+        <Pressable onPress={onNouvelleEpic} hitSlop={6} style={{ alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4 }} accessibilityRole="button">
+          <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#1A73E8' }}>＋ Nouvelle epic</Text>
+        </Pressable>
+      )}
 
-      <LiaisonOrg espace={espace} niveau="feature" valeurs={{ train: form.train, equipe: form.equipe, epic: form.epic }} onChange={(p) => setForm((x) => ({ ...x, ...p }))} />
+      <LiaisonOrg
+        espace={espace}
+        niveau="feature"
+        valeurs={{ train: form.train, equipe: form.equipe, epic: form.epic }}
+        onChange={(p) => setForm((x) => ({ ...x, ...p }))}
+        onNouveau={onNouveauOrg ? (k, champ) => (k === 'train' || k === 'equipeagile') && (champ === 'train' || champ === 'equipe') && onNouveauOrg(k, champ, espace) : undefined}
+      />
 
       <Label>PI (trimestre)</Label>
       <Chips
@@ -225,6 +276,11 @@ export function FeatureForm({
             }
           }}
         />
+      )}
+      {onAddTask && (
+        <Pressable onPress={() => enregistrerPuis(onAddTask)} style={f.pickBtn} accessibilityRole="button">
+          <Text style={f.pickText}>+ Tâche (fiche complète){feature ? '' : ' — la feature est enregistrée d’abord'}</Text>
+        </Pressable>
       )}
       {(!feature || onLinkTask) && (
         <Pressable onPress={() => setPicking((v) => !v)} style={f.pickBtn} accessibilityRole="button">

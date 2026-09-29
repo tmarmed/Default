@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useHierarchy } from '../hierarchyContext';
 import { makeOrgValue, membresDe, nomPersonne, porteurs, useOrg } from '../organisation';
 import { useSafe } from '../safe';
@@ -13,7 +13,20 @@ type Valeurs = { portfolio?: string; train?: string; equipe?: string; responsabl
  * epic → portfolio ; feature → train et équipe ; story ou tâche → équipe et responsable. Un fil d'Ariane montre
  * les deux chemins : organisation (portfolio › train › équipe · personne) et travail (epic › feature).
  */
-export function LiaisonOrg({ espace, niveau, valeurs, onChange }: { espace: string; niveau: 'epic' | 'feature' | 'item'; valeurs: Valeurs; onChange: (patch: Valeurs) => void }) {
+export function LiaisonOrg({
+  espace,
+  niveau,
+  valeurs,
+  onChange,
+  onNouveau,
+}: {
+  espace: string;
+  niveau: 'epic' | 'feature' | 'item';
+  valeurs: Valeurs;
+  onChange: (patch: Valeurs) => void;
+  /** « ＋ Nouveau portfolio / train / équipe / personne » : fiche de l'Organisation par-dessus, l'élément créé est choisi */
+  onNouveau?: (kind: 'portfolio' | 'train' | 'equipeagile' | 'personne', champ: 'portfolio' | 'train' | 'equipe' | 'responsable') => void;
+}) {
   const safe = useSafe();
   const tout = useOrg();
   const h = useHierarchy();
@@ -37,6 +50,13 @@ export function LiaisonOrg({ espace, niveau, valeurs, onChange }: { espace: stri
   const gensEquipe = equipe ? new Set([...membresDe(equipe), equipe.po, equipe.sm].filter(Boolean)) : null;
   const responsables = [...o.personnes].filter((x) => !gensEquipe || gensEquipe.has(x.id)).sort((a, b) => a.nom.localeCompare(b.nom));
 
+  const Nouveau = ({ kind, champ, label }: { kind: 'portfolio' | 'train' | 'equipeagile' | 'personne'; champ: 'portfolio' | 'train' | 'equipe' | 'responsable'; label: string }) =>
+    onNouveau ? (
+      <Pressable onPress={() => onNouveau(kind, champ)} hitSlop={6} style={s.nouveau} accessibilityRole="button">
+        <Text style={s.nouveauTexte}>＋ {label}</Text>
+      </Pressable>
+    ) : null;
+
   return (
     <View>
       <Label>Delivery (organisation)</Label>
@@ -55,6 +75,7 @@ export function LiaisonOrg({ espace, niveau, valeurs, onChange }: { espace: stri
         <>
           <Text style={s.sousLabel}>Portfolio</Text>
           <Chips options={[{ value: '', label: 'Aucun' }, ...o.portfolios.map((x) => ({ value: x.id, label: `💼 ${x.nom}` }))]} value={valeurs.portfolio ?? ''} onChange={(v) => onChange({ portfolio: v })} compact wrap />
+          <Nouveau kind="portfolio" champ="portfolio" label="Nouveau portfolio" />
         </>
       )}
       {niveau === 'feature' && (
@@ -67,6 +88,7 @@ export function LiaisonOrg({ espace, niveau, valeurs, onChange }: { espace: stri
             compact
             wrap
           />
+          <Nouveau kind="train" champ="train" label="Nouveau train" />
           <Text style={s.sousLabel}>Équipe qui la réalise</Text>
           <Chips
             options={[{ value: '', label: 'Aucune' }, ...equipesProposees.map((x) => ({ value: x.id, label: `👥 ${x.nom}` }))]}
@@ -75,6 +97,7 @@ export function LiaisonOrg({ espace, niveau, valeurs, onChange }: { espace: stri
             compact
             wrap
           />
+          <Nouveau kind="equipeagile" champ="equipe" label="Nouvelle équipe" />
         </>
       )}
       {niveau === 'item' && (
@@ -91,12 +114,14 @@ export function LiaisonOrg({ espace, niveau, valeurs, onChange }: { espace: stri
             compact
             wrap
           />
+          <Nouveau kind="equipeagile" champ="equipe" label="Nouvelle équipe" />
           <Text style={s.sousLabel}>Responsable{equipe ? ` (membres de 👥 ${equipe.nom})` : ''}</Text>
           {responsables.length ? (
             <Chips options={[{ value: '', label: 'Non attribuée' }, ...responsables.map((x) => ({ value: x.id, label: x.nom }))]} value={valeurs.responsable ?? ''} onChange={(v) => onChange({ responsable: v })} compact wrap />
           ) : (
             <Text style={f.muted}>Aucun membre dans cette équipe.</Text>
           )}
+          <Nouveau kind="personne" champ="responsable" label="Nouvelle personne" />
         </>
       )}
     </View>
@@ -107,5 +132,7 @@ const s = StyleSheet.create({
   ariane: { backgroundColor: '#F4F6FA', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8, gap: 3 },
   arianeTexte: { fontSize: 12.5, fontWeight: '700', color: colors.text },
   arianeTravail: { fontSize: 12, color: colors.muted },
+  nouveau: { alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4 },
+  nouveauTexte: { fontSize: 13.5, fontWeight: '700', color: colors.primary },
   sousLabel: { fontSize: 12, fontWeight: '700', color: colors.muted, marginTop: 8, marginBottom: 6 },
 });

@@ -64,7 +64,7 @@ export function OrgForm({
   onSave: (data: Donnees, rester?: boolean) => Promise<EntiteOrg<KindOrg> | void>;
   onDelete: () => Promise<void>;
   /** Pile de fiches : fiche d'en dessous (« ‹ Digital »), fil en haut, tout fermer */
-  pile?: { retour?: string; chemin: string; onFermerTout: () => void };
+  pile?: { retour?: string | string[]; chemin: string; onFermerTout: () => void };
   /**
    * Ouvre une fiche par-dessus celle-ci : un enfant (« ＋ Train » d'un portfolio, un train de la liste) ou un élément
    * créé à la volée pour un choix (`champ` : « ＋ Nouvelle personne » pour le PO → la personne créée devient PO)

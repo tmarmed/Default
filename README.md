@@ -39,6 +39,14 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   portfolio, une feature son train et son équipe, une story ou tâche son équipe et son responsable (fiche : section
   « Delivery » avec fil d'Ariane) ; les listes affichent 👥 équipe · 👤 responsable ; le bloc Filtres ajoute
   Portfolio / Train / Équipe. Supprimer un élément de l'Organisation vide seulement ce qui le désignait.
+- **Pile de fiches** (création et consultation en cascade) : depuis une fiche, « ＋ Train » (portfolio), « ＋ Équipe »
+  (train), « ＋ Personne », « ＋ Objectif / Epic / Feature / Tâche », ou « ＋ Nouvelle feature / epic / équipe /
+  personne… » dans un choix, ouvre la fiche par-dessus ; un parent nouveau est enregistré d'abord ; à l'enregistrement
+  on revient à la fiche d'en dessous avec l'élément créé déjà choisi. En haut : fil d'Ariane, « ‹ Parent » au lieu
+  d'Annuler, « ✕ Tout fermer » (avec confirmation). Toucher une feature ou une tâche d'une epic l'ouvre par-dessus.
+  **Assistant projet**, même logique : « ＋ Objectif / Epic / Feature / Tâche » sous chaque élément passe à l'étape
+  suivante avec l'élément créé, « ＋ Nouveau … » dans Déplacer crée le parent, « ‹ Revenir à … » ramène à l'étape
+  d'origine ; Fermer demande confirmation s'il y a des changements.
   À venir (étapes 2 et 3) : Google Sheet par équipe créé et partagé automatiquement d'après les rôles, onglet par
   personne, « Autoriser » à la connexion, attribution et registre des attributions. Vérifié par
   `npm run verif:organisation` et `npm run verif:sheets`.

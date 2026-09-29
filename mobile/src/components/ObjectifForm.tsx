@@ -9,7 +9,7 @@ import { formatEpicDates } from '../roadmap';
 import { EPIC_COULEURS, Epic, Objectif, ObjectifInput } from '../types';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
-import { AlertList, ChildActions, ColorPicker, Field, FormSheet, formStyles as f, Label, Progress } from './FormSheet';
+import { AlertList, ChildActions, ColorPicker, Field, FormSheet, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { View } from 'react-native';
 
@@ -17,7 +17,12 @@ interface Props {
   visible: boolean;
   objectif: Objectif | null;
   onClose: () => void;
-  onSave: (input: ObjectifInput) => Promise<void>;
+  /** `rester` : objectif enregistré avant d'ouvrir un enfant (la fiche reste ouverte) ; renvoie l'objectif */
+  onSave: (input: ObjectifInput, rester?: boolean) => Promise<Objectif | void | undefined>;
+  pile?: PileProps;
+  injection?: Injection;
+  /** « ＋ Nouveau domaine » depuis le choix du domaine */
+  onNouveauDomaine?: () => void;
   onDelete: (o: Objectif, cascade: boolean) => Promise<void>;
   onOpenEpic: (e: Epic) => void;
   /** Valeurs proposées pour un nouvel objectif (ex. domaine) */
@@ -46,7 +51,7 @@ const empty = (): ObjectifInput => {
 const number = (t: string) => t.replace(/[^0-9.,-]/g, '');
 
 /** Fiche d'un objectif : échéance (ou permanent), indicateur, epics, alertes. */
-export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onOpenEpic, defaults, onAddEpic, onOpenWizard, onAlign }: Props) {
+export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onOpenEpic, defaults, onAddEpic, onOpenWizard, onAlign, pile, injection, onNouveauDomaine }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, objectif, defaults);
   const [form, setForm] = useState<ObjectifInput>(empty());
@@ -73,23 +78,33 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
     : null;
   const dom = form.domaine ? h.domaines.get(form.domaine) : undefined;
 
-  const save = async () => {
-    if (!form.titre.trim()) return setError("Donnez un titre à l'objectif.");
-    if (!form.debut) return setError('Choisissez une date de début.');
-    if (form.fin && form.fin < form.debut) return setError("L'échéance est avant la date de début.");
+  const save = async (rester = false): Promise<Objectif | undefined> => {
+    if (!form.titre.trim()) return void setError("Donnez un titre à l'objectif.");
+    if (!form.debut) return void setError('Choisissez une date de début.');
+    if (form.fin && form.fin < form.debut) return void setError("L'échéance est avant la date de début.");
     if ((form.cible && isNaN(parseFloat(form.cible))) || (form.actuel && isNaN(parseFloat(form.actuel)))) {
-      return setError("L'indicateur doit être un nombre.");
+      return void setError("L'indicateur doit être un nombre.");
     }
     setError(null);
     setBusy(true);
     try {
-      await onSave({ ...form, espace, titre: form.titre.trim() });
+      return (await onSave({ ...form, espace, titre: form.titre.trim() }, rester)) || undefined;
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
+      return undefined;
     } finally {
       setBusy(false);
     }
   };
+  /** Nouvel objectif : enregistré d'abord, puis l'epic s'ouvre par-dessus */
+  const enregistrerPuis = async (suite: (o: Objectif) => void) => {
+    const o = objectif ?? (await save(true));
+    if (o) suite(o);
+  };
+  // Domaine créé dans la fiche du dessus : choisi ici
+  useEffect(() => {
+    if (injection?.champ === 'domaine') setForm((x) => ({ ...x, domaine: injection.id }));
+  }, [injection]);
 
   return (
     <HierarchyContext.Provider value={h}>
@@ -99,7 +114,10 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
       busy={busy}
       error={error}
       onClose={onClose}
-      onSave={save}
+      onSave={() => save()}
+      retour={pile?.retour}
+      chemin={pile?.chemin}
+      onFermerTout={pile?.onFermerTout}
     >
       <AlertList alertes={alertes} onFix={(a) => setForm((x) => ({ ...x, ...a.patch }))} onAlign={onAlign} />
 
@@ -126,7 +144,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
         }}
       />
 
-      <LinkPicker levels={['domaine']} value={form} onChange={(p) => set('domaine', p.domaine ?? '')} />
+      <LinkPicker levels={['domaine']} value={form} onChange={(p) => set('domaine', p.domaine ?? '')} onNouveau={onNouveauDomaine ? () => onNouveauDomaine() : undefined} />
 
       <Label>Début</Label>
       <DateField mode="date" value={form.debut} onChange={(v) => set('debut', v)} placeholder="Date de début" />
@@ -150,6 +168,14 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
 
       <Label>Description</Label>
       <Field style={f.notes} placeholder="Pourquoi, comment mesurer…" value={form.description} onChangeText={(v) => set('description', v)} multiline />
+
+      {!objectif && onAddEpic && (
+        <>
+          <Label>Et ensuite</Label>
+          <ChildActions actions={[{ label: '+ Epic', onPress: () => enregistrerPuis(onAddEpic) }]} />
+          <Text style={f.hint}>L'objectif est enregistré d'abord, puis l'epic s'ouvre par-dessus ; l'enregistrer vous ramène ici.</Text>
+        </>
+      )}
 
       {objectif && progress && (
         <>

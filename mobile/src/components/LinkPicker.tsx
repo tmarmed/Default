@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { domaineOf, epicOf, objectifOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
 import { colors } from '../theme';
@@ -12,13 +12,17 @@ interface Props {
   levels: ('feature' | 'epic' | 'objectif' | 'domaine')[];
   value: Links;
   onChange: (patch: Links) => void;
+  /** « ＋ Nouvelle feature / epic / objectif / nouveau domaine » : la fiche s'ouvre par-dessus, l'élément créé est choisi */
+  onNouveau?: (niveau: 'feature' | 'epic' | 'objectif' | 'domaine') => void;
 }
+
+const NOUVEAU = { feature: 'Nouvelle feature', epic: 'Nouvelle epic', objectif: 'Nouvel objectif', domaine: 'Nouveau domaine' } as const;
 
 /**
  * Rattachement à un niveau supérieur : on choisit le plus précis (epic, sinon objectif, sinon domaine) ;
  * les niveaux au-dessus s'en déduisent et sont simplement affichés.
  */
-export function LinkPicker({ levels, value, onChange }: Props) {
+export function LinkPicker({ levels, value, onChange, onNouveau }: Props) {
   const h = useHierarchy();
   const has = (l: 'feature' | 'epic' | 'objectif' | 'domaine') => levels.includes(l);
   const feature = has('feature') && value.feature ? h.features.get(value.feature) : undefined;
@@ -32,9 +36,15 @@ export function LinkPicker({ levels, value, onChange }: Props) {
   const inheritedDom = feature || epic || objectif ? domaineOf(value, h) : undefined;
 
   const none = (label: string) => ({ value: '', label });
+  const Nouveau = ({ niveau }: { niveau: 'feature' | 'epic' | 'objectif' | 'domaine' }) =>
+    onNouveau ? (
+      <Pressable onPress={() => onNouveau(niveau)} hitSlop={6} style={styles.nouveau} accessibilityRole="button">
+        <Text style={styles.nouveauTexte}>＋ {NOUVEAU[niveau]}</Text>
+      </Pressable>
+    ) : null;
   return (
     <View>
-      {has('feature') && h.featureList.length > 0 && (
+      {has('feature') && (h.featureList.length > 0 || !!onNouveau) && (
         <>
           <Text style={styles.label}>Feature</Text>
           <Chips
@@ -48,9 +58,10 @@ export function LinkPicker({ levels, value, onChange }: Props) {
             value={feature ? feature.id : ''}
             onChange={(v) => onChange({ feature: v, epic: '', objectif: '', domaine: '' })}
           />
+          <Nouveau niveau="feature" />
         </>
       )}
-      {has('epic') && !feature && h.epicList.length > 0 && (
+      {has('epic') && !feature && (h.epicList.length > 0 || !!onNouveau) && (
         <>
           <Text style={styles.label}>Epic</Text>
           <Chips
@@ -64,9 +75,10 @@ export function LinkPicker({ levels, value, onChange }: Props) {
               )
             }
           />
+          <Nouveau niveau="epic" />
         </>
       )}
-      {has('objectif') && !feature && !epic && h.objectifList.length > 0 && (
+      {has('objectif') && !feature && !epic && (h.objectifList.length > 0 || !!onNouveau) && (
         <>
           <Text style={styles.label}>Objectif</Text>
           <Chips
@@ -74,13 +86,19 @@ export function LinkPicker({ levels, value, onChange }: Props) {
             value={objectif ? objectif.id : ''}
             onChange={(v) => onChange({ feature: '', epic: '', objectif: v, domaine: '' })}
           />
+          <Nouveau niveau="objectif" />
         </>
       )}
-      {has('domaine') && !feature && !epic && !objectif && h.domaineList.length > 0 && (
-        <DomaineChoix
-          value={value.domaine && h.domaines.has(value.domaine) ? value.domaine : ''}
-          onChange={(v) => onChange({ feature: '', epic: '', objectif: '', domaine: v })}
-        />
+      {has('domaine') && !feature && !epic && !objectif && (h.domaineList.length > 0 || !!onNouveau) && (
+        <>
+          {h.domaineList.length > 0 && (
+            <DomaineChoix
+              value={value.domaine && h.domaines.has(value.domaine) ? value.domaine : ''}
+              onChange={(v) => onChange({ feature: '', epic: '', objectif: '', domaine: v })}
+            />
+          )}
+          <Nouveau niveau="domaine" />
+        </>
       )}
       {(inheritedEpic || inheritedObj || inheritedDom) && (
         <Text style={styles.inherited}>
@@ -99,4 +117,6 @@ export function LinkPicker({ levels, value, onChange }: Props) {
 const styles = StyleSheet.create({
   label: { marginTop: 18, marginBottom: 8, fontSize: 13, fontWeight: '600', color: colors.muted },
   inherited: { marginTop: 8, fontSize: 13, color: colors.muted },
+  nouveau: { alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4 },
+  nouveauTexte: { fontSize: 13.5, fontWeight: '700', color: colors.primary },
 });

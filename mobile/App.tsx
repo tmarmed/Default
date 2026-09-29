@@ -45,6 +45,7 @@ import { DayView, MonthView, WeekView } from './src/components/PeriodViews';
 import { PeriodHeader } from './src/components/PeriodHeader';
 import { Segmented } from './src/components/Segmented';
 import { TexteAjuste } from './src/components/TexteAjuste';
+import type { Injection, PileProps } from './src/components/FormSheet';
 import { OrganisationView, type VueOrg } from './src/components/OrganisationView';
 import { OrgForm } from './src/components/OrgForm';
 import { dansOrgFiltre, type EntiteOrg, ICONE_ORG, type KindOrg, libelleOrgFiltre, makeOrgValue, NOM_ORG, type Org, ORG_VIDE, OrgContext, type OrgFiltre, OrgFiltreContext } from './src/organisation';
@@ -173,6 +174,9 @@ const ANCIENS_NOMS = ['Mes tâches'];
 const DOMAINES_BASE_VERSION = '2';
 
 const NOUVEAU_ORG: Record<KindOrg, string> = { personne: 'Nouvelle personne', unite: 'Nouvelle unité', portfolio: 'Nouveau portfolio', train: 'Nouveau train', equipeagile: 'Nouvelle équipe' };
+/** Fiches de travail qui s'empilent (Domaine › Objectif › Epic › Feature › Tâche) */
+type KindTravail = 'domaine' | 'objectif' | 'epic' | 'feature' | 'tache';
+type FicheTravail = { kind: KindTravail; champ?: string; injection?: Injection; cle: number };
 /** Fiche de la pile de l'Organisation */
 type OrgFichePile = {
   cle: string;
@@ -185,6 +189,8 @@ type OrgFichePile = {
   /** Élément créé par la fiche du dessus, à choisir dans un champ de celle-ci */
   injection?: { champ: string; id: string; n: number };
   dirty?: boolean;
+  /** Fiche de travail (Tâche, Feature, Epic) qui a demandé cet élément (« ＋ Nouvelle personne » pour le responsable…) */
+  retourTravail?: { kind: KindTravail; champ: string };
 };
 
 type Hier = {
@@ -438,6 +444,55 @@ function Main() {
     });
   const [editing, setEditing] = useState<Item | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+
+  /**
+   * Pile des fiches de travail : une fiche ouverte depuis une autre (« ＋ Feature » d'une epic, une tâche de la
+   * liste d'une feature, « ＋ Nouvelle epic » d'un choix…) s'ouvre par-dessus ; la fermer ou l'enregistrer ramène à
+   * celle d'en dessous (l'élément créé y est choisi si elle l'a demandé : `champ`). Une fiche de chaque sorte au plus.
+   */
+  const [pileTravail, setPileTravailState] = useState<FicheTravail[]>([]);
+  const pileTravailRef = useRef<FicheTravail[]>([]);
+  const setPileTravail = (p: FicheTravail[]) => {
+    pileTravailRef.current = p;
+    setPileTravailState(p);
+  };
+  const ouvertTravail: Record<KindTravail, (b: boolean) => void> = {
+    domaine: (b) => setDomaineFormOpen(b),
+    objectif: (b) => setObjectifFormOpen(b),
+    epic: (b) => setEpicFormOpen(b),
+    feature: (b) => setFeatureFormOpen(b),
+    tache: (b) => setFormOpen(b),
+  };
+  /** Ajoute une fiche en haut de la pile (déjà ouverte plus bas : les fiches au-dessus d'elle se ferment) */
+  const empiler = (kind: KindTravail, champ?: string) => {
+    const p = pileTravailRef.current;
+    const i = p.findIndex((x) => x.kind === kind);
+    if (i >= 0) p.slice(i + 1).forEach((x) => ouvertTravail[x.kind](false));
+    // Fiche déjà en haut (ex. sous-tâche ouverte depuis une tâche) : même place ; sinon nouvelle clé pour qu'elle
+    // passe au premier plan (dans le navigateur, une fenêtre s'affiche au-dessus de celles montées avant elle)
+    const cle = i >= 0 && i === p.length - 1 ? p[i].cle : Date.now();
+    setPileTravail([...(i >= 0 ? p.slice(0, i) : p), { kind, champ: champ ?? (i >= 0 ? p[i].champ : undefined), cle }]);
+  };
+  /** Ferme une fiche (et celles au-dessus) ; `cree` : l'élément créé est choisi dans la fiche d'en dessous */
+  const depiler = (kind: KindTravail, cree?: { id: string }) => {
+    const p = pileTravailRef.current;
+    const i = p.findIndex((x) => x.kind === kind);
+    if (i < 0) {
+      ouvertTravail[kind](false);
+      return;
+    }
+    p.slice(i).forEach((x) => ouvertTravail[x.kind](false));
+    const f = p[i];
+    const reste = p.slice(0, i);
+    setPileTravail(
+      cree && f.champ && reste.length ? reste.map((x, k) => (k === reste.length - 1 ? { ...x, injection: { champ: f.champ!, id: cree.id, n: Date.now() } } : x)) : reste,
+    );
+  };
+  const [confirmerFermerTravail, setConfirmerFermerTravail] = useState(false);
+  const fermerToutTravail = () => {
+    pileTravailRef.current.forEach((x) => ouvertTravail[x.kind](false));
+    setPileTravail([]);
+  };
   const [mode, setMode] = useState<Mode>('liste');
   const [anchor, setAnchor] = useState(() => new Date());
 
@@ -822,8 +877,10 @@ function Main() {
       // Échéance d'un élément répété, ou parent affiché avec une autre date : on ouvre l'élément enregistré.
       setEditing(item ? (items.find((i) => i.id === (item.baseId ?? item.id)) ?? item) : null);
       setTaskDefaults(undefined);
+      empiler('tache');
       setFormOpen(true);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [items],
   );
 
@@ -963,7 +1020,7 @@ function Main() {
     next = cascadeLinks(saved, next);
     for (const titre of sousTaches) next = [...next, await api.createItem(settings, subtaskInput(saved, titre))];
     updateItems(next);
-    setFormOpen(false);
+    depiler('tache', editing ? undefined : saved);
     // Parent enregistré « Terminé » avec de nouvelles sous-tâches à faire : il est « En cours »
     if (sousTaches.length && saved.statut === 'termine') await enregistrerStatuts([{ item: saved, statut: 'en_cours' }]);
     // Statut changé dans la fiche : mêmes règles que la case à cocher et le Kanban
@@ -986,7 +1043,7 @@ function Main() {
     updateItems(
       items.filter((i) => i.id !== item.id && !(cascade && i.parent === item.id)).map((i) => (i.parent === item.id ? { ...i, parent: '' } : i)),
     );
-    setFormOpen(false);
+    depiler('tache');
   };
 
   /** Sous-tâche ajoutée depuis la fiche du parent (ou l'Itération) : tout de suite. */
@@ -1003,18 +1060,21 @@ function Main() {
     if (orig?.statut === 'termine') await enregistrerStatuts([{ item: orig, statut: 'en_cours' }]);
   };
 
-  const openEpic = (epic: Epic | null, defaults?: Partial<EpicInput>) => {
+  const openEpic = (epic: Epic | null, defaults?: Partial<EpicInput>, champ?: string) => {
+    empiler('epic', champ);
     setEditingEpic(epic);
     setEpicDefaults(defaults);
     setEpicFormOpen(true);
   };
-  const openObjectif = (o: Objectif | null, defaults?: Partial<ObjectifInput>) => {
+  const openObjectif = (o: Objectif | null, defaults?: Partial<ObjectifInput>, champ?: string) => {
+    empiler('objectif', champ);
     setEditingObjectif(o);
     setObjDefaults(defaults);
     setObjectifFormOpen(true);
   };
   const [featDomaine, setFeatDomaine] = useState<string | undefined>(undefined);
-  const openFeature = (f: Feature | null, defaults?: Partial<FeatureInput>, domaine?: string) => {
+  const openFeature = (f: Feature | null, defaults?: Partial<FeatureInput>, domaine?: string, champ?: string) => {
+    empiler('feature', champ);
     setEditingFeature(f);
     setFeatDomaine(domaine);
     setFeatDefaults(defaults);
@@ -1024,7 +1084,8 @@ function Main() {
   const espaceLie = (x: Partial<Item>) =>
     api.espaceDe(x.parent) ?? api.espaceDe(x.feature) ?? api.espaceDe(x.epic) ?? api.espaceDe(x.objectif) ?? api.espaceDe(x.domaine);
   /** Nouvelle tâche pré-rangée (epic, feature…) depuis une fiche. */
-  const openNewTask = (defaults: Partial<ItemInput>) => {
+  const openNewTask = (defaults: Partial<ItemInput>, champ?: string) => {
+    empiler('tache', champ);
     setEditing(null);
     // Une tâche rattachée (feature, epic…) est créée dans l'espace de ce rattachement
     const lie = espaceLie(defaults);
@@ -1087,6 +1148,8 @@ function Main() {
     setObjectifFormOpen(false);
     setDomaineFormOpen(false);
     setFeatureFormOpen(false);
+    setFormOpen(false);
+    setPileTravail([]);
   };
   const openWizard = (start: WizardStart) => {
     closeFiches();
@@ -1117,7 +1180,8 @@ function Main() {
     });
   };
   const [domaineEspace, setDomaineEspace] = useState<string | undefined>(undefined);
-  const openDomaine = (d: Domaine | null, espace?: string) => {
+  const openDomaine = (d: Domaine | null, espace?: string, champ?: string) => {
+    empiler('domaine', champ);
     setEditingDomaine(d);
     setDomaineEspace(espace);
     setDomaineFormOpen(true);
@@ -1273,10 +1337,8 @@ function Main() {
   const deleteEntity = async (kind: EntityKind, x: { id: string }, cascade: boolean) => {
     if (!settings) return;
     const counts = await api.deleteEntity(settings, kind, x.id, cascade);
-    setEpicFormOpen(false);
-    setObjectifFormOpen(false);
-    setDomaineFormOpen(false);
-    setFeatureFormOpen(false);
+    // Fiche supprimée : retour à celle d'en dessous dans la pile
+    if (kind === 'epic' || kind === 'objectif' || kind === 'domaine' || kind === 'feature') depiler(kind);
     setOpiFormOpen(false);
     await refresh(settings);
     const n = counts.objectifs + counts.epics + counts.taches;
@@ -1625,6 +1687,56 @@ function Main() {
   if (!settings) return <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />;
 
   const refreshControl = <RefreshControl refreshing={refreshing} onRefresh={() => refresh(settings)} />;
+
+  /** Nom d'une fiche de la pile de travail (fil en haut et « ‹ … ») */
+  const nomFicheTravail = (x: FicheTravail): string =>
+    x.kind === 'domaine'
+      ? editingDomaine
+        ? `${editingDomaine.icone} ${editingDomaine.nom}`
+        : 'Nouveau domaine'
+      : x.kind === 'objectif'
+        ? `🎯 ${editingObjectif?.titre ?? 'Nouvel objectif'}`
+        : x.kind === 'epic'
+          ? editingEpic
+            ? `Epic ${editingEpic.titre}`
+            : 'Nouvelle epic'
+          : x.kind === 'feature'
+            ? `🧩 ${editingFeature?.titre ?? 'Nouvelle feature'}`
+            : `✓ ${editing?.titre ?? 'Nouvelle tâche'}`;
+  const NOM_KIND_TRAVAIL: Record<KindTravail, string> = { domaine: 'Domaine', objectif: 'Objectif', epic: 'Epic', feature: 'Feature', tache: 'Tâche' };
+  /** Nom court (bouton « ‹ … ») */
+  const nomCourtTravail = (x: FicheTravail): string =>
+    (x.kind === 'domaine'
+      ? editingDomaine?.nom
+      : x.kind === 'objectif'
+        ? editingObjectif?.titre
+        : x.kind === 'epic'
+          ? editingEpic?.titre
+          : x.kind === 'feature'
+            ? editingFeature?.titre
+            : editing?.titre) || NOM_KIND_TRAVAIL[x.kind];
+  /** Pile de travail : fil et « ‹ fiche d'en dessous » d'une fiche (rien si elle est seule) */
+  const pileDe = (kind: KindTravail): PileProps | undefined => {
+    const i = pileTravail.findIndex((x) => x.kind === kind);
+    if (i < 0 || pileTravail.length < 2) return undefined;
+    return {
+      retour: i > 0 ? [nomCourtTravail(pileTravail[i - 1]), NOM_KIND_TRAVAIL[pileTravail[i - 1].kind]] : undefined,
+      chemin: pileTravail.slice(0, i + 1).map(nomFicheTravail).join(' › '),
+      onFermerTout: () => setConfirmerFermerTravail(true),
+    };
+  };
+  const injectionDe = (kind: KindTravail) => pileTravail.find((x) => x.kind === kind)?.injection;
+  /** « ＋ Nouveau … » d'un rattachement : la fiche s'ouvre par-dessus, l'élément créé sera choisi dans `champ` */
+  const nouveauTravail = (niveau: 'feature' | 'epic' | 'objectif' | 'domaine', espace: string) => {
+    if (pileTravail.some((x) => x.kind === niveau)) return setNotice('Cette fiche est déjà ouverte plus bas dans la pile.');
+    if (niveau === 'feature') openFeature(null, { espace } as Partial<FeatureInput>, undefined, 'feature');
+    else if (niveau === 'epic') openEpic(null, { espace } as Partial<EpicInput>, 'epic');
+    else if (niveau === 'objectif') openObjectif(null, { espace } as Partial<ObjectifInput>, 'objectif');
+    else openDomaine(null, espace, 'domaine');
+  };
+  /** « ＋ Nouvelle équipe / personne… » d'une fiche de travail : fiche de l'Organisation par-dessus */
+  const nouveauOrgPour = (kindTravail: KindTravail, kind: KindOrg, champ: string, espace: string) =>
+    ouvrirOrg({ kind, entite: null, espace, retourTravail: { kind: kindTravail, champ } });
 
   const TAB_BAR = 58;
 
@@ -2092,96 +2204,100 @@ function Main() {
 
 
       <TaskForm
+        key={`tache-${pileTravail.find((x) => x.kind === 'tache')?.cle ?? 0}`}
         visible={formOpen}
         item={editing}
         defaultType={filter === 'tous' || filter === 'recurrents' ? 'tache' : filter}
         defaultDate={tab === 'taches' && (mode === 'jour' || mode === 'mois') ? toDateString(anchor) : ''}
         defaultIteration={tab === 'iteration' ? itKey : ''}
         defaults={taskDefaults}
-        onClose={() => setFormOpen(false)}
+        onClose={() => depiler('tache')}
         onSave={save}
         onDelete={remove}
         onOpenTask={openForm}
         onAddSubtask={addSubtask}
         onUpdateTask={updateTask}
+        pile={pileDe('tache')}
+        injection={injectionDe('tache')}
+        onNouveau={nouveauTravail}
+        onNouveauOrg={(k, champ, espace) => nouveauOrgPour('tache', k, champ, espace)}
       />
 
       <EpicForm
+        key={`epic-${pileTravail.find((x) => x.kind === 'epic')?.cle ?? 0}`}
         visible={epicFormOpen}
         epic={editingEpic}
         items={items}
-        onClose={() => setEpicFormOpen(false)}
-        onSave={async (input) => {
-          await saveEntity('epic', editingEpic, input);
-          setEpicFormOpen(false);
+        onClose={() => depiler('epic')}
+        onSave={async (input, rester) => {
+          const saved = (await saveEntity('epic', editingEpic, input)) as Epic | undefined;
+          // `rester` : epic enregistrée avant d'ouvrir un enfant (« ＋ Feature ») : la fiche reste ouverte
+          if (rester) setEditingEpic(saved ?? null);
+          else depiler('epic', editingEpic ? undefined : saved);
+          return saved;
         }}
         onDelete={(e, cascade) => deleteEntity('epic', e, cascade)}
-        onOpenTask={(t) => {
-          setEpicFormOpen(false);
-          openForm(t);
-        }}
+        onOpenTask={(t) => openForm(t)}
         defaults={epicDefaults}
-        onAddFeature={(e) => {
-          setEpicFormOpen(false);
-          openFeature(null, { epic: e.id });
-        }}
-        onAddTask={(e) => {
-          setEpicFormOpen(false);
-          openNewTask({ epic: e.id });
-        }}
+        onAddFeature={(e) => openFeature(null, { epic: e.id })}
+        onAddTask={(e) => openNewTask({ epic: e.id })}
+        pile={pileDe('epic')}
+        injection={injectionDe('epic')}
+        onNouveau={(n) => nouveauTravail(n, editingEpic?.espace || epicDefaults?.espace || visibles[0] || 'moi')}
+        onOpenFeature={(f) => openFeature(f)}
+        onNouveauOrg={(espace) => nouveauOrgPour('epic', 'portfolio', 'portfolio', espace)}
         onOpenWizard={(e) => openWizard({ level: 'epic', id: e.id })}
         onAlign={alignChild}
       />
       <ObjectifForm
+        key={`objectif-${pileTravail.find((x) => x.kind === 'objectif')?.cle ?? 0}`}
         visible={objectifFormOpen}
         objectif={editingObjectif}
-        onClose={() => setObjectifFormOpen(false)}
-        onSave={async (input) => {
-          await saveEntity('objectif', editingObjectif, input);
-          setObjectifFormOpen(false);
+        onClose={() => depiler('objectif')}
+        onSave={async (input, rester) => {
+          const saved = (await saveEntity('objectif', editingObjectif, input)) as Objectif | undefined;
+          if (rester) setEditingObjectif(saved ?? null);
+          else depiler('objectif', editingObjectif ? undefined : saved);
+          return saved;
         }}
         onDelete={(o, cascade) => deleteEntity('objectif', o, cascade)}
-        onOpenEpic={(e) => {
-          setObjectifFormOpen(false);
-          openEpic(e);
-        }}
+        onOpenEpic={(e) => openEpic(e)}
         defaults={objDefaults}
-        onAddEpic={(o) => {
-          setObjectifFormOpen(false);
-          openEpic(null, { objectif: o.id, domaine: '' });
-        }}
+        onAddEpic={(o) => openEpic(null, { objectif: o.id, domaine: '' })}
+        pile={pileDe('objectif')}
+        injection={injectionDe('objectif')}
+        onNouveauDomaine={() => nouveauTravail('domaine', editingObjectif?.espace || objDefaults?.espace || visibles[0] || 'moi')}
         onOpenWizard={(o) => openWizard({ level: 'objectif', id: o.id })}
         onAlign={alignChild}
       />
 
       <DomaineForm
+        key={`domaine-${pileTravail.find((x) => x.kind === 'domaine')?.cle ?? 0}`}
         visible={domaineFormOpen}
         domaine={editingDomaine}
         defaultEspace={domaineEspace}
-        onClose={() => setDomaineFormOpen(false)}
-        onSave={async (input) => {
-          await saveEntity('domaine', editingDomaine, input);
-          setDomaineFormOpen(false);
+        onClose={() => depiler('domaine')}
+        onSave={async (input, rester) => {
+          const saved = (await saveEntity('domaine', editingDomaine, input)) as Domaine | undefined;
+          if (rester) setEditingDomaine(saved ?? null);
+          else depiler('domaine', editingDomaine ? undefined : saved);
+          return saved;
         }}
         onDelete={(d, cascade) => deleteEntity('domaine', d, cascade)}
-        onOpenObjectif={(o) => {
-          setDomaineFormOpen(false);
-          openObjectif(o);
-        }}
-        onAddObjectif={(d) => {
-          setDomaineFormOpen(false);
-          openObjectif(null, { domaine: d.id });
-        }}
+        onOpenObjectif={(o) => openObjectif(o)}
+        onAddObjectif={(d) => openObjectif(null, { domaine: d.id })}
+        pile={pileDe('domaine')}
         onOpenWizard={(d) => openWizard({ level: 'domaine', id: d.id })}
       />
 
       <FeatureForm
+        key={`feature-${pileTravail.find((x) => x.kind === 'feature')?.cle ?? 0}`}
         visible={featureFormOpen}
         feature={editingFeature}
         defaultPi={piKey}
         defaultDomaine={featDomaine}
-        onClose={() => setFeatureFormOpen(false)}
-        onSave={async (input, taches) => {
+        onClose={() => depiler('feature')}
+        onSave={async (input, taches, rester) => {
           const saved = (await saveEntity('feature', editingFeature, input)) as Feature | undefined;
           if (!editingFeature && saved) {
             for (const id of taches.existantes) {
@@ -2190,15 +2306,19 @@ function Main() {
             }
             for (const titre of taches.nouvelles) await quickAddTask(saved, titre);
           }
-          setFeatureFormOpen(false);
+          if (rester) setEditingFeature(saved ?? null);
+          else depiler('feature', editingFeature ? undefined : saved);
+          return saved;
         }}
         onLinkTask={linkTaskToFeature}
         onDelete={(f, cascade) => deleteEntity('feature', f, cascade)}
-        onOpenTask={(t) => {
-          setFeatureFormOpen(false);
-          openForm(t);
-        }}
+        onOpenTask={(t) => openForm(t)}
         defaults={featDefaults}
+        pile={pileDe('feature')}
+        injection={injectionDe('feature')}
+        onNouvelleEpic={() => nouveauTravail('epic', editingFeature?.espace || featDefaults?.espace || visibles[0] || 'moi')}
+        onAddTask={(x) => openNewTask({ feature: x.id, ...(x.iteration ? { iteration: x.iteration } : {}) })}
+        onNouveauOrg={(k, champ, espace) => nouveauOrgPour('feature', k, champ, espace)}
         onQuickAddTask={quickAddTask}
         onOpenWizard={(f) => openWizard({ level: 'feature', id: f.id })}
       />
@@ -2433,6 +2553,12 @@ function Main() {
         // Nom d'une fiche de la pile (fil en haut et bouton « ‹ … »)
         const nom = (x: OrgFichePile) => `${ICONE_ORG[x.kind]} ${x.entite?.nom ?? NOUVEAU_ORG[x.kind]}`;
         const retirer = () => setOrgPile((p) => p.slice(0, i));
+        // Pile ouverte depuis une fiche de travail (« ＋ Nouvelle équipe » d'une tâche…) : elle continue cette pile
+        const rt = orgPile[0].retourTravail;
+        const jTravail = rt ? pileTravail.findIndex((x) => x.kind === rt.kind) : -1;
+        const dessousTravail = jTravail >= 0 ? pileTravail.slice(0, jTravail + 1) : [];
+        // Avec des fiches de travail dessous, on confirme toujours (comme « Tout fermer » d'une fiche de travail)
+        const fermerTout = () => (dessousTravail.length || orgPile.some((x) => x.dirty) ? setConfirmerFermerOrg(true) : setOrgPile([]));
         return (
           <OrgForm
             key={fiche.cle}
@@ -2444,11 +2570,16 @@ function Main() {
             nomEntreprise={espaces.find((e) => e.id === fiche.espace)?.nom ?? ''}
             onClose={retirer}
             pile={
-              orgPile.length > 1
+              orgPile.length + dessousTravail.length > 1
                 ? {
-                    retour: i > 0 ? (orgPile[i - 1].entite?.nom ?? nom(orgPile[i - 1]).replace(/^\S+ /, '')) : undefined,
-                    chemin: orgPile.slice(0, i + 1).map(nom).join(' › '),
-                    onFermerTout: () => (orgPile.some((x) => x.dirty) ? setConfirmerFermerOrg(true) : setOrgPile([])),
+                    retour:
+                      i > 0
+                        ? (orgPile[i - 1].entite?.nom ?? nom(orgPile[i - 1]).replace(/^\S+ /, ''))
+                        : dessousTravail.length
+                          ? [nomCourtTravail(dessousTravail[dessousTravail.length - 1]), NOM_KIND_TRAVAIL[dessousTravail[dessousTravail.length - 1].kind]]
+                          : undefined,
+                    chemin: [...dessousTravail.map(nomFicheTravail), ...orgPile.slice(0, i + 1).map(nom)].join(' › '),
+                    onFermerTout: fermerTout,
                   }
                 : undefined
             }
@@ -2461,6 +2592,11 @@ function Main() {
               if (rester) {
                 // Parent enregistré pour ouvrir un enfant : la fiche reste ouverte, sur l'élément enregistré
                 setOrgPile((p) => p.map((x, k) => (k === i ? { ...x, entite: o, dirty: false } : x)));
+              } else if (fiche.retourTravail && !fiche.entite) {
+                // Élément demandé par une fiche de travail : choisi dans son champ
+                const { kind: k, champ } = fiche.retourTravail;
+                setPileTravail(pileTravailRef.current.map((x) => (x.kind === k ? { ...x, injection: { champ, id: o.id, n: Date.now() } } : x)));
+                setOrgPile((p) => p.slice(0, i));
               } else {
                 // Retour à la fiche d'en dessous ; l'élément créé y est choisi si elle l'a demandé
                 setOrgPile((p) =>
@@ -2480,10 +2616,28 @@ function Main() {
         );
       })}
       <ChoiceSheet
+        key={`fermer-travail-${confirmerFermerTravail}`}
+        visible={confirmerFermerTravail}
+        title="Tout fermer ?"
+        message="Toutes les fiches ouvertes se ferment ; les changements non enregistrés sont perdus."
+        choices={[{ label: 'Fermer toutes les fiches', principal: true, onPress: fermerToutTravail }]}
+        onClose={() => setConfirmerFermerTravail(false)}
+      />
+      <ChoiceSheet
+        key={`fermer-org-${confirmerFermerOrg}`}
         visible={confirmerFermerOrg}
         title="Tout fermer ?"
-        message="Des fiches ont des changements non enregistrés : ils seront perdus."
-        choices={[{ label: 'Abandonner les changements et fermer', principal: true, onPress: () => setOrgPile([]) }]}
+        message="Toutes les fiches ouvertes se ferment ; les changements non enregistrés sont perdus."
+        choices={[
+          {
+            label: 'Fermer toutes les fiches',
+            principal: true,
+            onPress: () => {
+              if (orgPile[0]?.retourTravail) fermerToutTravail();
+              setOrgPile([]);
+            },
+          },
+        ]}
         onClose={() => setConfirmerFermerOrg(false)}
       />
       <GererEspacesSheet

@@ -7,13 +7,15 @@ import { colors } from '../theme';
 import { DOMAINE_ICONES, Domaine, DomaineInput, EPIC_COULEURS, Objectif } from '../types';
 import { DeleteSection } from './DeleteSection';
 import { Chips } from './Chips';
-import { ChildActions, ColorPicker, Field, FormSheet, formStyles as f, Label } from './FormSheet';
+import { ChildActions, ColorPicker, Field, FormSheet, formStyles as f, Label, type PileProps } from './FormSheet';
 
 interface Props {
   visible: boolean;
   domaine: Domaine | null;
   onClose: () => void;
-  onSave: (input: DomaineInput) => Promise<void>;
+  /** `rester` : domaine enregistré avant d'ouvrir un enfant (la fiche reste ouverte) ; renvoie le domaine */
+  onSave: (input: DomaineInput, rester?: boolean) => Promise<Domaine | void | undefined>;
+  pile?: PileProps;
   onDelete: (d: Domaine, cascade: boolean) => Promise<void>;
   onOpenObjectif: (o: Objectif) => void;
   /** + Objectif dans ce domaine */
@@ -24,7 +26,7 @@ interface Props {
 }
 
 /** Fiche d'un domaine (Pro, Perso…) : nom, icône, couleur, objectifs. */
-export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpenObjectif, onAddObjectif, onOpenWizard, defaultEspace }: Props) {
+export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpenObjectif, onAddObjectif, onOpenWizard, defaultEspace, pile }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, domaine, defaultEspace ? { espace: defaultEspace } : undefined);
   const [form, setForm] = useState<DomaineInput>({ nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0], parent: '' });
@@ -51,22 +53,38 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
     ? `sans domaine pour ce qui est rangé directement dans ${domaine?.nom} ; ${nomsSous} ${sousDomaines.length > 1 ? 'deviennent des domaines principaux' : 'devient un domaine principal'}, avec son contenu`
     : 'sans domaine';
 
-  const save = async () => {
-    if (!form.nom.trim()) return setError('Donnez un nom au domaine.');
+  const save = async (rester = false): Promise<Domaine | undefined> => {
+    if (!form.nom.trim()) return void setError('Donnez un nom au domaine.');
     setError(null);
     setBusy(true);
     try {
-      await onSave({ ...form, espace, nom: form.nom.trim() });
+      return (await onSave({ ...form, espace, nom: form.nom.trim() }, rester)) || undefined;
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
+      return undefined;
     } finally {
       setBusy(false);
     }
   };
+  /** Nouveau domaine : enregistré d'abord, puis l'objectif s'ouvre par-dessus */
+  const enregistrerPuis = async (suite: (d: Domaine) => void) => {
+    const d = domaine ?? (await save(true));
+    if (d) suite(d);
+  };
 
   return (
     <HierarchyContext.Provider value={h}>
-    <FormSheet visible={visible} title={domaine ? 'Domaine' : 'Nouveau domaine'} busy={busy} error={error} onClose={onClose} onSave={save}>
+    <FormSheet
+      visible={visible}
+      title={domaine ? 'Domaine' : 'Nouveau domaine'}
+      busy={busy}
+      error={error}
+      onClose={onClose}
+      onSave={() => save()}
+      retour={pile?.retour}
+      chemin={pile?.chemin}
+      onFermerTout={pile?.onFermerTout}
+    >
       <View style={[f.preview, { backgroundColor: form.couleur }]}>
         <Text style={f.previewTitle}>
           {form.icone} {form.nom || 'Nom du domaine'}
@@ -110,6 +128,13 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
       <Label>Couleur</Label>
       <ColorPicker value={form.couleur} onChange={(col) => setForm((x) => ({ ...x, couleur: col }))} />
 
+      {!domaine && onAddObjectif && (
+        <>
+          <Label>Et ensuite</Label>
+          <ChildActions actions={[{ label: '+ Objectif', onPress: () => enregistrerPuis(onAddObjectif) }]} />
+          <Text style={f.hint}>Le domaine est enregistré d'abord, puis l'objectif s'ouvre par-dessus ; l'enregistrer vous ramène ici.</Text>
+        </>
+      )}
       {domaine && (
         <>
           <Label>Objectifs · {objectifs.length}</Label>

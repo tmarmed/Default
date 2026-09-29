@@ -21,6 +21,9 @@ import { TexteAjuste } from './TexteAjuste';
 
 /** Largeur du bouton « ‹ Fiche d'en dessous » (pile de fiches) */
 const RETOUR_MAX = 120;
+/** Variantes du bouton « ‹ … » : le premier nom qui tient, sinon « ‹ Retour » */
+const variantesRetour = (r: string | string[]) => [...(Array.isArray(r) ? r : [r]).map((v) => `‹ ${v}`), '‹ Retour'];
+const nomRetour = (r: string | string[]) => (Array.isArray(r) ? r[0] : r);
 
 interface Props {
   visible: boolean;
@@ -36,9 +39,46 @@ interface Props {
    * d'en dessous (bouton « ‹ Digital » au lieu d'« Annuler »), `chemin` = fil en haut (« 💼 Digital › 🚆 Nouveau
    * train »), `onFermerTout` = fermer toute la pile.
    */
-  retour?: string;
+  retour?: string | string[];
   chemin?: string;
   onFermerTout?: () => void;
+}
+
+/** Pile de fiches : fiche d'en dessous (« ‹ … »), fil en haut, tout fermer */
+export interface PileProps {
+  retour?: string | string[];
+  chemin?: string;
+  onFermerTout?: () => void;
+}
+/** Élément créé dans la fiche du dessus, à choisir dans un champ de la fiche d'en dessous */
+export interface Injection {
+  champ: string;
+  id: string;
+  n: number;
+}
+
+/** En-tête de la pile pour les fiches qui ont leur propre en-tête (Tâche, Epic) : fil et « Tout fermer » */
+export function CheminPile({ pile }: { pile?: PileProps }) {
+  if (!pile?.chemin) return null;
+  return (
+    <View style={styles.chemin}>
+      <Text style={styles.cheminTexte}>{pile.chemin}</Text>
+      {pile.onFermerTout && (
+        <Pressable onPress={pile.onFermerTout} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fermer toutes les fiches">
+          <Text style={styles.fermerTout}>✕ Tout fermer</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+/** Bouton gauche de l'en-tête : « ‹ fiche d'en dessous » dans une pile, sinon « Annuler » */
+export function BoutonRetour({ pile, onPress, disabled, style }: { pile?: PileProps; onPress: () => void; disabled?: boolean; style: object }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={10} disabled={disabled} accessibilityRole="button" accessibilityLabel={pile?.retour ? `Retour à ${nomRetour(pile.retour)}` : undefined}>
+      {pile?.retour ? <TexteAjuste variantes={variantesRetour(pile.retour)} taille={16} min={12} dispo={RETOUR_MAX} style={style} /> : <Text style={style}>Annuler</Text>}
+    </Pressable>
+  );
 }
 
 /** Fenêtre de formulaire : Annuler / titre / Enregistrer, message d'erreur, contenu défilant. */
@@ -47,10 +87,10 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
-          <Pressable onPress={onClose} hitSlop={10} disabled={busy} accessibilityRole="button" accessibilityLabel={retour ? `Retour à ${retour}` : undefined}>
+          <Pressable onPress={onClose} hitSlop={10} disabled={busy} accessibilityRole="button" accessibilityLabel={retour ? `Retour à ${nomRetour(retour)}` : undefined}>
             {retour ? (
               // Jamais coupé « … » : le texte rapetisse si le nom est long
-              <TexteAjuste variantes={[`‹ ${retour}`, '‹ Retour']} taille={16} min={12} dispo={RETOUR_MAX} style={styles.headerBtn} />
+              <TexteAjuste variantes={variantesRetour(retour)} taille={16} min={12} dispo={RETOUR_MAX} style={styles.headerBtn} />
             ) : (
               <Text style={styles.headerBtn}>{onSave ? 'Annuler' : 'Fermer'}</Text>
             )}

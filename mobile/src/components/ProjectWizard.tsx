@@ -42,6 +42,7 @@ import {
   treeOrder,
   WNode,
 } from '../wizard';
+import { ChoiceSheet } from './ChoiceSheet';
 import { Chips } from './Chips';
 import { DateField } from './DateField';
 
@@ -76,6 +77,11 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const counter = useRef(0);
+  /** Élément créé par « ＋ Objectif » / « ＋ Nouvel objectif » : son titre prend le focus */
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  /** Étape d'où l'on vient après « ＋ … » (comme la pile des fiches : on y revient une fois l'élément nommé) */
+  const [retour, setRetour] = useState<{ step: number; nom: string } | null>(null);
+  const [confirmerFermer, setConfirmerFermer] = useState(false);
   const scroll = useRef<ScrollView>(null);
 
   const levels = useMemo(() => LEVELS.filter((l) => safe.actif || l !== 'feature'), [safe.actif]);
@@ -102,6 +108,9 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
     setError(null);
     setBusy(null);
     setSearch('');
+    setRetour(null);
+    setFocusKey(null);
+    setConfirmerFermer(false);
     if (start) {
       const x = { domaine: hTous.domaines, objectif: hTous.objectifs, epic: hTous.epics, feature: hTous.features }[start.level].get(start.id);
       setEspace(x?.espace || 'moi');
@@ -141,6 +150,53 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
       parentKey,
     };
     setDraft((d) => [...d, node]);
+  };
+
+  /** Aller à une étape (stepper, Suivant, Retour) : on quitte le « ＋ … » en cours */
+  const allerA = (i: number) => {
+    setRetour(null);
+    setStep(i);
+  };
+  /** Niveau affiché juste en dessous (mode Simple : pas de feature) */
+  const niveauEnfant = (l: Level): Level | undefined => steps[steps.indexOf(l) + 1];
+  /** « ＋ Objectif » sous un domaine… : l'enfant est créé et on passe à son étape */
+  const ajouterEnfant = (n: WNode) => {
+    const l = niveauEnfant(n.level);
+    if (!l) return;
+    const key = `new:${counter.current++}`;
+    setDraft((d) => [
+      ...d,
+      { key, level: l, titre: '', f: defaultsFor(l, n, safe.actif, d.filter((x) => x.level === l).length), parentKey: n.key },
+    ]);
+    setRetour({ step, nom: n.titre || LEVEL_LABEL[n.level] });
+    setFocusKey(key);
+    setStep(steps.indexOf(l));
+  };
+  /** Parent d'un élément existant hors brouillon (une feature → son epic) */
+  const parentExistant = (key: string): string | null => {
+    const id = key.slice(key.indexOf(':') + 1);
+    const l = levelOfKey(key, map);
+    const e = l === 'feature' ? h.features.get(id)?.epic : l === 'epic' ? h.epics.get(id)?.objectif || h.epics.get(id)?.domaine : l === 'objectif' ? h.objectifs.get(id)?.domaine : '';
+    if (!e) return null;
+    return l === 'feature' ? keyOf('epic', e) : l === 'epic' ? keyOf(h.epics.get(id)?.objectif ? 'objectif' : 'domaine', e) : keyOf('domaine', e);
+  };
+  /** Niveau du parent à créer pour un élément (le plus proche affiché) */
+  const niveauParent = (l: Level): Level | undefined => PARENT_LEVELS[l].find((p) => steps.includes(p) && !(cacheFeat && p === 'feature'));
+  /** « ＋ Nouvel objectif » (Déplacer) : le parent est créé, l'élément y est rattaché, on passe à l'étape du parent */
+  const nouveauParent = (n: WNode) => {
+    const l = niveauParent(n.level);
+    if (!l) return;
+    const key = `new:${counter.current++}`;
+    const ancien = n.parentKey ? levelOfKey(n.parentKey, map) : undefined;
+    // Rattaché plus haut : on garde ce lien ; rattaché à un élément du même niveau : le nouveau parent prend sa place
+    const grandParent = !ancien ? null : PARENT_LEVELS[l].includes(ancien) ? n.parentKey : ancien === l ? (map.has(n.parentKey!) ? map.get(n.parentKey!)!.parentKey : parentExistant(n.parentKey!)) : null;
+    setDraft((d) => [
+      ...d.map((x) => (x.key === n.key ? { ...x, parentKey: key } : x)),
+      { key, level: l, titre: '', f: defaultsFor(l, grandParent ? map.get(grandParent) : undefined, safe.actif, d.filter((x) => x.level === l).length), parentKey: grandParent },
+    ]);
+    setRetour({ step, nom: n.titre || LEVEL_LABEL[n.level] });
+    setFocusKey(key);
+    setStep(steps.indexOf(l));
   };
 
   /** Libellé d'un parent, qu'il soit dans le brouillon ou non. */
@@ -262,7 +318,9 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
 
   const close = () => {
     if (busy) return;
-    onClose();
+    // Comme « Tout fermer » d'une pile de fiches : confirmation s'il y a des changements
+    if (nChanges) setConfirmerFermer(true);
+    else onClose();
   };
 
   const title =
@@ -281,7 +339,7 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
         {phase === 'steps' && (
           <View style={s.stepper}>
             {steps.map((l, i) => (
-              <Pressable key={l} onPress={() => setStep(i)} style={[s.stepDot, i === step && s.stepDotOn]} accessibilityLabel={`Étape ${LEVEL_PLURAL[l]}`}>
+              <Pressable key={l} onPress={() => allerA(i)} style={[s.stepDot, i === step && s.stepDotOn]} accessibilityLabel={`Étape ${LEVEL_PLURAL[l]}`}>
                 <Text style={[s.stepText, i === step && s.stepTextOn]}>
                   {LEVEL_ICON[l]} {i === step ? LEVEL_PLURAL[l] : ''}
                 </Text>
@@ -358,6 +416,13 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
 
             {phase === 'steps' && level && (
               <>
+                {retour && (
+                  <Pressable onPress={() => allerA(retour.step)} style={s.retour} accessibilityRole="button" accessibilityLabel={`Revenir à ${retour.nom}`}>
+                    <Text style={s.link} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                      ‹ Revenir à {LEVEL_ICON[steps[retour.step]]} {retour.nom}
+                    </Text>
+                  </Pressable>
+                )}
                 <Text style={s.stepTitle}>
                   Étape {step + 1}/{steps.length} · {LEVEL_PLURAL[level]}
                 </Text>
@@ -405,6 +470,9 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
                           // Mode Simple : rechoisir l'epic de sa feature garde la tâche dans la feature
                           onPatch={(p) => patch(n.key, 'parentKey' in p && cacheFeat && p.parentKey === visKey(n.parentKey) ? { ...p, parentKey: n.parentKey } : p)}
                           onRemoveNew={() => setDraft((d) => d.filter((x) => x.key !== n.key).map((x) => (x.parentKey === n.key ? { ...x, parentKey: n.parentKey } : x)))}
+                          autoFocus={focusKey === n.key}
+                          enfant={niveauEnfant(n.level) ? { label: LEVEL_LABEL[niveauEnfant(n.level)!], onPress: () => ajouterEnfant(n) } : undefined}
+                          nouveauParent={niveauParent(n.level) ? { label: NOUVEAU[niveauParent(n.level)!], onPress: () => nouveauParent(n) } : undefined}
                         />
                       ))}
                       {canAdd && <AddInput level={level} onAdd={(t) => add(level, sec.key, t)} />}
@@ -415,13 +483,17 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
                 <View style={s.nav}>
                   <Pressable
                     style={s.navBtn}
-                    onPress={() => (step > 0 ? setStep(step - 1) : start ? close() : setPhase('start'))}
+                    onPress={() => (step > 0 ? allerA(step - 1) : start ? close() : setPhase('start'))}
                   >
                     <Text style={s.link}>‹ Retour</Text>
                   </Pressable>
                   <Pressable
                     style={[s.navBtn, s.navPrimary]}
-                    onPress={() => (step < steps.length - 1 ? setStep(step + 1) : setPhase('recap'))}
+                    onPress={() => {
+                      setRetour(null);
+                      if (step < steps.length - 1) setStep(step + 1);
+                      else setPhase('recap');
+                    }}
                   >
                     <Text style={s.navPrimaryText}>
                       {draft.some((n) => n.level === level)
@@ -509,9 +581,26 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+      {confirmerFermer && (
+        <ChoiceSheet
+          visible
+          title="Fermer l'assistant ?"
+          message={`${nChanges} changement${nChanges > 1 ? 's' : ''} pas encore enregistré${nChanges > 1 ? 's' : ''} : ils seront perdus.`}
+          choices={[{ label: 'Fermer sans enregistrer', principal: true, onPress: onClose }]}
+          onClose={() => setConfirmerFermer(false)}
+        />
+      )}
     </Modal>
   );
 }
+
+const NOUVEAU: Record<Level, string> = {
+  domaine: 'Nouveau domaine',
+  objectif: 'Nouvel objectif',
+  epic: 'Nouvelle epic',
+  feature: 'Nouvelle feature',
+  tache: 'Nouvelle tâche',
+};
 
 const HINTS: Record<Level, string> = {
   domaine: 'La grande catégorie (Pro, Perso…). Choisissez-en un existant, créez-en un, ou passez.',
@@ -585,9 +674,15 @@ interface RowProps {
   parentValue?: string | null;
   onPatch: (p: Partial<WNode>) => void;
   onRemoveNew: () => void;
+  /** Titre en focus (élément tout juste créé par « ＋ … ») */
+  autoFocus?: boolean;
+  /** « ＋ Objectif » : crée un enfant et passe à son étape */
+  enfant?: { label: string; onPress: () => void };
+  /** « ＋ Nouvel objectif » (Déplacer) : crée le parent et y rattache l'élément */
+  nouveauParent?: { label: string; onPress: () => void };
 }
 
-function NodeRow({ node: n, map, draft, safeOn, parentOptions, parentValue, onPatch, onRemoveNew }: RowProps) {
+function NodeRow({ node: n, map, draft, safeOn, parentOptions, parentValue, onPatch, onRemoveNew, autoFocus, enfant, nouveauParent }: RowProps) {
   const [open, setOpen] = useState<'edit' | 'move' | null>(null);
   const gone = isGone(n, map);
   const hasKids = descendants(n.key, draft).length > 0 || (!!n.id && n.level !== 'tache');
@@ -605,6 +700,7 @@ function NodeRow({ node: n, map, draft, safeOn, parentOptions, parentValue, onPa
         <Text style={[s.rowTitle, s.ctx]}>
           {n.titre} <Text style={s.recapMeta}>existant</Text>
         </Text>
+        {enfant && <LienPlus label={enfant.label} onPress={enfant.onPress} />}
       </View>
     );
   }
@@ -617,8 +713,9 @@ function NodeRow({ node: n, map, draft, safeOn, parentOptions, parentValue, onPa
           value={n.titre}
           onChangeText={(t) => onPatch({ titre: t })}
           editable={!gone}
-          placeholder="Titre"
+          placeholder={`Titre (${LEVEL_LABEL[n.level].toLowerCase()})`}
           placeholderTextColor={colors.muted}
+          autoFocus={autoFocus}
         />
         {!gone && n.level !== 'domaine' && (
           <IconBtn label="✎" on={open === 'edit'} a11y="Détails" onPress={() => setOpen(open === 'edit' ? null : 'edit')} />
@@ -628,6 +725,11 @@ function NodeRow({ node: n, map, draft, safeOn, parentOptions, parentValue, onPa
           <IconBtn label="🗑" a11y="Supprimer" onPress={() => (n.id ? onPatch({ del: { cascade: false } }) : onRemoveNew())} />
         )}
       </View>
+      {!gone && enfant && (
+        <View style={s.rowLiens}>
+          <LienPlus label={enfant.label} onPress={enfant.onPress} />
+        </View>
+      )}
       {!n.id && !gone && <Text style={s.small}>nouveau{metaOf(n)}</Text>}
       {!!n.id && !gone && (c.titre || c.champs || c.parent) && <Text style={s.small}>modifié{metaOf(n)}</Text>}
 
@@ -659,6 +761,15 @@ function NodeRow({ node: n, map, draft, safeOn, parentOptions, parentValue, onPa
             compact
             wrap
           />
+          {nouveauParent && (
+            <LienPlus
+              label={nouveauParent.label}
+              onPress={() => {
+                setOpen(null);
+                nouveauParent.onPress();
+              }}
+            />
+          )}
         </View>
       )}
 
@@ -755,6 +866,15 @@ function NodeRow({ node: n, map, draft, safeOn, parentOptions, parentValue, onPa
   );
 }
 
+/** Lien « ＋ … » (enfant ou nouveau parent) */
+function LienPlus({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={6} style={s.lienPlus} accessibilityRole="button" accessibilityLabel={`Ajouter : ${label}`}>
+      <Text style={s.lienPlusText}>＋ {label}</Text>
+    </Pressable>
+  );
+}
+
 function IconBtn({ label, onPress, on, a11y }: { label: string; onPress: () => void; on?: boolean; a11y: string }) {
   return (
     <Pressable onPress={onPress} hitSlop={6} style={[s.iconBtn, on && s.iconBtnOn]} accessibilityRole="button" accessibilityLabel={a11y}>
@@ -808,6 +928,10 @@ const s = StyleSheet.create({
   rowInput: { paddingVertical: 8, paddingHorizontal: 4 },
   ctx: { paddingVertical: 8, paddingHorizontal: 4, fontWeight: '600' },
   gone: { textDecorationLine: 'line-through', color: colors.muted },
+  rowLiens: { flexDirection: 'row', paddingHorizontal: 4 },
+  lienPlus: { paddingVertical: 4, paddingHorizontal: 4, alignSelf: 'flex-start' },
+  lienPlusText: { color: colors.primary, fontWeight: '700', fontSize: 13.5 },
+  retour: { alignSelf: 'flex-start', paddingVertical: 4 },
   small: { fontSize: 11.5, color: colors.muted, paddingHorizontal: 4 },
   iconBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   iconBtnOn: { backgroundColor: '#E8F0FE' },

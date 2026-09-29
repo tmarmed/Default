@@ -17,13 +17,13 @@ import { addMonths, toDateString } from '../dates';
 import { childrenOf, describeCounts, tasksOfEpic } from '../hierarchy';
 import { formatEpicDates, progress } from '../roadmap';
 import { colors } from '../theme';
-import { Epic, EPIC_COULEURS, EpicInput, Item } from '../types';
+import { Epic, EPIC_COULEURS, EpicInput, Feature, Item } from '../types';
 import { etatEpic, useSafe } from '../safe';
 import { ETATS_EPIC } from '../types';
 import { Chips } from './Chips';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
-import { ChildActions } from './FormSheet';
+import { BoutonRetour, ChildActions, CheminPile, type Injection, type PileProps } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
@@ -35,8 +35,19 @@ interface Props {
   epic: Epic | null;
   items: Item[];
   onClose: () => void;
-  onSave: (input: EpicInput) => Promise<void>;
+  /** `rester` : epic enregistrée avant d'ouvrir un enfant (la fiche reste ouverte) ; renvoie l'epic enregistrée */
+  onSave: (input: EpicInput, rester?: boolean) => Promise<Epic | void | undefined>;
   onDelete: (epic: Epic, cascade: boolean) => Promise<void>;
+  /** Pile de fiches (ouverte depuis une autre fiche) */
+  pile?: PileProps;
+  /** Élément créé dans une fiche du dessus (« ＋ Nouvel objectif ») : choisi ici */
+  injection?: Injection;
+  /** « ＋ Nouvel objectif / domaine » depuis le choix du rattachement */
+  onNouveau?: (niveau: 'objectif' | 'domaine') => void;
+  /** Consulter une feature de l'epic (par-dessus) */
+  onOpenFeature?: (f: Feature) => void;
+  /** « ＋ Nouveau portfolio » (section Delivery) */
+  onNouveauOrg?: (espace: string) => void;
   onOpenTask: (item: Item) => void;
   /** Valeurs proposées pour une nouvelle epic (ex. objectif) */
   defaults?: Partial<EpicInput>;
@@ -76,6 +87,11 @@ export function EpicForm({
   onAddTask,
   onOpenWizard,
   onAlign,
+  pile,
+  injection,
+  onNouveau,
+  onOpenFeature,
+  onNouveauOrg,
 }: Props) {
   const [form, setForm] = useState<EpicInput>(empty());
   const [busy, setBusy] = useState(false);
@@ -115,20 +131,34 @@ export function EpicForm({
   // Alertes calculées sur les dates en cours de saisie : le bouton ajuste les champs, puis on enregistre.
   const alertes = epic && form.debut ? alertesEpic({ id: epic.id, titre: form.titre || epic.titre, debut: form.debut, fin: form.fin }, items, h.featureList) : [];
 
-  const save = async () => {
-    if (!form.titre.trim()) return setError("Donnez un titre à l'epic.");
-    if (!form.debut) return setError('Choisissez une date de début.');
-    if (form.fin && form.fin < form.debut) return setError('La date de fin est avant la date de début.');
+  const save = async (rester = false): Promise<Epic | undefined> => {
+    if (!form.titre.trim()) return void setError("Donnez un titre à l'epic.");
+    if (!form.debut) return void setError('Choisissez une date de début.');
+    if (form.fin && form.fin < form.debut) return void setError('La date de fin est avant la date de début.');
     setError(null);
     setBusy(true);
     try {
-      await onSave({ ...form, espace, titre: form.titre.trim() });
+      return (await onSave({ ...form, espace, titre: form.titre.trim() }, rester)) || undefined;
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
+      return undefined;
     } finally {
       setBusy(false);
     }
   };
+  /** Nouvelle epic : enregistrée d'abord, puis l'enfant s'ouvre par-dessus (il a besoin d'elle) */
+  const enregistrerPuis = async (suite: (e: Epic) => void) => {
+    const e = epic ?? (await save(true));
+    if (e) suite(e);
+  };
+
+  // Élément créé dans une fiche du dessus (« ＋ Nouvel objectif ») : choisi ici
+  useEffect(() => {
+    if (!injection) return;
+    if (injection.champ === 'objectif') setForm((x) => ({ ...x, objectif: injection.id, domaine: '' }));
+    if (injection.champ === 'domaine') setForm((x) => ({ ...x, domaine: injection.id, objectif: '' }));
+    if (injection.champ === 'portfolio') setForm((x) => ({ ...x, portfolio: injection.id }));
+  }, [injection]);
 
   const doDelete = async (cascade: boolean) => {
     if (!epic) return;
@@ -156,11 +186,9 @@ export function EpicForm({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
-          <Pressable onPress={onClose} hitSlop={10} disabled={busy}>
-            <Text style={styles.headerBtn}>Annuler</Text>
-          </Pressable>
+          <BoutonRetour pile={pile} onPress={onClose} disabled={busy} style={styles.headerBtn} />
           <Text style={styles.headerTitle}>{epic ? 'Epic' : 'Nouvelle epic'}</Text>
-          <Pressable onPress={save} hitSlop={10} disabled={busy}>
+          <Pressable onPress={() => save()} hitSlop={10} disabled={busy}>
             {busy ? (
               <ActivityIndicator color={colors.primary} />
             ) : (
@@ -168,6 +196,7 @@ export function EpicForm({
             )}
           </Pressable>
         </View>
+        <CheminPile pile={pile} />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error && <Text style={styles.error}>{error}</Text>}
@@ -222,6 +251,7 @@ export function EpicForm({
               levels={['objectif', 'domaine']}
               value={form}
               onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+              onNouveau={onNouveau ? (n) => (n === 'objectif' || n === 'domaine') && onNouveau(n) : undefined}
             />
 
             {safe.actif && (
@@ -233,7 +263,13 @@ export function EpicForm({
                   onChange={(v) => set('etat', v)}
                 />
                 {!form.etat && <Text style={styles.hint}>Déduit des dates tant que vous n'en choisissez pas un.</Text>}
-                <LiaisonOrg espace={espace} niveau="epic" valeurs={{ portfolio: form.portfolio, epic: epic?.id }} onChange={(p) => setForm((x) => ({ ...x, ...p }))} />
+                <LiaisonOrg
+                  espace={espace}
+                  niveau="epic"
+                  valeurs={{ portfolio: form.portfolio, epic: epic?.id }}
+                  onChange={(p) => setForm((x) => ({ ...x, ...p }))}
+                  onNouveau={onNouveauOrg ? () => onNouveauOrg(espace) : undefined}
+                />
               </>
             )}
             {/* Mode Simple : état choisi en lecture seule */}
@@ -277,6 +313,19 @@ export function EpicForm({
               textAlignVertical="top"
             />
 
+            {!epic && (onAddFeature || onAddTask) && (
+              <>
+                <Text style={styles.label}>Et ensuite</Text>
+                <ChildActions
+                  actions={[
+                    ...(safe.actif && onAddFeature ? [{ label: '+ Feature', onPress: () => enregistrerPuis(onAddFeature) }] : []),
+                    ...(onAddTask ? [{ label: '+ Tâche', onPress: () => enregistrerPuis(onAddTask) }] : []),
+                  ]}
+                />
+                <Text style={styles.muted}>L'epic est enregistrée d'abord, puis la fiche s'ouvre par-dessus ; l'enregistrer vous ramène ici.</Text>
+              </>
+            )}
+
             {epic && stats && (
               <>
                 <Text style={styles.label}>
@@ -293,11 +342,14 @@ export function EpicForm({
                     />
                   </View>
                 )}
-                {safe.actif && features.length > 0 && (
-                  <Text style={styles.muted}>
-                    🧩 {features.length} feature{features.length > 1 ? 's' : ''} : {features.map((f) => f.titre).join(' · ')}
-                  </Text>
-                )}
+                {safe.actif &&
+                  features.map((f) => (
+                    <Pressable key={f.id} style={styles.task} onPress={() => onOpenFeature?.(f)} disabled={!onOpenFeature} accessibilityRole="button" accessibilityLabel={`Ouvrir la feature ${f.titre}`}>
+                      <Text style={styles.taskCheck}>🧩</Text>
+                      <Text style={styles.taskTitle}>{f.titre}</Text>
+                      {!!onOpenFeature && <Text style={styles.muted}>›</Text>}
+                    </Pressable>
+                  ))}
                 {tasks.length === 0 ? (
                   <Text style={styles.muted}>
                     Aucune tâche. Pour en rattacher une, ouvrez-la et choisissez cette epic.
