@@ -130,14 +130,14 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
 }
 
 /**
- * Titre de la barre du haut (le type : « Epic », « Équipe agile »…), dans la couleur de l'élément, toujours au
- * centre exact de la barre (quelle que soit la largeur d'« Annuler » et d'« Enregistrer »).
+ * Titre de la barre du haut (le type : « Epic », « Équipe agile »…), en noir, toujours au centre exact de la barre
+ * (quelle que soit la largeur d'« Annuler » et d'« Enregistrer »). `couleur` : gardée pour les appels, non utilisée.
  */
-export function TitreBarre({ texte, couleur, avecFil }: { texte: string; couleur?: string; avecFil?: boolean }) {
+export function TitreBarre({ texte, avecFil }: { texte: string; couleur?: string; avecFil?: boolean }) {
   return (
     // Avec le fil d'Ariane, la barre a moins de marge en bas : le titre reste aligné sur Annuler / Enregistrer
     <View pointerEvents="none" style={[styles.titreBarre, avecFil && { top: 6 }]}>
-      <TexteAjuste variantes={[texte]} taille={17} min={12} dispo={Math.min(Dimensions.get('window').width, 480) - 200} style={[styles.headerTitle, couleur ? { color: assombrir(couleur) } : null]} />
+      <TexteAjuste variantes={[texte]} taille={17} min={12} dispo={Math.min(Dimensions.get('window').width, 480) - 200} style={styles.headerTitle} />
     </View>
   );
 }
