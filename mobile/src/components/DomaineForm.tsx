@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LigneChoix, LigneFiche, ListeEnfants, SectionFiche } from './Choix';
 import { childrenOf, describeCounts } from '../hierarchy';
 import { HierarchyContext } from '../hierarchyContext';
-import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
+import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
 import { colors } from '../theme';
 import { DOMAINE_ICONES, Domaine, DomaineInput, EPIC_COULEURS, Objectif } from '../types';
 import { DeleteSection } from './DeleteSection';
@@ -29,6 +29,7 @@ interface Props {
 export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpenObjectif, onAddObjectif, defaultEspace, pile }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, domaine, defaultEspace ? { espace: defaultEspace } : undefined);
+  const espaceFil = useEspaceFil(espace);
   const [form, setForm] = useState<DomaineInput>({ nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0], parent: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +89,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
       onClose={onClose}
       onSave={() => save()}
       retour={pile?.retour}
+      espaceFil={espaceFil}
       fil={form.parent && h.domaines.get(form.parent) ? `${h.domaines.get(form.parent)!.icone} ${h.domaines.get(form.parent)!.nom}` : undefined}
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}

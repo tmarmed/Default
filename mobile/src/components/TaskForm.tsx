@@ -44,6 +44,7 @@ import { LigneChoix, LigneFiche, SectionFiche } from './Choix';
 import { listeIterations } from '../choixTravail';
 import { filTravail } from '../choixTravail';
 import { LiaisonOrg } from './LiaisonOrg';
+import { useEspaceFil } from './EspaceChoix';
 import { BoutonRetour, CheminPile, TitreBarre, TitreFiche, type Injection, type PileProps } from './FormSheet';
 
 interface Props {
@@ -174,6 +175,7 @@ export function TaskForm({
   const espaceDefaut = esp.visibles[0] ?? 'moi';
   const espace = form.espace || 'moi';
   const h = filtrerEspace(hTous, espace);
+  const espaceFil = useEspaceFil(espace);
   const plusieursEspaces = esp.visibles.length > 1 || espace !== espaceDefaut;
   /** Changer d'espace : les rattachements de l'ancien espace ne valent plus */
   const choisirEspace = (e: string) =>
@@ -339,9 +341,9 @@ export function TaskForm({
     <HierarchyContext.Provider value={h}>
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={[styles.header, (!!pile?.chemin || !!fil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
+        <View style={[styles.header, (!!pile?.chemin || !!fil || !!espaceFil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
           <BoutonRetour pile={pile} onPress={onClose} disabled={busy} style={styles.headerBtn} />
-          <TitreBarre texte={item ? TYPE_LABELS[form.type] : 'Nouvelle tâche'} couleur={typeColors[form.type]} avecFil={!!pile?.chemin || !!fil} />
+          <TitreBarre texte={item ? TYPE_LABELS[form.type] : 'Nouvelle tâche'} couleur={typeColors[form.type]} avecFil={!!pile?.chemin || !!fil || !!espaceFil} />
           <Pressable onPress={save} hitSlop={10} disabled={busy}>
             {busy ? (
               <ActivityIndicator color={colors.primary} />
@@ -350,7 +352,7 @@ export function TaskForm({
             )}
           </Pressable>
         </View>
-        <CheminPile pile={pile} fil={fil} />
+        <CheminPile pile={pile} fil={fil} espace={espaceFil} />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error && <Text style={styles.error}>{error}</Text>}
@@ -365,7 +367,7 @@ export function TaskForm({
               returnKeyType="done"
             />
 
-            {plusieursEspaces && (
+            {plusieursEspaces && !item && (
               <SectionFiche titre="Espace de travail">
                 <LigneChoix
                   label="Espace"

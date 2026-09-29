@@ -27,10 +27,20 @@ export function useEspaceFiche(visible: boolean, existant: { espace?: string } |
   return { espace, setEspace, h };
 }
 
+/** Espace de travail en tête du fil d'Ariane (« 🏢 ACME ») : seulement quand plusieurs espaces sont affichés */
+export function useEspaceFil(espace: string): string | undefined {
+  const esp = useEspaces();
+  if (esp.visibles.length < 2) return undefined;
+  const e = espaceParId(esp.liste, espace || 'moi');
+  return e ? `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` : undefined;
+}
+
 /** Ligne « Espace » d'une fiche : choix pour un nouvel élément (si plusieurs espaces affichés), rappel sinon. */
 export function EspaceChoix({ espace, onChange, fige }: { espace: string; onChange: (v: string) => void; fige: boolean }) {
   const esp = useEspaces();
   if (esp.visibles.length < 2 && esp.visibles[0] === espace) return null;
+  // Élément enregistré : son espace est déjà en tête du fil d'Ariane
+  if (fige) return null;
   const nom = (id: string) => {
     const e = espaceParId(esp.liste, id);
     return e ? `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` : id;

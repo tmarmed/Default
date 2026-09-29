@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, membresDe, NOM_ORG, nomPersonne, type OrgValue } from '../organisation';
 import { useSafe } from '../safe';
+import { useEspaces } from '../espaces';
 import { colors } from '../theme';
 import { Chips } from './Chips';
 import { type GroupeChoix, LigneChoix, LigneMulti, ListeEnfants, SectionFiche, type AutresChoix } from './Choix';
@@ -87,6 +88,9 @@ export function OrgForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const safe = useSafe();
+  // Plusieurs espaces affichés : l'entreprise en tête du fil d'Ariane
+  const esp = useEspaces();
+  const espaceFil = esp.visibles.length > 1 ? `🏢 ${nomEntreprise}` : undefined;
   /** Enfants existants rangés ici (clé : « train:portfolio »…) : faits à l'enregistrement */
   const [ranger, setRangerTout] = useState<Record<string, string[]>>({});
   const rangerDe = (k: KindOrg, champ: string) => ranger[`${k}:${champ}`] ?? [];
@@ -309,11 +313,11 @@ export function OrgForm({
       onSave={() => save()}
       retour={pile?.retour}
       fil={fil}
+      espaceFil={espaceFil}
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}
     >
       <TitreFiche icone={ICONE_ORG[kind]} titre={form.nom} vide="Nom" />
-      <Text style={s.entreprise}>🏢 {nomEntreprise} · Organisation</Text>
       <Field style={f.titleInput} placeholder={PLACEHOLDERS[kind]} value={form.nom} onChangeText={set('nom')} autoFocus={!entite} />
 
       {kind === 'personne' && (
@@ -422,8 +426,8 @@ export function OrgForm({
               sans: 'Sans portfolio',
             })}
           </SectionFiche>
-          <SectionFiche titre="Rôles" aDefinir={safe.actif && !form.rte ? 1 : 0}>
-            {choix({ label: 'RTE', k: 'rte', liste: listePersonnes(), nouveau: nouvellePersonne(), attendu: safe.actif, sans: 'Sans RTE' })}
+          <SectionFiche titre="Rôles">
+            {choix({ label: 'RTE', k: 'rte', liste: listePersonnes(), nouveau: nouvellePersonne(), sans: 'Sans RTE' })}
             {choix({ label: 'Product Manager', k: 'pm', liste: listePersonnes(), nouveau: nouvellePersonne(), sans: 'Sans Product Manager' })}
           </SectionFiche>
           {enfants({
@@ -452,16 +456,15 @@ export function OrgForm({
               sans: 'Sans train',
             })}
           </SectionFiche>
-          <SectionFiche titre="Rôles et membres" aDefinir={[form.po, form.sm, membres.length ? 'x' : ''].filter((v) => safe.actif && !v).length}>
-            {choix({ label: 'Product Owner', k: 'po', liste: listePersonnes({ titre: 'Membres de l’équipe', ids: new Set(membres) }), nouveau: nouvellePersonne(), attendu: safe.actif, sans: 'Sans Product Owner' })}
-            {choix({ label: 'Scrum Master', k: 'sm', liste: listePersonnes({ titre: 'Membres de l’équipe', ids: new Set(membres) }), nouveau: nouvellePersonne(), attendu: safe.actif, sans: 'Sans Scrum Master' })}
+          <SectionFiche titre="Rôles et membres">
+            {choix({ label: 'Product Owner', k: 'po', liste: listePersonnes({ titre: 'Membres de l’équipe', ids: new Set(membres) }), nouveau: nouvellePersonne(), sans: 'Sans Product Owner' })}
+            {choix({ label: 'Scrum Master', k: 'sm', liste: listePersonnes({ titre: 'Membres de l’équipe', ids: new Set(membres) }), nouveau: nouvellePersonne(), sans: 'Sans Scrum Master' })}
             <LigneMulti
               label="Membres"
               values={membres}
               depart={membresDe({ membres: initial.membres ?? '' })}
               onChange={(l) => setForm((x) => ({ ...x, membres: l.join(';') }))}
               {...listePersonnes()}
-              attendu={safe.actif}
               nouveau={onOuvrir ? { label: 'Nouvelle personne', onPress: () => onOuvrir('personne', null, undefined, 'membres') } : undefined}
               resume={(n) => `${n} membre${n > 1 ? 's' : ''}`}
             />

@@ -42,6 +42,8 @@ interface Props {
   fil?: string;
   /** Couleur de l'élément : le titre de la barre (son type) la prend */
   couleurTitre?: string;
+  /** Espace de travail en tête du fil (plusieurs espaces affichés) */
+  espaceFil?: string;
 }
 
 /** Pile de fiches : fiche d'en dessous (« ‹ … »), fil en haut, tout fermer */
@@ -61,13 +63,18 @@ export interface Injection {
  * Fil d'Ariane discret, seulement pour l'élément principal de la fiche : petite ligne grise sous le titre (« Pro ›
  * Fidéliser les clients › Application client ») ; dans une pile, un ✕ gris pour fermer toutes les fiches.
  */
-export function CheminPile({ pile, fil, disabled }: { pile?: PileProps; fil?: string; disabled?: boolean }) {
-  // Le fil montre où est rangé l'élément de la fiche ; à défaut, les fiches de la pile
+export function CheminPile({ pile, fil, espace, disabled }: { pile?: PileProps; fil?: string; espace?: string; disabled?: boolean }) {
+  // Le fil montre où est rangé l'élément de la fiche ; à défaut, les fiches de la pile.
+  // `espace` : l'espace de travail (« 🏢 ACME »), en tête et en gras, quand plusieurs espaces sont affichés
   const texte = fil || pile?.chemin;
-  if (!texte && !pile?.onFermerTout) return null;
+  if (!texte && !espace && !pile?.onFermerTout) return null;
   return (
     <View style={styles.chemin}>
-      <Text style={styles.cheminTexte}>{texte}</Text>
+      <Text style={styles.cheminTexte}>
+        {!!espace && <Text style={styles.cheminEspace}>{espace}</Text>}
+        {!!espace && !!texte && ' › '}
+        {texte}
+      </Text>
       {pile?.onFermerTout && (
         <Pressable onPress={pile.onFermerTout} hitSlop={10} disabled={disabled} accessibilityRole="button" accessibilityLabel="Fermer toutes les fiches">
           <Text style={styles.fermerTout}>✕</Text>
@@ -93,11 +100,11 @@ export function BoutonRetour({ pile, onPress, disabled, style }: { pile?: PilePr
 }
 
 /** Fenêtre de formulaire : Annuler / titre / Enregistrer, message d'erreur, contenu défilant. */
-export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre }: Props) {
+export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil }: Props) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={[styles.header, (!!chemin || !!fil) && styles.headerAvecFil]}>
+        <View style={[styles.header, (!!chemin || !!fil || !!espaceFil) && styles.headerAvecFil]}>
           <Pressable
             onPress={onClose}
             hitSlop={10}
@@ -108,7 +115,7 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
             <Text style={styles.headerBtn}>{onSave ? 'Annuler' : 'Fermer'}</Text>
           </Pressable>
           {/* Jamais coupé « … » : le titre rapetisse s'il est long */}
-          <TitreBarre texte={title} couleur={couleurTitre} avecFil={!!chemin || !!fil} />
+          <TitreBarre texte={title} couleur={couleurTitre} avecFil={!!chemin || !!fil || !!espaceFil} />
           {onSave ? (
             <Pressable onPress={onSave} hitSlop={10} disabled={busy}>
               {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>}
@@ -117,7 +124,7 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
             <View style={{ width: 60, alignItems: 'flex-end' }}>{busy && <ActivityIndicator color={colors.primary} />}</View>
           )}
         </View>
-        <CheminPile pile={chemin || onFermerTout ? { chemin, onFermerTout } : undefined} fil={fil} disabled={busy} />
+        <CheminPile pile={chemin || onFermerTout ? { chemin, onFermerTout } : undefined} fil={fil} espace={espaceFil} disabled={busy} />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error && <Text style={styles.error}>{error}</Text>}
@@ -282,6 +289,7 @@ const styles = StyleSheet.create({
   // Fil d'Ariane discret : collé sous l'en-tête, petit et gris
   chemin: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 0, paddingBottom: 7, backgroundColor: colors.card, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   cheminTexte: { flex: 1, fontSize: 11.5, color: '#9AA1AD' },
+  cheminEspace: { fontWeight: '700', color: colors.text },
   fermerTout: { fontSize: 13, color: '#9AA1AD', paddingHorizontal: 2 },
   headerBtn: { fontSize: 16, color: colors.primary },
   bold: { fontWeight: '600' },

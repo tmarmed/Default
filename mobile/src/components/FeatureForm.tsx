@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { childrenOf, describeCounts, domaineOf, objectifOf } from '../hierarchy';
 import { HierarchyContext } from '../hierarchyContext';
-import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
+import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
 import { fmtPoints, iterationNom, piLabel, pointsOf } from '../pi';
 import { useSafe } from '../safe';
 import { colors } from '../theme';
@@ -62,6 +62,7 @@ export function FeatureForm({
 }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, feature, defaults);
+  const espaceFil = useEspaceFil(espace);
   const safe = useSafe();
   const empty = (): FeatureInput => ({ titre: '', description: '', epic: '', pi: defaultPi, iteration: '', points: '', couleur: '' });
   const [form, setForm] = useState<FeatureInput>(empty());
@@ -154,6 +155,7 @@ export function FeatureForm({
       onClose={onClose}
       onSave={() => save()}
       retour={pile?.retour}
+      espaceFil={espaceFil}
       fil={filTravail({ epic: form.epic }, h)}
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}
@@ -202,17 +204,15 @@ export function FeatureForm({
         niveau="feature"
         valeurs={{ train: form.train, equipe: form.equipe, epic: form.epic }}
         initial={feature ? { train: feature.train, equipe: feature.equipe } : undefined}
-        attendu={safe.actif}
         onChange={(p) => setForm((x) => ({ ...x, ...p }))}
         onNouveau={onNouveauOrg ? (k, champ) => (k === 'train' || k === 'equipeagile') && (champ === 'train' || champ === 'equipe') && onNouveauOrg(k, champ, espace) : undefined}
       />
 
-      <SectionFiche titre="Planification" aDefinir={safe.actif && !form.pi ? 1 : 0}>
+      <SectionFiche titre="Planification">
         <LigneChoix
           label="PI"
           value={form.pi}
           depart={feature?.pi}
-          attendu={safe.actif}
           {...listePI(form.pi)}
           libelle={(v) => `PI ${piLabel(v)}`}
           sans="Sans PI"

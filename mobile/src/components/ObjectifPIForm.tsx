@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Text } from 'react-native';
 import { domaineOf } from '../hierarchy';
 import { HierarchyContext, inDomain } from '../hierarchyContext';
-import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
+import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
 import { piLabel, piOf, shiftPi } from '../pi';
 import type { ObjectifPI, ObjectifPIInput } from '../types';
 import { colors } from '../theme';
@@ -29,6 +29,7 @@ const VALEURS = ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'].map((v) 
 export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, onClose, onSave, onDelete }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, objectif, { domaine: defaultDomaine });
+  const espaceFil = useEspaceFil(espace);
   const empty = (): ObjectifPIInput => ({ titre: '', pi: defaultPi, type: 'engage', valeur_prevue: '', valeur_obtenue: '', domaine: defaultDomaine, epic: '' });
   const [form, setForm] = useState<ObjectifPIInput>(empty());
   const [busy, setBusy] = useState(false);
@@ -69,7 +70,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
 
   return (
     <HierarchyContext.Provider value={h}>
-    <FormSheet visible={visible} title={objectif ? 'Objectif du PI' : 'Nouvel objectif du PI'} couleurTitre={colors.primary} busy={busy} error={error} onClose={onClose} onSave={save}>
+    <FormSheet visible={visible} title={objectif ? 'Objectif du PI' : 'Nouvel objectif du PI'} couleurTitre={colors.primary} espaceFil={espaceFil} busy={busy} error={error} onClose={onClose} onSave={save}>
       <TitreFiche icone="🎯" titre={form.titre} vide="Titre de l’objectif du PI" sous={form.pi ? `PI ${piLabel(form.pi)}` : undefined} />
       <Field style={f.titleInput} placeholder="Résultat à livrer (ex. Nouveau site en ligne)" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!objectif} />
       <EspaceChoix

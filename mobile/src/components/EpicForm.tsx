@@ -26,7 +26,7 @@ import { DeleteSection } from './DeleteSection';
 import { TitreBarre, TitreFiche, BoutonRetour, ChildActions, CheminPile, type Injection, type PileProps } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { HierarchyContext } from '../hierarchyContext';
-import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
+import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
 import { LiaisonOrg } from './LiaisonOrg';
 import { filTravail } from '../choixTravail';
 import { ChoiceSheet } from './ChoiceSheet';
@@ -106,6 +106,7 @@ export function EpicForm({
   const [picking, setPicking] = useState(false);
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, epic, defaults);
+  const espaceFil = useEspaceFil(espace);
   const safe = useSafe();
   const features = epic ? h.featureList.filter((f) => f.epic === epic.id) : [];
 
@@ -214,9 +215,9 @@ export function EpicForm({
     <HierarchyContext.Provider value={h}>
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={[styles.header, (!!pile?.chemin || !!fil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
+        <View style={[styles.header, (!!pile?.chemin || !!fil || !!espaceFil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
           <BoutonRetour pile={pile} onPress={onClose} disabled={busy} style={styles.headerBtn} />
-          <TitreBarre texte={epic ? 'Epic' : 'Nouvelle epic'} couleur={form.couleur} avecFil={!!pile?.chemin || !!fil} />
+          <TitreBarre texte={epic ? 'Epic' : 'Nouvelle epic'} couleur={form.couleur} avecFil={!!pile?.chemin || !!fil || !!espaceFil} />
           <Pressable onPress={() => save()} hitSlop={10} disabled={busy}>
             {busy ? (
               <ActivityIndicator color={colors.primary} />
@@ -225,7 +226,7 @@ export function EpicForm({
             )}
           </Pressable>
         </View>
-        <CheminPile pile={pile} fil={fil} />
+        <CheminPile pile={pile} fil={fil} espace={espaceFil} />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error && <Text style={styles.error}>{error}</Text>}
@@ -298,7 +299,6 @@ export function EpicForm({
                   niveau="epic"
                   valeurs={{ portfolio: form.portfolio, epic: epic?.id }}
                   initial={epic ? { portfolio: epic.portfolio ?? '' } : undefined}
-                  attendu
                   onChange={(p) => setForm((x) => ({ ...x, ...p }))}
                   onNouveau={onNouveauOrg ? () => onNouveauOrg(espace) : undefined}
                 />

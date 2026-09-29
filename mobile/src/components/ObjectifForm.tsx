@@ -4,7 +4,7 @@ import { alertesObjectif, type Alignement } from '../alerts';
 import { addMonths, toDateString } from '../dates';
 import { childrenOf, describeCounts, progressObjectif } from '../hierarchy';
 import { HierarchyContext } from '../hierarchyContext';
-import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
+import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
 import { formatEpicDates } from '../roadmap';
 import { EPIC_COULEURS, Epic, Objectif, ObjectifInput } from '../types';
 import { DateField } from './DateField';
@@ -57,6 +57,7 @@ const number = (t: string) => t.replace(/[^0-9.,-]/g, '');
 export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onOpenEpic, defaults, onAddEpic, onAlign, pile, injection, onNouveauDomaine }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, objectif, defaults);
+  const espaceFil = useEspaceFil(espace);
   const [form, setForm] = useState<ObjectifInput>(empty());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -126,6 +127,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
       onClose={onClose}
       onSave={() => save()}
       retour={pile?.retour}
+      espaceFil={espaceFil}
       fil={filTravail({ domaine: form.domaine }, h)}
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}
