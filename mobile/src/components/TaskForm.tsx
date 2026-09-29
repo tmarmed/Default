@@ -355,7 +355,7 @@ export function TaskForm({
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error && <Text style={styles.error}>{error}</Text>}
-            <TitreFiche titre={form.titre ? `${TYPE_ICONS[form.type]} ${form.titre}` : ''} vide="Titre de la tâche" couleur={typeColors[form.type]} />
+            <TitreFiche icone={TYPE_ICONS[form.type]} titre={form.titre} vide="Titre de la tâche" couleur={typeColors[form.type]} />
             <TextInput
               style={[styles.input, styles.titleInput]}
               placeholder="Titre"

@@ -132,7 +132,8 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
       <AlertList alertes={alertes} onFix={(a) => setForm((x) => ({ ...x, ...a.patch }))} onAlign={onAlign} />
 
       <TitreFiche
-        titre={form.titre ? `🎯 ${form.titre}` : ''}
+        icone="🎯"
+        titre={form.titre}
         vide="Titre de l'objectif"
         sous={form.debut ? (form.fin ? formatEpicDates(form) : `${formatEpicDates(form).split(' →')[0]} → permanent`) : undefined}
         couleur={form.couleur}

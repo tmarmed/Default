@@ -91,7 +91,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}
     >
-      <TitreFiche titre={form.nom ? `${form.icone} ${form.nom}` : ''} vide="Nom du domaine" couleur={form.couleur} />
+      <TitreFiche icone={form.icone} titre={form.nom} vide="Nom du domaine" couleur={form.couleur} />
       <Field style={f.titleInput} placeholder="Nom (ex. Pro, Perso, Administratif)" value={form.nom} onChangeText={(v) => setForm((x) => ({ ...x, nom: v }))} autoFocus={!domaine} />
       <EspaceChoix
         espace={espace}

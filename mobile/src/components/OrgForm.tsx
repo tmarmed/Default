@@ -311,7 +311,7 @@ export function OrgForm({
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}
     >
-      <TitreFiche titre={form.nom ? `${ICONE_ORG[kind]} ${form.nom}` : ''} vide="Nom" />
+      <TitreFiche icone={ICONE_ORG[kind]} titre={form.nom} vide="Nom" />
       <Text style={s.entreprise}>🏢 {nomEntreprise} · Organisation</Text>
       <Field style={f.titleInput} placeholder={PLACEHOLDERS[kind]} value={form.nom} onChangeText={set('nom')} autoFocus={!entite} />
 

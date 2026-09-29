@@ -128,15 +128,19 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
 }
 
 /**
- * Titre d'une fiche : le nom de l'élément, centré en haut de la page (pas dans un cadre), avec une petite ligne
- * dessous (dates, type…) et un trait de sa couleur. Le même dans toutes les fiches de modification.
+ * Titre d'une fiche : le nom de l'élément, centré en haut de la page (pas dans un cadre), précédé de son icône
+ * dans un petit cercle de sa couleur ; une ligne d'infos dessous (dates, PI…). Le même dans toutes les fiches.
  */
-export function TitreFiche({ titre, vide, sous, couleur }: { titre: string; vide: string; sous?: string; couleur?: string }) {
+export function TitreFiche({ icone, titre, vide, sous, couleur = colors.primary }: { icone: string; titre: string; vide: string; sous?: string; couleur?: string }) {
   return (
     <View style={styles.titreFiche}>
-      <Text style={[styles.titreFicheTexte, !titre && styles.titreFicheVide]}>{titre || vide}</Text>
+      <View style={styles.titreFicheLigne}>
+        <View style={[styles.titreFicheRond, { borderColor: couleur }]}>
+          <Text style={[styles.titreFicheIcone, { color: couleur }]}>{icone}</Text>
+        </View>
+        <Text style={[styles.titreFicheTexte, !titre && styles.titreFicheVide]}>{titre || vide}</Text>
+      </View>
       {!!sous && <Text style={styles.titreFicheSous}>{sous}</Text>}
-      {!!couleur && <View style={[styles.titreFicheTrait, { backgroundColor: couleur }]} />}
     </View>
   );
 }
@@ -271,10 +275,12 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 48 },
   error: { color: colors.danger, backgroundColor: '#FCE8E6', padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 14 },
   titreFiche: { alignItems: 'center', gap: 4, paddingTop: 4, paddingBottom: 16, paddingHorizontal: 8 },
-  titreFicheTexte: { fontSize: 22, fontWeight: '700', color: colors.text, textAlign: 'center' },
+  titreFicheLigne: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, maxWidth: '100%' },
+  titreFicheRond: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card },
+  titreFicheIcone: { fontSize: 13, fontWeight: '800' },
+  titreFicheTexte: { flexShrink: 1, fontSize: 21, fontWeight: '700', color: colors.text, textAlign: 'center' },
   titreFicheVide: { color: colors.muted, fontWeight: '600' },
   titreFicheSous: { fontSize: 13, color: colors.muted, textAlign: 'center' },
-  titreFicheTrait: { width: 36, height: 3, borderRadius: 2, marginTop: 6 },
   label: { marginTop: 18, marginBottom: 8, fontSize: 13, fontWeight: '600', color: colors.muted },
   input: {
     borderWidth: 1,

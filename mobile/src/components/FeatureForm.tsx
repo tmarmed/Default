@@ -158,7 +158,8 @@ export function FeatureForm({
       onFermerTout={pile?.onFermerTout}
     >
       <TitreFiche
-        titre={form.titre ? `🧩 ${form.titre}` : ''}
+        icone="🧩"
+        titre={form.titre}
         vide="Titre de la feature"
         sous={[form.pi ? `PI ${piLabel(form.pi)}` : '', form.iteration ? form.iteration.split('-').pop() : ''].filter(Boolean).join(' · ') || undefined}
         couleur={epic?.couleur}

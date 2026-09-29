@@ -69,7 +69,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
   return (
     <HierarchyContext.Provider value={h}>
     <FormSheet visible={visible} title={objectif ? 'Objectif du PI' : 'Nouvel objectif du PI'} busy={busy} error={error} onClose={onClose} onSave={save}>
-      <TitreFiche titre={form.titre ? `🎯 ${form.titre}` : ''} vide="Titre de l’objectif du PI" sous={form.pi ? `PI ${piLabel(form.pi)}` : undefined} />
+      <TitreFiche icone="🎯" titre={form.titre} vide="Titre de l’objectif du PI" sous={form.pi ? `PI ${piLabel(form.pi)}` : undefined} />
       <Field style={f.titleInput} placeholder="Résultat à livrer (ex. Nouveau site en ligne)" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!objectif} />
       <EspaceChoix
         espace={espace}

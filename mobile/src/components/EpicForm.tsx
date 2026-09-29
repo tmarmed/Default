@@ -251,7 +251,8 @@ export function EpicForm({
             ))}
 
             <TitreFiche
-              titre={form.titre ? `🗂️ ${form.titre}` : ''}
+              icone="🗂️"
+              titre={form.titre}
               vide="Titre de l’epic"
               sous={form.debut && (!form.fin || form.fin >= form.debut) ? formatEpicDates(form) : undefined}
               couleur={form.couleur}
