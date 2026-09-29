@@ -1,7 +1,8 @@
 import { memo, useState } from 'react';
 import { domaineOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
-import { fmtPoints, pointsOf } from '../pi';
+import { fmtPoints } from '../pi';
+import { estimationOf } from '../subtasks';
 import { useSafe } from '../safe';
 import { nomPersonne, porteurs, useOrg } from '../organisation';
 import { espaceParId, ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces';
@@ -26,7 +27,8 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle, expand
   const done = item.statut === 'termine';
   const h = useHierarchy();
   const safe = useSafe();
-  const pts = safe.actif ? pointsOf(item) : 0;
+  // Estimation : le total des sous-tâches s'il y en a avec des points
+  const pts = safe.actif ? estimationOf(item, item.sousTotal ? h.items.filter((t) => t.parent === item.id) : []).points : 0;
   // Delivery SAFe : équipe (directe ou celle de la feature) et responsable
   const org = useOrg();
   const porteur = safe.actif && org.delivery ? porteurs(item, h, org) : null;
@@ -198,7 +200,6 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle, expand
           accessibilityLabel={`${expanded ? 'Replier' : 'Déplier'} les sous-tâches de ${item.titre}`}
         >
           <Text style={[styles.expandText, item.sousFaites === item.sousTotal && { color: colors.success }]}>
-            {item.alertePoints ? '⚠ ' : ''}
             {expanded ? '▾' : '▸'} {item.sousFaites}/{item.sousTotal}
           </Text>
         </Pressable>

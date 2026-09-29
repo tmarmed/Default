@@ -98,7 +98,6 @@ export interface Item {
   sousTaches?: Item[];
   sousTotal?: number;
   sousFaites?: number;
-  alertePoints?: boolean;
 }
 
 export type ItemInput = Omit<
@@ -117,7 +116,6 @@ export type ItemInput = Omit<
   | 'sousTaches'
   | 'sousTotal'
   | 'sousFaites'
-  | 'alertePoints'
 >;
 
 /** Champs ajoutés avec la répétition : valeurs par défaut pour les anciennes données. */

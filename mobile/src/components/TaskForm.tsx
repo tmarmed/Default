@@ -38,7 +38,7 @@ import { espaceParId, ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces
 import { useSafe } from '../safe';
 import { iterationByKey, iterationNom, iterationOf } from '../pi';
 import { callNumber } from '../phone';
-import { fmtPoints } from '../pi';
+import { fmtPoints, pointsOf } from '../pi';
 import { canHaveSubtasks, PARENT_TYPES, pointsCheck, subtaskMap } from '../subtasks';
 import { ChoiceSheet } from './ChoiceSheet';
 import { FeuilleMulti, LigneChoix, LigneEnfant, LigneFiche, SectionFiche } from './Choix';
@@ -217,6 +217,10 @@ export function TaskForm({
   const parentItem = form.parent ? h.items.find((t) => t.id === form.parent) : undefined;
   const peutAvoir = canHaveSubtasks(form) && !(item && form.parent);
   const check = item ? pointsCheck({ ...item, points: form.points }, enfants) : { parent: 0, sous: 0, alerte: false };
+  // Estimation automatique : le total des sous-tâches qui ont des points
+  const sousAvecPoints = enfants.filter((t) => pointsOf(t) > 0);
+  const estAuto = sousAvecPoints.length > 0;
+  const detailSous = sousAvecPoints.map((t) => String(pointsOf(t))).join(' + ');
   const tousFaits = enfants.length > 0 && enfants.every((t) => t.statut === 'termine');
   // Même règle que la case à cocher : passer un parent à « Terminé » → terminer aussi ses sous-tâches ouvertes ?
   const sousOuvertes = enfants.filter((t) => t.statut !== 'termine');
@@ -324,6 +328,8 @@ export function TaskForm({
         // Date de fin : démarches non répétées seulement
         date_fin: aDateFin(form.type) && !form.periodicite ? form.date_fin : '',
       };
+      // Estimation automatique : enregistrée telle quelle (le total des sous-tâches)
+      if (estAuto) base.points = String(check.sous);
       const input = base.periodicite ? { ...base, date: '', statut: 'a_faire' as const } : base;
       await onSave({ ...input, titre: input.titre.trim() }, peutAvoir ? nouvelles : [], { terminerSousTaches: passeTermine && !!terminerSous, rangerSous: peutAvoir ? rangees : [] });
     } catch (e) {
@@ -548,14 +554,22 @@ export function TaskForm({
             />
             {/* Estimation : en SAFe, les points ; en Simple, une estimation facultative (même champ) */}
             <Text style={styles.label}>{safe.actif ? (safe.pointsJours ? 'Points (jours)' : 'Points') : safe.pointsJours ? 'Estimation (jours, facultatif)' : 'Estimation (facultatif)'}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Estimation, ex. 2"
-              placeholderTextColor={colors.muted}
-              value={form.points}
-              onChangeText={(v) => set('points', v.replace(/[^0-9.,]/g, ''))}
-              keyboardType="decimal-pad"
-            />
+            {estAuto ? (
+              // Sous-tâches avec des points : l'estimation est leur total, toujours à jour
+              <View style={[styles.input, styles.estAuto]} accessibilityLabel={`Estimation : ${fmtPoints(check.sous, safe.pointsJours)}, total des sous-tâches`}>
+                <Text style={styles.estAutoValeur}>{fmtPoints(check.sous, safe.pointsJours)}</Text>
+                <Text style={styles.estAutoSous}>Total des sous-tâches ({detailSous})</Text>
+              </View>
+            ) : (
+              <TextInput
+                style={styles.input}
+                placeholder="Estimation, ex. 2"
+                placeholderTextColor={colors.muted}
+                value={form.points}
+                onChangeText={(v) => set('points', v.replace(/[^0-9.,]/g, ''))}
+                keyboardType="decimal-pad"
+              />
+            )}
             {safe.actif && !form.periodicite && (
               <SectionFiche titre="Planification">
                 {form.date ? (
@@ -583,21 +597,6 @@ export function TaskForm({
                   onAjouter={() => setMenuSous(true)}
                   ajouterLabel="Ajouter une sous-tâche"
                 />
-                {check.alerte && (
-                  <View style={styles.alert}>
-                    <Text style={styles.alertText}>
-                      ⚠ Les sous-tâches font {fmtPoints(check.sous, safe.pointsJours)}, la tâche {fmtPoints(check.parent, safe.pointsJours)}.
-                    </Text>
-                    <Pressable style={styles.alertBtn} onPress={() => set('points', String(check.sous))} accessibilityRole="button">
-                      <Text style={styles.alertBtnText}>Passer la tâche à {fmtPoints(check.sous, safe.pointsJours)}</Text>
-                    </Pressable>
-                  </View>
-                )}
-                {!check.alerte && check.sous > 0 && !check.parent && (
-                  <Pressable onPress={() => set('points', String(check.sous))} hitSlop={6} style={styles.attach}>
-                    <Text style={styles.linkText}>Reporter {fmtPoints(check.sous, safe.pointsJours)} sur la tâche</Text>
-                  </Pressable>
-                )}
                 {enfants.map((t) => {
                   const done = t.statut === 'termine';
                   return (
@@ -819,12 +818,9 @@ function PointsInput({ value, onCommit }: { value: string; onCommit: (v: string)
 const styles = StyleSheet.create({
   parentBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#EEF4FE', borderRadius: 10, padding: 10, marginTop: 12 },
   parentText: { fontSize: 14.5, fontWeight: '600', color: colors.primary },
-  linkText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
-  attach: { marginTop: 10, alignSelf: 'flex-start' },
-  alert: { marginBottom: 10, padding: 10, borderRadius: 10, backgroundColor: '#FCE8E6', gap: 8 },
-  alertText: { color: '#A50E0E', fontSize: 13.5, lineHeight: 19 },
-  alertBtn: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, backgroundColor: colors.danger },
-  alertBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  estAuto: { backgroundColor: '#F6F7F9' },
+  estAutoValeur: { fontSize: 15, fontWeight: '700', color: colors.text },
+  estAutoSous: { fontSize: 12, color: colors.muted, marginTop: 2 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 6 },
   subCheck: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   subCheckOn: { backgroundColor: colors.success, borderColor: colors.success },

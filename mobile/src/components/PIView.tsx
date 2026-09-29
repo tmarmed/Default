@@ -2,7 +2,7 @@ import { ReactElement, ReactNode, useState } from 'react';
 import { Modal, Pressable, RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDays, parseDate, toDateString } from '../dates';
 import { domaineOf } from '../hierarchy';
-import { chargeOf, subtaskMap } from '../subtasks';
+import { chargeOf, estimationOf, subtaskMap } from '../subtasks';
 import { useHierarchy } from '../hierarchyContext';
 import { fmtPoints, iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piOf, piStart, pointsOf, shiftPi } from '../pi';
 import { capaciteDe, useSafe } from '../safe';
@@ -367,7 +367,7 @@ export function PIView({
                           >
                             <Text style={styles.blockText} numberOfLines={1}>
                               {done ? '✓ ' : ''}
-                              {pointsOf(t) ? fmt(pointsOf(t)) : t.date ? court(parseDate(t.date)) : '•'}
+                              {estimationOf(t, subs.get(t.id)).points ? fmt(estimationOf(t, subs.get(t.id)).points) : t.date ? court(parseDate(t.date)) : '•'}
                             </Text>
                           </Pressable>
                         ) : undefined,

@@ -30,7 +30,7 @@ import { inDomain, RechercheContext } from './src/components/DomainFilter';
 import { DomainesPrincipauxChips, DomainFilterContext, loadDomainFilter, saveDomainFilter, SousDomaineChips } from './src/components/DomainFilter';
 import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
-import { cascadeLinks, parentsLies, pointsCheck, subtaskMap } from './src/subtasks';
+import { cascadeLinks, parentsLies, subtaskMap } from './src/subtasks';
 import type { Alignement } from './src/alerts';
 import { type Action, type Check, checksDatesDomaine, checksParEcran, signaturesExistantes, situationDe } from './src/checks';
 import { AlertsCard, CheckActionContext, IgnoreContext, nbAlertes } from './src/components/AlertsCard';
@@ -777,7 +777,6 @@ function Main() {
                 sousTaches: showDone ? shown : shown.filter((k) => k.statut !== 'termine' || i.statut === 'termine'),
                 sousTotal: kids.length,
                 sousFaites: kids.filter((k) => k.statut === 'termine').length,
-                alertePoints: pointsCheck(i, kids).alerte,
               },
             ];
           })

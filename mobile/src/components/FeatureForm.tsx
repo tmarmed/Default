@@ -7,6 +7,7 @@ import { fmtPoints, iterationNom, piLabel, pointsOf } from '../pi';
 import { useSafe } from '../safe';
 import { colors } from '../theme';
 import type { Feature, FeatureInput, Item } from '../types';
+import { chargeOf, estimationOf, subtaskMap } from '../subtasks';
 import { DeleteSection } from './DeleteSection';
 import { ChildActions, Field, FormSheet, TitreFiche, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
 import { LiaisonOrg } from './LiaisonOrg';
@@ -98,7 +99,10 @@ export function FeatureForm({
     return k.length ? `  (${k.filter((t) => t.statut === 'termine').length}/${k.length})` : '';
   };
   const doneTasks = tasks.filter((t) => t.statut === 'termine');
-  const ptsTasks = tasks.reduce((n, t) => n + pointsOf(t), 0);
+  // Total des tâches : un parent ne compte pas en plus de ses sous-tâches
+  const subs = subtaskMap(tasks);
+  const ptsTasks = tasks.reduce((n, t) => n + chargeOf(t, subs), 0);
+  const estim = (t: Item) => estimationOf(t, subs.get(t.id)).points;
   const kids = feature ? childrenOf('feature', feature.id, h.data) : null;
   const epic = form.epic ? h.epics.get(form.epic) : undefined;
   // Tâches qu'on peut rattacher : ni répétées, ni terminées, pas déjà dans cette feature
@@ -253,7 +257,7 @@ export function FeatureForm({
           .map((t) => (
             <LigneEnfant
               key={t.id}
-              texte={`${t.statut === 'termine' ? '✓' : t.statut === 'en_cours' ? '▶' : '○'} ${t.titre}${sousTitre(t)}${pointsOf(t) ? ` · ${fmtPoints(pointsOf(t), safe.pointsJours)}` : ''}`}
+              texte={`${t.statut === 'termine' ? '✓' : t.statut === 'en_cours' ? '▶' : '○'} ${t.titre}${sousTitre(t)}${estim(t) ? ` · ${fmtPoints(estim(t), safe.pointsJours)}` : ''}`}
               onPress={() => onOpenTask(t)}
             />
           ))}

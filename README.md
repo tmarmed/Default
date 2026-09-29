@@ -181,8 +181,9 @@ conception :
   **Jour / Semaine / Mois** : une sous-tâche datée apparaît à sa date (« ↳ parent »). **Itération** : la carte
   du parent se déplie (sous-tâches d'une autre itération en gris), bouton « terminer » quand tout est fait.
   **Charge** : si les sous-tâches ont des points, ce sont elles qui comptent (dans leur itération) ; si
-  seules la tâche en a, la tâche l'emporte ; si les deux diffèrent, **alerte** dans la fiche (bouton
-  « Passer la tâche à … » et points modifiables sur chaque sous-tâche), ⚠ sur la ligne et dans l'Itération.
+  seule la tâche en a, la tâche l'emporte. **Estimation automatique** : dès qu'une sous-tâche a des points,
+  l'estimation de la tâche est leur total (« 5 j · Total des sous-tâches (2 + 3) »), toujours à jour, dans la
+  fiche, la liste, l'Itération et le PI ; rien à décider, donc plus d'alerte « parent ≠ sous-tâches ».
   Supprimer un parent : avec ses sous-tâches (case à cocher) ou en les gardant comme tâches normales.
 - 4 vues : **Liste** (En retard, Aujourd'hui, Demain, dates suivantes, Sans date), **Jour**, **Semaine**, **Mois**
 - Glisser le doigt à gauche / à droite pour passer au jour, à la semaine ou au mois suivant / précédent ;
