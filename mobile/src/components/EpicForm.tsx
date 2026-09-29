@@ -28,6 +28,7 @@ import { LinkPicker } from './LinkPicker';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 import { LiaisonOrg } from './LiaisonOrg';
+import { filTravail } from '../choixTravail';
 import { ChoiceSheet } from './ChoiceSheet';
 import { FeuilleMulti, LigneEnfant, ListeEnfants, SectionFiche } from './Choix';
 
@@ -197,6 +198,9 @@ export function EpicForm({
     }
   };
 
+  // Fil d'Ariane en haut : où est rangée l'epic
+  const fil = filTravail({ objectif: form.objectif, domaine: form.domaine }, h);
+
   // Où vont les tâches si l'epic est supprimée sans cascade
   const parentObj = form.objectif ? h.objectifs.get(form.objectif) : undefined;
   const parentDom = !parentObj && form.domaine ? h.domaines.get(form.domaine) : undefined;
@@ -210,7 +214,7 @@ export function EpicForm({
     <HierarchyContext.Provider value={h}>
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={[styles.header, !!pile?.chemin && { borderBottomWidth: 0, paddingBottom: 6 }]}>
+        <View style={[styles.header, (!!pile?.chemin || !!fil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
           <BoutonRetour pile={pile} onPress={onClose} disabled={busy} style={styles.headerBtn} />
           <Text style={styles.headerTitle}>{epic ? 'Epic' : 'Nouvelle epic'}</Text>
           <Pressable onPress={() => save()} hitSlop={10} disabled={busy}>
@@ -221,7 +225,7 @@ export function EpicForm({
             )}
           </Pressable>
         </View>
-        <CheminPile pile={pile} />
+        <CheminPile pile={pile} fil={fil} />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error && <Text style={styles.error}>{error}</Text>}

@@ -2,6 +2,22 @@ import type { AutresChoix, GroupeChoix, OptionChoix } from './components/Choix';
 import type { Domaine } from './types';
 import { iterationOf, iterationsOf, piLabel, piOf, shiftPi } from './pi';
 import { toDateString } from './dates';
+import { domaineOf, epicOf, objectifOf, type Hierarchy } from './hierarchy';
+
+/**
+ * Fil d'Ariane de l'élément principal d'une fiche : où il est rangé (« 💼 Pro › 🎯 Fidéliser les clients ›
+ * 🗂️ Application client › 🧩 Compte client mobile »), du plus large au plus précis. Vide s'il n'est rangé nulle part.
+ */
+export function filTravail(x: { feature?: string; epic?: string; objectif?: string; domaine?: string }, h: Hierarchy): string {
+  const f = x.feature ? h.features.get(x.feature) : undefined;
+  const e = epicOf(x, h);
+  const o = objectifOf(x, h);
+  const d = domaineOf(x, h);
+  const p = d?.parent ? h.domaines.get(d.parent) : undefined;
+  return [p ? `${p.icone} ${p.nom}` : '', d ? `${d.icone} ${d.nom}` : '', o ? `🎯 ${o.titre}` : '', e ? `🗂️ ${e.titre}` : '', f ? `🧩 ${f.titre}` : '']
+    .filter(Boolean)
+    .join(' › ');
+}
 
 /**
  * Listes des feuilles de choix (fiches de travail et Organisation) : le groupe du parent actuel d'abord, les

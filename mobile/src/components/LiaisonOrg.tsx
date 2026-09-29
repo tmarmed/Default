@@ -43,7 +43,6 @@ export function LiaisonOrg({
   const p = porteurs(valeurs, h, o);
   const feature = valeurs.feature ? h.features.get(valeurs.feature) : undefined;
   const nouveau = (kind: KindNouveau, champ: Champ, label: string) => (onNouveau ? { label, onPress: () => onNouveau(kind, champ) } : undefined);
-  const cheminOrg = [p.portfolio ? `💼 ${o.portfolio.get(p.portfolio)?.nom ?? '?'}` : '', p.train ? `🚆 ${o.train.get(p.train)?.nom ?? '?'}` : ''].filter(Boolean).join(' › ');
 
   const nbMembres = (id: string) => {
     const e = o.equipe.get(id);
@@ -86,7 +85,6 @@ export function LiaisonOrg({
           value={valeurs.train ?? ''}
           depart={initial?.train}
           attendu={attendu}
-          sous={p.portfolio ? `💼 ${o.portfolio.get(p.portfolio)?.nom ?? '?'}` : undefined}
           groupes={[{ options: o.trains.map((x) => ({ value: x.id, label: `🚆 ${x.nom}` })) }]}
           nouveau={nouveau('train', 'train', 'Nouveau train')}
           sans="Sans train"
@@ -123,7 +121,6 @@ export function LiaisonOrg({
         depart={initial?.equipe}
         attendu={equipeAttendue}
         vide={feature?.equipe ? `Celle de la feature : 👥 ${o.equipe.get(feature.equipe)?.nom ?? '?'}` : undefined}
-        sous={cheminOrg || undefined}
         {...listeEquipes(trainFeature || (valeurs.equipe ? o.equipe.get(valeurs.equipe)?.train : undefined) || undefined)}
         nouveau={nouveau('equipeagile', 'equipe', 'Nouvelle équipe')}
         sans={feature?.equipe ? 'Celle de la feature' : 'Sans équipe'}

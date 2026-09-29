@@ -12,7 +12,7 @@ import { ChildActions, Field, FormSheet, formStyles as f, type Injection, Label,
 import { LiaisonOrg } from './LiaisonOrg';
 import { ChoiceSheet } from './ChoiceSheet';
 import { FeuilleMulti, LigneChoix, LigneEnfant, SectionFiche } from './Choix';
-import { listeEpics, listeIterations, listePI } from '../choixTravail';
+import { filTravail, listeEpics, listeIterations, listePI } from '../choixTravail';
 
 interface Props {
   visible: boolean;
@@ -100,12 +100,6 @@ export function FeatureForm({
   const ptsTasks = tasks.reduce((n, t) => n + pointsOf(t), 0);
   const kids = feature ? childrenOf('feature', feature.id, h.data) : null;
   const epic = form.epic ? h.epics.get(form.epic) : undefined;
-  // Chemin de l'epic (« 💼 Pro › 🎯 Fidéliser les clients »)
-  const cheminEpic = (() => {
-    const o = form.epic ? objectifOf({ epic: form.epic }, h) : undefined;
-    const d = form.epic ? domaineOf({ epic: form.epic }, h) : undefined;
-    return [d ? `${d.icone} ${d.nom}` : '', o ? `🎯 ${o.titre}` : ''].filter(Boolean).join(' › ');
-  })();
   // Tâches qu'on peut rattacher : ni répétées, ni terminées, pas déjà dans cette feature
   const candidats = h.items
     // Les sous-tâches suivent leur parent : on ne les rattache pas seules
@@ -159,6 +153,7 @@ export function FeatureForm({
       onClose={onClose}
       onSave={() => save()}
       retour={pile?.retour}
+      fil={filTravail({ epic: form.epic }, h)}
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}
     >
@@ -189,7 +184,6 @@ export function FeatureForm({
           depart={feature?.epic}
           parent
           attendu={safe.actif}
-          sous={cheminEpic || undefined}
           {...listeEpics(h, form.epic || feature?.epic)}
           nouveau={
             onNouvelleEpic

@@ -38,6 +38,8 @@ interface Props {
   retour?: string | string[];
   chemin?: string;
   onFermerTout?: () => void;
+  /** Où est rangé l'élément de la fiche (fil d'Ariane en haut) */
+  fil?: string;
 }
 
 /** Pile de fiches : fiche d'en dessous (« ‹ … »), fil en haut, tout fermer */
@@ -54,15 +56,17 @@ export interface Injection {
 }
 
 /**
- * Fil d'Ariane discret d'une pile de fiches : petite ligne grise sous le titre (« Pro › Fidéliser les clients »),
- * et un ✕ gris pour fermer toutes les fiches (avec confirmation).
+ * Fil d'Ariane discret, seulement pour l'élément principal de la fiche : petite ligne grise sous le titre (« Pro ›
+ * Fidéliser les clients › Application client ») ; dans une pile, un ✕ gris pour fermer toutes les fiches.
  */
-export function CheminPile({ pile, disabled }: { pile?: PileProps; disabled?: boolean }) {
-  if (!pile?.chemin) return null;
+export function CheminPile({ pile, fil, disabled }: { pile?: PileProps; fil?: string; disabled?: boolean }) {
+  // Le fil montre où est rangé l'élément de la fiche ; à défaut, les fiches de la pile
+  const texte = fil || pile?.chemin;
+  if (!texte && !pile?.onFermerTout) return null;
   return (
     <View style={styles.chemin}>
-      <Text style={styles.cheminTexte}>{pile.chemin}</Text>
-      {pile.onFermerTout && (
+      <Text style={styles.cheminTexte}>{texte}</Text>
+      {pile?.onFermerTout && (
         <Pressable onPress={pile.onFermerTout} hitSlop={10} disabled={disabled} accessibilityRole="button" accessibilityLabel="Fermer toutes les fiches">
           <Text style={styles.fermerTout}>✕</Text>
         </Pressable>
@@ -87,11 +91,11 @@ export function BoutonRetour({ pile, onPress, disabled, style }: { pile?: PilePr
 }
 
 /** Fenêtre de formulaire : Annuler / titre / Enregistrer, message d'erreur, contenu défilant. */
-export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout }: Props) {
+export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil }: Props) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={[styles.header, !!chemin && styles.headerAvecFil]}>
+        <View style={[styles.header, (!!chemin || !!fil) && styles.headerAvecFil]}>
           <Pressable
             onPress={onClose}
             hitSlop={10}
@@ -111,7 +115,7 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
             <View style={{ width: 60, alignItems: 'flex-end' }}>{busy && <ActivityIndicator color={colors.primary} />}</View>
           )}
         </View>
-        <CheminPile pile={chemin ? { chemin, onFermerTout } : undefined} disabled={busy} />
+        <CheminPile pile={chemin || onFermerTout ? { chemin, onFermerTout } : undefined} fil={fil} disabled={busy} />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error && <Text style={styles.error}>{error}</Text>}

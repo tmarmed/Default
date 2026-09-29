@@ -64,14 +64,6 @@ export function LinkPicker({ levels, value, onChange, onNouveau, initial, attend
   const estAttendu = (l: Niveau) => (attendu === 'un' ? vide : attendu === l && !cur[l]);
   const aDefinir = attendu === 'un' ? (vide ? 1 : 0) : attendu && !cur[attendu] && visibles.includes(attendu) ? 1 : 0;
 
-  // Chemin au-dessus du niveau choisi (« 💼 Pro › 🎯 Fidéliser les clients › 🗂️ Application client »)
-  const chemin = (l: Niveau) => {
-    const x = { [l]: cur[l] } as Links;
-    const e = l === 'feature' ? epicOf(x, h) : undefined;
-    const o = l === 'feature' || l === 'epic' ? objectifOf(x, h) : undefined;
-    const d = l !== 'domaine' ? domaineOf(x, h) : undefined;
-    return [d ? `${d.icone} ${d.nom}` : '', o ? `🎯 ${o.titre}` : '', e ? `🗂️ ${e.titre}` : ''].filter(Boolean).join(' › ');
-  };
   // Nouveau parent : sous le même grand-parent que le parent actuel (ex. une feature dans la même epic)
   const defauts = (l: Niveau): Links => {
     const ref = { [l]: cur[l] || ini[l] } as Links;
@@ -109,7 +101,6 @@ export function LinkPicker({ levels, value, onChange, onNouveau, initial, attend
             changement={deplace && l === (choisi ?? visibles[0]) ? { avant: nomIni, annuler: () => onChange({ feature: '', epic: '', objectif: '', domaine: '', ...initial }) } : undefined}
             parent
             attendu={estAttendu(l)}
-            sous={l === choisi ? chemin(l) || undefined : undefined}
             groupes={groupes}
             autres={autres}
             nouveau={onNouveau ? { label: NOUVEAU[l], onPress: () => onNouveau(l, defauts(l)) } : undefined}

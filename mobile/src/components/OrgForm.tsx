@@ -264,6 +264,31 @@ export function OrgForm({
 
   const membres = membresDe({ membres: form.membres ?? '' });
 
+  // Fil d'Ariane en haut : où est rangé l'élément (services au-dessus ; portfolio › train)
+  const chaineUnites = (u: string) => {
+    const l: string[] = [];
+    const vus = new Set<string>();
+    for (let x = org.unite.get(u); x && !vus.has(x.id); x = x.parent ? org.unite.get(x.parent) : undefined) {
+      vus.add(x.id);
+      l.unshift(nomUnite(x.id));
+    }
+    return l;
+  };
+  const trainFil = kind === 'equipeagile' && form.train ? org.train.get(form.train) : undefined;
+  const fil = (
+    kind === 'personne'
+      ? chaineUnites(form.unite)
+      : kind === 'unite'
+        ? chaineUnites(form.parent)
+        : kind === 'train'
+          ? [form.portfolio ? `💼 ${org.portfolio.get(form.portfolio)?.nom ?? '?'}` : '']
+          : kind === 'equipeagile'
+            ? [trainFil?.portfolio ? `💼 ${org.portfolio.get(trainFil.portfolio)?.nom ?? '?'}` : '', trainFil ? `🚆 ${trainFil.nom}` : '']
+            : []
+  )
+    .filter(Boolean)
+    .join(' › ');
+
   // Ce que la suppression change (rien d'autre n'est supprimé)
   const consequence: Record<KindOrg, string> = {
     personne: 'ses rôles, son rattachement de manager et ses équipes sont vidés ; ses tâches restent, sans responsable',
@@ -282,6 +307,7 @@ export function OrgForm({
       onClose={onClose}
       onSave={() => save()}
       retour={pile?.retour}
+      fil={fil}
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}
     >

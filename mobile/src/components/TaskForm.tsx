@@ -42,6 +42,7 @@ import { fmtPoints } from '../pi';
 import { canHaveSubtasks, PARENT_TYPES, pointsCheck, subtaskMap } from '../subtasks';
 import { LigneChoix, LigneFiche, SectionFiche } from './Choix';
 import { listeIterations } from '../choixTravail';
+import { filTravail } from '../choixTravail';
 import { LiaisonOrg } from './LiaisonOrg';
 import { BoutonRetour, CheminPile, type Injection, type PileProps } from './FormSheet';
 
@@ -242,6 +243,9 @@ export function TaskForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, item]);
 
+  // Fil d'Ariane en haut : où est rangée la tâche (sa tâche parente, sinon feature › epic › objectif › domaine)
+  const fil = parentItem ? [filTravail(parentItem, h), `${TYPE_ICONS[parentItem.type]} ${parentItem.titre}`].filter(Boolean).join(' › ') : filTravail(form, h);
+
   /** Tâche parente choisie (une sous-tâche a le rangement de son parent) ; vide : redevient une tâche principale */
   const choisirParent = (id: string) => {
     if (!id) return setForm((f) => ({ ...f, parent: '' }));
@@ -336,7 +340,7 @@ export function TaskForm({
     <HierarchyContext.Provider value={h}>
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={[styles.header, !!pile?.chemin && { borderBottomWidth: 0, paddingBottom: 6 }]}>
+        <View style={[styles.header, (!!pile?.chemin || !!fil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
           <BoutonRetour pile={pile} onPress={onClose} disabled={busy} style={styles.headerBtn} />
           <Text style={styles.headerTitle}>{item ? TYPE_LABELS[form.type] : 'Nouvelle tâche'}</Text>
           <Pressable onPress={save} hitSlop={10} disabled={busy}>
@@ -347,7 +351,7 @@ export function TaskForm({
             )}
           </Pressable>
         </View>
-        <CheminPile pile={pile} />
+        <CheminPile pile={pile} fil={fil} />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error && <Text style={styles.error}>{error}</Text>}

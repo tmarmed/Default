@@ -12,6 +12,7 @@ import { DeleteSection } from './DeleteSection';
 import { AlertList, ColorPicker, Field, FormSheet, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { ListeEnfants } from './Choix';
+import { filTravail } from '../choixTravail';
 import { useSafe } from '../safe';
 import { View } from 'react-native';
 
@@ -124,6 +125,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
       onClose={onClose}
       onSave={() => save()}
       retour={pile?.retour}
+      fil={filTravail({ domaine: form.domaine }, h)}
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}
     >

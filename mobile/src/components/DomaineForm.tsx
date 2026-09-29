@@ -87,6 +87,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
       onClose={onClose}
       onSave={() => save()}
       retour={pile?.retour}
+      fil={form.parent && h.domaines.get(form.parent) ? `${h.domaines.get(form.parent)!.icone} ${h.domaines.get(form.parent)!.nom}` : undefined}
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}
     >
