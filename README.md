@@ -49,9 +49,6 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   propose « ＋ Vers une nouvelle feature / epic… » (créée sous le même grand-parent), sinon « ＋ Nouvelle … » ; une
   tâche d'une feature ne voit que les features de la même epic (« Voir les features des autres epics »). Même chose
   dans l'Organisation (service, unité au-dessus, portfolio d'un train, train d'une équipe).
-  **Assistant projet**, même logique : « ＋ Objectif / Epic / Feature / Tâche » sous chaque élément passe à l'étape
-  suivante avec l'élément créé, « ＋ Nouveau … » dans Déplacer crée le parent, « ‹ Revenir à … » ramène à l'étape
-  d'origine ; Fermer demande confirmation s'il y a des changements.
   À venir (étapes 2 et 3) : Google Sheet par équipe créé et partagé automatiquement d'après les rôles, onglet par
   personne, « Autoriser » à la connexion, attribution et registre des attributions. Vérifié par
   `npm run verif:organisation` et `npm run verif:sheets`.
@@ -267,7 +264,7 @@ conception :
   On change de PI avec les flèches (le tableau ne bascule pas de PI quand on le fait glisser). Dans la fiche d'une feature, même nouvelle : **+ Nouvelle tâche**
   (titre + Entrée) ou **+ Tâche existante** (recherche) ; pour une nouvelle feature, elles sont rattachées à
   l'enregistrement.
-- **🚀 Assistant projet** (modes Simple et SAFe ; bouton +, fiches « Ouvrir dans l'assistant », écrans vides) :
+- **🚀 Assistant projet** — retiré des écrans (remplacé par la pile de fiches) ; il reviendra comme « Plan » sur tous les écrans (Mission, lot 16). Code gardé :
   crée un **nouveau projet** (en partant de zéro ou d'un domaine / objectif existant) ou **complète / modifie**
   un projet existant en entrant au niveau voulu (domaine, objectif, epic, feature). Étape par étape :
   ajouter (titre + Entrée), modifier (✎ dates, état, PI, itération, points), **déplacer** (↪ ce qui est

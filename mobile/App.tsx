@@ -1999,7 +1999,6 @@ function Main() {
             saveEntity('epic', e, { etat }).catch((err) => setNotice(`Epic non déplacée : ${(err as Error).message}`))
           }
           onShowAlerts={() => setTab('roadmap')}
-          onOpenWizard={() => openWizard(null)}
           refreshControl={refreshControl}
         />
       )}
@@ -2017,7 +2016,6 @@ function Main() {
           onFixObjectif={(o, p) => fixEntity('objectif', o, p)}
           onAlign={alignChild}
           refreshControl={refreshControl}
-          onOpenWizard={() => openWizard(null)}
         />
       )}
 
@@ -2248,7 +2246,6 @@ function Main() {
         onNouveau={(n, d) => nouveauTravail(n, editingEpic?.espace || epicDefaults?.espace || visibles[0] || 'moi', d)}
         onOpenFeature={(f) => openFeature(f)}
         onNouveauOrg={(espace) => nouveauOrgPour('epic', 'portfolio', 'portfolio', espace)}
-        onOpenWizard={(e) => openWizard({ level: 'epic', id: e.id })}
         onAlign={alignChild}
       />
       <ObjectifForm
@@ -2269,7 +2266,6 @@ function Main() {
         pile={pileDe('objectif')}
         injection={injectionDe('objectif')}
         onNouveauDomaine={() => nouveauTravail('domaine', editingObjectif?.espace || objDefaults?.espace || visibles[0] || 'moi')}
-        onOpenWizard={(o) => openWizard({ level: 'objectif', id: o.id })}
         onAlign={alignChild}
       />
 
@@ -2289,7 +2285,6 @@ function Main() {
         onOpenObjectif={(o) => openObjectif(o)}
         onAddObjectif={(d) => openObjectif(null, { domaine: d.id })}
         pile={pileDe('domaine')}
-        onOpenWizard={(d) => openWizard({ level: 'domaine', id: d.id })}
       />
 
       <FeatureForm
@@ -2322,7 +2317,6 @@ function Main() {
         onAddTask={(x) => openNewTask({ feature: x.id, ...(x.iteration ? { iteration: x.iteration } : {}) })}
         onNouveauOrg={(k, champ, espace) => nouveauOrgPour('feature', k, champ, espace)}
         onQuickAddTask={quickAddTask}
-        onOpenWizard={(f) => openWizard({ level: 'feature', id: f.id })}
       />
 
       <ChoiceSheet
@@ -2471,7 +2465,6 @@ function Main() {
             <Text style={styles.menuTitle}>Ajouter</Text>
             {(
               [
-                ['🚀', 'Assistant projet', 'Créer ou modifier un projet, niveau par niveau', () => openWizard(null)],
                 ['🗂️', 'Une epic', 'Un projet daté, avec ses tâches', () => openEpic(null, preselection())],
                 ...(safe.actif
                   ? ([['🧩', 'Une feature', 'Une partie d’epic (sous-epic), prévue dans un PI', () => {
