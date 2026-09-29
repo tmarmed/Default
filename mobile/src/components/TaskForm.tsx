@@ -42,8 +42,7 @@ import { fmtPoints } from '../pi';
 import { canHaveSubtasks, PARENT_TYPES, pointsCheck, subtaskMap } from '../subtasks';
 import { ChoiceSheet } from './ChoiceSheet';
 import { FeuilleMulti, LigneChoix, LigneEnfant, LigneFiche, SectionFiche } from './Choix';
-import { listeIterations } from '../choixTravail';
-import { filTravail } from '../choixTravail';
+import { filTravail, listeIterations, listeTaches } from '../choixTravail';
 import { LiaisonOrg } from './LiaisonOrg';
 import { useEspaceFil } from './EspaceChoix';
 import { BoutonRetour, CheminPile, TitreBarre, TitreFiche, type Injection, type PileProps } from './FormSheet';
@@ -225,14 +224,17 @@ export function TaskForm({
   // Rendez-vous, appel : pas d'« En cours » (sauf s'il l'est déjà)
   const statuts = STATUTS.filter((o) => o.value !== 'en_cours' || !sansEnCours(form.type) || form.statut === 'en_cours');
   // Parents possibles pour rattacher cette tâche
-  const parentsPossibles = h.items
-    .filter((t) => canHaveSubtasks(t) && t.id !== item?.id)
-    .map((t) => ({ id: t.id, title: `${TYPE_ICONS[t.type]} ${t.titre}`, sub: TYPE_LABELS[t.type] }));
+  const parentsPossibles = h.items.filter((t) => canHaveSubtasks(t) && t.id !== item?.id);
+  // Feuille « Tâche parente » : les parents de la même feature (ou epic) d'abord, les autres repliés
+  const listeParents = listeTaches(parentsPossibles, h, parentItem ?? form, (x) => TYPE_ICONS[h.items.find((t) => t.id === x.id)!.type]);
   // Tâches qu'on peut ranger comme sous-tâches : principales, sans sous-tâches, ni répétées ni terminées
   const aDesEnfants = new Set(h.items.map((t) => t.parent).filter(Boolean));
-  const candidatsSous = h.items
-    .filter((t) => t.id !== item?.id && !t.parent && !t.periodicite && t.statut !== 'termine' && !aDesEnfants.has(t.id) && !rangees.includes(t.id))
-    .map((t) => ({ value: t.id, label: `${TYPE_ICONS[t.type]} ${t.titre}`, meta: filTravail(t, h) || 'non rangée' }));
+  const candidatsSous = listeTaches(
+    h.items.filter((t) => t.id !== item?.id && !t.parent && !t.periodicite && t.statut !== 'termine' && !aDesEnfants.has(t.id) && !rangees.includes(t.id)),
+    h,
+    form,
+    (x) => TYPE_ICONS[h.items.find((t) => t.id === x.id)!.type],
+  );
   // Tâches : toutes les affectations sont facultatives (rien en orange)
   const featureCourante = form.feature ? h.features.get(form.feature) : undefined;
 
@@ -499,7 +501,7 @@ export function TaskForm({
                   value={form.parent}
                   depart={item?.parent}
                   parent
-                  groupes={[{ options: parentsPossibles.map((p) => ({ value: p.id, label: p.title })) }]}
+                  {...listeParents}
                   libelle={() => `${TYPE_ICONS[parentItem.type]} ${parentItem.titre}`}
                   sous="Même rangement que la tâche parente"
                   sans="Aucune (tâche principale)"
@@ -529,7 +531,7 @@ export function TaskForm({
                     value=""
                     depart={item?.parent}
                     parent
-                    groupes={[{ options: parentsPossibles.map((p) => ({ value: p.id, label: p.title })) }]}
+                    {...listeParents}
                     vide="Aucune (tâche principale)"
                     onChange={choisirParent}
                   />
@@ -699,7 +701,7 @@ export function TaskForm({
                 {rangerOuvert && (
                   <FeuilleMulti
                     titre="Ranger sous cette tâche"
-                    groupes={[{ titre: 'Tâches principales', options: candidatsSous }]}
+                    {...candidatsSous}
                     selection={[]}
                     vide="Aucune tâche à ranger."
                     libelleValider={(n) => (n ? `Ranger ${n} tâche${n > 1 ? 's' : ''}` : 'Ranger')}

@@ -115,6 +115,32 @@ export function listeObjectifs(h: H, ref?: string, domainePrefere?: string): Lis
   );
 }
 
+/**
+ * Tâches rangées par feature (sinon par epic) : le groupe de `ref` (la tâche de la fiche) d'abord, les autres
+ * repliés dans « Rangées ailleurs » — même règle que les features, epics, équipes…
+ */
+export function listeTaches(
+  items: { id: string; titre: string; feature: string; epic: string; date?: string; iteration?: string }[],
+  h: H,
+  ref: { feature?: string; epic?: string } | undefined,
+  icone: (x: { id: string }) => string,
+): Listes {
+  const cle = (x: { feature?: string; epic?: string }) => (x.feature ? `f:${x.feature}` : x.epic ? `e:${x.epic}` : '');
+  const titreF = (id: string) => (h.featureList.find((f) => f.id === id)?.titre ?? '?');
+  return grouper(
+    items,
+    cle,
+    (k) => (k.startsWith('f:') ? `🧩 ${titreF(k.slice(2))}` : k.startsWith('e:') ? `🗂️ ${h.epics.get(k.slice(2))?.titre ?? '?'}` : 'Non rangées'),
+    (x) => ({
+      value: x.id,
+      label: `${icone(x)} ${x.titre}`,
+      meta: x.date ? `${x.date.slice(8)}/${x.date.slice(5, 7)}` : x.iteration ? x.iteration.split('-').pop() : undefined,
+    }),
+    ref ? cle(ref) : undefined,
+    'Rangées ailleurs',
+  );
+}
+
 /** Domaines : les principaux, chacun suivi de ses sous-domaines (en retrait) ; `sauf` : exclus (lui-même…) */
 export function listeDomaines(h: H, sauf: string[] = [], principauxSeulement = false): Listes {
   const principaux = h.domaineList.filter((d) => (!d.parent || !h.domaines.has(d.parent)) && !sauf.includes(d.id));

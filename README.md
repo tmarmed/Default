@@ -61,6 +61,8 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   par-dessus) ou « ↘ Ranger … existante » (cases à cocher, ceux d'un autre parent repliés) ; rangés à
   l'enregistrement, avec la pastille « ajoutée » / « déplacée ». Même ＋ rond dans l'arbre de l'Organisation (à droite
   d'une unité, d'un portfolio, d'un train, et des titres de section) à la place des liens « ＋ … ». « Sans … » : le
+  Feuilles de tâches (tâche parente, ranger une sous-tâche) : rangées par feature (sinon epic), celles de la même
+  feature d'abord, les autres repliées dans « Rangées ailleurs », comme partout. « Sans … » : le
   même libellé que la valeur vide (« Aucune (tâche principale) », « Aucun (domaine principal) »).
 - **En-tête des fiches** : « Annuler » à gauche, un seul fil d'Ariane (où est rangé l'élément) en petite ligne grise
   sous le titre, ✕ gris pour fermer toutes les fiches (confirmation courte) ; entre Annuler et Enregistrer, le type

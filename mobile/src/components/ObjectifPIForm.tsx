@@ -8,7 +8,7 @@ import type { ObjectifPI, ObjectifPIInput } from '../types';
 import { colors } from '../theme';
 import { Chips } from './Chips';
 import { LigneChoix, SectionFiche } from './Choix';
-import { listeDomaines } from '../choixTravail';
+import { listeDomaines, listeEpics } from '../choixTravail';
 import { DeleteSection } from './DeleteSection';
 import { Field, FormSheet, formStyles as f, Label, TitreFiche } from './FormSheet';
 
@@ -108,7 +108,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
           value={form.epic}
           depart={objectif?.epic || undefined}
           parent
-          groupes={[{ options: epics.map((e) => ({ value: e.id, label: `🗂️ ${e.titre}` })) }]}
+          {...listeEpics({ ...h, epicList: epics }, form.epic || objectif?.epic || undefined)}
           libelle={(v) => `🗂️ ${h.epics.get(v)?.titre ?? '?'}`}
           sous="Porté par les features et les tâches de cette epic prévues dans le PI"
           sans="Sans epic"
