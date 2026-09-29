@@ -36,12 +36,12 @@ import { LinkPicker } from './LinkPicker';
 import { filtrerEspace, HierarchyContext, useHierarchy } from '../hierarchyContext';
 import { espaceParId, ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces';
 import { useSafe } from '../safe';
-import { iterationByKey, iterationNom, iterationOf, shiftIteration } from '../pi';
-import { toDateString } from '../dates';
+import { iterationByKey, iterationNom, iterationOf } from '../pi';
 import { callNumber } from '../phone';
 import { fmtPoints } from '../pi';
 import { canHaveSubtasks, PARENT_TYPES, pointsCheck, subtaskMap } from '../subtasks';
-import { ItemPicker } from './ItemPicker';
+import { LigneChoix, LigneFiche, SectionFiche } from './Choix';
+import { listeIterations } from '../choixTravail';
 import { LiaisonOrg } from './LiaisonOrg';
 import { BoutonRetour, CheminPile, type Injection, type PileProps } from './FormSheet';
 
@@ -191,7 +191,6 @@ export function TaskForm({
   const [cascadeDel, setCascadeDel] = useState(false);
   const [nouvelles, setNouvelles] = useState<string[]>([]);
   const [quick, setQuick] = useState('');
-  const [picking, setPicking] = useState(false);
   /** Passée à « Terminé » avec des sous-tâches ouvertes : les terminer aussi ? (null = pas encore répondu) */
   const [terminerSous, setTerminerSous] = useState<boolean | null>(null);
   const enfants = item ? (subtaskMap(h.items).get(item.id) ?? []) : [];
@@ -206,14 +205,11 @@ export function TaskForm({
   const statuts = STATUTS.filter((o) => o.value !== 'en_cours' || !sansEnCours(form.type) || form.statut === 'en_cours');
   // Parents possibles pour rattacher cette tâche
   const parentsPossibles = h.items
-    .filter((t) => canHaveSubtasks(t) && t.id !== item?.id && t.id !== form.parent)
+    .filter((t) => canHaveSubtasks(t) && t.id !== item?.id)
     .map((t) => ({ id: t.id, title: `${TYPE_ICONS[t.type]} ${t.titre}`, sub: TYPE_LABELS[t.type] }));
-  // Itérations proposées pour une tâche sans date : la courante et les 5 suivantes
-  const itCourante = iterationOf(toDateString(new Date())).key;
-  const itOptions = [0, 1, 2, 3, 4, 5].map((n) => {
-    const key = n ? shiftIteration(itCourante, n) : itCourante;
-    return { value: key, label: iterationNom(key) };
-  });
+  // Affectations attendues (SAFe) : une story, un bug, une exploration ont leur feature, leur équipe, leur responsable
+  const attendu = safe.actif && (form.type === 'story' || form.type === 'bug' || form.type === 'exploration');
+  const featureCourante = form.feature ? h.features.get(form.feature) : undefined;
 
   // Élément créé dans une fiche du dessus : choisi ici (rattachement : seulement le plus précis)
   useEffect(() => {
@@ -240,12 +236,19 @@ export function TaskForm({
       setCascadeDel(false);
       setNouvelles([]);
       setQuick('');
-      setPicking(false);
       setTerminerSous(null);
     }
     // Réinitialiser seulement à l'ouverture, pas si la date affichée change derrière.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, item]);
+
+  /** Tâche parente choisie (une sous-tâche a le rangement de son parent) ; vide : redevient une tâche principale */
+  const choisirParent = (id: string) => {
+    if (!id) return setForm((f) => ({ ...f, parent: '' }));
+    const p = h.items.find((t) => t.id === id);
+    if (!p) return;
+    setForm((f) => ({ ...f, parent: id, feature: p.feature, epic: p.epic, objectif: p.objectif, domaine: p.domaine }));
+  };
 
   const set = <K extends keyof ItemInput>(key: K, value: ItemInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -333,9 +336,9 @@ export function TaskForm({
     <HierarchyContext.Provider value={h}>
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.header}>
+        <View style={[styles.header, !!pile?.chemin && { borderBottomWidth: 0, paddingBottom: 6 }]}>
           <BoutonRetour pile={pile} onPress={onClose} disabled={busy} style={styles.headerBtn} />
-          <Text style={styles.headerTitle}>{item ? 'Tâche' : 'Nouvelle tâche'}</Text>
+          <Text style={styles.headerTitle}>{item ? TYPE_LABELS[form.type] : 'Nouvelle tâche'}</Text>
           <Pressable onPress={save} hitSlop={10} disabled={busy}>
             {busy ? (
               <ActivityIndicator color={colors.primary} />
@@ -359,64 +362,25 @@ export function TaskForm({
             />
 
             {plusieursEspaces && (
-              <>
-                <Text style={styles.label}>Espace de travail</Text>
-                {item ? (
-                  <Text style={styles.hint}>
-                    {(() => {
-                      const e = espaceParId(esp.liste, espace);
-                      return e ? `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` : espace;
-                    })()}
-                  </Text>
-                ) : (
-                  <Chips
-                    options={esp.liste
-                      .filter((e) => esp.visibles.includes(e.id) || e.id === espace)
-                      .map((e) => ({ value: e.id, label: `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` }))}
-                    value={espace}
-                    onChange={choisirEspace}
-                    compact
-                    wrap
-                  />
-                )}
-              </>
-            )}
-
-            {parentItem && (
-              <View style={styles.parentBox}>
-                <Pressable style={{ flex: 1 }} onPress={() => onOpenTask?.(parentItem)} disabled={!onOpenTask || !item} accessibilityRole="button">
-                  <Text style={styles.parentText} numberOfLines={2}>
-                    ↳ Sous-tâche de {TYPE_ICONS[parentItem.type]} « {parentItem.titre} »
-                  </Text>
-                  <Text style={styles.hint}>Même rangement que la tâche parente.</Text>
-                </Pressable>
-                <Pressable onPress={() => set('parent', '')} hitSlop={6} accessibilityRole="button">
-                  <Text style={styles.linkText}>Détacher</Text>
-                </Pressable>
-              </View>
-            )}
-            {!enfants.length && !nouvelles.length && !form.periodicite && (
-              <>
-                <Pressable onPress={() => setPicking((v) => !v)} hitSlop={6} style={styles.attach} accessibilityRole="button">
-                  <Text style={styles.linkText}>
-                    {picking ? '▾ Fermer' : form.parent ? '↪ Changer de tâche parente' : '↳ Faire de cette tâche une sous-tâche'}
-                  </Text>
-                </Pressable>
-                {picking && (
-                  <ItemPicker
-                    options={parentsPossibles}
-                    empty="Aucune story, démarche, mission ou exploration."
-                    maxHeight={240}
-                    onPick={(id) => {
-                      const p = h.items.find((t) => t.id === id);
-                      if (!p) return;
-                      // Une sous-tâche a le rangement de son parent
-                      setForm((f) => ({ ...f, parent: id, feature: p.feature, epic: p.epic, objectif: p.objectif, domaine: p.domaine }));
-                      setPicking(false);
-                    }}
-                  />
-                )}
-              </>
+              <SectionFiche titre="Espace de travail">
+                <LigneChoix
+                  label="Espace"
+                  value={espace}
+                  fige={!!item}
+                  groupes={[
+                    {
+                      options: esp.liste
+                        .filter((e) => esp.visibles.includes(e.id) || e.id === espace)
+                        .map((e) => ({ value: e.id, label: `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` })),
+                    },
+                  ]}
+                  libelle={(v) => {
+                    const e = espaceParId(esp.liste, v);
+                    return e ? `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` : v;
+                  }}
+                  onChange={(v) => v && choisirEspace(v)}
+                />
+              </SectionFiche>
             )}
 
             <Text style={styles.label}>Type</Text>
@@ -498,6 +462,60 @@ export function TaskForm({
               </>
             )}
 
+            {form.parent && parentItem ? (
+              <SectionFiche titre="Rattachement">
+                <LigneChoix
+                  label="Tâche parente"
+                  value={form.parent}
+                  depart={item?.parent}
+                  parent
+                  groupes={[{ options: parentsPossibles.map((p) => ({ value: p.id, label: p.title })) }]}
+                  libelle={() => `${TYPE_ICONS[parentItem.type]} ${parentItem.titre}`}
+                  sous="Même rangement que la tâche parente"
+                  sans="Pas une sous-tâche"
+                  onChange={choisirParent}
+                />
+              </SectionFiche>
+            ) : (
+              <LinkPicker
+                levels={safe.actif ? ['feature', 'epic', 'objectif', 'domaine'] : ['epic', 'objectif', 'domaine']}
+                value={form}
+                attendu={attendu ? 'feature' : undefined}
+                onChange={(patch) =>
+                  setForm((f) => {
+                    const next = { ...f, ...patch };
+                    // Tâche sans date rangée dans une feature : elle prend l'itération prévue de la feature
+                    const feat = patch.feature ? h.features.get(patch.feature) : undefined;
+                    if (feat?.iteration && !next.date && !next.periodicite && !f.iteration) next.iteration = feat.iteration;
+                    return next;
+                  })
+                }
+                onNouveau={onNouveau ? (n, d) => onNouveau(n, espace, d) : undefined}
+                initial={item ? { feature: item.feature, epic: item.epic, objectif: item.objectif, domaine: item.domaine } : undefined}
+              >
+                {/* Faire de cette tâche une sous-tâche (pas si elle a des sous-tâches ou se répète) */}
+                {!enfants.length && !nouvelles.length && !form.periodicite && parentsPossibles.length > 0 && (
+                  <LigneChoix
+                    label="Tâche parente"
+                    value=""
+                    depart={item?.parent}
+                    parent
+                    groupes={[{ options: parentsPossibles.map((p) => ({ value: p.id, label: p.title })) }]}
+                    vide="Aucune (tâche principale)"
+                    onChange={choisirParent}
+                  />
+                )}
+              </LinkPicker>
+            )}
+            <LiaisonOrg
+              espace={espace}
+              niveau="item"
+              valeurs={{ equipe: form.equipe, responsable: form.responsable, feature: form.feature, epic: form.epic }}
+              initial={item ? { equipe: item.equipe, responsable: item.responsable } : undefined}
+              attendu={attendu}
+              onChange={(p) => setForm((f) => ({ ...f, ...p }))}
+              onNouveau={onNouveauOrg ? (k, champ) => (k === 'equipeagile' || k === 'personne') && (champ === 'equipe' || champ === 'responsable') && onNouveauOrg(k, champ, espace) : undefined}
+            />
             {safe.actif && (
               <>
                 <Text style={styles.label}>{safe.pointsJours ? 'Points (jours)' : 'Points'}</Text>
@@ -509,25 +527,23 @@ export function TaskForm({
                   onChangeText={(v) => set('points', v.replace(/[^0-9.,]/g, ''))}
                   keyboardType="decimal-pad"
                 />
-                {!form.periodicite &&
-                  (form.date ? (
-                    <Text style={styles.hint}>Itération : {iterationOf(form.date).label} (d'après la date)</Text>
-                  ) : (
-                    <>
-                      <Text style={styles.label}>Itération</Text>
-                      <Chips
-                        options={[
-                          { value: '', label: 'Aucune' },
-                          ...itOptions,
-                          ...(form.iteration && !itOptions.some((o) => o.value === form.iteration)
-                            ? [{ value: form.iteration, label: iterationNom(form.iteration) }]
-                            : []),
-                        ]}
+                {!form.periodicite && (
+                  <SectionFiche titre="Planification">
+                    {form.date ? (
+                      <LigneFiche label="Itération" valeur={iterationOf(form.date).label} sous="D'après la date de la tâche" />
+                    ) : (
+                      <LigneChoix
+                        label="Itération"
                         value={form.iteration}
+                        depart={item?.iteration}
+                        {...listeIterations(featureCourante?.pi, featureCourante?.iteration, form.iteration)}
+                        libelle={(v) => iterationNom(v)}
+                        sans="Sans itération"
                         onChange={(v) => set('iteration', v)}
                       />
-                    </>
-                  ))}
+                    )}
+                  </SectionFiche>
+                )}
               </>
             )}
             {/* Mode Simple : planification SAFe en lecture seule (rien n'est caché ni perdu) */}
@@ -545,38 +561,13 @@ export function TaskForm({
               </Text>
             )}
 
-            {!form.parent && (
-              <LinkPicker
-                levels={safe.actif ? ['feature', 'epic', 'objectif', 'domaine'] : ['epic', 'objectif', 'domaine']}
-                value={form}
-                onChange={(patch) =>
-                  setForm((f) => {
-                    const next = { ...f, ...patch };
-                    // Tâche sans date rangée dans une feature : elle prend l'itération prévue de la feature
-                    const feat = patch.feature ? h.features.get(patch.feature) : undefined;
-                    if (feat?.iteration && !next.date && !next.periodicite && !f.iteration) next.iteration = feat.iteration;
-                    return next;
-                  })
-                }
-                onNouveau={onNouveau ? (n, d) => onNouveau(n, espace, d) : undefined}
-                initial={item ? { feature: item.feature, epic: item.epic, objectif: item.objectif, domaine: item.domaine } : undefined}
-              />
-            )}
-            <LiaisonOrg
-              espace={espace}
-              niveau="item"
-              valeurs={{ equipe: form.equipe, responsable: form.responsable, feature: form.feature, epic: form.epic }}
-              onChange={(p) => setForm((f) => ({ ...f, ...p }))}
-              onNouveau={onNouveauOrg ? (k, champ) => (k === 'equipeagile' || k === 'personne') && (champ === 'equipe' || champ === 'responsable') && onNouveauOrg(k, champ, espace) : undefined}
-            />
             {!!enfants.length && <Text style={styles.hint}>Les sous-tâches suivent le rangement de cette tâche.</Text>}
 
             {peutAvoir && (
               <>
-                <Text style={styles.label}>
-                  Sous-tâches{enfants.length ? ` · ${enfants.filter((t) => t.statut === 'termine').length}/${enfants.length}` : ''}
-                  {check.sous ? ` · ${fmtPoints(check.sous, safe.pointsJours)}` : ''}
-                </Text>
+                <SectionFiche
+                  titre={`Sous-tâches${enfants.length ? ` · ${enfants.filter((t) => t.statut === 'termine').length}/${enfants.length}` : ''}${check.sous ? ` · ${fmtPoints(check.sous, safe.pointsJours)}` : ''}`}
+                />
                 {check.alerte && (
                   <View style={styles.alert}>
                     <Text style={styles.alertText}>

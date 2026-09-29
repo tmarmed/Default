@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, Text } from 'react-native';
+import { Text } from 'react-native';
 import { alertesObjectif, type Alignement } from '../alerts';
 import { addMonths, toDateString } from '../dates';
 import { childrenOf, describeCounts, progressObjectif } from '../hierarchy';
@@ -9,8 +9,10 @@ import { formatEpicDates } from '../roadmap';
 import { EPIC_COULEURS, Epic, Objectif, ObjectifInput } from '../types';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
-import { AlertList, ChildActions, ColorPicker, Field, FormSheet, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
+import { AlertList, ColorPicker, Field, FormSheet, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
+import { ListeEnfants } from './Choix';
+import { useSafe } from '../safe';
 import { View } from 'react-native';
 
 interface Props {
@@ -18,7 +20,7 @@ interface Props {
   objectif: Objectif | null;
   onClose: () => void;
   /** `rester` : objectif enregistré avant d'ouvrir un enfant (la fiche reste ouverte) ; renvoie l'objectif */
-  onSave: (input: ObjectifInput, rester?: boolean) => Promise<Objectif | void | undefined>;
+  onSave: (input: ObjectifInput, rester?: boolean, ranger?: string[]) => Promise<Objectif | void | undefined>;
   pile?: PileProps;
   injection?: Injection;
   /** « ＋ Nouveau domaine » depuis le choix du domaine */
@@ -51,12 +53,15 @@ const empty = (): ObjectifInput => {
 const number = (t: string) => t.replace(/[^0-9.,-]/g, '');
 
 /** Fiche d'un objectif : échéance (ou permanent), indicateur, epics, alertes. */
-export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onOpenEpic, defaults, onAddEpic, onOpenWizard, onAlign, pile, injection, onNouveauDomaine }: Props) {
+export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onOpenEpic, defaults, onAddEpic, onAlign, pile, injection, onNouveauDomaine }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, objectif, defaults);
   const [form, setForm] = useState<ObjectifInput>(empty());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Epics existantes rangées dans l'objectif : faites à l'enregistrement */
+  const [ranger, setRanger] = useState<string[]>([]);
+  const safe = useSafe();
 
   useEffect(() => {
     if (visible) {
@@ -65,6 +70,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
         setForm(rest);
       } else setForm({ ...empty(), ...defaults });
       setError(null);
+      setRanger([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, objectif]);
@@ -88,7 +94,9 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
     setError(null);
     setBusy(true);
     try {
-      return (await onSave({ ...form, espace, titre: form.titre.trim() }, rester)) || undefined;
+      const saved = (await onSave({ ...form, espace, titre: form.titre.trim() }, rester, ranger)) || undefined;
+      if (rester) setRanger([]);
+      return saved;
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
       return undefined;
@@ -150,6 +158,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
         onChange={(p) => set('domaine', p.domaine ?? '')}
         onNouveau={onNouveauDomaine ? () => onNouveauDomaine() : undefined}
         initial={objectif ? { domaine: objectif.domaine } : undefined}
+        attendu={safe.actif ? 'domaine' : undefined}
       />
 
       <Label>Début</Label>
@@ -175,38 +184,39 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
       <Label>Description</Label>
       <Field style={f.notes} placeholder="Pourquoi, comment mesurer…" value={form.description} onChangeText={(v) => set('description', v)} multiline />
 
-      {!objectif && onAddEpic && (
-        <>
-          <Label>Et ensuite</Label>
-          <ChildActions actions={[{ label: '+ Epic', onPress: () => enregistrerPuis(onAddEpic) }]} />
-          <Text style={f.hint}>L'objectif est enregistré d'abord, puis l'epic s'ouvre par-dessus ; l'enregistrer vous ramène ici.</Text>
-        </>
-      )}
-
       {objectif && progress && (
         <>
           <Label>Avancement {progress.label ? `· ${progress.label}` : ''}</Label>
           <Progress ratio={progress.ratio} color={form.couleur} />
-          <Label>Epics · {epics.length}</Label>
-          {epics.length === 0 ? (
-            <Text style={f.muted}>Aucune epic. Pour en rattacher une, ouvrez-la et choisissez cet objectif.</Text>
-          ) : (
-            epics.map((e) => (
-              <Pressable key={e.id} style={f.link} onPress={() => onOpenEpic(e)}>
-                <View style={[f.dot, { backgroundColor: e.couleur }]} />
-                <Text style={f.linkTitle} numberOfLines={1}>
-                  {e.titre}
-                </Text>
-                <Text style={f.muted}>{formatEpicDates(e).split(' · ')[0]}</Text>
-              </Pressable>
-            ))
-          )}
-          <ChildActions
-            actions={[
-              ...(onAddEpic ? [{ label: '+ Epic', onPress: () => onAddEpic(objectif) }] : []),
-              ...(onOpenWizard ? [{ label: "🚀 Ouvrir dans l'assistant", onPress: () => onOpenWizard(objectif), primary: true }] : []),
-            ]}
-          />
+        </>
+      )}
+      <ListeEnfants
+        titre={`Epics · ${epics.length}`}
+        enfants={epics.map((e) => ({ id: e.id, texte: `🗂️ ${e.titre} · ${formatEpicDates(e).split(' · ')[0]}`, onPress: () => onOpenEpic(e) }))}
+        candidats={h.epicList
+          .filter((e) => !objectif || e.objectif !== objectif.id)
+          .map((e) => ({
+            id: e.id,
+            titre: `🗂️ ${e.titre}`,
+            ailleurs: e.objectif ? `🎯 ${h.objectifs.get(e.objectif)?.titre ?? '?'}` : e.domaine ? `${h.domaines.get(e.domaine)?.icone ?? ''} ${h.domaines.get(e.domaine)?.nom ?? ''}` : undefined,
+          }))}
+        ranger={ranger}
+        setRanger={setRanger}
+        nouveau={onAddEpic ? () => enregistrerPuis(onAddEpic) : undefined}
+        mots={{
+          nouveau: 'Nouvelle epic',
+          ranger: 'Ranger une epic existante',
+          feuille: "Ranger dans l'objectif",
+          libres: 'Sans objectif',
+          autres: 'Dans un autre objectif',
+          un: "Rangée dans l'objectif à l'enregistrement.",
+          plusieurs: "Rangées dans l'objectif à l'enregistrement.",
+        }}
+        vide="Aucune epic pour l'instant."
+      />
+
+      {objectif && progress && (
+        <>
           <DeleteSection
             label="Supprimer l'objectif"
             name={objectif.titre}

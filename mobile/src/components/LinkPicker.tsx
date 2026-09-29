@@ -1,176 +1,124 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ReactNode } from 'react';
 import { domaineOf, epicOf, objectifOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
-import { colors } from '../theme';
-import { Chips } from './Chips';
-import { DomaineChoix } from './DomaineChoix';
-import { Rattachement } from './Rattachement';
+import { listeDomaines, listeEpics, listeFeatures, listeObjectifs } from '../choixTravail';
+import { LigneChoix, SectionFiche } from './Choix';
 
+type Niveau = 'feature' | 'epic' | 'objectif' | 'domaine';
 type Links = { feature?: string; epic?: string; objectif?: string; domaine?: string };
 
 interface Props {
   /** Niveaux proposés, du plus précis au plus large */
-  levels: ('feature' | 'epic' | 'objectif' | 'domaine')[];
+  levels: Niveau[];
   value: Links;
   onChange: (patch: Links) => void;
   /** « ＋ Nouvelle feature / epic / objectif / nouveau domaine » : la fiche s'ouvre par-dessus, l'élément créé est choisi */
-  onNouveau?: (niveau: 'feature' | 'epic' | 'objectif' | 'domaine', defauts: Links) => void;
-  /** Rattachement de l'élément enregistré : en choisir un autre est annoncé comme un déplacement */
+  onNouveau?: (niveau: Niveau, defauts: Links) => void;
+  /** Rattachement de l'élément enregistré : en choisir un autre est annoncé (« déplacée ») */
   initial?: Links;
+  /** Rattachement attendu (orange tant qu'il est vide) : un niveau précis, ou « un » = au moins un niveau */
+  attendu?: Niveau | 'un';
+  /** Titre de la section (par défaut « Rattachement ») */
+  titre?: string;
+  /** Lignes en plus dans la même section (tâche parente…) */
+  children?: ReactNode;
 }
 
-/** Lien le plus précis (« f:… », « e:… »…) pour comparer deux rattachements */
-const precis = (v: Links) => (v.feature ? `f:${v.feature}` : v.epic ? `e:${v.epic}` : v.objectif ? `o:${v.objectif}` : v.domaine ? `d:${v.domaine}` : '');
+const LIBELLE: Record<Niveau, string> = { feature: 'Feature', epic: 'Epic', objectif: 'Objectif', domaine: 'Domaine' };
+const NOUVEAU: Record<Niveau, string> = { feature: 'Nouvelle feature', epic: 'Nouvelle epic', objectif: 'Nouvel objectif', domaine: 'Nouveau domaine' };
+const SANS: Record<Niveau, string> = { feature: 'Sans feature', epic: 'Sans epic', objectif: 'Sans objectif', domaine: 'Sans domaine' };
 
-const NOUVEAU = { feature: 'Nouvelle feature', epic: 'Nouvelle epic', objectif: 'Nouvel objectif', domaine: 'Nouveau domaine' } as const;
-const VERS = { feature: 'Vers une nouvelle feature', epic: 'Vers une nouvelle epic', objectif: 'Vers un nouvel objectif', domaine: 'Vers un nouveau domaine' } as const;
+/** Lien le plus précis (« feature », « epic »…) */
+const precis = (v: Links, levels: Niveau[]): Niveau | undefined => levels.find((l) => !!v[l]);
 
 /**
- * Rattachement à un niveau supérieur : on choisit le plus précis (epic, sinon objectif, sinon domaine) ;
- * les niveaux au-dessus s'en déduisent et sont simplement affichés.
+ * Rattachement à un niveau supérieur, en lignes de choix : on choisit le plus précis (feature, sinon epic, sinon
+ * objectif, sinon domaine) ; les lignes plus larges disparaissent une fois un niveau choisi (le chemin s'affiche
+ * en petit sous la ligne). Changer le rattachement d'un élément enregistré le « déplace » (pastille).
  */
-export function LinkPicker({ levels, value, onChange, onNouveau, initial }: Props) {
+export function LinkPicker({ levels, value, onChange, onNouveau, initial, attendu, titre = 'Rattachement', children }: Props) {
   const h = useHierarchy();
-  const has = (l: 'feature' | 'epic' | 'objectif' | 'domaine') => levels.includes(l);
-  const feature = has('feature') && value.feature ? h.features.get(value.feature) : undefined;
-  const inheritedEpic = feature ? epicOf({ feature: feature.id }, h) : undefined;
   // Feature non proposée (mode Simple) : la tâche d'une feature est montrée dans l'epic de cette feature,
   // et rechoisir cette epic garde son lien avec la feature (le lien tâche → epic n'est jamais perdu)
-  const featureCachee = !has('feature') && value.feature ? h.features.get(value.feature) : undefined;
-  const epic = feature ? undefined : value.epic ? h.epics.get(value.epic) : featureCachee?.epic ? h.epics.get(featureCachee.epic) : undefined;
-  const objectif = has('objectif') && !feature && !epic && value.objectif ? h.objectifs.get(value.objectif) : undefined;
-  const inheritedObj = feature || epic ? objectifOf(value, h) : undefined;
-  const inheritedDom = feature || epic || objectif ? domaineOf(value, h) : undefined;
+  const featureCachee = !levels.includes('feature') && value.feature ? h.features.get(value.feature) : undefined;
+  const cur: Links = { ...value, epic: value.epic || (featureCachee?.epic ?? '') };
+  const ini: Links = initial
+    ? { ...initial, epic: initial.epic || (!levels.includes('feature') && initial.feature ? (h.features.get(initial.feature)?.epic ?? '') : '') }
+    : {};
+  const choisi = precis(cur, levels);
+  const depart = precis(ini, levels);
+  // Lignes visibles : jusqu'au niveau choisi (les plus larges s'en déduisent)
+  const visibles = choisi ? levels.slice(0, levels.indexOf(choisi) + 1) : levels;
+  const vide = !choisi;
+  const cle = (v: Links, n?: Niveau) => (n ? `${n}:${v[n]}` : '');
+  const deplace = !!depart && cle(cur, choisi) !== cle(ini, depart);
+  const nomIni = depart
+    ? depart === 'feature'
+      ? `🧩 ${h.features.get(ini.feature!)?.titre ?? '?'}`
+      : depart === 'epic'
+        ? `🗂️ ${h.epics.get(ini.epic!)?.titre ?? '?'}`
+        : depart === 'objectif'
+          ? `🎯 ${h.objectifs.get(ini.objectif!)?.titre ?? '?'}`
+          : `${h.domaines.get(ini.domaine!)?.icone ?? ''} ${h.domaines.get(ini.domaine!)?.nom ?? '?'}`.trim()
+    : '';
+  const estAttendu = (l: Niveau) => (attendu === 'un' ? vide : attendu === l && !cur[l]);
+  const aDefinir = attendu === 'un' ? (vide ? 1 : 0) : attendu && !cur[attendu] && visibles.includes(attendu) ? 1 : 0;
 
-  const none = (label: string) => ({ value: '', label });
-  const [voirTout, setVoirTout] = useState(false);
-  // Un parent au départ : en choisir un autre le déplace ; un nouveau parent prend la place de l'actuel (même grand-parent)
-  const verrouille = !!initial && !!precis(initial);
-  const nomLien = (v: Links) =>
-    v.feature
-      ? `🧩 ${h.features.get(v.feature)?.titre ?? '?'}`
-      : v.epic
-        ? `🗂️ ${h.epics.get(v.epic)?.titre ?? '?'}`
-        : v.objectif
-          ? `🎯 ${h.objectifs.get(v.objectif)?.titre ?? '?'}`
-          : v.domaine
-            ? `${h.domaines.get(v.domaine)?.icone ?? ''} ${h.domaines.get(v.domaine)?.nom ?? '?'}`.trim()
-            : '';
-  // Features proposées : celles de l'epic de départ (avec « Voir les features des autres epics »)
-  const epicDepart = verrouille && initial!.feature ? h.features.get(initial!.feature)?.epic : undefined;
-  const autresFeatures = epicDepart ? h.featureList.filter((f) => f.epic !== epicDepart && f.id !== value.feature) : [];
-  const featuresProposees = epicDepart && !voirTout ? h.featureList.filter((f) => f.epic === epicDepart || f.id === value.feature) : h.featureList;
-  const epicCourante = feature ? inheritedEpic : epic;
-  const objCourant = objectif ?? inheritedObj;
-  const domCourant = inheritedDom ?? (value.domaine ? h.domaines.get(value.domaine) : undefined);
-  const defauts = (niveau: 'feature' | 'epic' | 'objectif' | 'domaine'): Links =>
-    niveau === 'feature'
-      ? { epic: epicCourante?.id }
-      : niveau === 'epic'
-        ? objCourant
-          ? { objectif: objCourant.id }
-          : { domaine: domCourant?.id }
-        : niveau === 'objectif'
-          ? { domaine: domCourant?.id }
-          : {};
-  const resume = [
-    domCourant ? `${domCourant.icone} ${domCourant.nom}` : '',
-    objCourant ? `🎯 ${objCourant.titre}` : '',
-    epicCourante ? `🗂️ ${epicCourante.titre}` : '',
-    feature ? `🧩 ${feature.titre}` : '',
-  ]
-    .filter(Boolean)
-    .join(' › ');
-  const Nouveau = ({ niveau }: { niveau: 'feature' | 'epic' | 'objectif' | 'domaine' }) =>
-    onNouveau ? (
-      <Pressable onPress={() => onNouveau(niveau, verrouille ? defauts(niveau) : {})} hitSlop={6} style={styles.nouveau} accessibilityRole="button">
-        <Text style={styles.nouveauTexte}>＋ {verrouille ? VERS[niveau] : NOUVEAU[niveau]}</Text>
-      </Pressable>
-    ) : null;
+  // Chemin au-dessus du niveau choisi (« 💼 Pro › 🎯 Fidéliser les clients › 🗂️ Application client »)
+  const chemin = (l: Niveau) => {
+    const x = { [l]: cur[l] } as Links;
+    const e = l === 'feature' ? epicOf(x, h) : undefined;
+    const o = l === 'feature' || l === 'epic' ? objectifOf(x, h) : undefined;
+    const d = l !== 'domaine' ? domaineOf(x, h) : undefined;
+    return [d ? `${d.icone} ${d.nom}` : '', o ? `🎯 ${o.titre}` : '', e ? `🗂️ ${e.titre}` : ''].filter(Boolean).join(' › ');
+  };
+  // Nouveau parent : sous le même grand-parent que le parent actuel (ex. une feature dans la même epic)
+  const defauts = (l: Niveau): Links => {
+    const ref = { [l]: cur[l] || ini[l] } as Links;
+    if (l === 'feature') return { epic: epicOf(ref, h)?.id };
+    if (l === 'epic') {
+      const o = objectifOf(ref, h);
+      return o ? { objectif: o.id } : { domaine: domaineOf(ref, h)?.id };
+    }
+    if (l === 'objectif') return { domaine: domaineOf(ref, h)?.id };
+    return {};
+  };
+  const liste = (l: Niveau) =>
+    l === 'feature'
+      ? listeFeatures(h, cur.feature || ini.feature)
+      : l === 'epic'
+        ? listeEpics(h, cur.epic || ini.epic)
+        : l === 'objectif'
+          ? listeObjectifs(h, cur.objectif || ini.objectif)
+          : listeDomaines(h);
+  const choisir = (l: Niveau, v: string) => {
+    if (l === 'epic' && featureCachee && v === featureCachee.epic) return onChange({ feature: featureCachee.id, epic: '', objectif: '', domaine: '' });
+    onChange({ feature: '', epic: '', objectif: '', domaine: '', [l]: v });
+  };
+
   return (
-    <Rattachement
-      deplace={verrouille && precis(value) !== precis(initial!)}
-      depuis={verrouille ? nomLien(initial!) : ''}
-      vers={nomLien(value)}
-      onAnnuler={() => onChange({ feature: initial!.feature ?? '', epic: initial!.epic ?? '', objectif: initial!.objectif ?? '', domaine: initial!.domaine ?? '' })}
-    >
-    <View>
-      {has('feature') && (h.featureList.length > 0 || !!onNouveau) && (
-        <>
-          <Text style={styles.label}>Feature</Text>
-          <Chips
-            options={[
-              none('Aucune'),
-              ...featuresProposees.map((f) => {
-                const e = f.epic ? h.epics.get(f.epic) : undefined;
-                return { value: f.id, label: `🧩 ${f.titre}`, color: e?.couleur };
-              }),
-            ]}
-            value={feature ? feature.id : ''}
-            onChange={(v) => onChange({ feature: v, epic: '', objectif: '', domaine: '' })}
-            depart={initial?.feature}
+    <SectionFiche titre={titre} aDefinir={aDefinir}>
+      {visibles.map((l) => {
+        const { groupes, autres } = liste(l);
+        return (
+          <LigneChoix
+            key={l}
+            label={LIBELLE[l]}
+            value={cur[l] ?? ''}
+            // Pastille « déplacée » sur la ligne du rattachement actuel (ou la première, s'il n'y en a plus)
+            changement={deplace && l === (choisi ?? visibles[0]) ? { avant: nomIni, annuler: () => onChange({ feature: '', epic: '', objectif: '', domaine: '', ...initial }) } : undefined}
+            parent
+            attendu={estAttendu(l)}
+            sous={l === choisi ? chemin(l) || undefined : undefined}
+            groupes={groupes}
+            autres={autres}
+            nouveau={onNouveau ? { label: NOUVEAU[l], onPress: () => onNouveau(l, defauts(l)) } : undefined}
+            sans={SANS[l]}
+            onChange={(v) => choisir(l, v)}
           />
-          {autresFeatures.length > 0 && !voirTout && (
-            <Pressable onPress={() => setVoirTout(true)} hitSlop={6} style={styles.nouveau} accessibilityRole="button">
-              <Text style={styles.voir}>Voir les features des autres epics ({autresFeatures.length})</Text>
-            </Pressable>
-          )}
-          <Nouveau niveau="feature" />
-        </>
-      )}
-      {has('epic') && !feature && (h.epicList.length > 0 || !!onNouveau) && (
-        <>
-          <Text style={styles.label}>Epic</Text>
-          <Chips
-            options={[none('Aucune'), ...h.epicList.map((e) => ({ value: e.id, label: e.titre, color: e.couleur }))]}
-            value={epic ? epic.id : ''}
-            depart={initial?.feature ? undefined : initial?.epic}
-            onChange={(v) =>
-              onChange(
-                featureCachee && v === featureCachee.epic
-                  ? { feature: featureCachee.id, epic: '', objectif: '', domaine: '' }
-                  : { feature: '', epic: v, objectif: '', domaine: '' },
-              )
-            }
-          />
-          <Nouveau niveau="epic" />
-        </>
-      )}
-      {has('objectif') && !feature && !epic && (h.objectifList.length > 0 || !!onNouveau) && (
-        <>
-          <Text style={styles.label}>Objectif</Text>
-          <Chips
-            options={[none('Aucun'), ...h.objectifList.map((o) => ({ value: o.id, label: o.titre, color: o.couleur }))]}
-            value={objectif ? objectif.id : ''}
-            depart={initial?.feature || initial?.epic ? undefined : initial?.objectif}
-            onChange={(v) => onChange({ feature: '', epic: '', objectif: v, domaine: '' })}
-          />
-          <Nouveau niveau="objectif" />
-        </>
-      )}
-      {has('domaine') && !feature && !epic && !objectif && (h.domaineList.length > 0 || !!onNouveau) && (
-        <>
-          {h.domaineList.length > 0 && (
-            <DomaineChoix
-              value={value.domaine && h.domaines.has(value.domaine) ? value.domaine : ''}
-              onChange={(v) => onChange({ feature: '', epic: '', objectif: '', domaine: v })}
-            />
-          )}
-          <Nouveau niveau="domaine" />
-        </>
-      )}
-      {/* Chemin complet du rattachement choisi */}
-      {!!resume && resume.includes('›') && <Text style={styles.inherited}>{resume}</Text>}
-    </View>
-    </Rattachement>
+        );
+      })}
+      {children}
+    </SectionFiche>
   );
 }
-
-const styles = StyleSheet.create({
-  label: { marginTop: 18, marginBottom: 8, fontSize: 13, fontWeight: '600', color: colors.muted },
-  inherited: { marginTop: 8, fontSize: 13, color: colors.muted },
-  nouveau: { alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4 },
-  voir: { fontSize: 13, fontWeight: '600', color: colors.primary },
-  nouveauTexte: { fontSize: 13.5, fontWeight: '700', color: colors.primary },
-});

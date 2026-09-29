@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, membresDe, NOM_ORG, nomPersonne, type OrgValue, type Personne } from '../organisation';
+import { StyleSheet, Text } from 'react-native';
+import { type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, membresDe, NOM_ORG, nomPersonne, type OrgValue } from '../organisation';
+import { useSafe } from '../safe';
 import { colors } from '../theme';
-import { Rattachement } from './Rattachement';
 import { Chips } from './Chips';
+import { type GroupeChoix, LigneChoix, LigneMulti, ListeEnfants, SectionFiche, type AutresChoix } from './Choix';
 import { DeleteSection } from './DeleteSection';
 import { Field, FormSheet, formStyles as f, Label } from './FormSheet';
 
 type Donnees = Record<string, string>;
+/** Éléments existants rangés dans la fiche : leur champ `champ` prendra l'id de la fiche */
+export type RangerOrg = { kind: KindOrg; champ: string; ids: string[] };
 
 const VIDES: Record<KindOrg, Donnees> = {
   personne: { nom: '', email: '', unite: '', manager: '', capacite: '' },
@@ -61,8 +64,11 @@ export function OrgForm({
   org: OrgValue;
   nomEntreprise: string;
   onClose: () => void;
-  /** Enregistre ; `rester` : la fiche reste ouverte (parent enregistré avant d'ouvrir un enfant) ; renvoie l'élément */
-  onSave: (data: Donnees, rester?: boolean) => Promise<EntiteOrg<KindOrg> | void>;
+  /**
+   * Enregistre ; `rester` : la fiche reste ouverte (parent enregistré avant d'ouvrir un enfant) ; `ranger` : éléments
+   * existants rangés dans celui-ci (« Ranger un train existant »…), faits à l'enregistrement ; renvoie l'élément
+   */
+  onSave: (data: Donnees, rester?: boolean, ranger?: RangerOrg[]) => Promise<EntiteOrg<KindOrg> | void>;
   onDelete: () => Promise<void>;
   /** Pile de fiches : fiche d'en dessous (« ‹ Digital »), fil en haut, tout fermer */
   pile?: { retour?: string | string[]; chemin: string; onFermerTout: () => void };
@@ -80,6 +86,11 @@ export function OrgForm({
   const [initial, setInitial] = useState<Donnees>(VIDES[kind]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const safe = useSafe();
+  /** Enfants existants rangés ici (clé : « train:portfolio »…) : faits à l'enregistrement */
+  const [ranger, setRangerTout] = useState<Record<string, string[]>>({});
+  const rangerDe = (k: KindOrg, champ: string) => ranger[`${k}:${champ}`] ?? [];
+  const setRanger = (k: KindOrg, champ: string) => (l: string[]) => setRangerTout((r) => ({ ...r, [`${k}:${champ}`]: l }));
 
   useEffect(() => {
     if (!visible) return;
@@ -88,6 +99,7 @@ export function OrgForm({
     setForm(v);
     setInitial(v);
     setError(null);
+    setRangerTout({});
   }, [visible, entite, kind, defaults]);
 
   // Élément créé à la volée (fiche du dessus enregistrée) : choisi dans son champ
@@ -100,7 +112,7 @@ export function OrgForm({
     );
   }, [injection]);
 
-  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial) || Object.values(ranger).some((l) => l.length > 0);
   useEffect(() => {
     onDirty?.(dirty);
   }, [dirty, onDirty]);
@@ -108,7 +120,21 @@ export function OrgForm({
   const set = (k: string) => (v: string) => setForm((x) => ({ ...x, [k]: v }));
   const id = entite?.id ?? '';
   const personnes = [...org.personnes].sort((a, b) => a.nom.localeCompare(b.nom));
-  const optionsPersonnes = (sauf?: string) => [{ value: '', label: 'Personne' }, ...personnes.filter((p) => p.id !== sauf).map((p) => ({ value: p.id, label: p.nom }))];
+  const nomUnite = (id: string) => {
+    const u = org.unite.get(id);
+    return u ? `${u.type === 'direction' ? '🏛️' : '🧩'} ${u.nom}` : '';
+  };
+  /** Personnes : un groupe d'abord (membres de l'équipe, gens du service), les autres repliées */
+  const listePersonnes = (premiers?: { titre: string; ids: Set<string> }, sauf?: string): { groupes: GroupeChoix[]; autres?: AutresChoix } => {
+    const l = personnes.filter((p) => p.id !== sauf);
+    const opt = (p: { id: string; nom: string; unite: string }) => ({ value: p.id, label: p.nom, meta: nomUnite(p.unite) });
+    if (!premiers || !l.some((p) => premiers.ids.has(p.id))) return { groupes: [{ options: l.map(opt) }] };
+    const autres = l.filter((p) => !premiers.ids.has(p.id));
+    return {
+      groupes: [{ titre: premiers.titre, options: l.filter((p) => premiers.ids.has(p.id)).map(opt) }],
+      autres: autres.length ? { titre: 'Autres personnes', groupes: [{ options: autres.map(opt) }] } : undefined,
+    };
+  };
 
   // Unités proposées comme parent : pas elle-même ni ses sous-unités (pas de boucle)
   const descendants = new Set<string>();
@@ -129,8 +155,14 @@ export function OrgForm({
     setError(null);
     setBusy(true);
     try {
-      const o = await onSave({ ...form, nom: form.nom.trim() }, rester);
-      if (rester) setInitial(form);
+      const liste = Object.entries(ranger)
+        .filter(([, ids]) => ids.length)
+        .map(([cle, ids]) => ({ kind: cle.split(':')[0] as KindOrg, champ: cle.split(':')[1], ids }));
+      const o = await onSave({ ...form, nom: form.nom.trim() }, rester, liste);
+      if (rester) {
+        setInitial(form);
+        setRangerTout({});
+      }
       return o;
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
@@ -156,69 +188,81 @@ export function OrgForm({
   };
 
   /**
-   * Choix d'un champ. `parent` : champ de rattachement (service, unité au-dessus, portfolio, train) ; s'il était
-   * rempli à l'ouverture, en choisir un autre est annoncé comme un déplacement, et « ＋ Vers un nouveau … » crée le
-   * nouveau parent sous le même grand-parent.
+   * Ligne de choix d'un champ (appelée comme une fonction : la ligne garde son état entre deux saisies). `parent` :
+   * champ de rattachement (service, unité au-dessus, portfolio, train) : en changer « déplace » l'élément ; `nouveau` :
+   * « ＋ Nouvelle … » en tête de la feuille (sous le même grand-parent quand l'élément en avait un).
    */
-  const Choix = ({ label, k, options, nouveau, parent }: { label: string; k: string; options: { value: string; label: string }[]; nouveau?: { kind: KindOrg; label: string; defaults?: Donnees }; parent?: { vers: string; defaults?: Donnees } }) => {
-    const depart = parent ? String((entite as unknown as Donnees | null)?.[k] ?? '') : '';
-    const verrouille = !!depart;
-    return (
-      <>
-        <Label>{label}</Label>
-        <Rattachement
-          deplace={verrouille && (form[k] ?? '') !== depart}
-          depuis={options.find((o) => o.value === depart)?.label ?? ''}
-          vers={options.find((o) => o.value && o.value === form[k])?.label ?? ''}
-          onAnnuler={() => set(k)(depart)}
-        >
-          {options.length <= 1 ? (
-            <Text style={f.muted}>Rien à choisir pour l'instant.</Text>
-          ) : (
-            <Chips options={options} value={options.some((o) => o.value === form[k]) ? form[k] : ''} onChange={set(k)} compact wrap depart={depart || undefined} />
-          )}
-          {nouveau && onOuvrir && (
-            <Pressable onPress={() => onOuvrir(nouveau.kind, null, verrouille ? parent?.defaults : nouveau.defaults, k)} hitSlop={6} style={s.nouveau} accessibilityRole="button">
-              <Text style={s.nouveauTexte}>＋ {verrouille ? parent!.vers : nouveau.label}</Text>
-            </Pressable>
-          )}
-        </Rattachement>
-      </>
-    );
-  };
+  const choix = ({
+    label,
+    k,
+    liste,
+    nouveau,
+    parent,
+    attendu,
+    sans,
+  }: {
+    label: string;
+    k: string;
+    liste: { groupes: GroupeChoix[]; autres?: AutresChoix };
+    nouveau?: { kind: KindOrg; label: string; defaults?: Donnees };
+    parent?: boolean;
+    attendu?: boolean;
+    sans: string;
+  }) => (
+    <LigneChoix
+      key={k}
+      label={label}
+      value={form[k] ?? ''}
+      depart={initial[k] || undefined}
+      parent={parent}
+      attendu={attendu}
+      {...liste}
+      libelle={(v) => (k === 'unite' || k === 'parent' ? nomUnite(v) : k === 'portfolio' ? `💼 ${org.portfolio.get(v)?.nom ?? '?'}` : k === 'train' ? `🚆 ${org.train.get(v)?.nom ?? '?'}` : nomPersonne(org, v) || '?')}
+      nouveau={nouveau && onOuvrir ? { label: nouveau.label, onPress: () => onOuvrir(nouveau.kind, null, nouveau.defaults, k) } : undefined}
+      sans={sans}
+      onChange={set(k)}
+    />
+  );
   /** Valeurs par défaut sans les champs vides */
   const sansVide = (d: Record<string, string | undefined>): Donnees => Object.fromEntries(Object.entries(d).filter(([, v]) => !!v)) as Donnees;
-  const nouvellePersonne = { kind: 'personne' as const, label: 'Nouvelle personne' };
+  const nouvellePersonne = (defaults?: Donnees) => ({ kind: 'personne' as const, label: 'Nouvelle personne', defaults });
 
-  /** Liste d'enfants (trains d'un portfolio…) : toucher en ouvre la fiche par-dessus ; « ＋ » en crée un */
-  const Enfants = ({ titre, liste, kindEnfant, icone, sous, ajouter }: { titre: string; liste: { id: string; nom: string }[]; kindEnfant: KindOrg; icone: string; sous?: (x: { id: string; nom: string }) => string; ajouter: { label: string; champ: string; extra?: Donnees } }) => (
-    <>
-      <Label>
-        {titre} · {liste.length}
-      </Label>
-      {liste.map((x) => (
-        <Pressable key={x.id} onPress={() => onOuvrir?.(kindEnfant, x as EntiteOrg<KindOrg>)} style={s.enfant} accessibilityRole="button" accessibilityLabel={`Ouvrir ${x.nom}`}>
-          <Text style={s.enfantNom}>
-            {icone} {x.nom}
-          </Text>
-          {!!sous?.(x) && <Text style={s.enfantSous}>{sous(x)}</Text>}
-          <Text style={s.enfantChev}>›</Text>
-        </Pressable>
-      ))}
-      {onOuvrir && (
-        <Pressable onPress={() => ouvrirEnfant(kindEnfant, ajouter.champ, ajouter.extra)} hitSlop={6} style={s.nouveau} accessibilityRole="button">
-          <Text style={s.nouveauTexte}>＋ {ajouter.label}</Text>
-        </Pressable>
-      )}
-    </>
+  /** Enfants (trains d'un portfolio…) : toucher en ouvre la fiche par-dessus ; ＋ rond : nouveau ou ranger un existant */
+  const enfants = ({
+    titre,
+    liste,
+    kindEnfant,
+    icone,
+    sous,
+    champ,
+    extra,
+    candidats,
+    mots,
+  }: {
+    titre: string;
+    liste: { id: string; nom: string }[];
+    kindEnfant: KindOrg;
+    icone: string;
+    sous?: (x: { id: string; nom: string }) => string;
+    champ: string;
+    extra?: Donnees;
+    candidats: { id: string; nom: string; ailleurs?: string }[];
+    mots: { nouveau: string; ranger: string; libres: string; autres: string; un: string; plusieurs: string };
+  }) => (
+    <ListeEnfants
+      key={`${kindEnfant}-${champ}`}
+      titre={`${titre} · ${liste.length}`}
+      enfants={liste.map((x) => ({ id: x.id, texte: `${icone} ${x.nom}${sous?.(x) ? `  · ${sous(x)}` : ''}`, onPress: onOuvrir ? () => onOuvrir(kindEnfant, x as EntiteOrg<KindOrg>) : undefined }))}
+      candidats={candidats.filter((c) => c.id !== id).map((c) => ({ id: c.id, titre: `${icone} ${c.nom}`, ailleurs: c.ailleurs }))}
+      ranger={rangerDe(kindEnfant, champ)}
+      setRanger={setRanger(kindEnfant, champ)}
+      nouveau={onOuvrir ? () => ouvrirEnfant(kindEnfant, champ, extra) : undefined}
+      mots={{ ...mots, feuille: `Ranger dans : ${form.nom || TITRES[kind][1].toLowerCase()}` }}
+      vide="Aucun pour l'instant."
+    />
   );
 
   const membres = membresDe({ membres: form.membres ?? '' });
-  const basculerMembre = (p: Personne) =>
-    setForm((x) => {
-      const l = membresDe({ membres: x.membres ?? '' });
-      return { ...x, membres: (l.includes(p.id) ? l.filter((m) => m !== p.id) : [...l, p.id]).join(';') };
-    });
 
   // Ce que la suppression change (rien d'autre n'est supprimé)
   const consequence: Record<KindOrg, string> = {
@@ -248,8 +292,23 @@ export function OrgForm({
         <>
           <Label>E-mail (compte Google)</Label>
           <Field placeholder="prenom.nom@gmail.com" value={form.email} onChangeText={set('email')} autoCapitalize="none" keyboardType="email-address" />
-          <Choix label="Service (vue Entreprise)" k="unite" options={[{ value: '', label: 'Aucun' }, ...org.unites.map((u) => ({ value: u.id, label: `${u.type === 'direction' ? '🏛️' : '🧩'} ${u.nom}` }))]} nouveau={{ kind: 'unite', label: 'Nouvelle unité' }} parent={{ vers: 'Vers une nouvelle unité', defaults: sansVide({ parent: org.unite.get(form.unite)?.parent }) }} />
-          <Choix label="Manager" k="manager" options={optionsPersonnes(id).map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={{ ...nouvellePersonne, defaults: { unite: form.unite } }} />
+          <SectionFiche titre="Hiérarchie">
+            {choix({
+              label: 'Service',
+              k: 'unite',
+              liste: { groupes: [{ options: org.unites.map((u) => ({ value: u.id, label: nomUnite(u.id) })) }] },
+              nouveau: { kind: 'unite', label: 'Nouvelle unité', defaults: sansVide({ parent: org.unite.get(form.unite)?.parent }) },
+              parent: true,
+              sans: 'Sans service',
+            })}
+            {choix({
+              label: 'Manager',
+              k: 'manager',
+              liste: listePersonnes(form.unite ? { titre: `Service : ${org.unite.get(form.unite)?.nom ?? ''}`, ids: new Set(org.personnes.filter((p) => p.unite === form.unite && !!form.unite).map((p) => p.id)) } : undefined, id),
+              nouveau: nouvellePersonne(sansVide({ unite: form.unite })),
+              sans: 'Sans manager',
+            })}
+          </SectionFiche>
           <Label>Capacité par itération (jours, facultatif)</Label>
           <Field placeholder="ex. 8" value={form.capacite} onChangeText={set('capacite')} keyboardType="decimal-pad" />
           <Text style={f.hint}>Ajouter une personne ne lui donne aucun accès : l'accès viendra de son équipe et de ses rôles delivery.</Text>
@@ -260,91 +319,125 @@ export function OrgForm({
         <>
           <Label>Type</Label>
           <Chips options={[{ value: 'direction', label: '🏛️ Direction' }, { value: 'service', label: '🧩 Service' }]} value={form.type === 'direction' ? 'direction' : 'service'} onChange={set('type')} compact />
-          <Choix label="Au-dessus (facultatif)" k="parent" options={[{ value: '', label: 'Aucune (premier niveau)' }, ...org.unites.filter((u) => !descendants.has(u.id)).map((u) => ({ value: u.id, label: u.nom }))]} nouveau={{ kind: 'unite', label: 'Nouvelle unité au-dessus' }} parent={{ vers: 'Vers une nouvelle unité au-dessus', defaults: sansVide({ parent: org.unite.get(form.parent)?.parent }) }} />
-          <Choix label="Responsable" k="responsable" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={{ ...nouvellePersonne, defaults: id ? { unite: id } : undefined }} />
-          <Enfants
-            titre="Sous-unités"
-            liste={org.unites.filter((u) => u.parent === id && !!id)}
-            kindEnfant="unite"
-            icone="🧩"
-            ajouter={{ label: 'Sous-unité', champ: 'parent', extra: { type: 'service' } }}
-          />
-          <Enfants
-            titre="Personnes"
-            liste={org.personnes.filter((p) => p.unite === id && !!id)}
-            kindEnfant="personne"
-            icone="👤"
-            sous={(x) => nomPersonne(org, (x as Personne).manager) && `Manager : ${nomPersonne(org, (x as Personne).manager)}`}
-            ajouter={{ label: 'Personne dans cette unité', champ: 'unite', extra: form.responsable ? { manager: form.responsable } : {} }}
-          />
+          <SectionFiche titre="Hiérarchie">
+            {choix({
+              label: 'Au-dessus',
+              k: 'parent',
+              liste: { groupes: [{ options: org.unites.filter((u) => !descendants.has(u.id)).map((u) => ({ value: u.id, label: nomUnite(u.id) })) }] },
+              nouveau: { kind: 'unite', label: 'Nouvelle unité au-dessus', defaults: sansVide({ parent: org.unite.get(form.parent)?.parent }) },
+              parent: true,
+              sans: 'Premier niveau',
+            })}
+            {choix({
+              label: 'Responsable',
+              k: 'responsable',
+              liste: listePersonnes(id ? { titre: 'Dans cette unité', ids: new Set(org.personnes.filter((p) => p.unite === id).map((p) => p.id)) } : undefined),
+              nouveau: nouvellePersonne(id ? { unite: id } : undefined),
+              sans: 'Sans responsable',
+            })}
+          </SectionFiche>
+          {enfants({
+            titre: 'Sous-unités',
+            liste: org.unites.filter((u) => u.parent === id && !!id),
+            kindEnfant: 'unite',
+            icone: '🧩',
+            champ: 'parent',
+            extra: { type: 'service' },
+            candidats: org.unites.filter((u) => !descendants.has(u.id) && (!id || u.parent !== id)).map((u) => ({ id: u.id, nom: u.nom, ailleurs: u.parent ? nomUnite(u.parent) : undefined })),
+            mots: { nouveau: 'Nouvelle sous-unité', ranger: 'Ranger une unité existante', libres: 'Premier niveau', autres: 'Sous une autre unité', un: "Rangée ici à l'enregistrement.", plusieurs: "Rangées ici à l'enregistrement." },
+          })}
+          {enfants({
+            titre: 'Personnes',
+            liste: org.personnes.filter((p) => p.unite === id && !!id),
+            kindEnfant: 'personne',
+            icone: '👤',
+            sous: (x) => {
+              const m = nomPersonne(org, org.personne.get(x.id)?.manager);
+              return m ? `Manager : ${m}` : '';
+            },
+            champ: 'unite',
+            extra: form.responsable ? { manager: form.responsable } : {},
+            candidats: org.personnes.filter((p) => !id || p.unite !== id).map((p) => ({ id: p.id, nom: p.nom, ailleurs: p.unite ? nomUnite(p.unite) : undefined })),
+            mots: { nouveau: 'Nouvelle personne', ranger: 'Ranger une personne existante', libres: 'Sans service', autres: 'Dans un autre service', un: "Rangée ici à l'enregistrement.", plusieurs: "Rangées ici à l'enregistrement." },
+          })}
         </>
       )}
 
       {kind === 'portfolio' && (
         <>
-          <Choix label="Epic Owner" k="epic_owner" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
-          <Enfants
-            titre="Trains"
-            liste={org.trains.filter((t) => t.portfolio === id && !!id)}
-            kindEnfant="train"
-            icone="🚆"
-            sous={(x) => `${org.equipes.filter((e) => e.train === x.id).length} équipe(s)`}
-            ajouter={{ label: 'Train', champ: 'portfolio' }}
-          />
+          <SectionFiche titre="Rôles">
+            {choix({ label: 'Epic Owner', k: 'epic_owner', liste: listePersonnes(), nouveau: nouvellePersonne(), sans: 'Sans Epic Owner' })}
+          </SectionFiche>
+          {enfants({
+            titre: 'Trains',
+            liste: org.trains.filter((t) => t.portfolio === id && !!id),
+            kindEnfant: 'train',
+            icone: '🚆',
+            sous: (x) => `${org.equipes.filter((e) => e.train === x.id).length} équipe(s)`,
+            champ: 'portfolio',
+            candidats: org.trains.filter((t) => !id || t.portfolio !== id).map((t) => ({ id: t.id, nom: t.nom, ailleurs: t.portfolio ? `💼 ${org.portfolio.get(t.portfolio)?.nom ?? '?'}` : undefined })),
+            mots: { nouveau: 'Nouveau train', ranger: 'Ranger un train existant', libres: 'Sans portfolio', autres: 'Dans un autre portfolio', un: "Rangé ici à l'enregistrement.", plusieurs: "Rangés ici à l'enregistrement." },
+          })}
         </>
       )}
 
       {kind === 'train' && (
         <>
-          <Choix label="Portfolio" k="portfolio" options={[{ value: '', label: 'Aucun' }, ...org.portfolios.map((p) => ({ value: p.id, label: `💼 ${p.nom}` }))]} nouveau={{ kind: 'portfolio', label: 'Nouveau portfolio' }} parent={{ vers: 'Vers un nouveau portfolio' }} />
-          <Choix label="RTE (Release Train Engineer)" k="rte" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
-          <Choix label="Product Manager" k="pm" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
-          <Enfants
-            titre="Équipes agiles"
-            liste={org.equipes.filter((e) => e.train === id && !!id)}
-            kindEnfant="equipeagile"
-            icone="👥"
-            sous={(x) => `${membresDe(x as EquipeAgile).length} membre(s)`}
-            ajouter={{ label: 'Équipe agile', champ: 'train' }}
-          />
+          <SectionFiche titre="Rattachement" aDefinir={safe.actif && !form.portfolio ? 1 : 0}>
+            {choix({
+              label: 'Portfolio',
+              k: 'portfolio',
+              liste: { groupes: [{ options: org.portfolios.map((p) => ({ value: p.id, label: `💼 ${p.nom}` })) }] },
+              nouveau: { kind: 'portfolio', label: 'Nouveau portfolio' },
+              parent: true,
+              attendu: safe.actif,
+              sans: 'Sans portfolio',
+            })}
+          </SectionFiche>
+          <SectionFiche titre="Rôles" aDefinir={safe.actif && !form.rte ? 1 : 0}>
+            {choix({ label: 'RTE', k: 'rte', liste: listePersonnes(), nouveau: nouvellePersonne(), attendu: safe.actif, sans: 'Sans RTE' })}
+            {choix({ label: 'Product Manager', k: 'pm', liste: listePersonnes(), nouveau: nouvellePersonne(), sans: 'Sans Product Manager' })}
+          </SectionFiche>
+          {enfants({
+            titre: 'Équipes agiles',
+            liste: org.equipes.filter((e) => e.train === id && !!id),
+            kindEnfant: 'equipeagile',
+            icone: '👥',
+            sous: (x) => `${membresDe(x as EquipeAgile).length} membre(s)`,
+            champ: 'train',
+            candidats: org.equipes.filter((e) => !id || e.train !== id).map((e) => ({ id: e.id, nom: e.nom, ailleurs: e.train ? `🚆 ${org.train.get(e.train)?.nom ?? '?'}` : undefined })),
+            mots: { nouveau: 'Nouvelle équipe agile', ranger: 'Ranger une équipe existante', libres: 'Sans train', autres: 'Dans un autre train', un: "Rangée ici à l'enregistrement.", plusieurs: "Rangées ici à l'enregistrement." },
+          })}
         </>
       )}
 
       {kind === 'equipeagile' && (
         <>
-          <Choix label="Train" k="train" options={[{ value: '', label: 'Aucun' }, ...org.trains.map((t) => ({ value: t.id, label: `🚆 ${t.nom}` }))]} nouveau={{ kind: 'train', label: 'Nouveau train' }} parent={{ vers: 'Vers un nouveau train', defaults: sansVide({ portfolio: org.train.get(form.train)?.portfolio }) }} />
-          <Choix label="Product Owner" k="po" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
-          <Choix label="Scrum Master" k="sm" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
-          <Label>Membres · {membres.length}</Label>
-          {personnes.length === 0 ? (
-            <Text style={f.muted}>Ajoutez d'abord des personnes (vue Entreprise).</Text>
-          ) : (
-            <View style={s.membres}>
-              {personnes.map((p) => {
-                const on = membres.includes(p.id);
-                return (
-                  <Pressable
-                    key={p.id}
-                    onPress={() => basculerMembre(p)}
-                    style={[s.membre, on && s.membreOn]}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: on }}
-                    accessibilityLabel={`Membre : ${p.nom}`}
-                  >
-                    <Text style={[s.membreText, on && s.membreTextOn]}>
-                      {on ? '✓ ' : ''}
-                      {p.nom}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-          {onOuvrir && (
-            <Pressable onPress={() => onOuvrir('personne', null, undefined, 'membres')} hitSlop={6} style={s.nouveau} accessibilityRole="button">
-              <Text style={s.nouveauTexte}>＋ Nouvelle personne (membre)</Text>
-            </Pressable>
-          )}
+          <SectionFiche titre="Rattachement" aDefinir={safe.actif && !form.train ? 1 : 0}>
+            {choix({
+              label: 'Train',
+              k: 'train',
+              liste: { groupes: [{ options: org.trains.map((t) => ({ value: t.id, label: `🚆 ${t.nom}`, meta: t.portfolio ? `💼 ${org.portfolio.get(t.portfolio)?.nom ?? ''}` : undefined })) }] },
+              nouveau: { kind: 'train', label: 'Nouveau train', defaults: sansVide({ portfolio: org.train.get(form.train)?.portfolio }) },
+              parent: true,
+              attendu: safe.actif,
+              sans: 'Sans train',
+            })}
+          </SectionFiche>
+          <SectionFiche titre="Rôles et membres" aDefinir={[form.po, form.sm, membres.length ? 'x' : ''].filter((v) => safe.actif && !v).length}>
+            {choix({ label: 'Product Owner', k: 'po', liste: listePersonnes({ titre: 'Membres de l’équipe', ids: new Set(membres) }), nouveau: nouvellePersonne(), attendu: safe.actif, sans: 'Sans Product Owner' })}
+            {choix({ label: 'Scrum Master', k: 'sm', liste: listePersonnes({ titre: 'Membres de l’équipe', ids: new Set(membres) }), nouveau: nouvellePersonne(), attendu: safe.actif, sans: 'Sans Scrum Master' })}
+            <LigneMulti
+              label="Membres"
+              values={membres}
+              depart={membresDe({ membres: initial.membres ?? '' })}
+              onChange={(l) => setForm((x) => ({ ...x, membres: l.join(';') }))}
+              {...listePersonnes()}
+              attendu={safe.actif}
+              nouveau={onOuvrir ? { label: 'Nouvelle personne', onPress: () => onOuvrir('personne', null, undefined, 'membres') } : undefined}
+              resume={(n) => `${n} membre${n > 1 ? 's' : ''}`}
+            />
+          </SectionFiche>
           <Text style={f.hint}>Le PO et le Scrum Master pilotent le travail de l'équipe (attribution, onglet Équipe, alertes).</Text>
         </>
       )}
@@ -368,16 +461,5 @@ export function OrgForm({
 
 const s = StyleSheet.create({
   consequence: { marginTop: 18 },
-  nouveau: { alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4 },
-  nouveauTexte: { fontSize: 13.5, fontWeight: '700', color: colors.primary },
-  enfant: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 6 },
-  enfantNom: { fontSize: 14.5, fontWeight: '700', color: colors.text },
-  enfantSous: { flex: 1, fontSize: 12, color: colors.muted },
-  enfantChev: { marginLeft: 'auto', fontSize: 18, color: colors.muted },
   entreprise: { fontSize: 12.5, fontWeight: '700', color: colors.muted, marginBottom: 6 },
-  membres: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  membre: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
-  membreOn: { backgroundColor: colors.text, borderColor: colors.text },
-  membreText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  membreTextOn: { color: '#fff' },
 });

@@ -48,7 +48,7 @@ import { TexteAjuste } from './src/components/TexteAjuste';
 import type { Injection, PileProps } from './src/components/FormSheet';
 import { OrganisationView, type VueOrg } from './src/components/OrganisationView';
 import { OrgForm } from './src/components/OrgForm';
-import { dansOrgFiltre, type EntiteOrg, ICONE_ORG, type KindOrg, libelleOrgFiltre, makeOrgValue, NOM_ORG, type Org, ORG_VIDE, OrgContext, type OrgFiltre, OrgFiltreContext } from './src/organisation';
+import { CLE_ORG, dansOrgFiltre, type EntiteOrg, ICONE_ORG, type KindOrg, libelleOrgFiltre, makeOrgValue, NOM_ORG, type Org, ORG_VIDE, OrgContext, type OrgFiltre, OrgFiltreContext } from './src/organisation';
 import { type ActionStockage, StockagePanneau } from './src/components/Stockage';
 import { FormSheet } from './src/components/FormSheet';
 import { aPurger, copieCsv, moisAnnee, octetsLignes, type Plan, planifier, pourcent, type Quota, quotaSimule, SEUIL_ALERTE, SEUIL_CIBLE, type TestStockage } from './src/stockage';
@@ -2229,8 +2229,11 @@ function Main() {
         epic={editingEpic}
         items={items}
         onClose={() => depiler('epic')}
-        onSave={async (input, rester) => {
+        onSave={async (input, rester, ranger, rangerFeatures) => {
           const saved = (await saveEntity('epic', editingEpic, input)) as Epic | undefined;
+          if (saved) for (const id of rangerFeatures ?? []) await saveEntity('feature', { id }, { epic: saved.id });
+          // Tâches rangées dans l'epic (« Ranger une tâche existante ») : faites à l'enregistrement
+          if (saved) for (const id of ranger ?? []) await updateTask({ id, epic: saved.id, feature: '', objectif: '', domaine: '' });
           // `rester` : epic enregistrée avant d'ouvrir un enfant (« ＋ Feature ») : la fiche reste ouverte
           if (rester) setEditingEpic(saved ?? null);
           else depiler('epic', editingEpic ? undefined : saved);
@@ -2253,8 +2256,10 @@ function Main() {
         visible={objectifFormOpen}
         objectif={editingObjectif}
         onClose={() => depiler('objectif')}
-        onSave={async (input, rester) => {
+        onSave={async (input, rester, ranger) => {
           const saved = (await saveEntity('objectif', editingObjectif, input)) as Objectif | undefined;
+          // Epics rangées dans l'objectif (« Ranger une epic existante ») : faites à l'enregistrement
+          if (saved) for (const id of ranger ?? []) await saveEntity('epic', { id }, { objectif: (saved as Objectif).id, domaine: '' });
           if (rester) setEditingObjectif(saved ?? null);
           else depiler('objectif', editingObjectif ? undefined : saved);
           return saved;
@@ -2275,8 +2280,10 @@ function Main() {
         domaine={editingDomaine}
         defaultEspace={domaineEspace}
         onClose={() => depiler('domaine')}
-        onSave={async (input, rester) => {
+        onSave={async (input, rester, ranger) => {
           const saved = (await saveEntity('domaine', editingDomaine, input)) as Domaine | undefined;
+          // Objectifs rangés dans le domaine (« Ranger un objectif existant ») : faits à l'enregistrement
+          if (saved) for (const id of ranger ?? []) await saveEntity('objectif', { id }, { domaine: saved.id });
           if (rester) setEditingDomaine(saved ?? null);
           else depiler('domaine', editingDomaine ? undefined : saved);
           return saved;
@@ -2296,12 +2303,13 @@ function Main() {
         onClose={() => depiler('feature')}
         onSave={async (input, taches, rester) => {
           const saved = (await saveEntity('feature', editingFeature, input)) as Feature | undefined;
-          if (!editingFeature && saved) {
+          if (saved) {
+            // Tâches rangées dans la feature (« Ranger une tâche existante ») : faites à l'enregistrement
             for (const id of taches.existantes) {
               const t = items.find((x) => x.id === id);
               if (t) await linkTaskToFeature(saved, t);
             }
-            for (const titre of taches.nouvelles) await quickAddTask(saved, titre);
+            if (!editingFeature) for (const titre of taches.nouvelles) await quickAddTask(saved, titre);
           }
           if (rester) setEditingFeature(saved ?? null);
           else depiler('feature', editingFeature ? undefined : saved);
@@ -2581,8 +2589,16 @@ function Main() {
             onOuvrir={(kind, entite, defaults, champ) => ouvrirOrg({ kind, entite, espace: fiche.espace, defaults, champ })}
             injection={fiche.injection}
             onDirty={(d) => setOrgPile((p) => (p[i] && !!p[i].dirty !== d ? p.map((x, k) => (k === i ? { ...x, dirty: d } : x)) : p))}
-            onSave={async (data, rester) => {
+            onSave={async (data, rester, ranger) => {
               const o = await api.saveOrg(settings, fiche.espace, fiche.kind, { ...data, id: fiche.entite?.id } as never);
+              // Éléments existants rangés dans celui-ci (« Ranger un train existant »…) : faits à l'enregistrement
+              for (const r of ranger ?? []) {
+                const liste = orgDe((x) => (x.espace || 'moi') === fiche.espace)[CLE_ORG[r.kind]] as unknown as { id: string }[];
+                for (const idEnfant of r.ids) {
+                  const enfant = liste.find((x) => x.id === idEnfant);
+                  if (enfant) await api.saveOrg(settings, fiche.espace, r.kind, { ...enfant, [r.champ]: o.id } as never);
+                }
+              }
               await rechargerOrg(settings, fiche.espace);
               if (rester) {
                 // Parent enregistré pour ouvrir un enfant : la fiche reste ouverte, sur l'élément enregistré

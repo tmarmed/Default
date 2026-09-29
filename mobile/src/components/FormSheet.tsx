@@ -19,10 +19,6 @@ import { colors } from '../theme';
 import { EPIC_COULEURS } from '../types';
 import { TexteAjuste } from './TexteAjuste';
 
-/** Largeur du bouton « ‹ Fiche d'en dessous » (pile de fiches) */
-const RETOUR_MAX = 120;
-/** Variantes du bouton « ‹ … » : le premier nom qui tient, sinon « ‹ Retour » */
-const variantesRetour = (r: string | string[]) => [...(Array.isArray(r) ? r : [r]).map((v) => `‹ ${v}`), '‹ Retour'];
 const nomRetour = (r: string | string[]) => (Array.isArray(r) ? r[0] : r);
 
 interface Props {
@@ -57,26 +53,35 @@ export interface Injection {
   n: number;
 }
 
-/** En-tête de la pile pour les fiches qui ont leur propre en-tête (Tâche, Epic) : fil et « Tout fermer » */
-export function CheminPile({ pile }: { pile?: PileProps }) {
+/**
+ * Fil d'Ariane discret d'une pile de fiches : petite ligne grise sous le titre (« Pro › Fidéliser les clients »),
+ * et un ✕ gris pour fermer toutes les fiches (avec confirmation).
+ */
+export function CheminPile({ pile, disabled }: { pile?: PileProps; disabled?: boolean }) {
   if (!pile?.chemin) return null;
   return (
     <View style={styles.chemin}>
       <Text style={styles.cheminTexte}>{pile.chemin}</Text>
       {pile.onFermerTout && (
-        <Pressable onPress={pile.onFermerTout} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fermer toutes les fiches">
-          <Text style={styles.fermerTout}>✕ Tout fermer</Text>
+        <Pressable onPress={pile.onFermerTout} hitSlop={10} disabled={disabled} accessibilityRole="button" accessibilityLabel="Fermer toutes les fiches">
+          <Text style={styles.fermerTout}>✕</Text>
         </Pressable>
       )}
     </View>
   );
 }
 
-/** Bouton gauche de l'en-tête : « ‹ fiche d'en dessous » dans une pile, sinon « Annuler » */
+/** Bouton gauche de l'en-tête : « Annuler » (dans une pile : revient à la fiche d'en dessous sans enregistrer) */
 export function BoutonRetour({ pile, onPress, disabled, style }: { pile?: PileProps; onPress: () => void; disabled?: boolean; style: object }) {
   return (
-    <Pressable onPress={onPress} hitSlop={10} disabled={disabled} accessibilityRole="button" accessibilityLabel={pile?.retour ? `Retour à ${nomRetour(pile.retour)}` : undefined}>
-      {pile?.retour ? <TexteAjuste variantes={variantesRetour(pile.retour)} taille={16} min={12} dispo={RETOUR_MAX} style={style} /> : <Text style={style}>Annuler</Text>}
+    <Pressable
+      onPress={onPress}
+      hitSlop={10}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={pile?.retour ? `Annuler et revenir à ${nomRetour(pile.retour)}` : undefined}
+    >
+      <Text style={style}>Annuler</Text>
     </Pressable>
   );
 }
@@ -86,20 +91,18 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.header}>
-          <Pressable onPress={onClose} hitSlop={10} disabled={busy} accessibilityRole="button" accessibilityLabel={retour ? `Retour à ${nomRetour(retour)}` : undefined}>
-            {retour ? (
-              // Jamais coupé « … » : le texte rapetisse si le nom est long
-              <TexteAjuste variantes={variantesRetour(retour)} taille={16} min={12} dispo={RETOUR_MAX} style={styles.headerBtn} />
-            ) : (
-              <Text style={styles.headerBtn}>{onSave ? 'Annuler' : 'Fermer'}</Text>
-            )}
+        <View style={[styles.header, !!chemin && styles.headerAvecFil]}>
+          <Pressable
+            onPress={onClose}
+            hitSlop={10}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={retour ? `Annuler et revenir à ${nomRetour(retour)}` : undefined}
+          >
+            <Text style={styles.headerBtn}>{onSave ? 'Annuler' : 'Fermer'}</Text>
           </Pressable>
-          {retour ? (
-            <TexteAjuste variantes={[title]} taille={16} min={12} dispo={Math.min(Dimensions.get('window').width, 480) - RETOUR_MAX - 150} style={styles.headerTitle} />
-          ) : (
-            <Text style={styles.headerTitle}>{title}</Text>
-          )}
+          {/* Jamais coupé « … » : le titre rapetisse s'il est long */}
+          <TexteAjuste variantes={[title]} taille={17} min={12} dispo={Math.min(Dimensions.get('window').width, 480) - 200} style={styles.headerTitle} />
           {onSave ? (
             <Pressable onPress={onSave} hitSlop={10} disabled={busy}>
               {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>}
@@ -108,16 +111,7 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
             <View style={{ width: 60, alignItems: 'flex-end' }}>{busy && <ActivityIndicator color={colors.primary} />}</View>
           )}
         </View>
-        {!!chemin && (
-          <View style={styles.chemin}>
-            <Text style={styles.cheminTexte}>{chemin}</Text>
-            {onFermerTout && (
-              <Pressable onPress={onFermerTout} hitSlop={8} disabled={busy} accessibilityRole="button" accessibilityLabel="Fermer toutes les fiches">
-                <Text style={styles.fermerTout}>✕ Tout fermer</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
+        <CheminPile pile={chemin ? { chemin, onFermerTout } : undefined} disabled={busy} />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error && <Text style={styles.error}>{error}</Text>}
@@ -249,9 +243,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   headerTitle: { fontSize: 17, fontWeight: '600', color: colors.text },
-  chemin: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#EEF3FD', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  cheminTexte: { flex: 1, fontSize: 12.5, fontWeight: '700', color: colors.primary },
-  fermerTout: { fontSize: 12.5, fontWeight: '700', color: colors.muted },
+  headerAvecFil: { borderBottomWidth: 0, paddingBottom: 6 },
+  // Fil d'Ariane discret : collé sous l'en-tête, petit et gris
+  chemin: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 0, paddingBottom: 7, backgroundColor: colors.card, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  cheminTexte: { flex: 1, fontSize: 11.5, color: '#9AA1AD' },
+  fermerTout: { fontSize: 13, color: '#9AA1AD', paddingHorizontal: 2 },
   headerBtn: { fontSize: 16, color: colors.primary },
   bold: { fontWeight: '600' },
   content: { padding: 16, paddingBottom: 48 },

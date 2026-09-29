@@ -3,7 +3,7 @@ import { domaineOf } from '../hierarchy';
 import { useHierarchy } from '../hierarchyContext';
 import { fmtPoints, pointsOf } from '../pi';
 import { useSafe } from '../safe';
-import { nomPersonne, porteurs, useOrg } from '../organisation';
+import { aCompleter, nomPersonne, porteurs, useOrg } from '../organisation';
 import { espaceParId, ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { formatDate, isOverdue, toDateString } from '../dates';
@@ -32,6 +32,8 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle, expand
   const porteur = safe.actif && org.delivery ? porteurs(item, h, org) : null;
   const equipeNom = porteur?.equipe ? (org.equipe.get(porteur.equipe)?.nom ?? '') : '';
   const responsableNom = safe.actif ? nomPersonne(org, item.responsable) : '';
+  // SAFe : affectations attendues encore vides (« À compléter : équipe, responsable »)
+  const manque = safe.actif ? aCompleter(item, h, org) : [];
   // Mode Simple : pas de feature affichée, la tâche d'une feature montre l'epic de cette feature
   const feat = h.features.get(item.feature);
   const parentFeature = safe.actif ? feat : undefined;
@@ -121,6 +123,7 @@ export const TaskItem = memo(function TaskItem({ item, onPress, onToggle, expand
             </Text>
           )}
           {pts > 0 && <Text style={styles.points}>{fmtPoints(pts, safe.pointsJours)}</Text>}
+          {manque.length > 0 && <Text style={styles.aCompleter}>À compléter : {manque.join(', ')}</Text>}
           {item.statut === 'en_cours' && <Text style={styles.enCours}>{STATUT_LABELS.en_cours}</Text>}
           {item.retards ? (
             <Text style={styles.late}>
@@ -267,6 +270,7 @@ const styles = StyleSheet.create({
   },
   points: { fontSize: 12, fontWeight: '700', color: colors.muted, backgroundColor: '#EEF1F6', borderRadius: 8, paddingHorizontal: 6, overflow: 'hidden' },
   enCours: { fontSize: 13, color: colors.primary, fontWeight: '600' },
+  aCompleter: { fontSize: 11.5, fontWeight: '700', color: '#C2410C', backgroundColor: '#FFF4EC', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1, overflow: 'hidden' },
   late: { fontSize: 13, color: colors.danger, fontWeight: '600' },
   espace: { fontSize: 12, color: colors.text, backgroundColor: '#EEF0F3', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1, overflow: 'hidden' },
   porteur: { fontSize: 12, color: '#00695C', backgroundColor: '#E0F2F1', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1, overflow: 'hidden', fontWeight: '600' },

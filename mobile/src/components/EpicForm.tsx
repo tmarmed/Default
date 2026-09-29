@@ -28,6 +28,8 @@ import { LinkPicker } from './LinkPicker';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 import { LiaisonOrg } from './LiaisonOrg';
+import { ChoiceSheet } from './ChoiceSheet';
+import { FeuilleMulti, LigneEnfant, ListeEnfants, SectionFiche } from './Choix';
 
 interface Props {
   visible: boolean;
@@ -36,7 +38,7 @@ interface Props {
   items: Item[];
   onClose: () => void;
   /** `rester` : epic enregistrée avant d'ouvrir un enfant (la fiche reste ouverte) ; renvoie l'epic enregistrée */
-  onSave: (input: EpicInput, rester?: boolean) => Promise<Epic | void | undefined>;
+  onSave: (input: EpicInput, rester?: boolean, ranger?: string[], rangerFeatures?: string[]) => Promise<Epic | void | undefined>;
   onDelete: (epic: Epic, cascade: boolean) => Promise<void>;
   /** Pile de fiches (ouverte depuis une autre fiche) */
   pile?: PileProps;
@@ -96,6 +98,11 @@ export function EpicForm({
   const [form, setForm] = useState<EpicInput>(empty());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Tâches existantes rangées dans l'epic (« Ranger une tâche existante ») : faites à l'enregistrement */
+  const [ranger, setRanger] = useState<string[]>([]);
+  const [rangerF, setRangerF] = useState<string[]>([]);
+  const [menuPlus, setMenuPlus] = useState(false);
+  const [picking, setPicking] = useState(false);
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, epic, defaults);
   const safe = useSafe();
@@ -120,6 +127,9 @@ export function EpicForm({
           : { ...empty(), ...defaults },
       );
       setError(null);
+      setRanger([]);
+      setRangerF([]);
+      setPicking(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, epic]);
@@ -127,6 +137,16 @@ export function EpicForm({
   const set = <K extends keyof EpicInput>(key: K, value: EpicInput[K]) => setForm((f) => ({ ...f, [key]: value }));
   const tasks = epic ? tasksOfEpic(epic.id, items, h.featureList) : [];
   const kids = epic ? childrenOf('epic', epic.id, h.data) : null;
+  // Tâches qu'on peut ranger dans l'epic : ni répétées, ni terminées, ni sous-tâches, pas déjà dans l'epic
+  const dansEpic = new Set(tasks.map((t) => t.id));
+  const candidats = h.items
+    .filter((t) => !t.periodicite && !t.parent && t.statut !== 'termine' && !dansEpic.has(t.id) && !ranger.includes(t.id))
+    .map((t) => {
+      const ft = t.feature ? h.features.get(t.feature) : undefined;
+      const ep = !ft && t.epic ? h.epics.get(t.epic) : undefined;
+      const ailleurs = ft ? `🧩 ${ft.titre}` : ep ? `🗂️ ${ep.titre}` : t.objectif ? `🎯 ${h.objectifs.get(t.objectif)?.titre ?? ''}` : t.domaine ? (h.domaines.get(t.domaine)?.nom ?? '') : '';
+      return { id: t.id, titre: t.titre, sub: ailleurs, dans: !!ailleurs };
+    });
   const stats = epic ? progress(epic.id, items, h.featureList) : null;
   // Alertes calculées sur les dates en cours de saisie : le bouton ajuste les champs, puis on enregistre.
   const alertes = epic && form.debut ? alertesEpic({ id: epic.id, titre: form.titre || epic.titre, debut: form.debut, fin: form.fin }, items, h.featureList) : [];
@@ -138,7 +158,12 @@ export function EpicForm({
     setError(null);
     setBusy(true);
     try {
-      return (await onSave({ ...form, espace, titre: form.titre.trim() }, rester)) || undefined;
+      const saved = (await onSave({ ...form, espace, titre: form.titre.trim() }, rester, ranger, rangerF)) || undefined;
+      if (rester) {
+        setRanger([]);
+        setRangerF([]);
+      }
+      return saved;
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
       return undefined;
@@ -185,7 +210,7 @@ export function EpicForm({
     <HierarchyContext.Provider value={h}>
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.header}>
+        <View style={[styles.header, !!pile?.chemin && { borderBottomWidth: 0, paddingBottom: 6 }]}>
           <BoutonRetour pile={pile} onPress={onClose} disabled={busy} style={styles.headerBtn} />
           <Text style={styles.headerTitle}>{epic ? 'Epic' : 'Nouvelle epic'}</Text>
           <Pressable onPress={() => save()} hitSlop={10} disabled={busy}>
@@ -253,6 +278,7 @@ export function EpicForm({
               onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
               onNouveau={onNouveau ? (n, d) => (n === 'objectif' || n === 'domaine') && onNouveau(n, d) : undefined}
               initial={epic ? { objectif: epic.objectif, domaine: epic.domaine } : undefined}
+              attendu={safe.actif ? 'un' : undefined}
             />
 
             {safe.actif && (
@@ -268,6 +294,8 @@ export function EpicForm({
                   espace={espace}
                   niveau="epic"
                   valeurs={{ portfolio: form.portfolio, epic: epic?.id }}
+                  initial={epic ? { portfolio: epic.portfolio ?? '' } : undefined}
+                  attendu
                   onChange={(p) => setForm((x) => ({ ...x, ...p }))}
                   onNouveau={onNouveauOrg ? () => onNouveauOrg(espace) : undefined}
                 />
@@ -314,74 +342,96 @@ export function EpicForm({
               textAlignVertical="top"
             />
 
-            {!epic && (onAddFeature || onAddTask) && (
-              <>
-                <Text style={styles.label}>Et ensuite</Text>
-                <ChildActions
-                  actions={[
-                    ...(safe.actif && onAddFeature ? [{ label: '+ Feature', onPress: () => enregistrerPuis(onAddFeature) }] : []),
-                    ...(onAddTask ? [{ label: '+ Tâche', onPress: () => enregistrerPuis(onAddTask) }] : []),
-                  ]}
-                />
-                <Text style={styles.muted}>L'epic est enregistrée d'abord, puis la fiche s'ouvre par-dessus ; l'enregistrer vous ramène ici.</Text>
-              </>
+            {safe.actif && (
+              <ListeEnfants
+                titre={`Features · ${features.length}`}
+                enfants={features.map((f) => ({ id: f.id, texte: `🧩 ${f.titre}`, onPress: onOpenFeature ? () => onOpenFeature(f) : undefined }))}
+                candidats={h.featureList
+                  .filter((f) => !epic || f.epic !== epic.id)
+                  .map((f) => ({ id: f.id, titre: `🧩 ${f.titre}`, ailleurs: f.epic ? `🗂️ ${h.epics.get(f.epic)?.titre ?? '?'}` : undefined }))}
+                ranger={rangerF}
+                setRanger={setRangerF}
+                nouveau={onAddFeature ? () => enregistrerPuis(onAddFeature) : undefined}
+                mots={{
+                  nouveau: 'Nouvelle feature',
+                  ranger: 'Ranger une feature existante',
+                  feuille: "Ranger dans l'epic",
+                  libres: 'Sans epic',
+                  autres: 'Dans une autre epic',
+                  un: "Rangée dans l'epic à l'enregistrement.",
+                  plusieurs: "Rangées dans l'epic à l'enregistrement.",
+                }}
+                vide="Aucune feature pour l'instant."
+              />
+            )}
+
+            <SectionFiche
+              titre={`Tâches · ${stats ? `${stats.done}/${stats.total} terminée${stats.done > 1 ? 's' : ''}` : ranger.length}${stats?.repeated ? ` · ${stats.repeated} répétée${stats.repeated > 1 ? 's' : ''}` : ''}`}
+              onAjouter={() => setMenuPlus(true)}
+              ajouterLabel="Ajouter une tâche"
+            >
+              {!!stats && stats.total > 0 && (
+                <View style={[styles.progressTrack, { marginHorizontal: 12 }]}>
+                  <View style={[styles.progressFill, { width: `${(stats.done / stats.total) * 100}%`, backgroundColor: form.couleur }]} />
+                </View>
+              )}
+              {tasks
+                .filter((t) => !t.parent)
+                .map((t) => {
+                  const k = tasks.filter((c) => c.parent === t.id);
+                  return (
+                    <LigneEnfant
+                      key={t.id}
+                      texte={`${t.periodicite ? '🔁' : t.statut === 'termine' ? '✓' : '○'} ${t.titre}${k.length ? `  (${k.filter((c) => c.statut === 'termine').length}/${k.length})` : ''}${t.date ? ` · ${t.date.split('-').reverse().join('/')}` : ''}`}
+                      onPress={() => onOpenTask(t)}
+                    />
+                  );
+                })}
+              {ranger.map((id) => {
+                const t = items.find((x) => x.id === id);
+                const avant = t ? (t.feature ? h.features.get(t.feature) : undefined) : undefined;
+                const avantEpic = t && !t.feature && t.epic ? h.epics.get(t.epic) : undefined;
+                return (
+                  <LigneEnfant
+                    key={id}
+                    texte={`○ ${t?.titre ?? '?'}`}
+                    ajoute
+                    avant={avant ? `🧩 ${avant.titre}` : avantEpic ? `🗂️ ${avantEpic.titre}` : undefined}
+                    onAnnuler={() => setRanger((l) => l.filter((x) => x !== id))}
+                  />
+                );
+              })}
+              {!tasks.length && !ranger.length && <Text style={[styles.muted, { padding: 12 }]}>Aucune tâche pour l'instant.</Text>}
+            </SectionFiche>
+            {ranger.length > 0 && <Text style={styles.hint}>Rangées dans l'epic à l'enregistrement.</Text>}
+            <ChoiceSheet
+              key={`plus-${menuPlus}`}
+              visible={menuPlus}
+              title="Ajouter une tâche"
+              choices={[
+                ...(onAddTask ? [{ label: '＋ Nouvelle tâche', principal: true, onPress: () => enregistrerPuis(onAddTask) }] : []),
+                { label: '↘ Ranger une tâche existante', onPress: () => setPicking(true) },
+              ]}
+              onClose={() => setMenuPlus(false)}
+            />
+            {picking && (
+              <FeuilleMulti
+                titre="Ranger dans l'epic"
+                groupes={[{ titre: 'Sans rattachement', options: candidats.filter((c) => !c.dans).map((c) => ({ value: c.id, label: c.titre, meta: c.sub })) }]}
+                autres={{ titre: 'Rangées ailleurs', groupes: [{ options: candidats.filter((c) => c.dans).map((c) => ({ value: c.id, label: c.titre, meta: c.sub })) }] }}
+                selection={[]}
+                vide="Aucune tâche à ranger."
+                libelleValider={(n) => (n ? `Ranger ${n} tâche${n > 1 ? 's' : ''}` : 'Ranger')}
+                onValider={(l) => {
+                  setRanger((x) => [...x, ...l.filter((id) => !x.includes(id))]);
+                  setPicking(false);
+                }}
+                onFermer={() => setPicking(false)}
+              />
             )}
 
             {epic && stats && (
               <>
-                <Text style={styles.label}>
-                  Tâches · {stats.done}/{stats.total} terminée(s)
-                  {stats.repeated ? ` · ${stats.repeated} répétée(s)` : ''}
-                </Text>
-                {stats.total > 0 && (
-                  <View style={styles.progressTrack}>
-                    <View
-                      style={[
-                        styles.progressFill,
-                        { width: `${(stats.done / stats.total) * 100}%`, backgroundColor: epic.couleur },
-                      ]}
-                    />
-                  </View>
-                )}
-                {safe.actif &&
-                  features.map((f) => (
-                    <Pressable key={f.id} style={styles.task} onPress={() => onOpenFeature?.(f)} disabled={!onOpenFeature} accessibilityRole="button" accessibilityLabel={`Ouvrir la feature ${f.titre}`}>
-                      <Text style={styles.taskCheck}>🧩</Text>
-                      <Text style={styles.taskTitle}>{f.titre}</Text>
-                      {!!onOpenFeature && <Text style={styles.muted}>›</Text>}
-                    </Pressable>
-                  ))}
-                {tasks.length === 0 ? (
-                  <Text style={styles.muted}>
-                    Aucune tâche. Pour en rattacher une, ouvrez-la et choisissez cette epic.
-                  </Text>
-                ) : (
-                  tasks.filter((t) => !t.parent).map((t) => (
-                    <Pressable key={t.id} style={styles.task} onPress={() => onOpenTask(t)}>
-                      <Text style={[styles.taskCheck, t.statut === 'termine' && { color: colors.success }]}>
-                        {t.periodicite ? '🔁' : t.statut === 'termine' ? '✓' : '○'}
-                      </Text>
-                      <Text
-                        style={[styles.taskTitle, t.statut === 'termine' && !t.periodicite && styles.taskDone]}
-                        numberOfLines={1}
-                      >
-                        {t.titre}
-                        {tasks.some((c) => c.parent === t.id)
-                          ? `  (${tasks.filter((c) => c.parent === t.id && c.statut === 'termine').length}/${tasks.filter((c) => c.parent === t.id).length})`
-                          : ''}
-                      </Text>
-                      {!!t.date && <Text style={styles.muted}>{t.date.split('-').reverse().join('/')}</Text>}
-                    </Pressable>
-                  ))
-                )}
-
-                <ChildActions
-                  actions={[
-                    ...(safe.actif && onAddFeature ? [{ label: '+ Feature', onPress: () => onAddFeature(epic) }] : []),
-                    ...(onAddTask ? [{ label: '+ Tâche', onPress: () => onAddTask(epic) }] : []),
-                    ...(onOpenWizard ? [{ label: "🚀 Ouvrir dans l'assistant", onPress: () => onOpenWizard(epic), primary: true }] : []),
-                  ]}
-                />
                 <DeleteSection
                   label="Supprimer l'epic"
                   name={epic.titre}

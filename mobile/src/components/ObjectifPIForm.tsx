@@ -6,7 +6,8 @@ import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 import { piLabel, piOf, shiftPi } from '../pi';
 import type { ObjectifPI, ObjectifPIInput } from '../types';
 import { Chips } from './Chips';
-import { DomaineChoix } from './DomaineChoix';
+import { LigneChoix, SectionFiche } from './Choix';
+import { listeDomaines } from '../choixTravail';
 import { DeleteSection } from './DeleteSection';
 import { Field, FormSheet, formStyles as f, Label } from './FormSheet';
 
@@ -77,27 +78,41 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
           setForm((x) => ({ ...x, domaine: '', epic: '' }));
         }}
       />
-      <Label>PI (trimestre)</Label>
-      <Chips options={pis.map((p) => ({ value: p, label: piLabel(p) }))} value={form.pi} onChange={(v) => set('pi', v)} compact wrap />
-      <DomaineChoix
-        value={form.domaine}
-        // Un autre domaine : l'epic choisie n'en fait plus partie
-        onChange={(v) => setForm((x) => ({ ...x, domaine: v, epic: x.epic && v && !inDomain(v, domEpic(x.epic), h) ? '' : x.epic }))}
-      />
-      {epics.length > 0 && (
-        <>
-          <Label>Epic</Label>
-          <Chips
-            options={[{ value: '', label: 'Aucune' }, ...epics.map((e) => ({ value: e.id, label: e.titre, color: e.couleur || undefined }))]}
-            value={form.epic}
-            // Choisir une epic range aussi l'objectif dans son domaine
-            onChange={(v) => setForm((x) => ({ ...x, epic: v, domaine: v ? domEpic(v) || x.domaine : x.domaine }))}
-            compact
-            wrap
-          />
-          <Text style={f.hint}>L'objectif est porté par les features et les tâches de cette epic prévues dans le PI.</Text>
-        </>
-      )}
+      <SectionFiche titre="Planification">
+        <LigneChoix
+          label="PI"
+          value={form.pi}
+          depart={objectif?.pi}
+          attendu
+          groupes={[{ options: pis.map((p) => ({ value: p, label: `PI ${piLabel(p)}`, badge: p === current ? { texte: 'en cours', ton: 'vert' as const } : undefined })) }]}
+          libelle={(v) => `PI ${piLabel(v)}`}
+          onChange={(v) => v && set('pi', v)}
+        />
+      </SectionFiche>
+      <SectionFiche titre="Rattachement">
+        <LigneChoix
+          label="Domaine"
+          value={form.domaine}
+          depart={objectif?.domaine || undefined}
+          parent
+          {...listeDomaines(h)}
+          sans="Sans domaine"
+          // Un autre domaine : l'epic choisie n'en fait plus partie
+          onChange={(v) => setForm((x) => ({ ...x, domaine: v, epic: x.epic && v && !inDomain(v, domEpic(x.epic), h) ? '' : x.epic }))}
+        />
+        <LigneChoix
+          label="Epic"
+          value={form.epic}
+          depart={objectif?.epic || undefined}
+          parent
+          groupes={[{ options: epics.map((e) => ({ value: e.id, label: `🗂️ ${e.titre}` })) }]}
+          libelle={(v) => `🗂️ ${h.epics.get(v)?.titre ?? '?'}`}
+          sous="Porté par les features et les tâches de cette epic prévues dans le PI"
+          sans="Sans epic"
+          // Choisir une epic range aussi l'objectif dans son domaine
+          onChange={(v) => setForm((x) => ({ ...x, epic: v, domaine: v ? domEpic(v) || x.domaine : x.domaine }))}
+        />
+      </SectionFiche>
       <Label>Type</Label>
       <Chips
         options={[

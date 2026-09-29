@@ -144,6 +144,31 @@ type Travail = {
   epics: Map<string, { portfolio?: string }>;
 };
 
+/** Types qui ont leurs affectations attendues en mode SAFe (feature, équipe, responsable) */
+export const TYPES_ATTENDUS = ['story', 'bug', 'exploration'];
+
+/**
+ * Affectations attendues encore vides d'une story, d'un bug ou d'une exploration (mode SAFe) : sa feature (sauf
+ * sous-tâche), et, si l'entreprise a un delivery, son équipe (la sienne ou celle de sa feature) et son responsable.
+ * Une tâche terminée n'a plus rien à compléter.
+ */
+export function aCompleter(
+  t: { type: string; statut: string; feature: string; parent?: string; equipe?: string; responsable?: string; espace?: string },
+  h: Travail,
+  o: Pick<OrgValue, 'portfolios' | 'trains' | 'equipes'>,
+): string[] {
+  if (!TYPES_ATTENDUS.includes(t.type) || t.statut === 'termine') return [];
+  const esp = t.espace || 'moi';
+  const delivery = [...o.portfolios, ...o.trains, ...o.equipes].some((x) => (x.espace || 'moi') === esp);
+  const manque: string[] = [];
+  if (!t.feature && !t.parent) manque.push('feature');
+  if (delivery) {
+    if (!t.equipe && !(t.feature && h.features.get(t.feature)?.equipe)) manque.push('équipe');
+    if (!t.responsable) manque.push('responsable');
+  }
+  return manque;
+}
+
 /** Équipe, train et portfolio d'un élément de travail (story, tâche, feature, epic), déduits de ses liens */
 export function porteurs(x: Lien, h: Travail, o: Pick<OrgValue, 'equipe' | 'train'>): { equipe: string; train: string; portfolio: string } {
   const f = x.feature ? h.features.get(x.feature) : undefined;

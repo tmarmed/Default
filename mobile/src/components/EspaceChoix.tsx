@@ -1,11 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
 import { espaceDe } from '../api';
 import { espaceParId, ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces';
 import { filtrerEspace, useHierarchy } from '../hierarchyContext';
-import { colors } from '../theme';
-import { Chips } from './Chips';
-import { Label } from './FormSheet';
+import { LigneChoix, SectionFiche } from './Choix';
 
 /** Espace d'un rattachement proposé (objectif, domaine, epic, feature), s'il y en a un */
 const espaceLie = (d?: Record<string, unknown>) =>
@@ -34,27 +31,20 @@ export function useEspaceFiche(visible: boolean, existant: { espace?: string } |
 export function EspaceChoix({ espace, onChange, fige }: { espace: string; onChange: (v: string) => void; fige: boolean }) {
   const esp = useEspaces();
   if (esp.visibles.length < 2 && esp.visibles[0] === espace) return null;
-  const e = espaceParId(esp.liste, espace);
+  const nom = (id: string) => {
+    const e = espaceParId(esp.liste, id);
+    return e ? `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` : id;
+  };
   return (
-    <>
-      <Label>Espace de travail</Label>
-      {fige ? (
-        <Text style={s.fige}>{e ? `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` : espace}</Text>
-      ) : (
-        <Chips
-          options={esp.liste
-            .filter((x) => esp.visibles.includes(x.id) || x.id === espace)
-            .map((x) => ({ value: x.id, label: `${ICONE_ESPACE[x.type]} ${libelleEspace(x)}` }))}
-          value={espace}
-          onChange={onChange}
-          compact
-          wrap
-        />
-      )}
-    </>
+    <SectionFiche titre="Espace de travail">
+      <LigneChoix
+        label="Espace"
+        value={espace}
+        fige={fige}
+        libelle={nom}
+        groupes={[{ options: esp.liste.filter((x) => esp.visibles.includes(x.id) || x.id === espace).map((x) => ({ value: x.id, label: nom(x.id) })) }]}
+        onChange={(v) => v && onChange(v)}
+      />
+    </SectionFiche>
   );
 }
-
-const s = StyleSheet.create({
-  fige: { fontSize: 15, color: colors.text },
-});

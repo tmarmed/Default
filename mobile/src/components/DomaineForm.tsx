@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { LigneChoix, LigneFiche, ListeEnfants, SectionFiche } from './Choix';
 import { childrenOf, describeCounts } from '../hierarchy';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 import { colors } from '../theme';
 import { DOMAINE_ICONES, Domaine, DomaineInput, EPIC_COULEURS, Objectif } from '../types';
 import { DeleteSection } from './DeleteSection';
-import { Chips } from './Chips';
-import { ChildActions, ColorPicker, Field, FormSheet, formStyles as f, Label, type PileProps } from './FormSheet';
+import { ColorPicker, Field, FormSheet, formStyles as f, Label, type PileProps } from './FormSheet';
 
 interface Props {
   visible: boolean;
   domaine: Domaine | null;
   onClose: () => void;
   /** `rester` : domaine enregistré avant d'ouvrir un enfant (la fiche reste ouverte) ; renvoie le domaine */
-  onSave: (input: DomaineInput, rester?: boolean) => Promise<Domaine | void | undefined>;
+  onSave: (input: DomaineInput, rester?: boolean, ranger?: string[]) => Promise<Domaine | void | undefined>;
   pile?: PileProps;
   onDelete: (d: Domaine, cascade: boolean) => Promise<void>;
   onOpenObjectif: (o: Objectif) => void;
@@ -26,17 +26,20 @@ interface Props {
 }
 
 /** Fiche d'un domaine (Pro, Perso…) : nom, icône, couleur, objectifs. */
-export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpenObjectif, onAddObjectif, onOpenWizard, defaultEspace, pile }: Props) {
+export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpenObjectif, onAddObjectif, defaultEspace, pile }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, domaine, defaultEspace ? { espace: defaultEspace } : undefined);
   const [form, setForm] = useState<DomaineInput>({ nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0], parent: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Objectifs existants rangés dans le domaine : faits à l'enregistrement */
+  const [ranger, setRanger] = useState<string[]>([]);
 
   useEffect(() => {
     if (visible) {
       setForm(domaine ? { nom: domaine.nom, icone: domaine.icone, couleur: domaine.couleur, parent: domaine.parent ?? '' } : { nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0], parent: '' });
       setError(null);
+      setRanger([]);
     }
   }, [visible, domaine]);
 
@@ -58,7 +61,9 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
     setError(null);
     setBusy(true);
     try {
-      return (await onSave({ ...form, espace, nom: form.nom.trim() }, rester)) || undefined;
+      const saved = (await onSave({ ...form, espace, nom: form.nom.trim() }, rester, ranger)) || undefined;
+      if (rester) setRanger([]);
+      return saved;
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
       return undefined;
@@ -99,18 +104,22 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
           setForm((x) => ({ ...x, parent: '' }));
         }}
       />
-      <Label>Sous-domaine de (facultatif)</Label>
-      {sousDomaines.length ? (
-        <Text style={f.muted}>Domaine principal · sous-domaines : {sousDomaines.map((d) => `${d.icone} ${d.nom}`).join(', ')}</Text>
-      ) : (
-        <Chips
-          options={[{ value: '', label: 'Aucun (domaine principal)' }, ...principaux.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur }))]}
-          value={form.parent && principaux.some((d) => d.id === form.parent) ? form.parent : ''}
-          onChange={(v) => setForm((x) => ({ ...x, parent: v }))}
-          compact
-          wrap
-        />
-      )}
+      <SectionFiche titre="Rattachement">
+        {sousDomaines.length ? (
+          <LigneFiche label="Sous-domaine de" valeur="Domaine principal" sous={`Sous-domaines : ${sousDomaines.map((d) => `${d.icone} ${d.nom}`).join(', ')}`} gris />
+        ) : (
+          <LigneChoix
+            label="Sous-domaine de"
+            value={form.parent && principaux.some((d) => d.id === form.parent) ? form.parent : ''}
+            depart={domaine?.parent || undefined}
+            parent
+            groupes={[{ options: principaux.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}` })) }]}
+            vide="Aucun (domaine principal)"
+            sans="Domaine principal"
+            onChange={(v) => setForm((x) => ({ ...x, parent: v }))}
+          />
+        )}
+      </SectionFiche>
       <Label>Icône</Label>
       <View style={styles.icons}>
         {DOMAINE_ICONES.map((i) => (
@@ -128,34 +137,31 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
       <Label>Couleur</Label>
       <ColorPicker value={form.couleur} onChange={(col) => setForm((x) => ({ ...x, couleur: col }))} />
 
-      {!domaine && onAddObjectif && (
-        <>
-          <Label>Et ensuite</Label>
-          <ChildActions actions={[{ label: '+ Objectif', onPress: () => enregistrerPuis(onAddObjectif) }]} />
-          <Text style={f.hint}>Le domaine est enregistré d'abord, puis l'objectif s'ouvre par-dessus ; l'enregistrer vous ramène ici.</Text>
-        </>
-      )}
+      <ListeEnfants
+        titre={`Objectifs · ${objectifs.length}`}
+        enfants={objectifs.map((o) => ({ id: o.id, texte: `🎯 ${o.titre}`, onPress: () => onOpenObjectif(o) }))}
+        candidats={h.objectifList
+          .filter((o) => !domaine || o.domaine !== domaine.id)
+          .map((o) => {
+            const d = o.domaine ? h.domaines.get(o.domaine) : undefined;
+            return { id: o.id, titre: `🎯 ${o.titre}`, ailleurs: d ? `${d.icone} ${d.nom}` : undefined };
+          })}
+        ranger={ranger}
+        setRanger={setRanger}
+        nouveau={onAddObjectif ? () => enregistrerPuis(onAddObjectif) : undefined}
+        mots={{
+          nouveau: 'Nouvel objectif',
+          ranger: 'Ranger un objectif existant',
+          feuille: 'Ranger dans le domaine',
+          libres: 'Sans domaine',
+          autres: 'Dans un autre domaine',
+          un: "Rangé dans le domaine à l'enregistrement.",
+          plusieurs: "Rangés dans le domaine à l'enregistrement.",
+        }}
+        vide="Aucun objectif dans ce domaine."
+      />
       {domaine && (
         <>
-          <Label>Objectifs · {objectifs.length}</Label>
-          {objectifs.length === 0 ? (
-            <Text style={f.muted}>Aucun objectif dans ce domaine.</Text>
-          ) : (
-            objectifs.map((o) => (
-              <Pressable key={o.id} style={f.link} onPress={() => onOpenObjectif(o)}>
-                <View style={[f.dot, { backgroundColor: o.couleur }]} />
-                <Text style={f.linkTitle} numberOfLines={1}>
-                  🎯 {o.titre}
-                </Text>
-              </Pressable>
-            ))
-          )}
-          <ChildActions
-            actions={[
-              ...(onAddObjectif ? [{ label: '+ Objectif', onPress: () => onAddObjectif(domaine) }] : []),
-              ...(onOpenWizard ? [{ label: "🚀 Ouvrir dans l'assistant", onPress: () => onOpenWizard(domaine), primary: true }] : []),
-            ]}
-          />
           <DeleteSection
             label="Supprimer le domaine"
             name={domaine.nom}

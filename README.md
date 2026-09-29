@@ -44,11 +44,23 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   personne… » dans un choix, ouvre la fiche par-dessus ; un parent nouveau est enregistré d'abord ; à l'enregistrement
   on revient à la fiche d'en dessous avec l'élément créé déjà choisi. En haut : fil d'Ariane, « ‹ Parent » au lieu
   d'Annuler, « ✕ Tout fermer » (avec confirmation). Toucher une feature ou une tâche d'une epic l'ouvre par-dessus.
-  Changer de parent : les puces restent visibles, un appui suffit ; l'ancien parent passe en pointillés et un encadré
-  annonce « Déplacement de … vers … à l'enregistrement » (« Annuler le déplacement »). Un élément qui a déjà un parent
-  propose « ＋ Vers une nouvelle feature / epic… » (créée sous le même grand-parent), sinon « ＋ Nouvelle … » ; une
-  tâche d'une feature ne voit que les features de la même epic (« Voir les features des autres epics »). Même chose
-  dans l'Organisation (service, unité au-dessus, portfolio d'un train, train d'une équipe).
+- **Fiches : lignes de choix** (tâche, feature, epic, objectif, domaine, objectif du PI, Organisation) : chaque
+  affectation est une ligne « Feature — 🧩 Compte client mobile › » (chemin en petit dessous) qui ouvre une feuille :
+  « Annuler », recherche, « ＋ Nouvelle … » en tête, le même parent d'abord, « Autres … · n ▸ » fermé (la même ligne
+  ouvre et referme), le choix actuel toujours visible, « Sans … » en bas s'il y a un choix ; toucher un élément le
+  choisit et referme la feuille. Ligne vide attendue (SAFe) en orange « À définir » (compte « n à définir » au titre
+  de la section), vide facultative en gris « Facultatif ». Un autre choix que celui du départ : pastille « changée ▸ »
+  (« déplacée ▸ » pour un parent), ouverte : « Avant : … » et « Annuler le changement » ; fait à l'enregistrement.
+  Attendu en SAFe : story / bug / exploration → feature, équipe, responsable ; feature → epic, train, équipe, PI ;
+  epic → objectif ou domaine, portfolio ; objectif → domaine ; équipe → train, PO, SM, membres ; train → portfolio,
+  RTE. Les listes affichent « À compléter : … » sur une story incomplète. Itération : le PI de la feature d'abord
+  (dates, « en cours », « prévue »), les autres PI repliés.
+- **Enfants d'une fiche** (features et tâches d'une epic, tâches d'une feature, epics d'un objectif, objectifs d'un
+  domaine, trains, équipes, sous-unités, personnes) : ＋ rond à droite du titre → « ＋ Nouvelle … » (fiche
+  par-dessus) ou « ↘ Ranger … existante » (cases à cocher, ceux d'un autre parent repliés) ; rangés à
+  l'enregistrement, avec la pastille « ajoutée » / « déplacée ».
+- **En-tête des fiches** : « Annuler » à gauche, fil d'Ariane en petite ligne grise sous le titre, ✕ gris pour
+  fermer toutes les fiches (confirmation).
   À venir (étapes 2 et 3) : Google Sheet par équipe créé et partagé automatiquement d'après les rôles, onglet par
   personne, « Autoriser » à la connexion, attribution et registre des attributions. Vérifié par
   `npm run verif:organisation` et `npm run verif:sheets`.

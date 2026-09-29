@@ -1,19 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
-import { childrenOf, describeCounts } from '../hierarchy';
-import { HierarchyContext, inDomain } from '../hierarchyContext';
-import { domaineOf } from '../hierarchy';
-import { DomaineChoix } from './DomaineChoix';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { childrenOf, describeCounts, domaineOf, objectifOf } from '../hierarchy';
+import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
-import { fmtPoints, iterationsOf, piLabel, piOf, pointsOf, shiftPi } from '../pi';
+import { fmtPoints, iterationNom, piLabel, pointsOf } from '../pi';
 import { useSafe } from '../safe';
+import { colors } from '../theme';
 import type { Feature, FeatureInput, Item } from '../types';
-import { Chips } from './Chips';
-import { ItemPicker } from './ItemPicker';
 import { DeleteSection } from './DeleteSection';
 import { ChildActions, Field, FormSheet, formStyles as f, type Injection, Label, type PileProps, Progress } from './FormSheet';
-import { Rattachement } from './Rattachement';
 import { LiaisonOrg } from './LiaisonOrg';
+import { ChoiceSheet } from './ChoiceSheet';
+import { FeuilleMulti, LigneChoix, LigneEnfant, SectionFiche } from './Choix';
+import { listeEpics, listeIterations, listePI } from '../choixTravail';
 
 interface Props {
   visible: boolean;
@@ -54,9 +53,7 @@ export function FeatureForm({
   onOpenTask,
   defaults,
   onQuickAddTask,
-  onLinkTask,
   onOpenWizard,
-  defaultDomaine,
   pile,
   injection,
   onNouvelleEpic,
@@ -76,10 +73,7 @@ export function FeatureForm({
   const [nouvelles, setNouvelles] = useState<string[]>([]);
   const [existantes, setExistantes] = useState<string[]>([]);
   const [picking, setPicking] = useState(false);
-  /** Nouvelle feature : domaine (une feature n'a pas de domaine à elle : il sert à choisir l'epic) */
-  const [dom, setDom] = useState('');
-  const domEpic = (id: string) => domaineOf({ epic: id }, h)?.id ?? '';
-  const epicsProposees = h.epicList.filter((e) => e.id === form.epic || !dom || inDomain(dom, domEpic(e.id), h));
+  const [menuPlus, setMenuPlus] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -92,15 +86,11 @@ export function FeatureForm({
       setExistantes([]);
       setPicking(false);
       setQuick('');
-      setDom(feature ? '' : (defaultDomaine ?? ''));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, feature]);
 
   const set = <K extends keyof FeatureInput>(k: K, v: FeatureInput[K]) => setForm((x) => ({ ...x, [k]: v }));
-  const current = piOf(new Date());
-  const pis = [-1, 0, 1, 2, 3].map((n) => shiftPi(current, n));
-  if (form.pi && !pis.includes(form.pi)) pis.push(form.pi);
   const tasks = feature ? h.items.filter((t) => t.feature === feature.id) : [];
   const sousTitre = (p: Item) => {
     const k = tasks.filter((t) => t.parent === p.id);
@@ -110,6 +100,12 @@ export function FeatureForm({
   const ptsTasks = tasks.reduce((n, t) => n + pointsOf(t), 0);
   const kids = feature ? childrenOf('feature', feature.id, h.data) : null;
   const epic = form.epic ? h.epics.get(form.epic) : undefined;
+  // Chemin de l'epic (« 💼 Pro › 🎯 Fidéliser les clients »)
+  const cheminEpic = (() => {
+    const o = form.epic ? objectifOf({ epic: form.epic }, h) : undefined;
+    const d = form.epic ? domaineOf({ epic: form.epic }, h) : undefined;
+    return [d ? `${d.icone} ${d.nom}` : '', o ? `🎯 ${o.titre}` : ''].filter(Boolean).join(' › ');
+  })();
   // Tâches qu'on peut rattacher : ni répétées, ni terminées, pas déjà dans cette feature
   const candidats = h.items
     // Les sous-tâches suivent leur parent : on ne les rattache pas seules
@@ -118,7 +114,7 @@ export function FeatureForm({
       const ft = h.features.get(t.feature);
       const where = ft ? `🧩 ${ft.titre}` : h.epics.get(t.epic)?.titre ?? h.objectifs.get(t.objectif)?.titre ?? h.domaines.get(t.domaine)?.nom ?? 'non rangée';
       const quand = t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}` : t.iteration ? t.iteration.split('-').pop() : '';
-      return { id: t.id, title: t.titre, sub: [where, quand].filter(Boolean).join(' · ') };
+      return { id: t.id, title: t.titre, sub: [where, quand].filter(Boolean).join(' · '), dans: !!ft };
     });
 
   const save = async (rester = false): Promise<Feature | undefined> => {
@@ -182,76 +178,67 @@ export function FeatureForm({
         fige={!!feature}
         onChange={(v) => {
           setEspace(v);
-          setDom('');
-          setForm((x) => ({ ...x, epic: '' }));
+          setForm((x) => ({ ...x, epic: '', train: '', equipe: '' }));
         }}
       />
 
-      {!feature && (
-        <DomaineChoix
-          value={dom}
-          onChange={(v) => {
-            setDom(v);
-            // Un autre domaine : l'epic choisie n'en fait plus partie
-            setForm((x) => ({ ...x, epic: x.epic && v && !inDomain(v, domEpic(x.epic), h) ? '' : x.epic }));
-          }}
-        />
-      )}
-      <Label>Epic</Label>
-      {/* Feature déjà dans une epic : en choisir une autre la déplace (annoncé, fait à l'enregistrement) */}
-      <Rattachement
-        deplace={!!feature?.epic && form.epic !== feature.epic}
-        depuis={feature?.epic ? `🗂️ ${h.epics.get(feature.epic)?.titre ?? '?'}` : ''}
-        vers={epic ? `🗂️ ${epic.titre}` : ''}
-        onAnnuler={() => set('epic', feature?.epic ?? '')}
-      >
-        <Chips
-          options={[{ value: '', label: 'Aucune' }, ...epicsProposees.map((e) => ({ value: e.id, label: e.titre, color: e.couleur }))]}
+      <SectionFiche titre="Rattachement" aDefinir={safe.actif && !form.epic ? 1 : 0}>
+        <LigneChoix
+          label="Epic"
           value={form.epic}
+          depart={feature?.epic}
+          parent
+          attendu={safe.actif}
+          sous={cheminEpic || undefined}
+          {...listeEpics(h, form.epic || feature?.epic)}
+          nouveau={
+            onNouvelleEpic
+              ? {
+                  label: 'Nouvelle epic',
+                  // Une nouvelle epic à la place de l'actuelle : sous le même objectif (ou domaine)
+                  onPress: () => onNouvelleEpic(epic ? (epic.objectif ? { objectif: epic.objectif } : { domaine: epic.domaine }) : undefined),
+                }
+              : undefined
+          }
+          sans="Sans epic"
           onChange={(v) => set('epic', v)}
-          depart={feature?.epic || undefined}
         />
-        {onNouvelleEpic && (
-          <Pressable
-            onPress={() => onNouvelleEpic(feature?.epic && epic ? (epic.objectif ? { objectif: epic.objectif } : { domaine: epic.domaine }) : undefined)}
-            hitSlop={6}
-            style={{ alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4 }}
-            accessibilityRole="button"
-          >
-            <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#1A73E8' }}>＋ {feature?.epic ? 'Vers une nouvelle epic' : 'Nouvelle epic'}</Text>
-          </Pressable>
-        )}
-      </Rattachement>
+      </SectionFiche>
 
       <LiaisonOrg
         espace={espace}
         niveau="feature"
         valeurs={{ train: form.train, equipe: form.equipe, epic: form.epic }}
+        initial={feature ? { train: feature.train, equipe: feature.equipe } : undefined}
+        attendu={safe.actif}
         onChange={(p) => setForm((x) => ({ ...x, ...p }))}
         onNouveau={onNouveauOrg ? (k, champ) => (k === 'train' || k === 'equipeagile') && (champ === 'train' || champ === 'equipe') && onNouveauOrg(k, champ, espace) : undefined}
       />
 
-      <Label>PI (trimestre)</Label>
-      <Chips
-        options={[{ value: '', label: 'Aucun' }, ...pis.map((p) => ({ value: p, label: piLabel(p) }))]}
-        value={form.pi}
-        onChange={(v) => setForm((x) => ({ ...x, pi: v, iteration: '' }))}
-        compact
-        wrap
-      />
-
-      {!!form.pi && (
-        <>
-          <Label>Itération prévue</Label>
-          <Chips
-            options={[{ value: '', label: 'Non planifiée' }, ...iterationsOf(form.pi).map((it) => ({ value: it.key, label: it.code }))]}
+      <SectionFiche titre="Planification" aDefinir={safe.actif && !form.pi ? 1 : 0}>
+        <LigneChoix
+          label="PI"
+          value={form.pi}
+          depart={feature?.pi}
+          attendu={safe.actif}
+          {...listePI(form.pi)}
+          libelle={(v) => `PI ${piLabel(v)}`}
+          sans="Sans PI"
+          onChange={(v) => setForm((x) => ({ ...x, pi: v, iteration: '' }))}
+        />
+        {!!form.pi && (
+          <LigneChoix
+            label="Itération prévue"
             value={form.iteration}
+            depart={feature?.iteration}
+            groupes={listeIterations(form.pi).groupes}
+            libelle={(v) => iterationNom(v)}
+            vide="Non planifiée"
+            sans="Non planifiée"
             onChange={(v) => set('iteration', v)}
-            compact
-            wrap
           />
-        </>
-      )}
+        )}
+      </SectionFiche>
 
       <Label>{safe.pointsJours ? 'Points (jours)' : 'Points'}</Label>
       <Field placeholder="Estimation globale, ex. 8" value={form.points} onChangeText={(v) => set('points', v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
@@ -259,109 +246,99 @@ export function FeatureForm({
       <Label>Description</Label>
       <Field style={f.notes} placeholder="Résultat attendu, critères d'acceptation…" value={form.description} onChangeText={(v) => set('description', v)} multiline />
 
-      <Label>
-        Tâches{feature ? ` · ${doneTasks.length}/${tasks.length} terminée(s)` : ''}
-        {feature && ptsTasks ? ` · ${fmtPoints(ptsTasks, safe.pointsJours)} estimés` : ''}
-      </Label>
-      {feature && tasks.length > 0 && <Progress ratio={doneTasks.length / tasks.length} color={epic?.couleur ?? '#1A73E8'} />}
-      {(!feature || onQuickAddTask) && (
-        <Field
-          placeholder={adding ? 'Ajout…' : `+ Nouvelle tâche (Entrée pour ajouter${form.iteration ? `, en ${form.iteration.split('-').pop()}` : ''})`}
-          value={quick}
-          onChangeText={setQuick}
-          editable={!adding}
-          returnKeyType="done"
-          blurOnSubmit={false}
-          onSubmitEditing={async () => {
-            const titre = quick.trim();
-            if (!titre) return;
-            if (!feature) {
-              setNouvelles((l) => [...l, titre]);
-              setQuick('');
-              return;
-            }
-            setAdding(true);
-            try {
-              await onQuickAddTask!(feature, titre);
-              setQuick('');
-            } catch (e) {
-              setError(`Tâche non ajoutée : ${(e as Error).message}`);
-            } finally {
-              setAdding(false);
-            }
-          }}
-        />
-      )}
-      {onAddTask && (
-        <Pressable onPress={() => enregistrerPuis(onAddTask)} style={f.pickBtn} accessibilityRole="button">
-          <Text style={f.pickText}>+ Tâche (fiche complète){feature ? '' : ' — la feature est enregistrée d’abord'}</Text>
-        </Pressable>
-      )}
-      {(!feature || onLinkTask) && (
-        <Pressable onPress={() => setPicking((v) => !v)} style={f.pickBtn} accessibilityRole="button">
-          <Text style={f.pickText}>{picking ? '▾ Fermer' : '+ Tâche existante'}</Text>
-        </Pressable>
-      )}
-      {picking && (
-        <ItemPicker
-          options={candidats}
-          empty="Aucune tâche à rattacher."
-          maxHeight={260}
-          onPick={async (id) => {
-            if (!feature) return setExistantes((l) => [...l, id]);
-            const t = h.items.find((x) => x.id === id);
-            if (!t) return;
-            try {
-              await onLinkTask!(feature, t);
-            } catch (e) {
-              setError(`Tâche non rattachée : ${(e as Error).message}`);
-            }
-          }}
-        />
-      )}
-      {!feature && (
-        <>
-          {[...existantes.map((id) => ({ key: id, titre: h.items.find((t) => t.id === id)?.titre ?? '?', nouvelle: false })),
-            ...nouvelles.map((titre, i) => ({ key: `n${i}`, titre, nouvelle: true }))].map((x) => (
-            <View key={x.key} style={f.link}>
-              <Text style={f.muted}>{x.nouvelle ? '＋' : '↪'}</Text>
-              <Text style={f.linkTitle} numberOfLines={1}>
-                {x.titre}
-              </Text>
-              <Text style={f.muted}>{x.nouvelle ? 'nouvelle' : 'existante'}</Text>
-              <Pressable
-                hitSlop={8}
-                accessibilityLabel={`Retirer ${x.titre}`}
-                onPress={() =>
-                  x.nouvelle
-                    ? setNouvelles((l) => l.filter((_, i) => `n${i}` !== x.key))
-                    : setExistantes((l) => l.filter((id) => id !== x.key))
-                }
-              >
-                <Text style={f.muted}>✕</Text>
-              </Pressable>
-            </View>
+      <SectionFiche
+        titre={`Tâches · ${tasks.filter((t) => !t.parent).length + existantes.length + nouvelles.length}${feature && tasks.length ? ` · ${doneTasks.length} terminée${doneTasks.length > 1 ? 's' : ''}` : ''}${feature && ptsTasks ? ` · ${fmtPoints(ptsTasks, safe.pointsJours)}` : ''}`}
+        onAjouter={() => setMenuPlus(true)}
+        ajouterLabel="Ajouter une tâche"
+      >
+        {feature && tasks.length > 0 && (
+          <View style={{ paddingHorizontal: 12 }}>
+            <Progress ratio={doneTasks.length / tasks.length} color={epic?.couleur ?? '#1A73E8'} />
+          </View>
+        )}
+        {tasks
+          .filter((t) => !t.parent)
+          .map((t) => (
+            <LigneEnfant
+              key={t.id}
+              texte={`${t.statut === 'termine' ? '✓' : t.statut === 'en_cours' ? '▶' : '○'} ${t.titre}${sousTitre(t)}${pointsOf(t) ? ` · ${fmtPoints(pointsOf(t), safe.pointsJours)}` : ''}`}
+              onPress={() => onOpenTask(t)}
+            />
           ))}
-          {nouvelles.length + existantes.length > 0 && (
-            <Text style={f.hint}>Ces tâches seront rattachées à la feature à l'enregistrement.</Text>
-          )}
-        </>
-      )}
-      {feature &&
-        (tasks.length === 0 ? (
-          <Text style={f.muted}>Aucune tâche pour l'instant.</Text>
-        ) : (
-          tasks.filter((t) => !t.parent).map((t) => (
-            <Pressable key={t.id} style={f.link} onPress={() => onOpenTask(t)}>
-              <Text style={f.muted}>{t.statut === 'termine' ? '✓' : t.statut === 'en_cours' ? '▶' : '○'}</Text>
-              <Text style={f.linkTitle} numberOfLines={1}>
-                {t.titre}
-                {sousTitre(t)}
-              </Text>
-              {!!pointsOf(t) && <Text style={f.muted}>{fmtPoints(pointsOf(t), safe.pointsJours)}</Text>}
-            </Pressable>
-          ))
+        {existantes.map((id) => {
+          const t = h.items.find((x) => x.id === id);
+          const avant = t?.feature ? h.features.get(t.feature) : undefined;
+          return (
+            <LigneEnfant
+              key={id}
+              texte={`○ ${t?.titre ?? '?'}`}
+              ajoute
+              avant={avant ? `🧩 ${avant.titre}` : undefined}
+              onAnnuler={() => setExistantes((l) => l.filter((x) => x !== id))}
+            />
+          );
+        })}
+        {nouvelles.map((titre, i) => (
+          <LigneEnfant key={`n${i}`} texte={`○ ${titre}`} ajoute onAnnuler={() => setNouvelles((l) => l.filter((_, k) => k !== i))} />
         ))}
+        {!tasks.length && !existantes.length && !nouvelles.length && <Text style={[f.muted, { padding: 12 }]}>Aucune tâche pour l'instant.</Text>}
+        {(!feature || onQuickAddTask) && (
+          <TextInput
+            style={styles.saisie}
+            placeholder={adding ? 'Ajout…' : `Nouvelle tâche (Entrée pour ajouter${form.iteration ? `, en ${form.iteration.split('-').pop()}` : ''})`}
+            placeholderTextColor={colors.muted}
+            value={quick}
+            onChangeText={setQuick}
+            editable={!adding}
+            returnKeyType="done"
+            blurOnSubmit={false}
+            onSubmitEditing={async () => {
+              const titre = quick.trim();
+              if (!titre) return;
+              if (!feature) {
+                setNouvelles((l) => [...l, titre]);
+                setQuick('');
+                return;
+              }
+              setAdding(true);
+              try {
+                await onQuickAddTask!(feature, titre);
+                setQuick('');
+              } catch (e) {
+                setError(`Tâche non ajoutée : ${(e as Error).message}`);
+              } finally {
+                setAdding(false);
+              }
+            }}
+          />
+        )}
+      </SectionFiche>
+      {(existantes.length > 0 || nouvelles.length > 0) && <Text style={f.hint}>Rangées dans la feature à l'enregistrement.</Text>}
+      <ChoiceSheet
+        key={`plus-${menuPlus}`}
+        visible={menuPlus}
+        title="Ajouter une tâche"
+        choices={[
+          ...(onAddTask ? [{ label: '＋ Nouvelle tâche', principal: true, onPress: () => enregistrerPuis(onAddTask) }] : []),
+          { label: '↘ Ranger une tâche existante', onPress: () => setPicking(true) },
+        ]}
+        onClose={() => setMenuPlus(false)}
+      />
+      {picking && (
+        <FeuilleMulti
+          titre="Ranger dans la feature"
+          groupes={[{ titre: 'Sans feature', options: candidats.filter((c) => !c.dans).map((c) => ({ value: c.id, label: c.title, meta: c.sub })) }]}
+          autres={{ titre: 'Dans une autre feature', groupes: [{ options: candidats.filter((c) => c.dans).map((c) => ({ value: c.id, label: c.title, meta: c.sub })) }] }}
+          selection={[]}
+          vide="Aucune tâche à ranger."
+          libelleValider={(n) => (n ? `Ranger ${n} tâche${n > 1 ? 's' : ''}` : 'Ranger')}
+          onValider={(l) => {
+            setExistantes((x) => [...x, ...l.filter((id) => !x.includes(id))]);
+            setPicking(false);
+          }}
+          onFermer={() => setPicking(false)}
+        />
+      )}
 
       {feature && (
         <>
@@ -389,3 +366,7 @@ export function FeatureForm({
     </HierarchyContext.Provider>
   );
 }
+
+const styles = StyleSheet.create({
+  saisie: { paddingHorizontal: 12, paddingVertical: 12, fontSize: 15, color: colors.text, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+});
