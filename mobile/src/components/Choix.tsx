@@ -92,6 +92,21 @@ export function LigneFiche({ label, valeur, sous, onPress, gris }: { label: stri
   );
 }
 
+/**
+ * Titre d'un groupe dans une feuille (« 🗂️ Application client », « Sans feature ») : la même ligne ouvre et referme
+ * le groupe (▾ / ▸). `autres` : « Autres epics · n », détaché des groupes au-dessus (bandeau à part, fermé d'office).
+ */
+function EnteteGroupe({ titre, n, ouvert, onPress, autres }: { titre: string; n: number; ouvert: boolean; onPress: () => void; autres?: boolean }) {
+  return (
+    <Pressable onPress={onPress} style={[s.grpLigne, autres && s.grpAutres]} accessibilityRole="button" accessibilityState={{ expanded: ouvert }} accessibilityLabel={`${titre} · ${n}`}>
+      <Text style={[s.grp, s.grpTexte]}>
+        {titre} · {n}
+      </Text>
+      <Text style={s.fleche}>{ouvert ? '▾' : '▸'}</Text>
+    </Pressable>
+  );
+}
+
 /** Pastille « changée ▸ » et sa ligne « Avant : … · Annuler le changement » */
 function useChangement() {
   const [ouvert, setOuvert] = useState(false);
@@ -229,7 +244,11 @@ export function FeuilleChoix({
 }) {
   const [q, setQ] = useState('');
   const [autresOuverts, setAutresOuverts] = useState(false);
+  // Groupes repliés par l'utilisateur (chaque titre de groupe ouvre et referme sa liste)
+  const [fermes, setFermes] = useState<string[]>([]);
+  const basculerGroupe = (k: string) => setFermes((l) => (l.includes(k) ? l.filter((x) => x !== k) : [...l, k]));
   const recherche = toutes(groupes, autres).length > 7;
+  const cherche = !!q.trim();
   const filtre = (o: OptionChoix) => !q.trim() || o.label.toLowerCase().includes(q.trim().toLowerCase());
   // Le choix actuel reste visible même s'il est dans « Autres … »
   const dansAutres = autres?.groupes.find((g) => g.options.some((o) => o.value === value));
@@ -247,19 +266,17 @@ export function FeuilleChoix({
       </Pressable>
     );
   };
-  const Groupe = ({ g, sauf }: { g: GroupeChoix; sauf?: string }) => {
+  const Groupe = ({ g, sauf, k }: { g: GroupeChoix; sauf?: string; k: string }) => {
     const l = g.options.filter((o) => o.value !== sauf && filtre(o));
     if (!l.length) return null;
+    const ouvert = cherche || !fermes.includes(k);
     return (
       <>
-        {!!g.titre && <Text style={s.grp}>{g.titre}</Text>}
-        {l.map((o) => (
-          <Opt key={o.value} o={o} />
-        ))}
+        {!!g.titre && <EnteteGroupe titre={g.titre} n={l.length} ouvert={ouvert} onPress={() => basculerGroupe(k)} />}
+        {ouvert && l.map((o) => <Opt key={o.value} o={o} />)}
       </>
     );
   };
-  const cherche = !!q.trim();
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onFermer}>
       <Pressable style={s.fond} onPress={onFermer} accessibilityLabel="Fermer sans rien changer">
@@ -283,21 +300,16 @@ export function FeuilleChoix({
               </Pressable>
             )}
             {groupes.map((g, i) => (
-              <Groupe key={`g${i}`} g={g} />
+              <Groupe key={`g${i}`} k={`g${i}`} g={g} />
             ))}
-            {autres && cherche && autres.groupes.map((g, i) => <Groupe key={`a${i}`} g={g} />)}
+            {autres && cherche && autres.groupes.map((g, i) => <Groupe key={`a${i}`} k={`a${i}`} g={g} />)}
             {autres && !cherche && (
               <>
-                {dansAutres && <Groupe g={{ titre: dansAutres.titre, options: dansAutres.options.filter((o) => o.value === value) }} />}
+                {dansAutres && <Groupe k="actuel" g={{ titre: dansAutres.titre, options: dansAutres.options.filter((o) => o.value === value) }} />}
                 {nbAutres > 0 && (
-                  <Pressable onPress={() => setAutresOuverts((o) => !o)} style={s.opt} accessibilityRole="button" accessibilityState={{ expanded: autresOuverts }}>
-                    <Text style={[s.optTexte, s.replie]}>
-                      {autres.titre} · {nbAutres}
-                    </Text>
-                    <Text style={s.fleche}>{autresOuverts ? '▾' : '▸'}</Text>
-                  </Pressable>
+                  <EnteteGroupe titre={autres.titre} n={nbAutres} ouvert={autresOuverts} onPress={() => setAutresOuverts((o) => !o)} autres />
                 )}
-                {autresOuverts && autres.groupes.map((g, i) => <Groupe key={`a${i}`} g={g} sauf={value} />)}
+                {autresOuverts && autres.groupes.map((g, i) => <Groupe key={`a${i}`} k={`a${i}`} g={g} sauf={value} />)}
               </>
             )}
             {cherche && !toutes(groupes, autres).some(filtre) && <Text style={s.rien}>Aucun résultat.</Text>}
@@ -415,6 +427,9 @@ export function FeuilleMulti({
   const [sel, setSel] = useState<string[]>(selection);
   const [q, setQ] = useState('');
   const [autresOuverts, setAutresOuverts] = useState(false);
+  // Groupes repliés par l'utilisateur (chaque titre de groupe ouvre et referme sa liste)
+  const [fermes, setFermes] = useState<string[]>([]);
+  const basculerGroupe = (k: string) => setFermes((l) => (l.includes(k) ? l.filter((x) => x !== k) : [...l, k]));
   const tout = toutes(groupes, autres);
   const filtre = (o: OptionChoix) => !q.trim() || o.label.toLowerCase().includes(q.trim().toLowerCase());
   const cherche = !!q.trim();
@@ -432,15 +447,14 @@ export function FeuilleMulti({
       </Pressable>
     );
   };
-  const Groupe = ({ g, sauf }: { g: GroupeChoix; sauf?: string[] }) => {
+  const Groupe = ({ g, sauf, k }: { g: GroupeChoix; sauf?: string[]; k: string }) => {
     const l = g.options.filter((o) => !sauf?.includes(o.value) && filtre(o));
     if (!l.length) return null;
+    const ouvert = cherche || !fermes.includes(k);
     return (
       <>
-        {!!g.titre && <Text style={s.grp}>{g.titre}</Text>}
-        {l.map((o) => (
-          <Case key={o.value} o={o} />
-        ))}
+        {!!g.titre && <EnteteGroupe titre={g.titre} n={l.length} ouvert={ouvert} onPress={() => basculerGroupe(k)} />}
+        {ouvert && l.map((o) => <Case key={o.value} o={o} />)}
       </>
     );
   };
@@ -467,21 +481,16 @@ export function FeuilleMulti({
               </Pressable>
             )}
             {groupes.map((g, i) => (
-              <Groupe key={`g${i}`} g={g} />
+              <Groupe key={`g${i}`} k={`g${i}`} g={g} />
             ))}
-            {autres && cherche && autres.groupes.map((g, i) => <Groupe key={`a${i}`} g={g} />)}
+            {autres && cherche && autres.groupes.map((g, i) => <Groupe key={`a${i}`} k={`a${i}`} g={g} />)}
             {autres && !cherche && (
               <>
-                {cochesAutres.length > 0 && <Groupe g={{ options: cochesAutres }} />}
+                {cochesAutres.length > 0 && <Groupe k="coches" g={{ options: cochesAutres }} />}
                 {nbAutres > 0 && (
-                  <Pressable onPress={() => setAutresOuverts((o) => !o)} style={s.opt} accessibilityRole="button" accessibilityState={{ expanded: autresOuverts }}>
-                    <Text style={[s.optTexte, s.replie]}>
-                      {autres.titre} · {nbAutres}
-                    </Text>
-                    <Text style={s.fleche}>{autresOuverts ? '▾' : '▸'}</Text>
-                  </Pressable>
+                  <EnteteGroupe titre={autres.titre} n={nbAutres} ouvert={autresOuverts} onPress={() => setAutresOuverts((o) => !o)} autres />
                 )}
-                {autresOuverts && autres.groupes.map((g, i) => <Groupe key={`a${i}`} g={g} sauf={selection} />)}
+                {autresOuverts && autres.groupes.map((g, i) => <Groupe key={`a${i}`} k={`a${i}`} g={g} sauf={selection} />)}
               </>
             )}
             {!tout.length && <Text style={s.rien}>{vide}</Text>}
@@ -638,6 +647,10 @@ const s = StyleSheet.create({
   fTitre: { flex: 1, textAlign: 'center', fontSize: 16.5, fontWeight: '700', color: colors.text },
   recherche: { marginHorizontal: 12, marginBottom: 8, backgroundColor: '#E4E7ED', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 15, color: colors.text },
   grp: { fontSize: 11, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.4, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 5 },
+  grpLigne: { flexDirection: 'row', alignItems: 'flex-end', paddingRight: 14 },
+  grpTexte: { flex: 1 },
+  // « Autres … » : bandeau à part, bien séparé du groupe du dessus
+  grpAutres: { marginTop: 18, paddingBottom: 4, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, backgroundColor: '#E9ECF2' },
   opt: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   optOn: { backgroundColor: '#EEF4FE' },
   optTexte: { flex: 1, minWidth: 0, fontSize: 15, color: colors.text },
