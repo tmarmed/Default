@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -16,6 +17,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Alerte, Alignement } from '../alerts';
 import { colors } from '../theme';
 import { EPIC_COULEURS } from '../types';
+import { TexteAjuste } from './TexteAjuste';
+
+/** Largeur du bouton « ‹ Fiche d'en dessous » (pile de fiches) */
+const RETOUR_MAX = 120;
 
 interface Props {
   visible: boolean;
@@ -26,18 +31,35 @@ interface Props {
   /** Absent : fenêtre de consultation (« Fermer », pas d'« Enregistrer ») */
   onSave?: () => void;
   children: ReactNode;
+  /**
+   * Pile de fiches : fiche ouverte depuis une autre (« ＋ Train » dans un portfolio…). `retour` = nom de la fiche
+   * d'en dessous (bouton « ‹ Digital » au lieu d'« Annuler »), `chemin` = fil en haut (« 💼 Digital › 🚆 Nouveau
+   * train »), `onFermerTout` = fermer toute la pile.
+   */
+  retour?: string;
+  chemin?: string;
+  onFermerTout?: () => void;
 }
 
 /** Fenêtre de formulaire : Annuler / titre / Enregistrer, message d'erreur, contenu défilant. */
-export function FormSheet({ visible, title, busy, error, onClose, onSave, children }: Props) {
+export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout }: Props) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
-          <Pressable onPress={onClose} hitSlop={10} disabled={busy}>
-            <Text style={styles.headerBtn}>{onSave ? 'Annuler' : 'Fermer'}</Text>
+          <Pressable onPress={onClose} hitSlop={10} disabled={busy} accessibilityRole="button" accessibilityLabel={retour ? `Retour à ${retour}` : undefined}>
+            {retour ? (
+              // Jamais coupé « … » : le texte rapetisse si le nom est long
+              <TexteAjuste variantes={[`‹ ${retour}`, '‹ Retour']} taille={16} min={12} dispo={RETOUR_MAX} style={styles.headerBtn} />
+            ) : (
+              <Text style={styles.headerBtn}>{onSave ? 'Annuler' : 'Fermer'}</Text>
+            )}
           </Pressable>
-          <Text style={styles.headerTitle}>{title}</Text>
+          {retour ? (
+            <TexteAjuste variantes={[title]} taille={16} min={12} dispo={Math.min(Dimensions.get('window').width, 480) - RETOUR_MAX - 150} style={styles.headerTitle} />
+          ) : (
+            <Text style={styles.headerTitle}>{title}</Text>
+          )}
           {onSave ? (
             <Pressable onPress={onSave} hitSlop={10} disabled={busy}>
               {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>}
@@ -46,6 +68,16 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
             <View style={{ width: 60, alignItems: 'flex-end' }}>{busy && <ActivityIndicator color={colors.primary} />}</View>
           )}
         </View>
+        {!!chemin && (
+          <View style={styles.chemin}>
+            <Text style={styles.cheminTexte}>{chemin}</Text>
+            {onFermerTout && (
+              <Pressable onPress={onFermerTout} hitSlop={8} disabled={busy} accessibilityRole="button" accessibilityLabel="Fermer toutes les fiches">
+                <Text style={styles.fermerTout}>✕ Tout fermer</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error && <Text style={styles.error}>{error}</Text>}
@@ -177,6 +209,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   headerTitle: { fontSize: 17, fontWeight: '600', color: colors.text },
+  chemin: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#EEF3FD', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  cheminTexte: { flex: 1, fontSize: 12.5, fontWeight: '700', color: colors.primary },
+  fermerTout: { fontSize: 12.5, fontWeight: '700', color: colors.muted },
   headerBtn: { fontSize: 16, color: colors.primary },
   bold: { fontWeight: '600' },
   content: { padding: 16, paddingBottom: 48 },

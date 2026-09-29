@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { type EntiteOrg, ICONE_ORG, type KindOrg, membresDe, NOM_ORG, type OrgValue, type Personne } from '../organisation';
+import { type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, membresDe, NOM_ORG, nomPersonne, type OrgValue, type Personne } from '../organisation';
 import { colors } from '../theme';
 import { Chips } from './Chips';
 import { DeleteSection } from './DeleteSection';
@@ -46,6 +46,10 @@ export function OrgForm({
   onClose,
   onSave,
   onDelete,
+  pile,
+  onOuvrir,
+  injection,
+  onDirty,
 }: {
   visible: boolean;
   kind: KindOrg;
@@ -56,19 +60,49 @@ export function OrgForm({
   org: OrgValue;
   nomEntreprise: string;
   onClose: () => void;
-  onSave: (data: Donnees) => Promise<void>;
+  /** Enregistre ; `rester` : la fiche reste ouverte (parent enregistré avant d'ouvrir un enfant) ; renvoie l'élément */
+  onSave: (data: Donnees, rester?: boolean) => Promise<EntiteOrg<KindOrg> | void>;
   onDelete: () => Promise<void>;
+  /** Pile de fiches : fiche d'en dessous (« ‹ Digital »), fil en haut, tout fermer */
+  pile?: { retour?: string; chemin: string; onFermerTout: () => void };
+  /**
+   * Ouvre une fiche par-dessus celle-ci : un enfant (« ＋ Train » d'un portfolio, un train de la liste) ou un élément
+   * créé à la volée pour un choix (`champ` : « ＋ Nouvelle personne » pour le PO → la personne créée devient PO)
+   */
+  onOuvrir?: (kind: KindOrg, entite: EntiteOrg<KindOrg> | null, defaults?: Donnees, champ?: string) => void;
+  /** Élément créé à la volée pour un champ de cette fiche : il y est choisi (ajouté pour les membres) */
+  injection?: { champ: string; id: string; n: number };
+  /** Changements non enregistrés (pour « Tout fermer ») */
+  onDirty?: (dirty: boolean) => void;
 }) {
   const [form, setForm] = useState<Donnees>(VIDES[kind]);
+  const [initial, setInitial] = useState<Donnees>(VIDES[kind]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) return;
     const e = entite as unknown as Donnees | null;
-    setForm(Object.fromEntries(Object.keys(VIDES[kind]).map((k) => [k, e?.[k] ?? defaults?.[k] ?? VIDES[kind][k]])));
+    const v = Object.fromEntries(Object.keys(VIDES[kind]).map((k) => [k, e?.[k] ?? defaults?.[k] ?? VIDES[kind][k]]));
+    setForm(v);
+    setInitial(v);
     setError(null);
   }, [visible, entite, kind, defaults]);
+
+  // Élément créé à la volée (fiche du dessus enregistrée) : choisi dans son champ
+  useEffect(() => {
+    if (!injection) return;
+    setForm((x) =>
+      injection.champ === 'membres'
+        ? { ...x, membres: [...new Set([...membresDe({ membres: x.membres ?? '' }), injection.id])].join(';') }
+        : { ...x, [injection.champ]: injection.id },
+    );
+  }, [injection]);
+
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
+  useEffect(() => {
+    onDirty?.(dirty);
+  }, [dirty, onDirty]);
 
   const set = (k: string) => (v: string) => setForm((x) => ({ ...x, [k]: v }));
   const id = entite?.id ?? '';
@@ -86,26 +120,76 @@ export function OrgForm({
     }
   }
 
-  const save = async () => {
-    if (!form.nom.trim()) return setError('Donnez un nom.');
+  const save = async (rester = false) => {
+    if (!form.nom.trim()) {
+      setError('Donnez un nom.');
+      return undefined;
+    }
     setError(null);
     setBusy(true);
     try {
-      await onSave({ ...form, nom: form.nom.trim() });
+      const o = await onSave({ ...form, nom: form.nom.trim() }, rester);
+      if (rester) setInitial(form);
+      return o;
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
+      return undefined;
     } finally {
       setBusy(false);
     }
   };
 
-  const Choix = ({ label, k, options }: { label: string; k: string; options: { value: string; label: string }[] }) => (
+  /**
+   * Ouvre un enfant par-dessus (« ＋ Train » d'un portfolio…) : un nouvel élément est d'abord enregistré (l'enfant
+   * a besoin de lui), puis l'enfant s'ouvre avec son parent déjà choisi.
+   */
+  const ouvrirEnfant = async (k: KindOrg, champParent: string, extra: Donnees = {}) => {
+    if (!onOuvrir) return;
+    let parentId = id;
+    if (!parentId) {
+      const o = await save(true);
+      if (!o) return;
+      parentId = o.id;
+    }
+    onOuvrir(k, null, { [champParent]: parentId, ...extra });
+  };
+
+  const Choix = ({ label, k, options, nouveau }: { label: string; k: string; options: { value: string; label: string }[]; nouveau?: { kind: KindOrg; label: string; defaults?: Donnees } }) => (
     <>
       <Label>{label}</Label>
       {options.length <= 1 ? (
         <Text style={f.muted}>Rien à choisir pour l'instant.</Text>
       ) : (
         <Chips options={options} value={options.some((o) => o.value === form[k]) ? form[k] : ''} onChange={set(k)} compact wrap />
+      )}
+      {nouveau && onOuvrir && (
+        <Pressable onPress={() => onOuvrir(nouveau.kind, null, nouveau.defaults, k)} hitSlop={6} style={s.nouveau} accessibilityRole="button">
+          <Text style={s.nouveauTexte}>＋ {nouveau.label}</Text>
+        </Pressable>
+      )}
+    </>
+  );
+  const nouvellePersonne = { kind: 'personne' as const, label: 'Nouvelle personne' };
+
+  /** Liste d'enfants (trains d'un portfolio…) : toucher en ouvre la fiche par-dessus ; « ＋ » en crée un */
+  const Enfants = ({ titre, liste, kindEnfant, icone, sous, ajouter }: { titre: string; liste: { id: string; nom: string }[]; kindEnfant: KindOrg; icone: string; sous?: (x: { id: string; nom: string }) => string; ajouter: { label: string; champ: string; extra?: Donnees } }) => (
+    <>
+      <Label>
+        {titre} · {liste.length}
+      </Label>
+      {liste.map((x) => (
+        <Pressable key={x.id} onPress={() => onOuvrir?.(kindEnfant, x as EntiteOrg<KindOrg>)} style={s.enfant} accessibilityRole="button" accessibilityLabel={`Ouvrir ${x.nom}`}>
+          <Text style={s.enfantNom}>
+            {icone} {x.nom}
+          </Text>
+          {!!sous?.(x) && <Text style={s.enfantSous}>{sous(x)}</Text>}
+          <Text style={s.enfantChev}>›</Text>
+        </Pressable>
+      ))}
+      {onOuvrir && (
+        <Pressable onPress={() => ouvrirEnfant(kindEnfant, ajouter.champ, ajouter.extra)} hitSlop={6} style={s.nouveau} accessibilityRole="button">
+          <Text style={s.nouveauTexte}>＋ {ajouter.label}</Text>
+        </Pressable>
       )}
     </>
   );
@@ -127,7 +211,17 @@ export function OrgForm({
   };
 
   return (
-    <FormSheet visible={visible} title={`${ICONE_ORG[kind]} ${TITRES[kind][entite ? 0 : 1]}`} busy={busy} error={error} onClose={onClose} onSave={save}>
+    <FormSheet
+      visible={visible}
+      title={`${ICONE_ORG[kind]} ${TITRES[kind][entite ? 0 : 1]}`}
+      busy={busy}
+      error={error}
+      onClose={onClose}
+      onSave={() => save()}
+      retour={pile?.retour}
+      chemin={pile?.chemin}
+      onFermerTout={pile?.onFermerTout}
+    >
       <Text style={s.entreprise}>🏢 {nomEntreprise} · Organisation</Text>
       <Field style={f.titleInput} placeholder={PLACEHOLDERS[kind]} value={form.nom} onChangeText={set('nom')} autoFocus={!entite} />
 
@@ -135,8 +229,8 @@ export function OrgForm({
         <>
           <Label>E-mail (compte Google)</Label>
           <Field placeholder="prenom.nom@gmail.com" value={form.email} onChangeText={set('email')} autoCapitalize="none" keyboardType="email-address" />
-          <Choix label="Service (vue Entreprise)" k="unite" options={[{ value: '', label: 'Aucun' }, ...org.unites.map((u) => ({ value: u.id, label: `${u.type === 'direction' ? '🏛️' : '🧩'} ${u.nom}` }))]} />
-          <Choix label="Manager" k="manager" options={optionsPersonnes(id).map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} />
+          <Choix label="Service (vue Entreprise)" k="unite" options={[{ value: '', label: 'Aucun' }, ...org.unites.map((u) => ({ value: u.id, label: `${u.type === 'direction' ? '🏛️' : '🧩'} ${u.nom}` }))]} nouveau={{ kind: 'unite', label: 'Nouvelle unité' }} />
+          <Choix label="Manager" k="manager" options={optionsPersonnes(id).map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={{ ...nouvellePersonne, defaults: { unite: form.unite } }} />
           <Label>Capacité par itération (jours, facultatif)</Label>
           <Field placeholder="ex. 8" value={form.capacite} onChangeText={set('capacite')} keyboardType="decimal-pad" />
           <Text style={f.hint}>Ajouter une personne ne lui donne aucun accès : l'accès viendra de son équipe et de ses rôles delivery.</Text>
@@ -148,25 +242,60 @@ export function OrgForm({
           <Label>Type</Label>
           <Chips options={[{ value: 'direction', label: '🏛️ Direction' }, { value: 'service', label: '🧩 Service' }]} value={form.type === 'direction' ? 'direction' : 'service'} onChange={set('type')} compact />
           <Choix label="Au-dessus (facultatif)" k="parent" options={[{ value: '', label: 'Aucune (premier niveau)' }, ...org.unites.filter((u) => !descendants.has(u.id)).map((u) => ({ value: u.id, label: u.nom }))]} />
-          <Choix label="Responsable" k="responsable" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} />
+          <Choix label="Responsable" k="responsable" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={{ ...nouvellePersonne, defaults: id ? { unite: id } : undefined }} />
+          <Enfants
+            titre="Sous-unités"
+            liste={org.unites.filter((u) => u.parent === id && !!id)}
+            kindEnfant="unite"
+            icone="🧩"
+            ajouter={{ label: 'Sous-unité', champ: 'parent', extra: { type: 'service' } }}
+          />
+          <Enfants
+            titre="Personnes"
+            liste={org.personnes.filter((p) => p.unite === id && !!id)}
+            kindEnfant="personne"
+            icone="👤"
+            sous={(x) => nomPersonne(org, (x as Personne).manager) && `Manager : ${nomPersonne(org, (x as Personne).manager)}`}
+            ajouter={{ label: 'Personne dans cette unité', champ: 'unite', extra: form.responsable ? { manager: form.responsable } : {} }}
+          />
         </>
       )}
 
-      {kind === 'portfolio' && <Choix label="Epic Owner" k="epic_owner" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} />}
+      {kind === 'portfolio' && (
+        <>
+          <Choix label="Epic Owner" k="epic_owner" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
+          <Enfants
+            titre="Trains"
+            liste={org.trains.filter((t) => t.portfolio === id && !!id)}
+            kindEnfant="train"
+            icone="🚆"
+            sous={(x) => `${org.equipes.filter((e) => e.train === x.id).length} équipe(s)`}
+            ajouter={{ label: 'Train', champ: 'portfolio' }}
+          />
+        </>
+      )}
 
       {kind === 'train' && (
         <>
-          <Choix label="Portfolio" k="portfolio" options={[{ value: '', label: 'Aucun' }, ...org.portfolios.map((p) => ({ value: p.id, label: `💼 ${p.nom}` }))]} />
-          <Choix label="RTE (Release Train Engineer)" k="rte" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} />
-          <Choix label="Product Manager" k="pm" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} />
+          <Choix label="Portfolio" k="portfolio" options={[{ value: '', label: 'Aucun' }, ...org.portfolios.map((p) => ({ value: p.id, label: `💼 ${p.nom}` }))]} nouveau={{ kind: 'portfolio', label: 'Nouveau portfolio' }} />
+          <Choix label="RTE (Release Train Engineer)" k="rte" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
+          <Choix label="Product Manager" k="pm" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
+          <Enfants
+            titre="Équipes agiles"
+            liste={org.equipes.filter((e) => e.train === id && !!id)}
+            kindEnfant="equipeagile"
+            icone="👥"
+            sous={(x) => `${membresDe(x as EquipeAgile).length} membre(s)`}
+            ajouter={{ label: 'Équipe agile', champ: 'train' }}
+          />
         </>
       )}
 
       {kind === 'equipeagile' && (
         <>
-          <Choix label="Train" k="train" options={[{ value: '', label: 'Aucun' }, ...org.trains.map((t) => ({ value: t.id, label: `🚆 ${t.nom}` }))]} />
-          <Choix label="Product Owner" k="po" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} />
-          <Choix label="Scrum Master" k="sm" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} />
+          <Choix label="Train" k="train" options={[{ value: '', label: 'Aucun' }, ...org.trains.map((t) => ({ value: t.id, label: `🚆 ${t.nom}` }))]} nouveau={{ kind: 'train', label: 'Nouveau train' }} />
+          <Choix label="Product Owner" k="po" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
+          <Choix label="Scrum Master" k="sm" options={optionsPersonnes().map((o) => (o.value ? o : { ...o, label: 'Aucun' }))} nouveau={nouvellePersonne} />
           <Label>Membres · {membres.length}</Label>
           {personnes.length === 0 ? (
             <Text style={f.muted}>Ajoutez d'abord des personnes (vue Entreprise).</Text>
@@ -192,6 +321,11 @@ export function OrgForm({
               })}
             </View>
           )}
+          {onOuvrir && (
+            <Pressable onPress={() => onOuvrir('personne', null, undefined, 'membres')} hitSlop={6} style={s.nouveau} accessibilityRole="button">
+              <Text style={s.nouveauTexte}>＋ Nouvelle personne (membre)</Text>
+            </Pressable>
+          )}
           <Text style={f.hint}>Le PO et le Scrum Master pilotent le travail de l'équipe (attribution, onglet Équipe, alertes).</Text>
         </>
       )}
@@ -215,6 +349,12 @@ export function OrgForm({
 
 const s = StyleSheet.create({
   consequence: { marginTop: 18 },
+  nouveau: { alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4 },
+  nouveauTexte: { fontSize: 13.5, fontWeight: '700', color: colors.primary },
+  enfant: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 6 },
+  enfantNom: { fontSize: 14.5, fontWeight: '700', color: colors.text },
+  enfantSous: { flex: 1, fontSize: 12, color: colors.muted },
+  enfantChev: { marginLeft: 'auto', fontSize: 18, color: colors.muted },
   entreprise: { fontSize: 12.5, fontWeight: '700', color: colors.muted, marginBottom: 6 },
   membres: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   membre: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },

@@ -172,6 +172,21 @@ const ANCIENS_NOMS = ['Mes tâches'];
 /** Domaines de base complétés dans Moi (une fois par fichier et par version de la liste) */
 const DOMAINES_BASE_VERSION = '2';
 
+const NOUVEAU_ORG: Record<KindOrg, string> = { personne: 'Nouvelle personne', unite: 'Nouvelle unité', portfolio: 'Nouveau portfolio', train: 'Nouveau train', equipeagile: 'Nouvelle équipe' };
+/** Fiche de la pile de l'Organisation */
+type OrgFichePile = {
+  cle: string;
+  kind: KindOrg;
+  entite: EntiteOrg<KindOrg> | null;
+  espace: string;
+  defaults?: Record<string, string>;
+  /** Champ de la fiche d'en dessous où choisir l'élément créé (« ＋ Nouvelle personne » pour le PO…) */
+  champ?: string;
+  /** Élément créé par la fiche du dessus, à choisir dans un champ de celle-ci */
+  injection?: { champ: string; id: string; n: number };
+  dirty?: boolean;
+};
+
 type Hier = {
   epics: Epic[];
   objectifs: Objectif[];
@@ -287,7 +302,13 @@ function Main() {
   const [orgFiltre, setOrgFiltre] = useState<OrgFiltre>(null);
   const [vueOrg, setVueOrg] = useState<VueOrg>('delivery');
   /** Fiche de l'Organisation ouverte (élément existant, ou nouveau avec ses valeurs proposées) */
-  const [orgFiche, setOrgFiche] = useState<{ kind: KindOrg; entite: EntiteOrg<KindOrg> | null; espace: string; defaults?: Record<string, string> } | null>(null);
+  /**
+   * Pile des fiches de l'Organisation : chaque « ＋ » ou élément touché dans une fiche ouvre une fiche par-dessus ;
+   * l'enregistrer ramène à celle d'en dessous (avec l'élément créé déjà choisi si elle l'a demandé : `champ`).
+   */
+  const [orgPile, setOrgPile] = useState<OrgFichePile[]>([]);
+  const ouvrirOrg = (f: Omit<OrgFichePile, 'cle'>) => setOrgPile((p) => [...p, { ...f, cle: `${Date.now()}-${p.length}` }]);
+  const [confirmerFermerOrg, setConfirmerFermerOrg] = useState(false);
   const [orgMenu, setOrgMenu] = useState(false);
   /** Mode Simple (Tâches + Roadmap) ou SAFe (5 onglets), capacité, points en jours */
   const [safe, setSafe] = useState<SafeSettings>(SAFE_DEFAUT);
@@ -1893,8 +1914,8 @@ function Main() {
           safe={safe.actif}
           vue={vueOrg}
           onChangeVue={setVueOrg}
-          onOuvrir={(kind, e) => setOrgFiche({ kind, entite: e, espace: e.espace || 'moi' })}
-          onAjouter={(kind, espace, defaults) => setOrgFiche({ kind, entite: null, espace, defaults })}
+          onOuvrir={(kind, e) => ouvrirOrg({ kind, entite: e, espace: e.espace || 'moi' })}
+          onAjouter={(kind, espace, defaults) => ouvrirOrg({ kind, entite: null, espace, defaults })}
           onVoirBacklog={(kind, id) => {
             // Lien vers le travail, filtré : portfolio → Portefeuille, train → PI, équipe → Itération
             setOrgFiltre({ kind, id });
@@ -2404,33 +2425,67 @@ function Main() {
         choices={(safe.actif && vueOrg === 'delivery' ? (['portfolio', 'train', 'equipeagile'] as KindOrg[]) : (['personne', 'unite'] as KindOrg[])).map((k, i) => ({
           label: `${ICONE_ORG[k]} ${k === 'equipeagile' ? 'Équipe agile' : NOM_ORG[k]}`,
           principal: i === 0,
-          onPress: () => entreprisesAffichees[0] && setOrgFiche({ kind: k, entite: null, espace: entreprisesAffichees[0].id }),
+          onPress: () => entreprisesAffichees[0] && ouvrirOrg({ kind: k, entite: null, espace: entreprisesAffichees[0].id }),
         }))}
         onClose={() => setOrgMenu(false)}
       />
-      {orgFiche && (
-        <OrgForm
-          visible
-          kind={orgFiche.kind}
-          entite={orgFiche.entite}
-          defaults={orgFiche.defaults}
-          org={orgDe((x) => (x.espace || 'moi') === orgFiche.espace)}
-          nomEntreprise={espaces.find((e) => e.id === orgFiche.espace)?.nom ?? ''}
-          onClose={() => setOrgFiche(null)}
-          onSave={async (data) => {
-            await api.saveOrg(settings, orgFiche.espace, orgFiche.kind, { ...data, id: orgFiche.entite?.id } as never);
-            await rechargerOrg(settings, orgFiche.espace);
-            setOrgFiche(null);
-          }}
-          onDelete={async () => {
-            if (!orgFiche.entite) return;
-            await api.deleteOrg(settings, orgFiche.espace, orgFiche.kind, orgFiche.entite.id);
-            if (orgFiltre?.id === orgFiche.entite.id) setOrgFiltre(null);
-            setOrgFiche(null);
-            await refresh(settings);
-          }}
-        />
-      )}
+      {orgPile.map((fiche, i) => {
+        // Nom d'une fiche de la pile (fil en haut et bouton « ‹ … »)
+        const nom = (x: OrgFichePile) => `${ICONE_ORG[x.kind]} ${x.entite?.nom ?? NOUVEAU_ORG[x.kind]}`;
+        const retirer = () => setOrgPile((p) => p.slice(0, i));
+        return (
+          <OrgForm
+            key={fiche.cle}
+            visible
+            kind={fiche.kind}
+            entite={fiche.entite}
+            defaults={fiche.defaults}
+            org={orgDe((x) => (x.espace || 'moi') === fiche.espace)}
+            nomEntreprise={espaces.find((e) => e.id === fiche.espace)?.nom ?? ''}
+            onClose={retirer}
+            pile={
+              orgPile.length > 1
+                ? {
+                    retour: i > 0 ? (orgPile[i - 1].entite?.nom ?? nom(orgPile[i - 1]).replace(/^\S+ /, '')) : undefined,
+                    chemin: orgPile.slice(0, i + 1).map(nom).join(' › '),
+                    onFermerTout: () => (orgPile.some((x) => x.dirty) ? setConfirmerFermerOrg(true) : setOrgPile([])),
+                  }
+                : undefined
+            }
+            onOuvrir={(kind, entite, defaults, champ) => ouvrirOrg({ kind, entite, espace: fiche.espace, defaults, champ })}
+            injection={fiche.injection}
+            onDirty={(d) => setOrgPile((p) => (p[i] && !!p[i].dirty !== d ? p.map((x, k) => (k === i ? { ...x, dirty: d } : x)) : p))}
+            onSave={async (data, rester) => {
+              const o = await api.saveOrg(settings, fiche.espace, fiche.kind, { ...data, id: fiche.entite?.id } as never);
+              await rechargerOrg(settings, fiche.espace);
+              if (rester) {
+                // Parent enregistré pour ouvrir un enfant : la fiche reste ouverte, sur l'élément enregistré
+                setOrgPile((p) => p.map((x, k) => (k === i ? { ...x, entite: o, dirty: false } : x)));
+              } else {
+                // Retour à la fiche d'en dessous ; l'élément créé y est choisi si elle l'a demandé
+                setOrgPile((p) =>
+                  p.slice(0, i).map((x, k) => (k === i - 1 && fiche.champ && !fiche.entite ? { ...x, injection: { champ: fiche.champ, id: o.id, n: Date.now() } } : x)),
+                );
+              }
+              return o as EntiteOrg<KindOrg>;
+            }}
+            onDelete={async () => {
+              if (!fiche.entite) return;
+              await api.deleteOrg(settings, fiche.espace, fiche.kind, fiche.entite.id);
+              if (orgFiltre?.id === fiche.entite.id) setOrgFiltre(null);
+              retirer();
+              await refresh(settings);
+            }}
+          />
+        );
+      })}
+      <ChoiceSheet
+        visible={confirmerFermerOrg}
+        title="Tout fermer ?"
+        message="Des fiches ont des changements non enregistrés : ils seront perdus."
+        choices={[{ label: 'Abandonner les changements et fermer', principal: true, onPress: () => setOrgPile([]) }]}
+        onClose={() => setConfirmerFermerOrg(false)}
+      />
       <GererEspacesSheet
         visible={gestionOpen}
         espaces={espaces}
