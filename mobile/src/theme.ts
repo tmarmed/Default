@@ -12,6 +12,15 @@ export const colors = {
   warning: '#E37400',
 };
 
+/** Couleur assombrie (texte coloré lisible sur fond blanc) : `f` = part de noir ajoutée */
+export function assombrir(hex: string, f = 0.18): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const c = (v: number) => Math.round(v * (1 - f)).toString(16).padStart(2, '0');
+  return `#${c((n >> 16) & 255)}${c((n >> 8) & 255)}${c(n & 255)}`;
+}
+
 export const typeColors: Record<ItemType, string> = {
   tache: '#1A73E8',
   'rendez-vous': '#E37400',

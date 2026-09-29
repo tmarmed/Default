@@ -44,7 +44,7 @@ import { LigneChoix, LigneFiche, SectionFiche } from './Choix';
 import { listeIterations } from '../choixTravail';
 import { filTravail } from '../choixTravail';
 import { LiaisonOrg } from './LiaisonOrg';
-import { BoutonRetour, CheminPile, TitreFiche, type Injection, type PileProps } from './FormSheet';
+import { BoutonRetour, CheminPile, TitreBarre, TitreFiche, type Injection, type PileProps } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -342,7 +342,7 @@ export function TaskForm({
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={[styles.header, (!!pile?.chemin || !!fil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
           <BoutonRetour pile={pile} onPress={onClose} disabled={busy} style={styles.headerBtn} />
-          <Text style={styles.headerTitle}>{item ? TYPE_LABELS[form.type] : 'Nouvelle tâche'}</Text>
+          <TitreBarre texte={item ? TYPE_LABELS[form.type] : 'Nouvelle tâche'} couleur={typeColors[form.type]} avecFil={!!pile?.chemin || !!fil} />
           <Pressable onPress={save} hitSlop={10} disabled={busy}>
             {busy ? (
               <ActivityIndicator color={colors.primary} />

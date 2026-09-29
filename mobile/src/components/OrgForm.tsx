@@ -301,7 +301,8 @@ export function OrgForm({
   return (
     <FormSheet
       visible={visible}
-      title={`${ICONE_ORG[kind]} ${TITRES[kind][entite ? 0 : 1]}`}
+      title={TITRES[kind][entite ? 0 : 1]}
+      couleurTitre={colors.primary}
       busy={busy}
       error={error}
       onClose={onClose}

@@ -23,7 +23,7 @@ import { ETATS_EPIC } from '../types';
 import { Chips } from './Chips';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
-import { TitreFiche, BoutonRetour, ChildActions, CheminPile, type Injection, type PileProps } from './FormSheet';
+import { TitreBarre, TitreFiche, BoutonRetour, ChildActions, CheminPile, type Injection, type PileProps } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
@@ -216,7 +216,7 @@ export function EpicForm({
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={[styles.header, (!!pile?.chemin || !!fil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
           <BoutonRetour pile={pile} onPress={onClose} disabled={busy} style={styles.headerBtn} />
-          <Text style={styles.headerTitle}>{epic ? 'Epic' : 'Nouvelle epic'}</Text>
+          <TitreBarre texte={epic ? 'Epic' : 'Nouvelle epic'} couleur={form.couleur} avecFil={!!pile?.chemin || !!fil} />
           <Pressable onPress={() => save()} hitSlop={10} disabled={busy}>
             {busy ? (
               <ActivityIndicator color={colors.primary} />

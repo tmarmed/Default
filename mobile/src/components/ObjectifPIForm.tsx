@@ -5,6 +5,7 @@ import { HierarchyContext, inDomain } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche } from './EspaceChoix';
 import { piLabel, piOf, shiftPi } from '../pi';
 import type { ObjectifPI, ObjectifPIInput } from '../types';
+import { colors } from '../theme';
 import { Chips } from './Chips';
 import { LigneChoix, SectionFiche } from './Choix';
 import { listeDomaines } from '../choixTravail';
@@ -68,7 +69,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
 
   return (
     <HierarchyContext.Provider value={h}>
-    <FormSheet visible={visible} title={objectif ? 'Objectif du PI' : 'Nouvel objectif du PI'} busy={busy} error={error} onClose={onClose} onSave={save}>
+    <FormSheet visible={visible} title={objectif ? 'Objectif du PI' : 'Nouvel objectif du PI'} couleurTitre={colors.primary} busy={busy} error={error} onClose={onClose} onSave={save}>
       <TitreFiche icone="🎯" titre={form.titre} vide="Titre de l’objectif du PI" sous={form.pi ? `PI ${piLabel(form.pi)}` : undefined} />
       <Field style={f.titleInput} placeholder="Résultat à livrer (ex. Nouveau site en ligne)" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!objectif} />
       <EspaceChoix

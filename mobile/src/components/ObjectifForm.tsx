@@ -120,6 +120,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
     <FormSheet
       visible={visible}
       title={objectif ? 'Objectif' : 'Nouvel objectif'}
+      couleurTitre={form.couleur}
       busy={busy}
       error={error}
       onClose={onClose}

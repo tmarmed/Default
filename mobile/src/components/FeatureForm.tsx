@@ -148,6 +148,7 @@ export function FeatureForm({
     <FormSheet
       visible={visible}
       title={feature ? 'Feature' : 'Nouvelle feature'}
+      couleurTitre={epic?.couleur}
       busy={busy}
       error={error}
       onClose={onClose}

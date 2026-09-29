@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Alerte, Alignement } from '../alerts';
-import { colors } from '../theme';
+import { assombrir, colors } from '../theme';
 import { EPIC_COULEURS } from '../types';
 import { TexteAjuste } from './TexteAjuste';
 
@@ -40,6 +40,8 @@ interface Props {
   onFermerTout?: () => void;
   /** Où est rangé l'élément de la fiche (fil d'Ariane en haut) */
   fil?: string;
+  /** Couleur de l'élément : le titre de la barre (son type) la prend */
+  couleurTitre?: string;
 }
 
 /** Pile de fiches : fiche d'en dessous (« ‹ … »), fil en haut, tout fermer */
@@ -91,7 +93,7 @@ export function BoutonRetour({ pile, onPress, disabled, style }: { pile?: PilePr
 }
 
 /** Fenêtre de formulaire : Annuler / titre / Enregistrer, message d'erreur, contenu défilant. */
-export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil }: Props) {
+export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre }: Props) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -106,7 +108,7 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
             <Text style={styles.headerBtn}>{onSave ? 'Annuler' : 'Fermer'}</Text>
           </Pressable>
           {/* Jamais coupé « … » : le titre rapetisse s'il est long */}
-          <TexteAjuste variantes={[title]} taille={17} min={12} dispo={Math.min(Dimensions.get('window').width, 480) - 200} style={styles.headerTitle} />
+          <TitreBarre texte={title} couleur={couleurTitre} avecFil={!!chemin || !!fil} />
           {onSave ? (
             <Pressable onPress={onSave} hitSlop={10} disabled={busy}>
               {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>}
@@ -128,18 +130,29 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
 }
 
 /**
- * Titre d'une fiche : le nom de l'élément, centré en haut de la page (pas dans un cadre), précédé de son icône
- * dans un petit cercle de sa couleur ; une ligne d'infos dessous (dates, PI…). Le même dans toutes les fiches.
+ * Titre de la barre du haut (le type : « Epic », « Équipe agile »…), dans la couleur de l'élément, toujours au
+ * centre exact de la barre (quelle que soit la largeur d'« Annuler » et d'« Enregistrer »).
+ */
+export function TitreBarre({ texte, couleur, avecFil }: { texte: string; couleur?: string; avecFil?: boolean }) {
+  return (
+    // Avec le fil d'Ariane, la barre a moins de marge en bas : le titre reste aligné sur Annuler / Enregistrer
+    <View pointerEvents="none" style={[styles.titreBarre, avecFil && { top: 6 }]}>
+      <TexteAjuste variantes={[texte]} taille={17} min={12} dispo={Math.min(Dimensions.get('window').width, 480) - 200} style={[styles.headerTitle, couleur ? { color: assombrir(couleur) } : null]} />
+    </View>
+  );
+}
+
+/**
+ * Titre d'une fiche : le nom de l'élément, centré en haut de la page (pas dans un cadre), précédé de son logo ;
+ * une ligne d'infos dessous (dates, PI…). Le même dans toutes les fiches.
  */
 export function TitreFiche({ icone, titre, vide, sous, couleur = colors.primary }: { icone: string; titre: string; vide: string; sous?: string; couleur?: string }) {
   return (
     <View style={styles.titreFiche}>
-      <View style={styles.titreFicheLigne}>
-        <View style={[styles.titreFicheRond, { borderColor: couleur }]}>
-          <Text style={[styles.titreFicheIcone, { color: couleur }]}>{icone}</Text>
-        </View>
-        <Text style={[styles.titreFicheTexte, !titre && styles.titreFicheVide]}>{titre || vide}</Text>
-      </View>
+      <Text style={[styles.titreFicheTexte, !titre && styles.titreFicheVide]}>
+        <Text style={{ color: assombrir(couleur) }}>{icone} </Text>
+        {titre || vide}
+      </Text>
       {!!sous && <Text style={styles.titreFicheSous}>{sous}</Text>}
     </View>
   );
@@ -275,10 +288,8 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 48 },
   error: { color: colors.danger, backgroundColor: '#FCE8E6', padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 14 },
   titreFiche: { alignItems: 'center', gap: 4, paddingTop: 4, paddingBottom: 16, paddingHorizontal: 8 },
-  titreFicheLigne: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, maxWidth: '100%' },
-  titreFicheRond: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card },
-  titreFicheIcone: { fontSize: 13, fontWeight: '800' },
-  titreFicheTexte: { flexShrink: 1, fontSize: 21, fontWeight: '700', color: colors.text, textAlign: 'center' },
+  titreBarre: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  titreFicheTexte: { fontSize: 21, fontWeight: '700', color: colors.text, textAlign: 'center' },
   titreFicheVide: { color: colors.muted, fontWeight: '600' },
   titreFicheSous: { fontSize: 13, color: colors.muted, textAlign: 'center' },
   label: { marginTop: 18, marginBottom: 8, fontSize: 13, fontWeight: '600', color: colors.muted },

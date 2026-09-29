@@ -82,6 +82,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
     <FormSheet
       visible={visible}
       title={domaine ? 'Domaine' : 'Nouveau domaine'}
+      couleurTitre={form.couleur}
       busy={busy}
       error={error}
       onClose={onClose}
