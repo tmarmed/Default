@@ -65,5 +65,8 @@ l'espace, découpée en morceaux de 45 000 caractères au plus :
 `donnees`, `cree_le`. L'échange cite ses pièces dans sa colonne `pieces_jointes` (ids séparés par « ; »).
 Limites : 5 pièces par échange, 1 Mo par fichier ; images réduites à 1000 px (JPEG). Pas d'historique : quand
 l'échange disparaît, l'application efface les pièces qu'aucun échange ne cite plus (après 10 minutes).
-Claude (connecteur Google Sheets) écrit ses captures de la même façon : d'abord les lignes de `PiecesJointes`
-(en un appel), puis l'échange avec `pieces_jointes`.
+Claude (connecteur Google Sheets) suit le même cas d'usage standard qu'une personne : ses échanges et leurs pièces
+jointes vont dans le Sheet de **l'espace concerné** (celui de l'élément, ex. President pour une mission), jamais dans
+Moi par défaut. D'abord les lignes de `PiecesJointes`, puis l'échange avec `pieces_jointes`. Une image recopiée par
+Claude doit être vérifiée morceau par morceau (longueur et somme de contrôle calculées dans le Sheet) avant
+d'écrire l'échange ; un morceau faux est réécrit.

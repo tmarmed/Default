@@ -613,7 +613,8 @@ function NouvelEchange({
   const envoyer = async () => {
     if (!dest) return setError('Choisissez à qui écrire.');
     if (dest !== 'claude' && !espacesPartages.length) return setError('Affichez un espace Équipe ou Entreprise partagé avec cette personne : 🔒 Moi est privé.');
-    if (dest !== 'claude' && espace === 'moi') setEspace(espacesPartages[0].id);
+    // Avec une personne : jamais 🔒 Moi (elle ne le verrait pas) ; avec Claude : l'espace concerné, Moi compris
+    const espaceFinal = dest !== 'claude' && espace === 'moi' ? espacesPartages[0].id : espace;
     if (!titre.trim() && !texte.trim() && !pieces.length) return setError('Écrivez un titre ou un texte, ou joignez une image.');
     // Un choix tapé sans Entrée compte aussi ; « ; » est le séparateur du Sheet
     const liste = [...new Set([...choix, saisieChoix].map((c) => c.replace(/;/g, ',').trim()).filter(Boolean))];
@@ -628,7 +629,7 @@ function NouvelEchange({
         onClose();
         return;
       }
-      await onEnvoyer({ espace, de: moi, a: dest, type, titre: titre.trim(), texte: texte.trim(), choix: type === 'question' ? liste.join(';') : '', reponse: '', note: '', statut: 'envoye', element, niveau: '', transmis_par: '', prive: '1' }, pieces);
+      await onEnvoyer({ espace: espaceFinal, de: moi, a: dest, type, titre: titre.trim(), texte: texte.trim(), choix: type === 'question' ? liste.join(';') : '', reponse: '', note: '', statut: 'envoye', element, niveau: '', transmis_par: '', prive: '1' }, pieces);
       onClose();
     } catch (e) {
       setError(`Envoi impossible : ${(e as Error).message}`);
@@ -712,13 +713,13 @@ function NouvelEchange({
           libelle={nomDest}
           onChange={setDest}
         />
-        {dest !== 'claude' && espacesPartages.length > 1 && !existant && (
+        {(dest === 'claude' ? espaces : espacesPartages).length > 1 && !existant && (
           <LigneChoix
             fixe
             label="Espace"
-            value={espace}
-            sous="Rangé au niveau commun le plus proche de l'Organisation (équipe, train, unité) ; privé à deux."
-            groupes={[{ options: espacesPartages.map((e) => ({ value: e.id, label: e.nom })) }]}
+            value={dest !== 'claude' && espace === 'moi' ? espacesPartages[0]?.id ?? '' : espace}
+            sous={dest === 'claude' ? "L'espace concerné (celui de l'élément choisi) : pièces jointes comprises, tout y est rangé." : "Rangé au niveau commun le plus proche de l'Organisation (équipe, train, unité) ; privé à deux."}
+            groupes={[{ options: (dest === 'claude' ? espaces : espacesPartages).map((e) => ({ value: e.id, label: e.nom })) }]}
             onChange={(v) => v && setEspace(v)}
           />
         )}
@@ -737,7 +738,12 @@ function NouvelEchange({
             { titre: 'Tâches', options: h.items.filter((x) => x.statut !== 'termine').map((x) => ({ value: x.id, label: `${TYPE_ICONS[x.type]} ${x.titre}` })) },
           ].filter((g) => g.options.length)}
           libelle={(v) => filElement(v, h, TYPE_ICONS).split(' › ').pop() ?? v}
-          onChange={setElement}
+          onChange={(v) => {
+            setElement(v);
+            // L'échange va dans l'espace de l'élément concerné
+            const x = [...h.epicList, ...h.featureList, ...h.objectifList, ...h.items].find((y) => y.id === v) as { espace?: string } | undefined;
+            if (x?.espace && espaces.some((e) => e.id === x.espace)) setEspace(x.espace);
+          }}
         />
       </SectionFiche>
     </FormSheet>

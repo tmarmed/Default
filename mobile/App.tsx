@@ -1407,7 +1407,8 @@ function Main() {
   };
   /** Nouvel échange avec une personne : rangé au niveau commun le plus proche, dans le Sheet de l'entreprise */
   const placerEchange = (e: EchangeInput): EchangeInput => {
-    if (e.a === 'claude') return { ...e, espace: 'moi', niveau: '' };
+    // Claude (IA chat) : l'espace concerné, choisi dans la fiche (Moi compris)
+    if (e.a === 'claude') return { ...e, niveau: '' };
     const pa = personneParEmail(e.de, orgEchanges);
     const pb = personneParEmail(e.a, orgEchanges);
     const n = pa && pb ? niveauCommun(pa.id, pb.id, orgEchanges) : null;
