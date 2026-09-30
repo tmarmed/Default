@@ -19,7 +19,7 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   partagé), 👥 **Équipe** (équipe indépendante), 🏢 **Entreprise** (avec ses équipes). Nom du fichier :
   `President | Moi`, `President | Équipe | Mobile`, `President | Entreprise | ACME` (séparateur `|`).
 - **En haut** : une barre fixe « President » avec, à droite, l'icône standard du compte (silhouette, point vert =
-  connecté ; menu : Stockage Google Drive, Se déconnecter — en démo : Stockage Google Drive, Réinitialiser la démo).
+  connecté ; menu : Stockage Google Drive, 🧪 Mode démo, Se déconnecter — en démo : Stockage Google Drive, Quitter le mode démo, Réinitialiser la démo).
   Juste après « President », la **pastille des espaces de travail** (« 🔒 Moi · 👥 Mobile ② ▾ » ; jamais coupée
   « … » : le texte rapetisse, puis les derniers noms deviennent « +N ») : la toucher déplie la **carte des espaces de travail** sous la barre (ouverte par défaut, avec son titre
   « ESPACES DE TRAVAIL » ; ▴ la replie ; mémorisé) : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule
@@ -479,7 +479,12 @@ Sur le PC, dans Edge : **⋯ › Applications › Installer ce site en tant qu'a
 menu Démarrer). Dans Chrome : **⋯ › Caster, enregistrer et partager › Installer la page en tant
 qu'application**.
 
-Démo sans Google Sheet (données d'exemple) :
+**Mode démo** (données d'exemple, sans Google Sheet) : dans la version principale, désactivé par défaut ; bouton
+« 🧪 Essayer en mode démo » sur l'écran de connexion et « 🧪 Mode démo » dans le menu du compte (retenu sur
+l'appareil, l'application se recharge ; « Quitter le mode démo » revient à vos données). En démo, tout ce que
+l'application garde sur l'appareil est rangé à part (clés « demo~ ») : vos données et la démo ne se mélangent
+jamais ; hors démo, les espaces sans Google Sheet laissés par une démo sont retirés. Les données d'exemple seront
+retirées à la mise en production. Version démo compilée à part (toujours en démo) :
 `EXPO_PUBLIC_DEMO=1 npx expo export --platform web --clear`
 
 ## 3. Installer l'application pour de bon (App Store / Play Store ou installation directe)

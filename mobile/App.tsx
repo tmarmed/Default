@@ -68,7 +68,7 @@ import {
 } from './src/dates';
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { GOOGLE_AUTH, VERSION } from './src/config';
-import { DEMO, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
+import { changerModeDemo, DEMO, DEMO_BASCULABLE, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
 import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, lireNomFichier, loadRetires, loadSupprimes, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveSupprimes, saveVisibles } from './src/espaces';
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
@@ -180,6 +180,8 @@ const TAB_ICONS: Record<Tab, string> = {
   echange: '💬',
 };
 const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches' };
+/** Missions déjà écrites une fois d'elles-mêmes dans l'espace « President » */
+const MISSIONS_AUTO_KEY = 'president:echange-missions-auto';
 /** Écrans prévus, encore vides (règles de gestion à définir) */
 const A_VENIR: Tab[] = ['equipe', 'pilotage'];
 /** Nom de l'application : début du nom des fichiers des espaces */
@@ -752,7 +754,8 @@ function Main() {
 
   useEffect(() => {
     (async () => {
-      const [stored, cache, cachedHier, dom, liste, vis] = await Promise.all([
+      // eslint-disable-next-line prefer-const
+      let [stored, cache, cachedHier, dom, liste, vis] = await Promise.all([
         loadSettings(),
         loadCache(),
         loadHierarchyCache(),
@@ -761,6 +764,11 @@ function Main() {
         loadVisibles(),
       ]);
       setDomFilterState(dom);
+      // Hors démo : un espace sans Google Sheet (restes d'une démo) n'est pas un vrai espace, il est retiré
+      if (!DEMO && liste.some((e) => e.id !== 'moi' && !e.fichier)) {
+        liste = liste.filter((e) => e.id === 'moi' || e.fichier);
+        saveEspaces(liste).catch(() => {});
+      }
       // Espaces : la liste, et le filtre (sans les espaces qui n'existent plus)
       const visOk = vis.filter((v) => liste.some((e) => e.id === v));
       espacesRef.current = liste;
@@ -1368,6 +1376,29 @@ function Main() {
     await refresh(settings);
     return n ? `${n} changement${n > 1 ? 's' : ''} écrit${n > 1 ? 's' : ''} dans l'espace « ${NOM_ESPACE_MISSIONS} ».` : `L'espace « ${NOM_ESPACE_MISSIONS} » est déjà à jour.`;
   };
+
+  // Première connexion avec le fil d'échange (hors démo) : les missions sont écrites une fois d'elles-mêmes dans
+  // l'espace « President » de votre Google Drive ; ensuite, « Mettre à jour » dans 💬 Échange.
+  useEffect(() => {
+    if (DEMO || !echangeActif || !settings?.googleEmail || espaceMissions) return;
+    let annule = false;
+    (async () => {
+      if (await AsyncStorage.getItem(MISSIONS_AUTO_KEY)) return;
+      const liste = await loadEspaces([ESPACE_MOI]);
+      if (annule || liste.some((e) => e.type === 'equipe' && e.nom === NOM_ESPACE_MISSIONS)) return;
+      await AsyncStorage.setItem(MISSIONS_AUTO_KEY, '1');
+      try {
+        setInfo(await synchroMissions());
+      } catch (e) {
+        await AsyncStorage.removeItem(MISSIONS_AUTO_KEY);
+        setNotice(`Missions pas encore écrites dans votre Google Sheet : ${(e as Error).message}`);
+      }
+    })();
+    return () => {
+      annule = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [echangeActif, settings?.googleEmail, espaceMissions]);
 
   /** Bouton d'une alerte : applique les dates proposées. */
   const fixEntity = async (kind: 'epic' | 'objectif', x: { id: string; titre: string }, patch: { debut?: string; fin?: string }) => {
@@ -2670,13 +2701,14 @@ function Main() {
         title={DEMO ? 'Démo' : 'Compte Google'}
         message={
           DEMO
-            ? `Mode démonstration : les données sont enregistrées dans ce navigateur. Version ${VERSION}.`
+            ? `Mode démonstration : données d'exemple, enregistrées dans ce navigateur, à part de vos vraies données. Version ${VERSION}.`
             : `${settings.googleEmail ? `Connecté avec ${settings.googleEmail}. Vos espaces de travail sont des Google Sheets de ce compte. ` : ''}Version ${VERSION}.`
         }
         choices={
           DEMO
             ? [
                 { label: '☁️ Stockage Google Drive', onPress: ouvrirStockage },
+                ...(DEMO_BASCULABLE ? [{ label: '🧪 Quitter le mode démo (retour à vos données)', principal: true, onPress: () => changerModeDemo(false) }] : []),
                 {
                   label: 'Réinitialiser la démo',
                   onPress: async () => {
@@ -2688,6 +2720,7 @@ function Main() {
               ]
             : [
                 { label: '☁️ Stockage Google Drive', onPress: ouvrirStockage },
+                ...(DEMO_BASCULABLE ? [{ label: '🧪 Mode démo (données d’exemple)', onPress: () => changerModeDemo(true) }] : []),
                 { label: 'Se déconnecter', onPress: logout },
               ]
         }

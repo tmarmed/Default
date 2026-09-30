@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { dernierCompte, signIn } from '../auth';
 import { VERSION } from '../config';
+import { changerModeDemo, DEMO_BASCULABLE } from '../demo';
 import { colors } from '../theme';
 
 interface Props {
@@ -62,12 +63,19 @@ export function LoginScreen({ onSignedIn, initialError }: Props) {
           </>
         )}
       </Pressable>
+      {DEMO_BASCULABLE && (
+        <Pressable onPress={() => changerModeDemo(true)} style={styles.demo} accessibilityRole="button">
+          <Text style={styles.demoText}>🧪 Essayer en mode démo (données d'exemple)</Text>
+        </Pressable>
+      )}
       <Text style={styles.version}>Version {VERSION}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  demo: { marginTop: 16, alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 12 },
+  demoText: { fontSize: 14, fontWeight: '600', color: colors.primary, textAlign: 'center' },
   version: { marginTop: 24, textAlign: 'center', fontSize: 11, color: colors.muted },
   container: { flex: 1, justifyContent: 'center', padding: 28 },
   logo: {

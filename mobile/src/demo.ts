@@ -6,10 +6,53 @@ import { CLE_ORG, type KindOrg, type Org } from './organisation';
 import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI, type ResultatCle, type ValueStream } from './types';
 
 /**
- * Mode démo (EXPO_PUBLIC_DEMO=1) : données d'exemple enregistrées sur l'appareil,
- * sans Google Sheet. Sert à essayer l'application en ligne.
+ * Mode démo : données d'exemple enregistrées sur l'appareil, sans Google Sheet. Sert à essayer l'application.
+ * - version démo compilée (EXPO_PUBLIC_DEMO=1) : toujours en démo ;
+ * - version principale : bouton « 🧪 Mode démo » du menu du compte, désactivé par défaut (retenu sur l'appareil,
+ *   l'application se recharge). Les données d'exemple seront retirées à la mise en production.
+ * En démo, tout ce que l'application garde sur l'appareil est rangé à part (clés préfixées « demo~ ») : vos
+ * vraies données et vos réglages ne sont jamais mélangés avec ceux de la démo.
  */
-export const DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
+const DEMO_COMPILE = process.env.EXPO_PUBLIC_DEMO === '1';
+const MODE_DEMO_KEY = 'president:mode-demo';
+function lireModeDemo(): boolean {
+  try {
+    return typeof window !== 'undefined' && window.localStorage?.getItem(MODE_DEMO_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+export const DEMO = DEMO_COMPILE || lireModeDemo();
+/** Le bouton « Mode démo » existe seulement dans la version principale, dans le navigateur */
+export const DEMO_BASCULABLE = !DEMO_COMPILE && typeof window !== 'undefined' && !!window.localStorage;
+export function changerModeDemo(actif: boolean) {
+  try {
+    if (actif) window.localStorage.setItem(MODE_DEMO_KEY, '1');
+    else window.localStorage.removeItem(MODE_DEMO_KEY);
+    window.location.reload();
+  } catch {
+    /* navigateur sans stockage : on reste dans le mode actuel */
+  }
+}
+
+// Démo : clés de l'appareil rangées à part (sauf celles du fil d'échange, communes aux deux modes)
+if (DEMO) {
+  const P = 'demo~';
+  const commune = (k: string) => k.startsWith('president:echange');
+  const cle = (k: string) => (commune(k) ? k : P + k);
+  const a = AsyncStorage as unknown as Record<string, (...x: never[]) => Promise<unknown>>;
+  const o = Object.fromEntries(
+    ['getItem', 'setItem', 'removeItem', 'mergeItem', 'multiGet', 'multiSet', 'multiRemove', 'getAllKeys'].map((m) => [m, a[m].bind(AsyncStorage)]),
+  ) as Record<string, (...x: unknown[]) => Promise<unknown>>;
+  a.getItem = ((k: string) => o.getItem(cle(k))) as never;
+  a.setItem = ((k: string, v: string) => o.setItem(cle(k), v)) as never;
+  a.removeItem = ((k: string) => o.removeItem(cle(k))) as never;
+  a.mergeItem = ((k: string, v: string) => o.mergeItem(cle(k), v)) as never;
+  a.multiGet = (async (ks: string[]) => ((await o.multiGet(ks.map(cle))) as [string, string | null][]).map(([, v], i) => [ks[i], v])) as never;
+  a.multiSet = ((l: [string, string][]) => o.multiSet(l.map(([k, v]) => [cle(k), v]))) as never;
+  a.multiRemove = ((ks: string[]) => o.multiRemove(ks.map(cle))) as never;
+  a.getAllKeys = (async () => ((await o.getAllKeys()) as string[]).flatMap((k) => (k.startsWith(P) ? [k.slice(P.length)] : commune(k) ? [k] : []))) as never;
+}
 
 const KEY = 'mes-taches:demo';
 /**
