@@ -123,3 +123,25 @@ export function destinatairesTransfert(moi: string, niveau: Niveau | null, org: 
   ];
   return groupes.filter((g) => g.emails.length);
 }
+
+/**
+ * Escalade (décidée) : un membre escalade à son Scrum Master ou à son Product Owner (au choix, même équipe) ; le SM
+ * ou le PO au RTE du train ; le RTE (ou le PM) à l'Epic Owner du portfolio ; dans la hiérarchie, au responsable de
+ * l'unité parente. Renvoie les personnes possibles (ids), avec leur rôle et le niveau où l'échange arrive.
+ */
+export function ciblesEscalade(moi: string, n: Niveau | null, org: OrgValue): { pid: string; role: string; niveau: Niveau }[] {
+  if (!n) return [];
+  const sans = (l: { pid: string; role: string; niveau: Niveau }[]) => l.filter((c) => c.pid && c.pid !== moi);
+  if (n.kind === 'equipeagile') {
+    const eq = org.equipe.get(n.id);
+    if (!eq) return [];
+    const pilote = eq.sm === moi || eq.po === moi;
+    if (!pilote) return sans([{ pid: eq.sm, role: 'Scrum Master', niveau: n }, { pid: eq.po, role: 'Product Owner', niveau: n }]);
+    const t = org.train.get(eq.train);
+    return t ? sans([{ pid: t.rte || t.pm, role: t.rte ? 'RTE' : 'Product Manager', niveau: { kind: 'train', id: t.id } }]) : [];
+  }
+  const sup = niveauSuperieur(n, org);
+  if (!sup) return [];
+  const role = sup.niveau.kind === 'portfolio' ? 'Epic Owner' : sup.niveau.kind === 'unite' ? 'Responsable' : 'RTE';
+  return sans([{ pid: sup.responsable, role, niveau: sup.niveau }]);
+}

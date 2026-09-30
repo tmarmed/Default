@@ -73,8 +73,8 @@ import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
-import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
-import { destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, niveauSuperieur, personneParEmail } from './src/echange/hierarchieEchange';
+import { aTraiter, EchangesView, type Hierarchie, nomDepuisEmail } from './src/components/EchangesView';
+import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
 import { changementEpic, changementFeature, compterChangements, couleurLot, epicDuLot, featureDeEtape, FIL, finLot, NOM_ESPACE_MISSIONS, pointsOuverts, useEchangeActif } from './src/echange/echange';
 import { StrategieView } from './src/components/StrategieView';
 import { BacklogView } from './src/components/BacklogView';
@@ -183,8 +183,6 @@ const TAB_ICONS: Record<Tab, string> = {
   echange: '💬',
 };
 const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches' };
-/** Messages de l'application gardés sur l'appareil jusqu'à « Lu ✓ » */
-const MESSAGES_APP_KEY = 'president:messages-app';
 /** Écrans prévus, encore vides (règles de gestion à définir) */
 const A_VENIR: Tab[] = ['equipe', 'pilotage'];
 /** Nom de l'application : début du nom des fichiers des espaces */
@@ -460,28 +458,6 @@ function Main() {
   const [notice, setNotice] = useState<string | null>(null);
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
-  // 🏛️ Messages de l'application (💬 Échange › President) : ce qu'elle a fait ou signalé, jusqu'à « Lu ✓ »
-  const [messagesApp, setMessagesApp] = useState<MessageApp[]>([]);
-  const majMessagesApp = useCallback((f: (l: MessageApp[]) => MessageApp[]) => {
-    setMessagesApp((l) => {
-      const n = f(l).slice(0, 30);
-      AsyncStorage.setItem(MESSAGES_APP_KEY, JSON.stringify(n)).catch(() => {});
-      return n;
-    });
-  }, []);
-  useEffect(() => {
-    AsyncStorage.getItem(MESSAGES_APP_KEY)
-      .then((v) => v && setMessagesApp(JSON.parse(v)))
-      .catch(() => {});
-  }, []);
-  useEffect(() => {
-    const date = new Date().toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-    if (info) majMessagesApp((l) => [{ id: `i${Date.now()}`, texte: info, date, ton: 'info' }, ...l]);
-  }, [info, majMessagesApp]);
-  useEffect(() => {
-    const date = new Date().toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-    if (notice) majMessagesApp((l) => [{ id: `n${Date.now()}`, texte: notice, date, ton: 'alerte' }, ...l]);
-  }, [notice, majMessagesApp]);
   /** Bandeau « … · Annuler » des écrans (ajout au PI, déplacement…) : comme dans les fiches */
   const bandeauApp = useBandeau();
   // Message d'information : disparaît tout seul après 6 s (comme le bandeau « Annuler » de l'Organisation), ou d'un toucher
@@ -1446,25 +1422,23 @@ function Main() {
   // Démo : « Voir en tant que » une personne de l'Organisation = échanger avec son adresse
   const moiEchange = DEMO ? (orgTous.personnes.find((p) => p.id === moiDemo)?.email?.toLowerCase() || MOI_DEMO) : (settings?.googleEmail ?? '').toLowerCase();
   const nomEchange = (email: string) => personneParEmail(email, orgEchanges)?.nom ?? nomDepuisEmail(email);
-  const ROLE_NIVEAU = { train: 'RTE', portfolio: 'Epic Owner', unite: 'Responsable', equipeagile: 'Scrum Master' } as const;
-  const escaladeDe = (e: Echange) => {
-    const sup = niveauSuperieur(lireNiveau(e.niveau), orgEchanges);
-    const email = sup ? orgEchanges.personne.get(sup.responsable)?.email?.toLowerCase() : '';
-    return sup && email && email !== moiEchange ? { ...sup, email } : null;
+  /** Escalade : SM ou PO (membre), puis RTE, puis Epic Owner (voir ciblesEscalade) */
+  const escaladesDe = (e: Echange) => {
+    const pid = personneParEmail(moiEchange, orgEchanges)?.id ?? '';
+    return ciblesEscalade(pid, lireNiveau(e.niveau), orgEchanges)
+      .map((c) => ({ ...c, email: orgEchanges.personne.get(c.pid)?.email?.toLowerCase() ?? '' }))
+      .filter((c) => c.email && c.email !== moiEchange);
   };
   const hierarchieEchanges: Hierarchie = {
     libelle: (e) => libelleNiveau(lireNiveau(e.niveau), orgEchanges),
-    escalade: (e) => {
-      const x = escaladeDe(e);
-      return x ? `${ROLE_NIVEAU[x.niveau.kind]} ${nomEchange(x.email)} · ${libelleNiveau(x.niveau, orgEchanges)}` : null;
-    },
+    escalade: (e) => escaladesDe(e).map((c) => ({ email: c.email, libelle: `${c.role} ${nomEchange(c.email)}`, meta: libelleNiveau(c.niveau, orgEchanges) })),
     transmission: (e) =>
       destinatairesTransfert(moiEchange, lireNiveau(e.niveau), orgEchanges, [moiEchange, e.de]).map((g) => ({
         titre: g.titre,
         options: g.emails.map((m) => ({ value: m, label: nomEchange(m), meta: m })),
       })),
-    onEscalader: async (e) => {
-      const x = escaladeDe(e);
+    onEscalader: async (e, email) => {
+      const x = escaladesDe(e).find((c) => c.email === email);
       if (!x) return;
       await saveEntity('echange', e, { a: x.email, niveau: ecrireNiveau(x.niveau), transmis_par: moiEchange });
       setInfo(`Échange « ${e.titre || e.texte.slice(0, 40)} » escaladé à ${nomEchange(x.email)} (${libelleNiveau(x.niveau, orgEchanges)}).`);
@@ -1498,13 +1472,15 @@ function Main() {
     if (!settings) return;
     for (const e of tousHier.echanges ?? []) {
       if (e.statut !== 'pris_en_compte' || suppressionsEnCours.current.has(e.id)) continue;
+      // Seuls l'auteur et le destinataire suppriment (décidé)
+      if (e.de !== moiEchange && e.a !== moiEchange) continue;
       suppressionsEnCours.current.add(e.id);
       retirerEchange(e).catch(() => suppressionsEnCours.current.delete(e.id));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tousHier.echanges, settings]);
   const retirerEchange = async (e: Echange) => {
-    if (!settings) return;
+    if (!settings || (e.de !== moiEchange && e.a !== moiEchange)) return;
     await api.deleteEntity(settings, 'echange', e.id, false);
     setHier((prev) => {
       const next = { ...prev, echanges: (prev.echanges ?? []).filter((x) => x.id !== e.id) };
@@ -2394,10 +2370,17 @@ function Main() {
           espaces={visibles.map((id) => ({ id, nom: `${ICONE_ESPACE[espaceParId(espaces, id)?.type ?? 'moi']} ${libelleEspace(espaceParId(espaces, id) ?? ESPACE_MOI)}` }))}
           claude={echangeActif ? { nbQuestions: pointsOuverts().length, synchro: { espace: espaceMissions ? NOM_ESPACE_MISSIONS : null, changements: changementsMissions, lancer: synchroMissions } } : null}
           president={{
-            alertes: tabsTous.filter((t) => t !== 'echange').map((t) => ({ ecran: t, titre: TAB_TITLES[t], icone: TAB_ICONS[t], rouge: badges[t]?.rouge ?? 0, jaune: badges[t]?.jaune ?? 0 })),
-            messages: messagesApp,
+            alertes: tabsTous
+              .filter((t) => t !== 'echange')
+              .map((t) => ({
+                ecran: t,
+                titre: TAB_TITLES[t],
+                icone: TAB_ICONS[t],
+                rouge: badges[t]?.rouge ?? 0,
+                jaune: badges[t]?.jaune ?? 0,
+                contenu: t in checks ? <AlertsCard ecran={t} checks={t === 'roadmap' ? [...checks.roadmap, ...alertesDates] : checks[t as keyof typeof checks]} /> : undefined,
+              })),
             onOuvrir: (t) => setTab(t as Tab),
-            onLu: (id) => majMessagesApp((l) => l.filter((m) => m.id !== id)),
           }}
           onEnvoyer={async (e) => {
             await saveEntity('echange', null, placerEchange(e));

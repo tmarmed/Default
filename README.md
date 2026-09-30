@@ -91,8 +91,8 @@ qu'on peut donc aussi consulter depuis un ordinateur.
   texte, choix, reponse, note, statut, element) ; une IA qui lit le Sheet (Claude) ne supprime jamais : elle écrit
   `pris_en_compte` dans la colonne statut, et l'application supprime ces lignes au chargement. **Hiérarchie** : un
   échange avec une personne de l'entreprise est rangé au niveau commun le plus proche (équipe, train, portfolio,
-  unité ; colonne `niveau`, jamais dans 🔒 Moi) ; « ⤴ Escalader » l'envoie au responsable du niveau au-dessus
-  (RTE, Epic Owner, responsable d'unité), « ↪ Transmettre » à quelqu'un de l'équipe, du train, de l'unité parente
+  unité ; colonne `niveau`, jamais dans 🔒 Moi) ; « ⤴ Escalader » : membre → SM ou PO (au choix) → RTE → Epic Owner
+  (unité : responsable de l'unité parente), « ↪ Transmettre » à quelqu'un de l'équipe, du train, de l'unité parente
   ou d'une équipe partenaire (`transmis_par`). **Privé à deux** (`prive`) : seuls l'auteur et le destinataire le
   voient dans l'application (Sheet privé par paire : avec le partage réel des espaces) ; **sans historique** : un message lu, ou une réponse prise en
   compte (« Pris en compte ✓ ») par celui qui a demandé, est supprimé. Fiche Personne : ligne **Type** (🧑 Humain,

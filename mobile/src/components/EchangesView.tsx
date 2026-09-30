@@ -22,18 +22,14 @@ export interface Interlocuteur {
   /** humain, ia_chat, agent_ia, application */
   nature: string;
 }
-export interface MessageApp {
-  id: string;
-  texte: string;
-  date: string;
-  ton: 'info' | 'alerte';
-}
 export interface AlertesEcran {
   ecran: string;
   titre: string;
   icone: string;
   rouge: number;
   jaune: number;
+  /** Les alertes de l'écran, avec leurs boutons (même carte que sur l'écran) */
+  contenu?: ReactNode;
 }
 interface Props {
   moi: string;
@@ -42,11 +38,10 @@ interface Props {
   espaces: { id: string; nom: string }[];
   /** Fil de Claude (seulement si activé sur l'appareil) */
   claude: { synchro?: SynchroMissions; nbQuestions: number } | null;
+  /** President : les alertes de tous les onglets (des espaces affichés), regroupées, avec leurs boutons */
   president: {
     alertes: AlertesEcran[];
-    messages: MessageApp[];
     onOuvrir: (ecran: string) => void;
-    onLu: (id: string) => void;
   };
   onEnvoyer: (e: EchangeInput) => Promise<void>;
   onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>;
@@ -58,11 +53,11 @@ interface Props {
 export interface Hierarchie {
   /** « 👥 Mobile » : où vit l'échange */
   libelle: (e: Echange) => string;
-  /** Vers qui l'escalade l'enverrait (« RTE · 🚆 Clients »), null s'il n'y a pas de niveau au-dessus */
-  escalade: (e: Echange) => string | null;
+  /** À qui l'escalade peut l'envoyer (membre : SM ou PO ; SM / PO : RTE ; RTE : Epic Owner), vide sinon */
+  escalade: (e: Echange) => { email: string; libelle: string; meta: string }[];
   /** Personnes à qui le transmettre, par groupe */
   transmission: (e: Echange) => GroupeChoix[];
-  onEscalader: (e: Echange) => Promise<void>;
+  onEscalader: (e: Echange, email: string) => Promise<void>;
   onTransmettre: (e: Echange, email: string) => Promise<void>;
 }
 
@@ -84,7 +79,6 @@ export const aTraiter = (moi: string, l: Echange[]) => l.filter((e) => (e.a === 
 /** Petite aide de l'application (en attendant le mode assistant, lot 19) */
 const AIDE: { q: string; r: string }[] = [
   { q: 'Créer un espace de travail', r: 'Carte des espaces (touchez la pastille à côté de « President ») › ＋ : Équipe ou Entreprise, avec son propre Google Sheet.' },
-  { q: 'Mode démo', r: 'Interrupteur « Démo » à droite de « President » : allumé, des données d’exemple ; éteint, vos données. Les deux ne se mélangent jamais.' },
   { q: 'Envoyer un échange à quelqu’un', r: '💬 Échange › ＋ Nouvel échange : un message ou une question à choix, rangé dans l’espace choisi. Il disparaît quand il est lu, ou quand la réponse est prise en compte.' },
   { q: 'Alertes', r: 'Chaque écran signale ce qui ne tient pas (dates, charge, estimation). Un bouton règle le problème, « Ignorer » le range.' },
   { q: 'Droits', r: 'Vos droits viennent de vos rôles : votre travail et celui de votre équipe selon le rôle (Scrum Master, PO, membre…), la lecture ailleurs.' },
@@ -160,7 +154,7 @@ export function EchangesView({ moi, echanges, personnes, espaces, claude, presid
     return [r && `${r} à traiter`, p && `${p} réponse${p > 1 ? 's' : ''} reçue${p > 1 ? 's' : ''}`, w && `${w} en attente de l'autre`].filter(Boolean).join(' · ') || 'Rien en cours';
   };
   const lignes = [
-    ligne('president', '🏛️', 'President', 'application', [nbAlertes && `${nbAlertes} alerte${nbAlertes > 1 ? 's' : ''}`, nbRappels && `${nbRappels} rappel${nbRappels > 1 ? 's' : ''}`, president.messages.length && `${president.messages.length} message${president.messages.length > 1 ? 's' : ''}`].filter(Boolean).join(' · ') || 'Aide à la demande', president.messages.length, 0),
+    ligne('president', '🏛️', 'President', 'application', [nbAlertes && `${nbAlertes} alerte${nbAlertes > 1 ? 's' : ''}`, nbRappels && `${nbRappels} rappel${nbRappels > 1 ? 's' : ''}`, ].filter(Boolean).join(' · ') || 'Aucune alerte · aide à la demande', nbAlertes, 0),
     ...(claude ? [ligne('claude', '💬', 'Claude', 'ia_chat', `${claude.nbQuestions} question${claude.nbQuestions > 1 ? 's' : ''} · backlog des missions`, claude.nbQuestions, 1)] : []),
     ...humains.map((h, k) => ligne(h.id, ICONE_NATURE[h.nature] ?? '🧑', h.nom, h.nature, resume(entre(h.id)), aTraiter(moi, entre(h.id)).length, k + 2)),
   ];
@@ -221,6 +215,7 @@ function Conversation({
   const attente = echanges.filter((e) => e.de === moi && e.statut === 'envoye');
   const autres = echanges.filter((e) => e.a === moi && e.statut === 'repondu');
   const [transmettre, setTransmettre] = useState<Echange | null>(null);
+  const [escalader, setEscalader] = useState<Echange | null>(null);
   const [occupe, setOccupe] = useState<string | null>(null);
   const agir = async (e: Echange, f: () => Promise<void>) => {
     setOccupe(e.id);
@@ -233,6 +228,7 @@ function Conversation({
   // Sous chaque échange à traiter : où il vit, qui l'a transmis, Escalader et Transmettre
   const outils = (e: Echange) => {
     const vers = hierarchie.escalade(e);
+    const unSeul = vers.length === 1 ? vers[0] : null;
     const niveau = hierarchie.libelle(e);
     return (
       <View style={s.outils}>
@@ -240,9 +236,14 @@ function Conversation({
           {[niveau && `📍 ${niveau}`, e.prive !== '0' && '🔒 Privé à deux', e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`, e.de !== moi && `De ${nomDe(e.de)}`].filter(Boolean).join(' · ')}
         </Text>
         <View style={s.choix}>
-          {!!vers && (
-            <Pressable disabled={occupe === e.id} onPress={() => agir(e, () => hierarchie.onEscalader(e))} style={s.action} accessibilityRole="button" accessibilityHint={`Envoie l'échange à ${vers}`}>
-              <Text style={s.actionTexte}>⤴ Escalader · {vers}</Text>
+          {!!vers.length && (
+            <Pressable
+              disabled={occupe === e.id}
+              onPress={() => (unSeul ? agir(e, () => hierarchie.onEscalader(e, unSeul.email)) : setEscalader(e))}
+              style={s.action}
+              accessibilityRole="button"
+            >
+              <Text style={s.actionTexte}>⤴ Escalader{unSeul ? ` · ${unSeul.libelle}` : ` · ${vers.map((v) => v.libelle.split(' ')[0]).join(' ou ')}`}</Text>
             </Pressable>
           )}
           {!!hierarchie.transmission(e).length && (
@@ -284,6 +285,19 @@ function Conversation({
       <Pressable onPress={onNouveau} style={s.bouton} accessibilityRole="button">
         <Text style={s.boutonTexte}>＋ Nouvel échange</Text>
       </Pressable>
+      {escalader && (
+        <FeuilleChoix
+          titre="Escalader à"
+          value=""
+          groupes={[{ options: hierarchie.escalade(escalader).map((v) => ({ value: v.email, label: v.libelle, meta: v.meta })) }]}
+          onChoisir={(v) => {
+            const e = escalader;
+            setEscalader(null);
+            if (v) agir(e, () => hierarchie.onEscalader(e, v));
+          }}
+          onFermer={() => setEscalader(null)}
+        />
+      )}
       {transmettre && (
         <FeuilleChoix
           titre="Transmettre à"
@@ -376,7 +390,7 @@ function CarteQuestion({ e, onRepondre, pied }: { e: Echange; onRepondre: (e: Ec
   );
 }
 
-function President({ alertes, messages, onOuvrir, onLu, onRetour }: Props['president'] & { onRetour: () => void }) {
+function President({ alertes, onOuvrir, onRetour }: Props['president'] & { onRetour: () => void }) {
   const [q, setQ] = useState('');
   const mots = q.toLowerCase().split(/\s+/).filter((m) => m.length > 2);
   const trouvees = mots.length ? AIDE.filter((a) => mots.some((m) => `${a.q} ${a.r}`.toLowerCase().includes(m))) : [];
@@ -384,39 +398,22 @@ function President({ alertes, messages, onOuvrir, onLu, onRetour }: Props['presi
   return (
     <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
       <Retour titre="🏛️ President · Application" onRetour={onRetour} />
-      <Text style={[s.section, s.sectionBloc]}>Questions et alertes</Text>
-      <View style={s.carte}>
-        {avecAlertes.map((a, i) => (
-          <Pressable key={a.ecran} onPress={() => onOuvrir(a.ecran)} style={[s.ligne, i > 0 && s.ligneBord]} accessibilityRole="button">
-            <Text style={s.avatar}>{a.icone}</Text>
-            <View style={s.corps}>
-              <Text style={s.titre}>{a.titre}</Text>
-              <Text style={s.meta}>{[a.rouge && `⚠ ${a.rouge} alerte${a.rouge > 1 ? 's' : ''}`, a.jaune && `🟡 ${a.jaune} rappel${a.jaune > 1 ? 's' : ''}`].filter(Boolean).join(' · ')}</Text>
-            </View>
-            <Text style={s.chev}>›</Text>
+      <Text style={s.aide}>Les alertes de tous les onglets, au même endroit, avec leurs boutons.</Text>
+      {avecAlertes.map((a) => (
+        <View key={a.ecran}>
+          <Pressable onPress={() => onOuvrir(a.ecran)} style={s.enteteEcran} accessibilityRole="button" accessibilityHint="Ouvre l'écran">
+            <Text style={s.section}>
+              {a.icone} {a.titre} · {[a.rouge && `${a.rouge} alerte${a.rouge > 1 ? 's' : ''}`, a.jaune && `${a.jaune} rappel${a.jaune > 1 ? 's' : ''}`].filter(Boolean).join(' · ')}
+            </Text>
+            <Text style={s.filLien}>Ouvrir ›</Text>
           </Pressable>
-        ))}
-        {!avecAlertes.length && <Text style={s.videTexte}>Aucune alerte : tout tient.</Text>}
-      </View>
-      <Text style={[s.section, s.sectionBloc]}>Messages{messages.length ? ` · ${messages.length}` : ''}</Text>
-      {messages.length ? (
-        <View style={s.pile}>
-          {messages.map((m) => (
-            <View key={m.id} style={[s.carte, s.carteEchange]}>
-              <Text style={[s.texte, m.ton === 'alerte' && { color: colors.danger }]}>{m.texte}</Text>
-              <Text style={s.meta}>{m.date}</Text>
-              <Pressable onPress={() => onLu(m.id)} style={s.action} accessibilityRole="button">
-                <Text style={s.actionTexte}>Lu ✓</Text>
-              </Pressable>
-            </View>
-          ))}
+          {a.contenu}
         </View>
-      ) : (
-        <Text style={s.videTexte}>Aucun message.</Text>
-      )}
+      ))}
+      {!avecAlertes.length && <Text style={[s.videTexte, { marginTop: 14 }]}>Aucune alerte : tout tient.</Text>}
       <Text style={[s.section, s.sectionBloc]}>Aide</Text>
       <View style={[s.carte, s.carteEchange]}>
-        <TextInput value={q} onChangeText={setQ} placeholder="Votre question (ex. mode démo, droits)" placeholderTextColor="#9AA3AF" style={s.note} />
+        <TextInput value={q} onChangeText={setQ} placeholder="Votre question (ex. droits, espace)" placeholderTextColor="#9AA3AF" style={s.note} />
         {(trouvees.length ? trouvees : mots.length ? [] : AIDE).map((a) => (
           <View key={a.q} style={s.aideLigne}>
             <Text style={s.titreAide}>{a.q}</Text>
@@ -583,6 +580,7 @@ const s = StyleSheet.create({
   actionTexteBlanc: { color: '#fff' },
   inactif: { opacity: 0.4 },
   outils: { marginTop: 8, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, gap: 6 },
+  enteteEcran: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 16, marginBottom: 6 },
   bouton: { marginHorizontal: 16, marginTop: 18, paddingVertical: 12, borderRadius: 12, alignItems: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   boutonTexte: { fontSize: 14.5, fontWeight: '700', color: colors.primary },
 });
