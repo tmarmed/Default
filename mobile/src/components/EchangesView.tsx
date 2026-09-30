@@ -117,7 +117,6 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
   /** Mode chat : en ouvrant une conversation, ce qui attend votre réponse défile dans une fenêtre */
   const [chat, setChat] = useState<{ titre: string; elements: ElementChat[] } | null>(null);
   const [nouveau, setNouveau] = useState<{ a: string; existant?: Echange } | null>(null);
-  const [tout, setTout] = useState(false);
   const nomDe = (id: string) => (id === 'claude' ? 'Claude' : id === 'president' ? 'President' : personnes.find((p) => p.id === id)?.nom || nomDepuisEmail(id));
   const avecMoi = echanges.filter((e) => e.de === moi || e.a === moi);
   // Conversations avec des personnes : celles qui ont des échanges en cours, puis les autres connues
@@ -173,6 +172,7 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
           onRetour={() => setOuvert(null)}
           onNouveau={() => setNouveau({ a: ouvert })}
           onModifier={(e) => setNouveau({ a: e.a, existant: e })}
+          onOuvrir={(e) => setChat({ titre: `${ICONE_NATURE[humains.find((h) => h.id === ouvert)?.nature ?? 'humain'] ?? '🧑'} ${nomDe(ouvert)}`, elements: [{ kind: 'echange', e, avec: nomDe(ouvert) }] })}
           onRepondre={onRepondre}
           onRetirer={onRetirer}
           hierarchie={hierarchie}
@@ -216,23 +216,25 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
     ...(humains.some((h) => h.id === 'claude') ? [] : [ligne('claude', '💬', 'Claude', 'ia_chat', 'Écrire à Claude', 0, 1)]),
     ...humains.map((h, k) => ligne(h.id, ICONE_NATURE[h.nature] ?? '🧑', h.nom, h.nature, resume(entre(h.id)), aTraiter(moi, entre(h.id)).length, k + 2)),
   ];
-  const actives = toutes.filter((l) => aFaire(String(l.key)));
-  const lignes = (tout ? toutes : actives).map((l, i) => cloneElement(l, { style: [s.ligne, i > 0 && s.ligneBord] }));
+  // Deux sections : « En attente » (quelque chose à faire) puis « Conversations » (les autres, pour voir ce qui reste)
+  const actives = toutes.filter((l) => aFaire(String(l.key))).map((l, i) => cloneElement(l, { style: [s.ligne, i > 0 && s.ligneBord] }));
+  const autres = toutes.filter((l) => !aFaire(String(l.key))).map((l, i) => cloneElement(l, { style: [s.ligne, i > 0 && s.ligneBord] }));
 
   return (
     <>
       <ScrollView contentContainerStyle={s.scroll}>
         <View style={s.entete}>
-          <Text style={s.section}>Conversations</Text>
+          <Text style={s.section}>En attente · {actives.length}</Text>
           <Pressable onPress={() => setNouveau({ a: '' })} style={s.rond} hitSlop={8} accessibilityRole="button" accessibilityLabel="Nouvel échange">
             <Text style={s.rondTexte}>＋</Text>
           </Pressable>
         </View>
-        {lignes.length > 0 ? <View style={s.carte}>{lignes}</View> : <Text style={s.videTexte}>✓ Rien à traiter. Touchez ＋ pour écrire à quelqu’un (Claude compris).</Text>}
-        {toutes.length > actives.length && (
-          <Pressable onPress={() => setTout((x) => !x)} hitSlop={6} accessibilityRole="button">
-            <Text style={s.afficherTout}>{tout ? 'Masquer les conversations sans rien à faire' : `Afficher aussi ${toutes.length - actives.length} conversation${toutes.length - actives.length > 1 ? 's' : ''} sans rien à faire`}</Text>
-          </Pressable>
+        {actives.length > 0 ? <View style={s.carte}>{actives}</View> : <Text style={s.videTexte}>✓ Rien à traiter. Touchez ＋ pour écrire à quelqu’un (Claude compris).</Text>}
+        {autres.length > 0 && (
+          <>
+            <Text style={[s.section, s.sectionBloc]}>Conversations · {autres.length}</Text>
+            <View style={s.carte}>{autres}</View>
+          </>
         )}
         <Text style={s.aide}>Sans historique : un message lu, ou une réponse prise en compte, disparaît.</Text>
       </ScrollView>
@@ -261,6 +263,7 @@ function Conversation({
   onRetour,
   onNouveau,
   onModifier,
+  onOuvrir,
   onRepondre,
   onRetirer,
   hierarchie,
@@ -275,6 +278,8 @@ function Conversation({
   onNouveau: () => void;
   /** Ouvre la fiche de l'échange envoyé pour le modifier */
   onModifier: (e: Echange) => void;
+  /** Ouvre un échange dans la fenêtre (consultation, ou pour y répondre) */
+  onOuvrir: (e: Echange) => void;
   onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>;
   onRetirer: (e: Echange) => Promise<void>;
 }) {
@@ -329,24 +334,24 @@ function Conversation({
       <Bloc titre="À vous" vide="Rien à traiter.">
         {aRepondre.map((e) =>
           e.type === 'question' ? (
-            <CarteQuestion key={e.id} e={e} onRepondre={onRepondre} pied={outils(e)} />
+            <CarteQuestion key={e.id} e={e} onRepondre={onRepondre} pied={outils(e)} onOuvrir={() => onOuvrir(e)} />
           ) : (
-            <CarteMessage key={e.id} e={e} action="Lu ✓" onAction={() => onRetirer(e)} pied={outils(e)} />
+            <CarteMessage key={e.id} e={e} action="Lu ✓" onAction={() => onRetirer(e)} pied={outils(e)} onOuvrir={() => onOuvrir(e)} />
           ),
         )}
       </Bloc>
       <Bloc titre="Réponses reçues" vide="Aucune réponse en attente de prise en compte.">
         {recues.map((e) => (
-          <CarteMessage key={e.id} e={e} reponse action="Pris en compte ✓" onAction={() => onRetirer(e)} />
+          <CarteMessage key={e.id} e={e} reponse action="Pris en compte ✓" onAction={() => onRetirer(e)} onOuvrir={() => onOuvrir(e)} />
         ))}
       </Bloc>
       {!!(attente.length || autres.length) && (
         <Bloc titre="En attente de l'autre" vide="">
           {attente.map((e) => (
-            <CarteMessage key={e.id} e={e} gris action="Retirer" onAction={() => onRetirer(e)} modifier={() => onModifier(e)} />
+            <CarteMessage key={e.id} e={e} gris action="Retirer" onAction={() => onRetirer(e)} modifier={() => onModifier(e)} onOuvrir={() => onOuvrir(e)} />
           ))}
           {autres.map((e) => (
-            <CarteMessage key={e.id} e={e} reponse gris />
+            <CarteMessage key={e.id} e={e} reponse gris onOuvrir={() => onOuvrir(e)} />
           ))}
         </Bloc>
       )}
@@ -397,11 +402,12 @@ function Bloc({ titre, vide, children }: { titre: string; vide: string; children
   );
 }
 
-function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier }: { e: Echange; action?: string; onAction?: () => void; reponse?: boolean; gris?: boolean; pied?: ReactNode; modifier?: () => void }) {
+function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier, onOuvrir }: { e: Echange; action?: string; onAction?: () => void; reponse?: boolean; gris?: boolean; pied?: ReactNode; modifier?: () => void; onOuvrir?: () => void }) {
   return (
-    <View style={[s.carte, s.carteEchange, gris && s.gris]}>
+    // Toucher la carte l'ouvre dans la fenêtre (consultation), par-dessus l'écran
+    <Pressable onPress={onOuvrir} disabled={!onOuvrir} style={[s.carte, s.carteEchange, gris && s.gris]} accessibilityRole="button">
       {!!e.element && <FilEchange id={e.element} />}
-      <Text style={s.type}>{e.type === 'question' ? '❓ Question' : '✉️ Message'}</Text>
+      <Text style={s.type}>{e.type === 'question' ? '❓ Question' : '✉️ Message'}{onOuvrir ? '  ·  Ouvrir ›' : ''}</Text>
       {!!e.titre && <Text style={s.titre}>{e.titre}</Text>}
       {!!e.texte && <Text style={s.texte}>{e.texte}</Text>}
       <PiecesEchange e={e} />
@@ -427,7 +433,7 @@ function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier }: { 
         </View>
       )}
       {pied}
-    </View>
+    </Pressable>
   );
 }
 
@@ -436,7 +442,7 @@ export const estAutre = (c: string) => c.trim().toLowerCase() === 'autre';
 export const placeholderNote = (c: string) => (estAutre(c) ? 'Précisez votre réponse « Autre » (obligatoire)' : 'Remarque (facultatif)');
 export const reponsePrete = (c: string, note: string) => !!c && (!estAutre(c) || !!note.trim());
 
-function CarteQuestion({ e, onRepondre, pied }: { e: Echange; onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>; pied?: ReactNode }) {
+function CarteQuestion({ e, onRepondre, pied, onOuvrir }: { e: Echange; onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>; pied?: ReactNode; onOuvrir?: () => void }) {
   const [choix, setChoix] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -444,9 +450,11 @@ function CarteQuestion({ e, onRepondre, pied }: { e: Echange; onRepondre: (e: Ec
   return (
     <View style={[s.carte, s.carteEchange]}>
       {!!e.element && <FilEchange id={e.element} />}
-      <Text style={s.type}>❓ Question</Text>
-      {!!e.titre && <Text style={s.titre}>{e.titre}</Text>}
-      {!!e.texte && <Text style={s.texte}>{e.texte}</Text>}
+      <Pressable onPress={onOuvrir} disabled={!onOuvrir} accessibilityRole="button">
+        <Text style={s.type}>❓ Question{onOuvrir ? '  ·  Ouvrir ›' : ''}</Text>
+        {!!e.titre && <Text style={s.titre}>{e.titre}</Text>}
+        {!!e.texte && <Text style={s.texte}>{e.texte}</Text>}
+      </Pressable>
       <PiecesEchange e={e} />
       <View style={s.choix}>
         {options.map((o) => (
@@ -793,7 +801,6 @@ const s = StyleSheet.create({
   actionTexte: { fontSize: 13.5, fontWeight: '700', color: colors.text },
   actionTexteBlanc: { color: '#fff' },
   inactif: { opacity: 0.4 },
-  afficherTout: { marginHorizontal: 16, marginTop: 10, fontSize: 13, fontWeight: '600', color: colors.primary },
   piecesCarte: { padding: 12 },
   joindre: { paddingHorizontal: 12, paddingTop: 12, gap: 2 },
   joindreTexte: { fontSize: 15, fontWeight: '700', color: colors.primary },

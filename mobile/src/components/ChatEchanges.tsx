@@ -101,7 +101,9 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
   } else {
     const e = x.e;
     const recue = e.de === moi && e.statut === 'repondu';
-    const question = !recue && e.type === 'question';
+    // Consultation : rien à faire de votre côté (envoyé, en attente de l'autre ; ou déjà répondu, en attente de sa prise en compte)
+    const attente = (e.de === moi && e.statut === 'envoye') || (e.a === moi && e.statut === 'repondu');
+    const question = !recue && !attente && e.type === 'question';
     const options = e.choix.split(';').map((c) => c.trim()).filter(Boolean);
     contenu = (
       <>
@@ -114,7 +116,15 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
           icone={recue ? '↩️' : question ? '❓' : '✉️'}
           titre={e.titre || (question ? 'Question' : 'Message')}
           vide=""
-          sous={recue ? `Réponse de ${x.avec}` : `De ${x.avec} · ${question ? 'question' : 'message'}`}
+          sous={
+            attente
+              ? e.de === moi
+                ? `À ${x.avec} · en attente de sa réponse`
+                : `De ${x.avec} · votre réponse attend sa prise en compte`
+              : recue
+                ? `Réponse de ${x.avec}`
+                : `De ${x.avec} · ${question ? 'question' : 'message'}`
+          }
         />
         {!!e.texte && (
           <SectionFiche titre="Message">
@@ -126,6 +136,18 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
             <View style={s.pieces}>
               <PiecesEchange e={e} />
             </View>
+          </SectionFiche>
+        )}
+        {e.type === 'question' && attente && (
+          <SectionFiche titre={e.statut === 'repondu' ? 'Votre réponse' : 'Choix proposés'}>
+            <ChampFiche label={e.statut === 'repondu' ? 'Choix' : 'Choix'}>
+              <Text style={e.statut === 'repondu' ? s.reponse : s.texteNote}>{e.statut === 'repondu' ? e.reponse : options.join(' · ')}</Text>
+            </ChampFiche>
+            {!!e.note && (
+              <ChampFiche label="Précision" colonne>
+                <Text style={s.texteNote}>{e.note}</Text>
+              </ChampFiche>
+            )}
           </SectionFiche>
         )}
         {recue && (
@@ -157,7 +179,9 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
             </SectionFiche>
           </>
         )}
-        {question ? (
+        {attente ? (
+          <Bouton label={reste > 0 ? 'Suivant ›' : 'Fermer'} busy={false} onPress={() => (reste > 0 ? passer() : onFermer())} />
+        ) : question ? (
           <Bouton
             label={'Répondre'}
             busy={busy}
@@ -172,9 +196,9 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
   }
 
   return (
-    <FormSheet visible={visible} title={x ? `${i + 1} sur ${liste.length}` : 'Terminé'} busy={busy} error={error} onClose={onFermer} fil={titre}>
+    <FormSheet superpose visible={visible} title={x ? (liste.length > 1 ? `${i + 1} sur ${liste.length}` : 'Échange') : 'Terminé'} busy={busy} error={error} onClose={onFermer} fil={titre}>
       {contenu}
-      {!!x && (
+      {!!x && !(x.kind === 'echange' && ((x.e.de === moi && x.e.statut === 'envoye') || (x.e.a === moi && x.e.statut === 'repondu'))) && (
         <Pressable onPress={passer} disabled={busy} style={s.passer} accessibilityRole="button">
           <Text style={s.passerTexte}>{reste > 0 ? 'Passer, voir le suivant ›' : 'Passer, traiter plus tard ›'}</Text>
         </Pressable>

@@ -53,6 +53,8 @@ interface Props {
   onToucher?: () => void;
   /** Texte du bouton d'enregistrement (« Envoyer » pour un échange) */
   libelleEnregistrer?: string;
+  /** Fenêtre posée par-dessus l'écran précédent (qui reste visible, assombri, en haut) au lieu de le remplacer */
+  superpose?: boolean;
 }
 
 /** Pile de fiches : fiche d'en dessous (« ‹ … »), fil en haut, tout fermer */
@@ -113,10 +115,27 @@ export function BoutonRetour({ pile, onPress, disabled, style, fermer }: { pile?
 }
 
 /** Fenêtre de formulaire : Annuler / titre / Enregistrer, message d'erreur, contenu défilant. */
-export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil, auto, bandeau, onToucher, libelleEnregistrer = 'Enregistrer' }: Props) {
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil, auto, bandeau, onToucher, libelleEnregistrer = 'Enregistrer', superpose }: Props) {
+  const cadre = (enfants: ReactNode) =>
+    superpose ? (
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+        <View style={styles.voile}>
+          <Pressable style={styles.voileHaut} onPress={busy ? undefined : onClose} accessibilityLabel="Fermer" />
+          <SafeAreaView style={[styles.container, styles.feuille]} edges={['bottom']}>
+            <View style={styles.poignee} />
+            {enfants}
+          </SafeAreaView>
+        </View>
+      </Modal>
+    ) : (
+      <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+          {enfants}
+        </SafeAreaView>
+      </Modal>
+    );
+  return cadre(
+    <>
         <View style={[styles.header, (!!chemin || !!fil || !!espaceFil) && styles.headerAvecFil]}>
           <Pressable
             onPress={onClose}
@@ -145,8 +164,7 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
           </ScrollView>
         </KeyboardAvoidingView>
         {bandeau}
-      </SafeAreaView>
-    </Modal>
+    </>,
   );
 }
 
@@ -293,6 +311,10 @@ const styles = StyleSheet.create({
   lectureTexte: { fontSize: 13, color: colors.muted, lineHeight: 18 },
   lectureContenu: { opacity: 0.85 },
   container: { flex: 1, backgroundColor: colors.bg },
+  voile: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)' },
+  voileHaut: { height: '9%' },
+  feuille: { flex: 1, borderTopLeftRadius: 16, borderTopRightRadius: 16, overflow: 'hidden' },
+  poignee: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: '#CBD2DC', marginTop: 8 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
