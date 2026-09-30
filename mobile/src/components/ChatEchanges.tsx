@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import type { Echange } from '../types';
+import { ChampFiche, SaisieFiche, SectionFiche } from './Choix';
 import { estAutre, FilEchange, type MessageApp, placeholderNote, reponsePrete } from './EchangesView';
+import { FormSheet, TitreFiche } from './FormSheet';
 
 /**
- * Mode chat : une fenêtre qui fait défiler, bulle après bulle, ce qui attend votre réponse (à l'ouverture de
- * l'application, ou en ouvrant une conversation). Chaque bulle se traite sur place — répondre à une question,
- * « Lu ✓ », « Pris en compte ✓ » — puis la suivante arrive ; celles déjà traitées restent au-dessus, en gris.
- * « Plus tard » referme sans rien changer.
+ * Fenêtre de traitement (à l'ouverture de l'application, ou en ouvrant une conversation) : un seul message à la
+ * fois, au format standard des fiches. Dès qu'on répond (« Répondre », « Lu ✓ », « Pris en compte ✓ »), le message
+ * suivant de la personne arrive, jusqu'à la fin : récapitulatif et bouton « Terminer ». « Passer » laisse le message
+ * pour plus tard ; « Fermer » referme sans rien changer.
  */
 export type ElementChat = { kind: 'echange'; e: Echange; avec: string } | { kind: 'message'; m: MessageApp };
 
@@ -27,10 +28,13 @@ interface Props {
 const cle = (x: ElementChat) => (x.kind === 'echange' ? x.e.id : x.m.id);
 
 export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepondre, onRetirer, onLu }: Props) {
-  // La liste est figée à l'ouverture : les bulles traitées restent affichées (grisées) pendant la conversation
+  // La liste est figée à l'ouverture ; `faits` : ce qui a été répondu (ou passé) pendant cette fenêtre
   const [liste, setListe] = useState<ElementChat[]>([]);
-  const [faits, setFaits] = useState<Record<string, string>>({});
-  const defile = useRef<ScrollView>(null);
+  const [faits, setFaits] = useState<Record<string, { texte: string; passe?: boolean }>>({});
+  const [choix, setChoix] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (visible) {
       setListe(elements);
@@ -38,189 +42,166 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
-  const courant = liste.findIndex((x) => !faits[cle(x)]);
-  const fini = courant < 0;
-  const marquer = (x: ElementChat, texte: string) => setFaits((f) => ({ ...f, [cle(x)]: texte }));
+  const i = liste.findIndex((y) => !faits[cle(y)]);
+  const x = i >= 0 ? liste[i] : null;
   useEffect(() => {
-    setTimeout(() => defile.current?.scrollToEnd({ animated: true }), 50);
-  }, [courant]);
+    setChoix('');
+    setNote('');
+    setError(null);
+  }, [i]);
 
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onFermer}>
-      <SafeAreaView style={s.ecran} edges={['top', 'bottom']}>
-        <View style={s.entete}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.titre} numberOfLines={1}>
-              {titre}
-            </Text>
-            <Text style={s.sous}>{fini ? 'Tout est traité' : `${courant + 1} sur ${liste.length} à traiter`}</Text>
-          </View>
-          <Pressable onPress={onFermer} hitSlop={10} accessibilityRole="button">
-            <Text style={s.fermer}>{fini ? 'Fermer' : 'Plus tard'}</Text>
-          </Pressable>
-        </View>
-        <ScrollView ref={defile} contentContainerStyle={s.fil} keyboardShouldPersistTaps="handled">
-          {liste.map((x, i) => {
-            if (i > (fini ? liste.length : courant)) return null;
-            const fait = faits[cle(x)];
-            return (
-              <View key={cle(x)} style={[s.groupe, fait && s.passe]}>
-                <Bulle x={x} moi={moi} />
-                {fait ? (
-                  <View style={s.maReponse}>
-                    <Text style={s.maReponseTexte}>{fait}</Text>
-                  </View>
-                ) : (
-                  <Actions
-                    x={x}
-                    moi={moi}
-                    onFait={(t) => marquer(x, t)}
-                    onRepondre={onRepondre}
-                    onRetirer={onRetirer}
-                    onLu={onLu}
-                  />
-                )}
-              </View>
-            );
-          })}
-          {fini && (
-            <View style={s.fin}>
-              <Text style={s.finTexte}>✓ Plus rien à traiter.</Text>
-              <Pressable onPress={onFermer} style={s.bouton} accessibilityRole="button">
-                <Text style={s.boutonTexte}>Fermer</Text>
-              </Pressable>
-            </View>
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
-  );
-}
-
-/** Bulle de l'autre : qui, quoi (question, message, réponse reçue, message de l'application) */
-function Bulle({ x, moi }: { x: ElementChat; moi: string }) {
-  if (x.kind === 'message')
-    return (
-      <View style={s.bulle}>
-        <Text style={s.auteur}>🏛️ President · {x.m.date}</Text>
-        <Text style={[s.texte, x.m.ton === 'alerte' && { color: colors.danger }]}>{x.m.texte}</Text>
-      </View>
-    );
-  const e = x.e;
-  const recue = e.de === moi && e.statut === 'repondu';
-  return (
-    <View style={s.bulle}>
-      {!!e.element && <FilEchange id={e.element} />}
-      <Text style={s.auteur}>
-        {recue ? `Réponse de ${x.avec}` : `${x.avec} · ${e.type === 'question' ? 'question' : 'message'}`}
-      </Text>
-      {!!e.titre && <Text style={s.titreBulle}>{e.titre}</Text>}
-      {!!e.texte && <Text style={s.texte}>{e.texte}</Text>}
-      {recue && (
-        <Text style={s.reponse}>
-          → {e.reponse}
-          {e.note ? ` — ${e.note}` : ''}
-        </Text>
-      )}
-    </View>
-  );
-}
-
-function Actions({
-  x,
-  moi,
-  onFait,
-  onRepondre,
-  onRetirer,
-  onLu,
-}: {
-  x: ElementChat;
-  moi: string;
-  onFait: (texte: string) => void;
-  onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>;
-  onRetirer: (e: Echange) => Promise<void>;
-  onLu: (id: string) => void;
-}) {
-  const [choix, setChoix] = useState('');
-  const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
   const faire = async (f: () => Promise<void> | void, texte: string) => {
+    if (!x) return;
     setBusy(true);
+    setError(null);
     try {
       await f();
-      onFait(texte);
+      setFaits((l) => ({ ...l, [cle(x)]: { texte } }));
+    } catch (e) {
+      setError(`Non enregistré : ${(e as Error).message}`);
     } finally {
       setBusy(false);
     }
   };
-  const Bouton = ({ label, onPress, principal }: { label: string; onPress: () => void; principal?: boolean }) => (
-    <Pressable disabled={busy} onPress={onPress} style={[s.action, principal && s.actionPrincipale, busy && s.inactif]} accessibilityRole="button">
-      <Text style={[s.actionTexte, principal && s.actionTexteBlanc]}>{busy ? '…' : label}</Text>
-    </Pressable>
-  );
-  if (x.kind === 'message') return <Bouton principal label="Lu ✓" onPress={() => faire(() => onLu(x.m.id), 'Lu ✓')} />;
-  const e = x.e;
-  if (e.de === moi) return <Bouton principal label="Pris en compte ✓" onPress={() => faire(() => onRetirer(e), 'Pris en compte ✓')} />;
-  if (e.type !== 'question') return <Bouton principal label="Lu ✓" onPress={() => faire(() => onRetirer(e), 'Lu ✓')} />;
-  const options = e.choix.split(';').map((c) => c.trim()).filter(Boolean);
+  const passer = () => x && setFaits((l) => ({ ...l, [cle(x)]: { texte: 'Passé', passe: true } }));
+
+  const reste = x ? liste.length - i - 1 : 0;
+  const suite = reste > 0 ? ' · suivant' : '';
+  let contenu;
+  if (!x) {
+    const passes = liste.filter((y) => faits[cle(y)]?.passe).length;
+    contenu = (
+      <>
+        <TitreFiche icone="✓" titre="Tout est traité" vide="" sous={`${titre}${passes ? ` · ${passes} passé${passes > 1 ? 's' : ''}, à traiter plus tard` : ''}`} couleur={colors.success} />
+        <SectionFiche titre={`Récapitulatif · ${liste.length}`}>
+          {liste.map((y, k) => (
+            <View key={cle(y)} style={[s.ligne, k > 0 && s.bord]}>
+              <Text style={s.recapTitre} numberOfLines={1}>
+                {y.kind === 'message' ? y.m.texte : y.e.titre || y.e.texte}
+              </Text>
+              <Text style={[s.recapFait, faits[cle(y)]?.passe && s.recapPasse]} numberOfLines={1}>
+                {faits[cle(y)]?.texte}
+              </Text>
+            </View>
+          ))}
+        </SectionFiche>
+        <Bouton label="Terminer" busy={false} onPress={onFermer} />
+      </>
+    );
+  } else if (x.kind === 'message') {
+    contenu = (
+      <>
+        <TitreFiche icone="🏛️" titre="Message de President" vide="" sous={x.m.date} />
+        <SectionFiche titre="Message">
+          <Text style={[s.texte, x.m.ton === 'alerte' && { color: colors.danger }]}>{x.m.texte}</Text>
+        </SectionFiche>
+        <Bouton label={`Lu ✓${suite}`} busy={busy} onPress={() => faire(() => onLu(x.m.id), 'Lu ✓')} />
+      </>
+    );
+  } else {
+    const e = x.e;
+    const recue = e.de === moi && e.statut === 'repondu';
+    const question = !recue && e.type === 'question';
+    const options = e.choix.split(';').map((c) => c.trim()).filter(Boolean);
+    contenu = (
+      <>
+        {!!e.element && (
+          <View style={s.fil}>
+            <FilEchange id={e.element} />
+          </View>
+        )}
+        <TitreFiche
+          icone={recue ? '↩️' : question ? '❓' : '✉️'}
+          titre={e.titre || (question ? 'Question' : 'Message')}
+          vide=""
+          sous={recue ? `Réponse de ${x.avec}` : `De ${x.avec} · ${question ? 'question' : 'message'}`}
+        />
+        {!!e.texte && (
+          <SectionFiche titre="Message">
+            <Text style={s.texte}>{e.texte}</Text>
+          </SectionFiche>
+        )}
+        {recue && (
+          <SectionFiche titre="Réponse">
+            <ChampFiche label="Choix">
+              <Text style={s.reponse}>{e.reponse}</Text>
+            </ChampFiche>
+            {!!e.note && (
+              <ChampFiche label="Précision" colonne>
+                <Text style={s.texteNote}>{e.note}</Text>
+              </ChampFiche>
+            )}
+          </SectionFiche>
+        )}
+        {question && (
+          <>
+            <SectionFiche titre="Votre réponse" aDefinir={choix ? 0 : 1}>
+              {options.map((o, k) => (
+                <Pressable key={o} onPress={() => setChoix(o)} style={[s.ligne, k > 0 && s.bord]} accessibilityRole="radio" accessibilityState={{ checked: choix === o }}>
+                  <View style={[s.rond, choix === o && s.rondOn]}>{choix === o && <View style={s.point} />}</View>
+                  <Text style={[s.option, choix === o && s.optionOn]}>{o}</Text>
+                </Pressable>
+              ))}
+            </SectionFiche>
+            <SectionFiche titre={estAutre(choix) ? 'Précision' : 'Remarque'} aDefinir={estAutre(choix) && !note.trim() ? 1 : 0}>
+              <ChampFiche label={estAutre(choix) ? 'Pourquoi « Autre »' : 'Remarque'} colonne>
+                <SaisieFiche placeholder={placeholderNote(choix)} value={note} onChangeText={setNote} multiline />
+              </ChampFiche>
+            </SectionFiche>
+          </>
+        )}
+        {question ? (
+          <Bouton
+            label={`Répondre${suite}`}
+            busy={busy}
+            disabled={!reponsePrete(choix, note)}
+            onPress={() => faire(() => onRepondre(e, choix, note.trim()), `${choix}${note.trim() ? ` — ${note.trim()}` : ''}`)}
+          />
+        ) : (
+          <Bouton label={`${recue ? 'Pris en compte ✓' : 'Lu ✓'}${suite}`} busy={busy} onPress={() => faire(() => onRetirer(e), recue ? 'Pris en compte ✓' : 'Lu ✓')} />
+        )}
+      </>
+    );
+  }
+
   return (
-    <View style={s.repondre}>
-      <View style={s.choix}>
-        {options.map((o) => (
-          <Pressable key={o} onPress={() => setChoix(o === choix ? '' : o)} style={[s.choixBouton, choix === o && s.choixOn]} accessibilityRole="radio" accessibilityState={{ checked: choix === o }}>
-            <Text style={[s.choixTexte, choix === o && s.choixTexteOn]}>{o}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <View style={s.saisie}>
-        <TextInput value={note} onChangeText={setNote} placeholder={placeholderNote(choix)} placeholderTextColor={estAutre(choix) ? colors.warning : '#9AA3AF'} style={[s.note, estAutre(choix) && !note.trim() && { borderColor: colors.warning }]} multiline autoFocus={estAutre(choix)} />
-        <Pressable
-          disabled={!reponsePrete(choix, note) || busy}
-          onPress={() => faire(() => onRepondre(e, choix, note.trim()), `${choix}${note.trim() ? ` — ${note.trim()}` : ''}`)}
-          style={[s.envoyer, (!reponsePrete(choix, note) || busy) && s.inactif]}
-          accessibilityRole="button"
-          accessibilityLabel="Répondre"
-        >
-          <Text style={s.envoyerTexte}>➤</Text>
+    <FormSheet visible={visible} title={x ? `${i + 1} sur ${liste.length}` : 'Terminé'} busy={busy} error={error} onClose={onFermer} fil={titre}>
+      {contenu}
+      {!!x && (
+        <Pressable onPress={passer} disabled={busy} style={s.passer} accessibilityRole="button">
+          <Text style={s.passerTexte}>{reste > 0 ? 'Passer, voir le suivant ›' : 'Passer, traiter plus tard ›'}</Text>
         </Pressable>
-      </View>
-    </View>
+      )}
+    </FormSheet>
+  );
+}
+
+function Bouton({ label, onPress, busy, disabled }: { label: string; onPress: () => void; busy: boolean; disabled?: boolean }) {
+  return (
+    <Pressable onPress={onPress} disabled={busy || disabled} style={[s.bouton, (busy || disabled) && s.inactif]} accessibilityRole="button">
+      <Text style={s.boutonTexte}>{busy ? 'Envoi…' : label}</Text>
+    </Pressable>
   );
 }
 
 const s = StyleSheet.create({
-  ecran: { flex: 1, backgroundColor: colors.bg },
-  entete: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.card, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  titre: { fontSize: 17, fontWeight: '700', color: colors.text },
-  sous: { fontSize: 12.5, color: colors.muted },
-  fermer: { fontSize: 15, fontWeight: '700', color: colors.primary },
-  fil: { padding: 16, gap: 16, paddingBottom: 40 },
-  groupe: { gap: 8 },
-  passe: { opacity: 0.55 },
-  bulle: { alignSelf: 'flex-start', maxWidth: '88%', backgroundColor: colors.card, borderRadius: 16, borderTopLeftRadius: 4, padding: 12, gap: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  auteur: { fontSize: 11.5, fontWeight: '700', color: colors.muted },
-  titreBulle: { fontSize: 15, fontWeight: '700', color: colors.text },
-  texte: { fontSize: 14.5, color: colors.text, lineHeight: 20 },
-  reponse: { fontSize: 14, fontWeight: '700', color: colors.success },
-  maReponse: { alignSelf: 'flex-end', maxWidth: '80%', backgroundColor: colors.primary, borderRadius: 16, borderTopRightRadius: 4, paddingHorizontal: 12, paddingVertical: 8 },
-  maReponseTexte: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  repondre: { alignSelf: 'flex-end', width: '92%', gap: 8 },
-  choix: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' },
-  choixBouton: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.card },
-  choixOn: { backgroundColor: colors.primary },
-  choixTexte: { fontSize: 14, fontWeight: '700', color: colors.primary },
-  choixTexteOn: { color: '#fff' },
-  saisie: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
-  note: { flex: 1, minHeight: 40, borderWidth: 1, borderColor: colors.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14, color: colors.text, backgroundColor: colors.card },
-  envoyer: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  envoyerTexte: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  action: { alignSelf: 'flex-end', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, borderWidth: 1, borderColor: colors.primary },
-  actionPrincipale: { backgroundColor: colors.primary },
-  actionTexte: { fontSize: 14, fontWeight: '700', color: colors.primary },
-  actionTexteBlanc: { color: '#fff' },
+  fil: { alignItems: 'center', marginBottom: 6 },
+  texte: { fontSize: 15, color: colors.text, lineHeight: 21, padding: 12 },
+  texteNote: { fontSize: 15, color: colors.text, lineHeight: 21 },
+  reponse: { fontSize: 15, fontWeight: '700', color: colors.success },
+  ligne: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 12, minHeight: 46 },
+  bord: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  rond: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  rondOn: { borderColor: colors.primary },
+  point: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
+  option: { flex: 1, fontSize: 15, color: colors.text },
+  optionOn: { fontWeight: '700' },
+  bouton: { marginTop: 24, paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: colors.primary },
+  boutonTexte: { color: '#fff', fontSize: 16, fontWeight: '700' },
   inactif: { opacity: 0.4 },
-  fin: { alignItems: 'center', gap: 10, marginTop: 8 },
-  finTexte: { fontSize: 15, fontWeight: '700', color: colors.success },
-  bouton: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.text },
-  boutonTexte: { color: '#fff', fontWeight: '700' },
+  passer: { alignSelf: 'center', marginTop: 14, padding: 6 },
+  passerTexte: { fontSize: 14, color: colors.muted, fontWeight: '600' },
+  recapTitre: { flex: 1, fontSize: 14.5, color: colors.text },
+  recapFait: { maxWidth: '45%', fontSize: 13.5, fontWeight: '700', color: colors.success },
+  recapPasse: { color: colors.muted, fontWeight: '600' },
 });
