@@ -49,7 +49,12 @@ export function EspacesBar({
   onAjouter,
   onEnlever,
   onOuvrir,
+  aRepondre = 0,
+  onARepondre,
 }: {
+  /** 💬 Échange : points du fil qui attendent votre réponse (filtre « 💬 À répondre · N » en tête des espaces) */
+  aRepondre?: number;
+  onARepondre?: () => void;
   /** Replié : la carte disparaît, il reste la pastille de la barre */
   plie: boolean;
   onChange: (visibles: string[]) => void;
@@ -118,6 +123,11 @@ export function EspacesBar({
             contentContainerStyle={s.row}
             style={[s.puces, Platform.OS === 'web' && (s.fondu as object)]}
           >
+            {aRepondre > 0 && onARepondre && (
+              <Pressable onPress={onARepondre} style={[s.chip, s.chipRepondre]} accessibilityRole="button" accessibilityLabel={`${aRepondre} points du fil d'échange à répondre`}>
+                <Text style={[s.chipText, s.chipTextRepondre]}>💬 À répondre · {aRepondre}</Text>
+              </Pressable>
+            )}
             {montres.map((e) => {
               const on = visibles.includes(e.id);
               return (
@@ -175,4 +185,6 @@ const s = StyleSheet.create({
   chipOn: { backgroundColor: colors.text, borderColor: colors.text },
   chipText: { fontSize: 13, color: colors.text, fontWeight: '600' },
   chipTextOn: { color: '#fff' },
+  chipRepondre: { borderColor: colors.warning, backgroundColor: '#FFF4E5' },
+  chipTextRepondre: { color: '#B45309', fontWeight: '700' },
 });

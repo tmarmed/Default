@@ -73,6 +73,8 @@ import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
+import { EchangeView } from './src/components/EchangeView';
+import { pointsOuverts, useEchangeActif } from './src/echange/echange';
 import { StrategieView } from './src/components/StrategieView';
 import { BacklogView } from './src/components/BacklogView';
 import { ValueStreamForm } from './src/components/ValueStreamForm';
@@ -162,6 +164,7 @@ const TAB_TITLES: Record<Tab, string> = {
   equipe: 'Équipe',
   organisation: 'Organisation',
   pilotage: 'Pilotage',
+  echange: 'Échange',
 };
 const TAB_ICONS: Record<Tab, string> = {
   taches: '✓',
@@ -174,6 +177,7 @@ const TAB_ICONS: Record<Tab, string> = {
   equipe: '👥',
   organisation: '🏛️',
   pilotage: '📊',
+  echange: '💬',
 };
 const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches' };
 /** Écrans prévus, encore vides (règles de gestion à définir) */
@@ -419,7 +423,11 @@ function Main() {
     [visibles, espaces, safe.actif],
   );
   // Les écrans encore vides (à venir) n'apparaissent pas dans les onglets tant que leur lot n'est pas fait
-  const tabsTous = useMemo(() => [...tabs.barre, ...tabs.plus].filter((t) => !A_VENIR.includes(t)), [tabs]);
+  const echangeActif = useEchangeActif();
+  const tabsTous = useMemo(
+    () => [...tabs.barre, ...tabs.plus].filter((t) => !A_VENIR.includes(t)).concat(echangeActif ? ['echange' as Tab] : []),
+    [tabs, echangeActif],
+  );
   useEffect(() => setRecherche(null), [tab]);
   const [largeur, setLargeur] = useState(Math.min(Dimensions.get('window').width, 480));
   useEffect(() => {
@@ -1507,6 +1515,8 @@ function Main() {
     equipe: zero,
     organisation: zero,
     pilotage: zero,
+    // 💬 Échange : pastille jaune = points du fil qui attendent votre réponse
+    echange: { rouge: 0, jaune: echangeActif ? pointsOuverts().length : 0 },
   };
 
   // Écran Tâches : les alertes défilent avec le contenu (en tête de liste / de calendrier)
@@ -1869,7 +1879,13 @@ function Main() {
         </Pressable>
       </View>
       {/* Carte des espaces de travail : dépliée sous la barre (la pastille la replie) */}
-      <EspacesBar plie={espacesPlie} onChange={setVisibles} onAjouter={ouvrirAjout} onEnlever={() => setGestionOpen(true)} onOuvrir={setEspaceFiche} />
+      <EspacesBar
+        aRepondre={echangeActif ? pointsOuverts().length : 0}
+        onARepondre={() => {
+          setTab('echange');
+          setEspacesPlie(true);
+        }}
+        plie={espacesPlie} onChange={setVisibles} onAjouter={ouvrirAjout} onEnlever={() => setGestionOpen(true)} onOuvrir={setEspaceFiche} />
       {stockage?.plan.alerte && plusTard !== today && !stockageOpen && (
         <StockagePanneau
           quota={stockage.quota}
@@ -2182,6 +2198,8 @@ function Main() {
         />
       )}
 
+      {tab === 'echange' && <EchangeView />}
+
       {tab === 'strategie' && (
         <StrategieView
           onOpenOkr={(o) => openObjectif(o)}
@@ -2362,7 +2380,7 @@ function Main() {
         <BandeauAnnuler bandeau={bandeauApp.bandeau} fermer={bandeauApp.fermer} />
       </View>
 
-      {!A_VENIR.includes(tab) && tab !== 'strategie' && tab !== 'backlog' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
+      {!A_VENIR.includes(tab) && tab !== 'strategie' && tab !== 'backlog' && tab !== 'echange' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 8 + 12 }]}
         onPress={() =>
           tab === 'organisation'

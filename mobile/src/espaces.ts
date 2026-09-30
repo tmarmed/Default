@@ -70,7 +70,9 @@ export type Ecran =
   | 'roadmap'
   | 'equipe'
   | 'organisation'
-  | 'pilotage';
+  | 'pilotage'
+  /** 💬 Échange (lot 20) : fil d'échange avec Claude, ajouté à la fin quand il est activé sur l'appareil */
+  | 'echange';
 
 /** Ordre de priorité quand plusieurs espaces sont affichés */
 export const PRIORITE: Ecran[] = ['taches', 'iteration', 'pi', 'strategie', 'backlog', 'portefeuille', 'roadmap', 'equipe', 'organisation', 'pilotage'];

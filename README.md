@@ -84,6 +84,14 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   autres en gris), toucher une feature ne garde que ses stories, toucher à nouveau enlève le filtre. Sur téléphone,
   une colonne à la fois avec le fil « Epics › Epic › Feature » pour revenir. Poignée ⋮⋮ : glisser une carte change
   sa priorité (colonne « rang », de 10 en 10). « › » ouvre la fiche. Filtre « Value stream » en haut.
+- **💬 Échange** (lot 20) : le fil d'échange avec Claude dans President, onglet ajouté à la fin quand il est activé
+  sur l'appareil par le lien `?echange` (désactivé par `?echange=0` ; jamais par défaut). Données publiées avec
+  l'application (`mobile/src/echange/fil.json`, lecture seule ; captures dans `mobile/public/echange/`).
+  **Questions** : les points à valider un par un, Projet President et Format d'échange séparés, captures en
+  boutons (visionneuse), Validé / À revoir et remarque ; vos réponses restent sur l'appareil jusqu'à
+  « 📋 Copier et vider », qui les copie pour la discussion avec Claude. **Backlog des missions** : les missions
+  comme des epics (lot › étape › point), avancement = étapes terminées ÷ total, filtre par état. En tête des
+  espaces de travail, « 💬 À répondre · N » ouvre l'onglet.
 - **Droits d'après les rôles** (lot 3, étape 2 ; démo) : les données d'une équipe restent invisibles (pas de mot
   « Sheet »). Opérationnel (dev, testeur, designer… : ligne « Métier » de la fiche Personne) : voit tout le travail de
   l'équipe, modifie le sien ; Scrum Master : tout ; PO : le backlog ; manager : lecture ; RTE et Product Manager : les
