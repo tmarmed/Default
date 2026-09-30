@@ -365,7 +365,7 @@ export function EpicForm({
               </ChampFiche>
               {safe.actif && (
                 <LigneChoix
-                  label="État"
+                  fixe label="État"
                   value={form.etat}
                   depart={epic?.etat}
                   groupes={[{ options: ETATS_EPIC.map((e) => ({ value: e.value, label: e.label })) }]}

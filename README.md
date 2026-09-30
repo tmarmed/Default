@@ -68,6 +68,10 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   disparaît tout seul après 6 s ou dès qu'on touche ailleurs (comme les messages d'information).
   Feuilles de tâches (tâche parente, choisir des sous-tâches) : par feature (sinon epic), celles de la même feature
   d'abord, les autres repliées. « Sans … » : le même libellé que la valeur vide (« Aucune (tâche principale) »).
+- **Pastille de recherche** : toute feuille où l'on choisit un élément existant (feature, epic, équipe, personne,
+  tâche parente, « ☑ Choisir des … », assistant…) a toujours une pastille 🔍 à gauche sous le titre, comme le bloc
+  Filtres ; touchée, elle devient un champ « Rechercher… » (✕ efface et referme). Les listes fixes (type, état,
+  répétition, jour, mois, PI, itération, valeur) n'en ont pas.
 - **Autres écrans, même logique** : ＋ du PI → la feuille commune avec la ligne « Itération » en tête, puis
   « ＋ Nouvelle feature / tâche » et « ☑ Choisir des features / tâches » (cases à cocher groupées par epic ou
   feature, bouton « Ajouter n … », appliqué tout de suite avec « Annuler » dans le bandeau) ; ＋ du Portefeuille et

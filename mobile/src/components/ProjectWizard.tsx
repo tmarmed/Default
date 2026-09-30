@@ -1,3 +1,4 @@
+import { PastilleRecherche } from './Choix';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -373,14 +374,7 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
 
             {phase === 'pick' && (
               <>
-                <TextInput
-                  style={s.input}
-                  placeholder="Rechercher…"
-                  placeholderTextColor={colors.muted}
-                  value={search}
-                  onChangeText={setSearch}
-                  autoFocus
-                />
+                <PastilleRecherche q={search} onChange={setSearch} ouverte />
                 {(
                   [
                     ['domaine', h.domaineList.map((d) => ({ id: d.id, label: nomDomaine(d, h.domaines, { espace: false }) }))],

@@ -123,7 +123,7 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, r
           <SaisieFiche placeholder={type === 'equipe' ? 'ex. Mobile' : 'ex. ACME'} value={nom} onChangeText={setNom} autoFocus />
         </ChampFiche>
         <LigneChoix
-          label="Type"
+          fixe label="Type"
           value={type}
           groupes={[{ options: (['equipe', 'entreprise'] as TypeEspace[]).map((x) => ({ value: x, label: `${ICONE_ESPACE[x]} ${x === 'equipe' ? 'Équipe' : 'Entreprise'}` })) }]}
           onChange={(v) => v && setType(v as TypeEspace)}

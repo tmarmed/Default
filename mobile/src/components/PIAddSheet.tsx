@@ -42,7 +42,7 @@ export function PIAddSheet({ visible, piKey, onClose, onChoose }: Props) {
       ]}
     >
       <LigneChoix
-        label="Itération"
+        fixe label="Itération"
         value={itKey}
         groupes={[
           {

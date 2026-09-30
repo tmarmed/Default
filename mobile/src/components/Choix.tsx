@@ -240,6 +240,8 @@ export interface LigneChoixProps {
   fige?: boolean;
   /** Changement calculé ailleurs (rattachement sur plusieurs lignes) : remplace `depart` */
   changement?: { avant: string; annuler: () => void };
+  /** Liste fixe (type, état, répétition, itération…) : pas de pastille de recherche, réservée aux éléments existants */
+  fixe?: boolean;
 }
 
 /** Ligne de choix + sa feuille */
@@ -283,6 +285,7 @@ export function LigneChoix(p: LigneChoixProps) {
           value={p.value}
           groupes={p.groupes}
           autres={p.autres}
+          fixe={p.fixe}
           nouveau={
             p.nouveau && {
               label: p.nouveau.label,
@@ -304,6 +307,48 @@ export function LigneChoix(p: LigneChoixProps) {
   );
 }
 
+/**
+ * Recherche des feuilles de choix d'un élément existant : toujours une pastille 🔍 à gauche (comme le bloc Filtres) ;
+ * touchée, elle devient un champ ; ✕ efface et referme.
+ */
+export function PastilleRecherche({ q, onChange, ouverte = false }: { q: string; onChange: (q: string) => void; ouverte?: boolean }) {
+  const [ouvert, setOuvert] = useState(ouverte);
+  return (
+    <View style={s.rechLigne}>
+      {ouvert ? (
+        <View style={s.rechChamp}>
+          <Text style={s.rechIcone}>🔍</Text>
+          <TextInput
+            autoFocus
+            value={q}
+            onChangeText={onChange}
+            placeholder="Rechercher…"
+            placeholderTextColor={colors.muted}
+            style={s.rechTexte}
+            returnKeyType="search"
+          />
+          <Pressable
+            onPress={() => {
+              onChange('');
+              setOuvert(false);
+            }}
+            hitSlop={8}
+            style={s.rechFermer}
+            accessibilityRole="button"
+            accessibilityLabel="Fermer la recherche"
+          >
+            <Text style={s.rechFermerTexte}>✕</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable onPress={() => setOuvert(true)} style={s.rechRond} hitSlop={6} accessibilityRole="button" accessibilityLabel="Rechercher">
+          <Text style={s.rechIcone}>🔍</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 /** Feuille de choix unique (monte au premier plan : rendue seulement quand elle est ouverte) */
 export function FeuilleChoix({
   titre,
@@ -312,10 +357,12 @@ export function FeuilleChoix({
   autres,
   nouveau,
   sans,
+  fixe,
   onChoisir,
   onFermer,
 }: {
   titre: string;
+  fixe?: boolean;
   value: string;
   groupes: GroupeChoix[];
   autres?: AutresChoix;
@@ -329,7 +376,6 @@ export function FeuilleChoix({
   // Groupes repliés par l'utilisateur (chaque titre de groupe ouvre et referme sa liste)
   const [fermes, setFermes] = useState<string[]>([]);
   const basculerGroupe = (k: string) => setFermes((l) => (l.includes(k) ? l.filter((x) => x !== k) : [...l, k]));
-  const recherche = toutes(groupes, autres).length > 7;
   const cherche = !!q.trim();
   const filtre = (o: OptionChoix) => !q.trim() || o.label.toLowerCase().includes(q.trim().toLowerCase());
   // Le choix actuel reste visible même s'il est dans « Autres … »
@@ -373,7 +419,7 @@ export function FeuilleChoix({
             <Text style={s.fTitre}>{titre}</Text>
             <View style={{ width: 64 }} />
           </View>
-          {recherche && <TextInput style={s.recherche} placeholder="🔍 Rechercher" placeholderTextColor={colors.muted} value={q} onChangeText={setQ} />}
+          {!fixe && <PastilleRecherche q={q} onChange={setQ} />}
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 24 }}>
             {nouveau && !cherche && (
               <Pressable onPress={nouveau.onPress} style={s.opt} accessibilityRole="button">
@@ -557,7 +603,7 @@ export function FeuilleMulti({
             <Text style={s.fTitre}>{titre}</Text>
             <View style={{ width: 64 }} />
           </View>
-          {tout.length > 7 && <TextInput style={s.recherche} placeholder="🔍 Rechercher" placeholderTextColor={colors.muted} value={q} onChangeText={setQ} />}
+          <PastilleRecherche q={q} onChange={setQ} />
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 12 }}>
             {nouveau && !cherche && (
               <Pressable onPress={nouveau.onPress} style={s.opt} accessibilityRole="button">
@@ -581,6 +627,7 @@ export function FeuilleMulti({
               </>
             )}
             {!tout.length && <Text style={s.rien}>{vide}</Text>}
+            {cherche && !!tout.length && !tout.some(filtre) && <Text style={s.rien}>Aucun résultat.</Text>}
           </ScrollView>
           <Pressable onPress={() => onValider(sel)} style={s.valider} accessibilityRole="button">
             <Text style={s.validerTexte}>{libelleValider(sel.length)}</Text>
@@ -784,7 +831,13 @@ const s = StyleSheet.create({
   fEntete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 8 },
   fAnnuler: { fontSize: 16, color: colors.primary, width: 64 },
   fTitre: { flex: 1, textAlign: 'center', fontSize: 16.5, fontWeight: '700', color: colors.text },
-  recherche: { marginHorizontal: 12, marginBottom: 8, backgroundColor: '#E4E7ED', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 15, color: colors.text },
+  rechLigne: { flexDirection: 'row', paddingHorizontal: 12, marginBottom: 8, height: 34, alignItems: 'center' },
+  rechRond: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
+  rechIcone: { fontSize: 13 },
+  rechChamp: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, borderRadius: 10, borderWidth: 1.5, borderColor: colors.primary, backgroundColor: colors.card, paddingLeft: 8, paddingRight: 4 },
+  rechTexte: { flex: 1, minWidth: 0, fontSize: 15, color: colors.text, paddingVertical: 0, outlineStyle: 'none' } as never,
+  rechFermer: { width: 26, height: 26, alignItems: 'center', justifyContent: 'center' },
+  rechFermerTexte: { fontSize: 14, color: colors.muted, fontWeight: '700' },
   grp: { fontSize: 11, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.4, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 5 },
   grpLigne: { flexDirection: 'row', alignItems: 'flex-end', paddingRight: 14 },
   grpTexte: { flex: 1 },

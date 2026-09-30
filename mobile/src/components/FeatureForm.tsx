@@ -286,7 +286,7 @@ export function FeatureForm({
 
       <SectionFiche titre="Planification">
         <LigneChoix
-          label="PI"
+          fixe label="PI"
           value={form.pi}
           depart={feature?.pi}
           {...listePI(form.pi)}
@@ -296,7 +296,7 @@ export function FeatureForm({
         />
         {!!form.pi && (
           <LigneChoix
-            label="Itération prévue"
+            fixe label="Itération prévue"
             value={form.iteration}
             depart={feature?.iteration}
             groupes={listeIterations(form.pi).groupes}

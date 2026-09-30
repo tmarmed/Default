@@ -47,7 +47,7 @@ export function RecurrenceFields({ value, onChange }: Props) {
   return (
     <>
       <LigneChoix
-        label="Répétition"
+        fixe label="Répétition"
         value={p}
         groupes={[{ options: REPETITIONS.filter((r) => r.value !== 'aucune').map((r) => ({ value: r.value, label: `🔁 ${r.label}` })) }]}
         vide="Aucune"
@@ -61,7 +61,7 @@ export function RecurrenceFields({ value, onChange }: Props) {
       />
 
       {p === 'hebdomadaire' && (
-        <LigneChoix label="Jour" value={a} groupes={[{ options: JOURS.filter((j) => j.value) }]} vide="Libre" sans="Libre" onChange={(v) => onChange({ echeance: v })} />
+        <LigneChoix fixe label="Jour" value={a} groupes={[{ options: JOURS.filter((j) => j.value) }]} vide="Libre" sans="Libre" onChange={(v) => onChange({ echeance: v })} />
       )}
 
       {p === 'mensuelle' && (
@@ -81,7 +81,7 @@ export function RecurrenceFields({ value, onChange }: Props) {
 
       {p === 'annuelle' && (
         <>
-          <LigneChoix label="Mois" value={a} groupes={[{ options: MOIS }]} onChange={(v) => v && onChange({ echeance: compose(v, b) })} />
+          <LigneChoix fixe label="Mois" value={a} groupes={[{ options: MOIS }]} onChange={(v) => v && onChange({ echeance: compose(v, b) })} />
           <ChampFiche label="Jour">{jour(b, 'Libre : dans le mois')}</ChampFiche>
         </>
       )}

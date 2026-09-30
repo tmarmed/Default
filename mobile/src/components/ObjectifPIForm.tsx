@@ -121,7 +121,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
           <SaisieFiche placeholder="Résultat à livrer (ex. Nouveau site en ligne)" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!objectif} />
         </ChampFiche>
         <LigneChoix
-          label="Type"
+          fixe label="Type"
           value={form.type}
           depart={objectif?.type}
           groupes={[
@@ -146,7 +146,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
       />
       <SectionFiche titre="Planification">
         <LigneChoix
-          label="PI"
+          fixe label="PI"
           value={form.pi}
           depart={objectif?.pi}
           attendu
@@ -182,7 +182,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
       {/* Engagement : valeurs sur 10 (ligne de choix) */}
       <SectionFiche titre="Engagement">
         <LigneChoix
-          label="Valeur prévue"
+          fixe label="Valeur prévue"
           value={form.valeur_prevue}
           depart={objectif?.valeur_prevue}
           groupes={[{ options: VALEURS.filter((v) => v.value).map((v) => ({ value: v.value, label: `${v.label} / 10` })) }]}
@@ -191,7 +191,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
           onChange={(v) => set('valeur_prevue', v)}
         />
         <LigneChoix
-          label="Valeur obtenue"
+          fixe label="Valeur obtenue"
           value={form.valeur_obtenue}
           depart={objectif?.valeur_obtenue}
           groupes={[{ options: VALEURS.filter((v) => v.value).map((v) => ({ value: v.value, label: `${v.label} / 10` })) }]}

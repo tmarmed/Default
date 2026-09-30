@@ -492,7 +492,7 @@ export function TaskForm({
                 <SaisieFiche placeholder="À écrire" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!item} returnKeyType="done" />
               </ChampFiche>
               <LigneChoix
-                label="Type"
+                fixe label="Type"
                 value={form.type}
                 groupes={[{ options: TYPES.map((o) => ({ value: o.value, label: o.label })) }]}
                 // Rendez-vous, appel : pas d'« En cours » (il redevient « À faire »)
@@ -649,7 +649,7 @@ export function TaskForm({
                   <LigneFiche label="Itération" valeur={iterationOf(form.date).label} sous="D'après la date de la tâche" />
                 ) : (
                   <LigneChoix
-                    label="Itération"
+                    fixe label="Itération"
                     value={form.iteration}
                     depart={item?.iteration}
                     {...listeIterations(featureCourante?.pi, featureCourante?.iteration, form.iteration)}

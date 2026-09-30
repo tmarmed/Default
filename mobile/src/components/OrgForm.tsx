@@ -409,7 +409,7 @@ export function OrgForm({
         </ChampFiche>
         {kind === 'unite' && (
           <LigneChoix
-            label="Type"
+            fixe label="Type"
             value={form.type === 'direction' ? 'direction' : 'service'}
             depart={(entite as { type?: string } | null)?.type || undefined}
             groupes={[{ options: [{ value: 'direction', label: '🏛️ Direction' }, { value: 'service', label: '🧩 Service' }] }]}
