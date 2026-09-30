@@ -10,7 +10,7 @@ import { ChatEchanges, type ElementChat } from './ChatEchanges';
 import { FormSheet } from './FormSheet';
 
 /**
- * 💬 Échanges : vos conversations.
+ * 🔄 Synchronisation (onglet « Synchro ») : vos conversations.
  * - 🏛️ President (l'application) : ses questions et alertes (par écran), ses messages, et l'aide à la demande ;
  * - 💬 Claude (IA chat) : le fil d'échange (questions, backlog des missions) et vos messages à Claude ;
  * - 🧑 les personnes (humains) : messages et questions à choix, rangés dans l'onglet « Echanges » du Google Sheet
@@ -100,10 +100,10 @@ export const aTraiter = (moi: string, l: Echange[]) => l.filter((e) => (e.a === 
 /** Petite aide de l'application (en attendant le mode assistant, lot 19) */
 const AIDE: { q: string; r: string }[] = [
   { q: 'Créer un espace de travail', r: 'Carte des espaces (touchez la pastille à côté de « President ») › ＋ : Équipe ou Entreprise, avec son propre Google Sheet.' },
-  { q: 'Envoyer un échange à quelqu’un', r: '💬 Échange › ＋ Nouvel échange : un message ou une question à choix, rangé dans l’espace choisi. Il disparaît quand il est lu, ou quand la réponse est prise en compte.' },
+  { q: 'Envoyer un échange à quelqu’un', r: '🔄 Synchro › ＋ Nouvel échange : un message ou une question à choix, rangé dans l’espace choisi. Il disparaît quand il est lu, ou quand la réponse est prise en compte.' },
   { q: 'Alertes', r: 'Chaque écran signale ce qui ne tient pas (dates, charge, estimation). Un bouton règle le problème, « Ignorer » le range.' },
   { q: 'Droits', r: 'Vos droits viennent de vos rôles : votre travail et celui de votre équipe selon le rôle (Scrum Master, PO, membre…), la lecture ailleurs.' },
-  { q: 'Missions et Claude', r: '💬 Échange › Claude : les questions de Claude, le backlog des missions, et « Mettre à jour » pour les écrire dans votre espace « President ».' },
+  { q: 'Claude', r: '🔄 Synchro › Claude : une conversation comme avec une personne (IA chat). Claude lit et répond dans votre Sheet avec le connecteur Google Sheets.' },
 ];
 
 export function EchangesView({ moi, echanges, personnes, espaces, president, onEnvoyer, onRepondre, onRetirer, hierarchie }: Props) {

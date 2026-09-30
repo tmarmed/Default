@@ -167,7 +167,7 @@ const TAB_TITLES: Record<Tab, string> = {
   equipe: 'Équipe',
   organisation: 'Organisation',
   pilotage: 'Pilotage',
-  echange: 'Échange',
+  echange: 'Synchronisation',
 };
 const TAB_ICONS: Record<Tab, string> = {
   taches: '✓',
@@ -180,9 +180,9 @@ const TAB_ICONS: Record<Tab, string> = {
   equipe: '👥',
   organisation: '🏛️',
   pilotage: '📊',
-  echange: '💬',
+  echange: '🔄',
 };
-const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches' };
+const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches', echange: 'Synchro' };
 /** Messages de l'application gardés sur l'appareil jusqu'à « Lu ✓ » */
 const MESSAGES_APP_KEY = 'president:messages-app';
 /** Écrans prévus, encore vides (règles de gestion à définir) */
@@ -458,7 +458,7 @@ function Main() {
   const [notice, setNotice] = useState<string | null>(null);
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
-  // 🏛️ Messages de l'application (💬 Échange › President) : ce qu'elle a fait ou signalé (mises à jour, écritures,
+  // 🏛️ Messages de l'application (🔄 Synchro › President) : ce qu'elle a fait ou signalé (mises à jour, écritures,
   // erreurs), gardés sur l'appareil jusqu'à « Lu ✓ » ; avec les alertes et l'aide, les trois niveaux de President
   const [messagesApp, setMessagesApp] = useState<MessageApp[]>([]);
   const majMessagesApp = useCallback((f: (l: MessageApp[]) => MessageApp[]) => {
@@ -1411,7 +1411,7 @@ function Main() {
     for (const e of tousHier.echanges ?? []) for (const id of [e.de, e.a]) if (id !== 'claude' && id !== 'president' && !m.has(id)) m.set(id, { id, nom: nomDepuisEmail(id), nature: 'humain' });
     return [...m.values()].sort((a, b) => a.nom.localeCompare(b.nom));
   }, [orgTous, tousHier.echanges]);
-  // Pastille de l'onglet 💬 Échange : seulement les échanges qui attendent votre réponse (pas les questions du fil de Claude)
+  // Pastille de l'onglet 🔄 Synchro : seulement les échanges qui attendent votre réponse (pas les questions du fil de Claude)
   const nbARepondre = aTraiter(moiEchange, tousHier.echanges ?? []).length;
   // Échanges marqués « pris_en_compte » par une IA (Claude, dans le Sheet) : c'est l'application qui les supprime
   const suppressionsEnCours = useRef(new Set<string>());
@@ -1647,7 +1647,7 @@ function Main() {
     equipe: zero,
     organisation: zero,
     pilotage: zero,
-    // 💬 Échange : pastille jaune = points du fil qui attendent votre réponse
+    // 🔄 Synchro : pastille jaune = échanges qui attendent votre réponse
     echange: { rouge: 0, jaune: nbARepondre },
   };
 

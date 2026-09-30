@@ -71,7 +71,7 @@ export type Ecran =
   | 'equipe'
   | 'organisation'
   | 'pilotage'
-  /** 💬 Échange (lot 20) : fil d'échange avec Claude, ajouté à la fin quand il est activé sur l'appareil */
+  /** 🔄 Synchro (onglet « Synchronisation ») : échanges avec l'application, Claude et les personnes, toujours en dernier */
   | 'echange';
 
 /** Ordre de priorité quand plusieurs espaces sont affichés */

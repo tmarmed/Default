@@ -83,7 +83,7 @@ qu'on peut donc aussi consulter depuis un ordinateur.
   autres en gris), toucher une feature ne garde que ses stories, toucher à nouveau enlève le filtre. Sur téléphone,
   une colonne à la fois avec le fil « Epics › Epic › Feature » pour revenir. Poignée ⋮⋮ : glisser une carte change
   sa priorité (colonne « rang », de 10 en 10). « › » ouvre la fiche. Filtre « Value stream » en haut.
-- **💬 Échanges** (lot 21) : onglet 💬 Échange pour tous, liste de **conversations** : 🏛️ **President** (l'application :
+- **🔄 Synchronisation** (lot 21 ; onglet « Synchro ») : pour tous, liste de **conversations** : 🏛️ **President** (l'application :
   alertes et rappels par écran, ses messages — ce qu'elle a fait ou signalé, jusqu'à « Lu ✓ » — et l'aide à la
   demande), 💬 **Claude** (IA chat : une conversation comme les autres, rangée dans 🔒 Moi ; Claude la lit par le connecteur
   Google Sheets) et les **personnes** (🧑 humains : message ou question à choix, « ＋ Nouvel échange »,
@@ -110,7 +110,7 @@ qu'on peut donc aussi consulter depuis un ordinateur.
   features du train. Supprimer : le responsable ou le Scrum Master. Plusieurs rôles : le plus large gagne. Une fiche
   qu'on ne peut pas modifier s'ouvre en lecture seule (« 🔒 Lecture seule » en haut, sans explication), sans bloc
   Supprimer, sans ＋ ni saisie rapide, et sans les champs vides. Fiche Équipe : section « Droits · d'après les rôles » (rôle et droits sous
-  chaque membre), « Accès : selon le rôle de chacun » (prêt dès l'enregistrement) pour une nouvelle équipe, « Synchronisé ✓ ». Démo : ligne
+  chaque membre), « Accès : selon le rôle de chacun » (prêt dès l'enregistrement) pour une nouvelle équipe, « Enregistré ✓ ». Démo : ligne
   « Voir en tant que » en haut de l'Organisation pour essayer les droits d'une personne (« Vous · tous les droits » en premier) ; carte « N espaces de
   travail prêts » sur l'écran Tâches (simulée) : « Autoriser » ou « Refuser » pour chaque espace, « Plus tard ».
 - **Pastille de recherche** : toute feuille où l'on choisit un élément existant (feature, epic, équipe, personne,

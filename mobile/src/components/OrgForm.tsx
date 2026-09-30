@@ -608,7 +608,7 @@ export function OrgForm({
           )}
           <Text style={f.hint}>
             Opérationnel : voit tout le travail de l'équipe, modifie le sien. Scrum Master : tout. PO : le backlog. Changer un rôle change les droits tout de suite.
-            {entite ? '  Synchronisé ✓' : ''}
+            {entite ? '  Enregistré ✓' : ''}
           </Text>
         </>
       )}

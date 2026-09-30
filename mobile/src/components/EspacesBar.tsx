@@ -52,7 +52,7 @@ export function EspacesBar({
   aRepondre = 0,
   onARepondre,
 }: {
-  /** 💬 Échange : points du fil qui attendent votre réponse (filtre « 💬 À répondre · N » en tête des espaces) */
+  /** 🔄 Synchro : échanges qui attendent votre réponse (filtre retiré de l'affichage) */
   aRepondre?: number;
   onARepondre?: () => void;
   /** Replié : la carte disparaît, il reste la pastille de la barre */
