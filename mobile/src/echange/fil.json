@@ -572,6 +572,43 @@
      "fait": false
     }
    ]
+  },
+  {
+   "num": 22,
+   "titre": "IA chat : lire et répondre aux échanges (standard)",
+   "etat": "DÉCIDÉ",
+   "etapes": [
+    {
+     "id": "discussion",
+     "titre": "Discussion",
+     "fait": true
+    },
+    {
+     "id": "lire",
+     "titre": "Maintenant : Claude lit votre Sheet (connecteur Google Sheets de claude.ai)",
+     "fait": false
+    },
+    {
+     "id": "standard",
+     "titre": "Standard : onglet Echanges lisible par toute IA (colonnes, adresses, statuts documentés)",
+     "fait": false
+    },
+    {
+     "id": "repondre",
+     "titre": "Claude répond dans l'onglet Echanges (statut repondu), l'app l'affiche",
+     "fait": false
+    },
+    {
+     "id": "agent",
+     "titre": "Plus tard : IA dans l'application (API) puis agent IA (lot 12)",
+     "fait": false
+    },
+    {
+     "id": "validation",
+     "titre": "Validation",
+     "fait": false
+    }
+   ]
   }
  ],
  "points": [
