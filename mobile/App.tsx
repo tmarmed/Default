@@ -1388,25 +1388,36 @@ function Main() {
     }
     api.definirEspaces(connexions(settings), visiblesRef.current[0] ?? 'moi');
     const d = await api.listItems(settings, e.id);
-    let n = 0;
+    // Écriture groupée : une lecture et une écriture par onglet (Epics, puis Features), pour rester sous le quota
+    // de Google (environ 60 écritures par minute) même avec une centaine d'éléments
+    const creerE: EpicInput[] = [];
+    const majE: (Partial<Epic> & { id: string })[] = [];
     for (const l of FIL.lots) {
-      let ep: Epic | undefined = epicDuLot(l, d.epics);
+      const ep = epicDuLot(l, d.epics);
       const ch = changementEpic(l, ep);
-      if (ch && !(seulementManquants && ep)) {
-        ep = ep
-          ? await api.updateEntity(settings, 'epic', { id: ep.id, ...ch })
-          : await api.createEntity(settings, 'epic', { titre: '', description: '', couleur: '', etat: '', ...ch, debut: today, fin: '', objectif: '', domaine: '', espace: e.id } as EpicInput);
-        n++;
-      }
+      if (!ch) continue;
+      if (ep) {
+        if (!seulementManquants) majE.push({ id: ep.id, ...ch });
+      } else creerE.push({ titre: '', description: '', couleur: '', etat: '', ...ch, debut: today, fin: '', objectif: '', domaine: '', espace: e.id } as EpicInput);
+    }
+    const rE = await api.ecrireLot(settings, e.id, 'epic', creerE, majE);
+    const epics = [...d.epics.map((x) => rE.modifies.find((m) => m.id === x.id) ?? x), ...rE.crees];
+    const creerF: FeatureInput[] = [];
+    const majF: (Partial<Feature> & { id: string })[] = [];
+    for (const l of FIL.lots) {
+      const ep = epicDuLot(l, epics);
+      if (!ep) continue;
       for (const et of l.etapes) {
-        const fe = featureDeEtape(et, ep!.id, d.features);
+        const fe = featureDeEtape(et, ep.id, d.features);
         const cf = changementFeature(et, fe);
-        if (!cf || (seulementManquants && fe)) continue;
-        if (fe) await api.updateEntity(settings, 'feature', { id: fe.id, ...cf });
-        else await api.createEntity(settings, 'feature', { titre: '', description: '', ...cf, epic: ep!.id, pi: '', iteration: '', points: '', couleur: couleurLot(l.num), espace: e.id } as FeatureInput);
-        n++;
+        if (!cf) continue;
+        if (fe) {
+          if (!seulementManquants) majF.push({ id: fe.id, ...cf });
+        } else creerF.push({ titre: '', description: '', ...cf, epic: ep.id, pi: '', iteration: '', points: '', couleur: couleurLot(l.num), espace: e.id } as FeatureInput);
       }
     }
+    await api.ecrireLot(settings, e.id, 'feature', creerF, majF);
+    const n = creerE.length + majE.length + creerF.length + majF.length;
     if (!visiblesRef.current.includes(e.id)) setVisibles([...visiblesRef.current, e.id]);
     await refresh(settings);
     return n ? `${n} changement${n > 1 ? 's' : ''} écrit${n > 1 ? 's' : ''} dans l'espace « ${NOM_ESPACE_MISSIONS} ».` : `L'espace « ${NOM_ESPACE_MISSIONS} » est déjà à jour.`;

@@ -496,7 +496,9 @@ qu'application**.
 cette version, elle efface une fois de l'appareil tout reste de démo (anciennes copies, données « demo~ », ancien
 interrupteur). **Missions** : après chaque ouverture, l'espace Équipe « President » est créé s'il n'existe pas et les
 missions manquantes y sont écrites (lots = epics, étapes = features), sans réécrire celles qui existent ;
-« 🗂️ Missions » (menu du compte) ou « Mettre à jour » (💬 Échange › Claude) réécrit aussi titres et états.
+« 🗂️ Missions » (menu du compte) ou « Mettre à jour » (💬 Échange › Claude) réécrit aussi titres et états. Écriture **groupée** (une lecture et une écriture par onglet :
+110 éléments en 4 appels) ; si Google répond « trop de demandes » (quota par minute) ou a un incident passager,
+l'application attend puis réessaie (jusqu'à 5 fois).
 Données d'exemple pour les tests seulement :
 `EXPO_PUBLIC_DEMO=1 npx expo export --platform web --clear`
 

@@ -320,6 +320,31 @@ export function creerMagasin(p: Persistance) {
       await p.ecrire(kind, [...(list as EntityOf<K>[]), o] as never);
       return o;
     },
+    /**
+     * Plusieurs créations et modifications d'une même table en un seul passage (une lecture, une écriture) :
+     * évite de dépasser le quota de Google (environ 60 écritures par minute) quand on écrit beaucoup d'éléments.
+     */
+    async ecrireLot<K extends Kind>(
+      kind: K,
+      creer: Omit<EntityOf<K>, 'id' | 'cree_le' | 'modifie_le'>[],
+      modifier: (Partial<EntityOf<K>> & { id: string })[],
+    ): Promise<{ crees: EntityOf<K>[]; modifies: EntityOf<K>[] }> {
+      if (!creer.length && !modifier.length) return { crees: [], modifies: [] };
+      let list = (await p.lire(kind)) as EntityOf<K>[];
+      const now = new Date().toISOString();
+      const domaines = () => (kind === 'domaine' ? (list as unknown as Domaine[]) : []);
+      const modifies: EntityOf<K>[] = [];
+      for (const patch of modifier) {
+        const current = list.find((e) => e.id === patch.id);
+        if (!current) throw new Error('Élément introuvable (peut-être supprimé).');
+        const o = { ...nettoyerEntite(kind, patch, current, domaines()), id: current.id, cree_le: current.cree_le, modifie_le: now } as EntityOf<K>;
+        list = list.map((e) => (e.id === o.id ? o : e));
+        modifies.push(o);
+      }
+      const crees = creer.map((input) => ({ ...nettoyerEntite(kind, input as Partial<EntityOf<K>>, undefined, domaines()), id: nouvelId(), cree_le: now, modifie_le: now }) as EntityOf<K>);
+      await p.ecrire(kind, [...list, ...crees] as never);
+      return { crees, modifies };
+    },
     async updateEntity<K extends Kind>(kind: K, patch: Partial<EntityOf<K>> & { id: string }): Promise<EntityOf<K>> {
       const list = (await p.lire(kind)) as EntityOf<K>[];
       const current = list.find((e) => e.id === patch.id);

@@ -21,8 +21,14 @@ function plage(p: string) {
   return { nom: nom.replace(/^'|'$/g, '').replace(/''/g, "'"), a: cellule(a), b: b ? cellule(b) : undefined };
 }
 
+let refus429 = 0;
 globalThis.fetch = (async (input: string, init: RequestInit = {}) => {
   appels++;
+  // Quota Google dépassé (simulé) : l'application doit attendre et réessayer
+  if (refus429 > 0) {
+    refus429--;
+    return new Response(JSON.stringify({ error: { message: 'Quota exceeded' } }), { status: 429 });
+  }
   const url = new URL(input);
   const corps = init.body ? JSON.parse(init.body as string) : undefined;
   const rep = (x: unknown, status = 200) => new Response(x === undefined ? '' : JSON.stringify(x), { status });
@@ -197,6 +203,21 @@ const ok = (cond: unknown, msg: string) => {
   ok((await e.listOrg()).trains[0].portfolio === '' && (await e.listAll()).epics[0].portfolio === '', 'portfolio supprimé : trains et epics gardés, sans portfolio');
   await e.deleteOrg('unite', dt.id);
   ok((await e.listOrg()).unites[0].parent === '' && (await e.listOrg()).personnes[0].unite === '', 'unité supprimée : sous-unité remontée, personnes sans service');
+
+  // Écriture groupée (missions) : 22 epics et 90 features en quelques appels, sans dépasser le quota de Google
+  const idL = await creerFichierEspace('President | Équipe | Lot', 'equipe', 'Lot');
+  const l = magasinSheets(idL);
+  await l.listAll();
+  const avantLot = appels;
+  const eps = (await l.ecrireLot('epic', Array.from({ length: 22 }, (_, i) => ({ titre: `Lot ${i + 1} · Mission`, description: '', debut: '2026-09-30', fin: '', couleur: '', objectif: '', domaine: '', etat: '' as const })), [])).crees;
+  await l.ecrireLot('feature', eps.flatMap((ep) => Array.from({ length: 4 }, (_, k) => ({ titre: `Étape ${k + 1}`, description: '', epic: ep.id, pi: '', iteration: '', points: '', couleur: '' }))), []);
+  ok(appels - avantLot <= 6, `écriture groupée : 110 éléments en ${appels - avantLot} appels (au plus 6)`);
+  const lu = await l.listAll();
+  ok(lu.epics.length === 22 && lu.features.length === 88, 'écriture groupée : 22 epics et 88 features relues');
+  await l.ecrireLot('epic', [], [{ id: eps[0].id, titre: 'Lot 1 · Mission modifiée' }]);
+  ok((await l.listAll()).epics.find((x) => x.id === eps[0].id)?.titre === 'Lot 1 · Mission modifiée', 'écriture groupée : modification');
+  refus429 = 1;
+  ok((await l.listAll()).epics.length === 22, 'quota dépassé (429) : nouvel essai automatique réussi');
 
   // Erreur de règle
   let refus = '';

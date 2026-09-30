@@ -122,6 +122,20 @@ export async function createEntity<K extends EntityKind>(
   return marquer(await m.createEntity(kind, data as never), e) as unknown as EntityMap[K];
 }
 
+/** Plusieurs créations et modifications d'une même table dans un espace, en un seul passage (quota Google) */
+export async function ecrireLot<K extends EntityKind>(
+  settings: Settings,
+  espace: string,
+  kind: K,
+  creer: Omit<EntityMap[K], 'id' | 'cree_le' | 'modifie_le'>[],
+  modifier: (Partial<EntityMap[K]> & { id: string })[],
+): Promise<{ crees: EntityMap[K][]; modifies: EntityMap[K][] }> {
+  const { e, m } = route(settings, espace);
+  for (const d of [...creer, ...modifier]) verifierLiens(e, d as Record<string, unknown>, LIENS_ENTITE);
+  const r = await m.ecrireLot(kind, creer as never, modifier as never);
+  return { crees: r.crees.map((x) => marquer(x, e)) as unknown as EntityMap[K][], modifies: r.modifies.map((x) => marquer(x, e)) as unknown as EntityMap[K][] };
+}
+
 export async function updateEntity<K extends EntityKind>(
   settings: Settings,
   kind: K,

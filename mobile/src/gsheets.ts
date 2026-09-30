@@ -16,7 +16,7 @@ export const utiliserJeton = (f: (force?: boolean) => Promise<string>) => {
   jeton = f;
 };
 
-async function appel<T>(url: string, init: RequestInit = {}, nouvelEssai = true): Promise<T> {
+async function appel<T>(url: string, init: RequestInit = {}, nouvelEssai = true, essai = 0): Promise<T> {
   const token = await jeton();
   let res: Response;
   try {
@@ -28,14 +28,20 @@ async function appel<T>(url: string, init: RequestInit = {}, nouvelEssai = true)
     // Jeton expiré : on le renouvelle une fois
     if (nouvelEssai) {
       await jeton(true);
-      return appel<T>(url, init, false);
+      return appel<T>(url, init, false, essai);
     }
     throw new AuthError('Session Google terminée : reconnectez-vous.');
+  }
+  // Trop de demandes (quota Google par minute) ou incident passager : on attend puis on réessaie (jusqu'à 5 fois)
+  if ((res.status === 429 || res.status >= 500) && essai < 5) {
+    await new Promise((r) => setTimeout(r, Math.min(2000 * 2 ** essai, 30000)));
+    return appel<T>(url, init, nouvelEssai, essai + 1);
   }
   if (!res.ok) {
     const j = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
     const msg = j?.error?.message ?? `erreur ${res.status}`;
     if (res.status === 403 || res.status === 404) throw new Error(`Fichier inaccessible (${msg}). A-t-il été supprimé, ou créé avec un autre compte ?`);
+    if (res.status === 429) throw new Error('Google limite le nombre de demandes par minute : réessayez dans une minute.');
     throw new Error(`Google Sheets : ${msg}`);
   }
   const text = await res.text();
