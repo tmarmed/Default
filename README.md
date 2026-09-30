@@ -68,6 +68,14 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   disparaît tout seul après 6 s ou dès qu'on touche ailleurs (comme les messages d'information).
   Feuilles de tâches (tâche parente, choisir des sous-tâches) : par feature (sinon epic), celles de la même feature
   d'abord, les autres repliées. « Sans … » : le même libellé que la valeur vide (« Aucune (tâche principale) »).
+- **Autres écrans, même logique** : ＋ du PI → la feuille commune avec la ligne « Itération » en tête, puis
+  « ＋ Nouvelle feature / tâche » et « ☑ Choisir des features / tâches » (cases à cocher groupées par epic ou
+  feature, bouton « Ajouter n … », appliqué tout de suite avec « Annuler » dans le bandeau) ; ＋ du Portefeuille et
+  de la Roadmap → la même feuille (« ＋ Nouvelle epic / feature / objectif / domaine », avec une aide grise) ;
+  déplacer une carte dans le PI (toucher une case vide) → la même feuille « Déplacer en IT2 ? », ligne « Nouvelle
+  date » pour une tâche datée, bandeau « Annuler » ; supprimer une tâche → le même bloc « Supprimer la story » que
+  les autres fiches (avec le choix pour ses sous-tâches) ; nouvel espace de travail → une fiche à sections
+  (Élément : Nom, Type ; Domaines).
 - **Titre et type** (toutes les fiches) : le grand titre centré est un affichage (logo + nom) ; la première section
   « Élément » contient la ligne « Titre » (ou « Nom ») à saisir et, pour les éléments qui en ont un, la ligne « Type »
   (tâche : 8 types ; unité : Direction / Service ; objectif du PI : Engagé / Bonus). Même place à la création et à

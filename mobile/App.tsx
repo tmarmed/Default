@@ -25,7 +25,9 @@ import { ObjectifPIForm } from './src/components/ObjectifPIForm';
 import { PIView } from './src/components/PIView';
 import { TypeFilter, TypeFiltre } from './src/components/TypeFilter';
 import { PIAddSheet } from './src/components/PIAddSheet';
-import { PickerModal } from './src/components/ItemPicker';
+import { FeuilleMulti } from './src/components/Choix';
+import { grouper } from './src/choixTravail';
+import { BandeauAnnuler, useBandeau } from './src/components/EnregistrementAuto';
 import { inDomain, RechercheContext } from './src/components/DomainFilter';
 import { DomainesPrincipauxChips, DomainFilterContext, loadDomainFilter, saveDomainFilter, SousDomaineChips } from './src/components/DomainFilter';
 import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
@@ -36,7 +38,7 @@ import { type Action, type Check, checksDatesDomaine, checksParEcran, signatures
 import { AlertsCard, CheckActionContext, IgnoreContext, nbAlertes } from './src/components/AlertsCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
-import { iterationNom, iterationOf, iterationOfItem, piOf } from './src/pi';
+import { iterationNom, iterationOf, iterationOfItem, piLabel, piOf } from './src/pi';
 import { Roadmap } from './src/components/Roadmap';
 import { LoginScreen } from './src/components/LoginScreen';
 import { TaskForm } from './src/components/TaskForm';
@@ -413,6 +415,8 @@ function Main() {
   const [notice, setNotice] = useState<string | null>(null);
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
+  /** Bandeau « … · Annuler » des écrans (ajout au PI, déplacement…) : comme dans les fiches */
+  const bandeauApp = useBandeau();
   // Message d'information : disparaît tout seul après 6 s (comme le bandeau « Annuler » de l'Organisation), ou d'un toucher
   useEffect(() => {
     if (!info) return;
@@ -2039,6 +2043,7 @@ function Main() {
             await saveEntity('feature', f, { pi: piKey, iteration: itKey });
           }}
           onMoveTask={(t, patch) => updateTask({ id: t.id, ...patch })}
+          onBandeau={bandeauApp.annoncer}
           onOpenObjectifPI={(o) => {
             setEditingOPI(o);
             setOpiFormOpen(true);
@@ -2235,6 +2240,11 @@ function Main() {
         ))}
         </ScrollView>
         </View>
+      </View>
+
+      {/* Bandeau « … · Annuler » des écrans, au-dessus des onglets */}
+      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: TAB_BAR + insets.bottom + 4, height: 70, zIndex: 20 }}>
+        <BandeauAnnuler bandeau={bandeauApp.bandeau} fermer={bandeauApp.fermer} />
       </View>
 
       {!A_VENIR.includes(tab) && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
@@ -2487,28 +2497,54 @@ function Main() {
         }}
       />
 
-      <PickerModal
-        visible={piPicker !== null}
-        title={`${piPicker?.kind === 'feature' ? 'Features' : 'Tâches'} pour ${piPickerIt ? piPickerIt.split('-').pop() : `le PI ${piKey.split('-')[1]}`}`}
-        hint={
-          piPicker?.kind === 'feature'
-            ? `Features de toutes les epics, pas encore ${piPickerIt ? 'dans cette itération' : 'dans ce PI'}. Touchez pour la planifier ${piPickerIt ? `en ${piPickerIt.split('-').pop()}` : 'dans ce PI (sans itération)'}.`
-            : 'Tâches sans feature et sans date, pas encore dans cette itération. Une tâche datée suit sa date : changez-la dans sa fiche.'
-        }
-        empty={piPicker?.kind === 'feature' ? 'Aucune autre feature.' : 'Aucune tâche à planifier.'}
-        options={piPickerOptions}
-        onClose={() => setPiPicker(null)}
-        onPick={(id) => {
-          const run =
-            piPicker?.kind === 'feature'
-              ? (async () => {
-                  const f = hier.features.find((x) => x.id === id);
-                  if (f) await saveEntity('feature', f, { pi: piKey, iteration: piPickerIt });
-                })()
-              : updateTask({ id, iteration: piPickerIt });
-          run.catch((e) => setNotice(`Non planifié : ${(e as Error).message}`));
-        }}
-      />
+      {piPicker && (
+        // « ☑ Choisir des features / tâches » de l'écran PI : la feuille commune, cases à cocher, « Ajouter n » ;
+        // ajoutées tout de suite, bandeau « Annuler »
+        <FeuilleMulti
+          titre={`Ajouter ${piPickerIt ? `en ${piPickerIt.split('-').pop()}` : `au PI ${piLabel(piKey)}`}`}
+          {...grouper(
+            piPickerOptions,
+            (o) => o.sub.split(' · ')[0],
+            (k) => (piPicker.kind === 'feature' ? `🗂️ ${k}` : k),
+            (o) => ({ value: o.id, label: o.title, meta: o.sub.split(' · ').slice(1).join(' · ') }),
+            undefined,
+            '',
+          )}
+          selection={[]}
+          vide={piPicker.kind === 'feature' ? 'Aucune autre feature.' : 'Aucune tâche à planifier (une tâche datée suit sa date).'}
+          libelleValider={(n) => (n ? `Ajouter ${n} ${piPicker.kind === 'feature' ? `feature${n > 1 ? 's' : ''}` : `tâche${n > 1 ? 's' : ''}`}` : 'Ajouter')}
+          onFermer={() => setPiPicker(null)}
+          onValider={async (ids) => {
+            const pk = piPicker;
+            setPiPicker(null);
+            if (!ids.length) return;
+            const ou = piPickerIt ? `en ${piPickerIt.split('-').pop()}` : `au PI ${piLabel(piKey)}`;
+            try {
+              if (pk.kind === 'feature') {
+                const avant = ids.map((id) => hier.features.find((x) => x.id === id)!).filter(Boolean).map((f) => ({ id: f.id, pi: f.pi, iteration: f.iteration }));
+                for (const id of ids) await saveEntity('feature', { id }, { pi: piKey, iteration: piPickerIt });
+                bandeauApp.annoncer({
+                  texte: `${ids.length > 1 ? `${ids.length} features ajoutées` : '1 feature ajoutée'} ${ou}`,
+                  annuler: async () => {
+                    for (const a of avant) await saveEntity('feature', { id: a.id }, { pi: a.pi, iteration: a.iteration });
+                  },
+                });
+              } else {
+                const avant = ids.map((id) => ({ id, iteration: items.find((x) => x.id === id)?.iteration ?? '' }));
+                for (const id of ids) await updateTask({ id, iteration: piPickerIt });
+                bandeauApp.annoncer({
+                  texte: `${ids.length > 1 ? `${ids.length} tâches ajoutées` : '1 tâche ajoutée'} ${ou}`,
+                  annuler: async () => {
+                    for (const a of avant) await updateTask({ id: a.id, iteration: a.iteration });
+                  },
+                });
+              }
+            } catch (e) {
+              setNotice(`Non planifié : ${(e as Error).message}`);
+            }
+          }}
+        />
+      )}
 
       <ProjectWizard
         visible={wizard.open}
@@ -2533,41 +2569,31 @@ function Main() {
         onDelete={(o, cascade) => deleteEntity('objectifpi', o, cascade)}
       />
 
-      <Modal visible={addMenu} transparent animationType="fade" onRequestClose={() => setAddMenu(false)}>
-        <Pressable style={styles.menuBackdrop} onPress={() => setAddMenu(false)}>
-          <View style={[styles.menu, { paddingBottom: 16 + insets.bottom }]}>
-            <Text style={styles.menuTitle}>Ajouter</Text>
-            {(
-              [
-                ['🗂️', 'Une epic', 'Un projet daté, avec ses tâches', () => openEpic(null, preselection())],
-                ...(safe.actif
-                  ? ([['🧩', 'Une feature', 'Une partie d’epic (sous-epic), prévue dans un PI', () => {
-                          const pre = preselection();
-                          openFeature(null, { espace: pre.espace }, pre.domaine);
-                        }]] as const)
-                  : []),
-                ['🎯', 'Un objectif', 'Un résultat à atteindre, avec échéance ou permanent', () => openObjectif(null, preselection())],
-                ['🏷️', 'Un domaine', 'Une grande catégorie : Pro, Perso…', () => openDomaine(null, preselection().espace)],
-              ] as const
-            ).map(([icon, title, sub, action]) => (
-              <Pressable
-                key={title}
-                style={styles.menuItem}
-                onPress={() => {
-                  setAddMenu(false);
-                  action();
-                }}
-              >
-                <Text style={styles.menuIcon}>{icon}</Text>
-                <View style={styles.flex}>
-                  <Text style={styles.menuItemTitle}>{title}</Text>
-                  <Text style={styles.menuItemSub}>{sub}</Text>
-                </View>
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
+      {/* ＋ du Portefeuille et de la Roadmap : la feuille commune, « ＋ Nouvelle … » avec l'aide en gris */}
+      <ChoiceSheet
+        key={`ajouter-${addMenu}`}
+        visible={addMenu}
+        title="Ajouter"
+        choices={[
+          { label: '＋ 🗂️ Nouvelle epic', principal: true, sous: 'Un projet daté, avec ses tâches', onPress: () => openEpic(null, preselection()) },
+          ...(safe.actif
+            ? [
+                {
+                  label: '＋ 🧩 Nouvelle feature',
+                  principal: true,
+                  sous: 'Une partie d’epic, prévue dans un PI',
+                  onPress: () => {
+                    const pre = preselection();
+                    openFeature(null, { espace: pre.espace }, pre.domaine);
+                  },
+                },
+              ]
+            : []),
+          { label: '＋ 🎯 Nouvel objectif', principal: true, sous: 'Un résultat à atteindre, avec échéance ou permanent', onPress: () => openObjectif(null, preselection()) },
+          { label: '＋ 🏷️ Nouveau domaine', principal: true, sous: 'Une grande catégorie : Pro, Perso…', onPress: () => openDomaine(null, preselection().espace) },
+        ]}
+        onClose={() => setAddMenu(false)}
+      />
 
       <FormSheet visible={stockageOpen} title="☁️ Stockage Google Drive" busy={false} error={null} onClose={() => setStockageOpen(false)}>
         {stockage ? (

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 
@@ -10,6 +11,12 @@ export interface Choice {
   danger?: boolean;
   /** Ligne qui ouvre une autre feuille : « › » à droite */
   suite?: boolean;
+  /** Aide en gris sous la ligne */
+  sous?: string;
+  /** Ligne grisée, pas touchable (avec la raison en `sous`) */
+  inactif?: boolean;
+  /** Garder la feuille ouverte après le toucher */
+  garder?: boolean;
 }
 
 /**
@@ -23,12 +30,15 @@ export function ChoiceSheet({
   message,
   choices,
   onClose,
+  children,
 }: {
   visible: boolean;
   title: string;
   message?: string;
   choices: Choice[];
   onClose: () => void;
+  /** Lignes de la feuille avant les choix (ex. l'itération du ＋ de l'écran PI, une date) */
+  children?: ReactNode;
 }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -45,18 +55,24 @@ export function ChoiceSheet({
             <View style={s.annuler} />
           </View>
           {!!message && <Text style={s.message}>{message}</Text>}
+          {children && <View style={s.haut}>{children}</View>}
           <View style={s.liste}>
             {choices.map((c) => (
               <Pressable
                 key={c.label}
-                style={s.ligne}
+                style={[s.ligne, c.inactif && s.inactif]}
+                disabled={c.inactif}
                 onPress={() => {
-                  onClose();
+                  if (!c.garder) onClose();
                   c.onPress();
                 }}
                 accessibilityRole="button"
+                accessibilityState={{ disabled: !!c.inactif }}
               >
-                <Text style={[s.ligneTexte, c.principal && s.principal, c.danger && s.danger]}>{c.label}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.ligneTexte, c.principal && s.principal, c.danger && s.danger]}>{c.label}</Text>
+                  {!!c.sous && <Text style={s.sous}>{c.sous}</Text>}
+                </View>
                 {c.suite && <Text style={s.chev}>›</Text>}
               </Pressable>
             ))}
@@ -96,5 +112,8 @@ const s = StyleSheet.create({
   ligneTexte: { flex: 1, fontSize: 15, color: colors.text },
   principal: { color: colors.primary, fontWeight: '700' },
   danger: { color: colors.danger, fontWeight: '700' },
+  sous: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  inactif: { opacity: 0.45 },
+  haut: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.card, marginBottom: 10 },
   chev: { fontSize: 18, color: '#A0A6B1', marginLeft: 8 },
 });

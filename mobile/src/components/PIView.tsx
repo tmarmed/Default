@@ -11,6 +11,8 @@ import { prefixeEspace } from '../nomsEspaces';
 import { colors } from '../theme';
 import type { Feature, Item, ObjectifPI } from '../types';
 import { DateField } from './DateField';
+import { ChoiceSheet } from './ChoiceSheet';
+import { ChampFiche } from './Choix';
 import { AlertsCard } from './AlertsCard';
 import { checksPI, filtrerDomaine } from '../checks';
 import { inDomain, useDomainFilter, useRecherche } from './DomainFilter';
@@ -32,6 +34,8 @@ interface Props {
   /** Déplacer une feature / une tâche hors feature vers une autre itération (tâche datée : nouvelle date) */
   onMoveFeature: (f: Feature, itKey: string) => Promise<void>;
   onMoveTask: (t: Item, patch: { iteration: string } | { date: string }) => Promise<void>;
+  /** Bandeau « … · Annuler » de l'application après un déplacement */
+  onBandeau?: (b: { texte: string; annuler: () => Promise<void> | void }) => void;
 }
 
 type Move = { kind: 'feature'; f: Feature; itKey: string } | { kind: 'task'; t: Item; itKey: string };
@@ -66,6 +70,7 @@ export function PIView({
   onOpenAdd,
   onMoveFeature,
   onMoveTask,
+  onBandeau,
 }: Props) {
   const h = useHierarchy();
   const safe = useSafe();
@@ -133,9 +138,16 @@ export function PIView({
     setMoving(true);
     setMoveError(null);
     try {
-      if (move.kind === 'feature') await onMoveFeature(move.f, move.itKey);
-      else await onMoveTask(move.t, move.t.date ? { date: newDate } : { iteration: move.itKey });
+      const m = move;
+      if (m.kind === 'feature') await onMoveFeature(m.f, m.itKey);
+      else await onMoveTask(m.t, m.t.date ? { date: newDate } : { iteration: m.itKey });
       setMove(null);
+      // Bandeau « … · Annuler » (comme partout) : remet l'itération ou la date d'avant
+      const it = iterationByKey(m.itKey);
+      onBandeau?.({
+        texte: `« ${m.kind === 'feature' ? m.f.titre : m.t.titre} » déplacée en ${it?.code ?? ''}`,
+        annuler: () => (m.kind === 'feature' ? onMoveFeature(m.f, m.f.iteration) : onMoveTask(m.t, m.t.date ? { date: m.t.date } : { iteration: m.t.iteration })),
+      });
     } catch (e) {
       setMoveError(`Déplacement impossible : ${(e as Error).message}`);
     } finally {
@@ -417,62 +429,51 @@ export function PIView({
           </View>
         )}
       </ScrollView>
-      <Modal visible={!!move} transparent animationType="fade" onRequestClose={() => !moving && setMove(null)}>
-        <Pressable style={styles.backdrop} onPress={() => !moving && setMove(null)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            {move && moveIt && (
-              <>
-                <Text style={styles.sheetTitle}>
-                  Déplacer « {move.kind === 'feature' ? move.f.titre : move.t.titre} » en {moveIt.code} ?
-                </Text>
-                <Text style={styles.muted}>{moveIt.label.split(' · ')[1]}</Text>
-                {move.kind === 'task' && (subs.get(move.t.id) ?? []).length > 0 && (
-                  <Text style={styles.muted}>Ses sous-tâches gardent leur date ou leur itération.</Text>
-                )}
-                {move.kind === 'feature' && (
-                  <Text style={styles.muted}>
-                    L’itération prévue de la feature change. Ses tâches gardent leur date ou leur itération.
-                  </Text>
-                )}
-                {move.kind === 'task' && !!move.t.date && (
-                  <>
-                    <Text style={styles.sheetText}>
-                      Cette tâche a une date ({court(parseDate(move.t.date))}) : pour la déplacer, choisissez sa nouvelle date.
-                    </Text>
-                    <DateField mode="date" value={newDate} onChange={setNewDate} placeholder="Nouvelle date" />
-                    {dateIt && dateIt.key !== move.itKey && (
-                      <Text style={styles.warnText}>
-                        ⚠ Le {court(parseDate(newDate))} tombe en {dateIt.code}
-                        {dateIt.pi !== piKey ? ` du PI ${piLabel(dateIt.pi)}` : ''} : la tâche ira là.
-                      </Text>
-                    )}
-                  </>
-                )}
-                {moveError && <Text style={styles.warnText}>{moveError}</Text>}
-                <View style={styles.sheetButtons}>
-                  <Pressable onPress={() => setMove(null)} disabled={moving} style={styles.sheetBtn}>
-                    <Text style={styles.add}>Annuler</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={confirmMove}
-                    disabled={moving || (move.kind === 'task' && !!move.t.date && !newDate)}
-                    style={[styles.sheetBtn, styles.sheetBtnPrimary, moving && { opacity: 0.6 }]}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.sheetBtnText}>
-                      {moving
-                        ? 'Déplacement…'
-                        : move.kind === 'task' && move.t.date && newDate
-                          ? `Déplacer au ${court(parseDate(newDate))}`
-                          : `Déplacer en ${moveIt.code}`}
-                    </Text>
-                  </Pressable>
-                </View>
-              </>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {/* Déplacer une carte : la feuille commune (question en titre, explication en gris, date en ligne) */}
+      <ChoiceSheet
+        key={`deplacer-${move ? (move.kind === 'feature' ? move.f.id : move.t.id) : ''}-${move?.itKey ?? ''}`}
+        visible={!!move && !!moveIt}
+        title={move && moveIt ? `Déplacer en ${moveIt.code} ?` : ''}
+        message={
+          move && moveIt
+            ? [
+                `« ${move.kind === 'feature' ? move.f.titre : move.t.titre} » · ${moveIt.code} : ${moveIt.label.split(' · ')[1].replace(/\.?$/, '.')}`,
+                move.kind === 'feature'
+                  ? 'L’itération prévue de la feature change ; ses tâches gardent leur date ou leur itération.'
+                  : (subs.get(move.t.id) ?? []).length
+                    ? 'Ses sous-tâches gardent leur date ou leur itération.'
+                    : '',
+                move.kind === 'task' && move.t.date ? `Elle a une date (${court(parseDate(move.t.date))}) : choisissez la nouvelle.` : '',
+              ]
+                .filter(Boolean)
+                .join(' ')
+            : undefined
+        }
+        choices={
+          move && moveIt
+            ? [
+                {
+                  label: moving ? 'Déplacement…' : move.kind === 'task' && move.t.date && newDate ? `Déplacer au ${court(parseDate(newDate))}` : `Déplacer en ${moveIt.code}`,
+                  principal: true,
+                  garder: true,
+                  inactif: moving || (move.kind === 'task' && !!move.t.date && !newDate),
+                  sous: moveError ?? undefined,
+                  onPress: () => void confirmMove(),
+                },
+              ]
+            : []
+        }
+        onClose={() => !moving && setMove(null)}
+      >
+        {move?.kind === 'task' && !!move.t.date ? (
+          <ChampFiche
+            label="Nouvelle date"
+            sous={dateIt && dateIt.key !== move.itKey ? `⚠ Le ${court(parseDate(newDate))} tombe en ${dateIt.code}${dateIt.pi !== piKey ? ` du PI ${piLabel(dateIt.pi)}` : ''} : la tâche ira là.` : undefined}
+          >
+            <DateField nu mode="date" value={newDate} onChange={setNewDate} placeholder="Nouvelle date" />
+          </ChampFiche>
+        ) : undefined}
+      </ChoiceSheet>
     </View>
   );
 }

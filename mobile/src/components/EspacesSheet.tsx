@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { type Espace, ICONE_ESPACE, LIBELLE_ESPACE, libelleEspace, nomFichier, type TypeEspace } from '../espaces';
 import { colors } from '../theme';
 import { EPIC_COULEURS, type ModeleDomaine } from '../types';
-import { Chips } from './Chips';
-import { Field, FormSheet, formStyles as f, Label } from './FormSheet';
+import { ChampFiche, LigneChoix, LigneEnfant, SaisieFiche, SectionFiche } from './Choix';
+import { FormSheet, formStyles as f, Label } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -116,43 +116,30 @@ export function EspacesSheet({ visible, espaces, nomApp, demo, onClose, onAdd, r
     );
 
   return (
-    <FormSheet visible={visible} title="＋ Espace de travail" busy={busy || !!enCours} error={error} onClose={onClose}>
-      <Label>Nouvel espace de travail</Label>
-      <Chips
-        options={[
-          { value: 'equipe', label: `${ICONE_ESPACE.equipe} Équipe` },
-          { value: 'entreprise', label: `${ICONE_ESPACE.entreprise} Entreprise` },
-        ]}
-        value={type}
-        onChange={(v) => setType(v as TypeEspace)}
-      />
-      <Field style={f.titleInput} placeholder={type === 'equipe' ? "Nom de l'équipe (ex. Mobile)" : "Nom de l'entreprise (ex. ACME)"} value={nom} onChangeText={setNom} />
-      {!!nom.trim() && <Text style={f.hint}>Fichier : « {nomFichier(nomApp, { type, nom })} »</Text>}
-      <Label>Domaines de l'espace de travail (facultatif)</Label>
-      {domaines.length > 0 && (
-        <View style={s.doms}>
-          {domaines.map((d, i) => (
-            <Pressable
-              key={d}
-              onPress={() => setDomaines((l) => l.filter((x) => x !== d))}
-              style={[s.dom, { borderColor: EPIC_COULEURS[i % EPIC_COULEURS.length] }]}
-              accessibilityRole="button"
-              accessibilityLabel={`Enlever le domaine ${d}`}
-            >
-              <Text style={s.domText}>
-                🏷️ {d} ✕
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
-      <Field placeholder="＋ Nouveau domaine (Entrée pour ajouter)" value={saisie} onChangeText={setSaisie} onSubmitEditing={ajouterDomaine} blurOnSubmit={false} returnKeyType="done" />
-      <Text style={f.hint}>Chaque espace de travail a ses propres domaines. Icône et couleur modifiables ensuite dans la fiche du domaine.</Text>
+    <FormSheet visible={visible} title="Nouvel espace" busy={busy || !!enCours} error={error} onClose={onClose} onSave={save}>
+      {/* Même fiche que partout : « Élément » (nom, type), puis les domaines en liste avec leur saisie rapide */}
+      <SectionFiche titre="Élément">
+        <ChampFiche label="Nom" sous={nom.trim() ? `Fichier : « ${nomFichier(nomApp, { type, nom })} »` : undefined}>
+          <SaisieFiche placeholder={type === 'equipe' ? 'ex. Mobile' : 'ex. ACME'} value={nom} onChangeText={setNom} autoFocus />
+        </ChampFiche>
+        <LigneChoix
+          label="Type"
+          value={type}
+          groupes={[{ options: (['equipe', 'entreprise'] as TypeEspace[]).map((x) => ({ value: x, label: `${ICONE_ESPACE[x]} ${x === 'equipe' ? 'Équipe' : 'Entreprise'}` })) }]}
+          onChange={(v) => v && setType(v as TypeEspace)}
+        />
+      </SectionFiche>
+      <SectionFiche titre={`Domaines · ${domaines.length}`}>
+        {domaines.map((d) => (
+          <LigneEnfant key={d} texte={`🏷️ ${d}`} ajoute onAnnuler={() => setDomaines((l) => l.filter((x) => x !== d))} />
+        ))}
+        <ChampFiche label="＋" sous="Entrée pour ajouter">
+          <SaisieFiche placeholder="Nouveau domaine" value={saisie} onChangeText={setSaisie} onSubmitEditing={ajouterDomaine} blurOnSubmit={false} returnKeyType="done" />
+        </ChampFiche>
+      </SectionFiche>
+      <Text style={f.hint}>Chaque espace de travail a ses propres domaines (facultatifs) ; icône et couleur se changent ensuite dans la fiche du domaine.</Text>
       {!demo && <Text style={f.hint}>Le Google Sheet de l'espace de travail est créé dans votre Google Drive, avec ce nom.</Text>}
       {demo && <Text style={f.hint}>Démo : l'espace de travail est créé dans ce navigateur.</Text>}
-      <Pressable onPress={save} disabled={busy} style={[s.ok, !nom.trim() && s.okOff]} accessibilityRole="button">
-        <Text style={s.okText}>{busy ? '…' : "Créer l'espace de travail"}</Text>
-      </Pressable>
 
       <Label>Récupérer</Label>
       {retires.length === 0 && corbeille !== null && corbeille.length === 0 && <Text style={f.muted}>Aucun espace de travail retiré ni dans la corbeille.</Text>}

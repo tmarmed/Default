@@ -41,6 +41,7 @@ import { callNumber } from '../phone';
 import { fmtPoints } from '../pi';
 import { canHaveSubtasks, PARENT_TYPES, pointsCheck, subtaskMap } from '../subtasks';
 import { ChoiceSheet } from './ChoiceSheet';
+import { DeleteSection } from './DeleteSection';
 import { estIgnoree, IgnoreContext } from './AlertsCard';
 import { checkPoints, unite } from '../checks';
 import { AlerteChoix, ChampEstimation, ChampFiche, FeuilleMulti, LigneChoix, SaisieFiche, LigneEnfant, LigneFiche, SectionFiche } from './Choix';
@@ -222,7 +223,6 @@ export function TaskForm({
   const [form, setForm] = useState<ItemInput>(empty(defaultType, defaultDate, defaultIteration));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const safe = useSafe();
   const org = useOrg();
   const hTous = useHierarchy();
@@ -247,7 +247,6 @@ export function TaskForm({
       responsable: '',
     }));
   // Sous-tâches
-  const [cascadeDel, setCascadeDel] = useState(false);
   const [nouvelles, setNouvelles] = useState<string[]>([]);
   const [quick, setQuick] = useState('');
   /** ＋ rond des sous-tâches : menu, feuille « Ranger », tâches existantes rangées à l'enregistrement */
@@ -309,8 +308,6 @@ export function TaskForm({
       // (nouvel élément : dans le premier espace affiché, sauf espace imposé ; chaque élément reste dans son espace)
       setForm(item ? toInput(item) : { ...empty(defaultType, defaultDate, defaultIteration), espace: espaceDefaut, ...defaults });
       setError(null);
-      setConfirmDelete(false);
-      setCascadeDel(false);
       setNouvelles([]);
       setQuick('');
       setRangees([]);
@@ -450,11 +447,11 @@ export function TaskForm({
     }
   };
 
-  const doDelete = async () => {
+  const doDelete = async (cascade: boolean) => {
     if (!item) return;
     setBusy(true);
     try {
-      await onDelete(item, cascadeDel);
+      await onDelete(item, cascade);
     } catch (e) {
       setError(`Échec de la suppression : ${(e as Error).message}`);
     } finally {
@@ -462,23 +459,7 @@ export function TaskForm({
     }
   };
 
-  const remove = () => {
-    if (!item) return;
-    // Le navigateur n'affiche pas les boîtes de dialogue : confirmation par un 2e appui.
-    if (Platform.OS === 'web') {
-      if (confirmDelete) doDelete();
-      else setConfirmDelete(true);
-      return;
-    }
-    Alert.alert('Supprimer ?', `« ${item.titre} » sera supprimé du Google Sheet.`, [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Supprimer',
-        style: 'destructive',
-        onPress: doDelete,
-      },
-    ]);
-  };
+
 
   return (
     <HierarchyContext.Provider value={h}>
@@ -841,20 +822,16 @@ export function TaskForm({
               </ChampFiche>
             </SectionFiche>
 
-            {item && enfants.length > 0 && (
-              <Pressable style={styles.cascade} onPress={() => setCascadeDel((v) => !v)} accessibilityRole="checkbox" accessibilityState={{ checked: cascadeDel }}>
-                <Text style={styles.cascadeBox}>{cascadeDel ? '☑' : '☐'}</Text>
-                <Text style={styles.cascadeText}>
-                  En supprimant, supprimer aussi les {enfants.length} sous-tâche{enfants.length > 1 ? 's' : ''} (sinon elles deviennent des tâches normales)
-                </Text>
-              </Pressable>
-            )}
+            {/* Suppression : le bloc commun des fiches (case « aussi ses sous-tâches », confirmation) */}
             {item && (
-              <Pressable style={styles.deleteBtn} onPress={remove} disabled={busy}>
-                <Text style={styles.deleteText}>
-                  {confirmDelete ? 'Toucher encore pour confirmer' : `Supprimer ${TYPE_ARTICLE[form.type]}`}
-                </Text>
-              </Pressable>
+              <DeleteSection
+                label={`Supprimer ${TYPE_ARTICLE[form.type]}`}
+                name={item.titre}
+                children={enfants.length ? `${enfants.length > 1 ? `Ses ${enfants.length} sous-tâches` : 'Sa sous-tâche'}` : ''}
+                keepText="comme tâches normales"
+                disabled={busy}
+                onDelete={(cascade) => void doDelete(cascade)}
+              />
             )}
             </AutoContext.Provider>
           </ScrollView>
@@ -891,9 +868,6 @@ const styles = StyleSheet.create({
   subPoints: { width: 52, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 6, textAlign: 'center', fontSize: 14, color: colors.text },
   finish: { marginTop: 10, backgroundColor: '#E6F4EA', borderRadius: 10, padding: 12 },
   finishText: { color: colors.success, fontWeight: '700', fontSize: 14 },
-  cascade: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 28 },
-  cascadeBox: { fontSize: 20, color: colors.danger },
-  cascadeText: { flex: 1, fontSize: 13.5, color: colors.text },
   phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   phoneInput: { flex: 1, minWidth: 0 },
   callBtn: { backgroundColor: '#00897B', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12 },
@@ -925,13 +899,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   notes: { minHeight: 110 },
-  deleteBtn: {
-    marginTop: 32,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: '#FCE8E6',
-  },
   hint: { marginTop: 10, fontSize: 13, color: colors.muted },
   error: {
     color: colors.danger,
@@ -941,5 +908,4 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 14,
   },
-  deleteText: { color: colors.danger, fontSize: 16, fontWeight: '600' },
 });
