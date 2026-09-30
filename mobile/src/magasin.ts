@@ -354,6 +354,25 @@ export function creerMagasin(p: Persistance) {
       await p.ecrire(kind, list.map((e) => (e.id === o.id ? o : e)) as never);
       return o;
     },
+    /**
+     * Modifier un échange envoyé : tant qu'il n'est pas lu (toujours là, statut « envoye »), il est modifié sur
+     * place ; déjà lu (répondu, pris en compte ou supprimé), la modification part en nouvel échange. Une lecture,
+     * une écriture.
+     */
+    async modifierEchange(patch: Partial<Echange> & { id: string }): Promise<{ e: Echange; nouveau: boolean }> {
+      const list = (await p.lire('echange')) as Echange[];
+      const now = new Date().toISOString();
+      const current = list.find((e) => e.id === patch.id);
+      if (current && current.statut === 'envoye') {
+        const o = { ...nettoyerEntite('echange', patch, current, []), id: current.id, cree_le: current.cree_le, modifie_le: now } as Echange;
+        await p.ecrire('echange', list.map((e) => (e.id === o.id ? o : e)) as never);
+        return { e: o, nouveau: false };
+      }
+      const { id: _id, ...reste } = patch;
+      const o = { ...nettoyerEntite('echange', { ...reste, reponse: '', note: '', statut: 'envoye' }, undefined, []), id: nouvelId(), cree_le: now, modifie_le: now } as Echange;
+      await p.ecrire('echange', [...list, o] as never);
+      return { e: o, nouveau: true };
+    },
     /** Organisation de l'entreprise (onglets créés au premier usage) */
     async listOrg(): Promise<Org> {
       const [personnes, unites, portfolios, trains, equipes] = await Promise.all([p.lire('personne'), p.lire('unite'), p.lire('portfolio'), p.lire('train'), p.lire('equipeagile')]);

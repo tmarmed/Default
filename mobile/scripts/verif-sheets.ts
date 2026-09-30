@@ -254,6 +254,16 @@ const ok = (cond: unknown, msg: string) => {
   reglerQuota({ limite: 1e9, fenetre: 60_000, ecart: 0 });
   ok(duree >= 550, `quota respecté : 7 écritures étalées sur ${duree} ms (au plus 3 par fenêtre)`);
 
+  // Modifier un échange : pas encore lu → modifié sur place ; lu entre-temps (répondu) → nouvel échange
+  const ech = await l.createEntity('echange', { de: 'moi@x.fr', a: 'lea@x.fr', type: 'question', titre: 'Revue ?', texte: '', choix: 'Jeudi;Autre', reponse: '', note: '', statut: 'envoye', element: '', niveau: '', transmis_par: '', prive: '1' } as never);
+  const avantModif = appels;
+  const m1 = await l.modifierEchange({ ...ech, titre: 'Revue jeudi ?' });
+  ok(!m1.nouveau && m1.e.id === ech.id && m1.e.titre === 'Revue jeudi ?' && appels - avantModif === 2, `échange non lu modifié sur place (${appels - avantModif} appels)`);
+  await l.updateEntity('echange', { id: ech.id, reponse: 'Jeudi', statut: 'repondu' } as never);
+  const m2 = await l.modifierEchange({ ...ech, titre: 'Revue vendredi ?' });
+  const echs = (await l.listAll()).echanges ?? [];
+  ok(m2.nouveau && echs.length === 2 && echs.find((x) => x.id === ech.id)?.reponse === 'Jeudi' && m2.e.statut === 'envoye' && m2.e.a === 'lea@x.fr', 'échange déjà lu : la modification part en nouvel échange, l\'ancien reste');
+
   // Fichier ancien : onglet Taches de 28 colonnes (grille comprise) ; les colonnes ajoutées depuis doivent passer
   const idV = await creerFichierEspace('President | Équipe | Ancien', 'equipe', 'Ancien');
   const fv = fichiers.get(idV)!;

@@ -146,6 +146,13 @@ export async function updateEntity<K extends EntityKind>(
   return marquer(await m.updateEntity(kind, data as never), e) as unknown as EntityMap[K];
 }
 
+/** Modifie un échange s'il n'est pas encore lu, sinon l'envoie en nouvel échange (voir magasin) */
+export async function modifierEchange(settings: Settings, data: Partial<Echange> & { id: string; espace: string }): Promise<{ e: Echange; nouveau: boolean }> {
+  const { e, m } = route(settings, data.espace);
+  const r = await m.modifierEchange(data);
+  return { e: marquer(r.e, e) as unknown as Echange, nouveau: r.nouveau };
+}
+
 /**
  * Crée des domaines (et leurs sous-domaines) dans un espace : domaines de base de Moi, ou copie à la création
  * d'un espace. Ceux que l'espace a déjà (même nom) ne sont pas recréés.

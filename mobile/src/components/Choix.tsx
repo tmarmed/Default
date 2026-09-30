@@ -714,13 +714,14 @@ export function LigneEnfant({
         {ajoute && !avant && <Text style={[s.badge, s.badgeVert]}>ajoutée</Text>}
         {ajoute && !!avant && <Pastille texte="déplacée" ouvert={ch.ouvert} onPress={ch.basculer} />}
         {onPress && <Text style={s.chev}>›</Text>}
+        {/* Ajouté ici, pas encore enregistré : un petit ✕ discret en bout de ligne le retire */}
+        {ajoute && !avant && onAnnuler && (
+          <Pressable onPress={onAnnuler} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Retirer ${texte}`}>
+            <Text style={s.croix}>✕</Text>
+          </Pressable>
+        )}
       </Pressable>
       {ajoute && ch.ouvert && onAnnuler && <DetailChangement avant={avant ?? ''} onAnnuler={onAnnuler} />}
-      {ajoute && !avant && onAnnuler && (
-        <Pressable onPress={onAnnuler} hitSlop={6} style={s.retirer} accessibilityRole="button">
-          <Text style={s.detailLien}>Annuler le changement</Text>
-        </Pressable>
-      )}
       {!!sous && <Text style={s.sous}>{sous}</Text>}
     </View>
   );
@@ -805,6 +806,7 @@ export function ListeEnfants({
 }
 
 const s = StyleSheet.create({
+  croix: { fontSize: 14, color: CLAIR, paddingHorizontal: 4 },
   titreSec: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 7, paddingHorizontal: 4, minHeight: 24 },
   titreSecTexte: { flex: 1, fontSize: 11.5, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
   aDefinir: { fontSize: 12, fontWeight: '700', color: ORANGE },
@@ -851,7 +853,6 @@ const s = StyleSheet.create({
   detail: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, backgroundColor: JAUNE, paddingHorizontal: 12, paddingVertical: 7 },
   detailTexte: { flex: 1, minWidth: 120, fontSize: 12.5, color: JAUNE_TEXTE },
   detailLien: { fontSize: 12.5, fontWeight: '700', color: colors.primary },
-  retirer: { paddingHorizontal: 12, paddingBottom: 8, alignSelf: 'flex-start' },
   // Feuille
   fond: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', alignItems: 'center' },
   feuille: { width: '100%', maxWidth: 520, maxHeight: '82%', backgroundColor: colors.bg, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 12 },

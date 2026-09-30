@@ -2366,6 +2366,18 @@ function Main() {
           onRepondre={async (e, reponse, note) => {
             await saveEntity('echange', e, { reponse, note, statut: 'repondu' });
           }}
+          onModifier={async (e, patch) => {
+            if (!settings) return;
+            // Pas encore lu : modifié sur place ; lu entre-temps : parti en nouvel échange (l'ancien reste tel quel)
+            const r = await api.modifierEchange(settings, { ...e, ...patch, id: e.id, espace: e.espace ?? 'moi' });
+            setHier((prev) => {
+              const liste = prev.echanges ?? [];
+              const next = { ...prev, echanges: r.nouveau ? [...liste, r.e] : liste.map((x) => (x.id === r.e.id ? r.e : x)) };
+              saveHierarchyCache(next).catch(() => {});
+              return next;
+            });
+            setInfo(r.nouveau ? "Déjà lu : votre modification est partie en nouvel échange." : 'Échange modifié.');
+          }}
           onRetirer={retirerEchange}
         />
       )}

@@ -55,6 +55,8 @@ interface Props {
   };
   onEnvoyer: (e: EchangeInput) => Promise<void>;
   onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>;
+  /** Modifier un échange envoyé : sur place s'il n'est pas lu, sinon en nouvel échange */
+  onModifier: (e: Echange, patch: Partial<EchangeInput>) => Promise<void>;
   /** Lu, pris en compte ou retiré : l'échange est supprimé */
   onRetirer: (e: Echange) => Promise<void>;
   /** Hiérarchie (entreprise) : niveau affiché, escalade au niveau au-dessus, transmission à quelqu'un d'autre */
@@ -106,11 +108,11 @@ const AIDE: { q: string; r: string }[] = [
   { q: 'Claude', r: '🔄 Synchro › Claude : une conversation comme avec une personne (IA chat). Claude lit et répond dans votre Sheet avec le connecteur Google Sheets.' },
 ];
 
-export function EchangesView({ moi, echanges, personnes, espaces, president, onEnvoyer, onRepondre, onRetirer, hierarchie }: Props) {
+export function EchangesView({ moi, echanges, personnes, espaces, president, onEnvoyer, onRepondre, onModifier, onRetirer, hierarchie }: Props) {
   const [ouvert, setOuvertEtat] = useState<string | null>(null);
   /** Mode chat : en ouvrant une conversation, ce qui attend votre réponse défile dans une fenêtre */
   const [chat, setChat] = useState<{ titre: string; elements: ElementChat[] } | null>(null);
-  const [nouveau, setNouveau] = useState<{ a: string } | null>(null);
+  const [nouveau, setNouveau] = useState<{ a: string; existant?: Echange } | null>(null);
   const nomDe = (id: string) => (id === 'claude' ? 'Claude' : id === 'president' ? 'President' : personnes.find((p) => p.id === id)?.nom || nomDepuisEmail(id));
   const avecMoi = echanges.filter((e) => e.de === moi || e.a === moi);
   // Conversations avec des personnes : celles qui ont des échanges en cours, puis les autres connues
@@ -165,12 +167,13 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
           echanges={entre(ouvert)}
           onRetour={() => setOuvert(null)}
           onNouveau={() => setNouveau({ a: ouvert })}
+          onModifier={(e) => setNouveau({ a: e.a, existant: e })}
           onRepondre={onRepondre}
           onRetirer={onRetirer}
           hierarchie={hierarchie}
           nomDe={nomDe}
         />
-        <NouvelEchange a={nouveau?.a ?? ''} visible={!!nouveau} moi={moi} personnes={personnes} espaces={espaces} onClose={() => setNouveau(null)} onEnvoyer={onEnvoyer} />
+        <NouvelEchange a={nouveau?.a ?? ''} existant={nouveau?.existant} visible={!!nouveau} moi={moi} personnes={personnes} espaces={espaces} onClose={() => setNouveau(null)} onEnvoyer={onEnvoyer} onModifier={onModifier} />
         {fenetreChat}
       </>
     );
@@ -218,7 +221,7 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
         <View style={s.carte}>{lignes}</View>
         <Text style={s.aide}>Sans historique : un message lu, ou une réponse prise en compte, disparaît.</Text>
       </ScrollView>
-      <NouvelEchange a={nouveau?.a ?? ''} visible={!!nouveau} moi={moi} personnes={personnes} espaces={espaces} onClose={() => setNouveau(null)} onEnvoyer={onEnvoyer} />
+      <NouvelEchange a={nouveau?.a ?? ''} existant={nouveau?.existant} visible={!!nouveau} moi={moi} personnes={personnes} espaces={espaces} onClose={() => setNouveau(null)} onEnvoyer={onEnvoyer} onModifier={onModifier} />
     </>
   );
 }
@@ -242,6 +245,7 @@ function Conversation({
   echanges,
   onRetour,
   onNouveau,
+  onModifier,
   onRepondre,
   onRetirer,
   hierarchie,
@@ -254,6 +258,8 @@ function Conversation({
   echanges: Echange[];
   onRetour: () => void;
   onNouveau: () => void;
+  /** Ouvre la fiche de l'échange envoyé pour le modifier */
+  onModifier: (e: Echange) => void;
   onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>;
   onRetirer: (e: Echange) => Promise<void>;
 }) {
@@ -322,7 +328,7 @@ function Conversation({
       {!!(attente.length || autres.length) && (
         <Bloc titre="En attente de l'autre" vide="">
           {attente.map((e) => (
-            <CarteMessage key={e.id} e={e} gris action="Retirer" onAction={() => onRetirer(e)} />
+            <CarteMessage key={e.id} e={e} gris action="Retirer" onAction={() => onRetirer(e)} modifier={() => onModifier(e)} />
           ))}
           {autres.map((e) => (
             <CarteMessage key={e.id} e={e} reponse gris />
@@ -376,7 +382,7 @@ function Bloc({ titre, vide, children }: { titre: string; vide: string; children
   );
 }
 
-function CarteMessage({ e, action, onAction, reponse, gris, pied }: { e: Echange; action?: string; onAction?: () => void; reponse?: boolean; gris?: boolean; pied?: ReactNode }) {
+function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier }: { e: Echange; action?: string; onAction?: () => void; reponse?: boolean; gris?: boolean; pied?: ReactNode; modifier?: () => void }) {
   return (
     <View style={[s.carte, s.carteEchange, gris && s.gris]}>
       {!!e.element && <FilEchange id={e.element} />}
@@ -390,10 +396,19 @@ function CarteMessage({ e, action, onAction, reponse, gris, pied }: { e: Echange
           {e.note ? ` — ${e.note}` : ''}
         </Text>
       )}
-      {!!action && onAction && (
-        <Pressable onPress={onAction} style={s.action} accessibilityRole="button">
-          <Text style={s.actionTexte}>{action}</Text>
-        </Pressable>
+      {(!!(action && onAction) || !!modifier) && (
+        <View style={s.actionsLigne}>
+          {!!modifier && (
+            <Pressable onPress={modifier} style={s.action} accessibilityRole="button">
+              <Text style={s.actionTexte}>✏️ Modifier</Text>
+            </Pressable>
+          )}
+          {!!action && onAction && (
+            <Pressable onPress={onAction} style={s.action} accessibilityRole="button">
+              <Text style={s.actionTexte}>{action}</Text>
+            </Pressable>
+          )}
+        </View>
       )}
       {pied}
     </View>
@@ -494,20 +509,25 @@ function President({ alertes, onOuvrir, messages, onLu, onRetour }: Props['presi
 
 function NouvelEchange({
   a,
+  existant,
   visible,
   moi,
   personnes,
   espaces,
   onClose,
   onEnvoyer,
+  onModifier,
 }: {
   a: string;
+  /** Échange envoyé à modifier (sinon : nouvel échange) */
+  existant?: Echange;
   visible: boolean;
   moi: string;
   personnes: Interlocuteur[];
   espaces: { id: string; nom: string }[];
   onClose: () => void;
   onEnvoyer: (e: EchangeInput) => Promise<void>;
+  onModifier: (e: Echange, patch: Partial<EchangeInput>) => Promise<void>;
 }) {
   const [dest, setDest] = useState(a);
   const [espace, setEspace] = useState(espaces.find((e) => e.id !== 'moi')?.id ?? espaces[0]?.id ?? 'moi');
@@ -522,18 +542,18 @@ function NouvelEchange({
   const [ouvertPour, setOuvertPour] = useState<string | null>(null);
   const h = useHierarchy();
   // Remise à zéro à chaque ouverture
-  const cle = visible ? a || '·' : null;
+  const cle = visible ? existant?.id ?? (a || '·') : null;
   if (cle !== ouvertPour) {
     setOuvertPour(cle);
     if (visible) {
-      setDest(a);
-      setEspace(espaces.find((e) => e.id !== 'moi')?.id ?? espaces[0]?.id ?? 'moi');
-      setType('message');
-      setTitre('');
-      setTexte('');
-      setChoix([]);
+      setDest(existant?.a ?? a);
+      setEspace(existant?.espace ?? espaces.find((e) => e.id !== 'moi')?.id ?? espaces[0]?.id ?? 'moi');
+      setType(existant?.type ?? 'message');
+      setTitre(existant?.titre ?? '');
+      setTexte(existant?.texte ?? '');
+      setChoix(existant ? existant.choix.split(';').map((c) => c.trim()).filter(Boolean) : []);
       setSaisieChoix('');
-      setElement('');
+      setElement(existant?.element ?? '');
       setError(null);
     }
   }
@@ -548,9 +568,17 @@ function NouvelEchange({
     if (!titre.trim() && !texte.trim()) return setError('Écrivez un titre ou un texte.');
     // Un choix tapé sans Entrée compte aussi ; « ; » est le séparateur du Sheet
     const liste = [...new Set([...choix, saisieChoix].map((c) => c.replace(/;/g, ',').trim()).filter(Boolean))];
-    if (type === 'question' && liste.length < 2) return setError('Une question propose au moins deux choix de réponse.');
+    // Un seul choix : « Autre » est ajouté pour qu'on puisse répondre autrement
+    if (type === 'question' && liste.length === 1) liste.push('Autre');
+    if (type === 'question' && !liste.length) return setError('Ajoutez au moins un choix de réponse.');
     setBusy(true);
     try {
+      const contenu = { type, titre: titre.trim(), texte: texte.trim(), choix: type === 'question' ? liste.join(';') : '', element };
+      if (existant) {
+        await onModifier(existant, contenu);
+        onClose();
+        return;
+      }
       await onEnvoyer({ espace, de: moi, a: dest, type, titre: titre.trim(), texte: texte.trim(), choix: type === 'question' ? liste.join(';') : '', reponse: '', note: '', statut: 'envoye', element, niveau: '', transmis_par: '', prive: '1' });
       onClose();
     } catch (e) {
@@ -560,9 +588,10 @@ function NouvelEchange({
     }
   };
   return (
-    <FormSheet visible={visible} title="Nouvel échange" busy={busy} error={error} onClose={onClose} onSave={() => void envoyer()} libelleEnregistrer="Envoyer">
+    <FormSheet visible={visible} title={existant ? "Modifier l'échange" : "Nouvel échange"} busy={busy} error={error} onClose={onClose} onSave={() => void envoyer()} libelleEnregistrer="Envoyer">
       {/* Même modèle que les autres fiches : grand titre en haut, puis ce qu'on écrit en premier */}
       <TitreFiche icone={type === 'question' ? '❓' : '✉️'} titre={titre} vide={type === 'question' ? 'Votre question' : 'Titre du message'} sous={dest ? `À ${nomDest(dest)}` : undefined} />
+      {!!existant && <Text style={s.aide}>Pas encore lu : l'échange est modifié. Lu entre-temps : votre modification part en nouvel échange.</Text>}
       <SectionFiche titre="Échange">
         <ChampFiche label="Titre">
           <SaisieFiche placeholder="À écrire" value={titre} onChangeText={setTitre} autoFocus returnKeyType="next" />
@@ -580,7 +609,7 @@ function NouvelEchange({
       </SectionFiche>
       {/* Choix de réponse : saisie rapide, comme les tâches d'une feature (Entrée pour ajouter) */}
       {type === 'question' && (
-        <SectionFiche titre={`Choix de réponse · ${choix.length}`} aDefinir={choix.length < 2 ? 1 : 0}>
+        <SectionFiche titre={`Choix de réponse · ${choix.length}`} aDefinir={choix.length ? 0 : 1}>
           {choix.map((c, i) => (
             <View key={`${c}${i}`} style={[s.ligneChoix, i > 0 && s.ligneBord]}>
               <Text style={s.texteChoix}>{c}</Text>
@@ -603,13 +632,14 @@ function NouvelEchange({
               setSaisieChoix('');
             }}
           />
-          <Text style={s.entree}>Entrée pour ajouter · au moins deux choix</Text>
+          <Text style={s.entree}>{choix.length === 1 ? 'Entrée pour ajouter · « Autre » sera ajouté' : 'Entrée pour ajouter'}</Text>
         </SectionFiche>
       )}
       <SectionFiche titre="Destinataire" aDefinir={dest ? 0 : 1}>
         <LigneChoix
           label="À"
           value={dest}
+          fige={!!existant}
           attendu
           groupes={[
             { titre: 'IA', options: [{ value: 'claude', label: '💬 Claude', meta: 'IA chat' }] },
@@ -618,7 +648,7 @@ function NouvelEchange({
           libelle={nomDest}
           onChange={setDest}
         />
-        {dest !== 'claude' && espacesPartages.length > 1 && (
+        {dest !== 'claude' && espacesPartages.length > 1 && !existant && (
           <LigneChoix
             fixe
             label="Espace"
@@ -693,6 +723,7 @@ const s = StyleSheet.create({
   actionTexte: { fontSize: 13.5, fontWeight: '700', color: colors.text },
   actionTexteBlanc: { color: '#fff' },
   inactif: { opacity: 0.4 },
+  actionsLigne: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   filElement: { fontSize: 12, fontWeight: '600', color: colors.primary },
   outils: { marginTop: 8, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, gap: 6 },
   enteteEcran: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 16, marginBottom: 6 },
