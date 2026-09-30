@@ -22,11 +22,13 @@ function lireModeDemo(): boolean {
     return false;
   }
 }
-export const DEMO = DEMO_COMPILE || lireModeDemo();
+/** Mode démo retiré de l'application principale : seulement pour la version démo compilée (tests) */
+export const DEMO = DEMO_COMPILE;
+void lireModeDemo;
 /** Démo : votre adresse (auteur et destinataire des échanges) */
 export const MOI_DEMO = 'vous@demo';
 /** Le bouton « Mode démo » existe seulement dans la version principale, dans le navigateur */
-export const DEMO_BASCULABLE = !DEMO_COMPILE && typeof window !== 'undefined' && !!window.localStorage;
+export const DEMO_BASCULABLE = false;
 export function changerModeDemo(actif: boolean) {
   try {
     if (actif) window.localStorage.setItem(MODE_DEMO_KEY, '1');
@@ -43,11 +45,15 @@ export function changerModeDemo(actif: boolean) {
  * sont relues depuis vos Google Sheets : rien n'est perdu.
  */
 export async function purgerRestesDemo(): Promise<boolean> {
-  const FAIT = 'president:purge-demo-1';
+  const FAIT = 'president:purge-demo-2';
   try {
     if (DEMO || (await AsyncStorage.getItem(FAIT))) return false;
+    // Anciennes démos (clés partagées), démo rangée à part (« demo~… ») et interrupteur de démo retiré
     const cles = (await AsyncStorage.getAllKeys()).filter(
-      (k) => k.startsWith('mes-taches:demo') || ['mes-taches:cache', 'mes-taches:cache-epics', 'president:org-cache', 'president:messages-app'].includes(k),
+      (k) =>
+        k.startsWith('mes-taches:demo') ||
+        k.startsWith('demo~') ||
+        ['mes-taches:cache', 'mes-taches:cache-epics', 'president:org-cache', 'president:messages-app', 'president:mode-demo', 'president:purge-demo-1'].includes(k),
     );
     await AsyncStorage.multiRemove(cles);
     await AsyncStorage.setItem(FAIT, '1');

@@ -68,7 +68,7 @@ import {
 } from './src/dates';
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { GOOGLE_AUTH, VERSION } from './src/config';
-import { changerModeDemo, DEMO, DEMO_BASCULABLE, MOI_DEMO, purgerRestesDemo, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
+import { DEMO, MOI_DEMO, purgerRestesDemo, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
 import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, lireNomFichier, loadRetires, loadSupprimes, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveSupprimes, saveVisibles } from './src/espaces';
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
@@ -185,8 +185,6 @@ const TAB_ICONS: Record<Tab, string> = {
 const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches' };
 /** Messages de l'application gardés sur l'appareil jusqu'à « Lu ✓ » */
 const MESSAGES_APP_KEY = 'president:messages-app';
-/** Missions déjà écrites une fois d'elles-mêmes dans l'espace « President » */
-const MISSIONS_AUTO_KEY = 'president:echange-missions-auto';
 /** Écrans prévus, encore vides (règles de gestion à définir) */
 const A_VENIR: Tab[] = ['equipe', 'pilotage'];
 /** Nom de l'application : début du nom des fichiers des espaces */
@@ -454,6 +452,9 @@ function Main() {
   const [epicFormOpen, setEpicFormOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
+  /** Nombre de chargements complets réussis (déclenche l'écriture des missions manquantes) */
+  const [chargeOk, setChargeOk] = useState(0);
+  const missionsAuto = useRef(false);
   const [offline, setOffline] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -767,6 +768,7 @@ function Main() {
         setHier(all);
         saveHierarchyCache(all).catch(() => {});
         setOffline(echecs.length ? `Espace de travail injoignable : ${echecs.map((e) => e.nom).join(', ')}.` : null);
+        setChargeOk((n) => n + 1);
       } catch (e) {
         if (e instanceof AuthError) {
           // Session Google expirée : un appui sur « Continuer avec … » suffit (les données restent affichées ensuite)
@@ -1373,7 +1375,7 @@ function Main() {
     const de = (x: { espace?: string }) => x.espace === espaceMissions.id;
     return compterChangements(tousHier.epics.filter(de), tousHier.features.filter(de));
   }, [espaceMissions, tousHier]);
-  const synchroMissions = async (): Promise<string> => {
+  const synchroMissions = async (seulementManquants = false): Promise<string> => {
     if (!settings) throw new Error("Connectez-vous d'abord à Google.");
     let e = espaceMissions;
     if (!e) {
@@ -1390,7 +1392,7 @@ function Main() {
     for (const l of FIL.lots) {
       let ep: Epic | undefined = epicDuLot(l, d.epics);
       const ch = changementEpic(l, ep);
-      if (ch) {
+      if (ch && !(seulementManquants && ep)) {
         ep = ep
           ? await api.updateEntity(settings, 'epic', { id: ep.id, ...ch })
           : await api.createEntity(settings, 'epic', { titre: '', description: '', couleur: '', etat: '', ...ch, debut: today, fin: '', objectif: '', domaine: '', espace: e.id } as EpicInput);
@@ -1399,7 +1401,7 @@ function Main() {
       for (const et of l.etapes) {
         const fe = featureDeEtape(et, ep!.id, d.features);
         const cf = changementFeature(et, fe);
-        if (!cf) continue;
+        if (!cf || (seulementManquants && fe)) continue;
         if (fe) await api.updateEntity(settings, 'feature', { id: fe.id, ...cf });
         else await api.createEntity(settings, 'feature', { titre: '', description: '', ...cf, epic: ep!.id, pi: '', iteration: '', points: '', couleur: couleurLot(l.num), espace: e.id } as FeatureInput);
         n++;
@@ -1410,28 +1412,23 @@ function Main() {
     return n ? `${n} changement${n > 1 ? 's' : ''} écrit${n > 1 ? 's' : ''} dans l'espace « ${NOM_ESPACE_MISSIONS} ».` : `L'espace « ${NOM_ESPACE_MISSIONS} » est déjà à jour.`;
   };
 
-  // Première connexion avec le fil d'échange (hors démo) : les missions sont écrites une fois d'elles-mêmes dans
-  // l'espace « President » de votre Google Drive ; ensuite, « Mettre à jour » dans 💬 Échange.
+  // Missions (lots = epics, étapes = features) dans l'espace « President » de votre Google Drive : créé s'il n'existe
+  // pas ; les epics et features manquantes y sont écrites d'elles-mêmes ; « Mettre à jour » réécrit le reste.
   useEffect(() => {
-    if (DEMO || !echangeActif || !settings?.googleEmail || espaceMissions) return;
-    let annule = false;
-    (async () => {
-      if (await AsyncStorage.getItem(MISSIONS_AUTO_KEY)) return;
-      const liste = await loadEspaces([ESPACE_MOI]);
-      if (annule || liste.some((e) => e.type === 'equipe' && e.nom === NOM_ESPACE_MISSIONS)) return;
-      await AsyncStorage.setItem(MISSIONS_AUTO_KEY, '1');
-      try {
-        setInfo(await synchroMissions());
-      } catch (e) {
-        await AsyncStorage.removeItem(MISSIONS_AUTO_KEY);
+    // Après le premier chargement complet (espaces du Drive retrouvés) : missions manquantes écrites, sans
+    // réécrire celles qui existent déjà (vos changements restent) ; une fois par ouverture de l'application
+    if (DEMO || !settings?.googleEmail || !chargeOk || missionsAuto.current) return;
+    missionsAuto.current = true;
+    const manquants = !espaceMissions || (changementsMissions ?? 0) > 0;
+    if (!manquants) return;
+    synchroMissions(true)
+      .then((m) => m.includes('déjà à jour') || setInfo(`Missions : ${m}`))
+      .catch((e) => {
+        missionsAuto.current = false;
         setNotice(`Missions pas encore écrites dans votre Google Sheet : ${(e as Error).message}`);
-      }
-    })();
-    return () => {
-      annule = true;
-    };
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [echangeActif, settings?.googleEmail, espaceMissions]);
+  }, [settings?.googleEmail, chargeOk]);
 
   // 💬 Échanges : votre adresse, vos interlocuteurs, ce qui attend votre réponse
   const orgEchanges = useMemo(() => makeOrgValue(orgTous), [orgTous]);
@@ -2052,22 +2049,6 @@ function Main() {
         <Text style={styles.marque} numberOfLines={1}>
           {NOM_APP}
         </Text>
-        {/* Interrupteur Démo, à droite de « President » : désactivé par défaut (vos données) ; activé = données d'exemple */}
-        {DEMO_BASCULABLE && (
-          <Pressable
-            onPress={() => changerModeDemo(!DEMO)}
-            style={[styles.demoBascule, DEMO && styles.demoBasculeOn]}
-            hitSlop={6}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: DEMO }}
-            accessibilityLabel="Mode démo"
-          >
-            <Text style={[styles.demoBasculeTexte, DEMO && styles.demoBasculeTexteOn]}>Démo</Text>
-            <View style={[styles.demoPiste, DEMO && styles.demoPisteOn]}>
-              <View style={[styles.demoBouton, DEMO && styles.demoBoutonOn]} />
-            </View>
-          </Pressable>
-        )}
         {/* Espaces de travail : pastille juste après « President » (repliés), la carte se déplie dessous */}
         <EspacesPastille plie={espacesPlie} onPlier={plierEspaces} />
         <Pressable
@@ -2845,7 +2826,6 @@ function Main() {
           DEMO
             ? [
                 { label: '☁️ Stockage Google Drive', onPress: ouvrirStockage },
-                ...(DEMO_BASCULABLE ? [{ label: '🧪 Quitter le mode démo (retour à vos données)', principal: true, onPress: () => changerModeDemo(false) }] : []),
                 {
                   label: 'Réinitialiser la démo',
                   onPress: async () => {
@@ -2869,7 +2849,6 @@ function Main() {
                     }
                   },
                 },
-                ...(DEMO_BASCULABLE ? [{ label: '🧪 Mode démo (données d’exemple)', onPress: () => changerModeDemo(true) }] : []),
                 { label: 'Se déconnecter', onPress: logout },
               ]
         }
@@ -3298,14 +3277,6 @@ const styles = StyleSheet.create({
   contenu: { flex: 1, minHeight: 0 },
   filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   appBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 14, paddingTop: 10, height: 50 },
-  demoBascule: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 26, paddingLeft: 8, paddingRight: 4, borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, marginRight: 8 },
-  demoBasculeOn: { borderColor: colors.warning, backgroundColor: '#FFF4E5' },
-  demoBasculeTexte: { fontSize: 11.5, fontWeight: '700', color: colors.muted },
-  demoBasculeTexteOn: { color: '#B45309' },
-  demoPiste: { width: 26, height: 16, borderRadius: 8, backgroundColor: '#D5DBE4', padding: 2 },
-  demoPisteOn: { backgroundColor: colors.warning },
-  demoBouton: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#fff' },
-  demoBoutonOn: { transform: [{ translateX: 10 }] },
   marque: { fontSize: 15, fontWeight: '800', color: colors.text, letterSpacing: 0.2, marginRight: 8 },
   demoBtn: { paddingVertical: 4 },
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },

@@ -12,14 +12,13 @@ qu'on peut donc aussi consulter depuis un ordinateur.
 
 ### Version SAFe (branche `claude/version-safe`) : espaces
 
-**En ligne : <https://tmarmed.github.io/Default/safe/>**, publiée automatiquement à chaque modification : **seul lien** de l'application (la démo s'y
-allume par l'interrupteur « Démo »).
+**En ligne : <https://tmarmed.github.io/Default/safe/>**, publiée automatiquement à chaque modification : **seul lien** de l'application .
 
 - **Espaces de travail** (« espaces » ci-dessous) : chaque espace de travail est un Google Sheet, d'un type choisi à sa création : 🔒 **Moi** (un seul, jamais
   partagé), 👥 **Équipe** (équipe indépendante), 🏢 **Entreprise** (avec ses équipes). Nom du fichier :
   `President | Moi`, `President | Équipe | Mobile`, `President | Entreprise | ACME` (séparateur `|`).
 - **En haut** : une barre fixe « President » avec, à droite, l'icône standard du compte (silhouette, point vert =
-  connecté ; menu : Stockage Google Drive, 🗂️ Missions (écrire ou mettre à jour l'espace « President »), 🧪 Mode démo, Se déconnecter ; à droite de « President », interrupteur « Démo » (éteint = vos données, allumé = données d’exemple) — en démo : Stockage Google Drive, Quitter le mode démo, Réinitialiser la démo).
+  connecté ; menu : Stockage Google Drive, 🗂️ Missions (écrire ou mettre à jour l'espace « President »), Se déconnecter).
   Juste après « President », la **pastille des espaces de travail** (« 🔒 Moi · 👥 Mobile ② ▾ » ; jamais coupée
   « … » : le texte rapetisse, puis les derniers noms deviennent « +N ») : la toucher déplie la **carte des espaces de travail** sous la barre (ouverte par défaut, avec son titre
   « ESPACES DE TRAVAIL » ; ▴ la replie ; mémorisé) : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule
@@ -493,13 +492,12 @@ Sur le PC, dans Edge : **⋯ › Applications › Installer ce site en tant qu'a
 menu Démarrer). Dans Chrome : **⋯ › Caster, enregistrer et partager › Installer la page en tant
 qu'application**.
 
-**Mode démo** (données d'exemple, sans Google Sheet) : dans la version principale, désactivé par défaut ; bouton
-« 🧪 Essayer en mode démo » sur l'écran de connexion et « 🧪 Mode démo » dans le menu du compte (retenu sur
-l'appareil, l'application se recharge ; « Quitter le mode démo » revient à vos données). En démo, tout ce que
-l'application garde sur l'appareil est rangé à part (clés « demo~ ») : vos données et la démo ne se mélangent
-jamais ; hors démo, les espaces sans Google Sheet laissés par une démo sont retirés. Les données d'exemple seront
-retirées à la mise en production. Hors démo, au premier lancement de cette version, l'application efface une fois de l'appareil les restes des
-anciennes démos (copies des tâches, epics, Organisation) : « Moi » ne montre que votre Google Sheet. Version démo compilée à part (toujours en démo) :
+**Plus de mode démo dans l'application** : elle travaille seulement sur vos Google Sheets. Au premier lancement de
+cette version, elle efface une fois de l'appareil tout reste de démo (anciennes copies, données « demo~ », ancien
+interrupteur). **Missions** : après chaque ouverture, l'espace Équipe « President » est créé s'il n'existe pas et les
+missions manquantes y sont écrites (lots = epics, étapes = features), sans réécrire celles qui existent ;
+« 🗂️ Missions » (menu du compte) ou « Mettre à jour » (💬 Échange › Claude) réécrit aussi titres et états.
+Données d'exemple pour les tests seulement :
 `EXPO_PUBLIC_DEMO=1 npx expo export --platform web --clear`
 
 ## 3. Installer l'application pour de bon (App Store / Play Store ou installation directe)
