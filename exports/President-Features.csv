@@ -1,100 +1,106 @@
 id,titre,description,epic,pi,iteration,points,couleur,cree_le,modifie_le,train,equipe,rang
-mission-1-1,✓ Discussion,Étape terminée,mission-1,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-1-2,✓ Maquette,Étape terminée,mission-1,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-1-3,✓ Développement,Étape terminée,mission-1,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-1-4,Validation,Étape à faire,mission-1,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-2-1,✓ Discussion,Étape terminée,mission-2,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-2-2,✓ Maquette,Étape terminée,mission-2,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-2-3,✓ Développement,Étape terminée,mission-2,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-2-4,Validation,Étape à faire,mission-2,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-3-1,"✓ Étape 1 · Organisation, personnes, liaison",Étape terminée,mission-3,,,,#8E24AA,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-3-2,Étape 2 · Droits d'après les rôles,Étape à faire,mission-3,,,,#8E24AA,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-3-3,Étape 3 · Attribution et sécurité côté Sheet,Étape à faire,mission-3,,,,#8E24AA,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-4-1,✓ Discussion,Étape terminée,mission-4,,,,#E37400,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-4-2,✓ Maquette,Étape terminée,mission-4,,,,#E37400,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-4-3,✓ Développement,Étape terminée,mission-4,,,,#E37400,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-4-4,Validation,Étape à faire,mission-4,,,,#E37400,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-5-1,Discussion,Étape à faire,mission-5,,,,#00897B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-5-2,Maquette,Étape à faire,mission-5,,,,#00897B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-5-3,Développement,Étape à faire,mission-5,,,,#00897B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-5-4,Validation,Étape à faire,mission-5,,,,#00897B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-6-1,✓ Discussion,Étape terminée,mission-6,,,,#C2185B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-6-2,Maquette,Étape à faire,mission-6,,,,#C2185B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-6-3,Développement,Étape à faire,mission-6,,,,#C2185B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-6-4,Validation,Étape à faire,mission-6,,,,#C2185B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-7-1,Discussion,Étape à faire,mission-7,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-7-2,Maquette,Étape à faire,mission-7,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-7-3,Développement,Étape à faire,mission-7,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-7-4,Validation,Étape à faire,mission-7,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-8-1,✓ Discussion,Étape terminée,mission-8,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-8-2,Maquette,Étape à faire,mission-8,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-8-3,Développement,Étape à faire,mission-8,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-8-4,Validation,Étape à faire,mission-8,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-9-1,Discussion,Étape à faire,mission-9,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-9-2,Maquette,Étape à faire,mission-9,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-9-3,Développement,Étape à faire,mission-9,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-9-4,Validation,Étape à faire,mission-9,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-10-1,Discussion,Étape à faire,mission-10,,,,#8E24AA,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-10-2,Maquette,Étape à faire,mission-10,,,,#8E24AA,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-10-3,Développement,Étape à faire,mission-10,,,,#8E24AA,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-10-4,Validation,Étape à faire,mission-10,,,,#8E24AA,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-11-1,Discussion,Étape à faire,mission-11,,,,#E37400,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-11-2,Maquette,Étape à faire,mission-11,,,,#E37400,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-11-3,Développement,Étape à faire,mission-11,,,,#E37400,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-11-4,Validation,Étape à faire,mission-11,,,,#E37400,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-12-1,Discussion,Étape à faire,mission-12,,,,#00897B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-12-2,Maquette,Étape à faire,mission-12,,,,#00897B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-12-3,Développement,Étape à faire,mission-12,,,,#00897B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-12-4,Validation,Étape à faire,mission-12,,,,#00897B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-13-1,Discussion,Étape à faire,mission-13,,,,#C2185B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-13-2,Maquette,Étape à faire,mission-13,,,,#C2185B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-13-3,Développement,Étape à faire,mission-13,,,,#C2185B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-13-4,Validation,Étape à faire,mission-13,,,,#C2185B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-14-1,Discussion,Étape à faire,mission-14,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-14-2,Maquette,Étape à faire,mission-14,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-14-3,Développement,Étape à faire,mission-14,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-14-4,Validation,Étape à faire,mission-14,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-15-1,Discussion,Étape à faire,mission-15,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-15-2,Maquette,Étape à faire,mission-15,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-15-3,Développement,Étape à faire,mission-15,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-15-4,Validation,Étape à faire,mission-15,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-16-1,Discussion,Étape à faire,mission-16,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-16-2,Maquette,Étape à faire,mission-16,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-16-3,Développement,Étape à faire,mission-16,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-16-4,Validation,Étape à faire,mission-16,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-17-1,Discussion,Étape à faire,mission-17,,,,#8E24AA,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-17-2,Maquette,Étape à faire,mission-17,,,,#8E24AA,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-17-3,Développement,Étape à faire,mission-17,,,,#8E24AA,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-17-4,Validation,Étape à faire,mission-17,,,,#8E24AA,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-18-1,Discussion,Étape à faire,mission-18,,,,#E37400,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-18-2,Maquette,Étape à faire,mission-18,,,,#E37400,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-18-3,Développement,Étape à faire,mission-18,,,,#E37400,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-18-4,Validation,Étape à faire,mission-18,,,,#E37400,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-19-1,Discussion,Étape à faire,mission-19,,,,#00897B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-19-2,Maquette,Étape à faire,mission-19,,,,#00897B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-19-3,Développement,Étape à faire,mission-19,,,,#00897B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-19-4,Validation,Étape à faire,mission-19,,,,#00897B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-20-1,✓ Discussion,Étape terminée,mission-20,,,,#C2185B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-20-2,✓ Maquette (passée : demandée directement),Étape terminée,mission-20,,,,#C2185B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-20-3,✓ Développement,Étape terminée,mission-20,,,,#C2185B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-20-4,Validation,Étape à faire,mission-20,,,,#C2185B,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-21-1,✓ Discussion,Étape terminée,mission-21,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-21-2,"✓ Développement : conversations, types de personne, onglet Echanges",Étape terminée,mission-21,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-21-3,Validation,Étape à faire,mission-21,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-21-4,Affinage : aide à la demande avec le mode assistant (lot 19),Étape à faire,mission-21,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-21-5,"✓ Hiérarchie : niveau commun, Escalader, Transmettre",Étape terminée,mission-21,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,50
-mission-21-6,"Affinage : Sheet privé par paire de personnes (avec le partage réel, lot 3)",Étape à faire,mission-21,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,60
-mission-21-7,Affinage : agents IA (lot 12),Étape à faire,mission-21,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,70
-mission-21-8,Affinage : prévenir quand un échange arrive,Étape à faire,mission-21,,,,#795548,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,80
-mission-22-1,✓ Discussion,Étape terminée,mission-22,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-22-2,Maintenant : Claude lit votre Sheet (connecteur Google Sheets de claude.ai),Étape à faire,mission-22,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-22-3,"Standard : onglet Echanges lisible par toute IA (colonnes, adresses, statuts documentés)",Étape à faire,mission-22,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-22-4,"Claude répond dans l'onglet Echanges (statut repondu), l'app l'affiche",Étape à faire,mission-22,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-22-5,Plus tard : IA dans l'application (API) puis agent IA (lot 12),Étape à faire,mission-22,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,50
-mission-22-6,Validation,Étape à faire,mission-22,,,,#1A73E8,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,60
-mission-23-1,✓ Discussion,Étape terminée,mission-23,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,10
-mission-23-2,✓ Missions : écriture groupée (4 appels) et nouvel essai sur quota dépassé,Étape terminée,mission-23,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,20
-mission-23-3,"Audit : toutes les écritures en série (priorité du Backlog, déplacements du PI, suppressions en cascade, domaines…)",Étape à faire,mission-23,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,30
-mission-23-4,Lectures groupées : un espace en un seul appel (batchGet),Étape à faire,mission-23,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,40
-mission-23-5,"File d'attente des écritures : débit limité, message clair si Google refuse",Étape à faire,mission-23,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,50
-mission-23-6,Validation,Étape à faire,mission-23,,,,#188038,2026-09-30T19:44:24.000Z,2026-09-30T19:44:24.000Z,,,60
+mission-1-1,✓ Discussion,Étape terminée,mission-1,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-1-2,✓ Maquette,Étape terminée,mission-1,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-1-3,✓ Développement,Étape terminée,mission-1,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-1-4,Validation,Étape à faire,mission-1,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-2-1,✓ Discussion,Étape terminée,mission-2,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-2-2,✓ Maquette,Étape terminée,mission-2,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-2-3,✓ Développement,Étape terminée,mission-2,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-2-4,Validation,Étape à faire,mission-2,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-3-1,"✓ Étape 1 · Organisation, personnes, liaison",Étape terminée,mission-3,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-3-2,Étape 2 · Droits d'après les rôles,Étape à faire,mission-3,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-3-3,Étape 3 · Attribution et sécurité côté Sheet,Étape à faire,mission-3,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-4-1,✓ Discussion,Étape terminée,mission-4,,,,#E37400,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-4-2,✓ Maquette,Étape terminée,mission-4,,,,#E37400,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-4-3,✓ Développement,Étape terminée,mission-4,,,,#E37400,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-4-4,Validation,Étape à faire,mission-4,,,,#E37400,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-5-1,Discussion,Étape à faire,mission-5,,,,#00897B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-5-2,Maquette,Étape à faire,mission-5,,,,#00897B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-5-3,Développement,Étape à faire,mission-5,,,,#00897B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-5-4,Validation,Étape à faire,mission-5,,,,#00897B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-6-1,✓ Discussion,Étape terminée,mission-6,,,,#C2185B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-6-2,Maquette,Étape à faire,mission-6,,,,#C2185B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-6-3,Développement,Étape à faire,mission-6,,,,#C2185B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-6-4,Validation,Étape à faire,mission-6,,,,#C2185B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-7-1,Discussion,Étape à faire,mission-7,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-7-2,Maquette,Étape à faire,mission-7,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-7-3,Développement,Étape à faire,mission-7,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-7-4,Validation,Étape à faire,mission-7,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-8-1,✓ Discussion,Étape terminée,mission-8,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-8-2,Maquette,Étape à faire,mission-8,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-8-3,Développement,Étape à faire,mission-8,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-8-4,Validation,Étape à faire,mission-8,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-9-1,Discussion,Étape à faire,mission-9,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-9-2,Maquette,Étape à faire,mission-9,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-9-3,Développement,Étape à faire,mission-9,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-9-4,Validation,Étape à faire,mission-9,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-10-1,Discussion,Étape à faire,mission-10,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-10-2,Maquette,Étape à faire,mission-10,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-10-3,Développement,Étape à faire,mission-10,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-10-4,Validation,Étape à faire,mission-10,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-11-1,Discussion,Étape à faire,mission-11,,,,#E37400,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-11-2,Maquette,Étape à faire,mission-11,,,,#E37400,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-11-3,Développement,Étape à faire,mission-11,,,,#E37400,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-11-4,Validation,Étape à faire,mission-11,,,,#E37400,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-12-1,Discussion,Étape à faire,mission-12,,,,#00897B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-12-2,Maquette,Étape à faire,mission-12,,,,#00897B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-12-3,Développement,Étape à faire,mission-12,,,,#00897B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-12-4,Validation,Étape à faire,mission-12,,,,#00897B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-13-1,Discussion,Étape à faire,mission-13,,,,#C2185B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-13-2,Maquette,Étape à faire,mission-13,,,,#C2185B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-13-3,Développement,Étape à faire,mission-13,,,,#C2185B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-13-4,Validation,Étape à faire,mission-13,,,,#C2185B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-14-1,Discussion,Étape à faire,mission-14,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-14-2,Maquette,Étape à faire,mission-14,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-14-3,Développement,Étape à faire,mission-14,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-14-4,Validation,Étape à faire,mission-14,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-15-1,Discussion,Étape à faire,mission-15,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-15-2,Maquette,Étape à faire,mission-15,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-15-3,Développement,Étape à faire,mission-15,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-15-4,Validation,Étape à faire,mission-15,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-16-1,Discussion,Étape à faire,mission-16,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-16-2,Maquette,Étape à faire,mission-16,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-16-3,Développement,Étape à faire,mission-16,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-16-4,Validation,Étape à faire,mission-16,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-17-1,Discussion,Étape à faire,mission-17,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-17-2,Maquette,Étape à faire,mission-17,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-17-3,Développement,Étape à faire,mission-17,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-17-4,Validation,Étape à faire,mission-17,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-18-1,Discussion,Étape à faire,mission-18,,,,#E37400,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-18-2,Maquette,Étape à faire,mission-18,,,,#E37400,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-18-3,Développement,Étape à faire,mission-18,,,,#E37400,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-18-4,Validation,Étape à faire,mission-18,,,,#E37400,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-19-1,Discussion,Étape à faire,mission-19,,,,#00897B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-19-2,Maquette,Étape à faire,mission-19,,,,#00897B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-19-3,Développement,Étape à faire,mission-19,,,,#00897B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-19-4,Validation,Étape à faire,mission-19,,,,#00897B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-20-1,✓ Discussion,Étape terminée,mission-20,,,,#C2185B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-20-2,✓ Maquette (passée : demandée directement),Étape terminée,mission-20,,,,#C2185B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-20-3,✓ Développement,Étape terminée,mission-20,,,,#C2185B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-20-4,Validation,Étape à faire,mission-20,,,,#C2185B,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-21-1,✓ Discussion,Étape terminée,mission-21,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-21-2,"✓ Développement : conversations, types de personne, onglet Echanges",Étape terminée,mission-21,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-21-3,Validation,Étape à faire,mission-21,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-21-4,Affinage : aide à la demande avec le mode assistant (lot 19),Étape à faire,mission-21,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-21-5,"✓ Hiérarchie : niveau commun, Escalader, Transmettre",Étape terminée,mission-21,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,50
+mission-21-6,"Affinage : Sheet privé par paire de personnes (avec le partage réel, lot 3)",Étape à faire,mission-21,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,60
+mission-21-7,Affinage : agents IA (lot 12),Étape à faire,mission-21,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,70
+mission-21-8,Affinage : prévenir quand un échange arrive,Étape à faire,mission-21,,,,#795548,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,80
+mission-22-1,✓ Discussion,Étape terminée,mission-22,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-22-2,Maintenant : Claude lit votre Sheet (connecteur Google Sheets de claude.ai),Étape à faire,mission-22,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-22-3,"Standard : onglet Echanges lisible par toute IA (colonnes, adresses, statuts documentés)",Étape à faire,mission-22,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-22-4,"Claude répond dans l'onglet Echanges (statut repondu), l'app l'affiche",Étape à faire,mission-22,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-22-5,Plus tard : IA dans l'application (API) puis agent IA (lot 12),Étape à faire,mission-22,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,50
+mission-22-6,Validation,Étape à faire,mission-22,,,,#1A73E8,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,60
+mission-23-1,✓ Discussion,Étape terminée,mission-23,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-23-2,✓ Missions : écriture groupée (4 appels) et nouvel essai sur quota dépassé,Étape terminée,mission-23,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-23-3,"Audit : toutes les écritures en série (priorité du Backlog, déplacements du PI, suppressions en cascade, domaines…)",Étape à faire,mission-23,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-23-4,✓ Lectures groupées : un espace en un seul appel (batchGet),Étape terminée,mission-23,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-23-5,"✓ File d'attente : au plus 50 lectures et 50 écritures par minute, attente croissante sur refus",Étape terminée,mission-23,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,50
+mission-23-6,Validation,Étape à faire,mission-23,,,,#188038,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,60
+mission-24-1,"Discussion : ce que le connecteur permet (lire, écrire, échanger)",Étape à faire,mission-24,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,10
+mission-24-2,"Connecteur (serveur MCP) : tâches, epics, features, échanges, missions",Étape à faire,mission-24,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,20
+mission-24-3,"Mêmes règles que l'application : droits d'après les rôles, quota Google, pas de suppression par l'IA",Étape à faire,mission-24,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,30
+mission-24-4,Connexion avec le compte Google de l'utilisateur,Étape à faire,mission-24,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,40
+mission-24-5,Ajout dans Claude (réglages › connecteurs),Étape à faire,mission-24,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,50
+mission-24-6,Validation,Étape à faire,mission-24,,,,#8E24AA,2026-09-30T20:02:56.000Z,2026-09-30T20:02:56.000Z,,,60
