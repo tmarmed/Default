@@ -1,4 +1,4 @@
-import { PastilleRecherche } from './Choix';
+import { ChampRecherche } from './Choix';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -374,7 +374,7 @@ export function ProjectWizard({ visible, start, onClose, onApply, preselection }
 
             {phase === 'pick' && (
               <>
-                <PastilleRecherche q={search} onChange={setSearch} ouverte />
+                <ChampRecherche q={search} onChange={setSearch} />
                 {(
                   [
                     ['domaine', h.domaineList.map((d) => ({ id: d.id, label: nomDomaine(d, h.domaines, { espace: false }) }))],

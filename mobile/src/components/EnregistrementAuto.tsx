@@ -1,5 +1,6 @@
 import { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors } from '../theme';
 
 /**
  * Enregistrement au fil de l'eau d'un élément EXISTANT (comme l'arbre de l'Organisation) : chaque changement de la
@@ -48,7 +49,7 @@ export function BandeauAnnuler({ bandeau, fermer }: { bandeau: Bandeau | null; f
         </Pressable>
       )}
       <Pressable onPress={fermer} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fermer le message">
-        <Text style={s.btn}>✕</Text>
+        <Text style={s.fermer}>✕</Text>
       </Pressable>
     </View>
   );
@@ -205,12 +206,16 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    backgroundColor: '#1B2330',
+    backgroundColor: colors.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingVertical: 10,
+    boxShadow: '0 2px 10px rgba(20, 30, 50, 0.10)',
   },
-  texte: { flex: 1, color: '#fff', fontSize: 13.5 },
-  btn: { color: '#8AB4F8', fontSize: 14, fontWeight: '800' },
+  texte: { flex: 1, color: colors.text, fontSize: 13.5 },
+  btn: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+  fermer: { color: colors.muted, fontSize: 14 },
 });
 

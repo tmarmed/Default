@@ -307,46 +307,67 @@ export function LigneChoix(p: LigneChoixProps) {
   );
 }
 
-/**
- * Recherche des feuilles de choix d'un élément existant : toujours une pastille 🔍 à gauche (comme le bloc Filtres) ;
- * touchée, elle devient un champ ; ✕ efface et referme.
- */
-export function PastilleRecherche({ q, onChange, ouverte = false }: { q: string; onChange: (q: string) => void; ouverte?: boolean }) {
-  const [ouvert, setOuvert] = useState(ouverte);
+/** Pastille 🔍 des feuilles de choix d'un élément existant : à droite de l'en-tête, en face de « Annuler » */
+export function BoutonRecherche({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={s.rechRond} hitSlop={8} accessibilityRole="button" accessibilityLabel="Rechercher">
+      <Text style={s.rechIcone}>🔍</Text>
+    </Pressable>
+  );
+}
+
+/** Champ ouvert par la pastille 🔍, sous l'en-tête ; ✕ efface et referme */
+export function ChampRecherche({ q, onChange, onFermer }: { q: string; onChange: (q: string) => void; onFermer?: () => void }) {
   return (
     <View style={s.rechLigne}>
-      {ouvert ? (
-        <View style={s.rechChamp}>
-          <Text style={s.rechIcone}>🔍</Text>
-          <TextInput
-            autoFocus
-            value={q}
-            onChangeText={onChange}
-            placeholder="Rechercher…"
-            placeholderTextColor={colors.muted}
-            style={s.rechTexte}
-            returnKeyType="search"
-          />
+      <View style={s.rechChamp}>
+        <Text style={s.rechIcone}>🔍</Text>
+        <TextInput
+          autoFocus
+          value={q}
+          onChangeText={onChange}
+          placeholder="Rechercher…"
+          placeholderTextColor={colors.muted}
+          style={s.rechTexte}
+          returnKeyType="search"
+        />
+        {!!(onFermer || q) && (
           <Pressable
             onPress={() => {
               onChange('');
-              setOuvert(false);
+              onFermer?.();
             }}
             hitSlop={8}
             style={s.rechFermer}
             accessibilityRole="button"
-            accessibilityLabel="Fermer la recherche"
+            accessibilityLabel={onFermer ? 'Fermer la recherche' : 'Effacer la recherche'}
           >
             <Text style={s.rechFermerTexte}>✕</Text>
           </Pressable>
-        </View>
-      ) : (
-        <Pressable onPress={() => setOuvert(true)} style={s.rechRond} hitSlop={6} accessibilityRole="button" accessibilityLabel="Rechercher">
-          <Text style={s.rechIcone}>🔍</Text>
-        </Pressable>
-      )}
+        )}
+      </View>
     </View>
   );
+}
+
+/** Recherche d'une feuille : pastille à droite de l'en-tête, champ dessous une fois touchée */
+function useRechercheFeuille() {
+  const [q, setQ] = useState('');
+  const [ouverte, setOuverte] = useState(false);
+  return {
+    q,
+    bouton: ouverte ? <View style={s.rechPlace} /> : <BoutonRecherche onPress={() => setOuverte(true)} />,
+    champ: ouverte ? (
+      <ChampRecherche
+        q={q}
+        onChange={setQ}
+        onFermer={() => {
+          setQ('');
+          setOuverte(false);
+        }}
+      />
+    ) : null,
+  };
 }
 
 /** Feuille de choix unique (monte au premier plan : rendue seulement quand elle est ouverte) */
@@ -371,7 +392,8 @@ export function FeuilleChoix({
   onChoisir: (v: string) => void;
   onFermer: () => void;
 }) {
-  const [q, setQ] = useState('');
+  const rech = useRechercheFeuille();
+  const q = rech.q;
   const [autresOuverts, setAutresOuverts] = useState(false);
   // Groupes repliés par l'utilisateur (chaque titre de groupe ouvre et referme sa liste)
   const [fermes, setFermes] = useState<string[]>([]);
@@ -417,9 +439,9 @@ export function FeuilleChoix({
               <Text style={s.fAnnuler}>Annuler</Text>
             </Pressable>
             <Text style={s.fTitre}>{titre}</Text>
-            <View style={{ width: 64 }} />
+            <View style={s.fDroite}>{!fixe && rech.bouton}</View>
           </View>
-          {!fixe && <PastilleRecherche q={q} onChange={setQ} />}
+          {rech.champ}
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 24 }}>
             {nouveau && !cherche && (
               <Pressable onPress={nouveau.onPress} style={s.opt} accessibilityRole="button">
@@ -556,7 +578,8 @@ export function FeuilleMulti({
   vide?: string;
 }) {
   const [sel, setSel] = useState<string[]>(selection);
-  const [q, setQ] = useState('');
+  const rech = useRechercheFeuille();
+  const q = rech.q;
   const [autresOuverts, setAutresOuverts] = useState(false);
   // Groupes repliés par l'utilisateur (chaque titre de groupe ouvre et referme sa liste)
   const [fermes, setFermes] = useState<string[]>([]);
@@ -601,9 +624,9 @@ export function FeuilleMulti({
               <Text style={s.fAnnuler}>Annuler</Text>
             </Pressable>
             <Text style={s.fTitre}>{titre}</Text>
-            <View style={{ width: 64 }} />
+            <View style={s.fDroite}>{rech.bouton}</View>
           </View>
-          <PastilleRecherche q={q} onChange={setQ} />
+          {rech.champ}
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 12 }}>
             {nouveau && !cherche && (
               <Pressable onPress={nouveau.onPress} style={s.opt} accessibilityRole="button">
@@ -832,6 +855,8 @@ const s = StyleSheet.create({
   fAnnuler: { fontSize: 16, color: colors.primary, width: 64 },
   fTitre: { flex: 1, textAlign: 'center', fontSize: 16.5, fontWeight: '700', color: colors.text },
   rechLigne: { flexDirection: 'row', paddingHorizontal: 12, marginBottom: 8, height: 34, alignItems: 'center' },
+  rechPlace: { width: 30, height: 30 },
+  fDroite: { width: 64, alignItems: 'flex-end' },
   rechRond: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   rechIcone: { fontSize: 13 },
   rechChamp: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, borderRadius: 10, borderWidth: 1.5, borderColor: colors.primary, backgroundColor: colors.card, paddingLeft: 8, paddingRight: 4 },

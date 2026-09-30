@@ -22,7 +22,7 @@ export interface Choice {
 /**
  * Feuille de choix (menus du ＋, confirmations) : même modèle que les feuilles de choix — « Annuler » en haut à
  * gauche, titre centré, explication en gris, puis une ligne par choix. (Le navigateur n'affiche pas les boîtes
- * de dialogue natives.)
+ * de dialogue natives.) Une seule action attendue : bouton bleu plein en bas, comme « Ajouter » des feuilles à cocher.
  */
 export function ChoiceSheet({
   visible,
@@ -40,6 +40,8 @@ export function ChoiceSheet({
   /** Lignes de la feuille avant les choix (ex. l'itération du ＋ de l'écran PI, une date) */
   children?: ReactNode;
 }) {
+  // Une seule action attendue (question « Déplacer en IT2 ? ») : le bouton bleu plein de l'application, en bas
+  const seul = choices.length === 1 && choices[0].principal ? choices[0] : null;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.backdrop} onPress={onClose}>
@@ -56,6 +58,23 @@ export function ChoiceSheet({
           </View>
           {!!message && <Text style={s.message}>{message}</Text>}
           {children && <View style={s.haut}>{children}</View>}
+          {seul ? (
+            <>
+              <Pressable
+                style={[s.bouton, seul.inactif && s.inactif]}
+                disabled={seul.inactif}
+                onPress={() => {
+                  if (!seul.garder) onClose();
+                  seul.onPress();
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !!seul.inactif }}
+              >
+                <Text style={s.boutonTexte}>{seul.label}</Text>
+              </Pressable>
+              {!!seul.sous && <Text style={[s.sous, s.sousBouton]}>{seul.sous}</Text>}
+            </>
+          ) : (
           <View style={s.liste}>
             {choices.map((c) => (
               <Pressable
@@ -77,6 +96,7 @@ export function ChoiceSheet({
               </Pressable>
             ))}
           </View>
+          )}
         </Pressable>
       </Pressable>
     </Modal>
@@ -115,5 +135,8 @@ const s = StyleSheet.create({
   sous: { fontSize: 12, color: colors.muted, marginTop: 2 },
   inactif: { opacity: 0.45 },
   haut: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.card, marginBottom: 10 },
+  bouton: { marginHorizontal: 12, marginTop: 4, backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  boutonTexte: { color: '#fff', fontSize: 15.5, fontWeight: '700' },
+  sousBouton: { paddingHorizontal: 16, marginTop: 6, textAlign: 'center' },
   chev: { fontSize: 18, color: '#A0A6B1', marginLeft: 8 },
 });

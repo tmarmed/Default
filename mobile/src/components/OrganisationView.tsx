@@ -171,7 +171,7 @@ export function OrganisationView({
             accessibilityRole="button"
             accessibilityLabel="Fermer"
           >
-            <Text style={s.bandeauBtn}>✕</Text>
+            <Text style={s.bandeauFermer}>✕</Text>
           </Pressable>
         </View>
       )}
@@ -529,9 +529,10 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 130 },
   entreprise: { fontSize: 12.5, fontWeight: '800', color: colors.muted, letterSpacing: 0.4, marginTop: 8, marginBottom: 6 },
   surligne: { backgroundColor: '#FEF7E0', borderColor: '#F3D98B' },
-  bandeau: { position: 'absolute', left: 12, right: 12, bottom: 96, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#1B2330', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11 },
-  bandeauTexte: { flex: 1, color: '#fff', fontSize: 13.5 },
-  bandeauBtn: { color: '#8AB4F8', fontSize: 14, fontWeight: '800' },
+  bandeau: { position: 'absolute', left: 12, right: 12, bottom: 96, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, boxShadow: '0 2px 10px rgba(20, 30, 50, 0.10)' },
+  bandeauTexte: { flex: 1, color: colors.text, fontSize: 13.5 },
+  bandeauBtn: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+  bandeauFermer: { color: colors.muted, fontSize: 14 },
   erreur: { color: colors.danger, fontSize: 13, paddingHorizontal: 14, paddingVertical: 6 },
   noeud: { borderWidth: 1, borderColor: colors.border, borderLeftWidth: 4, borderRadius: 12, backgroundColor: colors.card, paddingHorizontal: 10, paddingVertical: 9, marginBottom: 7 },
   tete: { flexDirection: 'row', alignItems: 'center', gap: 6 },
