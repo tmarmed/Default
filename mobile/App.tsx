@@ -183,7 +183,7 @@ const TAB_ICONS: Record<Tab, string> = {
   pilotage: '📊',
   echange: '🔄',
 };
-const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches', echange: 'Synchro' };
+const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches', echange: 'Synchronisation' };
 /** Messages de l'application gardés sur l'appareil jusqu'à « Lu ✓ » */
 const MESSAGES_APP_KEY = 'president:messages-app';
 /** Écrans prévus, encore vides (règles de gestion à définir) */
@@ -461,7 +461,7 @@ function Main() {
   const [notice, setNotice] = useState<string | null>(null);
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
-  // 🏛️ Messages de l'application (🔄 Synchro › President) : ce qu'elle a fait ou signalé (mises à jour, écritures,
+  // 🏛️ Messages de l'application (🔄 Synchronisation › President) : ce qu'elle a fait ou signalé (mises à jour, écritures,
   // erreurs), gardés sur l'appareil jusqu'à « Lu ✓ » ; avec les alertes et l'aide, les trois niveaux de President
   const [messagesApp, setMessagesApp] = useState<MessageApp[]>([]);
   const majMessagesApp = useCallback((f: (l: MessageApp[]) => MessageApp[]) => {
@@ -1426,7 +1426,7 @@ function Main() {
     for (const p of orgTous.personnes) if (p.email) m.set(p.email.toLowerCase(), { nom: p.nom, email: p.email, nature: p.nature || 'humain', ou: `🏢 ${nomEspace(p.espace)}` });
     for (const [id, x] of Object.entries(equipesEsp))
       for (const p of x.personnes) if (p.email && !m.has(p.email.toLowerCase())) m.set(p.email.toLowerCase(), { nom: p.nom, email: p.email, nature: p.nature || 'humain', ou: `👥 ${nomEspace(id)}` });
-    for (const i of interlocuteurs) if (!m.has(i.id)) m.set(i.id, { nom: i.nom, email: i.id, nature: i.nature, ou: '🔄 Synchro' });
+    for (const i of interlocuteurs) if (!m.has(i.id)) m.set(i.id, { nom: i.nom, email: i.id, nature: i.nature, ou: '🔄 Synchronisation' });
     return [...m.values()].sort((a, b) => a.nom.localeCompare(b.nom));
   }, [orgTous, equipesEsp, interlocuteurs, espaces]);
   // Pastille de l'onglet 🔄 Synchro : seulement les échanges qui attendent votre réponse (pas les questions du fil de Claude)

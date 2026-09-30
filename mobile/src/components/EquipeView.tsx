@@ -20,7 +20,7 @@ export interface PersonneConnue {
   nom: string;
   email: string;
   nature: string;
-  /** Où on la connaît (« 🏢 ACME », « 🔄 Synchro ») */
+  /** Où on la connaît (« 🏢 ACME », « 🔄 Synchronisation ») */
   ou: string;
 }
 type Ecrire = (espace: string, nomEquipe: string, m: { personne?: Partial<Personne> & { id?: string }; role?: RoleEquipe; retirer?: string }) => Promise<void>;
@@ -63,7 +63,7 @@ export function EquipeView({ equipes, connues, moi, onEcrire }: Props) {
         return (
           <View key={x.espace.id} style={s.bloc}>
             {/* Plusieurs équipes affichées : le nom de chacune ; une seule : le titre de l'écran suffit */}
-            {equipes.length > 1 && <Text style={s.titre}>👥 {x.espace.nom}</Text>}
+            {equipes.length > 1 && <Text style={s.titre}>{x.espace.nom}</Text>}
             <SectionFiche titre="Rôles">
               <LigneChoix
                 fixe
@@ -239,7 +239,7 @@ function MembreForm({
 
 const s = StyleSheet.create({
   scroll: { paddingBottom: 130 },
-  bloc: { marginHorizontal: 16, marginTop: 12 },
+  bloc: { marginHorizontal: 16 },
   titre: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 4 },
   erreur: { marginHorizontal: 16, marginTop: 12, color: colors.danger, fontWeight: '600' },
   ligne: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 11, minHeight: 46 },
