@@ -73,7 +73,7 @@ import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
-import { aTraiter, EchangesView, type Hierarchie, nomDepuisEmail } from './src/components/EchangesView';
+import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
 import { changementEpic, changementFeature, compterChangements, couleurLot, epicDuLot, featureDeEtape, FIL, finLot, NOM_ESPACE_MISSIONS, pointsOuverts, useEchangeActif } from './src/echange/echange';
 import { StrategieView } from './src/components/StrategieView';
@@ -183,6 +183,8 @@ const TAB_ICONS: Record<Tab, string> = {
   echange: '💬',
 };
 const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches' };
+/** Messages de l'application gardés sur l'appareil jusqu'à « Lu ✓ » */
+const MESSAGES_APP_KEY = 'president:messages-app';
 /** Écrans prévus, encore vides (règles de gestion à définir) */
 const A_VENIR: Tab[] = ['equipe', 'pilotage'];
 /** Nom de l'application : début du nom des fichiers des espaces */
@@ -458,6 +460,29 @@ function Main() {
   const [notice, setNotice] = useState<string | null>(null);
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
+  // 🏛️ Messages de l'application (💬 Échange › President) : ce qu'elle a fait ou signalé (mises à jour, écritures,
+  // erreurs), gardés sur l'appareil jusqu'à « Lu ✓ » ; avec les alertes et l'aide, les trois niveaux de President
+  const [messagesApp, setMessagesApp] = useState<MessageApp[]>([]);
+  const majMessagesApp = useCallback((f: (l: MessageApp[]) => MessageApp[]) => {
+    setMessagesApp((l) => {
+      const n = f(l).slice(0, 30);
+      AsyncStorage.setItem(MESSAGES_APP_KEY, JSON.stringify(n)).catch(() => {});
+      return n;
+    });
+  }, []);
+  useEffect(() => {
+    AsyncStorage.getItem(MESSAGES_APP_KEY)
+      .then((v) => v && setMessagesApp(JSON.parse(v)))
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    const date = new Date().toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    if (info) majMessagesApp((l) => [{ id: `i${Date.now()}`, texte: info, date, ton: 'info' }, ...l]);
+  }, [info, majMessagesApp]);
+  useEffect(() => {
+    const date = new Date().toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    if (notice) majMessagesApp((l) => [{ id: `n${Date.now()}`, texte: notice, date, ton: 'alerte' }, ...l]);
+  }, [notice, majMessagesApp]);
   /** Bandeau « … · Annuler » des écrans (ajout au PI, déplacement…) : comme dans les fiches */
   const bandeauApp = useBandeau();
   // Message d'information : disparaît tout seul après 6 s (comme le bandeau « Annuler » de l'Organisation), ou d'un toucher
@@ -2381,6 +2406,8 @@ function Main() {
                 contenu: t in checks ? <AlertsCard ecran={t} checks={t === 'roadmap' ? [...checks.roadmap, ...alertesDates] : checks[t as keyof typeof checks]} /> : undefined,
               })),
             onOuvrir: (t) => setTab(t as Tab),
+            messages: messagesApp,
+            onLu: (id) => majMessagesApp((l) => l.filter((m) => m.id !== id)),
           }}
           onEnvoyer={async (e) => {
             await saveEntity('echange', null, placerEchange(e));

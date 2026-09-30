@@ -22,6 +22,13 @@ export interface Interlocuteur {
   /** humain, ia_chat, agent_ia, application */
   nature: string;
 }
+/** Message de l'application : ce qu'elle a fait ou signalé (mise à jour, écriture, erreur) */
+export interface MessageApp {
+  id: string;
+  texte: string;
+  date: string;
+  ton: 'info' | 'alerte';
+}
 export interface AlertesEcran {
   ecran: string;
   titre: string;
@@ -42,6 +49,8 @@ interface Props {
   president: {
     alertes: AlertesEcran[];
     onOuvrir: (ecran: string) => void;
+    messages: MessageApp[];
+    onLu: (id: string) => void;
   };
   onEnvoyer: (e: EchangeInput) => Promise<void>;
   onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>;
@@ -154,7 +163,7 @@ export function EchangesView({ moi, echanges, personnes, espaces, claude, presid
     return [r && `${r} à traiter`, p && `${p} réponse${p > 1 ? 's' : ''} reçue${p > 1 ? 's' : ''}`, w && `${w} en attente de l'autre`].filter(Boolean).join(' · ') || 'Rien en cours';
   };
   const lignes = [
-    ligne('president', '🏛️', 'President', 'application', [nbAlertes && `${nbAlertes} alerte${nbAlertes > 1 ? 's' : ''}`, nbRappels && `${nbRappels} rappel${nbRappels > 1 ? 's' : ''}`, ].filter(Boolean).join(' · ') || 'Aucune alerte · aide à la demande', nbAlertes, 0),
+    ligne('president', '🏛️', 'President', 'application', [nbAlertes && `${nbAlertes} alerte${nbAlertes > 1 ? 's' : ''}`, nbRappels && `${nbRappels} rappel${nbRappels > 1 ? 's' : ''}`, president.messages.length && `${president.messages.length} message${president.messages.length > 1 ? 's' : ''}`].filter(Boolean).join(' · ') || 'Aucune alerte · aide à la demande', president.messages.length + nbAlertes, 0),
     ...(claude ? [ligne('claude', '💬', 'Claude', 'ia_chat', `${claude.nbQuestions} question${claude.nbQuestions > 1 ? 's' : ''} · backlog des missions`, claude.nbQuestions, 1)] : []),
     ...humains.map((h, k) => ligne(h.id, ICONE_NATURE[h.nature] ?? '🧑', h.nom, h.nature, resume(entre(h.id)), aTraiter(moi, entre(h.id)).length, k + 2)),
   ];
@@ -390,7 +399,7 @@ function CarteQuestion({ e, onRepondre, pied }: { e: Echange; onRepondre: (e: Ec
   );
 }
 
-function President({ alertes, onOuvrir, onRetour }: Props['president'] & { onRetour: () => void }) {
+function President({ alertes, onOuvrir, messages, onLu, onRetour }: Props['president'] & { onRetour: () => void }) {
   const [q, setQ] = useState('');
   const mots = q.toLowerCase().split(/\s+/).filter((m) => m.length > 2);
   const trouvees = mots.length ? AIDE.filter((a) => mots.some((m) => `${a.q} ${a.r}`.toLowerCase().includes(m))) : [];
@@ -398,7 +407,24 @@ function President({ alertes, onOuvrir, onRetour }: Props['president'] & { onRet
   return (
     <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
       <Retour titre="🏛️ President · Application" onRetour={onRetour} />
-      <Text style={s.aide}>Les alertes de tous les onglets, au même endroit, avec leurs boutons.</Text>
+      <Text style={s.aide}>Trois niveaux : ses messages (mises à jour, écritures), les alertes de tous les onglets avec leurs boutons, et l'aide.</Text>
+      <Text style={[s.section, s.sectionBloc]}>Messages{messages.length ? ` · ${messages.length}` : ''}</Text>
+      {messages.length ? (
+        <View style={s.pile}>
+          {messages.map((m) => (
+            <View key={m.id} style={[s.carte, s.carteEchange]}>
+              <Text style={[s.texte, m.ton === 'alerte' && { color: colors.danger }]}>{m.texte}</Text>
+              <Text style={s.meta}>{m.date}</Text>
+              <Pressable onPress={() => onLu(m.id)} style={s.action} accessibilityRole="button">
+                <Text style={s.actionTexte}>Lu ✓</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Text style={s.videTexte}>Aucun message.</Text>
+      )}
+      <Text style={[s.section, s.sectionBloc]}>Alertes</Text>
       {avecAlertes.map((a) => (
         <View key={a.ecran}>
           <Pressable onPress={() => onOuvrir(a.ecran)} style={s.enteteEcran} accessibilityRole="button" accessibilityHint="Ouvre l'écran">
