@@ -693,6 +693,33 @@
      "fait": false
     }
    ]
+  },
+  {
+   "num": 25,
+   "titre": "Regroupement des échanges (chats) pour les traiter en ordre",
+   "etat": "À DISCUTER",
+   "etapes": [
+    {
+     "id": "brainstorm",
+     "titre": "Brainstorm : traiter dans l'ordre d'arrivée, ou rangés par conversation (chat)",
+     "fait": false
+    },
+    {
+     "id": "choix",
+     "titre": "Choix du mode de regroupement (ou les deux, au choix de l'utilisateur)",
+     "fait": false
+    },
+    {
+     "id": "dev",
+     "titre": "Développement dans 💬 Échange",
+     "fait": false
+    },
+    {
+     "id": "validation",
+     "titre": "Validation",
+     "fait": false
+    }
+   ]
   }
  ],
  "points": [
