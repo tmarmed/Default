@@ -7,7 +7,7 @@ import { TYPE_ICONS } from '../types';
 import type { Echange, EchangeInput } from '../types';
 import { ChampFiche, FeuilleChoix, type GroupeChoix, LigneChoix, SaisieFiche, SectionFiche } from './Choix';
 import { ChatEchanges, type ElementChat } from './ChatEchanges';
-import { FormSheet } from './FormSheet';
+import { FormSheet, TitreFiche } from './FormSheet';
 
 /**
  * 🔄 Synchronisation (onglet « Synchro ») : vos conversations.
@@ -514,7 +514,8 @@ function NouvelEchange({
   const [type, setType] = useState<'message' | 'question'>('message');
   const [titre, setTitre] = useState('');
   const [texte, setTexte] = useState('');
-  const [choix, setChoix] = useState('');
+  const [choix, setChoix] = useState<string[]>([]);
+  const [saisieChoix, setSaisieChoix] = useState('');
   const [element, setElement] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -530,12 +531,14 @@ function NouvelEchange({
       setType('message');
       setTitre('');
       setTexte('');
-      setChoix('');
+      setChoix([]);
+      setSaisieChoix('');
       setElement('');
       setError(null);
     }
   }
   const options = personnes.filter((p) => p.id !== moi);
+  const nomDest = (v: string) => (v === 'claude' ? '💬 Claude' : options.find((p) => p.id === v)?.nom ?? v);
   // Un échange avec un humain va dans un espace partagé (jamais 🔒 Moi, qu'il ne verrait pas)
   const espacesPartages = espaces.filter((e) => e.id !== 'moi');
   const envoyer = async () => {
@@ -543,8 +546,9 @@ function NouvelEchange({
     if (dest !== 'claude' && !espacesPartages.length) return setError('Affichez un espace Équipe ou Entreprise partagé avec cette personne : 🔒 Moi est privé.');
     if (dest !== 'claude' && espace === 'moi') setEspace(espacesPartages[0].id);
     if (!titre.trim() && !texte.trim()) return setError('Écrivez un titre ou un texte.');
-    const liste = choix.split(/[;,\n]/).map((c) => c.trim()).filter(Boolean);
-    if (type === 'question' && liste.length < 2) return setError('Une question propose au moins deux choix (séparés par des virgules).');
+    // Un choix tapé sans Entrée compte aussi ; « ; » est le séparateur du Sheet
+    const liste = [...new Set([...choix, saisieChoix].map((c) => c.replace(/;/g, ',').trim()).filter(Boolean))];
+    if (type === 'question' && liste.length < 2) return setError('Une question propose au moins deux choix de réponse.');
     setBusy(true);
     try {
       await onEnvoyer({ espace, de: moi, a: dest, type, titre: titre.trim(), texte: texte.trim(), choix: type === 'question' ? liste.join(';') : '', reponse: '', note: '', statut: 'envoye', element, niveau: '', transmis_par: '', prive: '1' });
@@ -556,8 +560,53 @@ function NouvelEchange({
     }
   };
   return (
-    <FormSheet visible={visible} title="Nouvel échange" busy={busy} error={error} onClose={onClose} onSave={() => void envoyer()}>
+    <FormSheet visible={visible} title="Nouvel échange" busy={busy} error={error} onClose={onClose} onSave={() => void envoyer()} libelleEnregistrer="Envoyer">
+      {/* Même modèle que les autres fiches : grand titre en haut, puis ce qu'on écrit en premier */}
+      <TitreFiche icone={type === 'question' ? '❓' : '✉️'} titre={titre} vide={type === 'question' ? 'Votre question' : 'Titre du message'} sous={dest ? `À ${nomDest(dest)}` : undefined} />
       <SectionFiche titre="Échange">
+        <ChampFiche label="Titre">
+          <SaisieFiche placeholder="À écrire" value={titre} onChangeText={setTitre} autoFocus returnKeyType="next" />
+        </ChampFiche>
+        <ChampFiche label="Message" colonne>
+          <SaisieFiche placeholder="Écrivez votre message ici (facultatif)" value={texte} onChangeText={setTexte} multiline />
+        </ChampFiche>
+        <LigneChoix
+          fixe
+          label="Type"
+          value={type}
+          groupes={[{ options: [{ value: 'message', label: '✉️ Message' }, { value: 'question', label: '❓ Question', meta: 'avec des choix de réponse' }] }]}
+          onChange={(v) => v && setType(v as 'message' | 'question')}
+        />
+      </SectionFiche>
+      {/* Choix de réponse : saisie rapide, comme les tâches d'une feature (Entrée pour ajouter) */}
+      {type === 'question' && (
+        <SectionFiche titre={`Choix de réponse · ${choix.length}`} aDefinir={choix.length < 2 ? 1 : 0}>
+          {choix.map((c, i) => (
+            <View key={`${c}${i}`} style={[s.ligneChoix, i > 0 && s.ligneBord]}>
+              <Text style={s.texteChoix}>{c}</Text>
+              <Pressable onPress={() => setChoix((l) => l.filter((_, k) => k !== i))} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Retirer ${c}`}>
+                <Text style={s.retirer}>✕</Text>
+              </Pressable>
+            </View>
+          ))}
+          <TextInput
+            style={s.saisieRapide}
+            placeholder={choix.length ? '＋ Autre choix' : '＋ Premier choix (ex. Oui)'}
+            placeholderTextColor={colors.muted}
+            value={saisieChoix}
+            onChangeText={setSaisieChoix}
+            returnKeyType="done"
+            blurOnSubmit={false}
+            onSubmitEditing={() => {
+              const c = saisieChoix.replace(/;/g, ',').trim();
+              if (c && !choix.includes(c)) setChoix((l) => [...l, c]);
+              setSaisieChoix('');
+            }}
+          />
+          <Text style={s.entree}>Entrée pour ajouter · au moins deux choix</Text>
+        </SectionFiche>
+      )}
+      <SectionFiche titre="Destinataire" aDefinir={dest ? 0 : 1}>
         <LigneChoix
           label="À"
           value={dest}
@@ -566,11 +615,12 @@ function NouvelEchange({
             { titre: 'IA', options: [{ value: 'claude', label: '💬 Claude', meta: 'IA chat' }] },
             { titre: 'Personnes', options: options.filter((p) => p.id !== 'claude').map((p) => ({ value: p.id, label: `${ICONE_NATURE[p.nature] ?? '🧑'} ${p.nom}`, meta: p.id })) },
           ]}
-          libelle={(v) => (v === 'claude' ? '💬 Claude' : options.find((p) => p.id === v)?.nom ?? v)}
+          libelle={nomDest}
           onChange={setDest}
         />
         {dest !== 'claude' && espacesPartages.length > 1 && (
           <LigneChoix
+            fixe
             label="Espace"
             value={espace}
             sous="Rangé au niveau commun le plus proche de l'Organisation (équipe, train, unité) ; privé à deux."
@@ -578,15 +628,6 @@ function NouvelEchange({
             onChange={(v) => v && setEspace(v)}
           />
         )}
-        <ChampFiche label="Type">
-          <View style={s.choix}>
-            {(['message', 'question'] as const).map((t) => (
-              <Pressable key={t} onPress={() => setType(t)} style={[s.choixBouton, type === t && s.choixOn]} accessibilityRole="radio" accessibilityState={{ checked: type === t }}>
-                <Text style={[s.choixTexte, type === t && s.choixTexteOn]}>{t === 'message' ? '✉️ Message' : '❓ Question'}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </ChampFiche>
       </SectionFiche>
       <SectionFiche titre="Concerne">
         <LigneChoix
@@ -604,19 +645,6 @@ function NouvelEchange({
           libelle={(v) => filElement(v, h, TYPE_ICONS).split(' › ').pop() ?? v}
           onChange={setElement}
         />
-      </SectionFiche>
-      <SectionFiche titre="Contenu">
-        <ChampFiche label="Titre">
-          <SaisieFiche placeholder="ex. Revue jeudi ?" value={titre} onChangeText={setTitre} />
-        </ChampFiche>
-        <ChampFiche label="Texte" colonne>
-          <SaisieFiche placeholder="Facultatif" value={texte} onChangeText={setTexte} multiline />
-        </ChampFiche>
-        {type === 'question' && (
-          <ChampFiche label="Choix" sous="Séparés par des virgules (ex. Jeudi, Vendredi).">
-            <SaisieFiche placeholder="Oui, Non" value={choix} onChangeText={setChoix} />
-          </ChampFiche>
-        )}
       </SectionFiche>
     </FormSheet>
   );
@@ -670,4 +698,9 @@ const s = StyleSheet.create({
   enteteEcran: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 16, marginBottom: 6 },
   bouton: { marginHorizontal: 16, marginTop: 18, paddingVertical: 12, borderRadius: 12, alignItems: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   boutonTexte: { fontSize: 14.5, fontWeight: '700', color: colors.primary },
+  saisieRapide: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 4, fontSize: 15, color: colors.text, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, outlineStyle: 'none' as never },
+  ligneChoix: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, gap: 10 },
+  texteChoix: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
+  retirer: { fontSize: 15, color: colors.muted, paddingHorizontal: 4 },
+  entree: { fontSize: 11.5, color: colors.muted, paddingHorizontal: 12, paddingBottom: 10 },
 });

@@ -51,6 +51,8 @@ interface Props {
   bandeau?: ReactNode;
   /** Toucher la fiche ferme le bandeau */
   onToucher?: () => void;
+  /** Texte du bouton d'enregistrement (« Envoyer » pour un échange) */
+  libelleEnregistrer?: string;
 }
 
 /** Pile de fiches : fiche d'en dessous (« ‹ … »), fil en haut, tout fermer */
@@ -111,7 +113,7 @@ export function BoutonRetour({ pile, onPress, disabled, style, fermer }: { pile?
 }
 
 /** Fenêtre de formulaire : Annuler / titre / Enregistrer, message d'erreur, contenu défilant. */
-export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil, auto, bandeau, onToucher }: Props) {
+export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil, auto, bandeau, onToucher, libelleEnregistrer = 'Enregistrer' }: Props) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -129,7 +131,7 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
           <TitreBarre texte={title} couleur={couleurTitre} avecFil={!!chemin || !!fil || !!espaceFil} />
           {onSave && !auto ? (
             <Pressable onPress={onSave} hitSlop={10} disabled={busy}>
-              {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>}
+              {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>{libelleEnregistrer}</Text>}
             </Pressable>
           ) : (
             <View style={{ width: 60, alignItems: 'flex-end' }}>{busy && <ActivityIndicator color={colors.primary} />}</View>
