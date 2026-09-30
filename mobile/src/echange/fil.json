@@ -903,11 +903,7 @@
    "titre": "OKR : value streams et epics sans value stream, sans doublon",
    "statut": "tranche",
    "explication": "Pris en compte dans la maquette (Sujet 3) et la mission : l'objectif devient l'OKR, n'est plus parent de l'epic ; value streams rattachés au portfolio, aux trains, epics, features et OKR.",
-   "decision": "validé (titre de la feuille décollé de « Annuler ») ; développement lancé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "validé (titre de la feuille décollé de « Annuler ») ; développement lancé"
   },
   {
    "id": "s2-p1",
@@ -918,11 +914,7 @@
    "statut": "tranche",
    "objectif": "Voir la stratégie de l'entreprise en un seul endroit, séparée du kanban des epics.",
    "explication": "Nouvel onglet après Tâches. Section OKR (avec ＋) ; section Value streams (avec ＋). Le Portefeuille garde le kanban des epics.",
-   "decision": "validé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "validé"
   },
   {
    "id": "s2-p2",
@@ -933,11 +925,7 @@
    "statut": "tranche",
    "objectif": "Suivre l'avancement de chaque OKR sans l'ouvrir.",
    "explication": "Titre, puis « 3 résultats clés · 2 value streams · 4 epics », et une barre d'avancement verte.",
-   "decision": "validé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "validé"
   },
   {
    "id": "s2-p3",
@@ -948,11 +936,7 @@
    "statut": "tranche",
    "objectif": "Savoir de quel type est le flux et à quoi il est rattaché.",
    "explication": "🌊 Nom, puis « Opérationnel · 💼 Digital · 🚆 Clients » (type, portfolio, trains).",
-   "decision": "validé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "validé"
   },
   {
    "id": "s2-p4",
@@ -963,11 +947,7 @@
    "statut": "tranche",
    "objectif": "Définir un objectif et ce qui le mesure.",
    "explication": "Élément : Titre, Période. Résultats clés (éléments à part, avec ＋) : nom, « actuel → cible » et une barre. L'avancement de l'OKR est la moyenne de ses résultats clés.",
-   "decision": "validé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "validé"
   },
   {
    "id": "s2-p5",
@@ -978,11 +958,7 @@
    "statut": "tranche",
    "objectif": "Relier un OKR à plusieurs value streams et epics, et inversement.",
    "explication": "Sections « Value streams » et « Epics qui y contribuent », chacune avec ＋ (« ＋ Nouveau … » ou « ☑ Choisir des … »). Une epic liée à un autre OKR l'indique en gris.",
-   "decision": "validé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "validé"
   },
   {
    "id": "s2-p6",
@@ -993,11 +969,7 @@
    "statut": "tranche",
    "objectif": "Suivre SAFe sans double saisie.",
    "explication": "Dans SAFe, une epic (portfolio) peut toucher plusieurs value streams : un lien direct a du sens. Une feature appartient à un train, et le train sert un value stream : la feature y est donc déjà rattachée par son train. Proposition : epics liées directement ; features seulement par le train (comptées, sans lien direct).",
-   "decision": "décidé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "décidé"
   },
   {
    "id": "s2-p7",
@@ -1008,11 +980,7 @@
    "statut": "tranche",
    "objectif": "Appliquer votre décision : l'OKR n'est plus le parent de l'epic.",
    "explication": "La ligne « Objectif » disparaît ; section « OKR » (plusieurs, avec ＋) ; ligne « Value streams » dans Rattachement.",
-   "decision": "validé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "validé"
   },
   {
    "id": "s2-p8",
@@ -1023,11 +991,7 @@
    "statut": "tranche",
    "objectif": "Ne rien perdre des objectifs déjà saisis.",
    "explication": "Chaque objectif devient un OKR ; son indicateur actuel / cible devient son premier résultat clé ; ses epics deviennent des liens. En mode Simple, l'onglet Stratégie ne montre que les OKR (pas de value streams).",
-   "decision": "validé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "validé"
   },
   {
    "id": "s2-roles",
@@ -1038,11 +1002,7 @@
    "statut": "tranche",
    "objectif": "Donner ces droits au bon rôle SAFe (portfolio).",
    "explication": "Proposition : l'Epic Owner du portfolio crée les OKR et les value streams et fait tous les liens ; le Product Manager et le RTE lient les OKR aux value streams de leur train ; les autres rôles lisent (pas de ＋).",
-   "decision": "comme proposé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "comme proposé"
   },
   {
    "id": "s2-lecture",
@@ -1053,11 +1013,7 @@
    "statut": "tranche",
    "objectif": "Fixer la limite de lecture de l'onglet Stratégie.",
    "explication": "Dans SAFe, les thèmes stratégiques et les OKR sont faits pour être vus de tous : chacun comprend pourquoi il travaille. Proposition : tout le monde dans l'entreprise lit (portfolio, trains, équipes, managers) ; seuls l'Epic Owner, le PM et le RTE modifient. Ne voient rien : les personnes hors de l'entreprise (espace 🔒 Moi, autres entreprises). Autre choix : les équipes ne voient que les OKR liés au travail de leur train.",
-   "decision": "tout le monde dans l'entreprise lit ; hors entreprise, rien",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "tout le monde dans l'entreprise lit ; hors entreprise, rien"
   },
   {
    "id": "s3-p1",
@@ -1068,11 +1024,7 @@
    "statut": "tranche",
    "objectif": "Parcourir toute la chaîne du travail sur un seul écran.",
    "explication": "Colonne Epics (portfolio), colonne Features (train), colonne Stories (équipe), côte à côte sur PC et tablette.",
-   "decision": "validé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "validé"
   },
   {
    "id": "s3-p2",
@@ -1083,11 +1035,7 @@
    "statut": "tranche",
    "objectif": "Voir tout de suite ce qui dépend d'un élément.",
    "explication": "Toucher une epic (encadrée en bleu) ne montre que ses features, les autres en gris ; toucher une feature ne montre que ses stories. Toucher à nouveau enlève le filtre.",
-   "decision": "validé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "validé"
   },
   {
    "id": "s3-p3",
@@ -1098,11 +1046,7 @@
    "statut": "tranche",
    "objectif": "Ordonner les backlogs et se concentrer sur un flux de valeur.",
    "explication": "Glisser une carte change sa priorité dans sa colonne. En haut : « 🌊 Tous les value streams › » pour n'en garder qu'un.",
-   "decision": "validé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "validé"
   },
   {
    "id": "s3-p4",
@@ -1113,11 +1057,7 @@
    "statut": "tranche",
    "objectif": "Garder l'écran lisible sur un petit écran.",
    "explication": "Une seule colonne affichée ; toucher une epic ouvre ses features, puis une feature ses stories, avec un fil « Epic › Feature » en haut pour revenir.",
-   "decision": "validé",
-   "lien": {
-    "url": "https://claude.ai/artifact/TJdjEQNMk6htVdvE5ibrLa",
-    "label": "Maquette"
-   }
+   "decision": "validé"
   },
   {
    "id": "r-9",
