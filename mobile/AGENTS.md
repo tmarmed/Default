@@ -78,4 +78,7 @@ Procédé de Claude (une image recopiée caractère par caractère peut être fa
 3. poser dans une colonne libre la formule de contrôle (Sheet en français : « ; »)
    `=IF(LEN(Hn)&"x"&SUMPRODUCT(CODE(MID(Hn;SEQUENCE(LEN(Hn));1))*SEQUENCE(LEN(Hn)))=Jn;"ok";"faux")`, relire ;
 4. réécrire chaque morceau « faux » (seulement lui), revérifier ; effacer la colonne de formules ;
+   Un morceau qui reste faux (passage répétitif, ex. « AAAA… » ou motifs qui se répètent) : l'écrire en 10 lignes
+   de 100 caractères dans une colonne libre, vérifier `=LEN()` de chaque ligne, recoller avec `=JOIN("";…)` puis
+   copier la **valeur** dans `donnees` (copyPaste PASTE_VALUES) ;
 5. écrire l'échange avec `pieces_jointes`.
