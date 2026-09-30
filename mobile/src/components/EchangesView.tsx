@@ -72,7 +72,7 @@ export const aTraiter = (moi: string, l: Echange[]) => l.filter((e) => (e.a === 
 /** Petite aide de l'application (en attendant le mode assistant, lot 19) */
 const AIDE: { q: string; r: string }[] = [
   { q: 'Créer un espace de travail', r: 'Carte des espaces (touchez la pastille à côté de « President ») › ＋ : Équipe ou Entreprise, avec son propre Google Sheet.' },
-  { q: 'Mode démo', r: 'Interrupteur « Démo » devant « President » : allumé, des données d’exemple ; éteint, vos données. Les deux ne se mélangent jamais.' },
+  { q: 'Mode démo', r: 'Interrupteur « Démo » à droite de « President » : allumé, des données d’exemple ; éteint, vos données. Les deux ne se mélangent jamais.' },
   { q: 'Envoyer un échange à quelqu’un', r: '💬 Échange › ＋ Nouvel échange : un message ou une question à choix, rangé dans l’espace choisi. Il disparaît quand il est lu, ou quand la réponse est prise en compte.' },
   { q: 'Alertes', r: 'Chaque écran signale ce qui ne tient pas (dates, charge, estimation). Un bouton règle le problème, « Ignorer » le range.' },
   { q: 'Droits', r: 'Vos droits viennent de vos rôles : votre travail et celui de votre équipe selon le rôle (Scrum Master, PO, membre…), la lecture ailleurs.' },

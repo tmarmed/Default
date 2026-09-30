@@ -1992,7 +1992,10 @@ function Main() {
     <View style={styles.flex}>
       {/* Barre fixe : nom de l'application et compte (en démo : même icône, menu « Réinitialiser la démo ») */}
       <View style={styles.appBar}>
-        {/* Interrupteur Démo, devant « President » : désactivé par défaut (vos données) ; activé = données d'exemple */}
+        <Text style={styles.marque} numberOfLines={1}>
+          {NOM_APP}
+        </Text>
+        {/* Interrupteur Démo, à droite de « President » : désactivé par défaut (vos données) ; activé = données d'exemple */}
         {DEMO_BASCULABLE && (
           <Pressable
             onPress={() => changerModeDemo(!DEMO)}
@@ -2008,9 +2011,6 @@ function Main() {
             </View>
           </Pressable>
         )}
-        <Text style={styles.marque} numberOfLines={1}>
-          {NOM_APP}
-        </Text>
         {/* Espaces de travail : pastille juste après « President » (repliés), la carte se déplie dessous */}
         <EspacesPastille plie={espacesPlie} onPlier={plierEspaces} />
         <Pressable
