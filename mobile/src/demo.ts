@@ -297,7 +297,7 @@ function creerStore(espace: string, seeds: Seeds) {
   const memoire: Partial<Record<Table, unknown[]>> = {};
   const cle = (t: Table) => (t === 'items' ? key : `${key}-${t}`);
   const exemples = (t: Table): unknown[] =>
-    t === 'items' ? seeds.items() : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : seeds.entities()[t as Kind];
+    t === 'items' ? seeds.items() : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : (seeds.entities()[t as Kind] ?? []);
 
   const persistance: Persistance = {
     async lire(t) {

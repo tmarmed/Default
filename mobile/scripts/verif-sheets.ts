@@ -264,6 +264,26 @@ const ok = (cond: unknown, msg: string) => {
   const echs = (await l.listAll()).echanges ?? [];
   ok(m2.nouveau && echs.length === 2 && echs.find((x) => x.id === ech.id)?.reponse === 'Jeudi' && m2.e.statut === 'envoye' && m2.e.a === 'lea@x.fr', 'échange déjà lu : la modification part en nouvel échange, l\'ancien reste');
 
+  // Pièces jointes : une image de 120 000 caractères (3 morceaux) et un petit fichier, en une lecture et une écriture
+  const img = 'A'.repeat(120_000);
+  const avantPj = appels;
+  const pjs = await l.ajouterPieces([{ nom: 'capture.jpg', type: 'image/jpeg', donnees: img }, { nom: 'note.txt', type: 'text/plain', donnees: 'Qm9uam91cg==' }]);
+  ok(pjs.length === 2 && appels - avantPj <= 4, `pièces jointes : 2 pièces (4 morceaux) écrites en ${appels - avantPj} appels (onglet créé au premier usage)`);
+  const avantPj2 = appels;
+  await l.ajouterPieces([{ nom: 'autre.jpg', type: 'image/jpeg', donnees: 'QUJD' }]);
+  ok(appels - avantPj2 <= 2, `pièces jointes : ajout suivant en ${appels - avantPj2} appels (une lecture, une écriture)`);
+  const relues = await magasinSheets(idL).lirePieces(pjs);
+  ok(relues.length === 2 && relues[0].donnees === img && relues[1].nom === 'note.txt', 'pièces jointes : reconstituées à l\'identique');
+  let tropGros = '';
+  await l.ajouterPieces([{ nom: 'gros.pdf', type: 'application/pdf', donnees: 'A'.repeat(1_400_000) }]).catch((e) => (tropGros = e.message));
+  ok(tropGros.includes('1 Mo'), 'pièces jointes : plus de 1 Mo refusé');
+  await l.createEntity('echange', { de: 'moi@x.fr', a: 'lea@x.fr', type: 'message', titre: '', texte: '', choix: '', reponse: '', note: '', statut: 'envoye', element: '', niveau: '', transmis_par: '', prive: '1', pieces_jointes: pjs[0] } as never);
+  const fpj = fichiers.get(idL)!.feuilles.get('PiecesJointes')!;
+  for (const r of fpj.slice(1)) r[8] = '2020-01-01T00:00:00.000Z';
+  const effacees = await magasinSheets(idL).purgerPieces();
+  const restent = await magasinSheets(idL).lirePieces(pjs);
+  ok(effacees === 2 && restent.length === 1 && restent[0].id === pjs[0], 'pièces jointes : celle qu\'aucun échange ne cite est effacée, l\'autre reste');
+
   // Espace Équipe : membres et rôles (une lecture, deux écritures au plus par membre)
   const idEq = await creerFichierEspace('President | Équipe | Mobile', 'equipe', 'Mobile');
   const q = magasinSheets(idEq);

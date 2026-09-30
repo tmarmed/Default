@@ -55,3 +55,15 @@ Google refuse au-delà d'environ **60 écritures par minute** par utilisateur. D
   écritures groupées (plages multiples en un appel), au plus 50 appels par minute, au moins 1 s entre deux
   appels ; sur refus (429 / quota), attendre 1 s, 2 s, 4 s… (au plus 64 s) avant de réessayer, 6 fois au plus ;
   jamais de suppression de ligne (écrire `pris_en_compte`, l'application supprime).
+
+## Pièces jointes des échanges (Synchronisation)
+
+Une image ne peut pas être « collée » dans une cellule (Google ne la rend pas lisible par l'API) ni stockée entière
+(50 000 caractères au plus par cellule). Elle est rangée en texte base64 dans l'onglet `PiecesJointes` du Sheet de
+l'espace, découpée en morceaux de 45 000 caractères au plus :
+`id` (`<piece>-<k>`), `piece`, `nom`, `type` (ex. image/jpeg), `taille` (octets), `partie` (0, 1…), `total`,
+`donnees`, `cree_le`. L'échange cite ses pièces dans sa colonne `pieces_jointes` (ids séparés par « ; »).
+Limites : 5 pièces par échange, 1 Mo par fichier ; images réduites à 1000 px (JPEG). Pas d'historique : quand
+l'échange disparaît, l'application efface les pièces qu'aucun échange ne cite plus (après 10 minutes).
+Claude (connecteur Google Sheets) écrit ses captures de la même façon : d'abord les lignes de `PiecesJointes`
+(en un appel), puis l'échange avec `pieces_jointes`.

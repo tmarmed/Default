@@ -75,6 +75,7 @@ import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
 import { ChatEchanges, type ElementChat } from './src/components/ChatEchanges';
 import { EquipeView, type PersonneConnue } from './src/components/EquipeView';
+import { idsPieces, PiecesContext } from './src/components/Pieces';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
 import { StrategieView } from './src/components/StrategieView';
@@ -1419,6 +1420,11 @@ function Main() {
     for (const e of tousHier.echanges ?? []) for (const id of [e.de, e.a]) if (id !== 'claude' && id !== 'president' && !m.has(id)) m.set(id, { id, nom: nomDepuisEmail(id), nature: 'humain' });
     return [...m.values()].sort((a, b) => a.nom.localeCompare(b.nom));
   }, [orgTous, equipesEsp, tousHier.echanges]);
+  /** Pièces jointes d'un échange : lues dans le Sheet de son espace, à l'affichage */
+  const chargerPieces = useCallback(
+    (e: Echange) => (settings ? api.lirePieces(settings, e.espace ?? 'moi', idsPieces(e)) : Promise.resolve([])),
+    [settings],
+  );
   /** Personnes connues ailleurs (entreprises, autres équipes, conversations Synchro) : « Choisir une personne connue » */
   const personnesConnues = useMemo(() => {
     const m = new Map<string, PersonneConnue>();
@@ -1464,6 +1470,8 @@ function Main() {
   const retirerEchange = async (e: Echange) => {
     if (!settings || (e.de !== moiEchange && e.a !== moiEchange)) return;
     await api.deleteEntity(settings, 'echange', e.id, false);
+    // Pas d'historique : ses pièces jointes sont effacées aussi (et celles qu'aucun échange ne cite plus)
+    if (e.pieces_jointes) api.purgerPieces(settings, e.espace ?? 'moi').catch(() => {});
     setHier((prev) => {
       const next = { ...prev, echanges: (prev.echanges ?? []).filter((x) => x.id !== e.id) };
       saveHierarchyCache(next).catch(() => {});
@@ -2009,6 +2017,7 @@ function Main() {
     <IgnoreContext.Provider value={ignoreValue}>
     <EspacesContext.Provider value={espacesValue}>
     <RechercheContext.Provider value={recherche ?? ''}>
+    <PiecesContext.Provider value={chargerPieces}>
     <OrgContext.Provider value={orgValue}>
     <MoiContext.Provider value={moi}>
     <OrgFiltreContext.Provider value={safe.actif ? orgFiltre : null}>
@@ -2377,8 +2386,11 @@ function Main() {
             messages: messagesApp,
             onLu: (id) => majMessagesApp((l) => l.filter((m) => m.id !== id)),
           }}
-          onEnvoyer={async (e) => {
-            await saveEntity('echange', null, placerEchange(e));
+          onEnvoyer={async (e, pieces) => {
+            const place = placerEchange(e);
+            // Pièces jointes d'abord (onglet PiecesJointes du même Sheet), puis l'échange qui les cite
+            const ids = pieces.length && settings ? await api.ajouterPieces(settings, place.espace ?? 'moi', pieces) : [];
+            await saveEntity('echange', null, { ...place, pieces_jointes: ids.join(';') });
           }}
           hierarchie={hierarchieEchanges}
           onRepondre={async (e, reponse, note) => {
@@ -3227,6 +3239,7 @@ function Main() {
     </OrgFiltreContext.Provider>
     </MoiContext.Provider>
     </OrgContext.Provider>
+    </PiecesContext.Provider>
     </RechercheContext.Provider>
     </EspacesContext.Provider>
     </IgnoreContext.Provider>

@@ -5,6 +5,7 @@ import type { Echange } from '../types';
 import { ChampFiche, SaisieFiche, SectionFiche } from './Choix';
 import { estAutre, FilEchange, type MessageApp, placeholderNote, reponsePrete } from './EchangesView';
 import { FormSheet, TitreFiche } from './FormSheet';
+import { idsPieces, PiecesEchange } from './Pieces';
 
 /**
  * Fenêtre de traitement (à l'ouverture de l'application, ou en ouvrant une conversation) : un seul message à la
@@ -120,6 +121,13 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
             <Text style={s.texte}>{e.texte}</Text>
           </SectionFiche>
         )}
+        {idsPieces(e).length > 0 && (
+          <SectionFiche titre={`Pièces jointes · ${idsPieces(e).length}`}>
+            <View style={s.pieces}>
+              <PiecesEchange e={e} />
+            </View>
+          </SectionFiche>
+        )}
         {recue && (
           <SectionFiche titre="Réponse">
             <ChampFiche label="Choix">
@@ -185,6 +193,7 @@ function Bouton({ label, onPress, busy, disabled }: { label: string; onPress: ()
 
 const s = StyleSheet.create({
   fil: { alignItems: 'center', marginBottom: 6 },
+  pieces: { padding: 12, paddingTop: 6 },
   texte: { fontSize: 15, color: colors.text, lineHeight: 21, padding: 12 },
   texteNote: { fontSize: 15, color: colors.text, lineHeight: 21 },
   reponse: { fontSize: 15, fontWeight: '700', color: colors.success },

@@ -1,4 +1,4 @@
-import { Children, type ReactNode, useMemo, useState } from 'react';
+import { Children, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { filElement } from '../choixTravail';
 import { useHierarchy } from '../hierarchyContext';
@@ -8,6 +8,9 @@ import type { Echange, EchangeInput } from '../types';
 import { ChampFiche, FeuilleChoix, type GroupeChoix, LigneChoix, SaisieFiche, SectionFiche } from './Choix';
 import { ChatEchanges, type ElementChat } from './ChatEchanges';
 import { FormSheet, TitreFiche } from './FormSheet';
+import { ListePieces, PiecesEchange } from './Pieces';
+import type { PieceEntree } from '../api';
+import { choisirFichiers, ecouterCollage, FICHIERS_DISPONIBLES, preparer } from '../fichiers';
 
 /**
  * 🔄 Synchronisation (onglet « Synchro ») : vos conversations.
@@ -53,7 +56,8 @@ interface Props {
     messages: MessageApp[];
     onLu: (id: string) => void;
   };
-  onEnvoyer: (e: EchangeInput) => Promise<void>;
+  /** Nouvel échange, avec ses pièces jointes (images réduites, fichiers de 1 Mo au plus) */
+  onEnvoyer: (e: EchangeInput, pieces: PieceEntree[]) => Promise<void>;
   onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>;
   /** Modifier un échange envoyé : sur place s'il n'est pas lu, sinon en nouvel échange */
   onModifier: (e: Echange, patch: Partial<EchangeInput>) => Promise<void>;
@@ -389,6 +393,7 @@ function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier }: { 
       <Text style={s.type}>{e.type === 'question' ? '❓ Question' : '✉️ Message'}</Text>
       {!!e.titre && <Text style={s.titre}>{e.titre}</Text>}
       {!!e.texte && <Text style={s.texte}>{e.texte}</Text>}
+      <PiecesEchange e={e} />
       {e.type === 'question' && !reponse && <Text style={s.meta}>Choix : {e.choix.split(';').filter(Boolean).join(' · ')}</Text>}
       {reponse && !!e.reponse && (
         <Text style={s.reponse}>
@@ -431,6 +436,7 @@ function CarteQuestion({ e, onRepondre, pied }: { e: Echange; onRepondre: (e: Ec
       <Text style={s.type}>❓ Question</Text>
       {!!e.titre && <Text style={s.titre}>{e.titre}</Text>}
       {!!e.texte && <Text style={s.texte}>{e.texte}</Text>}
+      <PiecesEchange e={e} />
       <View style={s.choix}>
         {options.map((o) => (
           <Pressable key={o} onPress={() => setChoix(o === choix ? '' : o)} style={[s.choixBouton, choix === o && s.choixOn]} accessibilityRole="radio" accessibilityState={{ checked: choix === o }}>
@@ -531,9 +537,11 @@ function NouvelEchange({
   personnes: Interlocuteur[];
   espaces: { id: string; nom: string }[];
   onClose: () => void;
-  onEnvoyer: (e: EchangeInput) => Promise<void>;
+  onEnvoyer: (e: EchangeInput, pieces: PieceEntree[]) => Promise<void>;
   onModifier: (e: Echange, patch: Partial<EchangeInput>) => Promise<void>;
 }) {
+  const [pieces, setPieces] = useState<PieceEntree[]>([]);
+  const [lecture, setLecture] = useState(false);
   const [dest, setDest] = useState(a);
   const [espace, setEspace] = useState(espaces.find((e) => e.id !== 'moi')?.id ?? espaces[0]?.id ?? 'moi');
   const [type, setType] = useState<'message' | 'question'>('message');
@@ -559,6 +567,7 @@ function NouvelEchange({
       setChoix(existant ? existant.choix.split(';').map((c) => c.trim()).filter(Boolean) : []);
       setSaisieChoix('');
       setElement(existant?.element ?? '');
+      setPieces([]);
       setError(null);
     }
   }
@@ -566,11 +575,35 @@ function NouvelEchange({
   const nomDest = (v: string) => (v === 'claude' ? '💬 Claude' : options.find((p) => p.id === v)?.nom ?? v);
   // Un échange avec un humain va dans un espace partagé (jamais 🔒 Moi, qu'il ne verrait pas)
   const espacesPartages = espaces.filter((e) => e.id !== 'moi');
+  // Fichiers choisis ou collés (Ctrl + V) : images réduites, fichiers de 1 Mo au plus, 5 pièces au plus
+  const joindre = async (fichiers: unknown[]) => {
+    if (!fichiers.length) return;
+    setLecture(true);
+    setError(null);
+    try {
+      const prets: PieceEntree[] = [];
+      for (const f of fichiers) {
+        try {
+          prets.push(await preparer(f));
+        } catch (e) {
+          setError((e as Error).message);
+        }
+      }
+      setPieces((l) => {
+        const tout = [...l, ...prets];
+        if (tout.length > 5) setError('Au plus 5 pièces jointes par échange.');
+        return tout.slice(0, 5);
+      });
+    } finally {
+      setLecture(false);
+    }
+  };
+  useEffect(() => (visible && !existant ? ecouterCollage((f) => void joindre(f)) : undefined), [visible, existant]);
   const envoyer = async () => {
     if (!dest) return setError('Choisissez à qui écrire.');
     if (dest !== 'claude' && !espacesPartages.length) return setError('Affichez un espace Équipe ou Entreprise partagé avec cette personne : 🔒 Moi est privé.');
     if (dest !== 'claude' && espace === 'moi') setEspace(espacesPartages[0].id);
-    if (!titre.trim() && !texte.trim()) return setError('Écrivez un titre ou un texte.');
+    if (!titre.trim() && !texte.trim() && !pieces.length) return setError('Écrivez un titre ou un texte, ou joignez une image.');
     // Un choix tapé sans Entrée compte aussi ; « ; » est le séparateur du Sheet
     const liste = [...new Set([...choix, saisieChoix].map((c) => c.replace(/;/g, ',').trim()).filter(Boolean))];
     // Un seul choix : « Autre » est ajouté pour qu'on puisse répondre autrement
@@ -584,7 +617,7 @@ function NouvelEchange({
         onClose();
         return;
       }
-      await onEnvoyer({ espace, de: moi, a: dest, type, titre: titre.trim(), texte: texte.trim(), choix: type === 'question' ? liste.join(';') : '', reponse: '', note: '', statut: 'envoye', element, niveau: '', transmis_par: '', prive: '1' });
+      await onEnvoyer({ espace, de: moi, a: dest, type, titre: titre.trim(), texte: texte.trim(), choix: type === 'question' ? liste.join(';') : '', reponse: '', note: '', statut: 'envoye', element, niveau: '', transmis_par: '', prive: '1' }, pieces);
       onClose();
     } catch (e) {
       setError(`Envoi impossible : ${(e as Error).message}`);
@@ -612,6 +645,21 @@ function NouvelEchange({
           onChange={(v) => v && setType(v as 'message' | 'question')}
         />
       </SectionFiche>
+      {/* Pièces jointes : images (vignettes, visionneuse) et fichiers ; pas encore sur téléphone (lot 18) */}
+      {!existant && FICHIERS_DISPONIBLES && (
+        <SectionFiche titre={`Pièces jointes · ${pieces.length}`} onAjouter={pieces.length < 5 ? () => void choisirFichiers().then(joindre) : undefined} ajouterLabel="Joindre une image ou un fichier">
+          {pieces.length > 0 ? (
+            <View style={s.piecesCarte}>
+              <ListePieces pieces={pieces} onRetirer={(i) => setPieces((l) => l.filter((_, k) => k !== i))} />
+            </View>
+          ) : (
+            <Pressable onPress={() => void choisirFichiers().then(joindre)} style={s.joindre} accessibilityRole="button">
+              <Text style={s.joindreTexte}>{lecture ? 'Préparation…' : '📎 Joindre une image ou un fichier'}</Text>
+              <Text style={s.entree}>ou collez une capture (Ctrl + V) · 5 pièces, 1 Mo par fichier</Text>
+            </Pressable>
+          )}
+        </SectionFiche>
+      )}
       {/* Choix de réponse : saisie rapide, comme les tâches d'une feature (Entrée pour ajouter) */}
       {type === 'question' && (
         <SectionFiche titre={`Choix de réponse · ${choix.length}`} aDefinir={choix.length ? 0 : 1}>
@@ -728,6 +776,9 @@ const s = StyleSheet.create({
   actionTexte: { fontSize: 13.5, fontWeight: '700', color: colors.text },
   actionTexteBlanc: { color: '#fff' },
   inactif: { opacity: 0.4 },
+  piecesCarte: { padding: 12 },
+  joindre: { paddingHorizontal: 12, paddingTop: 12, gap: 2 },
+  joindreTexte: { fontSize: 15, fontWeight: '700', color: colors.primary },
   actionsLigne: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   filElement: { fontSize: 12, fontWeight: '600', color: colors.primary },
   outils: { marginTop: 8, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, gap: 6 },

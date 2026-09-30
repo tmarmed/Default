@@ -15,7 +15,7 @@ export type Kind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 
 /** Tables de base (tous les espaces) */
 export type TableBase = 'items' | Kind;
 /** Tables de l'Organisation (seulement dans le Google Sheet d'une entreprise, onglets créés au premier usage) */
-export type Table = TableBase | KindOrg;
+export type Table = TableBase | KindOrg | 'piecejointe';
 export type EntityOf<K extends Kind> = K extends 'epic'
   ? Epic
   : K extends 'objectif'
@@ -33,7 +33,34 @@ export type EntityOf<K extends Kind> = K extends 'epic'
               : K extends 'echange'
                 ? Echange
                 : Ignoree;
-type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : never;
+type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : T extends 'piecejointe' ? LignePiece : never;
+/** Morceau d'une pièce jointe (onglet PiecesJointes) : une cellule contient au plus 50 000 caractères */
+export interface LignePiece {
+  id: string;
+  piece: string;
+  nom: string;
+  type: string;
+  taille: string;
+  partie: string;
+  total: string;
+  donnees: string;
+  cree_le: string;
+}
+/** Pièce jointe reconstituée (données en base64) */
+export interface PieceJointe {
+  id: string;
+  nom: string;
+  type: string;
+  taille: number;
+  donnees: string;
+}
+export interface PieceEntree {
+  nom: string;
+  type: string;
+  donnees: string;
+}
+/** Limites : 1 Mo par fichier, 5 pièces par échange ; morceaux de 45 000 caractères */
+export const PIECES = { tailleMax: 1_000_000, nombreMax: 5, morceau: 45_000 };
 
 /** Onglets du Google Sheet d'un espace et leurs colonnes (mêmes noms que l'ancien script : fichiers compatibles) */
 export const ONGLETS: Record<TableBase, { nom: string; colonnes: string[] }> = {
@@ -53,7 +80,7 @@ export const ONGLETS: Record<TableBase, { nom: string; colonnes: string[] }> = {
   ignoree: { nom: 'Ignorees', colonnes: ['id', 'cle', 'signature', 'cree_le', 'modifie_le'] },
   valuestream: { nom: 'ValueStreams', colonnes: ['id', 'nom', 'type', 'description', 'portfolio', 'trains', 'okrs', 'cree_le', 'modifie_le'] },
   resultat: { nom: 'ResultatsCles', colonnes: ['id', 'objectif', 'titre', 'actuel', 'cible', 'unite', 'cree_le', 'modifie_le'] },
-  echange: { nom: 'Echanges', colonnes: ['id', 'de', 'a', 'type', 'titre', 'texte', 'choix', 'reponse', 'note', 'statut', 'element', 'cree_le', 'modifie_le', 'niveau', 'transmis_par', 'prive'] },
+  echange: { nom: 'Echanges', colonnes: ['id', 'de', 'a', 'type', 'titre', 'texte', 'choix', 'reponse', 'note', 'statut', 'element', 'cree_le', 'modifie_le', 'niveau', 'transmis_par', 'prive', 'pieces_jointes'] },
 };
 export const TABLES = Object.keys(ONGLETS) as TableBase[];
 
@@ -67,7 +94,9 @@ export const ONGLETS_ORG: Record<KindOrg, { nom: string; colonnes: string[] }> =
 };
 export const TABLES_ORG = Object.keys(ONGLETS_ORG) as KindOrg[];
 /** Toutes les tables et leurs onglets */
-export const ONGLETS_TOUS: Record<Table, { nom: string; colonnes: string[] }> = { ...ONGLETS, ...ONGLETS_ORG };
+/** Pièces jointes des échanges : onglet créé au premier usage */
+export const ONGLET_PIECES = { nom: 'PiecesJointes', colonnes: ['id', 'piece', 'nom', 'type', 'taille', 'partie', 'total', 'donnees', 'cree_le'] };
+export const ONGLETS_TOUS: Record<Table, { nom: string; colonnes: string[] }> = { ...ONGLETS, ...ONGLETS_ORG, piecejointe: ONGLET_PIECES };
 
 /** Lecture et écriture d'une table : sur l'appareil (démo) ou dans un Google Sheet */
 export interface Persistance {
@@ -176,7 +205,9 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
     out.a = out.a.trim().toLowerCase();
     if (!out.de || !out.a) throw new Error('Échange : auteur et destinataire obligatoires.');
     if (out.type !== 'question') out.type = 'message';
-    if (!out.titre.trim() && !out.texte.trim()) throw new Error("L'échange est vide.");
+    out.pieces_jointes = (out.pieces_jointes ?? '').split(';').map((x: string) => x.trim()).filter(Boolean).join(';');
+    if (out.pieces_jointes && !/^[0-9A-Za-z;-]+$/.test(out.pieces_jointes)) throw new Error('Pièces jointes invalides.');
+    if (!out.titre.trim() && !out.texte.trim() && !out.pieces_jointes) throw new Error("L'échange est vide.");
     if (out.type === 'question' && !out.choix.split(';').filter((c: string) => c.trim()).length) throw new Error('Une question a au moins un choix.');
     if (out.statut !== 'repondu' && out.statut !== 'pris_en_compte') out.statut = 'envoye';
     out.texte = out.texte.slice(0, 4000);
@@ -376,6 +407,52 @@ export function creerMagasin(p: Persistance) {
       const o = { ...nettoyerEntite('echange', { ...reste, reponse: '', note: '', statut: 'envoye' }, undefined, []), id: nouvelId(), cree_le: now, modifie_le: now } as Echange;
       await p.ecrire('echange', [...list, o] as never);
       return { e: o, nouveau: true };
+    },
+    /**
+     * Pièces jointes d'un échange : chaque fichier (base64) est découpé en morceaux de moins de 50 000 caractères
+     * (limite d'une cellule) dans l'onglet PiecesJointes. Une lecture et une écriture ; renvoie les ids.
+     */
+    async ajouterPieces(pieces: PieceEntree[]): Promise<string[]> {
+      if (!pieces.length) return [];
+      if (pieces.length > PIECES.nombreMax) throw new Error(`Au plus ${PIECES.nombreMax} pièces jointes.`);
+      const now = new Date().toISOString();
+      const lignes: LignePiece[] = [];
+      const ids: string[] = [];
+      for (const x of pieces) {
+        const taille = Math.floor((x.donnees.length * 3) / 4);
+        if (taille > PIECES.tailleMax) throw new Error(`« ${x.nom} » dépasse 1 Mo.`);
+        if (!/^[A-Za-z0-9+/=]*$/.test(x.donnees)) throw new Error(`« ${x.nom} » : données invalides.`);
+        const id = nouvelId();
+        ids.push(id);
+        const total = Math.max(1, Math.ceil(x.donnees.length / PIECES.morceau));
+        for (let k = 0; k < total; k++)
+          lignes.push({ id: `${id}-${k}`, piece: id, nom: x.nom.slice(0, 200), type: x.type.slice(0, 100), taille: String(taille), partie: String(k), total: String(total), donnees: x.donnees.slice(k * PIECES.morceau, (k + 1) * PIECES.morceau), cree_le: now });
+      }
+      const avant = await p.lire('piecejointe');
+      await p.ecrire('piecejointe', [...avant, ...lignes]);
+      return ids;
+    },
+    /** Pièces jointes reconstituées (une lecture) ; une pièce incomplète est ignorée */
+    async lirePieces(ids: string[]): Promise<PieceJointe[]> {
+      if (!ids.length) return [];
+      const lignes = await p.lire('piecejointe');
+      return ids.flatMap((id) => {
+        const l = lignes.filter((x) => x.piece === id).sort((a, b) => Number(a.partie) - Number(b.partie));
+        if (!l.length || l.length !== Number(l[0].total)) return [];
+        return [{ id, nom: l[0].nom, type: l[0].type, taille: Number(l[0].taille) || 0, donnees: l.map((x) => x.donnees).join('') }];
+      });
+    },
+    /**
+     * Pas d'historique : les pièces qu'aucun échange ne cite plus (échange lu, pris en compte) sont effacées. Celles
+     * de moins de 10 minutes restent (échange en cours d'envoi). Une lecture, une écriture s'il y a à effacer.
+     */
+    async purgerPieces(): Promise<number> {
+      const [lignes, echanges] = await Promise.all([p.lire('piecejointe'), p.lire('echange')]);
+      const citees = new Set(echanges.flatMap((e) => (e.pieces_jointes ?? '').split(';').filter(Boolean)));
+      const limite = Date.now() - 10 * 60_000;
+      const garde = lignes.filter((x) => citees.has(x.piece) || Date.parse(x.cree_le) > limite);
+      if (garde.length !== lignes.length) await p.ecrire('piecejointe', garde);
+      return lignes.length - garde.length;
     },
     /** Espace Équipe (hors entreprise) : ses personnes et sa ligne d'équipe (rôles, membres) — une lecture */
     async listEquipe(): Promise<EquipeEspace> {

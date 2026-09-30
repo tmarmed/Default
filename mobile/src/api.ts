@@ -2,7 +2,8 @@ import { DEMO, demoApiFor } from './demo';
 import type { EntiteOrg, KindOrg, Org } from './organisation';
 import { adopterFichier, corbeille, creerFichierEspace, effacerFichier, fichiersCorbeille, fichiersEspaces, magasinSheets, poidsFichiers, quotaDrive, renommerFichier } from './gsheets';
 import type { Data, DeletionCounts } from './hierarchy';
-import type { EquipeEspace, Magasin } from './magasin';
+import type { EquipeEspace, Magasin, PieceEntree, PieceJointe } from './magasin';
+export type { PieceEntree, PieceJointe } from './magasin';
 export type { EquipeEspace, RoleEquipe } from './magasin';
 import {
   Domaine,
@@ -214,6 +215,17 @@ export async function listOrg(settings: Settings, espace: string): Promise<Org> 
 export async function saveOrg<K extends KindOrg>(settings: Settings, espace: string, kind: K, data: Partial<EntiteOrg<K>> & { id?: string }): Promise<EntiteOrg<K>> {
   const { espace: _e, ...propre } = data as Record<string, unknown>;
   return marquer(await route(settings, espace).m.saveOrg(kind, propre as never), espace) as unknown as EntiteOrg<K>;
+}
+/** Pièces jointes d'un échange, rangées dans le Sheet de son espace (renvoie les ids) */
+export async function ajouterPieces(settings: Settings, espace: string, pieces: PieceEntree[]): Promise<string[]> {
+  return route(settings, espace).m.ajouterPieces(pieces);
+}
+export async function lirePieces(settings: Settings, espace: string, ids: string[]): Promise<PieceJointe[]> {
+  return route(settings, espace).m.lirePieces(ids);
+}
+/** Efface les pièces qu'aucun échange ne cite plus */
+export async function purgerPieces(settings: Settings, espace: string): Promise<number> {
+  return route(settings, espace).m.purgerPieces();
 }
 /** Espace Équipe : ses personnes et sa ligne d'équipe (rôles, membres) */
 export async function listEquipe(settings: Settings, espace: string): Promise<EquipeEspace> {

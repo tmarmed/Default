@@ -332,6 +332,8 @@ export interface Echange {
   transmis_par: string;
   /** « 1 » : privé à deux (seuls l'auteur et le destinataire le voient) */
   prive: string;
+  /** Pièces jointes (images, fichiers) : ids séparés par « ; », rangées dans l'onglet PiecesJointes */
+  pieces_jointes?: string;
   cree_le: string;
   modifie_le: string;
 }
