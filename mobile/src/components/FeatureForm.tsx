@@ -10,7 +10,7 @@ import { colors } from '../theme';
 import type { Feature, FeatureInput, Item } from '../types';
 import { chargeOf, subtaskMap } from '../subtasks';
 import { DeleteSection } from './DeleteSection';
-import { ChildActions, Field, FormSheet, TitreFiche, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
+import { ChildActions, FormSheet, TitreFiche, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
 import { LiaisonOrg } from './LiaisonOrg';
 import { ChoiceSheet } from './ChoiceSheet';
 import { ChampEstimation, ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, SaisieFiche, SectionFiche } from './Choix';
@@ -239,7 +239,11 @@ export function FeatureForm({
         sous={[form.pi ? `PI ${piLabel(form.pi)}` : '', form.iteration ? form.iteration.split('-').pop() : ''].filter(Boolean).join(' · ') || undefined}
         couleur={epic?.couleur}
       />
-      <Field style={f.titleInput} placeholder="Titre (ex. Prise de rendez-vous en ligne)" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!feature} />
+      <SectionFiche titre="Élément">
+        <ChampFiche label="Titre">
+          <SaisieFiche placeholder="ex. Prise de rendez-vous en ligne" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!feature} />
+        </ChampFiche>
+      </SectionFiche>
       <EspaceChoix
         espace={espace}
         fige={!!feature}

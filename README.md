@@ -68,6 +68,10 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   disparaît tout seul après 6 s ou dès qu'on touche ailleurs (comme les messages d'information).
   Feuilles de tâches (tâche parente, choisir des sous-tâches) : par feature (sinon epic), celles de la même feature
   d'abord, les autres repliées. « Sans … » : le même libellé que la valeur vide (« Aucune (tâche principale) »).
+- **Titre et type** (toutes les fiches) : le grand titre centré est un affichage (logo + nom) ; la première section
+  « Élément » contient la ligne « Titre » (ou « Nom ») à saisir et, pour les éléments qui en ont un, la ligne « Type »
+  (tâche : 8 types ; unité : Direction / Service ; objectif du PI : Engagé / Bonus). Même place à la création et à
+  l'affichage.
 - **Enregistrement au fil de l'eau** (toutes les fiches : tâche, feature, epic, objectif, domaine, objectif du PI,
   Organisation), comme l'arbre de l'Organisation. **Élément existant** : « Fermer » à gauche, pas de bouton
   Enregistrer ; chaque changement est enregistré tout de suite (un court délai pour le texte), un bandeau dit ce qui

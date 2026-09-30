@@ -6,10 +6,9 @@ import { CLE_ORG, type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, mem
 import { useSafe } from '../safe';
 import { useEspaces } from '../espaces';
 import { colors } from '../theme';
-import { Chips } from './Chips';
 import { ChampFiche, LigneChoix, LigneMulti, ListeEnfants, SaisieFiche, SectionFiche, type AutresChoix, type GroupeChoix } from './Choix';
 import { DeleteSection } from './DeleteSection';
-import { Field, FormSheet, formStyles as f, TitreFiche } from './FormSheet';
+import { FormSheet, formStyles as f, TitreFiche } from './FormSheet';
 
 type Donnees = Record<string, string>;
 /** Éléments existants rangés dans la fiche : leur champ `champ` prendra l'id de la fiche */
@@ -42,11 +41,11 @@ const TITRES: Record<KindOrg, [string, string]> = {
 };
 
 const PLACEHOLDERS: Record<KindOrg, string> = {
-  personne: 'Nom (ex. Tom Faure)',
-  unite: 'Nom (ex. Direction technique, Développement)',
-  portfolio: 'Nom du portfolio (ex. Digital)',
-  train: 'Nom du train (ex. Clients)',
-  equipeagile: "Nom de l'équipe (ex. Mobile)",
+  personne: 'ex. Tom Faure',
+  unite: 'ex. Direction technique, Développement',
+  portfolio: 'ex. Digital',
+  train: 'ex. Clients',
+  equipeagile: 'ex. Mobile',
 };
 
 /**
@@ -402,8 +401,22 @@ export function OrgForm({
       chemin={pile?.chemin}
       onFermerTout={pile?.onFermerTout}
     >
-      <TitreFiche icone={ICONE_ORG[kind]} titre={form.nom} vide="Nom" />
-      <Field style={f.titleInput} placeholder={PLACEHOLDERS[kind]} value={form.nom} onChangeText={set('nom')} autoFocus={!entite} />
+      <TitreFiche icone={kind === 'unite' ? (form.type === 'direction' ? '🏛️' : '🧩') : ICONE_ORG[kind]} titre={form.nom} vide="Nom" />
+      {/* Élément : nom (et type d'une unité), comme toutes les fiches */}
+      <SectionFiche titre="Élément">
+        <ChampFiche label="Nom">
+          <SaisieFiche placeholder={PLACEHOLDERS[kind]} value={form.nom} onChangeText={set('nom')} autoFocus={!entite} />
+        </ChampFiche>
+        {kind === 'unite' && (
+          <LigneChoix
+            label="Type"
+            value={form.type === 'direction' ? 'direction' : 'service'}
+            depart={(entite as { type?: string } | null)?.type || undefined}
+            groupes={[{ options: [{ value: 'direction', label: '🏛️ Direction' }, { value: 'service', label: '🧩 Service' }] }]}
+            onChange={(v) => v && set('type')(v)}
+          />
+        )}
+      </SectionFiche>
 
       {kind === 'personne' && (
         <>
@@ -440,9 +453,6 @@ export function OrgForm({
       {kind === 'unite' && (
         <>
           <SectionFiche titre="Hiérarchie">
-            <ChampFiche label="Type">
-              <Chips options={[{ value: 'direction', label: '🏛️ Direction' }, { value: 'service', label: '🧩 Service' }]} value={form.type === 'direction' ? 'direction' : 'service'} onChange={set('type')} compact />
-            </ChampFiche>
             {choix({
               label: 'Au-dessus',
               k: 'parent',

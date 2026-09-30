@@ -10,7 +10,7 @@ import { formatEpicDates } from '../roadmap';
 import { EPIC_COULEURS, Epic, Objectif, ObjectifInput } from '../types';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
-import { AlertList, ColorPicker, TitreFiche, Field, FormSheet, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
+import { AlertList, ColorPicker, TitreFiche, FormSheet, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { ChampFiche, ListeEnfants, SaisieFiche, SectionFiche } from './Choix';
 import { filTravail } from '../choixTravail';
@@ -201,13 +201,11 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
         couleur={form.couleur}
       />
 
-      <Field
-        style={f.titleInput}
-        placeholder="Titre (ex. Doubler le nombre de clients)"
-        value={form.titre}
-        onChangeText={(v) => set('titre', v)}
-        autoFocus={!objectif}
-      />
+      <SectionFiche titre="Élément">
+        <ChampFiche label="Titre">
+          <SaisieFiche placeholder="ex. Doubler le nombre de clients" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!objectif} />
+        </ChampFiche>
+      </SectionFiche>
       <EspaceChoix
         espace={espace}
         fige={!!objectif}

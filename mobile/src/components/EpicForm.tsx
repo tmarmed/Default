@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -322,14 +321,11 @@ export function EpicForm({
               couleur={form.couleur}
             />
 
-            <TextInput
-              style={[styles.input, styles.titleInput]}
-              placeholder="Titre (ex. Refonte du site web)"
-              placeholderTextColor={colors.muted}
-              value={form.titre}
-              onChangeText={(v) => set('titre', v)}
-              autoFocus={!epic}
-            />
+            <SectionFiche titre="Élément">
+              <ChampFiche label="Titre">
+                <SaisieFiche placeholder="ex. Refonte du site web" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!epic} />
+              </ChampFiche>
+            </SectionFiche>
             <EspaceChoix
               espace={espace}
               fige={!!epic}

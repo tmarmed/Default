@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BandeauAnnuler, decrireChangement, useEnregistrementAuto } from './EnregistrementAuto';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ChampFiche, LigneChoix, LigneFiche, ListeEnfants, SectionFiche } from './Choix';
+import { ChampFiche, LigneChoix, LigneFiche, ListeEnfants, SaisieFiche, SectionFiche } from './Choix';
 import { childrenOf, describeCounts } from '../hierarchy';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
 import { colors } from '../theme';
 import { DOMAINE_ICONES, Domaine, DomaineInput, EPIC_COULEURS, Objectif } from '../types';
 import { DeleteSection } from './DeleteSection';
-import { ColorPicker, TitreFiche, Field, FormSheet, formStyles as f, type PileProps } from './FormSheet';
+import { ColorPicker, TitreFiche, FormSheet, formStyles as f, type PileProps } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -136,7 +136,11 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onDep
       onFermerTout={pile?.onFermerTout}
     >
       <TitreFiche icone={form.icone} titre={form.nom} vide="Nom du domaine" couleur={form.couleur} />
-      <Field style={f.titleInput} placeholder="Nom (ex. Pro, Perso, Administratif)" value={form.nom} onChangeText={(v) => setForm((x) => ({ ...x, nom: v }))} autoFocus={!domaine} />
+      <SectionFiche titre="Élément">
+        <ChampFiche label="Nom">
+          <SaisieFiche placeholder="ex. Pro, Perso, Administratif" value={form.nom} onChangeText={(v) => setForm((x) => ({ ...x, nom: v }))} autoFocus={!domaine} />
+        </ChampFiche>
+      </SectionFiche>
       <EspaceChoix
         espace={espace}
         fige={!!domaine}

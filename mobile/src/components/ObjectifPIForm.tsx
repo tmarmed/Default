@@ -6,11 +6,10 @@ import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
 import { piLabel, piOf, shiftPi } from '../pi';
 import type { ObjectifPI, ObjectifPIInput } from '../types';
 import { colors } from '../theme';
-import { Chips } from './Chips';
-import { ChampFiche, LigneChoix, SectionFiche } from './Choix';
+import { ChampFiche, LigneChoix, SaisieFiche, SectionFiche } from './Choix';
 import { listeDomaines, listeEpics } from '../choixTravail';
 import { DeleteSection } from './DeleteSection';
-import { Field, FormSheet, formStyles as f, TitreFiche } from './FormSheet';
+import { FormSheet, formStyles as f, TitreFiche } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -117,7 +116,26 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
       onToucher={auto.fermerBandeau}
     >
       <TitreFiche icone="🎯" titre={form.titre} vide="Titre de l’objectif du PI" sous={form.pi ? `PI ${piLabel(form.pi)}` : undefined} />
-      <Field style={f.titleInput} placeholder="Résultat à livrer (ex. Nouveau site en ligne)" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!objectif} />
+      <SectionFiche titre="Élément">
+        <ChampFiche label="Titre">
+          <SaisieFiche placeholder="Résultat à livrer (ex. Nouveau site en ligne)" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!objectif} />
+        </ChampFiche>
+        <LigneChoix
+          label="Type"
+          value={form.type}
+          depart={objectif?.type}
+          groupes={[
+            {
+              options: [
+                { value: 'engage', label: '🤝 Engagé' },
+                { value: 'bonus', label: '✨ Bonus' },
+              ],
+            },
+          ]}
+          sous="Engagé : je m'y engage. Bonus : si j'ai le temps (ne compte pas dans la prévisibilité)."
+          onChange={(v) => v && set('type', v as typeof form.type)}
+        />
+      </SectionFiche>
       <EspaceChoix
         espace={espace}
         fige={!!objectif}
@@ -161,19 +179,8 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
           onChange={(v) => setForm((x) => ({ ...x, epic: v, domaine: v ? domEpic(v) || x.domaine : x.domaine }))}
         />
       </SectionFiche>
-      {/* Engagement : type (2 choix : pastilles) ; valeurs sur 10 (ligne de choix) */}
+      {/* Engagement : valeurs sur 10 (ligne de choix) */}
       <SectionFiche titre="Engagement">
-        <ChampFiche label="Type" sous="Engagé : je m'y engage. Bonus : si j'ai le temps (ne compte pas dans la prévisibilité).">
-          <Chips
-            options={[
-              { value: 'engage', label: '🤝 Engagé', color: '#1A73E8' },
-              { value: 'bonus', label: '✨ Bonus', color: '#9AA3AF' },
-            ]}
-            value={form.type}
-            onChange={(v) => set('type', v)}
-            compact
-          />
-        </ChampFiche>
         <LigneChoix
           label="Valeur prévue"
           value={form.valeur_prevue}

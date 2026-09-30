@@ -502,41 +502,14 @@ export function TaskForm({
             <AutoContext.Provider value={!!item}>
             {(error || auto.erreur) && <Text style={styles.error}>{error ?? auto.erreur}</Text>}
             {!!item && erreurForm && !error && <Text style={styles.error}>{erreurForm}</Text>}
-            <TitreFiche icone={TYPE_ICONS[form.type]} titre={form.titre} vide="Titre de la tâche" couleur={typeColors[form.type]} />
-            <TextInput
-              style={[styles.input, styles.titleInput]}
-              placeholder="Titre"
-              placeholderTextColor={colors.muted}
-              value={form.titre}
-              onChangeText={(v) => set('titre', v)}
-              autoFocus={!item}
-              returnKeyType="done"
-            />
+            <TitreFiche icone={TYPE_ICONS[form.type]} titre={form.titre} vide={`Titre de ${TYPE_ARTICLE[form.type]}`.replace('de le ', 'du ')} couleur={typeColors[form.type]} />
 
-            {plusieursEspaces && !item && (
-              <SectionFiche titre="Espace de travail">
-                <LigneChoix
-                  label="Espace"
-                  value={espace}
-                  fige={!!item}
-                  groupes={[
-                    {
-                      options: esp.liste
-                        .filter((e) => esp.visibles.includes(e.id) || e.id === espace)
-                        .map((e) => ({ value: e.id, label: `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` })),
-                    },
-                  ]}
-                  libelle={(v) => {
-                    const e = espaceParId(esp.liste, v);
-                    return e ? `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` : v;
-                  }}
-                  onChange={(v) => v && choisirEspace(v)}
-                />
-              </SectionFiche>
-            )}
 
             {/* Élément : type (8 choix → ligne de choix), numéro d'un appel */}
             <SectionFiche titre="Élément">
+              <ChampFiche label="Titre">
+                <SaisieFiche placeholder="À écrire" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!item} returnKeyType="done" />
+              </ChampFiche>
               <LigneChoix
                 label="Type"
                 value={form.type}
@@ -569,6 +542,28 @@ export function TaskForm({
                 </ChampFiche>
               )}
             </SectionFiche>
+
+            {plusieursEspaces && !item && (
+              <SectionFiche titre="Espace de travail">
+                <LigneChoix
+                  label="Espace"
+                  value={espace}
+                  fige={!!item}
+                  groupes={[
+                    {
+                      options: esp.liste
+                        .filter((e) => esp.visibles.includes(e.id) || e.id === espace)
+                        .map((e) => ({ value: e.id, label: `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` })),
+                    },
+                  ]}
+                  libelle={(v) => {
+                    const e = espaceParId(esp.liste, v);
+                    return e ? `${ICONE_ESPACE[e.type]} ${libelleEspace(e)}` : v;
+                  }}
+                  onChange={(v) => v && choisirEspace(v)}
+                />
+              </SectionFiche>
+            )}
 
             {/* Quand : répétition, date, heure */}
             <SectionFiche titre="Quand">
@@ -929,7 +924,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.card,
   },
-  titleInput: { fontSize: 18, fontWeight: '500' },
   notes: { minHeight: 110 },
   deleteBtn: {
     marginTop: 32,
