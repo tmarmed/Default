@@ -19,7 +19,7 @@ allume par l'interrupteur « Démo »).
   partagé), 👥 **Équipe** (équipe indépendante), 🏢 **Entreprise** (avec ses équipes). Nom du fichier :
   `President | Moi`, `President | Équipe | Mobile`, `President | Entreprise | ACME` (séparateur `|`).
 - **En haut** : une barre fixe « President » avec, à droite, l'icône standard du compte (silhouette, point vert =
-  connecté ; menu : Stockage Google Drive, 🧪 Mode démo, Se déconnecter ; à droite de « President », interrupteur « Démo » (éteint = vos données, allumé = données d’exemple) — en démo : Stockage Google Drive, Quitter le mode démo, Réinitialiser la démo).
+  connecté ; menu : Stockage Google Drive, 🗂️ Missions (écrire ou mettre à jour l'espace « President »), 🧪 Mode démo, Se déconnecter ; à droite de « President », interrupteur « Démo » (éteint = vos données, allumé = données d’exemple) — en démo : Stockage Google Drive, Quitter le mode démo, Réinitialiser la démo).
   Juste après « President », la **pastille des espaces de travail** (« 🔒 Moi · 👥 Mobile ② ▾ » ; jamais coupée
   « … » : le texte rapetisse, puis les derniers noms deviennent « +N ») : la toucher déplie la **carte des espaces de travail** sous la barre (ouverte par défaut, avec son titre
   « ESPACES DE TRAVAIL » ; ▴ la replie ; mémorisé) : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule

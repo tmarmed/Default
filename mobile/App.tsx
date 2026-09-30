@@ -2859,6 +2859,18 @@ function Main() {
               ]
             : [
                 { label: '☁️ Stockage Google Drive', onPress: ouvrirStockage },
+                {
+                  label: espaceMissions ? `🗂️ Missions : mettre à jour l'espace « ${NOM_ESPACE_MISSIONS} »` : `🗂️ Missions : les écrire dans un espace « ${NOM_ESPACE_MISSIONS} »`,
+                  onPress: async () => {
+                    setInfo('Écriture des missions dans votre Google Sheet…');
+                    try {
+                      setInfo(`${await synchroMissions()} Les missions sont des epics : onglet Roadmap (et Portefeuille / Backlog en SAFe).`);
+                    } catch (e) {
+                      setInfo(null);
+                      setNotice(`Missions pas écrites : ${(e as Error).message}`);
+                    }
+                  },
+                },
                 ...(DEMO_BASCULABLE ? [{ label: '🧪 Mode démo (données d’exemple)', onPress: () => changerModeDemo(true) }] : []),
                 { label: 'Se déconnecter', onPress: logout },
               ]
