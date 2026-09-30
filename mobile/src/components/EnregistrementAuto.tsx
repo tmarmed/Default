@@ -11,6 +11,8 @@ import { colors } from '../theme';
 
 /** Dans une fiche enregistrée au fil de l'eau, plus de pastille « changée / déplacée » : le bandeau la remplace */
 export const AutoContext = createContext(false);
+/** Fiche en lecture seule (droits d'après les rôles) : ni ＋, ni saisie rapide, ni champ vide */
+export const LectureContext = createContext(false);
 
 /** Délai après le dernier changement avant d'enregistrer (le temps de finir un mot) */
 const DELAI = 900;

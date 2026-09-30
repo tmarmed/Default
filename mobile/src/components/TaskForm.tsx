@@ -674,7 +674,7 @@ export function TaskForm({
 
             {!!enfants.length && <Text style={styles.hint}>Les sous-tâches suivent le rattachement de cette tâche.</Text>}
 
-            {peutAvoir && (
+            {peutAvoir && !(droits.raison && !enfants.length) && (
               <>
                 <SectionFiche
                   titre={`Sous-tâches${enfants.length ? ` · ${enfants.filter((t) => t.statut === 'termine').length}/${enfants.length}` : ''}${check.sous ? ` · ${fmtPoints(check.sous, safe.pointsJours)}` : ''}`}
@@ -715,6 +715,7 @@ export function TaskForm({
                     );
                   })}
                   {!enfants.length && !nouvelles.length && !rangees.length && <Text style={styles.rien}>Aucune sous-tâche pour l'instant.</Text>}
+                  {!droits.raison && (
                   <TextInput
                     ref={saisieSous}
                     style={styles.saisieRapide}
@@ -740,6 +741,7 @@ export function TaskForm({
                       }
                     }}
                   />
+                  )}
                   <Text style={styles.entree}>Entrée pour ajouter</Text>
                 </SectionFiche>
                 {alertePoints && (
@@ -817,7 +819,8 @@ export function TaskForm({
               </>
             )}
 
-            {/* Détails : lieu et notes */}
+            {/* Détails : lieu et notes (masqués vides en lecture seule) */}
+            {!(droits.raison && !form.lieu && !form.description) && (
             <SectionFiche titre="Détails">
               <ChampFiche label="Lieu">
                 <SaisieFiche placeholder="Adresse, salle, client…" value={form.lieu} onChangeText={(v) => set('lieu', v)} />
@@ -826,6 +829,7 @@ export function TaskForm({
                 <SaisieFiche placeholder="Détails, contacts, matériel…" value={form.description} onChangeText={(v) => set('description', v)} multiline />
               </ChampFiche>
             </SectionFiche>
+            )}
 
             {/* Suppression : le bloc commun des fiches (case « aussi ses sous-tâches », confirmation) */}
             {item && droits.supprimer && (

@@ -1,8 +1,8 @@
-import { ReactNode, useContext, useState } from 'react';
+import { isValidElement, ReactNode, useContext, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
 import { colors } from '../theme';
 import { ChoiceSheet } from './ChoiceSheet';
-import { AutoContext } from './EnregistrementAuto';
+import { AutoContext, LectureContext } from './EnregistrementAuto';
 
 /**
  * Choix d'une affectation dans une fiche (feature, équipe, responsable, itération, train…) : une ligne de réglage
@@ -63,12 +63,13 @@ export function SectionFiche({
   /** false : pas de carte blanche (contenu déjà présenté) */
   carte?: boolean;
 }) {
+  const lectureSection = useContext(LectureContext);
   return (
     <View>
       <View style={s.titreSec}>
         <Text style={s.titreSecTexte}>{titre}</Text>
         {aDefinir > 0 && <Text style={s.aDefinir}>{aDefinir} à définir{auChoix ? ' (au choix)' : ''}</Text>}
-        {onAjouter && (
+        {onAjouter && !lectureSection && (
           <Pressable onPress={onAjouter} hitSlop={10} style={s.rond} accessibilityRole="button" accessibilityLabel={ajouterLabel ?? `Ajouter : ${titre}`}>
             <Text style={s.rondTexte}>＋</Text>
           </Pressable>
@@ -105,6 +106,8 @@ export function AlerteChoix({ texte, oui, non }: { texte: string; oui: { label: 
  * lignes de choix — le libellé à gauche, le champ à droite, sur la carte blanche.
  */
 export function ChampFiche({ label, children, sous, colonne }: { label: string; children: ReactNode; sous?: string; colonne?: boolean }) {
+  const lecture = useContext(LectureContext);
+  if (lecture && isValidElement(children) && 'value' in (children.props as object) && !(children.props as { value?: unknown }).value) return null;
   return (
     <View style={s.ligneBloc}>
       <View style={[s.ligne, colonne && s.champColonne]}>
@@ -246,6 +249,7 @@ export interface LigneChoixProps {
 
 /** Ligne de choix + sa feuille */
 export function LigneChoix(p: LigneChoixProps) {
+  const lectureLigne = useContext(LectureContext);
   const [ouvert, setOuvert] = useState(false);
   const ch = useChangement();
   const opts = toutes(p.groupes, p.autres);
@@ -254,6 +258,7 @@ export function LigneChoix(p: LigneChoixProps) {
   const auto = useContext(AutoContext);
   const change = !auto && (p.changement ? true : !!p.depart && p.value !== p.depart);
   const afaire = !!p.attendu && !p.value;
+  if (lectureLigne && !p.value) return null;
   return (
     <View style={s.ligneBloc}>
       <Pressable

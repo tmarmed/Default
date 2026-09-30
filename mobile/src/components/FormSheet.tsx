@@ -18,7 +18,7 @@ import type { Alerte, Alignement } from '../alerts';
 import { assombrir, colors } from '../theme';
 import { EPIC_COULEURS } from '../types';
 import { TexteAjuste } from './TexteAjuste';
-import { AutoContext } from './EnregistrementAuto';
+import { AutoContext, LectureContext } from './EnregistrementAuto';
 
 const nomRetour = (r: string | string[]) => (Array.isArray(r) ? r[0] : r);
 
@@ -355,7 +355,7 @@ export function BlocLecture({ raison, children }: { raison?: string; children: R
         <Text style={styles.lectureTexte}>{raison}</Text>
       </View>
       <View pointerEvents="none" style={styles.lectureContenu}>
-        {children}
+        <LectureContext.Provider value>{children}</LectureContext.Provider>
       </View>
     </>
   );
