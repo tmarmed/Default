@@ -76,7 +76,6 @@ import { EspacesSheet } from './src/components/EspacesSheet';
 import { ChatEchanges, type ElementChat } from './src/components/ChatEchanges';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
-import { changementEpic, changementFeature, compterChangements, couleurLot, epicDuLot, featureDeEtape, FIL, finLot, NOM_ESPACE_MISSIONS, pointsOuverts, useEchangeActif } from './src/echange/echange';
 import { StrategieView } from './src/components/StrategieView';
 import { BacklogView } from './src/components/BacklogView';
 import { ValueStreamForm } from './src/components/ValueStreamForm';
@@ -432,7 +431,6 @@ function Main() {
     [visibles, espaces, safe.actif],
   );
   // Les écrans encore vides (à venir) n'apparaissent pas dans les onglets tant que leur lot n'est pas fait
-  const echangeActif = useEchangeActif();
   const tabsTous = useMemo(
     () => [...tabs.barre, ...tabs.plus].filter((t) => !A_VENIR.includes(t)).concat(['echange' as Tab]),
     [tabs],
@@ -455,7 +453,6 @@ function Main() {
   const [refreshing, setRefreshing] = useState(false);
   /** Nombre de chargements complets réussis (déclenche l'écriture des missions manquantes) */
   const [chargeOk, setChargeOk] = useState(0);
-  const missionsAuto = useRef(false);
   const [offline, setOffline] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -1366,82 +1363,6 @@ function Main() {
     return saved;
   };
 
-  /**
-   * 💬 Échange : missions écrites dans votre Google Sheet (espace Équipe « President », créé la première fois) :
-   * lot = epic, étape = feature, sans stories ni tâches. « Mettre à jour mon Sheet » réécrit seulement titre,
-   * description et état ; dates, priorité et ce que vous avez ajouté restent.
-   */
-  const espaceMissions = espaces.find((e) => e.type === 'equipe' && e.nom === NOM_ESPACE_MISSIONS);
-  const changementsMissions = useMemo(() => {
-    if (!espaceMissions) return null;
-    const de = (x: { espace?: string }) => x.espace === espaceMissions.id;
-    return compterChangements(tousHier.epics.filter(de), tousHier.features.filter(de));
-  }, [espaceMissions, tousHier]);
-  const synchroMissions = async (seulementManquants = false): Promise<string> => {
-    if (!settings) throw new Error("Connectez-vous d'abord à Google.");
-    let e = espaceMissions;
-    if (!e) {
-      const nouveau: Espace = { id: `equipe-${Date.now()}`, type: 'equipe', nom: NOM_ESPACE_MISSIONS };
-      e = DEMO ? nouveau : { ...nouveau, fichier: await api.creerFichierEspace(nomFichier(NOM_APP, nouveau), nouveau.type, nouveau.nom) };
-      const liste = [...espacesRef.current, e];
-      espacesRef.current = liste;
-      setEspacesState(liste);
-      await saveEspaces(liste);
-    }
-    api.definirEspaces(connexions(settings), visiblesRef.current[0] ?? 'moi');
-    const d = await api.listItems(settings, e.id);
-    // Écriture groupée : une lecture et une écriture par onglet (Epics, puis Features), pour rester sous le quota
-    // de Google (environ 60 écritures par minute) même avec une centaine d'éléments
-    const creerE: EpicInput[] = [];
-    const majE: (Partial<Epic> & { id: string })[] = [];
-    for (const l of FIL.lots) {
-      const ep = epicDuLot(l, d.epics);
-      const ch = changementEpic(l, ep);
-      if (!ch) continue;
-      if (ep) {
-        if (!seulementManquants) majE.push({ id: ep.id, ...ch });
-      } else creerE.push({ titre: '', description: '', couleur: '', etat: '', ...ch, debut: today, fin: finLot(l), objectif: '', domaine: '', espace: e.id } as EpicInput);
-    }
-    const rE = await api.ecrireLot(settings, e.id, 'epic', creerE, majE);
-    const epics = [...d.epics.map((x) => rE.modifies.find((m) => m.id === x.id) ?? x), ...rE.crees];
-    const creerF: FeatureInput[] = [];
-    const majF: (Partial<Feature> & { id: string })[] = [];
-    for (const l of FIL.lots) {
-      const ep = epicDuLot(l, epics);
-      if (!ep) continue;
-      for (const et of l.etapes) {
-        const fe = featureDeEtape(et, ep.id, d.features);
-        const cf = changementFeature(et, fe);
-        if (!cf) continue;
-        if (fe) {
-          if (!seulementManquants) majF.push({ id: fe.id, ...cf });
-        } else creerF.push({ titre: '', description: '', ...cf, epic: ep.id, pi: '', iteration: '', points: '', couleur: couleurLot(l.num), espace: e.id } as FeatureInput);
-      }
-    }
-    await api.ecrireLot(settings, e.id, 'feature', creerF, majF);
-    const n = creerE.length + majE.length + creerF.length + majF.length;
-    if (!visiblesRef.current.includes(e.id)) setVisibles([...visiblesRef.current, e.id]);
-    await refresh(settings);
-    return n ? `${n} changement${n > 1 ? 's' : ''} écrit${n > 1 ? 's' : ''} dans l'espace « ${NOM_ESPACE_MISSIONS} ».` : `L'espace « ${NOM_ESPACE_MISSIONS} » est déjà à jour.`;
-  };
-
-  // Missions (lots = epics, étapes = features) dans l'espace « President » de votre Google Drive : créé s'il n'existe
-  // pas ; les epics et features manquantes y sont écrites d'elles-mêmes ; « Mettre à jour » réécrit le reste.
-  useEffect(() => {
-    // Après le premier chargement complet (espaces du Drive retrouvés) : missions manquantes écrites, sans
-    // réécrire celles qui existent déjà (vos changements restent) ; une fois par ouverture de l'application
-    if (DEMO || !settings?.googleEmail || !chargeOk || missionsAuto.current) return;
-    missionsAuto.current = true;
-    const manquants = !espaceMissions || (changementsMissions ?? 0) > 0;
-    if (!manquants) return;
-    synchroMissions(true)
-      .then((m) => m.includes('déjà à jour') || setInfo(`Missions : ${m}`))
-      .catch((e) => {
-        missionsAuto.current = false;
-        setNotice(`Missions pas encore écrites dans votre Google Sheet : ${(e as Error).message}`);
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.googleEmail, chargeOk]);
 
   // 💬 Échanges : votre adresse, vos interlocuteurs, ce qui attend votre réponse
   const orgEchanges = useMemo(() => makeOrgValue(orgTous), [orgTous]);
@@ -2423,7 +2344,6 @@ function Main() {
           echanges={tousHier.echanges ?? []}
           personnes={interlocuteurs}
           espaces={visibles.map((id) => ({ id, nom: `${ICONE_ESPACE[espaceParId(espaces, id)?.type ?? 'moi']} ${libelleEspace(espaceParId(espaces, id) ?? ESPACE_MOI)}` }))}
-          claude={echangeActif ? { nbQuestions: pointsOuverts().length, synchro: { espace: espaceMissions ? NOM_ESPACE_MISSIONS : null, changements: changementsMissions, lancer: synchroMissions } } : null}
           president={{
             alertes: tabsTous
               .filter((t) => t !== 'echange')
@@ -2888,18 +2808,6 @@ function Main() {
               ]
             : [
                 { label: '☁️ Stockage Google Drive', onPress: ouvrirStockage },
-                {
-                  label: espaceMissions ? `🗂️ Missions : mettre à jour l'espace « ${NOM_ESPACE_MISSIONS} »` : `🗂️ Missions : les écrire dans un espace « ${NOM_ESPACE_MISSIONS} »`,
-                  onPress: async () => {
-                    setInfo('Écriture des missions dans votre Google Sheet…');
-                    try {
-                      setInfo(`${await synchroMissions()} Les missions sont des epics : onglet Roadmap (et Portefeuille / Backlog en SAFe).`);
-                    } catch (e) {
-                      setInfo(null);
-                      setNotice(`Missions pas écrites : ${(e as Error).message}`);
-                    }
-                  },
-                },
                 { label: 'Se déconnecter', onPress: logout },
               ]
         }

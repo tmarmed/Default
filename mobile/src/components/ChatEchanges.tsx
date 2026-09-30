@@ -3,7 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../theme';
 import type { Echange } from '../types';
-import type { MessageApp } from './EchangesView';
+import { FilEchange, type MessageApp } from './EchangesView';
 
 /**
  * Mode chat : une fenêtre qui fait défiler, bulle après bulle, ce qui attend votre réponse (à l'ouverture de
@@ -110,6 +110,7 @@ function Bulle({ x, moi }: { x: ElementChat; moi: string }) {
   const recue = e.de === moi && e.statut === 'repondu';
   return (
     <View style={s.bulle}>
+      {!!e.element && <FilEchange id={e.element} />}
       <Text style={s.auteur}>
         {recue ? `Réponse de ${x.avec}` : `${x.avec} · ${e.type === 'question' ? 'question' : 'message'}`}
       </Text>

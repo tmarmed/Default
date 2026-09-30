@@ -1,10 +1,12 @@
 import { Children, type ReactNode, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { filElement } from '../choixTravail';
+import { useHierarchy } from '../hierarchyContext';
 import { colors } from '../theme';
+import { TYPE_ICONS } from '../types';
 import type { Echange, EchangeInput } from '../types';
 import { ChampFiche, FeuilleChoix, type GroupeChoix, LigneChoix, SaisieFiche, SectionFiche } from './Choix';
 import { ChatEchanges, type ElementChat } from './ChatEchanges';
-import { FilClaude, type SynchroMissions } from './EchangeView';
 import { FormSheet } from './FormSheet';
 
 /**
@@ -44,8 +46,6 @@ interface Props {
   echanges: Echange[];
   personnes: Interlocuteur[];
   espaces: { id: string; nom: string }[];
-  /** Fil de Claude (seulement si activé sur l'appareil) */
-  claude: { synchro?: SynchroMissions; nbQuestions: number } | null;
   /** President : les alertes de tous les onglets (des espaces affichés), regroupées, avec leurs boutons */
   president: {
     alertes: AlertesEcran[];
@@ -83,6 +83,17 @@ export const nomDepuisEmail = (e: string) =>
     .map((m) => m[0].toUpperCase() + m.slice(1))
     .join(' ') || e;
 
+/** Fil d'Ariane de l'élément concerné par un échange (epic, feature, tâche…), en tête de sa carte */
+export function FilEchange({ id }: { id: string }) {
+  const h = useHierarchy();
+  const fil = filElement(id, h, TYPE_ICONS);
+  return fil ? (
+    <Text style={s.filElement} numberOfLines={2}>
+      📍 {fil}
+    </Text>
+  ) : null;
+}
+
 /** Ce qui attend une action de `moi` dans les échanges (à répondre, à lire, réponses à prendre en compte) */
 export const aTraiter = (moi: string, l: Echange[]) => l.filter((e) => (e.a === moi && e.statut === 'envoye') || (e.de === moi && e.statut === 'repondu'));
 
@@ -95,7 +106,7 @@ const AIDE: { q: string; r: string }[] = [
   { q: 'Missions et Claude', r: '💬 Échange › Claude : les questions de Claude, le backlog des missions, et « Mettre à jour » pour les écrire dans votre espace « President ».' },
 ];
 
-export function EchangesView({ moi, echanges, personnes, espaces, claude, president, onEnvoyer, onRepondre, onRetirer, hierarchie }: Props) {
+export function EchangesView({ moi, echanges, personnes, espaces, president, onEnvoyer, onRepondre, onRetirer, hierarchie }: Props) {
   const [ouvert, setOuvertEtat] = useState<string | null>(null);
   /** Mode chat : en ouvrant une conversation, ce qui attend votre réponse défile dans une fenêtre */
   const [chat, setChat] = useState<{ titre: string; elements: ElementChat[] } | null>(null);
@@ -106,9 +117,8 @@ export function EchangesView({ moi, echanges, personnes, espaces, claude, presid
   const humains = useMemo(() => {
     const ids = new Set<string>();
     for (const e of avecMoi) ids.add(e.de === moi ? e.a : e.de);
-    ids.delete('claude');
     ids.delete('president');
-    return [...ids].map((id) => ({ id, nom: nomDe(id), nature: personnes.find((p) => p.id === id)?.nature || 'humain' }));
+    return [...ids].map((id) => ({ id, nom: nomDe(id), nature: id === 'claude' ? 'ia_chat' : personnes.find((p) => p.id === id)?.nature || 'humain' }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [avecMoi, personnes, moi]);
   const entre = (id: string) => avecMoi.filter((e) => e.de === id || e.a === id);
@@ -117,7 +127,7 @@ export function EchangesView({ moi, echanges, personnes, espaces, claude, presid
 
   const setOuvert = (id: string | null) => {
     setOuvertEtat(id);
-    if (!id || id === 'claude') return;
+    if (!id) return;
     const elements: ElementChat[] =
       id === 'president'
         ? president.messages.map((m) => ({ kind: 'message' as const, m }))
@@ -145,13 +155,6 @@ export function EchangesView({ moi, echanges, personnes, espaces, claude, presid
         <President {...president} onRetour={() => setOuvert(null)} />
         {fenetreChat}
       </>
-    );
-  if (ouvert === 'claude' && claude)
-    return (
-      <View style={s.ecran}>
-        <Retour titre="💬 Claude · IA chat" onRetour={() => setOuvert(null)} />
-        <FilClaude synchro={claude.synchro} messages={entre('claude').filter((e) => e.de === moi)} onMessagesCopies={(l) => l.forEach((e) => onRetirer(e))} />
-      </View>
     );
   if (ouvert) {
     return (
@@ -198,7 +201,8 @@ export function EchangesView({ moi, echanges, personnes, espaces, claude, presid
   };
   const lignes = [
     ligne('president', '🏛️', 'President', 'application', [nbAlertes && `${nbAlertes} alerte${nbAlertes > 1 ? 's' : ''}`, nbRappels && `${nbRappels} rappel${nbRappels > 1 ? 's' : ''}`, president.messages.length && `${president.messages.length} message${president.messages.length > 1 ? 's' : ''}`].filter(Boolean).join(' · ') || 'Aucune alerte · aide à la demande', president.messages.length + nbAlertes, 0),
-    ...(claude ? [ligne('claude', '💬', 'Claude', 'ia_chat', `${claude.nbQuestions} question${claude.nbQuestions > 1 ? 's' : ''} · backlog des missions`, claude.nbQuestions, 1)] : []),
+    // Claude (IA chat) : une conversation comme les autres, toujours proposée
+    ...(humains.some((h) => h.id === 'claude') ? [] : [ligne('claude', '💬', 'Claude', 'ia_chat', 'Écrire à Claude', 0, 1)]),
     ...humains.map((h, k) => ligne(h.id, ICONE_NATURE[h.nature] ?? '🧑', h.nom, h.nature, resume(entre(h.id)), aTraiter(moi, entre(h.id)).length, k + 2)),
   ];
 
@@ -375,6 +379,7 @@ function Bloc({ titre, vide, children }: { titre: string; vide: string; children
 function CarteMessage({ e, action, onAction, reponse, gris, pied }: { e: Echange; action?: string; onAction?: () => void; reponse?: boolean; gris?: boolean; pied?: ReactNode }) {
   return (
     <View style={[s.carte, s.carteEchange, gris && s.gris]}>
+      {!!e.element && <FilEchange id={e.element} />}
       <Text style={s.type}>{e.type === 'question' ? '❓ Question' : '✉️ Message'}</Text>
       {!!e.titre && <Text style={s.titre}>{e.titre}</Text>}
       {!!e.texte && <Text style={s.texte}>{e.texte}</Text>}
@@ -402,6 +407,7 @@ function CarteQuestion({ e, onRepondre, pied }: { e: Echange; onRepondre: (e: Ec
   const options = e.choix.split(';').map((c) => c.trim()).filter(Boolean);
   return (
     <View style={[s.carte, s.carteEchange]}>
+      {!!e.element && <FilEchange id={e.element} />}
       <Text style={s.type}>❓ Question</Text>
       {!!e.titre && <Text style={s.titre}>{e.titre}</Text>}
       {!!e.texte && <Text style={s.texte}>{e.texte}</Text>}
@@ -509,9 +515,11 @@ function NouvelEchange({
   const [titre, setTitre] = useState('');
   const [texte, setTexte] = useState('');
   const [choix, setChoix] = useState('');
+  const [element, setElement] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ouvertPour, setOuvertPour] = useState<string | null>(null);
+  const h = useHierarchy();
   // Remise à zéro à chaque ouverture
   const cle = visible ? a || '·' : null;
   if (cle !== ouvertPour) {
@@ -523,6 +531,7 @@ function NouvelEchange({
       setTitre('');
       setTexte('');
       setChoix('');
+      setElement('');
       setError(null);
     }
   }
@@ -538,7 +547,7 @@ function NouvelEchange({
     if (type === 'question' && liste.length < 2) return setError('Une question propose au moins deux choix (séparés par des virgules).');
     setBusy(true);
     try {
-      await onEnvoyer({ espace, de: moi, a: dest, type, titre: titre.trim(), texte: texte.trim(), choix: type === 'question' ? liste.join(';') : '', reponse: '', note: '', statut: 'envoye', element: '', niveau: '', transmis_par: '', prive: '1' });
+      await onEnvoyer({ espace, de: moi, a: dest, type, titre: titre.trim(), texte: texte.trim(), choix: type === 'question' ? liste.join(';') : '', reponse: '', note: '', statut: 'envoye', element, niveau: '', transmis_par: '', prive: '1' });
       onClose();
     } catch (e) {
       setError(`Envoi impossible : ${(e as Error).message}`);
@@ -578,6 +587,23 @@ function NouvelEchange({
             ))}
           </View>
         </ChampFiche>
+      </SectionFiche>
+      <SectionFiche titre="Concerne">
+        <LigneChoix
+          label="Élément"
+          value={element}
+          vide="Facultatif"
+          sans="Aucun élément"
+          sous={element ? filElement(element, h, TYPE_ICONS) : undefined}
+          groupes={[
+            { titre: 'Epics', options: h.epicList.map((x) => ({ value: x.id, label: `🗂️ ${x.titre}` })) },
+            { titre: 'Features', options: h.featureList.map((x) => ({ value: x.id, label: `🧩 ${x.titre}` })) },
+            { titre: 'Objectifs', options: h.objectifList.map((x) => ({ value: x.id, label: `🎯 ${x.titre}` })) },
+            { titre: 'Tâches', options: h.items.filter((x) => x.statut !== 'termine').map((x) => ({ value: x.id, label: `${TYPE_ICONS[x.type]} ${x.titre}` })) },
+          ].filter((g) => g.options.length)}
+          libelle={(v) => filElement(v, h, TYPE_ICONS).split(' › ').pop() ?? v}
+          onChange={setElement}
+        />
       </SectionFiche>
       <SectionFiche titre="Contenu">
         <ChampFiche label="Titre">
@@ -639,6 +665,7 @@ const s = StyleSheet.create({
   actionTexte: { fontSize: 13.5, fontWeight: '700', color: colors.text },
   actionTexteBlanc: { color: '#fff' },
   inactif: { opacity: 0.4 },
+  filElement: { fontSize: 12, fontWeight: '600', color: colors.primary },
   outils: { marginTop: 8, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, gap: 6 },
   enteteEcran: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 16, marginBottom: 6 },
   bouton: { marginHorizontal: 16, marginTop: 18, paddingVertical: 12, borderRadius: 12, alignItems: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },

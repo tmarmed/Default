@@ -18,7 +18,7 @@ qu'on peut donc aussi consulter depuis un ordinateur.
   partagé), 👥 **Équipe** (équipe indépendante), 🏢 **Entreprise** (avec ses équipes). Nom du fichier :
   `President | Moi`, `President | Équipe | Mobile`, `President | Entreprise | ACME` (séparateur `|`).
 - **En haut** : une barre fixe « President » avec, à droite, l'icône standard du compte (silhouette, point vert =
-  connecté ; menu : Stockage Google Drive, 🗂️ Missions (écrire ou mettre à jour l'espace « President »), Se déconnecter).
+  connecté ; menu : Stockage Google Drive, Se déconnecter).
   Juste après « President », la **pastille des espaces de travail** (« 🔒 Moi · 👥 Mobile ② ▾ » ; jamais coupée
   « … » : le texte rapetisse, puis les derniers noms deviennent « +N ») : la toucher déplie la **carte des espaces de travail** sous la barre (ouverte par défaut, avec son titre
   « ESPACES DE TRAVAIL » ; ▴ la replie ; mémorisé) : petit filtre **Tous · 👥 · 🏢** (seulement s'il y a à la fois des équipes et des entreprises), pilule
@@ -85,8 +85,8 @@ qu'on peut donc aussi consulter depuis un ordinateur.
   sa priorité (colonne « rang », de 10 en 10). « › » ouvre la fiche. Filtre « Value stream » en haut.
 - **💬 Échanges** (lot 21) : onglet 💬 Échange pour tous, liste de **conversations** : 🏛️ **President** (l'application :
   alertes et rappels par écran, ses messages — ce qu'elle a fait ou signalé, jusqu'à « Lu ✓ » — et l'aide à la
-  demande), 💬 **Claude** (IA chat : le fil d'échange ci-dessous, activé par `?echange`, et vos messages à Claude,
-  copiés avec vos réponses) et les **personnes** (🧑 humains : message ou question à choix, « ＋ Nouvel échange »,
+  demande), 💬 **Claude** (IA chat : une conversation comme les autres, rangée dans 🔒 Moi ; Claude la lit par le connecteur
+  Google Sheets) et les **personnes** (🧑 humains : message ou question à choix, « ＋ Nouvel échange »,
   dans l'espace choisi). Rangés dans l'onglet « Echanges » du Google Sheet de l'espace (id, de, a, type, titre,
   texte, choix, reponse, note, statut, element) ; une IA qui lit le Sheet (Claude) ne supprime jamais : elle écrit
   `pris_en_compte` dans la colonne statut, et l'application supprime ces lignes au chargement. **Hiérarchie** : un
@@ -100,18 +100,10 @@ qu'on peut donc aussi consulter depuis un ordinateur.
   votre réponse. **Mode chat** : à l'ouverture de l'application (une fois, s'il y a quelque chose à traiter) et en
   ouvrant une conversation, une fenêtre fait défiler bulle après bulle ce qui attend votre réponse (répondre,
   « Lu ✓ », « Pris en compte ✓ ») ; « Plus tard » referme.
-- **💬 Échange** (lot 20) : le fil d'échange avec Claude dans President, onglet ajouté à la fin quand il est activé
-  sur l'appareil par le lien `?echange` (désactivé par `?echange=0` ; jamais par défaut). Données publiées avec
-  l'application (`mobile/src/echange/fil.json`, lecture seule ; captures dans `mobile/public/echange/`).
-  **Questions** : les points à valider un par un, Projet President et Format d'échange séparés, captures en
-  boutons (visionneuse), Validé / À revoir et remarque ; vos réponses restent sur l'appareil jusqu'à
-  « 📋 Copier et vider », qui les copie pour la discussion avec Claude. **Backlog des missions** : les missions
-  comme des epics (lot › étape › point), avancement = étapes terminées ÷ total, filtre par état.
-  **Votre Google Sheet** (en tête du Backlog des missions) : « Créer et écrire » crée l'espace Équipe
-  « President » (son propre Google Sheet) et y écrit les missions — lot = epic (« Lot 4 · … », état, avancement),
-  étape = feature (« ✓ » quand elle est terminée) — sans stories ni tâches. Ensuite, « Mettre à jour · N
-  changements » réécrit seulement titre, description et état ; dates, priorité et ce que vous ajoutez restent.
-  Une epic découpée en features n'est plus signalée « sans tâche ».
+- **Élément concerné** : un échange peut concerner une epic, une feature, un objectif ou une tâche (« Concerne ›
+  Élément » dans Nouvel échange) ; son fil d'Ariane (« 📍 💼 Pro › 🗂️ Application mobile v2 ») s'affiche en tête de la
+  carte et de la bulle du chat. (Le fil d'échange propre à notre projet et le backlog des missions ont été retirés
+  de l'application : les missions vivent dans l'espace « President », sous forme d'epics.)
 - **Droits d'après les rôles** (lot 3, étape 2 ; démo) : les données d'une équipe restent invisibles (pas de mot
   « Sheet »). Opérationnel (dev, testeur, designer… : ligne « Métier » de la fiche Personne) : voit tout le travail de
   l'équipe, modifie le sien ; Scrum Master : tout ; PO : le backlog ; manager : lecture ; RTE et Product Manager : les
@@ -496,10 +488,7 @@ qu'application**.
 
 **Plus de mode démo dans l'application** : elle travaille seulement sur vos Google Sheets. Au premier lancement de
 cette version, elle efface une fois de l'appareil tout reste de démo (anciennes copies, données « demo~ », ancien
-interrupteur). **Missions** : après chaque ouverture, l'espace Équipe « President » est créé s'il n'existe pas et les
-missions manquantes y sont écrites (lots = epics, étapes = features), sans réécrire celles qui existent ;
-« 🗂️ Missions » (menu du compte) ou « Mettre à jour » (💬 Échange › Claude) réécrit aussi titres et états. Écriture **groupée** (une lecture et une écriture par onglet :
-110 éléments en 4 appels). **Quota Google Sheets** (60 lectures et 60 écritures par minute et par utilisateur,
+interrupteur). Écriture **groupée** des éléments (`ecrireLot` : une lecture et une écriture par onglet : 110 éléments en 4 appels). **Quota Google Sheets** (60 lectures et 60 écritures par minute et par utilisateur,
 un nombre d'appels, pas une taille) : un espace se lit en un seul appel (tous les onglets ensemble) ; tous les
 appels passent par une file d'attente (au plus 50 de chaque sorte par minute glissante, espacés d'au moins
 250 ms) ; sur refus (429) ou incident passager, attente croissante (1 s, 2 s, 4 s… au plus 64 s) jusqu'à 6 essais.

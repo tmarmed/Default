@@ -216,3 +216,16 @@ export function listeIterations(piPrefere?: string, prevue?: string, choisie?: s
   if (choisiePi && choisiePi !== pi && !autres.includes(choisiePi)) autres.push(choisiePi);
   return { groupes: [groupe(pi)], autres: { titre: 'Autres PI', groupes: autres.map(groupe) } };
 }
+
+/**
+ * Fil d'Ariane d'un élément désigné par son id (epic, feature, objectif ou tâche), élément compris :
+ * « 💼 Pro › 🎯 Clients › 🗂️ Refonte › 🧩 Connexion ». Vide si l'élément n'est pas dans les espaces affichés.
+ */
+export function filElement(id: string, h: Hierarchy & { items?: { id: string; titre: string; type: string; feature?: string; epic?: string; objectif?: string; domaine?: string }[] }, icones: Record<string, string>): string {
+  if (!id) return '';
+  if (h.features.get(id)) return filTravail({ feature: id }, h);
+  if (h.epics.get(id)) return filTravail({ epic: id }, h);
+  if (h.objectifs.get(id)) return filTravail({ objectif: id }, h);
+  const t = h.items?.find((x) => x.id === id);
+  return t ? [filTravail(t, h), `${icones[t.type] ?? '✓'} ${t.titre}`].filter(Boolean).join(' › ') : '';
+}
