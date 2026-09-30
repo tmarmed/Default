@@ -857,7 +857,7 @@ export function TaskForm({
             {item && (
               <Pressable style={styles.deleteBtn} onPress={remove} disabled={busy}>
                 <Text style={styles.deleteText}>
-                  {confirmDelete ? 'Toucher encore pour confirmer' : 'Supprimer'}
+                  {confirmDelete ? 'Toucher encore pour confirmer' : `Supprimer ${TYPE_ARTICLE[form.type]}`}
                 </Text>
               </Pressable>
             )}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BandeauAnnuler, decrireChangement, useEnregistrementAuto } from './EnregistrementAuto';
 import type { Deplacement } from './OrganisationView';
 import { StyleSheet, Text } from 'react-native';
-import { CLE_ORG, type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, membresDe, NOM_ORG, nomPersonne, type OrgValue } from '../organisation';
+import { CLE_ORG, type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, membresDe, nomPersonne, type OrgValue } from '../organisation';
 import { useSafe } from '../safe';
 import { useEspaces } from '../espaces';
 import { colors } from '../theme';
@@ -13,6 +13,16 @@ import { Field, FormSheet, formStyles as f, TitreFiche } from './FormSheet';
 
 type Donnees = Record<string, string>;
 /** Éléments existants rangés dans la fiche : leur champ `champ` prendra l'id de la fiche */
+/** Bouton de suppression : « Supprimer » + l'élément, avec son article */
+const SUPPRIMER: Record<string, string> = {
+  personne: 'Supprimer la personne',
+  direction: 'Supprimer la direction',
+  service: 'Supprimer le service',
+  portfolio: 'Supprimer le portfolio',
+  train: 'Supprimer le train',
+  equipeagile: "Supprimer l'équipe",
+};
+
 export type RangerOrg = { kind: KindOrg; champ: string; ids: string[] };
 
 const VIDES: Record<KindOrg, Donnees> = {
@@ -557,7 +567,7 @@ export function OrgForm({
       {entite && <Text style={[f.hint, s.consequence]}>Suppression : {consequence[kind]}. Rien d'autre n'est supprimé.</Text>}
       {entite && (
         <DeleteSection
-          label={`Supprimer : ${NOM_ORG[kind].toLowerCase()}`}
+          label={SUPPRIMER[kind === 'unite' ? (form.type === 'direction' ? 'direction' : 'service') : kind]}
           name={entite.nom}
           onDelete={() => {
             setBusy(true);
