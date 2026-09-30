@@ -84,6 +84,15 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   autres en gris), toucher une feature ne garde que ses stories, toucher à nouveau enlève le filtre. Sur téléphone,
   une colonne à la fois avec le fil « Epics › Epic › Feature » pour revenir. Poignée ⋮⋮ : glisser une carte change
   sa priorité (colonne « rang », de 10 en 10). « › » ouvre la fiche. Filtre « Value stream » en haut.
+- **💬 Échanges** (lot 21) : onglet 💬 Échange pour tous, liste de **conversations** : 🏛️ **President** (l'application :
+  alertes et rappels par écran, ses messages — ce qu'elle a fait ou signalé, jusqu'à « Lu ✓ » — et l'aide à la
+  demande), 💬 **Claude** (IA chat : le fil d'échange ci-dessous, activé par `?echange`, et vos messages à Claude,
+  copiés avec vos réponses) et les **personnes** (🧑 humains : message ou question à choix, « ＋ Nouvel échange »,
+  dans l'espace choisi). Rangés dans l'onglet « Echanges » du Google Sheet de l'espace (id, de, a, type, titre,
+  texte, choix, reponse, note, statut, element) ; **sans historique** : un message lu, ou une réponse prise en
+  compte (« Pris en compte ✓ ») par celui qui a demandé, est supprimé. Fiche Personne : ligne **Type** (🧑 Humain,
+  💬 IA chat, 🤖 Agent IA bientôt ; colonne `nature`). Pastille jaune de l'onglet et « 💬 À répondre · N » des
+  espaces : ce qui attend votre réponse.
 - **💬 Échange** (lot 20) : le fil d'échange avec Claude dans President, onglet ajouté à la fin quand il est activé
   sur l'appareil par le lien `?echange` (désactivé par `?echange=0` ; jamais par défaut). Données publiées avec
   l'application (`mobile/src/echange/fil.json`, lecture seule ; captures dans `mobile/public/echange/`).

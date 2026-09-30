@@ -2,7 +2,7 @@ import { toDateString } from './dates';
 import { cleanLinks, type Data, type DeletionCounts, planDeletion } from './hierarchy';
 import { aPurger } from './stockage';
 import { cascadeLinks, checkParent } from './subtasks';
-import type { Domaine, Epic, Feature, Ignoree, Item, ItemInput, Objectif, ObjectifPI, ResultatCle, ValueStream } from './types';
+import type { Domaine, Echange, Epic, Feature, Ignoree, Item, ItemInput, Objectif, ObjectifPI, ResultatCle, ValueStream } from './types';
 import { CLE_ORG, type EntiteOrg, type KindOrg, membresDe, type Org } from './organisation';
 
 /**
@@ -11,7 +11,7 @@ import { CLE_ORG, type EntiteOrg, type KindOrg, membresDe, type Org } from './or
  * sous-tâches, rattachements, suppression en cascade.
  */
 
-export type Kind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'ignoree' | 'valuestream' | 'resultat';
+export type Kind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'ignoree' | 'valuestream' | 'resultat' | 'echange';
 /** Tables de base (tous les espaces) */
 export type TableBase = 'items' | Kind;
 /** Tables de l'Organisation (seulement dans le Google Sheet d'une entreprise, onglets créés au premier usage) */
@@ -30,7 +30,9 @@ export type EntityOf<K extends Kind> = K extends 'epic'
             ? ValueStream
             : K extends 'resultat'
               ? ResultatCle
-              : Ignoree;
+              : K extends 'echange'
+                ? Echange
+                : Ignoree;
 type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : never;
 
 /** Onglets du Google Sheet d'un espace et leurs colonnes (mêmes noms que l'ancien script : fichiers compatibles) */
@@ -51,12 +53,13 @@ export const ONGLETS: Record<TableBase, { nom: string; colonnes: string[] }> = {
   ignoree: { nom: 'Ignorees', colonnes: ['id', 'cle', 'signature', 'cree_le', 'modifie_le'] },
   valuestream: { nom: 'ValueStreams', colonnes: ['id', 'nom', 'type', 'description', 'portfolio', 'trains', 'okrs', 'cree_le', 'modifie_le'] },
   resultat: { nom: 'ResultatsCles', colonnes: ['id', 'objectif', 'titre', 'actuel', 'cible', 'unite', 'cree_le', 'modifie_le'] },
+  echange: { nom: 'Echanges', colonnes: ['id', 'de', 'a', 'type', 'titre', 'texte', 'choix', 'reponse', 'note', 'statut', 'element', 'cree_le', 'modifie_le'] },
 };
 export const TABLES = Object.keys(ONGLETS) as TableBase[];
 
 /** Onglets de l'Organisation d'une entreprise (vue Entreprise et vue Delivery SAFe) */
 export const ONGLETS_ORG: Record<KindOrg, { nom: string; colonnes: string[] }> = {
-  personne: { nom: 'Personnes', colonnes: ['id', 'nom', 'email', 'unite', 'manager', 'capacite', 'metier', 'cree_le', 'modifie_le'] },
+  personne: { nom: 'Personnes', colonnes: ['id', 'nom', 'email', 'unite', 'manager', 'capacite', 'metier', 'cree_le', 'modifie_le', 'nature'] },
   unite: { nom: 'Unites', colonnes: ['id', 'nom', 'type', 'parent', 'responsable', 'cree_le', 'modifie_le'] },
   portfolio: { nom: 'Portfolios', colonnes: ['id', 'nom', 'epic_owner', 'cree_le', 'modifie_le'] },
   train: { nom: 'Trains', colonnes: ['id', 'nom', 'portfolio', 'rte', 'pm', 'cree_le', 'modifie_le'] },
@@ -168,6 +171,16 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
     if (!out.nom) throw new Error('Le nom du value stream est obligatoire.');
     if (out.type !== 'developpement') out.type = 'operationnel';
     for (const k of ['trains', 'okrs']) if (!/^[0-9A-Za-z;-]*$/.test(out[k])) throw new Error(`Liste « ${k} » invalide.`);
+  } else if (kind === 'echange') {
+    out.de = out.de.trim().toLowerCase();
+    out.a = out.a.trim().toLowerCase();
+    if (!out.de || !out.a) throw new Error('Échange : auteur et destinataire obligatoires.');
+    if (out.type !== 'question') out.type = 'message';
+    if (!out.titre.trim() && !out.texte.trim()) throw new Error("L'échange est vide.");
+    if (out.type === 'question' && !out.choix.split(';').filter((c: string) => c.trim()).length) throw new Error('Une question a au moins un choix.');
+    if (out.statut !== 'repondu') out.statut = 'envoye';
+    out.texte = out.texte.slice(0, 4000);
+    if (out.element && !RE_ID.test(out.element)) throw new Error('Élément lié invalide.');
   } else if (kind === 'resultat') {
     if (!out.titre.trim()) throw new Error('Le titre du résultat clé est obligatoire.');
     if (!out.objectif || !RE_ID.test(out.objectif)) throw new Error('Résultat clé : OKR manquant.');
@@ -221,6 +234,7 @@ export function nettoyerOrg<K extends KindOrg>(kind: K, data: Partial<EntiteOrg<
     if (out.email && !RE_EMAIL.test(out.email)) throw new Error('Adresse e-mail invalide.');
     if (out.email && org.personnes.some((p) => p.id !== id && p.email.toLowerCase() === out.email)) throw new Error('Une personne a déjà cette adresse e-mail.');
     if (out.manager === id && id) throw new Error('Une personne ne peut pas être son propre manager.');
+    if (!['ia_chat', 'agent_ia'].includes(out.nature ?? '')) out.nature = 'humain';
     out.capacite = out.capacite.replace(',', '.');
     if (out.capacite && !RE_NOMBRE.test(out.capacite)) throw new Error('Capacité : nombre de jours attendu.');
   } else if (kind === 'unite') {
@@ -282,7 +296,7 @@ export function creerMagasin(p: Persistance) {
       return parties;
     },
     async listAll(): Promise<Omit<Data, 'items'>> {
-      const [epics, objectifs, domaines, features, objectifsPI, ignorees, valueStreams, resultats] = await Promise.all([
+      const [epics, objectifs, domaines, features, objectifsPI, ignorees, valueStreams, resultats, echanges] = await Promise.all([
         p.lire('epic'),
         p.lire('objectif'),
         p.lire('domaine'),
@@ -291,8 +305,9 @@ export function creerMagasin(p: Persistance) {
         p.lire('ignoree'),
         p.lire('valuestream'),
         p.lire('resultat'),
+        p.lire('echange'),
       ]);
-      return { epics, objectifs, domaines, features, objectifsPI, ignorees, valueStreams, resultats };
+      return { epics, objectifs, domaines, features, objectifsPI, ignorees, valueStreams, resultats, echanges };
     },
     async createEntity<K extends Kind>(kind: K, input: Omit<EntityOf<K>, 'id' | 'cree_le' | 'modifie_le'>): Promise<EntityOf<K>> {
       const list = await p.lire(kind);
@@ -388,6 +403,7 @@ export function creerMagasin(p: Persistance) {
         ['ignoree', all.ignorees ?? [], r.ignorees ?? []],
         ['valuestream', all.valueStreams ?? [], r.valueStreams ?? []],
         ['resultat', all.resultats ?? [], r.resultats ?? []],
+        ['echange', all.echanges ?? [], r.echanges ?? []],
       ];
       await Promise.all(pairs.filter(([, a, b]) => JSON.stringify(a) !== JSON.stringify(b)).map(([t, , b]) => p.ecrire(t, b as never)));
       return r.counts;

@@ -535,6 +535,43 @@
      "fait": false
     }
    ]
+  },
+  {
+   "num": 21,
+   "titre": "Échanges : President, Claude (IA chat) et les personnes",
+   "etat": "EN DÉMO · À VALIDER",
+   "etapes": [
+    {
+     "id": "discussion",
+     "titre": "Discussion",
+     "fait": true
+    },
+    {
+     "id": "dev",
+     "titre": "Développement : conversations, types de personne, onglet Echanges",
+     "fait": true
+    },
+    {
+     "id": "validation",
+     "titre": "Validation",
+     "fait": false
+    },
+    {
+     "id": "aide",
+     "titre": "Affinage : aide à la demande avec le mode assistant (lot 19)",
+     "fait": false
+    },
+    {
+     "id": "agent",
+     "titre": "Affinage : agents IA (lot 12)",
+     "fait": false
+    },
+    {
+     "id": "notif",
+     "titre": "Affinage : prévenir quand un échange arrive",
+     "fait": false
+    }
+   ]
   }
  ],
  "points": [

@@ -3,7 +3,7 @@ import { addDays, toDateString } from './dates';
 import { iterationOf, piOf, shiftPi } from './pi';
 import { creerMagasin, type Kind, type Persistance, type Table, TABLES, TABLES_ORG } from './magasin';
 import { CLE_ORG, type KindOrg, type Org } from './organisation';
-import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI, type ResultatCle, type ValueStream } from './types';
+import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI, type ResultatCle, type ValueStream, type Echange } from './types';
 
 /**
  * Mode démo : données d'exemple enregistrées sur l'appareil, sans Google Sheet. Sert à essayer l'application.
@@ -23,6 +23,8 @@ function lireModeDemo(): boolean {
   }
 }
 export const DEMO = DEMO_COMPILE || lireModeDemo();
+/** Démo : votre adresse (auteur et destinataire des échanges) */
+export const MOI_DEMO = 'vous@demo';
 /** Le bouton « Mode démo » existe seulement dans la version principale, dans le navigateur */
 export const DEMO_BASCULABLE = !DEMO_COMPILE && typeof window !== 'undefined' && !!window.localStorage;
 export function changerModeDemo(actif: boolean) {
@@ -59,7 +61,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '21';
+const DEMO_DATA_VERSION = '22';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -190,6 +192,7 @@ function sampleEntities(): {
   ignoree: Ignoree[];
   valuestream: ValueStream[];
   resultat: ResultatCle[];
+  echange: Echange[];
 } {
   const now = new Date();
   const m = (months: number, day = 1) => toDateString(new Date(now.getFullYear(), now.getMonth() + months, day));
@@ -253,6 +256,7 @@ function sampleEntities(): {
     ignoree: [],
     valuestream: [],
     resultat: [],
+    echange: [],
   };
 }
 
@@ -304,7 +308,7 @@ function creerStore(espace: string, seeds: Seeds) {
 // ---------------------------------------------------------------------------
 // Exemples des autres espaces de la démo : une équipe « Mobile », une entreprise « ACME »
 // ---------------------------------------------------------------------------
-const vide = () => ({ epic: [], objectif: [], domaine: [], feature: [], objectifpi: [], ignoree: [], valuestream: [], resultat: [] }) as ReturnType<typeof sampleEntities>;
+const vide = () => ({ epic: [], objectif: [], domaine: [], feature: [], objectifpi: [], ignoree: [], valuestream: [], resultat: [], echange: [] }) as ReturnType<typeof sampleEntities>;
 const exemple = (prefix: string, liste: [string, Item['type'], number, Partial<Item>][]): Item[] => {
   const now = new Date();
   const stamp = now.toISOString();
@@ -334,6 +338,14 @@ const SEEDS_EQUIPE: Seeds = {
     e.domaine = [{ id: 'mobdpro', nom: 'Pro', icone: '💼', couleur: '#1A73E8', parent: '', ...base }];
     e.epic = [{ id: 'mobe1', titre: 'Application mobile v2', description: '', debut: m(-1), fin: m(3), couleur: '#C2185B', objectif: '', domaine: 'mobdpro', etat: 'en_cours', ...base }];
     e.feature = [{ id: 'mobf1', titre: 'Connexion et notifications', description: '', epic: 'mobe1', pi: piOf(now), iteration: iterationOf(now).key, points: '8', couleur: '', ...base }];
+    // Échanges en cours avec des collègues (onglet Echanges)
+    const ech = (id: string, x: Partial<Echange>): Echange => ({ id, de: '', a: '', type: 'message', titre: '', texte: '', choix: '', reponse: '', note: '', statut: 'envoye', element: '', ...base, ...x });
+    e.echange = [
+      ech('mobx1', { de: 'lea.martin@mobile.example', a: MOI_DEMO, type: 'question', titre: 'Livrer la v2 en deux fois ?', texte: 'Connexion d’abord, notifications ensuite : on gagne trois semaines.', choix: 'Oui, deux livraisons;Non, une seule', element: 'mobe1' }),
+      ech('mobx2', { de: 'hugo.petit@mobile.example', a: MOI_DEMO, titre: 'Maquette prête', texte: 'La maquette de l’écran de connexion est prête, je l’ai mise dans la feature.' }),
+      ech('mobx3', { de: MOI_DEMO, a: 'lea.martin@mobile.example', type: 'question', titre: 'Revue de sprint jeudi ou vendredi ?', choix: 'Jeudi;Vendredi', statut: 'repondu', reponse: 'Jeudi', note: 'À 10 h, salle Atlas.' }),
+      ech('mobx4', { de: MOI_DEMO, a: 'hugo.petit@mobile.example', titre: 'Bug Android 12', texte: 'Peux-tu regarder le plantage de l’écran de connexion ?' }),
+    ];
     return e;
   },
 };

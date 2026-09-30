@@ -16,6 +16,7 @@ import {
   signature,
 } from '../echange/echange';
 import { colors } from '../theme';
+import type { Echange } from '../types';
 
 /** Couleur du fil d'Ariane de chaque lot (et du format d'échange) */
 const TEINTES = ['#1A73E8', '#188038', '#8E24AA', '#E37400', '#00897B', '#C2185B', '#795548'];
@@ -52,7 +53,8 @@ export interface SynchroMissions {
   lancer: () => Promise<string>;
 }
 
-export function EchangeView({ synchro }: { synchro?: SynchroMissions }) {
+/** Fil de Claude (IA chat) : questions du fil, backlog des missions, et vos messages à Claude (copiés avec vos réponses) */
+export function FilClaude({ synchro, messages = [], onMessagesCopies }: { synchro?: SynchroMissions; messages?: Echange[]; onMessagesCopies?: (l: Echange[]) => void }) {
   const [vue, setVue] = useState<Vue>('questions');
   const [espace, setEspace] = useState<'projet' | 'format'>('projet');
   const [index, setIndex] = useState(0);
@@ -72,7 +74,7 @@ export function EchangeView({ synchro }: { synchro?: SynchroMissions }) {
   const aRepondre = useMemo(() => FIL.points.filter((p) => ouvert(p) && p.espace === espace), [espace]);
   const nbEspace = (e: string) => FIL.points.filter((p) => ouvert(p) && p.espace === e).length;
   const courant = aRepondre[Math.min(index, aRepondre.length - 1)];
-  const nbRepondus = Object.values(reponses).filter((r) => r.choix || r.note.trim()).length;
+  const nbRepondus = Object.values(reponses).filter((r) => r.choix || r.note.trim()).length + messages.length;
 
   const repondre = (p: PointFil, patch: Partial<Reponse>) =>
     setReponses((r) => {
@@ -90,13 +92,15 @@ export function EchangeView({ synchro }: { synchro?: SynchroMissions }) {
     enregistrerReponses({});
   };
   const copier = async () => {
-    const t = resumeReponses(reponses);
+    const lignesMessages = messages.map((m) => `Message à Claude · ${[m.titre, m.texte].filter(Boolean).join(' — ')}`);
+    const t = [resumeReponses(reponses), ...lignesMessages].filter(Boolean).join('\n');
     if (!t) return;
     try {
       if (Platform.OS !== 'web' || !navigator.clipboard) throw new Error('presse-papiers');
       await navigator.clipboard.writeText(t);
       const n = nbRepondus;
       vider();
+      onMessagesCopies?.(messages);
       setMessage(`📋 ${n} réponse${n > 1 ? 's' : ''} copiée${n > 1 ? 's' : ''}, puis vidée${n > 1 ? 's' : ''} : collez-les dans la discussion avec Claude.`);
     } catch {
       setTexteCopie(t);
@@ -227,6 +231,7 @@ export function EchangeView({ synchro }: { synchro?: SynchroMissions }) {
               <Pressable
                 onPress={() => {
                   vider();
+                  onMessagesCopies?.(messages);
                   setTexteCopie(null);
                   setMessage('Réponses vidées : collez le texte copié dans la discussion avec Claude.');
                 }}

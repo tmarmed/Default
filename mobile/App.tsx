@@ -68,12 +68,12 @@ import {
 } from './src/dates';
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { GOOGLE_AUTH, VERSION } from './src/config';
-import { changerModeDemo, DEMO, DEMO_BASCULABLE, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
+import { changerModeDemo, DEMO, DEMO_BASCULABLE, MOI_DEMO, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
 import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, lireNomFichier, loadRetires, loadSupprimes, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveSupprimes, saveVisibles } from './src/espaces';
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
-import { EchangeView } from './src/components/EchangeView';
+import { aTraiter, EchangesView, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { changementEpic, changementFeature, compterChangements, couleurLot, epicDuLot, featureDeEtape, FIL, NOM_ESPACE_MISSIONS, pointsOuverts, useEchangeActif } from './src/echange/echange';
 import { StrategieView } from './src/components/StrategieView';
 import { BacklogView } from './src/components/BacklogView';
@@ -116,6 +116,7 @@ import {
   Objectif,
   ObjectifPI,
   ResultatCle,
+  Echange,
   ValueStream,
   type ValueStreamInput,
   idsDe,
@@ -180,6 +181,8 @@ const TAB_ICONS: Record<Tab, string> = {
   echange: '💬',
 };
 const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches' };
+/** Messages de l'application gardés sur l'appareil jusqu'à « Lu ✓ » */
+const MESSAGES_APP_KEY = 'president:messages-app';
 /** Missions déjà écrites une fois d'elles-mêmes dans l'espace « President » */
 const MISSIONS_AUTO_KEY = 'president:echange-missions-auto';
 /** Écrans prévus, encore vides (règles de gestion à définir) */
@@ -220,8 +223,9 @@ type Hier = {
   ignorees: Ignoree[];
   valueStreams: ValueStream[];
   resultats: ResultatCle[];
+  echanges: Echange[];
 };
-const EMPTY_HIER: Hier = { epics: [], objectifs: [], domaines: [], features: [], objectifsPI: [], ignorees: [], valueStreams: [], resultats: [] };
+const EMPTY_HIER: Hier = { epics: [], objectifs: [], domaines: [], features: [], objectifsPI: [], ignorees: [], valueStreams: [], resultats: [], echanges: [] };
 
 /** Nouvelle sous-tâche : rangement du parent ; sans date, elle prend l'itération du parent. */
 const subtaskInput = (parent: Item, titre: string): ItemInput => ({
@@ -300,6 +304,7 @@ function Main() {
       objectifsPI: tousHier.objectifsPI.filter(dansVisibles),
       valueStreams: (tousHier.valueStreams ?? []).filter(dansVisibles),
       resultats: (tousHier.resultats ?? []).filter(dansVisibles),
+      echanges: (tousHier.echanges ?? []).filter(dansVisibles),
       // Les alertes ignorées sont personnelles (espace Moi) : toujours toutes
       ignorees: tousHier.ignorees,
     }),
@@ -379,6 +384,7 @@ function Main() {
         objectifsPI: [...prev.objectifsPI.filter(garde), ...next.objectifsPI],
         valueStreams: [...(prev.valueStreams ?? []).filter(garde), ...(next.valueStreams ?? [])],
         resultats: [...(prev.resultats ?? []).filter(garde), ...(next.resultats ?? [])],
+        echanges: [...(prev.echanges ?? []).filter(garde), ...(next.echanges ?? [])],
         ignorees: next.ignorees,
       };
       saveHierarchyCache(all).catch(() => {});
@@ -427,8 +433,8 @@ function Main() {
   // Les écrans encore vides (à venir) n'apparaissent pas dans les onglets tant que leur lot n'est pas fait
   const echangeActif = useEchangeActif();
   const tabsTous = useMemo(
-    () => [...tabs.barre, ...tabs.plus].filter((t) => !A_VENIR.includes(t)).concat(echangeActif ? ['echange' as Tab] : []),
-    [tabs, echangeActif],
+    () => [...tabs.barre, ...tabs.plus].filter((t) => !A_VENIR.includes(t)).concat(['echange' as Tab]),
+    [tabs],
   );
   useEffect(() => setRecherche(null), [tab]);
   const [largeur, setLargeur] = useState(Math.min(Dimensions.get('window').width, 480));
@@ -451,6 +457,28 @@ function Main() {
   const [notice, setNotice] = useState<string | null>(null);
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
+  // 🏛️ Messages de l'application (💬 Échange › President) : ce qu'elle a fait ou signalé, jusqu'à « Lu ✓ »
+  const [messagesApp, setMessagesApp] = useState<MessageApp[]>([]);
+  const majMessagesApp = useCallback((f: (l: MessageApp[]) => MessageApp[]) => {
+    setMessagesApp((l) => {
+      const n = f(l).slice(0, 30);
+      AsyncStorage.setItem(MESSAGES_APP_KEY, JSON.stringify(n)).catch(() => {});
+      return n;
+    });
+  }, []);
+  useEffect(() => {
+    AsyncStorage.getItem(MESSAGES_APP_KEY)
+      .then((v) => v && setMessagesApp(JSON.parse(v)))
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    const date = new Date().toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    if (info) majMessagesApp((l) => [{ id: `i${Date.now()}`, texte: info, date, ton: 'info' }, ...l]);
+  }, [info, majMessagesApp]);
+  useEffect(() => {
+    const date = new Date().toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    if (notice) majMessagesApp((l) => [{ id: `n${Date.now()}`, texte: notice, date, ton: 'alerte' }, ...l]);
+  }, [notice, majMessagesApp]);
   /** Bandeau « … · Annuler » des écrans (ajout au PI, déplacement…) : comme dans les fiches */
   const bandeauApp = useBandeau();
   // Message d'information : disparaît tout seul après 6 s (comme le bandeau « Annuler » de l'Organisation), ou d'un toucher
@@ -690,7 +718,7 @@ function Main() {
         const garde = (x: { espace?: string }) => !chargés.has(x.espace || 'moi');
         const list = [...tousItemsRef.current.filter(garde), ...ok.flatMap((o) => o.d.items)];
         const cat = <K extends keyof Omit<Hier, 'ignorees'>>(k: K) => [...((tousHierRef.current[k] ?? []) as { espace?: string }[]).filter(garde), ...ok.flatMap((o) => (o.d[k] ?? []) as { espace?: string }[])] as Hier[K];
-        const rest: Omit<Hier, 'ignorees'> = { epics: cat('epics'), objectifs: cat('objectifs'), domaines: cat('domaines'), features: cat('features'), objectifsPI: cat('objectifsPI'), valueStreams: cat('valueStreams'), resultats: cat('resultats') };
+        const rest: Omit<Hier, 'ignorees'> = { epics: cat('epics'), objectifs: cat('objectifs'), domaines: cat('domaines'), features: cat('features'), objectifsPI: cat('objectifsPI'), valueStreams: cat('valueStreams'), resultats: cat('resultats'), echanges: cat('echanges') };
         // Domaines de base de Moi (Pro › Projets, Travail ; Perso › Santé ; Famille ; Loisirs) : ceux qui manquent
         // sont ajoutés au démarrage, une fois par fichier et par version de la liste (un domaine supprimé ensuite ne revient pas)
         const fichierMoi = espacesRef.current[0]?.fichier;
@@ -1304,6 +1332,7 @@ function Main() {
     ignoree: 'ignorees',
     valuestream: 'valueStreams',
     resultat: 'resultats',
+    echange: 'echanges',
   } as const satisfies Record<EntityKind, keyof Hier>;
 
   /** Crée (editing = null) ou met à jour un domaine / objectif / epic. */
@@ -1399,6 +1428,25 @@ function Main() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [echangeActif, settings?.googleEmail, espaceMissions]);
+
+  // 💬 Échanges : votre adresse, vos interlocuteurs, ce qui attend votre réponse
+  const moiEchange = DEMO ? MOI_DEMO : (settings?.googleEmail ?? '').toLowerCase();
+  const interlocuteurs = useMemo(() => {
+    const m = new Map<string, { id: string; nom: string; nature: string }>();
+    for (const p of orgTous.personnes) if (p.email) m.set(p.email.toLowerCase(), { id: p.email.toLowerCase(), nom: p.nom, nature: p.nature || 'humain' });
+    for (const e of tousHier.echanges ?? []) for (const id of [e.de, e.a]) if (id !== 'claude' && id !== 'president' && !m.has(id)) m.set(id, { id, nom: nomDepuisEmail(id), nature: 'humain' });
+    return [...m.values()].sort((a, b) => a.nom.localeCompare(b.nom));
+  }, [orgTous, tousHier.echanges]);
+  const nbARepondre = (echangeActif ? pointsOuverts().length : 0) + aTraiter(moiEchange, tousHier.echanges ?? []).length;
+  const retirerEchange = async (e: Echange) => {
+    if (!settings) return;
+    await api.deleteEntity(settings, 'echange', e.id, false);
+    setHier((prev) => {
+      const next = { ...prev, echanges: (prev.echanges ?? []).filter((x) => x.id !== e.id) };
+      saveHierarchyCache(next).catch(() => {});
+      return next;
+    });
+  };
 
   /** Bouton d'une alerte : applique les dates proposées. */
   const fixEntity = async (kind: 'epic' | 'objectif', x: { id: string; titre: string }, patch: { debut?: string; fin?: string }) => {
@@ -1595,7 +1643,7 @@ function Main() {
     organisation: zero,
     pilotage: zero,
     // 💬 Échange : pastille jaune = points du fil qui attendent votre réponse
-    echange: { rouge: 0, jaune: echangeActif ? pointsOuverts().length : 0 },
+    echange: { rouge: 0, jaune: nbARepondre },
   };
 
   // Écran Tâches : les alertes défilent avec le contenu (en tête de liste / de calendrier)
@@ -1756,6 +1804,7 @@ function Main() {
       objectifsPI: prev.objectifsPI.filter(autre),
       valueStreams: (prev.valueStreams ?? []).filter(autre),
       resultats: (prev.resultats ?? []).filter(autre),
+      echanges: (prev.echanges ?? []).filter(autre),
       ignorees: prev.ignorees,
     }));
   };
@@ -1975,7 +2024,7 @@ function Main() {
       </View>
       {/* Carte des espaces de travail : dépliée sous la barre (la pastille la replie) */}
       <EspacesBar
-        aRepondre={echangeActif ? pointsOuverts().length : 0}
+        aRepondre={nbARepondre}
         onARepondre={() => {
           setTab('echange');
           setEspacesPlie(true);
@@ -2294,7 +2343,26 @@ function Main() {
       )}
 
       {tab === 'echange' && (
-        <EchangeView synchro={{ espace: espaceMissions ? NOM_ESPACE_MISSIONS : null, changements: changementsMissions, lancer: synchroMissions }} />
+        <EchangesView
+          moi={moiEchange}
+          echanges={tousHier.echanges ?? []}
+          personnes={interlocuteurs}
+          espaces={visibles.map((id) => ({ id, nom: `${ICONE_ESPACE[espaceParId(espaces, id)?.type ?? 'moi']} ${libelleEspace(espaceParId(espaces, id) ?? ESPACE_MOI)}` }))}
+          claude={echangeActif ? { nbQuestions: pointsOuverts().length, synchro: { espace: espaceMissions ? NOM_ESPACE_MISSIONS : null, changements: changementsMissions, lancer: synchroMissions } } : null}
+          president={{
+            alertes: tabsTous.filter((t) => t !== 'echange').map((t) => ({ ecran: t, titre: TAB_TITLES[t], icone: TAB_ICONS[t], rouge: badges[t]?.rouge ?? 0, jaune: badges[t]?.jaune ?? 0 })),
+            messages: messagesApp,
+            onOuvrir: (t) => setTab(t as Tab),
+            onLu: (id) => majMessagesApp((l) => l.filter((m) => m.id !== id)),
+          }}
+          onEnvoyer={async (e) => {
+            await saveEntity('echange', null, e.a === 'claude' ? { ...e, espace: 'moi' } : e);
+          }}
+          onRepondre={async (e, reponse, note) => {
+            await saveEntity('echange', e, { reponse, note, statut: 'repondu' });
+          }}
+          onRetirer={retirerEchange}
+        />
       )}
 
       {tab === 'strategie' && (

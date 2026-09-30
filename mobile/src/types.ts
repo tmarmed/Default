@@ -294,7 +294,38 @@ export const DOMAINES_DE_BASE: ModeleDomaine[] = [
 
 export type DomaineInput = Omit<Domaine, 'id' | 'cree_le' | 'modifie_le'>;
 
-export type EntityKind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'ignoree' | 'valuestream' | 'resultat';
+export type EntityKind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'ignoree' | 'valuestream' | 'resultat' | 'echange';
+
+/**
+ * Échange (onglet « Echanges » du Google Sheet de l'espace) : un message ou une question à choix, entre deux
+ * interlocuteurs — vous (e-mail), une autre personne (e-mail), Claude (« claude », IA chat) ou l'application
+ * (« president »). Pas d'historique : un message lu, ou une réponse prise en compte par celui qui a demandé,
+ * est supprimé.
+ */
+export interface Echange {
+  espace?: string;
+  id: string;
+  /** Qui écrit : e-mail, « claude » ou « president » */
+  de: string;
+  /** À qui : e-mail, « claude » ou « president » */
+  a: string;
+  type: 'message' | 'question';
+  titre: string;
+  texte: string;
+  /** Question : choix proposés, séparés par « ; » */
+  choix: string;
+  /** Question : choix retenu par le destinataire */
+  reponse: string;
+  /** Remarque jointe à la réponse */
+  note: string;
+  /** envoye : en attente du destinataire ; repondu : en attente de la prise en compte par l'auteur */
+  statut: 'envoye' | 'repondu';
+  /** Élément concerné (id d'une tâche, epic…), facultatif */
+  element: string;
+  cree_le: string;
+  modifie_le: string;
+}
+export type EchangeInput = Omit<Echange, 'id' | 'cree_le' | 'modifie_le'>;
 
 /** SAFe (lot 4) : flux de valeur d'un portfolio (opérationnel : comment la valeur arrive au client ; développement : les systèmes qui le soutiennent). */
 export type TypeValueStream = 'operationnel' | 'developpement';

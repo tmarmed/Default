@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BandeauAnnuler, decrireChangement, useEnregistrementAuto } from './EnregistrementAuto';
 import type { Deplacement } from './OrganisationView';
 import { StyleSheet, Text } from 'react-native';
-import { CLE_ORG, type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, membresDe, nomPersonne, type OrgValue } from '../organisation';
+import { CLE_ORG, type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, membresDe, NATURES_PERSONNE, nomPersonne, type OrgValue } from '../organisation';
 import { useSafe } from '../safe';
 import { useEspaces } from '../espaces';
 import { colors } from '../theme';
@@ -26,7 +26,7 @@ const SUPPRIMER: Record<string, string> = {
 export type RangerOrg = { kind: KindOrg; champ: string; ids: string[] };
 
 const VIDES: Record<KindOrg, Donnees> = {
-  personne: { nom: '', email: '', unite: '', manager: '', capacite: '', metier: '' },
+  personne: { nom: '', email: '', unite: '', manager: '', capacite: '', metier: '', nature: 'humain' },
   unite: { nom: '', type: 'service', parent: '', responsable: '' },
   portfolio: { nom: '', epic_owner: '' },
   train: { nom: '', portfolio: '', rte: '', pm: '' },
@@ -142,7 +142,7 @@ export function OrgForm({
       decrireChangement(
         a,
         b,
-        { nom: 'Nom', email: 'E-mail', unite: 'Service', manager: 'Manager', capacite: 'Capacité', metier: 'Métier', type: 'Type', parent: 'Au-dessus', responsable: 'Responsable', epic_owner: 'Epic Owner', portfolio: 'Portfolio', rte: 'RTE', pm: 'Product Manager', train: 'Train', po: 'Product Owner', sm: 'Scrum Master', membres: 'Membres' },
+        { nom: 'Nom', email: 'E-mail', unite: 'Service', manager: 'Manager', capacite: 'Capacité', metier: 'Métier', nature: 'Type de personne', type: 'Type', parent: 'Au-dessus', responsable: 'Responsable', epic_owner: 'Epic Owner', portfolio: 'Portfolio', rte: 'RTE', pm: 'Product Manager', train: 'Train', po: 'Product Owner', sm: 'Scrum Master', membres: 'Membres' },
         (k, v) =>
           ['manager', 'responsable', 'epic_owner', 'rte', 'pm', 'po', 'sm'].includes(String(k))
             ? nomPersonne(org, v)
@@ -415,6 +415,16 @@ export function OrgForm({
             depart={(entite as { type?: string } | null)?.type || undefined}
             groupes={[{ options: [{ value: 'direction', label: '🏛️ Direction' }, { value: 'service', label: '🧩 Service' }] }]}
             onChange={(v) => v && set('type')(v)}
+          />
+        )}
+        {kind === 'personne' && (
+          <LigneChoix
+            fixe
+            label="Type"
+            value={(form as { nature?: string }).nature || 'humain'}
+            depart={(entite as { nature?: string } | null)?.nature || undefined}
+            groupes={[{ options: NATURES_PERSONNE }]}
+            onChange={(v) => v && v !== 'agent_ia' && set('nature' as never)(v as never)}
           />
         )}
       </SectionFiche>

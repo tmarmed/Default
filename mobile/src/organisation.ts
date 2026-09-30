@@ -24,6 +24,8 @@ export interface Personne {
   capacite: string;
   /** Métier dans son équipe (dev, testeur, designer, analyste, autre ; voir src/droits.ts), vide = membre */
   metier?: string;
+  /** Type de personne : humain (par défaut), IA chat (Claude) ou agent IA (bientôt, lot 12) */
+  nature?: string;
   cree_le: string;
   modifie_le: string;
 }
@@ -99,6 +101,13 @@ export interface Org {
 }
 export const ORG_VIDE: Org = { personnes: [], unites: [], portfolios: [], trains: [], equipes: [] };
 export const CLE_ORG: Record<KindOrg, keyof Org> = { personne: 'personnes', unite: 'unites', portfolio: 'portfolios', train: 'trains', equipeagile: 'equipes' };
+
+export const NATURES_PERSONNE = [
+  { value: 'humain', label: '🧑 Humain' },
+  { value: 'ia_chat', label: '💬 IA chat' },
+  { value: 'agent_ia', label: '🤖 Agent IA', meta: 'bientôt' },
+];
+export const libelleNature = (n: string | undefined) => NATURES_PERSONNE.find((x) => x.value === (n || 'humain'))?.label ?? '🧑 Humain';
 
 export const membresDe = (e: Pick<EquipeAgile, 'membres'>) => (e.membres ? e.membres.split(';').filter(Boolean) : []);
 

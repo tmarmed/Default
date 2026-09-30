@@ -1,4 +1,4 @@
-import { type Domaine, type Epic, type EntityKind, type Feature, idsDe, type Ignoree, type Item, joindreIds, type Objectif, type ObjectifPI, type ResultatCle, type ValueStream } from './types';
+import { type Domaine, type Echange, type Epic, type EntityKind, type Feature, idsDe, type Ignoree, type Item, joindreIds, type Objectif, type ObjectifPI, type ResultatCle, type ValueStream } from './types';
 
 /**
  * Hiérarchie Domaine > Objectif > Epic > Feature > Tâche.
@@ -84,6 +84,8 @@ export interface Data {
   /** SAFe (lot 4) : value streams et résultats clés des OKR */
   valueStreams?: ValueStream[];
   resultats?: ResultatCle[];
+  /** Échanges en cours (sans historique) */
+  echanges?: Echange[];
 }
 
 export interface DeletionCounts {
@@ -165,6 +167,7 @@ export function planDeletion(kind: EntityKind, id: string, cascade: boolean, d: 
       domaines,
       objectifsPI,
       ignorees: not('ignoree', d.ignorees ?? []),
+      echanges: not('echange', d.echanges ?? []),
       ...liensLot4(kind, id, d, epics.filter((e) => !epicIds.has(e.id))),
       counts,
     };
@@ -192,7 +195,7 @@ export function planDeletion(kind: EntityKind, id: string, cascade: boolean, d: 
     epics = epics.map(clear);
     items = items.map(clear);
   }
-  return { items, objectifs, domaines, features, objectifsPI, ignorees: not('ignoree', d.ignorees ?? []), ...liensLot4(kind, id, d, epics), counts };
+  return { items, objectifs, domaines, features, objectifsPI, ignorees: not('ignoree', d.ignorees ?? []), echanges: not('echange', d.echanges ?? []), ...liensLot4(kind, id, d, epics), counts };
 }
 
 /** Lot 4 : un OKR, un value stream ou une epic supprimé disparaît des listes de liens ; un OKR emporte ses résultats clés */

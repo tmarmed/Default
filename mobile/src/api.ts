@@ -14,6 +14,7 @@ import {
   Objectif,
   ObjectifPI,
   ResultatCle,
+  Echange,
   ValueStream,
   RECURRENCE_DEFAUTS,
   Settings,
@@ -100,11 +101,12 @@ export async function listItems(settings: Settings, espace = 'moi'): Promise<Dat
     ignorees: m(all.ignorees ?? []),
     valueStreams: m(all.valueStreams ?? []),
     resultats: m(all.resultats ?? []),
+    echanges: m(all.echanges ?? []),
     version: API_VERSION_SUPPR_SOUS_DOMAINES,
   };
 }
 
-type EntityMap = { epic: Epic; objectif: Objectif; domaine: Domaine; feature: Feature; objectifpi: ObjectifPI; ignoree: Ignoree; valuestream: ValueStream; resultat: ResultatCle };
+type EntityMap = { epic: Epic; objectif: Objectif; domaine: Domaine; feature: Feature; objectifpi: ObjectifPI; ignoree: Ignoree; valuestream: ValueStream; resultat: ResultatCle; echange: Echange };
 
 export async function createEntity<K extends EntityKind>(
   settings: Settings,
