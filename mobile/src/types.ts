@@ -78,6 +78,8 @@ export interface Item {
   /** Entreprise (delivery SAFe) : équipe agile qui porte l'élément, et personne responsable (ids de l'Organisation) */
   equipe?: string;
   responsable?: string;
+  /** Backlog (lot 4) : rang de priorité dans son backlog (plus petit = plus prioritaire), vide = non classé */
+  rang?: string;
 
   // --- Champs calculés par l'application (non enregistrés) ---
   /** Occurrence affichée d'un élément répété : clé de sa période */
@@ -169,6 +171,8 @@ export interface Epic {
   value_streams?: string;
   /** SAFe (lot 4) : OKR liés directement (seulement pour une epic sans value stream ; ids séparés par « ; ») */
   okrs?: string;
+  /** Backlog (lot 4) : rang de priorité dans le backlog du portfolio */
+  rang?: string;
 }
 
 export type EtatEpic = 'idee' | 'analyse' | 'pret' | 'en_cours' | 'termine';
@@ -200,6 +204,8 @@ export interface Feature {
   /** Entreprise (delivery SAFe) : train qui porte la feature, et équipe qui la réalise (ids de l'Organisation) */
   train?: string;
   equipe?: string;
+  /** Backlog (lot 4) : rang de priorité dans le backlog du train */
+  rang?: string;
 }
 
 export type FeatureInput = Omit<Feature, 'id' | 'cree_le' | 'modifie_le'>;

@@ -74,6 +74,7 @@ import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
 import { StrategieView } from './src/components/StrategieView';
+import { BacklogView } from './src/components/BacklogView';
 import { ValueStreamForm } from './src/components/ValueStreamForm';
 import { ResultatForm } from './src/components/ResultatForm';
 import { MoiContext } from './src/droits';
@@ -176,7 +177,7 @@ const TAB_ICONS: Record<Tab, string> = {
 };
 const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches' };
 /** Écrans prévus, encore vides (règles de gestion à définir) */
-const A_VENIR: Tab[] = ['backlog', 'equipe', 'pilotage'];
+const A_VENIR: Tab[] = ['equipe', 'pilotage'];
 /** Nom de l'application : début du nom des fichiers des espaces */
 /** Nom de l'application (début du nom des Google Sheets : « President | Moi ») ; anciens noms : fichiers renommés */
 const NOM_APP = 'President';
@@ -2191,6 +2192,28 @@ function Main() {
         />
       )}
 
+      {tab === 'backlog' && (
+        <BacklogView
+          onOpenEpic={(e) => openEpic(e)}
+          onOpenFeature={(f) => openFeature(f)}
+          onOpenTask={(t) => openForm(t)}
+          onClasser={async (niveau, ids) => {
+            // Rangs de 10 en 10 ; seuls les éléments dont le rang change sont enregistrés
+            try {
+              for (const [i, id] of ids.entries()) {
+                const rang = String((i + 1) * 10);
+                if (niveau === 'tache') {
+                  if (items.find((t) => t.id === id)?.rang !== rang) await updateTask({ id, rang });
+                } else if ((niveau === 'epic' ? hier.epics : hier.features).find((x) => x.id === id)?.rang !== rang) await saveEntity(niveau, { id }, { rang });
+              }
+            } catch (err) {
+              setNotice(`Priorité non enregistrée : ${(err as Error).message}`);
+            }
+          }}
+          refreshControl={refreshControl}
+        />
+      )}
+
       {A_VENIR.includes(tab) && <EcranAVenir ecran={tab} />}
 
       {tab === 'taches' && mode !== 'liste' && (
@@ -2339,7 +2362,7 @@ function Main() {
         <BandeauAnnuler bandeau={bandeauApp.bandeau} fermer={bandeauApp.fermer} />
       </View>
 
-      {!A_VENIR.includes(tab) && tab !== 'strategie' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
+      {!A_VENIR.includes(tab) && tab !== 'strategie' && tab !== 'backlog' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 8 + 12 }]}
         onPress={() =>
           tab === 'organisation'

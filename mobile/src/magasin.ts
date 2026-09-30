@@ -40,11 +40,11 @@ export const ONGLETS: Record<TableBase, { nom: string; colonnes: string[] }> = {
     colonnes: [
       'id', 'titre', 'type', 'date', 'heure', 'lieu', 'description', 'priorite', 'statut', 'cree_le', 'modifie_le',
       'periodicite', 'echeance', 'debut', 'fin', 'faits', 'epic', 'objectif', 'domaine', 'points', 'iteration', 'feature',
-      'telephone', 'parent', 'heure_fin', 'date_fin', 'termine_le', 'statut_avant', 'equipe', 'responsable',
+      'telephone', 'parent', 'heure_fin', 'date_fin', 'termine_le', 'statut_avant', 'equipe', 'responsable', 'rang',
     ],
   },
-  epic: { nom: 'Epics', colonnes: ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le', 'objectif', 'domaine', 'etat', 'portfolio', 'value_streams', 'okrs'] },
-  feature: { nom: 'Features', colonnes: ['id', 'titre', 'description', 'epic', 'pi', 'iteration', 'points', 'couleur', 'cree_le', 'modifie_le', 'train', 'equipe'] },
+  epic: { nom: 'Epics', colonnes: ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le', 'objectif', 'domaine', 'etat', 'portfolio', 'value_streams', 'okrs', 'rang'] },
+  feature: { nom: 'Features', colonnes: ['id', 'titre', 'description', 'epic', 'pi', 'iteration', 'points', 'couleur', 'cree_le', 'modifie_le', 'train', 'equipe', 'rang'] },
   objectifpi: { nom: 'ObjectifsPI', colonnes: ['id', 'titre', 'pi', 'type', 'valeur_prevue', 'valeur_obtenue', 'cree_le', 'modifie_le', 'domaine', 'epic'] },
   objectif: { nom: 'Objectifs', colonnes: ['id', 'titre', 'description', 'domaine', 'debut', 'fin', 'couleur', 'cible', 'actuel', 'unite', 'cree_le', 'modifie_le'] },
   domaine: { nom: 'Domaines', colonnes: ['id', 'nom', 'icone', 'couleur', 'cree_le', 'modifie_le', 'parent'] },
@@ -104,6 +104,7 @@ function verifierSafe(o: Record<string, string>) {
   if (o.points !== undefined) {
     o.points = o.points.replace(',', '.');
     if (o.points && !RE_NOMBRE.test(o.points)) throw new Error('Points : nombre attendu.');
+    if (o.rang && !/^\d+$/.test(o.rang)) o.rang = '';
   }
   if (o.iteration && !RE_ITERATION.test(o.iteration)) throw new Error('Itération invalide (ex. 2026-T4-IT3).');
   if (o.pi && !RE_PI.test(o.pi)) throw new Error('PI invalide (ex. 2026-T4).');
@@ -197,6 +198,7 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
   }
   if (kind === 'epic' && !ETATS_EPIC.includes(out.etat)) out.etat = '';
   if (kind === 'epic') for (const k of ['value_streams', 'okrs']) if (!/^[0-9A-Za-z;-]*$/.test(out[k])) throw new Error(`Liste « ${k} » invalide.`);
+  if ((kind === 'epic' || kind === 'feature') && out.rang && !/^\d+$/.test(out.rang)) out.rang = '';
   if (out.couleur !== undefined && out.couleur !== '' && !/^#[0-9A-Fa-f]{6}$/.test(out.couleur)) out.couleur = '#1A73E8';
   verifierLiens(out);
   return cleanLinks(out) as unknown as EntityOf<K>;

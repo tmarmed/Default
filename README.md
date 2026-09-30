@@ -79,6 +79,11 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   avec « ＋ Nouveau … » en tête (fiche de création habituelle ; l'élément créé revient lié). Droits : l'Epic Owner
   du portfolio crée et relie tout, le RTE et le PM relient les value streams de leur train, les autres lisent.
   Données : onglets « ValueStreams » et « ResultatsCles », colonnes « value_streams » et « okrs » des epics.
+- **Backlog** (lot 4) : onglet 🌳 Backlog, les trois backlogs — portfolio (epics), train (features), équipe
+  (stories). Sur un écran large, trois colonnes côte à côte : toucher une epic ne garde que ses features (les
+  autres en gris), toucher une feature ne garde que ses stories, toucher à nouveau enlève le filtre. Sur téléphone,
+  une colonne à la fois avec le fil « Epics › Epic › Feature » pour revenir. Poignée ⋮⋮ : glisser une carte change
+  sa priorité (colonne « rang », de 10 en 10). « › » ouvre la fiche. Filtre « Value stream » en haut.
 - **Droits d'après les rôles** (lot 3, étape 2 ; démo) : les données d'une équipe restent invisibles (pas de mot
   « Sheet »). Opérationnel (dev, testeur, designer… : ligne « Métier » de la fiche Personne) : voit tout le travail de
   l'équipe, modifie le sien ; Scrum Master : tout ; PO : le backlog ; manager : lecture ; RTE et Product Manager : les
