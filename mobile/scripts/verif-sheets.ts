@@ -274,6 +274,13 @@ const ok = (cond: unknown, msg: string) => {
   ok(appels - avantPj2 <= 2, `pièces jointes : ajout suivant en ${appels - avantPj2} appels (une lecture, une écriture)`);
   const relues = await magasinSheets(idL).lirePieces(pjs);
   ok(relues.length === 2 && relues[0].donnees === img && relues[1].nom === 'note.txt', 'pièces jointes : reconstituées à l\'identique');
+  // Morceau abîmé (recopie fausse) : la pièce n'est pas rendue
+  const fpjA = fichiers.get(idL)!.feuilles.get('PiecesJointes')!;
+  const ligneA = fpjA.findIndex((r) => r[1] === pjs[1]);
+  const avantA = fpjA[ligneA][7];
+  fpjA[ligneA][7] = avantA.slice(0, -2) + 'x=';
+  ok((await magasinSheets(idL).lirePieces(pjs)).length === 1, 'pièces jointes : morceau abîmé repéré par son contrôle, pièce écartée');
+  fpjA[ligneA][7] = avantA;
   let tropGros = '';
   await l.ajouterPieces([{ nom: 'gros.pdf', type: 'application/pdf', donnees: 'A'.repeat(1_400_000) }]).catch((e) => (tropGros = e.message));
   ok(tropGros.includes('1 Mo'), 'pièces jointes : plus de 1 Mo refusé');

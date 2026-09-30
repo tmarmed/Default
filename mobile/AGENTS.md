@@ -67,6 +67,15 @@ Limites : 5 pièces par échange, 1 Mo par fichier ; images réduites à 1000 px
 l'échange disparaît, l'application efface les pièces qu'aucun échange ne cite plus (après 10 minutes).
 Claude (connecteur Google Sheets) suit le même cas d'usage standard qu'une personne : ses échanges et leurs pièces
 jointes vont dans le Sheet de **l'espace concerné** (celui de l'élément, ex. President pour une mission), jamais dans
-Moi par défaut. D'abord les lignes de `PiecesJointes`, puis l'échange avec `pieces_jointes`. Une image recopiée par
-Claude doit être vérifiée morceau par morceau (longueur et somme de contrôle calculées dans le Sheet) avant
-d'écrire l'échange ; un morceau faux est réécrit.
+Moi par défaut. Colonne `controle` de chaque morceau : « longueurxsomme » (somme des codes des caractères × leur
+rang, « x » pour que Google ne le prenne pas pour une durée) ; l'application écarte une pièce dont un morceau ne
+correspond pas (« pièce illisible »), au lieu d'afficher une image cassée.
+
+Procédé de Claude (une image recopiée caractère par caractère peut être fausse) :
+1. `python3 scripts/piece-claude.py capture.png <piece-id> [largeur] [qualité] [1000]` : image réduite, morceaux de
+   1000 caractères avec leur `controle` ;
+2. écrire les lignes dans `PiecesJointes` (un appel) ;
+3. poser dans une colonne libre la formule de contrôle (Sheet en français : « ; »)
+   `=IF(LEN(Hn)&"x"&SUMPRODUCT(CODE(MID(Hn;SEQUENCE(LEN(Hn));1))*SEQUENCE(LEN(Hn)))=Jn;"ok";"faux")`, relire ;
+4. réécrire chaque morceau « faux » (seulement lui), revérifier ; effacer la colonne de formules ;
+5. écrire l'échange avec `pieces_jointes`.

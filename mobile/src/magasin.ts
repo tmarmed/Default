@@ -45,6 +45,8 @@ export interface LignePiece {
   total: string;
   donnees: string;
   cree_le: string;
+  /** Contrôle du morceau « longueurxsomme » (somme des codes des caractères × leur rang) : un morceau abîmé est repéré */
+  controle?: string;
 }
 /** Pièce jointe reconstituée (données en base64) */
 export interface PieceJointe {
@@ -58,6 +60,12 @@ export interface PieceEntree {
   nom: string;
   type: string;
   donnees: string;
+}
+/** Contrôle d'un morceau : « longueurxsomme des codes × rang » (« x » : Google ne le prend pas pour une durée) (le même calcul existe en formule Google Sheets) */
+export function controleMorceau(t: string): string {
+  let somme = 0;
+  for (let i = 0; i < t.length; i++) somme += t.charCodeAt(i) * (i + 1);
+  return `${t.length}x${somme}`;
 }
 /** Limites : 1 Mo par fichier, 5 pièces par échange ; morceaux de 45 000 caractères */
 export const PIECES = { tailleMax: 1_000_000, nombreMax: 5, morceau: 45_000 };
@@ -95,7 +103,7 @@ export const ONGLETS_ORG: Record<KindOrg, { nom: string; colonnes: string[] }> =
 export const TABLES_ORG = Object.keys(ONGLETS_ORG) as KindOrg[];
 /** Toutes les tables et leurs onglets */
 /** Pièces jointes des échanges : onglet créé au premier usage */
-export const ONGLET_PIECES = { nom: 'PiecesJointes', colonnes: ['id', 'piece', 'nom', 'type', 'taille', 'partie', 'total', 'donnees', 'cree_le'] };
+export const ONGLET_PIECES = { nom: 'PiecesJointes', colonnes: ['id', 'piece', 'nom', 'type', 'taille', 'partie', 'total', 'donnees', 'cree_le', 'controle'] };
 export const ONGLETS_TOUS: Record<Table, { nom: string; colonnes: string[] }> = { ...ONGLETS, ...ONGLETS_ORG, piecejointe: ONGLET_PIECES };
 
 /** Lecture et écriture d'une table : sur l'appareil (démo) ou dans un Google Sheet */
@@ -426,7 +434,8 @@ export function creerMagasin(p: Persistance) {
         ids.push(id);
         const total = Math.max(1, Math.ceil(x.donnees.length / PIECES.morceau));
         for (let k = 0; k < total; k++)
-          lignes.push({ id: `${id}-${k}`, piece: id, nom: x.nom.slice(0, 200), type: x.type.slice(0, 100), taille: String(taille), partie: String(k), total: String(total), donnees: x.donnees.slice(k * PIECES.morceau, (k + 1) * PIECES.morceau), cree_le: now });
+          lignes.push({ id: `${id}-${k}`, piece: id, nom: x.nom.slice(0, 200), type: x.type.slice(0, 100), taille: String(taille), partie: String(k), total: String(total), donnees: x.donnees.slice(k * PIECES.morceau, (k + 1) * PIECES.morceau), cree_le: now, controle: '' });
+      for (const l of lignes) if (!l.controle) l.controle = controleMorceau(l.donnees);
       }
       const avant = await p.lire('piecejointe');
       await p.ecrire('piecejointe', [...avant, ...lignes]);
@@ -439,6 +448,8 @@ export function creerMagasin(p: Persistance) {
       return ids.flatMap((id) => {
         const l = lignes.filter((x) => x.piece === id).sort((a, b) => Number(a.partie) - Number(b.partie));
         if (!l.length || l.length !== Number(l[0].total)) return [];
+        // Un morceau abîmé (recopie fausse) : la pièce n'est pas montrée, plutôt qu'une image cassée
+        if (l.some((x) => x.controle && x.controle !== controleMorceau(x.donnees))) return [];
         return [{ id, nom: l[0].nom, type: l[0].type, taille: Number(l[0].taille) || 0, donnees: l.map((x) => x.donnees).join('') }];
       });
     },

@@ -42,7 +42,13 @@ export function PiecesEchange({ e }: { e: Echange }) {
   if (!ids.length) return null;
   if (erreur) return <Text style={s.meta}>📎 {ids.length} pièce{ids.length > 1 ? 's' : ''} jointe{ids.length > 1 ? 's' : ''} : chargement impossible.</Text>;
   if (!pieces) return <Text style={s.meta}>📎 Chargement de {ids.length} pièce{ids.length > 1 ? 's' : ''} jointe{ids.length > 1 ? 's' : ''}…</Text>;
-  return <ListePieces pieces={pieces} />;
+  const manquantes = ids.length - pieces.length;
+  return (
+    <>
+      <ListePieces pieces={pieces} />
+      {manquantes > 0 && <Text style={s.meta}>📎 {manquantes} pièce{manquantes > 1 ? 's' : ''} illisible{manquantes > 1 ? 's' : ''} (incomplète ou abîmée).</Text>}
+    </>
+  );
 }
 
 /** Vignettes et fichiers ; `onRetirer` : pièces pas encore envoyées (✕ discret) */
