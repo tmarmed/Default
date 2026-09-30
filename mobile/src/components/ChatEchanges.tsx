@@ -66,7 +66,6 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
   const passer = () => x && setFaits((l) => ({ ...l, [cle(x)]: { texte: 'Passé', passe: true } }));
 
   const reste = x ? liste.length - i - 1 : 0;
-  const suite = reste > 0 ? ' · suivant' : '';
   let contenu;
   if (!x) {
     const passes = liste.filter((y) => faits[cle(y)]?.passe).length;
@@ -95,7 +94,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
         <SectionFiche titre="Message">
           <Text style={[s.texte, x.m.ton === 'alerte' && { color: colors.danger }]}>{x.m.texte}</Text>
         </SectionFiche>
-        <Bouton label={`Lu ✓${suite}`} busy={busy} onPress={() => faire(() => onLu(x.m.id), 'Lu ✓')} />
+        <Bouton label={'Lu ✓'} busy={busy} onPress={() => faire(() => onLu(x.m.id), 'Lu ✓')} />
       </>
     );
   } else {
@@ -152,13 +151,13 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
         )}
         {question ? (
           <Bouton
-            label={`Répondre${suite}`}
+            label={'Répondre'}
             busy={busy}
             disabled={!reponsePrete(choix, note)}
             onPress={() => faire(() => onRepondre(e, choix, note.trim()), `${choix}${note.trim() ? ` — ${note.trim()}` : ''}`)}
           />
         ) : (
-          <Bouton label={`${recue ? 'Pris en compte ✓' : 'Lu ✓'}${suite}`} busy={busy} onPress={() => faire(() => onRetirer(e), recue ? 'Pris en compte ✓' : 'Lu ✓')} />
+          <Bouton label={recue ? 'Pris en compte ✓' : 'Lu ✓'} busy={busy} onPress={() => faire(() => onRetirer(e), recue ? 'Pris en compte ✓' : 'Lu ✓')} />
         )}
       </>
     );
