@@ -562,6 +562,16 @@
      "fait": false
     },
     {
+     "id": "hierarchie",
+     "titre": "Hiérarchie : niveau commun, Escalader, Transmettre",
+     "fait": true
+    },
+    {
+     "id": "prive",
+     "titre": "Affinage : Sheet privé par paire de personnes (avec le partage réel, lot 3)",
+     "fait": false
+    },
+    {
      "id": "agent",
      "titre": "Affinage : agents IA (lot 12)",
      "fait": false

@@ -2,7 +2,7 @@ import { Children, type ReactNode, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors } from '../theme';
 import type { Echange, EchangeInput } from '../types';
-import { ChampFiche, LigneChoix, SaisieFiche, SectionFiche } from './Choix';
+import { ChampFiche, FeuilleChoix, type GroupeChoix, LigneChoix, SaisieFiche, SectionFiche } from './Choix';
 import { FilClaude, type SynchroMissions } from './EchangeView';
 import { FormSheet } from './FormSheet';
 
@@ -52,6 +52,18 @@ interface Props {
   onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>;
   /** Lu, pris en compte ou retiré : l'échange est supprimé */
   onRetirer: (e: Echange) => Promise<void>;
+  /** Hiérarchie (entreprise) : niveau affiché, escalade au niveau au-dessus, transmission à quelqu'un d'autre */
+  hierarchie: Hierarchie;
+}
+export interface Hierarchie {
+  /** « 👥 Mobile » : où vit l'échange */
+  libelle: (e: Echange) => string;
+  /** Vers qui l'escalade l'enverrait (« RTE · 🚆 Clients »), null s'il n'y a pas de niveau au-dessus */
+  escalade: (e: Echange) => string | null;
+  /** Personnes à qui le transmettre, par groupe */
+  transmission: (e: Echange) => GroupeChoix[];
+  onEscalader: (e: Echange) => Promise<void>;
+  onTransmettre: (e: Echange, email: string) => Promise<void>;
 }
 
 const ICONE_NATURE: Record<string, string> = { humain: '🧑', ia_chat: '💬', agent_ia: '🤖', application: '🏛️' };
@@ -79,7 +91,7 @@ const AIDE: { q: string; r: string }[] = [
   { q: 'Missions et Claude', r: '💬 Échange › Claude : les questions de Claude, le backlog des missions, et « Mettre à jour » pour les écrire dans votre espace « President ».' },
 ];
 
-export function EchangesView({ moi, echanges, personnes, espaces, claude, president, onEnvoyer, onRepondre, onRetirer }: Props) {
+export function EchangesView({ moi, echanges, personnes, espaces, claude, president, onEnvoyer, onRepondre, onRetirer, hierarchie }: Props) {
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [nouveau, setNouveau] = useState<{ a: string } | null>(null);
   const nomDe = (id: string) => (id === 'claude' ? 'Claude' : id === 'president' ? 'President' : personnes.find((p) => p.id === id)?.nom || nomDepuisEmail(id));
@@ -116,6 +128,8 @@ export function EchangesView({ moi, echanges, personnes, espaces, claude, presid
           onNouveau={() => setNouveau({ a: ouvert })}
           onRepondre={onRepondre}
           onRetirer={onRetirer}
+          hierarchie={hierarchie}
+          nomDe={nomDe}
         />
         <NouvelEchange a={nouveau?.a ?? ''} visible={!!nouveau} moi={moi} personnes={personnes} espaces={espaces} onClose={() => setNouveau(null)} onEnvoyer={onEnvoyer} />
       </>
@@ -189,7 +203,11 @@ function Conversation({
   onNouveau,
   onRepondre,
   onRetirer,
+  hierarchie,
+  nomDe,
 }: {
+  hierarchie: Hierarchie;
+  nomDe: (id: string) => string;
   moi: string;
   titre: string;
   echanges: Echange[];
@@ -202,11 +220,51 @@ function Conversation({
   const recues = echanges.filter((e) => e.de === moi && e.statut === 'repondu');
   const attente = echanges.filter((e) => e.de === moi && e.statut === 'envoye');
   const autres = echanges.filter((e) => e.a === moi && e.statut === 'repondu');
+  const [transmettre, setTransmettre] = useState<Echange | null>(null);
+  const [occupe, setOccupe] = useState<string | null>(null);
+  const agir = async (e: Echange, f: () => Promise<void>) => {
+    setOccupe(e.id);
+    try {
+      await f();
+    } finally {
+      setOccupe(null);
+    }
+  };
+  // Sous chaque échange à traiter : où il vit, qui l'a transmis, Escalader et Transmettre
+  const outils = (e: Echange) => {
+    const vers = hierarchie.escalade(e);
+    const niveau = hierarchie.libelle(e);
+    return (
+      <View style={s.outils}>
+        <Text style={s.meta}>
+          {[niveau && `📍 ${niveau}`, e.prive !== '0' && '🔒 Privé à deux', e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`, e.de !== moi && `De ${nomDe(e.de)}`].filter(Boolean).join(' · ')}
+        </Text>
+        <View style={s.choix}>
+          {!!vers && (
+            <Pressable disabled={occupe === e.id} onPress={() => agir(e, () => hierarchie.onEscalader(e))} style={s.action} accessibilityRole="button" accessibilityHint={`Envoie l'échange à ${vers}`}>
+              <Text style={s.actionTexte}>⤴ Escalader · {vers}</Text>
+            </Pressable>
+          )}
+          {!!hierarchie.transmission(e).length && (
+            <Pressable disabled={occupe === e.id} onPress={() => setTransmettre(e)} style={s.action} accessibilityRole="button">
+              <Text style={s.actionTexte}>↪ Transmettre</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    );
+  };
   return (
     <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
       <Retour titre={titre} onRetour={onRetour} />
       <Bloc titre="À vous" vide="Rien à traiter.">
-        {aRepondre.map((e) => (e.type === 'question' ? <CarteQuestion key={e.id} e={e} onRepondre={onRepondre} /> : <CarteMessage key={e.id} e={e} action="Lu ✓" onAction={() => onRetirer(e)} />))}
+        {aRepondre.map((e) =>
+          e.type === 'question' ? (
+            <CarteQuestion key={e.id} e={e} onRepondre={onRepondre} pied={outils(e)} />
+          ) : (
+            <CarteMessage key={e.id} e={e} action="Lu ✓" onAction={() => onRetirer(e)} pied={outils(e)} />
+          ),
+        )}
       </Bloc>
       <Bloc titre="Réponses reçues" vide="Aucune réponse en attente de prise en compte.">
         {recues.map((e) => (
@@ -226,6 +284,19 @@ function Conversation({
       <Pressable onPress={onNouveau} style={s.bouton} accessibilityRole="button">
         <Text style={s.boutonTexte}>＋ Nouvel échange</Text>
       </Pressable>
+      {transmettre && (
+        <FeuilleChoix
+          titre="Transmettre à"
+          value=""
+          groupes={hierarchie.transmission(transmettre)}
+          onChoisir={(v) => {
+            const e = transmettre;
+            setTransmettre(null);
+            if (v) agir(e, () => hierarchie.onTransmettre(e, v));
+          }}
+          onFermer={() => setTransmettre(null)}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -244,7 +315,7 @@ function Bloc({ titre, vide, children }: { titre: string; vide: string; children
   );
 }
 
-function CarteMessage({ e, action, onAction, reponse, gris }: { e: Echange; action?: string; onAction?: () => void; reponse?: boolean; gris?: boolean }) {
+function CarteMessage({ e, action, onAction, reponse, gris, pied }: { e: Echange; action?: string; onAction?: () => void; reponse?: boolean; gris?: boolean; pied?: ReactNode }) {
   return (
     <View style={[s.carte, s.carteEchange, gris && s.gris]}>
       <Text style={s.type}>{e.type === 'question' ? '❓ Question' : '✉️ Message'}</Text>
@@ -262,11 +333,12 @@ function CarteMessage({ e, action, onAction, reponse, gris }: { e: Echange; acti
           <Text style={s.actionTexte}>{action}</Text>
         </Pressable>
       )}
+      {pied}
     </View>
   );
 }
 
-function CarteQuestion({ e, onRepondre }: { e: Echange; onRepondre: (e: Echange, reponse: string, note: string) => Promise<void> }) {
+function CarteQuestion({ e, onRepondre, pied }: { e: Echange; onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>; pied?: ReactNode }) {
   const [choix, setChoix] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -299,6 +371,7 @@ function CarteQuestion({ e, onRepondre }: { e: Echange; onRepondre: (e: Echange,
       >
         <Text style={[s.actionTexte, s.actionTexteBlanc]}>{busy ? 'Envoi…' : 'Répondre'}</Text>
       </Pressable>
+      {pied}
     </View>
   );
 }
@@ -374,7 +447,7 @@ function NouvelEchange({
   onEnvoyer: (e: EchangeInput) => Promise<void>;
 }) {
   const [dest, setDest] = useState(a);
-  const [espace, setEspace] = useState(espaces[0]?.id ?? 'moi');
+  const [espace, setEspace] = useState(espaces.find((e) => e.id !== 'moi')?.id ?? espaces[0]?.id ?? 'moi');
   const [type, setType] = useState<'message' | 'question'>('message');
   const [titre, setTitre] = useState('');
   const [texte, setTexte] = useState('');
@@ -388,7 +461,7 @@ function NouvelEchange({
     setOuvertPour(cle);
     if (visible) {
       setDest(a);
-      setEspace(espaces[0]?.id ?? 'moi');
+      setEspace(espaces.find((e) => e.id !== 'moi')?.id ?? espaces[0]?.id ?? 'moi');
       setType('message');
       setTitre('');
       setTexte('');
@@ -397,14 +470,18 @@ function NouvelEchange({
     }
   }
   const options = personnes.filter((p) => p.id !== moi);
+  // Un échange avec un humain va dans un espace partagé (jamais 🔒 Moi, qu'il ne verrait pas)
+  const espacesPartages = espaces.filter((e) => e.id !== 'moi');
   const envoyer = async () => {
     if (!dest) return setError('Choisissez à qui écrire.');
+    if (dest !== 'claude' && !espacesPartages.length) return setError('Affichez un espace Équipe ou Entreprise partagé avec cette personne : 🔒 Moi est privé.');
+    if (dest !== 'claude' && espace === 'moi') setEspace(espacesPartages[0].id);
     if (!titre.trim() && !texte.trim()) return setError('Écrivez un titre ou un texte.');
     const liste = choix.split(/[;,\n]/).map((c) => c.trim()).filter(Boolean);
     if (type === 'question' && liste.length < 2) return setError('Une question propose au moins deux choix (séparés par des virgules).');
     setBusy(true);
     try {
-      await onEnvoyer({ espace, de: moi, a: dest, type, titre: titre.trim(), texte: texte.trim(), choix: type === 'question' ? liste.join(';') : '', reponse: '', note: '', statut: 'envoye', element: '' } as EchangeInput);
+      await onEnvoyer({ espace, de: moi, a: dest, type, titre: titre.trim(), texte: texte.trim(), choix: type === 'question' ? liste.join(';') : '', reponse: '', note: '', statut: 'envoye', element: '', niveau: '', transmis_par: '', prive: '1' });
       onClose();
     } catch (e) {
       setError(`Envoi impossible : ${(e as Error).message}`);
@@ -426,8 +503,14 @@ function NouvelEchange({
           libelle={(v) => (v === 'claude' ? '💬 Claude' : options.find((p) => p.id === v)?.nom ?? v)}
           onChange={setDest}
         />
-        {dest !== 'claude' && espaces.length > 1 && (
-          <LigneChoix label="Espace" value={espace} groupes={[{ options: espaces.map((e) => ({ value: e.id, label: e.nom })) }]} onChange={(v) => v && setEspace(v)} />
+        {dest !== 'claude' && espacesPartages.length > 1 && (
+          <LigneChoix
+            label="Espace"
+            value={espace}
+            sous="Rangé au niveau commun le plus proche de l'Organisation (équipe, train, unité) ; privé à deux."
+            groupes={[{ options: espacesPartages.map((e) => ({ value: e.id, label: e.nom })) }]}
+            onChange={(v) => v && setEspace(v)}
+          />
         )}
         <ChampFiche label="Type">
           <View style={s.choix}>
@@ -499,6 +582,7 @@ const s = StyleSheet.create({
   actionTexte: { fontSize: 13.5, fontWeight: '700', color: colors.text },
   actionTexteBlanc: { color: '#fff' },
   inactif: { opacity: 0.4 },
+  outils: { marginTop: 8, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, gap: 6 },
   bouton: { marginHorizontal: 16, marginTop: 18, paddingVertical: 12, borderRadius: 12, alignItems: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   boutonTexte: { fontSize: 14.5, fontWeight: '700', color: colors.primary },
 });

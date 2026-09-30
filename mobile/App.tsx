@@ -73,7 +73,8 @@ import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
-import { aTraiter, EchangesView, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
+import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
+import { destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, niveauSuperieur, personneParEmail } from './src/echange/hierarchieEchange';
 import { changementEpic, changementFeature, compterChangements, couleurLot, epicDuLot, featureDeEtape, FIL, NOM_ESPACE_MISSIONS, pointsOuverts, useEchangeActif } from './src/echange/echange';
 import { StrategieView } from './src/components/StrategieView';
 import { BacklogView } from './src/components/BacklogView';
@@ -117,6 +118,7 @@ import {
   ObjectifPI,
   ResultatCle,
   Echange,
+  EchangeInput,
   ValueStream,
   type ValueStreamInput,
   idsDe,
@@ -1430,7 +1432,48 @@ function Main() {
   }, [echangeActif, settings?.googleEmail, espaceMissions]);
 
   // 💬 Échanges : votre adresse, vos interlocuteurs, ce qui attend votre réponse
-  const moiEchange = DEMO ? MOI_DEMO : (settings?.googleEmail ?? '').toLowerCase();
+  const orgEchanges = useMemo(() => makeOrgValue(orgTous), [orgTous]);
+  // Démo : « Voir en tant que » une personne de l'Organisation = échanger avec son adresse
+  const moiEchange = DEMO ? (orgTous.personnes.find((p) => p.id === moiDemo)?.email?.toLowerCase() || MOI_DEMO) : (settings?.googleEmail ?? '').toLowerCase();
+  const nomEchange = (email: string) => personneParEmail(email, orgEchanges)?.nom ?? nomDepuisEmail(email);
+  const ROLE_NIVEAU = { train: 'RTE', portfolio: 'Epic Owner', unite: 'Responsable', equipeagile: 'Scrum Master' } as const;
+  const escaladeDe = (e: Echange) => {
+    const sup = niveauSuperieur(lireNiveau(e.niveau), orgEchanges);
+    const email = sup ? orgEchanges.personne.get(sup.responsable)?.email?.toLowerCase() : '';
+    return sup && email && email !== moiEchange ? { ...sup, email } : null;
+  };
+  const hierarchieEchanges: Hierarchie = {
+    libelle: (e) => libelleNiveau(lireNiveau(e.niveau), orgEchanges),
+    escalade: (e) => {
+      const x = escaladeDe(e);
+      return x ? `${ROLE_NIVEAU[x.niveau.kind]} ${nomEchange(x.email)} · ${libelleNiveau(x.niveau, orgEchanges)}` : null;
+    },
+    transmission: (e) =>
+      destinatairesTransfert(moiEchange, lireNiveau(e.niveau), orgEchanges, [moiEchange, e.de]).map((g) => ({
+        titre: g.titre,
+        options: g.emails.map((m) => ({ value: m, label: nomEchange(m), meta: m })),
+      })),
+    onEscalader: async (e) => {
+      const x = escaladeDe(e);
+      if (!x) return;
+      await saveEntity('echange', e, { a: x.email, niveau: ecrireNiveau(x.niveau), transmis_par: moiEchange });
+      setInfo(`Échange « ${e.titre || e.texte.slice(0, 40)} » escaladé à ${nomEchange(x.email)} (${libelleNiveau(x.niveau, orgEchanges)}).`);
+    },
+    onTransmettre: async (e, email) => {
+      const p = personneParEmail(email, orgEchanges);
+      const niveau = (p && niveauDe(p.id, orgEchanges)) || lireNiveau(e.niveau);
+      await saveEntity('echange', e, { a: email, niveau: ecrireNiveau(niveau), transmis_par: moiEchange });
+      setInfo(`Échange « ${e.titre || e.texte.slice(0, 40)} » transmis à ${nomEchange(email)}.`);
+    },
+  };
+  /** Nouvel échange avec une personne : rangé au niveau commun le plus proche, dans le Sheet de l'entreprise */
+  const placerEchange = (e: EchangeInput): EchangeInput => {
+    if (e.a === 'claude') return { ...e, espace: 'moi', niveau: '' };
+    const pa = personneParEmail(e.de, orgEchanges);
+    const pb = personneParEmail(e.a, orgEchanges);
+    const n = pa && pb ? niveauCommun(pa.id, pb.id, orgEchanges) : null;
+    return { ...e, niveau: ecrireNiveau(n), espace: (n && (pb?.espace || pa?.espace)) || e.espace };
+  };
   const interlocuteurs = useMemo(() => {
     const m = new Map<string, { id: string; nom: string; nature: string }>();
     for (const p of orgTous.personnes) if (p.email) m.set(p.email.toLowerCase(), { id: p.email.toLowerCase(), nom: p.nom, nature: p.nature || 'humain' });
@@ -2367,8 +2410,9 @@ function Main() {
             onLu: (id) => majMessagesApp((l) => l.filter((m) => m.id !== id)),
           }}
           onEnvoyer={async (e) => {
-            await saveEntity('echange', null, e.a === 'claude' ? { ...e, espace: 'moi' } : e);
+            await saveEntity('echange', null, placerEchange(e));
           }}
+          hierarchie={hierarchieEchanges}
           onRepondre={async (e, reponse, note) => {
             await saveEntity('echange', e, { reponse, note, statut: 'repondu' });
           }}

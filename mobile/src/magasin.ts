@@ -53,7 +53,7 @@ export const ONGLETS: Record<TableBase, { nom: string; colonnes: string[] }> = {
   ignoree: { nom: 'Ignorees', colonnes: ['id', 'cle', 'signature', 'cree_le', 'modifie_le'] },
   valuestream: { nom: 'ValueStreams', colonnes: ['id', 'nom', 'type', 'description', 'portfolio', 'trains', 'okrs', 'cree_le', 'modifie_le'] },
   resultat: { nom: 'ResultatsCles', colonnes: ['id', 'objectif', 'titre', 'actuel', 'cible', 'unite', 'cree_le', 'modifie_le'] },
-  echange: { nom: 'Echanges', colonnes: ['id', 'de', 'a', 'type', 'titre', 'texte', 'choix', 'reponse', 'note', 'statut', 'element', 'cree_le', 'modifie_le'] },
+  echange: { nom: 'Echanges', colonnes: ['id', 'de', 'a', 'type', 'titre', 'texte', 'choix', 'reponse', 'note', 'statut', 'element', 'cree_le', 'modifie_le', 'niveau', 'transmis_par', 'prive'] },
 };
 export const TABLES = Object.keys(ONGLETS) as TableBase[];
 
@@ -181,6 +181,9 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
     if (out.statut !== 'repondu' && out.statut !== 'pris_en_compte') out.statut = 'envoye';
     out.texte = out.texte.slice(0, 4000);
     if (out.element && !RE_ID.test(out.element)) throw new Error('Élément lié invalide.');
+    if (out.niveau && !/^(equipeagile|train|portfolio|unite):[0-9A-Za-z-]+$/.test(out.niveau)) throw new Error('Niveau de l’échange invalide.');
+    out.transmis_par = (out.transmis_par ?? '').trim().toLowerCase();
+    out.prive = out.prive === '0' ? '0' : '1';
   } else if (kind === 'resultat') {
     if (!out.titre.trim()) throw new Error('Le titre du résultat clé est obligatoire.');
     if (!out.objectif || !RE_ID.test(out.objectif)) throw new Error('Résultat clé : OKR manquant.');

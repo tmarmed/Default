@@ -326,6 +326,12 @@ export interface Echange {
   statut: 'envoye' | 'repondu' | 'pris_en_compte';
   /** Élément concerné (id d'une tâche, epic…), facultatif */
   element: string;
+  /** Niveau de l'Organisation où vit l'échange (« equipeagile:id », « train:id », « portfolio:id », « unite:id ») */
+  niveau: string;
+  /** Qui l'a escaladé ou transmis en dernier (e-mail), vide sinon */
+  transmis_par: string;
+  /** « 1 » : privé à deux (seuls l'auteur et le destinataire le voient) */
+  prive: string;
   cree_le: string;
   modifie_le: string;
 }

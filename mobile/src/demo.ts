@@ -61,7 +61,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '22';
+const DEMO_DATA_VERSION = '23';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -339,7 +339,7 @@ const SEEDS_EQUIPE: Seeds = {
     e.epic = [{ id: 'mobe1', titre: 'Application mobile v2', description: '', debut: m(-1), fin: m(3), couleur: '#C2185B', objectif: '', domaine: 'mobdpro', etat: 'en_cours', ...base }];
     e.feature = [{ id: 'mobf1', titre: 'Connexion et notifications', description: '', epic: 'mobe1', pi: piOf(now), iteration: iterationOf(now).key, points: '8', couleur: '', ...base }];
     // Échanges en cours avec des collègues (onglet Echanges)
-    const ech = (id: string, x: Partial<Echange>): Echange => ({ id, de: '', a: '', type: 'message', titre: '', texte: '', choix: '', reponse: '', note: '', statut: 'envoye', element: '', ...base, ...x });
+    const ech = (id: string, x: Partial<Echange>): Echange => ({ id, de: '', a: '', type: 'message', titre: '', texte: '', choix: '', reponse: '', note: '', statut: 'envoye', element: '', niveau: '', transmis_par: '', prive: '1', ...base, ...x });
     e.echange = [
       ech('mobx1', { de: 'lea.martin@mobile.example', a: MOI_DEMO, type: 'question', titre: 'Livrer la v2 en deux fois ?', texte: 'Connexion d’abord, notifications ensuite : on gagne trois semaines.', choix: 'Oui, deux livraisons;Non, une seule', element: 'mobe1' }),
       ech('mobx2', { de: 'hugo.petit@mobile.example', a: MOI_DEMO, titre: 'Maquette prête', texte: 'La maquette de l’écran de connexion est prête, je l’ai mise dans la feature.' }),
@@ -388,6 +388,12 @@ const SEEDS_ENTREPRISE: Seeds = {
       { id: 'acmvs2', nom: 'Plateforme de paiement', type: 'developpement', description: '', portfolio: 'acmpf1', trains: '', okrs: 'acmo1;acmo2', ...base },
     ];
     e.epic = e.epic.map((x) => (x.id === 'acme2' ? { ...x, value_streams: 'acmvs1', objectif: '' } : x.id === 'acme1' ? { ...x, okrs: 'acmo1', value_streams: '', objectif: '' } : x));
+    // Échanges privés à deux dans l'équipe Mobile (« Voir en tant que » Nina Dupont pour les voir)
+    const ech = (id: string, x: Partial<Echange>): Echange => ({ id, de: '', a: '', type: 'message', titre: '', texte: '', choix: '', reponse: '', note: '', statut: 'envoye', element: '', niveau: 'equipeagile:acmeqmob', transmis_par: '', prive: '1', cree_le: new Date().toISOString(), modifie_le: new Date().toISOString(), ...x });
+    e.echange = [
+      ech('acmx1', { de: 'paul.leroy@acme.example', a: 'nina.dupont@acme.example', type: 'question', titre: 'Découper la story de connexion ?', texte: 'Elle fait 8 points : on la coupe en deux pour cette itération ?', choix: 'Oui, en deux;Non, on la garde' }),
+      ech('acmx2', { de: 'tom.faure@acme.example', a: 'nina.dupont@acme.example', titre: 'Budget des licences', texte: 'Il faut valider l’achat des licences de test : ça dépasse l’équipe.' }),
+    ];
     return e;
   },
   // Organisation d'ACME : hiérarchie (directions, services) et delivery SAFe (portfolio › train › équipes)

@@ -1,0 +1,125 @@
+import { ICONE_ORG, membresDe, type OrgValue } from '../organisation';
+
+/**
+ * Échanges et hiérarchie (lot 21) : un échange entre personnes d'une entreprise vit à un **niveau** de
+ * l'Organisation — équipe agile, train (équipe englobante du delivery), portfolio, ou unité (service, direction).
+ * - à la création : le niveau le plus proche commun aux deux personnes (même équipe, sinon même train, sinon même
+ *   portfolio, sinon l'unité commune la plus basse) ;
+ * - « Escalader » : l'échange monte d'un niveau et part au responsable du niveau au-dessus (équipe → RTE du train →
+ *   Epic Owner du portfolio ; unité → responsable de l'unité parente) ;
+ * - « Transmettre » : à une personne de l'équipe actuelle, du train englobant, de l'unité parente ou d'une équipe
+ *   partenaire (même train, ou autre train).
+ * Niveau noté « kind:id » (ex. « equipeagile:acmeqmob »), vide hors entreprise.
+ */
+export type KindNiveau = 'equipeagile' | 'train' | 'portfolio' | 'unite';
+export interface Niveau {
+  kind: KindNiveau;
+  id: string;
+}
+export const lireNiveau = (v: string | undefined): Niveau | null => {
+  const [kind, id] = (v ?? '').split(':');
+  return id && ['equipeagile', 'train', 'portfolio', 'unite'].includes(kind) ? { kind: kind as KindNiveau, id } : null;
+};
+export const ecrireNiveau = (n: Niveau | null) => (n ? `${n.kind}:${n.id}` : '');
+
+/** Personne de l'Organisation d'après son e-mail */
+export const personneParEmail = (email: string, org: OrgValue) => org.personnes.find((p) => p.email && p.email.toLowerCase() === email.toLowerCase());
+
+/** Équipes d'une personne (membre, PO ou SM) */
+const equipesDe = (pid: string, org: OrgValue) => org.equipes.filter((e) => e.po === pid || e.sm === pid || membresDe(e).includes(pid));
+/** Trains d'une personne (par ses équipes, ou RTE / PM) */
+const trainsDe = (pid: string, org: OrgValue) => {
+  const ids = new Set([...equipesDe(pid, org).map((e) => e.train), ...org.trains.filter((t) => t.rte === pid || t.pm === pid).map((t) => t.id)]);
+  return org.trains.filter((t) => ids.has(t.id));
+};
+const portfoliosDe = (pid: string, org: OrgValue) => {
+  const ids = new Set([...trainsDe(pid, org).map((t) => t.portfolio), ...org.portfolios.filter((p) => p.epic_owner === pid).map((p) => p.id)]);
+  return org.portfolios.filter((p) => ids.has(p.id));
+};
+/** Unité d'une personne puis ses unités parentes (de bas en haut) */
+const unitesDe = (pid: string, org: OrgValue) => {
+  const out: string[] = [];
+  for (let u = org.personne.get(pid)?.unite ?? '', n = 0; u && n < 30; u = org.unite.get(u)?.parent ?? '', n++) out.push(u);
+  return out;
+};
+
+/** Niveau le plus proche commun à deux personnes (ids de l'Organisation) */
+export function niveauCommun(a: string, b: string, org: OrgValue): Niveau | null {
+  const eqB = new Set(equipesDe(b, org).map((e) => e.id));
+  const eq = equipesDe(a, org).find((e) => eqB.has(e.id));
+  if (eq) return { kind: 'equipeagile', id: eq.id };
+  const trB = new Set(trainsDe(b, org).map((t) => t.id));
+  const tr = trainsDe(a, org).find((t) => trB.has(t.id));
+  if (tr) return { kind: 'train', id: tr.id };
+  const pfB = new Set(portfoliosDe(b, org).map((p) => p.id));
+  const pf = portfoliosDe(a, org).find((p) => pfB.has(p.id));
+  if (pf) return { kind: 'portfolio', id: pf.id };
+  const uB = new Set(unitesDe(b, org));
+  const u = unitesDe(a, org).find((x) => uB.has(x));
+  return u ? { kind: 'unite', id: u } : null;
+}
+
+/** Niveau au-dessus et son responsable (à qui part l'échange escaladé) */
+export function niveauSuperieur(n: Niveau | null, org: OrgValue): { niveau: Niveau; responsable: string } | null {
+  if (!n) return null;
+  if (n.kind === 'equipeagile') {
+    const t = org.train.get(org.equipe.get(n.id)?.train ?? '');
+    const r = t?.rte || t?.pm;
+    return t && r ? { niveau: { kind: 'train', id: t.id }, responsable: r } : null;
+  }
+  if (n.kind === 'train') {
+    const p = org.portfolio.get(org.train.get(n.id)?.portfolio ?? '');
+    return p?.epic_owner ? { niveau: { kind: 'portfolio', id: p.id }, responsable: p.epic_owner } : null;
+  }
+  if (n.kind === 'unite') {
+    const parent = org.unite.get(org.unite.get(n.id)?.parent ?? '');
+    return parent?.responsable ? { niveau: { kind: 'unite', id: parent.id }, responsable: parent.responsable } : null;
+  }
+  return null;
+}
+
+/** « 👥 Mobile », « 🚆 Clients », « 💼 Digital », « 🏛️ Développement » */
+export function libelleNiveau(n: Niveau | null, org: OrgValue): string {
+  if (!n) return '';
+  const nom =
+    n.kind === 'equipeagile' ? org.equipe.get(n.id)?.nom : n.kind === 'train' ? org.train.get(n.id)?.nom : n.kind === 'portfolio' ? org.portfolio.get(n.id)?.nom : org.unite.get(n.id)?.nom;
+  return nom ? `${ICONE_ORG[n.kind]} ${nom}` : '';
+}
+
+/** Niveau d'une personne pour un échange transmis (son équipe, sinon son train, sinon son unité) */
+export function niveauDe(pid: string, org: OrgValue): Niveau | null {
+  const eq = equipesDe(pid, org)[0];
+  if (eq) return { kind: 'equipeagile', id: eq.id };
+  const tr = trainsDe(pid, org)[0];
+  if (tr) return { kind: 'train', id: tr.id };
+  const u = org.personne.get(pid)?.unite;
+  return u ? { kind: 'unite', id: u } : null;
+}
+
+/**
+ * Personnes à qui transmettre un échange (e-mails), par groupe : équipe actuelle, train englobant, unité parente,
+ * équipes partenaires. Sans `exclure` (vous et l'auteur).
+ */
+export function destinatairesTransfert(moi: string, niveau: Niveau | null, org: OrgValue, exclure: string[]): { titre: string; emails: string[] }[] {
+  const pid = personneParEmail(moi, org)?.id ?? '';
+  const email = (id: string) => org.personne.get(id)?.email?.toLowerCase() ?? '';
+  const sans = new Set(exclure.map((x) => x.toLowerCase()));
+  const vus = new Set<string>();
+  const groupe = (titre: string, ids: string[]) => {
+    const emails = [...new Set(ids.map(email))].filter((e) => e && !sans.has(e) && !vus.has(e));
+    emails.forEach((e) => vus.add(e));
+    return { titre, emails };
+  };
+  const eq = niveau?.kind === 'equipeagile' ? org.equipe.get(niveau.id) : equipesDe(pid, org)[0];
+  const train = org.train.get(eq?.train ?? (niveau?.kind === 'train' ? niveau.id : ''));
+  const membresEq = (e: { po: string; sm: string; membres: string }) => [e.po, e.sm, ...membresDe(e)];
+  const uniteId = niveau?.kind === 'unite' ? niveau.id : org.personne.get(pid)?.unite ?? '';
+  const parent = org.unite.get(org.unite.get(uniteId)?.parent ?? '');
+  const groupes = [
+    groupe(eq ? `Équipe actuelle · ${eq.nom}` : 'Équipe actuelle', eq ? membresEq(eq) : []),
+    groupe(train ? `Train · ${train.nom}` : 'Train', train ? [train.rte, train.pm, ...org.equipes.filter((e) => e.train === train.id && e.id !== eq?.id).flatMap((e) => [e.po, e.sm])] : []),
+    groupe(parent ? `Unité parente · ${parent.nom}` : 'Unité parente', parent ? [parent.responsable, ...org.personnes.filter((p) => p.unite === parent.id).map((p) => p.id)] : []),
+    groupe('Équipes partenaires', org.equipes.filter((e) => e.id !== eq?.id).flatMap(membresEq)),
+  ];
+  return groupes.filter((g) => g.emails.length);
+}
