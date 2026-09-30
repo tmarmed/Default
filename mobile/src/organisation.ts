@@ -22,6 +22,8 @@ export interface Personne {
   manager: string;
   /** Jours disponibles par itération, vide = non renseigné */
   capacite: string;
+  /** Métier dans son équipe (dev, testeur, designer, analyste, autre ; voir src/droits.ts), vide = membre */
+  metier?: string;
   cree_le: string;
   modifie_le: string;
 }

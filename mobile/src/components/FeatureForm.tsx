@@ -10,7 +10,9 @@ import { colors } from '../theme';
 import type { Feature, FeatureInput, Item } from '../types';
 import { chargeOf, subtaskMap } from '../subtasks';
 import { DeleteSection } from './DeleteSection';
-import { ChildActions, FormSheet, TitreFiche, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
+import { droitsFeature, useMoi } from '../droits';
+import { useOrg } from '../organisation';
+import { BlocLecture, ChildActions, FormSheet, TitreFiche, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
 import { LiaisonOrg } from './LiaisonOrg';
 import { ChoiceSheet } from './ChoiceSheet';
 import { ChampEstimation, ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, SaisieFiche, SectionFiche } from './Choix';
@@ -72,6 +74,9 @@ export function FeatureForm({
   const { espace, setEspace, h } = useEspaceFiche(visible, feature, defaults);
   const espaceFil = useEspaceFil(espace);
   const safe = useSafe();
+  const org = useOrg();
+  const moi = useMoi();
+  const droitsF = feature ? droitsFeature(moi, feature as { train?: string; equipe?: string }, org) : { modifier: true, raison: undefined };
   const empty = (): FeatureInput => ({ titre: '', description: '', epic: '', pi: defaultPi, iteration: '', points: '', couleur: '' });
   const [form, setForm] = useState<FeatureInput>(empty());
   const [busy, setBusy] = useState(false);
@@ -239,6 +244,7 @@ export function FeatureForm({
         sous={[form.pi ? `PI ${piLabel(form.pi)}` : '', form.iteration ? form.iteration.split('-').pop() : ''].filter(Boolean).join(' · ') || undefined}
         couleur={epic?.couleur}
       />
+      <BlocLecture raison={droitsF.raison}>
       <SectionFiche titre="Élément">
         <ChampFiche label="Titre">
           <SaisieFiche placeholder="ex. Prise de rendez-vous en ligne" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!feature} />
@@ -417,7 +423,7 @@ export function FeatureForm({
         />
       )}
 
-      {feature && (
+      {feature && droitsF.modifier && (
         <>
           {onOpenWizard && <ChildActions actions={[{ label: "🚀 Ouvrir dans l'assistant", onPress: () => onOpenWizard(feature), primary: true }]} />}
           <DeleteSection
@@ -439,6 +445,7 @@ export function FeatureForm({
           />
         </>
       )}
+      </BlocLecture>
     </FormSheet>
     </HierarchyContext.Provider>
   );

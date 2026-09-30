@@ -50,7 +50,8 @@ import { LiaisonOrg } from './LiaisonOrg';
 import { useEspaceFil } from './EspaceChoix';
 import { AutoContext, BandeauAnnuler, useEnregistrementAuto } from './EnregistrementAuto';
 import { useOrg } from '../organisation';
-import { BoutonRetour, CheminPile, TitreBarre, TitreFiche, type Injection, type PileProps } from './FormSheet';
+import { droitsTache, useMoi } from '../droits';
+import { BlocLecture, BoutonRetour, CheminPile, TitreBarre, TitreFiche, type Injection, type PileProps } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -225,6 +226,9 @@ export function TaskForm({
   const [error, setError] = useState<string | null>(null);
   const safe = useSafe();
   const org = useOrg();
+  const moi = useMoi();
+  // Droits d'après les rôles : calculés sur l'élément enregistré (un nouvel élément est toujours modifiable)
+  const droits = item ? droitsTache(moi, item, org, TYPE_ARTICLE[item.type].replace(/^la /, 'cette ').replace(/^le /, 'ce ').replace(/^l[’']/, 'cet ')) : { modifier: true, supprimer: true, raison: undefined };
   const hTous = useHierarchy();
   // Espaces : une tâche est créée dans un espace ; ses rattachements ne viennent que de cet espace
   const esp = useEspaces();
@@ -484,6 +488,7 @@ export function TaskForm({
             {(error || auto.erreur) && <Text style={styles.error}>{error ?? auto.erreur}</Text>}
             {!!item && erreurForm && !error && <Text style={styles.error}>{erreurForm}</Text>}
             <TitreFiche icone={TYPE_ICONS[form.type]} titre={form.titre} vide={`Titre de ${TYPE_ARTICLE[form.type]}`.replace('de le ', 'du ')} couleur={typeColors[form.type]} />
+            <BlocLecture raison={droits.raison}>
 
 
             {/* Élément : type (8 choix → ligne de choix), numéro d'un appel */}
@@ -823,7 +828,7 @@ export function TaskForm({
             </SectionFiche>
 
             {/* Suppression : le bloc commun des fiches (case « aussi ses sous-tâches », confirmation) */}
-            {item && (
+            {item && droits.supprimer && (
               <DeleteSection
                 label={`Supprimer ${TYPE_ARTICLE[form.type]}`}
                 name={item.titre}
@@ -833,6 +838,7 @@ export function TaskForm({
                 onDelete={(cascade) => void doDelete(cascade)}
               />
             )}
+            </BlocLecture>
             </AutoContext.Provider>
           </ScrollView>
         </KeyboardAvoidingView>

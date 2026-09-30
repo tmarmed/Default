@@ -323,8 +323,8 @@ const SEEDS_ENTREPRISE: Seeds = {
   org: () => {
     const stamp = new Date().toISOString();
     const base = { cree_le: stamp, modifie_le: stamp };
-    const p = (id: string, nom: string, unite: string, manager: string, capacite = '') => ({
-      id, nom, email: `${nom.split(' ')[0].toLowerCase()}.${nom.split(' ').slice(1).join('').toLowerCase()}@acme.example`.normalize('NFD').replace(/[̀-ͯ]/g, ''), unite, manager, capacite, ...base,
+    const p = (id: string, nom: string, unite: string, manager: string, capacite = '', metier = '') => ({
+      id, nom, metier, email: `${nom.split(' ')[0].toLowerCase()}.${nom.split(' ').slice(1).join('').toLowerCase()}@acme.example`.normalize('NFD').replace(/[̀-ͯ]/g, ''), unite, manager, capacite, ...base,
     });
     return {
       personnes: [
@@ -333,12 +333,12 @@ const SEEDS_ENTREPRISE: Seeds = {
         p('acmp3', 'Julie Morel', 'acmu4', 'acmp1'),
         p('acmp4', 'Sara Martin', 'acmu2', 'acmp2'),
         p('acmp5', 'Marc Petit', 'acmu4', 'acmp3'),
-        p('acmp6', 'Paul Leroy', 'acmu3', 'acmp2', '8'),
-        p('acmp7', 'Nina Dupont', 'acmu3', 'acmp2', '8'),
-        p('acmp8', 'Tom Faure', 'acmu3', 'acmp2', '8'),
-        p('acmp9', 'Emma Roy', 'acmu3', 'acmp2', '6'),
-        p('acmp10', 'Léa Roux', 'acmu3', 'acmp2', '8'),
-        p('acmp11', 'Hugo Blanc', 'acmu3', 'acmp2', '8'),
+        p('acmp6', 'Paul Leroy', 'acmu3', 'acmp2', '8', 'dev'),
+        p('acmp7', 'Nina Dupont', 'acmu3', 'acmp2', '8', 'dev'),
+        p('acmp8', 'Tom Faure', 'acmu3', 'acmp2', '8', 'dev'),
+        p('acmp9', 'Emma Roy', 'acmu3', 'acmp2', '6', 'testeur'),
+        p('acmp10', 'Léa Roux', 'acmu3', 'acmp2', '8', 'designer'),
+        p('acmp11', 'Hugo Blanc', 'acmu3', 'acmp2', '8', 'dev'),
       ],
       unites: [
         { id: 'acmu1', nom: 'Direction générale', type: 'direction' as const, parent: '', responsable: 'acmp1', ...base },

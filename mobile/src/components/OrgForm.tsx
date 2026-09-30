@@ -6,7 +6,8 @@ import { CLE_ORG, type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, mem
 import { useSafe } from '../safe';
 import { useEspaces } from '../espaces';
 import { colors } from '../theme';
-import { ChampFiche, LigneChoix, LigneMulti, ListeEnfants, SaisieFiche, SectionFiche, type AutresChoix, type GroupeChoix } from './Choix';
+import { METIERS, roleDansEquipe } from '../droits';
+import { ChampFiche, LigneChoix, LigneEnfant, LigneMulti, ListeEnfants, SaisieFiche, SectionFiche, type AutresChoix, type GroupeChoix } from './Choix';
 import { DeleteSection } from './DeleteSection';
 import { FormSheet, formStyles as f, TitreFiche } from './FormSheet';
 
@@ -25,7 +26,7 @@ const SUPPRIMER: Record<string, string> = {
 export type RangerOrg = { kind: KindOrg; champ: string; ids: string[] };
 
 const VIDES: Record<KindOrg, Donnees> = {
-  personne: { nom: '', email: '', unite: '', manager: '', capacite: '' },
+  personne: { nom: '', email: '', unite: '', manager: '', capacite: '', metier: '' },
   unite: { nom: '', type: 'service', parent: '', responsable: '' },
   portfolio: { nom: '', epic_owner: '' },
   train: { nom: '', portfolio: '', rte: '', pm: '' },
@@ -141,7 +142,7 @@ export function OrgForm({
       decrireChangement(
         a,
         b,
-        { nom: 'Nom', email: 'E-mail', unite: 'Service', manager: 'Manager', capacite: 'Capacité', type: 'Type', parent: 'Au-dessus', responsable: 'Responsable', epic_owner: 'Epic Owner', portfolio: 'Portfolio', rte: 'RTE', pm: 'Product Manager', train: 'Train', po: 'Product Owner', sm: 'Scrum Master', membres: 'Membres' },
+        { nom: 'Nom', email: 'E-mail', unite: 'Service', manager: 'Manager', capacite: 'Capacité', metier: 'Métier', type: 'Type', parent: 'Au-dessus', responsable: 'Responsable', epic_owner: 'Epic Owner', portfolio: 'Portfolio', rte: 'RTE', pm: 'Product Manager', train: 'Train', po: 'Product Owner', sm: 'Scrum Master', membres: 'Membres' },
         (k, v) =>
           ['manager', 'responsable', 'epic_owner', 'rte', 'pm', 'po', 'sm'].includes(String(k))
             ? nomPersonne(org, v)
@@ -443,6 +444,15 @@ export function OrgForm({
             })}
           </SectionFiche>
           <SectionFiche titre="Planification">
+            <LigneChoix
+              fixe
+              label="Métier"
+              value={(form as { metier?: string }).metier ?? ''}
+              depart={(entite as { metier?: string } | null)?.metier || undefined}
+              groupes={[{ options: METIERS.map((m) => ({ value: m.value, label: m.label })) }]}
+              sans="Sans métier"
+              onChange={(v) => set('metier' as never)(v as never)}
+            />
             <ChampFiche label="Capacité" sous={safe.pointsJours ? 'Jours par itération.' : 'Points par itération.'}>
               <SaisieFiche placeholder="Facultatif (ex. 8)" value={form.capacite} onChangeText={set('capacite')} keyboardType="decimal-pad" />
             </ChampFiche>
@@ -570,7 +580,26 @@ export function OrgForm({
               resume={(n) => `${n} membre${n > 1 ? 's' : ''}`}
             />
           </SectionFiche>
-          <Text style={f.hint}>Le PO et le Scrum Master pilotent le travail de l'équipe (attribution, onglet Équipe, alertes).</Text>
+          {membres.length > 0 && (
+            <SectionFiche titre="Droits · d'après les rôles">
+              {membres.map((m) => {
+                const p = org.personne.get(m);
+                const r = roleDansEquipe({ id: m, metier: (p as { metier?: string } | undefined)?.metier }, { po: form.po ?? '', sm: form.sm ?? '' });
+                return <LigneEnfant key={m} texte={p?.nom ?? '?'} meta={`${r.role} · ${r.droits}`} />;
+              })}
+            </SectionFiche>
+          )}
+          {!entite && (
+            <SectionFiche titre="Données">
+              <ChampFiche label="Partage" sous="Chaque membre aura les droits de son rôle.">
+                <Text style={s.gris}>Préparé à l'enregistrement</Text>
+              </ChampFiche>
+            </SectionFiche>
+          )}
+          <Text style={f.hint}>
+            Opérationnel : voit tout le travail de l'équipe, modifie le sien. Scrum Master : tout. PO : le backlog. Changer un rôle change les droits tout de suite.
+            {entite ? '  Synchronisé ✓' : ''}
+          </Text>
         </>
       )}
 
@@ -593,4 +622,5 @@ export function OrgForm({
 
 const s = StyleSheet.create({
   consequence: { marginTop: 18 },
+  gris: { fontSize: 15, color: '#667085' },
 });

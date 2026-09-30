@@ -73,6 +73,7 @@ import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
+import { MoiContext } from './src/droits';
 import { GererEspacesSheet } from './src/components/GererEspacesSheet';
 import { EcranAVenir } from './src/components/EcranAVenir';
 import { ChoiceSheet } from './src/components/ChoiceSheet';
@@ -306,6 +307,16 @@ function Main() {
     [orgTous],
   );
   const orgValue = useMemo(() => orgDe(dansVisibles), [orgDe, dansVisibles]);
+  // Droits d'après les rôles : la personne de l'Organisation qui utilise l'application (démo : « Voir en tant que »)
+  const [moiDemo, setMoiDemo] = useState<string | null>(null);
+  const moiReel = useMemo(() => {
+    const mail = settings?.googleEmail?.toLowerCase();
+    return (mail && orgValue.personnes.find((p) => p.email.toLowerCase() === mail)?.id) || null;
+  }, [orgValue, settings?.googleEmail]);
+  const moi = DEMO ? moiDemo : moiReel;
+  // Espaces d'équipe partagés d'après les rôles, à autoriser à la connexion (démo : les espaces d'exemple)
+  const [aAutoriser, setAAutoriser] = useState<string[]>(() => (DEMO ? ESPACES_DEMO.map((e) => e.nom) : []));
+  const [autoriserPlie, setAutoriserPlie] = useState(false);
   /** Filtre Portfolio / Train / Équipe (bloc Filtres, en SAFe) : aussi posé par les liens de l'Organisation */
   const [orgFiltre, setOrgFiltre] = useState<OrgFiltre>(null);
   const [vueOrg, setVueOrg] = useState<VueOrg>('delivery');
@@ -1812,6 +1823,7 @@ function Main() {
     <EspacesContext.Provider value={espacesValue}>
     <RechercheContext.Provider value={recherche ?? ''}>
     <OrgContext.Provider value={orgValue}>
+    <MoiContext.Provider value={moi}>
     <OrgFiltreContext.Provider value={safe.actif ? orgFiltre : null}>
     <View style={styles.flex}>
       {/* Barre fixe : nom de l'application et compte (en démo : même icône, menu « Réinitialiser la démo ») */}
@@ -1849,6 +1861,33 @@ function Main() {
             AsyncStorage.setItem(PLUS_TARD_KEY, today).catch(() => {});
           }}
         />
+      )}
+      {/* À la connexion : espaces d'équipe partagés d'après les rôles, à autoriser d'un appui (démo : simulé) */}
+      {aAutoriser.length > 0 && tab === 'taches' && (
+        autoriserPlie ? (
+          <Pressable style={styles.autoriserPastille} onPress={() => setAutoriserPlie(false)} accessibilityRole="button">
+            <Text style={styles.autoriserPastilleTexte}>{aAutoriser.length} espace{aAutoriser.length > 1 ? 's' : ''} à autoriser ›</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.autoriser}>
+            <Text style={styles.autoriserTitre}>{aAutoriser.length} espace{aAutoriser.length > 1 ? 's' : ''} de travail prêt{aAutoriser.length > 1 ? 's' : ''}</Text>
+            <Text style={styles.autoriserTexte}>{aAutoriser.join(', ')} {aAutoriser.length > 1 ? 'vous ont été partagés' : 'vous a été partagé'}. Autorisez President à les ouvrir (une fenêtre Google, un appui).</Text>
+            <Pressable
+              style={styles.autoriserBouton}
+              onPress={() => {
+                const n = aAutoriser.length;
+                setAAutoriser([]);
+                bandeauApp.annoncer({ texte: `${n} espace${n > 1 ? 's' : ''} de travail ouvert${n > 1 ? 's' : ''}` });
+              }}
+              accessibilityRole="button"
+            >
+              <Text style={styles.autoriserBoutonTexte}>Autoriser</Text>
+            </Pressable>
+            <Pressable onPress={() => setAutoriserPlie(true)} accessibilityRole="button" hitSlop={6}>
+              <Text style={styles.autoriserPlusTard}>Plus tard</Text>
+            </Pressable>
+          </View>
+        )
       )}
       {info && (
         <Pressable style={styles.info} onPress={() => setInfo(null)} accessibilityLabel="Fermer le message">
@@ -2096,6 +2135,8 @@ function Main() {
             setTab(kind === 'portfolio' ? 'portefeuille' : kind === 'train' ? 'pi' : 'iteration');
           }}
           refreshControl={refreshControl}
+          moi={moi}
+          onChangerMoi={DEMO ? setMoiDemo : undefined}
         />
       )}
 
@@ -2818,6 +2859,7 @@ function Main() {
       />
     </View>
     </OrgFiltreContext.Provider>
+    </MoiContext.Provider>
     </OrgContext.Provider>
     </RechercheContext.Provider>
     </EspacesContext.Provider>
@@ -2881,6 +2923,14 @@ const styles = StyleSheet.create({
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
   avatarText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   demoReset: { color: colors.primary, fontSize: 13, fontWeight: '700' },
+  autoriser: { marginHorizontal: 16, marginBottom: 8, padding: 12, borderRadius: 12, backgroundColor: '#E8F0FE', borderWidth: 1, borderColor: '#C6DAFC', gap: 8 },
+  autoriserTitre: { fontSize: 15, fontWeight: '700', color: colors.text },
+  autoriserTexte: { fontSize: 13, color: colors.muted, lineHeight: 18 },
+  autoriserBouton: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
+  autoriserBoutonTexte: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  autoriserPlusTard: { textAlign: 'center', color: colors.muted, fontSize: 13 },
+  autoriserPastille: { alignSelf: 'flex-start', marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, backgroundColor: '#E8F0FE' },
+  autoriserPastilleTexte: { color: colors.primary, fontWeight: '600', fontSize: 12.5 },
   info: { marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, backgroundColor: '#E8F0FE' },
   infoText: { color: '#174EA6', fontSize: 13, lineHeight: 18 },
   notice: { marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, backgroundColor: '#FCE8E6' },

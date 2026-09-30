@@ -285,6 +285,9 @@ export const formStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  lecture: { marginBottom: 6, padding: 12, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, backgroundColor: colors.bg },
+  lectureTexte: { fontSize: 13, color: colors.muted, lineHeight: 18 },
+  lectureContenu: { opacity: 0.85 },
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
@@ -342,3 +345,18 @@ const styles = StyleSheet.create({
   progressTrack: { height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: 'hidden', marginVertical: 8 },
   progressFill: { height: 8, borderRadius: 4 },
 });
+
+/** Fiche en lecture seule (droits d'après les rôles) : la raison en haut, puis le contenu, qu'on ne peut pas toucher */
+export function BlocLecture({ raison, children }: { raison?: string; children: ReactNode }) {
+  if (!raison) return <>{children}</>;
+  return (
+    <>
+      <View style={styles.lecture} accessibilityRole="text">
+        <Text style={styles.lectureTexte}>{raison}</Text>
+      </View>
+      <View pointerEvents="none" style={styles.lectureContenu}>
+        {children}
+      </View>
+    </>
+  );
+}

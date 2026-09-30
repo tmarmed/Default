@@ -7,7 +7,8 @@ import { colors } from '../theme';
 import { fmtPoints } from '../pi';
 import { useSafe } from '../safe';
 import { ChoiceSheet } from './ChoiceSheet';
-import { type AutresChoix, FeuilleMulti, type GroupeChoix } from './Choix';
+import { libelleMoi } from '../droits';
+import { type AutresChoix, FeuilleMulti, type GroupeChoix, LigneChoix } from './Choix';
 import { Segmented } from './Segmented';
 
 /** Un changement de rattachement dans l'arbre (appliqué tout de suite ; l'inverse sert à « Annuler ») */
@@ -51,7 +52,12 @@ export function OrganisationView({
   onDeplacer,
   onVoirBacklog,
   refreshControl,
+  moi,
+  onChangerMoi,
 }: {
+  /** Démo : personne dont on voit les droits (« Voir en tant que ») ; null = vous, tous les droits */
+  moi?: string | null;
+  onChangerMoi?: (id: string | null) => void;
   /** Organisation des entreprises affichées */
   org: OrgValue;
   /** Espaces de travail Entreprise affichés */
@@ -136,6 +142,19 @@ export function OrganisationView({
             ]}
             value={vue}
             onChange={onChangeVue}
+          />
+        </View>
+      )}
+      {onChangerMoi && org.personnes.length > 0 && (
+        <View style={s.moi}>
+          <LigneChoix
+            label="Voir en tant que"
+            value={moi ?? ''}
+            groupes={[{ options: org.personnes.map((p) => ({ value: p.id, label: p.nom, meta: libelleMoi(p.id, org) })) }]}
+            libelle={(v) => (v ? (org.personne.get(v)?.nom ?? '') : 'Vous · tous les droits')}
+            vide="Vous · tous les droits"
+            sans="Vous · tous les droits"
+            onChange={(v) => onChangerMoi(v || null)}
           />
         </View>
       )}
@@ -526,6 +545,7 @@ function VueDelivery({ o, espace, replies, basculer, onOuvrir, onAjouter, onPlus
 const s = StyleSheet.create({
   flex: { flex: 1 },
   vues: { paddingHorizontal: 10, paddingBottom: 8 },
+  moi: { marginHorizontal: 12, marginBottom: 8, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   scroll: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 130 },
   entreprise: { fontSize: 12.5, fontWeight: '800', color: colors.muted, letterSpacing: 0.4, marginTop: 8, marginBottom: 6 },
   surligne: { backgroundColor: '#FEF7E0', borderColor: '#F3D98B' },
