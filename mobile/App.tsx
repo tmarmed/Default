@@ -1871,18 +1871,34 @@ function Main() {
         ) : (
           <View style={styles.autoriser}>
             <Text style={styles.autoriserTitre}>{aAutoriser.length} espace{aAutoriser.length > 1 ? 's' : ''} de travail prêt{aAutoriser.length > 1 ? 's' : ''}</Text>
-            <Text style={styles.autoriserTexte}>{aAutoriser.join(', ')} {aAutoriser.length > 1 ? 'vous ont été partagés' : 'vous a été partagé'}. Autorisez President à les ouvrir (une fenêtre Google, un appui).</Text>
-            <Pressable
-              style={styles.autoriserBouton}
-              onPress={() => {
-                const n = aAutoriser.length;
-                setAAutoriser([]);
-                bandeauApp.annoncer({ texte: `${n} espace${n > 1 ? 's' : ''} de travail ouvert${n > 1 ? 's' : ''}` });
-              }}
-              accessibilityRole="button"
-            >
-              <Text style={styles.autoriserBoutonTexte}>Autoriser</Text>
-            </Pressable>
+            <Text style={styles.autoriserTexte}>Partagés d'après vos rôles. Autorisez ceux que vous voulez ouvrir (une fenêtre Google, un appui).</Text>
+            {aAutoriser.map((nom) => (
+              <View key={nom} style={styles.autoriserLigne}>
+                <Text style={styles.autoriserNom}>{nom}</Text>
+                <Pressable
+                  onPress={() => {
+                    setAAutoriser((l) => l.filter((x) => x !== nom));
+                    bandeauApp.annoncer({ texte: `« ${nom} » refusé`, annuler: () => setAAutoriser((l) => [...l, nom]) });
+                  }}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Refuser ${nom}`}
+                >
+                  <Text style={styles.autoriserRefuser}>Refuser</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.autoriserBouton}
+                  onPress={() => {
+                    setAAutoriser((l) => l.filter((x) => x !== nom));
+                    bandeauApp.annoncer({ texte: `« ${nom} » ouvert` });
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Autoriser ${nom}`}
+                >
+                  <Text style={styles.autoriserBoutonTexte}>Autoriser</Text>
+                </Pressable>
+              </View>
+            ))}
             <Pressable onPress={() => setAutoriserPlie(true)} accessibilityRole="button" hitSlop={6}>
               <Text style={styles.autoriserPlusTard}>Plus tard</Text>
             </Pressable>
@@ -2926,8 +2942,11 @@ const styles = StyleSheet.create({
   autoriser: { marginHorizontal: 16, marginBottom: 8, padding: 12, borderRadius: 12, backgroundColor: '#E8F0FE', borderWidth: 1, borderColor: '#C6DAFC', gap: 8 },
   autoriserTitre: { fontSize: 15, fontWeight: '700', color: colors.text },
   autoriserTexte: { fontSize: 13, color: colors.muted, lineHeight: 18 },
-  autoriserBouton: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
-  autoriserBoutonTexte: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  autoriserLigne: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.card, borderRadius: 10, paddingLeft: 12, paddingRight: 6, paddingVertical: 6 },
+  autoriserNom: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
+  autoriserRefuser: { color: colors.muted, fontSize: 14 },
+  autoriserBouton: { backgroundColor: colors.primary, borderRadius: 9, paddingVertical: 8, paddingHorizontal: 14 },
+  autoriserBoutonTexte: { color: '#fff', fontWeight: '700', fontSize: 14 },
   autoriserPlusTard: { textAlign: 'center', color: colors.muted, fontSize: 13 },
   autoriserPastille: { alignSelf: 'flex-start', marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, backgroundColor: '#E8F0FE' },
   autoriserPastilleTexte: { color: colors.primary, fontWeight: '600', fontSize: 12.5 },

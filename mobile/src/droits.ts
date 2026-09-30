@@ -36,7 +36,7 @@ export function roleDansEquipe(p: Pick<Personne, 'id'> & { metier?: string }, e:
 type Travail = { equipe?: string; responsable?: string; feature?: string };
 
 /** Ce que la personne `moi` peut faire sur une tâche / story */
-export function droitsTache(moi: string | null, t: Travail, org: OrgValue, quoi = 'cet élément'): { modifier: boolean; supprimer: boolean; raison?: string } {
+export function droitsTache(moi: string | null, t: Travail, org: OrgValue): { modifier: boolean; supprimer: boolean; raison?: string } {
   if (!moi || !org.personne.has(moi)) return { modifier: true, supprimer: true };
   const eq = t.equipe ? org.equipe.get(t.equipe) : undefined;
   // Sans équipe : travail personnel ou pas encore rattaché, rien à protéger
@@ -48,15 +48,10 @@ export function droitsTache(moi: string | null, t: Travail, org: OrgValue, quoi 
   const modifier = sm || po || sien || libre;
   const supprimer = sm || sien;
   if (modifier) return { modifier, supprimer };
-  const train = eq.train ? org.train.get(eq.train) : undefined;
-  const rte = !!train && (train.rte === moi || train.pm === moi);
-  const a = t.responsable ? org.personne.get(t.responsable)?.nom : '';
-  const moiP = org.personne.get(moi) as (Personne & { metier?: string }) | undefined;
-  const qui = membresDe(eq).includes(moi) ? libelleMetier(moiP?.metier).toLowerCase() : rte ? 'RTE' : 'hors de l’équipe';
   return {
     modifier: false,
     supprimer: false,
-    raison: `🔒 Lecture seule${a ? ` : ${quoi} est à ${a}` : ''}. Vous (${qui}) modifiez votre travail ; le Scrum Master et le PO modifient tout.`,
+    raison: '🔒 Lecture seule',
   };
 }
 
@@ -68,7 +63,7 @@ export function droitsFeature(moi: string | null, f: { train?: string; equipe?: 
   if (!train && !eq) return { modifier: true };
   if (train && (train.rte === moi || train.pm === moi)) return { modifier: true };
   if (eq && (eq.sm === moi || eq.po === moi)) return { modifier: true };
-  return { modifier: false, raison: '🔒 Lecture seule : les features sont modifiées par le RTE, le Product Manager, et le Scrum Master ou le PO de leur équipe.' };
+  return { modifier: false, raison: '🔒 Lecture seule' };
 }
 
 /** Libellé court de la personne pour « Voir en tant que » */

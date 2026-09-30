@@ -228,7 +228,7 @@ export function TaskForm({
   const org = useOrg();
   const moi = useMoi();
   // Droits d'après les rôles : calculés sur l'élément enregistré (un nouvel élément est toujours modifiable)
-  const droits = item ? droitsTache(moi, item, org, TYPE_ARTICLE[item.type].replace(/^la /, 'cette ').replace(/^le /, 'ce ').replace(/^l[’']/, 'cet ')) : { modifier: true, supprimer: true, raison: undefined };
+  const droits = item ? droitsTache(moi, item, org) : { modifier: true, supprimer: true, raison: undefined };
   const hTous = useHierarchy();
   // Espaces : une tâche est créée dans un espace ; ses rattachements ne viennent que de cet espace
   const esp = useEspaces();

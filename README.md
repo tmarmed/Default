@@ -72,11 +72,11 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   « Sheet »). Opérationnel (dev, testeur, designer… : ligne « Métier » de la fiche Personne) : voit tout le travail de
   l'équipe, modifie le sien ; Scrum Master : tout ; PO : le backlog ; manager : lecture ; RTE et Product Manager : les
   features du train. Supprimer : le responsable ou le Scrum Master. Plusieurs rôles : le plus large gagne. Une fiche
-  qu'on ne peut pas modifier s'ouvre en lecture seule, avec la raison en haut (« 🔒 Lecture seule : cette story est à
-  Tom Faure… »), sans bloc Supprimer. Fiche Équipe : section « Droits · d'après les rôles » (rôle et droits sous
+  qu'on ne peut pas modifier s'ouvre en lecture seule (« 🔒 Lecture seule » en haut, sans explication), sans bloc
+  Supprimer. Fiche Équipe : section « Droits · d'après les rôles » (rôle et droits sous
   chaque membre), « Données : préparé à l'enregistrement » pour une nouvelle équipe, « Synchronisé ✓ ». Démo : ligne
   « Voir en tant que » en haut de l'Organisation pour essayer les droits d'une personne ; carte « N espaces de
-  travail prêts · Autoriser / Plus tard » sur l'écran Tâches (simulée).
+  travail prêts » sur l'écran Tâches (simulée) : « Autoriser » ou « Refuser » pour chaque espace, « Plus tard ».
 - **Pastille de recherche** : toute feuille où l'on choisit un élément existant (feature, epic, équipe, personne,
   tâche parente, « ☑ Choisir des … », assistant…) a toujours une pastille 🔍 à droite de l'en-tête, en face de « Annuler » ;
   touchée, elle devient un champ « Rechercher… » sous l'en-tête (✕ efface et referme). Les listes fixes (type, état,
