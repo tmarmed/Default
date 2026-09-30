@@ -656,6 +656,43 @@
      "fait": false
     }
    ]
+  },
+  {
+   "num": 24,
+   "titre": "Connecteur President pour les IA (Claude et autres)",
+   "etat": "À DISCUTER",
+   "etapes": [
+    {
+     "id": "discussion",
+     "titre": "Discussion : ce que le connecteur permet (lire, écrire, échanger)",
+     "fait": false
+    },
+    {
+     "id": "serveur",
+     "titre": "Connecteur (serveur MCP) : tâches, epics, features, échanges, missions",
+     "fait": false
+    },
+    {
+     "id": "regles",
+     "titre": "Mêmes règles que l'application : droits d'après les rôles, quota Google, pas de suppression par l'IA",
+     "fait": false
+    },
+    {
+     "id": "auth",
+     "titre": "Connexion avec le compte Google de l'utilisateur",
+     "fait": false
+    },
+    {
+     "id": "claude",
+     "titre": "Ajout dans Claude (réglages › connecteurs)",
+     "fait": false
+    },
+    {
+     "id": "validation",
+     "titre": "Validation",
+     "fait": false
+    }
+   ]
   }
  ],
  "points": [
