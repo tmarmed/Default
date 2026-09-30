@@ -97,16 +97,15 @@ allume par l'interrupteur « Démo »).
   ou d'une équipe partenaire (`transmis_par`). **Privé à deux** (`prive`) : seuls l'auteur et le destinataire le
   voient dans l'application (Sheet privé par paire : avec le partage réel des espaces) ; **sans historique** : un message lu, ou une réponse prise en
   compte (« Pris en compte ✓ ») par celui qui a demandé, est supprimé. Fiche Personne : ligne **Type** (🧑 Humain,
-  💬 IA chat, 🤖 Agent IA bientôt ; colonne `nature`). Pastille jaune de l'onglet et « 💬 À répondre · N » des
-  espaces : ce qui attend votre réponse.
+  💬 IA chat, 🤖 Agent IA bientôt ; colonne `nature`). Pastille jaune de l'onglet : les échanges qui attendent
+  votre réponse.
 - **💬 Échange** (lot 20) : le fil d'échange avec Claude dans President, onglet ajouté à la fin quand il est activé
   sur l'appareil par le lien `?echange` (désactivé par `?echange=0` ; jamais par défaut). Données publiées avec
   l'application (`mobile/src/echange/fil.json`, lecture seule ; captures dans `mobile/public/echange/`).
   **Questions** : les points à valider un par un, Projet President et Format d'échange séparés, captures en
   boutons (visionneuse), Validé / À revoir et remarque ; vos réponses restent sur l'appareil jusqu'à
   « 📋 Copier et vider », qui les copie pour la discussion avec Claude. **Backlog des missions** : les missions
-  comme des epics (lot › étape › point), avancement = étapes terminées ÷ total, filtre par état. En tête des
-  espaces de travail, « 💬 À répondre · N » ouvre l'onglet.
+  comme des epics (lot › étape › point), avancement = étapes terminées ÷ total, filtre par état.
   **Votre Google Sheet** (en tête du Backlog des missions) : « Créer et écrire » crée l'espace Équipe
   « President » (son propre Google Sheet) et y écrit les missions — lot = epic (« Lot 4 · … », état, avancement),
   étape = feature (« ✓ » quand elle est terminée) — sans stories ni tâches. Ensuite, « Mettre à jour · N

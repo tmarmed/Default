@@ -1482,7 +1482,8 @@ function Main() {
     for (const e of tousHier.echanges ?? []) for (const id of [e.de, e.a]) if (id !== 'claude' && id !== 'president' && !m.has(id)) m.set(id, { id, nom: nomDepuisEmail(id), nature: 'humain' });
     return [...m.values()].sort((a, b) => a.nom.localeCompare(b.nom));
   }, [orgTous, tousHier.echanges]);
-  const nbARepondre = (echangeActif ? pointsOuverts().length : 0) + aTraiter(moiEchange, tousHier.echanges ?? []).length;
+  // Pastille de l'onglet 💬 Échange : seulement les échanges qui attendent votre réponse (pas les questions du fil de Claude)
+  const nbARepondre = aTraiter(moiEchange, tousHier.echanges ?? []).length;
   // Échanges marqués « pris_en_compte » par une IA (Claude, dans le Sheet) : c'est l'application qui les supprime
   const suppressionsEnCours = useRef(new Set<string>());
   useEffect(() => {
@@ -2080,11 +2081,6 @@ function Main() {
       </View>
       {/* Carte des espaces de travail : dépliée sous la barre (la pastille la replie) */}
       <EspacesBar
-        aRepondre={nbARepondre}
-        onARepondre={() => {
-          setTab('echange');
-          setEspacesPlie(true);
-        }}
         plie={espacesPlie} onChange={setVisibles} onAjouter={ouvrirAjout} onEnlever={() => setGestionOpen(true)} onOuvrir={setEspaceFiche} />
       {stockage?.plan.alerte && plusTard !== today && !stockageOpen && (
         <StockagePanneau
