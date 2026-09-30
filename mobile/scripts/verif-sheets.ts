@@ -22,6 +22,8 @@ function plage(p: string) {
 }
 
 let refus429 = 0;
+/** Largeur de la grille de chaque onglet (« fichier|onglet ») : 26 colonnes par défaut, comme Google */
+const largeurs = new Map<string, number>();
 let lecturesGroupees = 0;
 globalThis.fetch = (async (input: string, init: RequestInit = {}) => {
   appels++;
@@ -102,6 +104,11 @@ globalThis.fetch = (async (input: string, init: RequestInit = {}) => {
     return rep({});
   }
   if (init.method === 'PUT') {
+    // Comme Google : écrire à partir d'une colonne hors de la grille est refusé ; depuis l'intérieur, la grille s'agrandit
+    const cle = `${m[1]}|${p.nom}`;
+    const largeur = largeurs.get(cle) ?? 26;
+    if (p.a.col >= largeur) return rep({ error: { message: `Range (${p.nom}!${m[2]}) exceeds grid limits. Max columns: ${largeur}` } }, 400);
+    largeurs.set(cle, Math.max(largeur, p.a.col + Math.max(0, ...corps.values.map((r: string[]) => r.length))));
     corps.values.forEach((row: string[], i: number) => {
       const r = (p.a.row ?? 0) + i;
       feuille[r] = feuille[r] ?? [];
@@ -246,6 +253,15 @@ const ok = (cond: unknown, msg: string) => {
   const duree = Date.now() - t0;
   reglerQuota({ limite: 1e9, fenetre: 60_000, ecart: 0 });
   ok(duree >= 550, `quota respecté : 7 écritures étalées sur ${duree} ms (au plus 3 par fenêtre)`);
+
+  // Fichier ancien : onglet Taches de 28 colonnes (grille comprise) ; les colonnes ajoutées depuis doivent passer
+  const idV = await creerFichierEspace('President | Équipe | Ancien', 'equipe', 'Ancien');
+  const fv = fichiers.get(idV)!;
+  fv.feuilles.set('Taches', [fv.feuilles.get('Taches')![0].slice(0, 28)]);
+  largeurs.set(`${idV}|Taches`, 28);
+  let erreurV = '';
+  await magasinSheets(idV).list().catch((e) => (erreurV = e.message));
+  ok(!erreurV && fv.feuilles.get('Taches')![0].length === 31, `fichier ancien (grille de 28 colonnes) : colonnes ajoutées sans refus${erreurV ? ` — ${erreurV}` : ''}`);
 
   // Erreur de règle
   let refus = '';

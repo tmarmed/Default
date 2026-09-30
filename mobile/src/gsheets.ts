@@ -303,11 +303,13 @@ function persistanceSheets(fichier: string): Persistance {
       // Colonnes de l'application absentes du fichier : ajoutées à la fin
       const nouvelles = ONGLETS_TOUS[t].colonnes.filter((c) => !cols.includes(c));
       if (nouvelles.length) {
-        await appel(`${SHEETS}/${fichier}/values/${encodeURIComponent(plage(nom, `${colonne(cols.length + 1)}1`))}?valueInputOption=RAW`, {
-          method: 'PUT',
-          body: JSON.stringify({ values: [nouvelles] }),
-        });
+        // Tout l'en-tête réécrit depuis A1 : Google agrandit alors la grille si elle est trop étroite (un fichier
+        // ancien de 28 colonnes) ; écrire à partir de la 29ᵉ colonne serait refusé (« exceeds grid limits »)
         cols.push(...nouvelles);
+        await appel(`${SHEETS}/${fichier}/values/${encodeURIComponent(plage(nom, 'A1'))}?valueInputOption=RAW`, {
+          method: 'PUT',
+          body: JSON.stringify({ values: [cols] }),
+        });
       }
       entetes.set(t, cols);
       lignes.set(t, rows.length);
