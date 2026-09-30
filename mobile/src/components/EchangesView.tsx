@@ -1,4 +1,4 @@
-import { Children, type ReactNode, useEffect, useMemo, useState } from 'react';
+import { Children, cloneElement, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { filElement } from '../choixTravail';
 import { useHierarchy } from '../hierarchyContext';
@@ -117,6 +117,7 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
   /** Mode chat : en ouvrant une conversation, ce qui attend votre réponse défile dans une fenêtre */
   const [chat, setChat] = useState<{ titre: string; elements: ElementChat[] } | null>(null);
   const [nouveau, setNouveau] = useState<{ a: string; existant?: Echange } | null>(null);
+  const [tout, setTout] = useState(false);
   const nomDe = (id: string) => (id === 'claude' ? 'Claude' : id === 'president' ? 'President' : personnes.find((p) => p.id === id)?.nom || nomDepuisEmail(id));
   const avecMoi = echanges.filter((e) => e.de === moi || e.a === moi);
   // Conversations avec des personnes : celles qui ont des échanges en cours, puis les autres connues
@@ -206,12 +207,17 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
     const w = l.filter((e) => (e.de === moi && e.statut === 'envoye') || (e.a === moi && e.statut === 'repondu')).length;
     return [r && `${r} à traiter`, p && `${p} réponse${p > 1 ? 's' : ''} reçue${p > 1 ? 's' : ''}`, w && `${w} en attente de l'autre`].filter(Boolean).join(' · ') || 'Rien en cours';
   };
-  const lignes = [
+  // Seules les conversations où il y a quelque chose à faire (répondre, lire, prendre en compte) sont affichées ;
+  // les autres restent accessibles par « Afficher aussi … »
+  const aFaire = (id: string) => (id === 'president' ? president.messages.length + nbAlertes + nbRappels : aTraiter(moi, entre(id)).length) > 0;
+  const toutes = [
     ligne('president', '🏛️', 'President', 'application', [nbAlertes && `${nbAlertes} alerte${nbAlertes > 1 ? 's' : ''}`, nbRappels && `${nbRappels} rappel${nbRappels > 1 ? 's' : ''}`, president.messages.length && `${president.messages.length} message${president.messages.length > 1 ? 's' : ''}`].filter(Boolean).join(' · ') || 'Aucune alerte · aide à la demande', president.messages.length + nbAlertes, 0),
     // Claude (IA chat) : une conversation comme les autres, toujours proposée
     ...(humains.some((h) => h.id === 'claude') ? [] : [ligne('claude', '💬', 'Claude', 'ia_chat', 'Écrire à Claude', 0, 1)]),
     ...humains.map((h, k) => ligne(h.id, ICONE_NATURE[h.nature] ?? '🧑', h.nom, h.nature, resume(entre(h.id)), aTraiter(moi, entre(h.id)).length, k + 2)),
   ];
+  const actives = toutes.filter((l) => aFaire(String(l.key)));
+  const lignes = (tout ? toutes : actives).map((l, i) => cloneElement(l, { style: [s.ligne, i > 0 && s.ligneBord] }));
 
   return (
     <>
@@ -222,7 +228,12 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
             <Text style={s.rondTexte}>＋</Text>
           </Pressable>
         </View>
-        <View style={s.carte}>{lignes}</View>
+        {lignes.length > 0 ? <View style={s.carte}>{lignes}</View> : <Text style={s.videTexte}>✓ Rien à traiter. Touchez ＋ pour écrire à quelqu’un (Claude compris).</Text>}
+        {toutes.length > actives.length && (
+          <Pressable onPress={() => setTout((x) => !x)} hitSlop={6} accessibilityRole="button">
+            <Text style={s.afficherTout}>{tout ? 'Masquer les conversations sans rien à faire' : `Afficher aussi ${toutes.length - actives.length} conversation${toutes.length - actives.length > 1 ? 's' : ''} sans rien à faire`}</Text>
+          </Pressable>
+        )}
         <Text style={s.aide}>Sans historique : un message lu, ou une réponse prise en compte, disparaît.</Text>
       </ScrollView>
       <NouvelEchange a={nouveau?.a ?? ''} existant={nouveau?.existant} visible={!!nouveau} moi={moi} personnes={personnes} espaces={espaces} onClose={() => setNouveau(null)} onEnvoyer={onEnvoyer} onModifier={onModifier} />
@@ -776,6 +787,7 @@ const s = StyleSheet.create({
   actionTexte: { fontSize: 13.5, fontWeight: '700', color: colors.text },
   actionTexteBlanc: { color: '#fff' },
   inactif: { opacity: 0.4 },
+  afficherTout: { marginHorizontal: 16, marginTop: 10, fontSize: 13, fontWeight: '600', color: colors.primary },
   piecesCarte: { padding: 12 },
   joindre: { paddingHorizontal: 12, paddingTop: 12, gap: 2 },
   joindreTexte: { fontSize: 15, fontWeight: '700', color: colors.primary },
