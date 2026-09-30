@@ -499,7 +499,8 @@ qu'application**.
 l'appareil, l'application se recharge ; « Quitter le mode démo » revient à vos données). En démo, tout ce que
 l'application garde sur l'appareil est rangé à part (clés « demo~ ») : vos données et la démo ne se mélangent
 jamais ; hors démo, les espaces sans Google Sheet laissés par une démo sont retirés. Les données d'exemple seront
-retirées à la mise en production. Version démo compilée à part (toujours en démo) :
+retirées à la mise en production. Hors démo, au premier lancement de cette version, l'application efface une fois de l'appareil les restes des
+anciennes démos (copies des tâches, epics, Organisation) : « Moi » ne montre que votre Google Sheet. Version démo compilée à part (toujours en démo) :
 `EXPO_PUBLIC_DEMO=1 npx expo export --platform web --clear`
 
 ## 3. Installer l'application pour de bon (App Store / Play Store ou installation directe)

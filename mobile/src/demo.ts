@@ -37,6 +37,26 @@ export function changerModeDemo(actif: boolean) {
   }
 }
 
+/**
+ * Hors démo, une seule fois : efface de l'appareil les restes des anciennes démos, qui partageaient les mêmes
+ * emplacements que vos données (copies des tâches, epics, Organisation, espaces d'exemple). Vos vraies données
+ * sont relues depuis vos Google Sheets : rien n'est perdu.
+ */
+export async function purgerRestesDemo(): Promise<boolean> {
+  const FAIT = 'president:purge-demo-1';
+  try {
+    if (DEMO || (await AsyncStorage.getItem(FAIT))) return false;
+    const cles = (await AsyncStorage.getAllKeys()).filter(
+      (k) => k.startsWith('mes-taches:demo') || ['mes-taches:cache', 'mes-taches:cache-epics', 'president:org-cache', 'president:messages-app'].includes(k),
+    );
+    await AsyncStorage.multiRemove(cles);
+    await AsyncStorage.setItem(FAIT, '1');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Démo : clés de l'appareil rangées à part (sauf celles du fil d'échange, communes aux deux modes)
 if (DEMO) {
   const P = 'demo~';

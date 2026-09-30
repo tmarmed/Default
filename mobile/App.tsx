@@ -68,7 +68,7 @@ import {
 } from './src/dates';
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { GOOGLE_AUTH, VERSION } from './src/config';
-import { changerModeDemo, DEMO, DEMO_BASCULABLE, MOI_DEMO, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
+import { changerModeDemo, DEMO, DEMO_BASCULABLE, MOI_DEMO, purgerRestesDemo, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
 import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, lireNomFichier, loadRetires, loadSupprimes, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveSupprimes, saveVisibles } from './src/espaces';
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
@@ -784,6 +784,8 @@ function Main() {
 
   useEffect(() => {
     (async () => {
+      // Hors démo : restes des anciennes démos effacés de l'appareil (une fois), avant de lire les copies
+      await purgerRestesDemo();
       // eslint-disable-next-line prefer-const
       let [stored, cache, cachedHier, dom, liste, vis] = await Promise.all([
         loadSettings(),
