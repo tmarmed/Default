@@ -497,8 +497,10 @@ cette version, elle efface une fois de l'appareil tout reste de démo (anciennes
 interrupteur). **Missions** : après chaque ouverture, l'espace Équipe « President » est créé s'il n'existe pas et les
 missions manquantes y sont écrites (lots = epics, étapes = features), sans réécrire celles qui existent ;
 « 🗂️ Missions » (menu du compte) ou « Mettre à jour » (💬 Échange › Claude) réécrit aussi titres et états. Écriture **groupée** (une lecture et une écriture par onglet :
-110 éléments en 4 appels) ; si Google répond « trop de demandes » (quota par minute) ou a un incident passager,
-l'application attend puis réessaie (jusqu'à 5 fois).
+110 éléments en 4 appels). **Quota Google Sheets** (60 lectures et 60 écritures par minute et par utilisateur,
+un nombre d'appels, pas une taille) : un espace se lit en un seul appel (tous les onglets ensemble) ; tous les
+appels passent par une file d'attente (au plus 50 de chaque sorte par minute glissante, espacés d'au moins
+250 ms) ; sur refus (429) ou incident passager, attente croissante (1 s, 2 s, 4 s… au plus 64 s) jusqu'à 6 essais.
 Données d'exemple pour les tests seulement :
 `EXPO_PUBLIC_DEMO=1 npx expo export --platform web --clear`
 

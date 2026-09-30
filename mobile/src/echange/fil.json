@@ -643,12 +643,12 @@
     {
      "id": "lectures",
      "titre": "Lectures groupées : un espace en un seul appel (batchGet)",
-     "fait": false
+     "fait": true
     },
     {
      "id": "file",
-     "titre": "File d'attente des écritures : débit limité, message clair si Google refuse",
-     "fait": false
+     "titre": "File d'attente : au plus 50 lectures et 50 écritures par minute, attente croissante sur refus",
+     "fait": true
     },
     {
      "id": "validation",

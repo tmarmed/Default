@@ -4,7 +4,7 @@
  * suppression en cascade), colonnes inconnues gardées, colonnes manquantes ajoutées.
  * Lancer : npm run verif:sheets
  */
-import { adopterFichier, corbeille, creerFichierEspace, fichiersCorbeille, fichiersEspaces, magasinSheets, renommerFichier, utiliserJeton } from '../src/gsheets';
+import { adopterFichier, corbeille, reglerQuota, creerFichierEspace, fichiersCorbeille, fichiersEspaces, magasinSheets, renommerFichier, utiliserJeton } from '../src/gsheets';
 
 type Feuille = string[][];
 const fichiers = new Map<string, { titre: string; props: Record<string, string>; feuilles: Map<string, Feuille>; jete?: boolean }>();
@@ -22,6 +22,7 @@ function plage(p: string) {
 }
 
 let refus429 = 0;
+let lecturesGroupees = 0;
 globalThis.fetch = (async (input: string, init: RequestInit = {}) => {
   appels++;
   // Quota Google dépassé (simulé) : l'application doit attendre et réessayer
@@ -56,6 +57,19 @@ globalThis.fetch = (async (input: string, init: RequestInit = {}) => {
     for (const sh of corps.sheets) feuilles.set(sh.properties.title, [sh.data[0].rowData[0].values.map((v: { userEnteredValue: { stringValue: string } }) => v.userEnteredValue.stringValue)]);
     fichiers.set(id, { titre: corps.properties.title, props: {}, feuilles });
     return rep({ spreadsheetId: id });
+  }
+  // Lecture groupée de plusieurs onglets (values:batchGet)
+  const bg = /^\/v4\/spreadsheets\/([^/:]+)\/values:batchGet$/.exec(url.pathname);
+  if (bg) {
+    lecturesGroupees++;
+    const f = fichiers.get(bg[1]);
+    if (!f) return rep({ error: { message: 'introuvable' } }, 404);
+    return rep({
+      valueRanges: url.searchParams.getAll('ranges').map((r) => {
+        const feuille = f.feuilles.get(plage(r).nom) ?? [];
+        return { range: r, values: feuille.map((row) => { const x = [...row]; while (x.length && (x[x.length - 1] ?? '') === '') x.pop(); return x; }) };
+      }),
+    });
   }
   const m = /^\/v4\/spreadsheets\/([^/:]+)(?::batchUpdate)?(?:\/values(?::batchUpdate|\/([^:]+)(?::clear)?)?)?$/.exec(url.pathname)!;
   const f = fichiers.get(m[1]);
@@ -99,6 +113,8 @@ globalThis.fetch = (async (input: string, init: RequestInit = {}) => {
   return rep({ values: feuille.map((row) => { const r = [...row]; while (r.length && (r[r.length - 1] ?? '') === '') r.pop(); return r; }) });
 }) as typeof fetch;
 utiliserJeton(async () => 'jeton');
+// Vérifications : pas d'attente de quota (la file est testée à part, avec un quota minuscule)
+reglerQuota({ limite: 1e9, ecart: 0, base: 1 });
 
 let erreurs = 0;
 const ok = (cond: unknown, msg: string) => {
@@ -218,6 +234,18 @@ const ok = (cond: unknown, msg: string) => {
   ok((await l.listAll()).epics.find((x) => x.id === eps[0].id)?.titre === 'Lot 1 · Mission modifiée', 'écriture groupée : modification');
   refus429 = 1;
   ok((await l.listAll()).epics.length === 22, 'quota dépassé (429) : nouvel essai automatique réussi');
+  // Lectures groupées : chargement complet d'un espace (tâches + 9 onglets) en un seul appel de lecture
+  const avantLecture = appels;
+  const lg = lecturesGroupees;
+  await Promise.all([l.list(), l.listAll()]);
+  ok(lecturesGroupees - lg === 1 && appels - avantLecture === 1, `lecture d'un espace : ${appels - avantLecture} appel (tous les onglets ensemble)`);
+  // File d'attente du quota : 7 appels avec au plus 3 par fenêtre de 300 ms → au moins 2 fenêtres d'attente
+  reglerQuota({ limite: 3, fenetre: 300, ecart: 0 });
+  const t0 = Date.now();
+  for (let i = 0; i < 7; i++) await l.ecrireLot('epic', [], [{ id: eps[1].id, titre: `Lot 2 · Essai ${i}` }]);
+  const duree = Date.now() - t0;
+  reglerQuota({ limite: 1e9, fenetre: 60_000, ecart: 0 });
+  ok(duree >= 550, `quota respecté : 7 écritures étalées sur ${duree} ms (au plus 3 par fenêtre)`);
 
   // Erreur de règle
   let refus = '';

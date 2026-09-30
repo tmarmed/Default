@@ -16,7 +16,40 @@ export const utiliserJeton = (f: (force?: boolean) => Promise<string>) => {
   jeton = f;
 };
 
+/**
+ * Quota de l'API Google Sheets (par utilisateur) : 60 lectures et 60 écritures par minute, comptées à part ; au-delà,
+ * Google répond 429. C'est un nombre d'appels, pas une taille : un appel groupé (plusieurs onglets, des centaines
+ * de lignes) compte pour un seul. L'application garde une marge : au plus 50 appels de chaque sorte par minute
+ * glissante, espacés d'au moins 250 ms ; les appels en trop attendent leur tour (file d'attente, dans l'ordre).
+ */
+const QUOTA = { limite: 50, fenetre: 60_000, ecart: 250, base: 1000 };
+/** Vérifications automatiques : quota réglable (sans attente, ou très court pour tester la file) */
+export const reglerQuota = (q: Partial<typeof QUOTA>) => Object.assign(QUOTA, q);
+const historique: Record<'lecture' | 'ecriture', number[]> = { lecture: [], ecriture: [] };
+const tours: Record<'lecture' | 'ecriture', Promise<void>> = { lecture: Promise.resolve(), ecriture: Promise.resolve() };
+const pause = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+function attendreQuota(sorte: 'lecture' | 'ecriture'): Promise<void> {
+  const tour = tours[sorte].then(async () => {
+    const h = historique[sorte];
+    for (;;) {
+      const t = Date.now();
+      while (h.length && t - h[0] >= QUOTA.fenetre) h.shift();
+      let attente = h.length ? h[h.length - 1] + QUOTA.ecart - t : 0;
+      if (h.length >= QUOTA.limite) attente = Math.max(attente, h[0] + QUOTA.fenetre - t);
+      if (attente <= 0) {
+        h.push(t);
+        return;
+      }
+      await pause(attente);
+    }
+  });
+  tours[sorte] = tour.catch(() => {});
+  return tour;
+}
+
 async function appel<T>(url: string, init: RequestInit = {}, nouvelEssai = true, essai = 0): Promise<T> {
+  // Seule l'API Sheets a ce quota serré (Drive : plusieurs milliers par minute)
+  if (url.startsWith(SHEETS)) await attendreQuota(!init.method || init.method === 'GET' ? 'lecture' : 'ecriture');
   const token = await jeton();
   let res: Response;
   try {
@@ -32,9 +65,11 @@ async function appel<T>(url: string, init: RequestInit = {}, nouvelEssai = true,
     }
     throw new AuthError('Session Google terminée : reconnectez-vous.');
   }
-  // Trop de demandes (quota Google par minute) ou incident passager : on attend puis on réessaie (jusqu'à 5 fois)
-  if ((res.status === 429 || res.status >= 500) && essai < 5) {
-    await new Promise((r) => setTimeout(r, Math.min(2000 * 2 ** essai, 30000)));
+  // Trop de demandes (quota par minute) ou incident passager : attente croissante recommandée par Google
+  // (1 s, 2 s, 4 s… plus une part au hasard, au plus 64 s, ou le délai indiqué par Google), jusqu'à 6 essais
+  if ((res.status === 429 || res.status >= 500) && essai < 6) {
+    const indique = Number(res.headers.get('Retry-After')) * 1000;
+    await pause(indique > 0 ? indique : Math.min(QUOTA.base * 2 ** essai + Math.random() * QUOTA.base, 64_000));
     return appel<T>(url, init, nouvelEssai, essai + 1);
   }
   if (!res.ok) {
@@ -233,12 +268,37 @@ function persistanceSheets(fichier: string): Persistance {
     await p;
   };
 
+  /**
+   * Lectures groupées : les onglets demandés au même moment (chargement d'un espace : tâches, epics, features…)
+   * sont lus en un seul appel (values:batchGet) au lieu d'un appel par onglet.
+   */
+  let enAttente: { t: Table; ok: (v: string[][]) => void; ko: (e: unknown) => void }[] = [];
+  let minuterie: ReturnType<typeof setTimeout> | null = null;
+  const vider = async () => {
+    const lot = enAttente;
+    enAttente = [];
+    minuterie = null;
+    const tables = [...new Set(lot.map((x) => x.t))];
+    try {
+      const q = tables.map((t) => `ranges=${encodeURIComponent(plage(ONGLETS_TOUS[t].nom, 'A1:ZZ'))}`).join('&');
+      const r = await appel<{ valueRanges?: { values?: string[][] }[] }>(`${SHEETS}/${fichier}/values:batchGet?majorDimension=ROWS&${q}`);
+      const par = new Map(tables.map((t, i) => [t, r.valueRanges?.[i]?.values ?? []]));
+      for (const x of lot) x.ok(par.get(x.t)!);
+    } catch (e) {
+      for (const x of lot) x.ko(e);
+    }
+  };
+  const lireValeurs = (t: Table) =>
+    new Promise<string[][]>((ok, ko) => {
+      enAttente.push({ t, ok, ko });
+      minuterie ??= setTimeout(vider, 0);
+    });
+
   return {
     async lire(t) {
       await assurerOnglet(t);
       const nom = ONGLETS_TOUS[t].nom;
-      const r = await appel<{ values?: string[][] }>(`${SHEETS}/${fichier}/values/${encodeURIComponent(plage(nom, 'A1:ZZ'))}?majorDimension=ROWS`);
-      const [entete = [], ...rows] = r.values ?? [];
+      const [entete = [], ...rows] = await lireValeurs(t);
       const cols = entete.map((h) => String(h).trim());
       // Colonnes de l'application absentes du fichier : ajoutées à la fin
       const nouvelles = ONGLETS_TOUS[t].colonnes.filter((c) => !cols.includes(c));
