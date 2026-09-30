@@ -74,6 +74,7 @@ import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
 import { ChatEchanges, type ElementChat } from './src/components/ChatEchanges';
+import { EquipeView, type PersonneConnue } from './src/components/EquipeView';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
 import { StrategieView } from './src/components/StrategieView';
@@ -186,7 +187,7 @@ const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches', echa
 /** Messages de l'application gardés sur l'appareil jusqu'à « Lu ✓ » */
 const MESSAGES_APP_KEY = 'president:messages-app';
 /** Écrans prévus, encore vides (règles de gestion à définir) */
-const A_VENIR: Tab[] = ['equipe', 'pilotage'];
+const A_VENIR: Tab[] = ['pilotage'];
 /** Nom de l'application : début du nom des fichiers des espaces */
 /** Nom de l'application (début du nom des Google Sheets : « President | Moi ») ; anciens noms : fichiers renommés */
 const NOM_APP = 'President';
@@ -317,6 +318,8 @@ function Main() {
   );
   /** Organisation des entreprises connues (vue Entreprise et vue Delivery SAFe), et celle des entreprises affichées */
   const [orgTous, setOrgTous] = useState<Org>(ORG_VIDE);
+  /** Espaces Équipe (hors entreprise) : leurs membres et rôles, à part de l'Organisation des entreprises */
+  const [equipesEsp, setEquipesEsp] = useState<Record<string, api.EquipeEspace>>({});
   const orgTousRef = useRef(orgTous);
   orgTousRef.current = orgTous;
   const orgDe = useCallback(
@@ -746,6 +749,10 @@ function Main() {
         const org: Org = { personnes: catOrg('personnes'), unites: catOrg('unites'), portfolios: catOrg('portfolios'), trains: catOrg('trains'), equipes: catOrg('equipes') };
         setOrgTous(org);
         AsyncStorage.setItem(ORG_CACHE_KEY, JSON.stringify(org)).catch(() => {});
+        // Membres des espaces Équipe (une lecture par espace) ; un espace injoignable garde sa dernière copie
+        const espEq = liste.filter((e) => e.type === 'equipe');
+        const resEq = await Promise.allSettled(espEq.map((e) => api.listEquipe(s, e.id)));
+        setEquipesEsp((avant) => Object.fromEntries(espEq.map((e, k) => [e.id, resEq[k].status === 'fulfilled' ? (resEq[k] as PromiseFulfilledResult<api.EquipeEspace>).value : avant[e.id] ?? { personnes: [], equipes: [] }])));
         // Alertes ignorées : dans l'espace Moi
         let ignorees = moi.value.ignorees ?? [];
         // Nettoyage : une alerte ignorée dont la situation n'existe plus est effacée du Google Sheet
@@ -1407,10 +1414,21 @@ function Main() {
   };
   const interlocuteurs = useMemo(() => {
     const m = new Map<string, { id: string; nom: string; nature: string }>();
-    for (const p of orgTous.personnes) if (p.email) m.set(p.email.toLowerCase(), { id: p.email.toLowerCase(), nom: p.nom, nature: p.nature || 'humain' });
+    for (const p of [...orgTous.personnes, ...Object.values(equipesEsp).flatMap((x) => x.personnes)])
+      if (p.email) m.set(p.email.toLowerCase(), { id: p.email.toLowerCase(), nom: p.nom, nature: p.nature || 'humain' });
     for (const e of tousHier.echanges ?? []) for (const id of [e.de, e.a]) if (id !== 'claude' && id !== 'president' && !m.has(id)) m.set(id, { id, nom: nomDepuisEmail(id), nature: 'humain' });
     return [...m.values()].sort((a, b) => a.nom.localeCompare(b.nom));
-  }, [orgTous, tousHier.echanges]);
+  }, [orgTous, equipesEsp, tousHier.echanges]);
+  /** Personnes connues ailleurs (entreprises, autres équipes, conversations Synchro) : « Choisir une personne connue » */
+  const personnesConnues = useMemo(() => {
+    const m = new Map<string, PersonneConnue>();
+    const nomEspace = (id?: string) => espaces.find((e) => e.id === id)?.nom ?? '';
+    for (const p of orgTous.personnes) if (p.email) m.set(p.email.toLowerCase(), { nom: p.nom, email: p.email, nature: p.nature || 'humain', ou: `🏢 ${nomEspace(p.espace)}` });
+    for (const [id, x] of Object.entries(equipesEsp))
+      for (const p of x.personnes) if (p.email && !m.has(p.email.toLowerCase())) m.set(p.email.toLowerCase(), { nom: p.nom, email: p.email, nature: p.nature || 'humain', ou: `👥 ${nomEspace(id)}` });
+    for (const i of interlocuteurs) if (!m.has(i.id)) m.set(i.id, { nom: i.nom, email: i.id, nature: i.nature, ou: '🔄 Synchro' });
+    return [...m.values()].sort((a, b) => a.nom.localeCompare(b.nom));
+  }, [orgTous, equipesEsp, interlocuteurs, espaces]);
   // Pastille de l'onglet 🔄 Synchro : seulement les échanges qui attendent votre réponse (pas les questions du fil de Claude)
   const nbARepondre = aTraiter(moiEchange, tousHier.echanges ?? []).length;
   // Échanges marqués « pris_en_compte » par une IA (Claude, dans le Sheet) : c'est l'application qui les supprime
@@ -2416,6 +2434,19 @@ function Main() {
 
       {A_VENIR.includes(tab) && <EcranAVenir ecran={tab} />}
 
+      {tab === 'equipe' && (
+        <EquipeView
+          equipes={espaces.filter((e) => e.type === 'equipe' && visibles.includes(e.id)).map((e) => ({ espace: { id: e.id, nom: e.nom }, donnees: equipesEsp[e.id] ?? { personnes: [], equipes: [] } }))}
+          connues={personnesConnues}
+          moi={moiEchange}
+          onEcrire={async (espace, nomEquipe, m) => {
+            if (!settings) return;
+            const r = await api.ecrireMembre(settings, espace, nomEquipe, m);
+            setEquipesEsp((avant) => ({ ...avant, [espace]: r }));
+          }}
+        />
+      )}
+
       {tab === 'taches' && mode !== 'liste' && (
         <>
           <PeriodHeader
@@ -2567,7 +2598,7 @@ function Main() {
         <BandeauAnnuler bandeau={bandeauApp.bandeau} fermer={bandeauApp.fermer} />
       </View>
 
-      {!A_VENIR.includes(tab) && tab !== 'strategie' && tab !== 'backlog' && tab !== 'echange' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
+      {!A_VENIR.includes(tab) && tab !== 'strategie' && tab !== 'backlog' && tab !== 'echange' && tab !== 'equipe' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 8 + 12 }]}
         onPress={() =>
           tab === 'organisation'

@@ -264,6 +264,23 @@ const ok = (cond: unknown, msg: string) => {
   const echs = (await l.listAll()).echanges ?? [];
   ok(m2.nouveau && echs.length === 2 && echs.find((x) => x.id === ech.id)?.reponse === 'Jeudi' && m2.e.statut === 'envoye' && m2.e.a === 'lea@x.fr', 'échange déjà lu : la modification part en nouvel échange, l\'ancien reste');
 
+  // Espace Équipe : membres et rôles (une lecture, deux écritures au plus par membre)
+  const idEq = await creerFichierEspace('President | Équipe | Mobile', 'equipe', 'Mobile');
+  const q = magasinSheets(idEq);
+  await q.listEquipe();
+  const avantEq = appels;
+  let eqs = await q.ecrireMembre('Mobile', { personne: { nom: 'Lea Martin', email: 'lea@x.fr', nature: 'humain' }, role: 'po' });
+  ok(appels - avantEq <= 3 && eqs.equipes.length === 1 && eqs.equipes[0].po === eqs.personnes[0].id, `espace Équipe : premier membre (PO) et ligne d'équipe en ${appels - avantEq} appels`);
+  const lea = eqs.personnes[0].id;
+  eqs = await q.ecrireMembre('Mobile', { personne: { nom: 'Hugo Petit', email: 'hugo@x.fr' }, role: 'po' });
+  const hugo = eqs.personnes.find((x) => x.nom === 'Hugo Petit')!.id;
+  ok(eqs.equipes[0].po === hugo && eqs.equipes[0].membres.split(';').length === 2, 'espace Équipe : un seul PO (le nouveau remplace, l\'ancien reste membre)');
+  eqs = await q.ecrireMembre('Mobile', { personne: { id: lea, nom: 'Léa Martin' } });
+  ok(eqs.personnes.find((x) => x.id === lea)?.nom === 'Léa Martin' && eqs.equipes[0].po === hugo, 'espace Équipe : membre modifié, rôles gardés');
+  eqs = await q.ecrireMembre('Mobile', { retirer: hugo });
+  const reluEq = await magasinSheets(idEq).listEquipe();
+  ok(eqs.equipes[0].po === '' && reluEq.personnes.length === 1 && reluEq.equipes[0].membres === lea, 'espace Équipe : membre retiré (rôle et liste vidés)');
+
   // Fichier ancien : onglet Taches de 28 colonnes (grille comprise) ; les colonnes ajoutées depuis doivent passer
   const idV = await creerFichierEspace('President | Équipe | Ancien', 'equipe', 'Ancien');
   const fv = fichiers.get(idV)!;

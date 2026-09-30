@@ -87,7 +87,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '24';
+const DEMO_DATA_VERSION = '25';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -373,6 +373,23 @@ const SEEDS_EQUIPE: Seeds = {
       ech('mobx4', { de: MOI_DEMO, a: 'hugo.petit@mobile.example', titre: 'Bug Android 12', texte: 'Peux-tu regarder le plantage de l’écran de connexion ?' }),
     ];
     return e;
+  },
+  // Membres de l'équipe Mobile (espace Équipe, hors entreprise)
+  org: () => {
+    const stamp = new Date().toISOString();
+    const base = { cree_le: stamp, modifie_le: stamp, unite: '', manager: '', capacite: '' };
+    return {
+      personnes: [
+        { id: 'mobp1', nom: 'Lea Martin', email: 'lea.martin@mobile.example', nature: 'humain', ...base },
+        { id: 'mobp2', nom: 'Hugo Petit', email: 'hugo.petit@mobile.example', nature: 'humain', ...base },
+        { id: 'mobp3', nom: 'Vous', email: MOI_DEMO, nature: 'humain', ...base },
+        { id: 'mobp4', nom: 'Claude', email: '', nature: 'ia_chat', ...base },
+      ],
+      unites: [],
+      portfolios: [],
+      trains: [],
+      equipes: [{ id: 'mobeq', nom: 'Mobile', train: '', po: 'mobp1', sm: 'mobp2', membres: 'mobp1;mobp2;mobp3;mobp4', cree_le: stamp, modifie_le: stamp }],
+    };
   },
 };
 const SEEDS_ENTREPRISE: Seeds = {

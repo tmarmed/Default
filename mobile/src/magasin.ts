@@ -3,7 +3,7 @@ import { cleanLinks, type Data, type DeletionCounts, planDeletion } from './hier
 import { aPurger } from './stockage';
 import { cascadeLinks, checkParent } from './subtasks';
 import type { Domaine, Echange, Epic, Feature, Ignoree, Item, ItemInput, Objectif, ObjectifPI, ResultatCle, ValueStream } from './types';
-import { CLE_ORG, type EntiteOrg, type KindOrg, membresDe, type Org } from './organisation';
+import { CLE_ORG, type EntiteOrg, type EquipeAgile, type KindOrg, membresDe, type Org, type Personne } from './organisation';
 
 /**
  * Règles d'enregistrement d'un espace (celles de l'ancien script Google Apps Script), communes à la démo
@@ -257,6 +257,10 @@ export function nettoyerOrg<K extends KindOrg>(kind: K, data: Partial<EntiteOrg<
   return out as unknown as EntiteOrg<K>;
 }
 
+/** Espace Équipe : ses personnes et sa ligne d'équipe */
+export type EquipeEspace = Pick<Org, 'personnes' | 'equipes'>;
+export type RoleEquipe = 'membre' | 'po' | 'sm';
+
 /** Opérations d'un espace, sur une persistance donnée */
 export function creerMagasin(p: Persistance) {
   return {
@@ -372,6 +376,51 @@ export function creerMagasin(p: Persistance) {
       const o = { ...nettoyerEntite('echange', { ...reste, reponse: '', note: '', statut: 'envoye' }, undefined, []), id: nouvelId(), cree_le: now, modifie_le: now } as Echange;
       await p.ecrire('echange', [...list, o] as never);
       return { e: o, nouveau: true };
+    },
+    /** Espace Équipe (hors entreprise) : ses personnes et sa ligne d'équipe (rôles, membres) — une lecture */
+    async listEquipe(): Promise<EquipeEspace> {
+      const [personnes, equipes] = await Promise.all([p.lire('personne'), p.lire('equipeagile')]);
+      return { personnes, equipes };
+    },
+    /**
+     * Espace Équipe : ajoute ou modifie un membre (`personne`, avec son rôle), ou le retire (`retirer`). La ligne
+     * d'équipe est créée au premier membre ; un seul PO et un seul SM (le nouveau remplace l'ancien, qui reste
+     * membre). Une lecture et au plus deux écritures.
+     */
+    async ecrireMembre(nomEquipe: string, m: { personne?: Partial<Personne> & { id?: string }; role?: RoleEquipe; retirer?: string }): Promise<EquipeEspace> {
+      const { personnes, equipes } = await this.listEquipe();
+      const now = new Date().toISOString();
+      let ps = personnes;
+      let pid = m.retirer ?? '';
+      if (m.retirer) ps = personnes.filter((x) => x.id !== m.retirer);
+      else if (m.personne) {
+        const base = m.personne.id ? personnes.find((x) => x.id === m.personne!.id) : undefined;
+        if (m.personne.id && !base) throw new Error('Membre introuvable (peut-être retiré).');
+        const o = { ...nettoyerOrg('personne', m.personne, base, { personnes, equipes, unites: [], portfolios: [], trains: [] }), id: base?.id ?? nouvelId(), cree_le: base?.cree_le ?? now, modifie_le: now } as Personne;
+        ps = base ? personnes.map((x) => (x.id === o.id ? o : x)) : [...personnes, o];
+        pid = o.id;
+      }
+      if (!pid) throw new Error('Membre manquant.');
+      const avant = equipes[0];
+      const eq0: EquipeAgile = avant ?? { id: nouvelId(), nom: nomEquipe.trim() || 'Équipe', train: '', po: '', sm: '', membres: '', cree_le: now, modifie_le: now };
+      const membres = membresDe(eq0).filter((x) => x !== pid);
+      let po = eq0.po === pid ? '' : eq0.po;
+      let sm = eq0.sm === pid ? '' : eq0.sm;
+      if (!m.retirer) {
+        membres.push(pid);
+        if (m.role === 'po') po = pid;
+        if (m.role === 'sm') sm = pid;
+        // Rôle non précisé (nom, e-mail…) : on garde celui qu'il avait
+        if (!m.role) {
+          if (eq0.po === pid) po = pid;
+          if (eq0.sm === pid) sm = pid;
+        }
+      }
+      const eq = { ...eq0, po, sm, membres: membres.join(';'), modifie_le: now };
+      if (ps !== personnes) await p.ecrire('personne', ps as never);
+      const eqs = avant ? equipes.map((x) => (x.id === eq.id ? eq : x)) : [...equipes, eq];
+      await p.ecrire('equipeagile', eqs as never);
+      return { personnes: ps, equipes: eqs };
     },
     /** Organisation de l'entreprise (onglets créés au premier usage) */
     async listOrg(): Promise<Org> {

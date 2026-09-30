@@ -2,6 +2,8 @@ import { DEMO, demoApiFor } from './demo';
 import type { EntiteOrg, KindOrg, Org } from './organisation';
 import { adopterFichier, corbeille, creerFichierEspace, effacerFichier, fichiersCorbeille, fichiersEspaces, magasinSheets, poidsFichiers, quotaDrive, renommerFichier } from './gsheets';
 import type { Data, DeletionCounts } from './hierarchy';
+import type { EquipeEspace, Magasin } from './magasin';
+export type { EquipeEspace, RoleEquipe } from './magasin';
 import {
   Domaine,
   ModeleDomaine,
@@ -212,6 +214,16 @@ export async function listOrg(settings: Settings, espace: string): Promise<Org> 
 export async function saveOrg<K extends KindOrg>(settings: Settings, espace: string, kind: K, data: Partial<EntiteOrg<K>> & { id?: string }): Promise<EntiteOrg<K>> {
   const { espace: _e, ...propre } = data as Record<string, unknown>;
   return marquer(await route(settings, espace).m.saveOrg(kind, propre as never), espace) as unknown as EntiteOrg<K>;
+}
+/** Espace Équipe : ses personnes et sa ligne d'équipe (rôles, membres) */
+export async function listEquipe(settings: Settings, espace: string): Promise<EquipeEspace> {
+  const o = await route(settings, espace).m.listEquipe();
+  return { personnes: o.personnes.map((x) => marquer(x, espace)), equipes: o.equipes.map((x) => marquer(x, espace)) };
+}
+/** Espace Équipe : ajoute, modifie ou retire un membre (et son rôle) */
+export async function ecrireMembre(settings: Settings, espace: string, nomEquipe: string, m: Parameters<Magasin['ecrireMembre']>[1]): Promise<EquipeEspace> {
+  const o = await route(settings, espace).m.ecrireMembre(nomEquipe, m);
+  return { personnes: o.personnes.map((x) => marquer(x, espace)), equipes: o.equipes.map((x) => marquer(x, espace)) };
 }
 /** Supprime un élément de l'Organisation (ce qui le désignait est vidé, rien d'autre n'est supprimé) */
 export async function deleteOrg(settings: Settings, espace: string, kind: KindOrg, id: string): Promise<void> {
