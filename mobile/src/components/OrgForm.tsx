@@ -345,7 +345,7 @@ export function OrgForm({
             })}
           </SectionFiche>
           <SectionFiche titre="Planification">
-            <ChampFiche label="Capacité" sous="Jours par itération.">
+            <ChampFiche label="Capacité" sous={safe.pointsJours ? 'Jours par itération.' : 'Points par itération.'}>
               <SaisieFiche placeholder="Facultatif (ex. 8)" value={form.capacite} onChangeText={set('capacite')} keyboardType="decimal-pad" />
             </ChampFiche>
           </SectionFiche>

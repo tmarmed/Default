@@ -321,8 +321,10 @@ function Main() {
   /** Capacité courante, lue au chargement (nettoyage des alertes ignorées) */
   const capaciteRef = useRef<SafeSettings>(SAFE_DEFAUT);
   capaciteRef.current = safe;
+  // Unité de l'estimation, partout : en jours en mode Simple, en points en SAFe
+  const safeAffiche = useMemo(() => ({ ...safe, pointsJours: !safe.actif }), [safe]);
   const joursRef = useRef(SAFE_DEFAUT.pointsJours);
-  joursRef.current = safe.pointsJours;
+  joursRef.current = !safe.actif;
   useEffect(() => {
     loadSafe().then(setSafe);
   }, []);
@@ -411,6 +413,12 @@ function Main() {
   const [notice, setNotice] = useState<string | null>(null);
   /** Information (ex. dates d'epic ajustées), en bleu */
   const [info, setInfo] = useState<string | null>(null);
+  // Message d'information : disparaît tout seul après 6 s (comme le bandeau « Annuler » de l'Organisation), ou d'un toucher
+  useEffect(() => {
+    if (!info) return;
+    const t = setTimeout(() => setInfo(null), 6000);
+    return () => clearTimeout(t);
+  }, [info]);
   /** Version du script : avant la 2, la répétition n'est pas enregistrée. */
   const [filter, setFilter] = useState<Filter>('tous');
   const [showDone, setShowDone] = useState(false);
@@ -1399,7 +1407,7 @@ function Main() {
   // (l'heure actuelle est relue à chaque recalcul : les rendez-vous d'aujourd'hui déjà finis ne se chevauchent plus)
   const checks = useMemo(() => {
     const n = new Date();
-    return checksParEcran(hv, today, (e) => capaciteDe(safe, e), safe.actif, domFilter, { jours: safe.pointsJours, maintenant: n.getHours() * 60 + n.getMinutes() });
+    return checksParEcran(hv, today, (e) => capaciteDe(safe, e), safe.actif, domFilter, { jours: !safe.actif, maintenant: n.getHours() * 60 + n.getMinutes() });
   }, [hv, today, safe, domFilter]);
   const alertesDates = useMemo(() => checksDatesDomaine(hv, domFilter), [hv, domFilter]);
   // Les alertes ignorées ne comptent pas
@@ -1750,7 +1758,7 @@ function Main() {
   const TAB_BAR = 58;
 
   return (
-    <SafeContext.Provider value={safe}>
+    <SafeContext.Provider value={safeAffiche}>
     <HierarchyContext.Provider value={hv}>
     <DomainFilterContext.Provider value={domFilterValue}>
     <CheckActionContext.Provider value={runAction}>
@@ -1969,7 +1977,6 @@ function Main() {
           onOpenTask={openForm}
           onSetStatut={setStatut}
           onChangeCapacite={(espace, n) => updateSafe({ capacites: { ...safe.capacites, [espace]: n } })}
-          onTogglePointsJours={() => updateSafe({ pointsJours: !safe.pointsJours })}
           refreshControl={refreshControl}
         />
       )}

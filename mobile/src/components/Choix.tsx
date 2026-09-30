@@ -737,7 +737,7 @@ const s = StyleSheet.create({
   champ: { flex: 1, minWidth: 0 },
   saisie: { fontSize: 15, fontWeight: '600', color: colors.text, paddingVertical: 4, outlineStyle: 'none' as never },
   saisieVide: { fontWeight: '400' },
-  estimation: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  estimation: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   estimationVide: { flex: 1 },
   unite: { fontSize: 15, fontWeight: '600', color: colors.text },
   saisieMulti: { minHeight: 70, fontWeight: '400', textAlignVertical: 'top' },

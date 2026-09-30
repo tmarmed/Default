@@ -25,7 +25,6 @@ interface Props {
   onSetStatut: (t: Item, statut: Statut) => void;
   /** Capacité par itération d'un espace */
   onChangeCapacite: (espace: string, n: number) => void;
-  onTogglePointsJours: () => void;
   refreshControl: ReactElement<RefreshControlProps>;
 }
 
@@ -43,7 +42,6 @@ export function IterationView({
   onOpenTask,
   onSetStatut,
   onChangeCapacite,
-  onTogglePointsJours,
   refreshControl,
 }: Props) {
   const safe = useSafe();
@@ -157,9 +155,6 @@ export function IterationView({
                     <Text style={styles.capNum}>{capE}</Text>
                     <Pressable style={styles.stepBtn} onPress={() => onChangeCapacite(e, capE + 1)} accessibilityLabel={`Augmenter la capacité${nom ? ` de ${nom}` : ''}`}>
                       <Text style={styles.stepText}>+</Text>
-                    </Pressable>
-                    <Pressable onPress={onTogglePointsJours} style={styles.unit} accessibilityRole="switch" accessibilityState={{ checked: safe.pointsJours }}>
-                      <Text style={styles.unitText}>{safe.pointsJours ? '1 point = 1 jour ✓' : '1 point = 1 jour'}</Text>
                     </Pressable>
                   </View>
                 )}
@@ -342,8 +337,6 @@ const styles = StyleSheet.create({
   stepBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#EEF1F6', alignItems: 'center', justifyContent: 'center' },
   stepText: { fontSize: 16, fontWeight: '700', color: colors.primary },
   capNum: { fontSize: 15, fontWeight: '700', color: colors.text, minWidth: 22, textAlign: 'center' },
-  unit: { marginLeft: 'auto', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
-  unitText: { fontSize: 12, color: colors.text },
   chart: { flexDirection: 'row', alignItems: 'flex-end', height: 110, gap: 2, marginTop: 4 },
   col: { flex: 1, height: '100%', justifyContent: 'flex-end' },
   ideal: { position: 'absolute', left: '35%', width: 3, height: 3, borderRadius: 2, backgroundColor: colors.muted },

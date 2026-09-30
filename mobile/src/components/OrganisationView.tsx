@@ -1,9 +1,11 @@
-import { type ReactElement, useState } from 'react';
+import { type ReactElement, useEffect, useState } from 'react';
 import { Pressable, type RefreshControlProps, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Espace } from '../espaces';
 import { useHierarchy } from '../hierarchyContext';
 import { type EntiteOrg, type KindOrg, makeOrgValue, membresDe, nomPersonne, type OrgValue, porteurs, type Unite } from '../organisation';
 import { colors } from '../theme';
+import { fmtPoints } from '../pi';
+import { useSafe } from '../safe';
 import { ChoiceSheet } from './ChoiceSheet';
 import { type AutresChoix, FeuilleMulti, type GroupeChoix } from './Choix';
 import { Segmented } from './Segmented';
@@ -85,6 +87,20 @@ export function OrganisationView({
       setErreur(`Non enregistré : ${(e as Error).message}`);
     }
   };
+  // Le bandeau disparaît tout seul après 6 s, ou dès qu'on touche ailleurs (l'élément reste surligné jusque-là)
+  useEffect(() => {
+    if (!bandeau) return;
+    const t = setTimeout(() => {
+      setBandeau(null);
+      setFlash(new Set());
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [bandeau]);
+  const fermerBandeau = () => {
+    if (!bandeau) return;
+    setBandeau(null);
+    setFlash(new Set());
+  };
   const annuler = async () => {
     if (!bandeau) return;
     const { espace, d } = bandeau;
@@ -123,7 +139,7 @@ export function OrganisationView({
           />
         </View>
       )}
-      <ScrollView contentContainerStyle={s.scroll} refreshControl={refreshControl}>
+      <ScrollView contentContainerStyle={s.scroll} refreshControl={refreshControl} onTouchStart={fermerBandeau} onScrollBeginDrag={fermerBandeau}>
         {entreprises.map((esp) => {
           const dans = <T extends { espace?: string }>(l: T[]) => l.filter((x) => (x.espace || 'moi') === esp.id);
           const o = makeOrgValue({ personnes: dans(org.personnes), unites: dans(org.unites), portfolios: dans(org.portfolios), trains: dans(org.trains), equipes: dans(org.equipes) });
@@ -369,6 +385,7 @@ function VueEntreprise({ o, espace, replies, basculer, onOuvrir, onAjouter, onPl
 }
 
 function Personne({ niveau, p, o, onPress, surligne }: { niveau: number; p: OrgValue['personnes'][number]; o: OrgValue; onPress: () => void; surligne?: boolean }) {
+  const safe = useSafe();
   const equipes = o.equipes.filter((e) => membresDe(e).includes(p.id) || e.po === p.id || e.sm === p.id).map((e) => `👥 ${e.nom}`);
   const initiales = p.nom
     .split(/\s+/)
@@ -384,7 +401,7 @@ function Personne({ niveau, p, o, onPress, surligne }: { niveau: number; p: OrgV
       <View style={s.flex}>
         <Text style={s.personneNom}>{p.nom}</Text>
         <Text style={s.sous}>
-          {[p.manager ? `Manager : ${nomPersonne(o, p.manager)}` : '', equipes.join(', '), p.capacite ? `${p.capacite} j` : ''].filter(Boolean).join(' · ') || p.email || 'Sans e-mail'}
+          {[p.manager ? `Manager : ${nomPersonne(o, p.manager)}` : '', equipes.join(', '), p.capacite ? fmtPoints(parseFloat(p.capacite) || 0, safe.pointsJours) : ''].filter(Boolean).join(' · ') || p.email || 'Sans e-mail'}
         </Text>
       </View>
     </Pressable>
