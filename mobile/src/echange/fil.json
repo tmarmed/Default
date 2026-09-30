@@ -619,6 +619,43 @@
      "fait": false
     }
    ]
+  },
+  {
+   "num": 23,
+   "titre": "Quota Google : rester sous 60 écritures par minute",
+   "etat": "EN COURS",
+   "etapes": [
+    {
+     "id": "discussion",
+     "titre": "Discussion",
+     "fait": true
+    },
+    {
+     "id": "missions",
+     "titre": "Missions : écriture groupée (4 appels) et nouvel essai sur quota dépassé",
+     "fait": true
+    },
+    {
+     "id": "audit",
+     "titre": "Audit : toutes les écritures en série (priorité du Backlog, déplacements du PI, suppressions en cascade, domaines…)",
+     "fait": false
+    },
+    {
+     "id": "lectures",
+     "titre": "Lectures groupées : un espace en un seul appel (batchGet)",
+     "fait": false
+    },
+    {
+     "id": "file",
+     "titre": "File d'attente des écritures : débit limité, message clair si Google refuse",
+     "fait": false
+    },
+    {
+     "id": "validation",
+     "titre": "Validation",
+     "fait": false
+    }
+   ]
   }
  ],
  "points": [
