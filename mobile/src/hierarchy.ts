@@ -1,4 +1,4 @@
-import type { Domaine, Epic, EntityKind, Feature, Ignoree, Item, Objectif, ObjectifPI } from './types';
+import { type Domaine, type Epic, type EntityKind, type Feature, idsDe, type Ignoree, type Item, joindreIds, type Objectif, type ObjectifPI, type ResultatCle, type ValueStream } from './types';
 
 /**
  * Hiérarchie Domaine > Objectif > Epic > Feature > Tâche.
@@ -81,6 +81,9 @@ export interface Data {
   objectifsPI: ObjectifPI[];
   /** Alertes ignorées (v10) */
   ignorees?: Ignoree[];
+  /** SAFe (lot 4) : value streams et résultats clés des OKR */
+  valueStreams?: ValueStream[];
+  resultats?: ResultatCle[];
 }
 
 export interface DeletionCounts {
@@ -157,12 +160,12 @@ export function planDeletion(kind: EntityKind, id: string, cascade: boolean, d: 
   if (cascade) {
     return {
       items: items.filter((t) => !taskIds.has(t.id)),
-      epics: epics.filter((e) => !epicIds.has(e.id)),
       objectifs: objectifs.filter((o) => !objIds.has(o.id)),
       features: features.filter((f) => !featIds.has(f.id)),
       domaines,
       objectifsPI,
       ignorees: not('ignoree', d.ignorees ?? []),
+      ...liensLot4(kind, id, d, epics.filter((e) => !epicIds.has(e.id))),
       counts,
     };
   }
@@ -189,7 +192,21 @@ export function planDeletion(kind: EntityKind, id: string, cascade: boolean, d: 
     epics = epics.map(clear);
     items = items.map(clear);
   }
-  return { items, epics, objectifs, domaines, features, objectifsPI, ignorees: not('ignoree', d.ignorees ?? []), counts };
+  return { items, objectifs, domaines, features, objectifsPI, ignorees: not('ignoree', d.ignorees ?? []), ...liensLot4(kind, id, d, epics), counts };
+}
+
+/** Lot 4 : un OKR, un value stream ou une epic supprimé disparaît des listes de liens ; un OKR emporte ses résultats clés */
+function liensLot4(kind: EntityKind, id: string, d: Data, epics: Epic[]): Pick<Data, 'epics' | 'valueStreams' | 'resultats'> {
+  const retirer = (v: string | undefined) => joindreIds(idsDe(v).filter((x) => x !== id));
+  let vs = (d.valueStreams ?? []).filter((x) => !(kind === 'valuestream' && x.id === id));
+  let res = (d.resultats ?? []).filter((x) => !(kind === 'resultat' && x.id === id));
+  if (kind === 'objectif') {
+    vs = vs.map((x) => (idsDe(x.okrs).includes(id) ? { ...x, okrs: retirer(x.okrs) } : x));
+    epics = epics.map((e) => (idsDe(e.okrs).includes(id) ? { ...e, okrs: retirer(e.okrs) } : e));
+    res = res.filter((r) => r.objectif !== id);
+  }
+  if (kind === 'valuestream') epics = epics.map((e) => (idsDe(e.value_streams).includes(id) ? { ...e, value_streams: retirer(e.value_streams) } : e));
+  return { epics, valueStreams: vs, resultats: res };
 }
 
 /** Tâches d'une epic : directes et celles de ses features. */

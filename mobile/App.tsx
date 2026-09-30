@@ -109,6 +109,8 @@ import {
   RECURRENCE_DEFAUTS,
   Objectif,
   ObjectifPI,
+  ResultatCle,
+  ValueStream,
   Settings,
   Statut,
   TYPE_LABELS,
@@ -203,8 +205,10 @@ type Hier = {
   features: Feature[];
   objectifsPI: ObjectifPI[];
   ignorees: Ignoree[];
+  valueStreams: ValueStream[];
+  resultats: ResultatCle[];
 };
-const EMPTY_HIER: Hier = { epics: [], objectifs: [], domaines: [], features: [], objectifsPI: [], ignorees: [] };
+const EMPTY_HIER: Hier = { epics: [], objectifs: [], domaines: [], features: [], objectifsPI: [], ignorees: [], valueStreams: [], resultats: [] };
 
 /** Nouvelle sous-tâche : rangement du parent ; sans date, elle prend l'itération du parent. */
 const subtaskInput = (parent: Item, titre: string): ItemInput => ({
@@ -281,15 +285,17 @@ function Main() {
       domaines: tousHier.domaines.filter(dansVisibles),
       features: tousHier.features.filter(dansVisibles),
       objectifsPI: tousHier.objectifsPI.filter(dansVisibles),
+      valueStreams: (tousHier.valueStreams ?? []).filter(dansVisibles),
+      resultats: (tousHier.resultats ?? []).filter(dansVisibles),
       // Les alertes ignorées sont personnelles (espace Moi) : toujours toutes
       ignorees: tousHier.ignorees,
     }),
     [tousHier, dansVisibles],
   );
-  const { epics, objectifs, domaines, features, objectifsPI } = hier;
+  const { epics, objectifs, domaines, features, objectifsPI, valueStreams, resultats } = hier;
   const hv = useMemo(
-    () => makeHierarchyValue(epics, objectifs, domaines, items, features, objectifsPI),
-    [epics, objectifs, domaines, items, features, objectifsPI],
+    () => makeHierarchyValue(epics, objectifs, domaines, items, features, objectifsPI, valueStreams, resultats),
+    [epics, objectifs, domaines, items, features, objectifsPI, valueStreams, resultats],
   );
   /** Organisation des entreprises connues (vue Entreprise et vue Delivery SAFe), et celle des entreprises affichées */
   const [orgTous, setOrgTous] = useState<Org>(ORG_VIDE);
@@ -358,6 +364,8 @@ function Main() {
         domaines: [...prev.domaines.filter(garde), ...next.domaines],
         features: [...prev.features.filter(garde), ...next.features],
         objectifsPI: [...prev.objectifsPI.filter(garde), ...next.objectifsPI],
+        valueStreams: [...(prev.valueStreams ?? []).filter(garde), ...(next.valueStreams ?? [])],
+        resultats: [...(prev.resultats ?? []).filter(garde), ...(next.resultats ?? [])],
         ignorees: next.ignorees,
       };
       saveHierarchyCache(all).catch(() => {});
@@ -664,8 +672,8 @@ function Main() {
         const chargés = new Set(ok.map((o) => o.id));
         const garde = (x: { espace?: string }) => !chargés.has(x.espace || 'moi');
         const list = [...tousItemsRef.current.filter(garde), ...ok.flatMap((o) => o.d.items)];
-        const cat = <K extends keyof Omit<Hier, 'ignorees'>>(k: K) => [...(tousHierRef.current[k] as { espace?: string }[]).filter(garde), ...ok.flatMap((o) => o.d[k] as { espace?: string }[])] as Hier[K];
-        const rest: Omit<Hier, 'ignorees'> = { epics: cat('epics'), objectifs: cat('objectifs'), domaines: cat('domaines'), features: cat('features'), objectifsPI: cat('objectifsPI') };
+        const cat = <K extends keyof Omit<Hier, 'ignorees'>>(k: K) => [...((tousHierRef.current[k] ?? []) as { espace?: string }[]).filter(garde), ...ok.flatMap((o) => (o.d[k] ?? []) as { espace?: string }[])] as Hier[K];
+        const rest: Omit<Hier, 'ignorees'> = { epics: cat('epics'), objectifs: cat('objectifs'), domaines: cat('domaines'), features: cat('features'), objectifsPI: cat('objectifsPI'), valueStreams: cat('valueStreams'), resultats: cat('resultats') };
         // Domaines de base de Moi (Pro › Projets, Travail ; Perso › Santé ; Famille ; Loisirs) : ceux qui manquent
         // sont ajoutés au démarrage, une fois par fichier et par version de la liste (un domaine supprimé ensuite ne revient pas)
         const fichierMoi = espacesRef.current[0]?.fichier;
@@ -696,7 +704,7 @@ function Main() {
         // Nettoyage : une alerte ignorée dont la situation n'existe plus est effacée du Google Sheet
         // (si le même problème revient un jour, il sera de nouveau signalé). Seulement sur des données fraîches.
         if (ignorees.length && !echecs.length) {
-          const hvFrais = makeHierarchyValue(rest.epics, rest.objectifs, rest.domaines, list, rest.features, rest.objectifsPI);
+          const hvFrais = makeHierarchyValue(rest.epics, rest.objectifs, rest.domaines, list, rest.features, rest.objectifsPI, rest.valueStreams, rest.resultats);
           const existantes = signaturesExistantes(hvFrais, toDateString(new Date()), (e) => capaciteDe(capaciteRef.current, e), joursRef.current);
           const perimees = ignorees.filter((i) => !existantes.has(`${i.cle}\u0000${i.signature}`));
           for (const i of perimees) {
@@ -756,7 +764,7 @@ function Main() {
       }
       if (s) {
         const h = { ...EMPTY_HIER, ...cachedHier } as Hier;
-        for (const l of [h.epics, h.objectifs, h.domaines, h.features, h.objectifsPI]) api.retenirEspaces(l);
+        for (const l of [h.epics, h.objectifs, h.domaines, h.features, h.objectifsPI, h.valueStreams ?? [], h.resultats ?? []]) api.retenirEspaces(l);
         setHier(h);
         try {
           const o = { ...ORG_VIDE, ...JSON.parse((await AsyncStorage.getItem(ORG_CACHE_KEY)) ?? '{}') } as Org;
@@ -1264,6 +1272,8 @@ function Main() {
     feature: 'features',
     objectifpi: 'objectifsPI',
     ignoree: 'ignorees',
+    valuestream: 'valueStreams',
+    resultat: 'resultats',
   } as const satisfies Record<EntityKind, keyof Hier>;
 
   /** Crée (editing = null) ou met à jour un domaine / objectif / epic. */
@@ -1641,6 +1651,8 @@ function Main() {
       domaines: prev.domaines.filter(autre),
       features: prev.features.filter(autre),
       objectifsPI: prev.objectifsPI.filter(autre),
+      valueStreams: (prev.valueStreams ?? []).filter(autre),
+      resultats: (prev.resultats ?? []).filter(autre),
       ignorees: prev.ignorees,
     }));
   };

@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 import { buildHierarchy, Data, Hierarchy } from './hierarchy';
-import type { Domaine, Epic, Feature, Item, Objectif, ObjectifPI } from './types';
+import type { Domaine, Epic, Feature, Item, Objectif, ObjectifPI, ResultatCle, ValueStream } from './types';
 
 export interface HierarchyValue extends Hierarchy {
   /** Listes triées pour les choix (epics / objectifs par date de début, domaines par nom) */
@@ -9,6 +9,9 @@ export interface HierarchyValue extends Hierarchy {
   domaineList: Domaine[];
   featureList: Feature[];
   objectifsPI: ObjectifPI[];
+  /** Lot 4 : value streams et résultats clés des OKR */
+  valueStreams: ValueStream[];
+  resultats: ResultatCle[];
   items: Item[];
   /** Toutes les données, pour les calculs (suppression, avancement…) */
   data: Data;
@@ -21,12 +24,16 @@ export function makeHierarchyValue(
   items: Item[],
   features: Feature[] = [],
   objectifsPI: ObjectifPI[] = [],
+  valueStreams: ValueStream[] = [],
+  resultats: ResultatCle[] = [],
 ): HierarchyValue {
   return {
     ...buildHierarchy(epics, objectifs, domaines, features),
     featureList: [...features].sort((a, b) => a.titre.localeCompare(b.titre)),
     objectifsPI,
-    data: { items, epics, objectifs, domaines, features, objectifsPI },
+    valueStreams: [...valueStreams].sort((a, b) => a.nom.localeCompare(b.nom)),
+    resultats,
+    data: { items, epics, objectifs, domaines, features, objectifsPI, valueStreams, resultats },
     epicList: [...epics].sort((a, b) => a.debut.localeCompare(b.debut)),
     objectifList: [...objectifs].sort((a, b) => a.debut.localeCompare(b.debut)),
     domaineList: ordreDomaines(domaines),
@@ -68,6 +75,8 @@ export function filtrerEspace(h: HierarchyValue, espace: string): HierarchyValue
     d.items.filter(dans),
     (d.features ?? []).filter(dans),
     (d.objectifsPI ?? []).filter(dans),
+    (d.valueStreams ?? []).filter(dans),
+    (d.resultats ?? []).filter(dans),
   );
 }
 

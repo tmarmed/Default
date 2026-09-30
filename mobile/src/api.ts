@@ -13,6 +13,8 @@ import {
   ItemInput,
   Objectif,
   ObjectifPI,
+  ResultatCle,
+  ValueStream,
   RECURRENCE_DEFAUTS,
   Settings,
 } from './types';
@@ -80,7 +82,7 @@ export const API_VERSION_SUPPR_SOUS_DOMAINES = 16;
 
 const normalizeDomaine = (d: Domaine): Domaine => ({ ...d, parent: d.parent ?? '' });
 
-const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '', etat: e.etat ?? '', portfolio: e.portfolio ?? '' });
+const normalizeEpic = (e: Epic): Epic => ({ ...e, objectif: e.objectif ?? '', domaine: e.domaine ?? '', etat: e.etat ?? '', portfolio: e.portfolio ?? '', value_streams: e.value_streams ?? '', okrs: e.okrs ?? '' });
 const normalizeFeature = (f: Feature): Feature => ({ ...f, train: f.train ?? '', equipe: f.equipe ?? '' });
 
 /** Charge un espace (par défaut : Moi) ; chaque élément est marqué de son espace. */
@@ -96,11 +98,13 @@ export async function listItems(settings: Settings, espace = 'moi'): Promise<Dat
     features: m(all.features.map(normalizeFeature)),
     objectifsPI: m(all.objectifsPI.map((o) => ({ ...o, domaine: o.domaine ?? '', epic: o.epic ?? '' }))),
     ignorees: m(all.ignorees ?? []),
+    valueStreams: m(all.valueStreams ?? []),
+    resultats: m(all.resultats ?? []),
     version: API_VERSION_SUPPR_SOUS_DOMAINES,
   };
 }
 
-type EntityMap = { epic: Epic; objectif: Objectif; domaine: Domaine; feature: Feature; objectifpi: ObjectifPI; ignoree: Ignoree };
+type EntityMap = { epic: Epic; objectif: Objectif; domaine: Domaine; feature: Feature; objectifpi: ObjectifPI; ignoree: Ignoree; valuestream: ValueStream; resultat: ResultatCle };
 
 export async function createEntity<K extends EntityKind>(
   settings: Settings,

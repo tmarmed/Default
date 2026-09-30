@@ -165,6 +165,10 @@ export interface Epic {
   etat: EtatEpic | '';
   /** Entreprise (delivery SAFe) : portfolio qui porte l'epic (id de l'Organisation) */
   portfolio?: string;
+  /** SAFe (lot 4) : value streams de l'epic (ids séparés par « ; ») */
+  value_streams?: string;
+  /** SAFe (lot 4) : OKR liés directement (seulement pour une epic sans value stream ; ids séparés par « ; ») */
+  okrs?: string;
 }
 
 export type EtatEpic = 'idee' | 'analyse' | 'pret' | 'en_cours' | 'termine';
@@ -284,7 +288,47 @@ export const DOMAINES_DE_BASE: ModeleDomaine[] = [
 
 export type DomaineInput = Omit<Domaine, 'id' | 'cree_le' | 'modifie_le'>;
 
-export type EntityKind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'ignoree';
+export type EntityKind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'ignoree' | 'valuestream' | 'resultat';
+
+/** SAFe (lot 4) : flux de valeur d'un portfolio (opérationnel : comment la valeur arrive au client ; développement : les systèmes qui le soutiennent). */
+export type TypeValueStream = 'operationnel' | 'developpement';
+export interface ValueStream {
+  /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
+  espace?: string;
+  id: string;
+  nom: string;
+  type: TypeValueStream;
+  description: string;
+  /** Portfolio (id de l'Organisation) */
+  portfolio: string;
+  /** Trains qui servent ce value stream (ids séparés par « ; ») ; ses features en découlent (pas de lien direct) */
+  trains: string;
+  /** OKR liés (ids d'objectifs séparés par « ; ») */
+  okrs: string;
+  cree_le: string;
+  modifie_le: string;
+}
+export type ValueStreamInput = Omit<ValueStream, 'id' | 'cree_le' | 'modifie_le'>;
+
+/** SAFe (lot 4) : résultat clé mesurable d'un OKR (l'objectif), « actuel → cible ». */
+export interface ResultatCle {
+  /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
+  espace?: string;
+  id: string;
+  /** OKR (id de l'objectif) */
+  objectif: string;
+  titre: string;
+  actuel: string;
+  cible: string;
+  unite: string;
+  cree_le: string;
+  modifie_le: string;
+}
+export type ResultatCleInput = Omit<ResultatCle, 'id' | 'cree_le' | 'modifie_le'>;
+
+/** Liste d'ids « a;b;c » ↔ tableau */
+export const idsDe = (v: string | undefined) => (v ? v.split(';').filter(Boolean) : []);
+export const joindreIds = (l: string[]) => [...new Set(l)].join(';');
 
 /** Alerte ignorée : sa clé, et la situation (son message) au moment où on l'a ignorée. */
 export interface Ignoree {

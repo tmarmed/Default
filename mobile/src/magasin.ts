@@ -2,7 +2,7 @@ import { toDateString } from './dates';
 import { cleanLinks, type Data, type DeletionCounts, planDeletion } from './hierarchy';
 import { aPurger } from './stockage';
 import { cascadeLinks, checkParent } from './subtasks';
-import type { Domaine, Epic, Feature, Ignoree, Item, ItemInput, Objectif, ObjectifPI } from './types';
+import type { Domaine, Epic, Feature, Ignoree, Item, ItemInput, Objectif, ObjectifPI, ResultatCle, ValueStream } from './types';
 import { CLE_ORG, type EntiteOrg, type KindOrg, membresDe, type Org } from './organisation';
 
 /**
@@ -11,7 +11,7 @@ import { CLE_ORG, type EntiteOrg, type KindOrg, membresDe, type Org } from './or
  * sous-tâches, rattachements, suppression en cascade.
  */
 
-export type Kind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'ignoree';
+export type Kind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'ignoree' | 'valuestream' | 'resultat';
 /** Tables de base (tous les espaces) */
 export type TableBase = 'items' | Kind;
 /** Tables de l'Organisation (seulement dans le Google Sheet d'une entreprise, onglets créés au premier usage) */
@@ -26,7 +26,11 @@ export type EntityOf<K extends Kind> = K extends 'epic'
         ? Feature
         : K extends 'objectifpi'
           ? ObjectifPI
-          : Ignoree;
+          : K extends 'valuestream'
+            ? ValueStream
+            : K extends 'resultat'
+              ? ResultatCle
+              : Ignoree;
 type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : never;
 
 /** Onglets du Google Sheet d'un espace et leurs colonnes (mêmes noms que l'ancien script : fichiers compatibles) */
@@ -39,12 +43,14 @@ export const ONGLETS: Record<TableBase, { nom: string; colonnes: string[] }> = {
       'telephone', 'parent', 'heure_fin', 'date_fin', 'termine_le', 'statut_avant', 'equipe', 'responsable',
     ],
   },
-  epic: { nom: 'Epics', colonnes: ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le', 'objectif', 'domaine', 'etat', 'portfolio'] },
+  epic: { nom: 'Epics', colonnes: ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le', 'objectif', 'domaine', 'etat', 'portfolio', 'value_streams', 'okrs'] },
   feature: { nom: 'Features', colonnes: ['id', 'titre', 'description', 'epic', 'pi', 'iteration', 'points', 'couleur', 'cree_le', 'modifie_le', 'train', 'equipe'] },
   objectifpi: { nom: 'ObjectifsPI', colonnes: ['id', 'titre', 'pi', 'type', 'valeur_prevue', 'valeur_obtenue', 'cree_le', 'modifie_le', 'domaine', 'epic'] },
   objectif: { nom: 'Objectifs', colonnes: ['id', 'titre', 'description', 'domaine', 'debut', 'fin', 'couleur', 'cible', 'actuel', 'unite', 'cree_le', 'modifie_le'] },
   domaine: { nom: 'Domaines', colonnes: ['id', 'nom', 'icone', 'couleur', 'cree_le', 'modifie_le', 'parent'] },
   ignoree: { nom: 'Ignorees', colonnes: ['id', 'cle', 'signature', 'cree_le', 'modifie_le'] },
+  valuestream: { nom: 'ValueStreams', colonnes: ['id', 'nom', 'type', 'description', 'portfolio', 'trains', 'okrs', 'cree_le', 'modifie_le'] },
+  resultat: { nom: 'ResultatsCles', colonnes: ['id', 'objectif', 'titre', 'actuel', 'cible', 'unite', 'cree_le', 'modifie_le'] },
 };
 export const TABLES = Object.keys(ONGLETS) as TableBase[];
 
@@ -156,6 +162,19 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
     if (!out.cle.trim()) throw new Error("La clé de l'alerte est obligatoire.");
     out.cle = out.cle.slice(0, 300);
     out.signature = out.signature.slice(0, 2000);
+  } else if (kind === 'valuestream') {
+    out.nom = out.nom.trim();
+    if (!out.nom) throw new Error('Le nom du value stream est obligatoire.');
+    if (out.type !== 'developpement') out.type = 'operationnel';
+    for (const k of ['trains', 'okrs']) if (!/^[0-9A-Za-z;-]*$/.test(out[k])) throw new Error(`Liste « ${k} » invalide.`);
+  } else if (kind === 'resultat') {
+    if (!out.titre.trim()) throw new Error('Le titre du résultat clé est obligatoire.');
+    if (!out.objectif || !RE_ID.test(out.objectif)) throw new Error('Résultat clé : OKR manquant.');
+    for (const k of ['cible', 'actuel']) {
+      if (out[k] && !/^-?\d+([.,]\d+)?$/.test(out[k])) throw new Error(`Résultat clé : « ${k} » doit être un nombre.`);
+      out[k] = out[k].replace(',', '.');
+    }
+    out.unite = out.unite.slice(0, 30);
   } else if (kind === 'objectifpi') {
     if (!out.titre.trim()) throw new Error('Le titre est obligatoire.');
     if (!RE_PI.test(out.pi)) throw new Error('PI invalide (ex. 2026-T4).');
@@ -177,6 +196,7 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
     out.unite = out.unite.slice(0, 30);
   }
   if (kind === 'epic' && !ETATS_EPIC.includes(out.etat)) out.etat = '';
+  if (kind === 'epic') for (const k of ['value_streams', 'okrs']) if (!/^[0-9A-Za-z;-]*$/.test(out[k])) throw new Error(`Liste « ${k} » invalide.`);
   if (out.couleur !== undefined && out.couleur !== '' && !/^#[0-9A-Fa-f]{6}$/.test(out.couleur)) out.couleur = '#1A73E8';
   verifierLiens(out);
   return cleanLinks(out) as unknown as EntityOf<K>;
@@ -260,15 +280,17 @@ export function creerMagasin(p: Persistance) {
       return parties;
     },
     async listAll(): Promise<Omit<Data, 'items'>> {
-      const [epics, objectifs, domaines, features, objectifsPI, ignorees] = await Promise.all([
+      const [epics, objectifs, domaines, features, objectifsPI, ignorees, valueStreams, resultats] = await Promise.all([
         p.lire('epic'),
         p.lire('objectif'),
         p.lire('domaine'),
         p.lire('feature'),
         p.lire('objectifpi'),
         p.lire('ignoree'),
+        p.lire('valuestream'),
+        p.lire('resultat'),
       ]);
-      return { epics, objectifs, domaines, features, objectifsPI, ignorees };
+      return { epics, objectifs, domaines, features, objectifsPI, ignorees, valueStreams, resultats };
     },
     async createEntity<K extends Kind>(kind: K, input: Omit<EntityOf<K>, 'id' | 'cree_le' | 'modifie_le'>): Promise<EntityOf<K>> {
       const list = await p.lire(kind);
@@ -362,6 +384,8 @@ export function creerMagasin(p: Persistance) {
         ['feature', all.features, r.features],
         ['objectifpi', all.objectifsPI, r.objectifsPI],
         ['ignoree', all.ignorees ?? [], r.ignorees ?? []],
+        ['valuestream', all.valueStreams ?? [], r.valueStreams ?? []],
+        ['resultat', all.resultats ?? [], r.resultats ?? []],
       ];
       await Promise.all(pairs.filter(([, a, b]) => JSON.stringify(a) !== JSON.stringify(b)).map(([t, , b]) => p.ecrire(t, b as never)));
       return r.counts;

@@ -104,7 +104,7 @@ const ok = (cond: unknown, msg: string) => {
   const id = await creerFichierEspace('Mes tâches | Moi', 'moi', 'Moi');
   const trouves = (await fichiersEspaces()).espaces;
   ok(trouves.length === 1 && trouves[0].type === 'moi' && trouves[0].nom === 'Mes tâches | Moi', 'fichier de Moi créé avec son nom, retrouvé par ses propriétés');
-  ok([...fichiers.get(id)!.feuilles.keys()].join(',') === 'Taches,Epics,Features,ObjectifsPI,Objectifs,Domaines,Ignorees', 'onglets créés (la feuille par défaut devient « Taches »)');
+  ok([...fichiers.get(id)!.feuilles.keys()].join(',') === 'Taches,Epics,Features,ObjectifsPI,Objectifs,Domaines,Ignorees,ValueStreams,ResultatsCles', 'onglets créés (la feuille par défaut devient « Taches »)');
   const m = magasinSheets(id);
 
   const perso = await m.createEntity('domaine', { nom: 'Perso', icone: '🏠', couleur: '#188038', parent: '' });

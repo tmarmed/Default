@@ -3,7 +3,7 @@ import { addDays, toDateString } from './dates';
 import { iterationOf, piOf, shiftPi } from './pi';
 import { creerMagasin, type Kind, type Persistance, type Table, TABLES, TABLES_ORG } from './magasin';
 import { CLE_ORG, type KindOrg, type Org } from './organisation';
-import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI } from './types';
+import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI, type ResultatCle, type ValueStream } from './types';
 
 /**
  * Mode démo (EXPO_PUBLIC_DEMO=1) : données d'exemple enregistrées sur l'appareil,
@@ -145,6 +145,8 @@ function sampleEntities(): {
   feature: Feature[];
   objectifpi: ObjectifPI[];
   ignoree: Ignoree[];
+  valuestream: ValueStream[];
+  resultat: ResultatCle[];
 } {
   const now = new Date();
   const m = (months: number, day = 1) => toDateString(new Date(now.getFullYear(), now.getMonth() + months, day));
@@ -206,6 +208,8 @@ function sampleEntities(): {
       opi('p6', 'Déclaration de TVA sans retard', pi2, 'engage', '6', '', 'dperso'),
     ],
     ignoree: [],
+    valuestream: [],
+    resultat: [],
   };
 }
 
@@ -257,7 +261,7 @@ function creerStore(espace: string, seeds: Seeds) {
 // ---------------------------------------------------------------------------
 // Exemples des autres espaces de la démo : une équipe « Mobile », une entreprise « ACME »
 // ---------------------------------------------------------------------------
-const vide = () => ({ epic: [], objectif: [], domaine: [], feature: [], objectifpi: [], ignoree: [] }) as ReturnType<typeof sampleEntities>;
+const vide = () => ({ epic: [], objectif: [], domaine: [], feature: [], objectifpi: [], ignoree: [], valuestream: [], resultat: [] }) as ReturnType<typeof sampleEntities>;
 const exemple = (prefix: string, liste: [string, Item['type'], number, Partial<Item>][]): Item[] => {
   const now = new Date();
   const stamp = now.toISOString();
@@ -317,6 +321,18 @@ const SEEDS_ENTREPRISE: Seeds = {
       { id: 'acmf2', titre: 'Compte client mobile', description: '', epic: 'acme2', pi: piOf(now), iteration: '', points: '8', couleur: '', train: 'acmtr1', equipe: 'acmeqmob', ...base },
       { id: 'acmf3', titre: 'Nouveau site vitrine', description: '', epic: 'acme2', pi: piOf(now), iteration: '', points: '5', couleur: '', train: 'acmtr1', equipe: 'acmeqweb', ...base },
     ];
+    // Lot 4 : OKR, résultats clés et value streams d'ACME
+    e.objectif.push({ id: 'acmo2', titre: 'Réduire les coûts d’exploitation', domaine: 'acmdpro', debut: m(-1), fin: m(11), couleur: '#E37400', description: '', cible: '', actuel: '', unite: '', ...base });
+    e.resultat = [
+      { id: 'acmr1', objectif: 'acmo1', titre: 'Clients fidèles', actuel: '82', cible: '90', unite: '%', ...base },
+      { id: 'acmr2', objectif: 'acmo1', titre: 'Note de l’application', actuel: '4.1', cible: '4.5', unite: '/ 5', ...base },
+      { id: 'acmr3', objectif: 'acmo2', titre: 'Coût par commande', actuel: '12', cible: '8', unite: '€', ...base },
+    ];
+    e.valuestream = [
+      { id: 'acmvs1', nom: 'Parcours client en ligne', type: 'operationnel', description: '', portfolio: 'acmpf1', trains: 'acmtr1', okrs: 'acmo1', ...base },
+      { id: 'acmvs2', nom: 'Plateforme de paiement', type: 'developpement', description: '', portfolio: 'acmpf1', trains: '', okrs: 'acmo1;acmo2', ...base },
+    ];
+    e.epic = e.epic.map((x) => (x.id === 'acme2' ? { ...x, value_streams: 'acmvs1', objectif: '' } : x.id === 'acme1' ? { ...x, okrs: 'acmo1', value_streams: '', objectif: '' } : x));
     return e;
   },
   // Organisation d'ACME : hiérarchie (directions, services) et delivery SAFe (portfolio › train › équipes)
