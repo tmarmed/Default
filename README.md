@@ -64,7 +64,8 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   case à cocher pour terminer une tâche, titre, détail gris (date, « En cours », sous-tâches, estimation), « › ».
   **Arbre de l'Organisation** : le même ＋ rond et le même menu — unité : nouvelle personne, nouvelle sous-unité,
   choisir des personnes, choisir des unités (ni elle-même ni celles au-dessus) ; portfolio : train ; train : équipe ;
-  sans bouton Enregistrer, le choix s'applique tout de suite, surligné, avec « Annuler » dans un bandeau.
+  sans bouton Enregistrer, le choix s'applique tout de suite, surligné, avec « Annuler » dans un bandeau qui
+  disparaît tout seul après 6 s ou dès qu'on touche ailleurs (comme les messages d'information).
   Feuilles de tâches (tâche parente, choisir des sous-tâches) : par feature (sinon epic), celles de la même feature
   d'abord, les autres repliées. « Sans … » : le même libellé que la valeur vide (« Aucune (tâche principale) »).
 - **Toutes les feuilles** (choix, menus du ＋, confirmations) : « Annuler » en haut, titre centré, des lignes.
@@ -72,7 +73,8 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   (type, répétition, jour, mois, état d'une epic, valeurs d'un objectif du PI). **Champs en sections à carte
   blanche**, même ordre partout : Élément, Quand (répétition, date, heure), Rattachement, Delivery, Planification
   (itération, estimation), sous-éléments, Suivi, Détails (lieu, notes, couleur, description). « Estimation »
-  partout, l'unité dans la valeur (« 3 j », « 5 pts ») ; saisies rapides « ＋ Nouvelle … » avec « Entrée pour ajouter ».
+  partout, l'unité dans la valeur : en jours en mode Simple (« 3 j »), en points en SAFe (« 5 pts »), partout
+  (fiches, listes, alertes, capacité) ; saisies rapides « ＋ Nouvelle … » avec « Entrée pour ajouter ».
 - **Messages** : une valeur calculée s'affiche en gris sans alerte (estimation « 5 j d'après les sous-tâches ») ; un
   écart ou une question est une alerte jaune à deux boutons — estimation ≠ total des sous-tâches (ou des tâches d'une
   feature) : « Passer à 5 j » / « Garder 3 j » (garder = ignorer jusqu'à ce que les chiffres changent, dans la fiche
