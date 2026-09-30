@@ -591,7 +591,7 @@ export function OrgForm({
           )}
           {!entite && (
             <SectionFiche titre="Données">
-              <ChampFiche label="Accès" sous="Prêt dès l'enregistrement de l'équipe.">
+              <ChampFiche label="Accès">
                 <Text style={s.gris}>Selon le rôle de chacun</Text>
               </ChampFiche>
             </SectionFiche>
