@@ -1943,6 +1943,22 @@ function Main() {
     <View style={styles.flex}>
       {/* Barre fixe : nom de l'application et compte (en démo : même icône, menu « Réinitialiser la démo ») */}
       <View style={styles.appBar}>
+        {/* Interrupteur Démo, devant « President » : désactivé par défaut (vos données) ; activé = données d'exemple */}
+        {DEMO_BASCULABLE && (
+          <Pressable
+            onPress={() => changerModeDemo(!DEMO)}
+            style={[styles.demoBascule, DEMO && styles.demoBasculeOn]}
+            hitSlop={6}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: DEMO }}
+            accessibilityLabel="Mode démo"
+          >
+            <Text style={[styles.demoBasculeTexte, DEMO && styles.demoBasculeTexteOn]}>Démo</Text>
+            <View style={[styles.demoPiste, DEMO && styles.demoPisteOn]}>
+              <View style={[styles.demoBouton, DEMO && styles.demoBoutonOn]} />
+            </View>
+          </Pressable>
+        )}
         <Text style={styles.marque} numberOfLines={1}>
           {NOM_APP}
         </Text>
@@ -3149,6 +3165,14 @@ const styles = StyleSheet.create({
   contenu: { flex: 1, minHeight: 0 },
   filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   appBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 14, paddingTop: 10, height: 50 },
+  demoBascule: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 26, paddingLeft: 8, paddingRight: 4, borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, marginRight: 8 },
+  demoBasculeOn: { borderColor: colors.warning, backgroundColor: '#FFF4E5' },
+  demoBasculeTexte: { fontSize: 11.5, fontWeight: '700', color: colors.muted },
+  demoBasculeTexteOn: { color: '#B45309' },
+  demoPiste: { width: 26, height: 16, borderRadius: 8, backgroundColor: '#D5DBE4', padding: 2 },
+  demoPisteOn: { backgroundColor: colors.warning },
+  demoBouton: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#fff' },
+  demoBoutonOn: { transform: [{ translateX: 10 }] },
   marque: { fontSize: 15, fontWeight: '800', color: colors.text, letterSpacing: 0.2, marginRight: 8 },
   demoBtn: { paddingVertical: 4 },
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
