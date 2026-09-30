@@ -258,6 +258,8 @@ export function Progress({ ratio, color }: { ratio: number; color: string }) {
 }
 
 export const formStyles = StyleSheet.create({
+  /** Ligne « Aucun … pour l'instant » dans une carte de section */
+  videCarte: { paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: colors.muted },
   row: { flexDirection: 'row', gap: 8 },
   // minWidth 0 : sinon un champ texte garde sa largeur naturelle et déborde
   flex: { flex: 1, minWidth: 0 },

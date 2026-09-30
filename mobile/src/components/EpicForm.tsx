@@ -16,20 +16,21 @@ import { addMonths, toDateString } from '../dates';
 import { childrenOf, describeCounts, tasksOfEpic } from '../hierarchy';
 import { formatEpicDates, progress } from '../roadmap';
 import { colors } from '../theme';
-import { Epic, EPIC_COULEURS, EpicInput, Feature, Item } from '../types';
+import { Epic, EPIC_COULEURS, EpicInput, Feature, idsDe, Item, joindreIds } from '../types';
 import { etatEpic, useSafe } from '../safe';
 import { ETATS_EPIC } from '../types';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
 import { AutoContext, BandeauAnnuler, decrireChangement, useEnregistrementAuto } from './EnregistrementAuto';
-import { TitreBarre, TitreFiche, BoutonRetour, ChildActions, CheminPile, type Injection, type PileProps } from './FormSheet';
+import { TitreBarre, TitreFiche, BoutonRetour, ChildActions, CheminPile, formStyles as f, type Injection, type PileProps } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
 import { LiaisonOrg } from './LiaisonOrg';
 import { filTravail, metaTache } from '../choixTravail';
 import { ChoiceSheet } from './ChoiceSheet';
-import { ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, ListeEnfants, SaisieFiche, SectionFiche } from './Choix';
+import { ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, LigneMulti, ListeEnfants, SaisieFiche, SectionFiche } from './Choix';
+import { okrsParValueStreams } from '../strategie';
 
 interface Props {
   visible: boolean;
@@ -128,6 +129,8 @@ export function EpicForm({
               objectif: epic.objectif,
               domaine: epic.domaine,
               portfolio: epic.portfolio ?? '',
+              value_streams: epic.value_streams ?? '',
+              okrs: epic.okrs ?? '',
               // État enregistré seulement s'il a été choisi à la main (vide = déduit des dates)
               etat: epic.etat,
             }
@@ -142,6 +145,12 @@ export function EpicForm({
   }, [visible, epic?.id]);
 
   const set = <K extends keyof EpicInput>(key: K, value: EpicInput[K]) => setForm((f) => ({ ...f, [key]: value }));
+  /** SAFe (lot 4) : OKR directs (epic sans value stream) et OKR reçus par ses value streams (repliés) */
+  const [choixOkr, setChoixOkr] = useState(false);
+  const [okrVsOuverts, setOkrVsOuverts] = useState(false);
+  const okrsDirects = idsDe(form.value_streams).length ? [] : [...new Set([...idsDe(form.okrs), ...(form.objectif ? [form.objectif] : [])])];
+  const okrsVus = okrsDirects.map((id) => h.objectifs.get(id)).filter((o): o is NonNullable<typeof o> => !!o);
+  const okrsVs = okrsParValueStreams({ ...(form as Epic), id: epic?.id ?? '' }, h.valueStreams).map((id) => h.objectifs.get(id)).filter((o): o is NonNullable<typeof o> => !!o);
   const tasks = epic ? tasksOfEpic(epic.id, items, h.featureList) : [];
   const kids = epic ? childrenOf('epic', epic.id, h.data) : null;
   // Tâches qu'on peut ranger dans l'epic : ni répétées, ni terminées, ni sous-tâches, pas déjà dans l'epic
@@ -186,7 +195,7 @@ export function EpicForm({
   const formInitial = useMemo(
     () =>
       epic
-        ? { titre: epic.titre, description: epic.description, debut: epic.debut, fin: epic.fin, couleur: epic.couleur, objectif: epic.objectif, domaine: epic.domaine, portfolio: epic.portfolio ?? '', etat: epic.etat }
+        ? { titre: epic.titre, description: epic.description, debut: epic.debut, fin: epic.fin, couleur: epic.couleur, objectif: epic.objectif, domaine: epic.domaine, portfolio: epic.portfolio ?? '', value_streams: epic.value_streams ?? '', okrs: epic.okrs ?? '', etat: epic.etat }
         : form,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [epic?.id],
@@ -201,8 +210,8 @@ export function EpicForm({
     bloque: erreurForm,
     enregistrer: (f) => onSave({ ...f, espace, titre: f.titre.trim() }, true),
     decrire: (a, b) =>
-      decrireChangement(a, b, { titre: 'Titre', description: 'Description', debut: 'Début', fin: 'Fin', couleur: 'Couleur', objectif: 'Objectif', domaine: 'Domaine', portfolio: 'Portfolio', etat: 'État' }, (k, v) =>
-        k === 'objectif' ? (h.objectifs.get(v)?.titre ?? v) : k === 'domaine' ? (h.domaines.get(v)?.nom ?? v) : k === 'etat' ? (ETATS_EPIC.find((e) => e.value === v)?.label ?? v) : k === 'couleur' ? 'changée' : v,
+      decrireChangement(a, b, { titre: 'Titre', description: 'Description', debut: 'Début', fin: 'Fin', couleur: 'Couleur', objectif: 'Objectif', domaine: 'Domaine', portfolio: 'Portfolio', etat: 'État', value_streams: 'Value streams', okrs: 'OKR' }, (k, v) =>
+        k === 'value_streams' ? idsDe(v).map((id) => h.valueStreams.find((x) => x.id === id)?.nom ?? '').join(', ') || 'aucun' : k === 'okrs' ? idsDe(v).map((id) => h.objectifs.get(id)?.titre ?? '').join(', ') || 'aucun' : k === 'objectif' ? (h.objectifs.get(v)?.titre ?? v) : k === 'domaine' ? (h.domaines.get(v)?.nom ?? v) : k === 'etat' ? (ETATS_EPIC.find((e) => e.value === v)?.label ?? v) : k === 'couleur' ? 'changée' : v,
       ['titre', 'description']),
   });
   /** Epic existante : features ou tâches choisies, ajoutées tout de suite (bandeau « Annuler ») */
@@ -238,7 +247,8 @@ export function EpicForm({
   // Élément créé dans une fiche du dessus (« ＋ Nouvel objectif ») : choisi ici
   useEffect(() => {
     if (!injection) return;
-    if (injection.champ === 'objectif') setForm((x) => ({ ...x, objectif: injection.id, domaine: '' }));
+    // SAFe : l'OKR créé est lié à l'epic (plus de parent) ; sinon il devient son objectif
+    if (injection.champ === 'objectif') setForm((x) => (safe.actif ? { ...x, okrs: joindreIds([...idsDe(x.okrs), injection.id]) } : { ...x, objectif: injection.id, domaine: '' }));
     if (injection.champ === 'domaine') setForm((x) => ({ ...x, domaine: injection.id, objectif: '' }));
     if (injection.champ === 'portfolio') setForm((x) => ({ ...x, portfolio: injection.id }));
     // Epic existante : le prochain enregistrement annonce la création, et « Annuler » la défait aussi
@@ -336,12 +346,12 @@ export function EpicForm({
             />
 
             <LinkPicker
-              levels={['objectif', 'domaine']}
+              levels={safe.actif ? ['domaine'] : ['objectif', 'domaine']}
               value={form}
               onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
               onNouveau={onNouveau ? (n, d) => (n === 'objectif' || n === 'domaine') && onNouveau(n, d) : undefined}
               initial={epic ? { objectif: epic.objectif, domaine: epic.domaine } : undefined}
-              attendu={safe.actif ? ['objectif', 'domaine'] : undefined}
+              attendu={safe.actif ? ['domaine'] : undefined}
             />
 
             {safe.actif && (
@@ -354,6 +364,37 @@ export function EpicForm({
                 onNouveau={onNouveauOrg ? () => onNouveauOrg(espace) : undefined}
               />
             )}
+
+            {/* SAFe (lot 4) : value streams de l'epic ; ses OKR viennent de ses value streams, sinon liés directement */}
+            {safe.actif && (
+              <SectionFiche titre="Stratégie">
+                <LigneMulti
+                  label="Value streams"
+                  values={idsDe(form.value_streams)}
+                  onChange={(l) => set('value_streams', joindreIds(l))}
+                  groupes={[{ options: h.valueStreams.map((v) => ({ value: v.id, label: `🌊 ${v.nom}` })) }]}
+                  resume={(n) => `${n} value stream${n > 1 ? 's' : ''}`}
+                />
+              </SectionFiche>
+            )}
+            {safe.actif && (
+              <SectionFiche
+                titre={`OKR de l'epic · ${okrsVus.length}`}
+                onAjouter={!idsDe(form.value_streams).length ? () => setChoixOkr(true) : undefined}
+                ajouterLabel="Choisir des OKR"
+              >
+                {okrsVus.map((o) => (
+                  <LigneEnfant key={o.id} texte={`🎯 ${o.titre}`} />
+                ))}
+                {!okrsVus.length && <Text style={f.videCarte}>{idsDe(form.value_streams).length ? 'Ses value streams n’ont pas encore d’OKR.' : 'Aucun OKR pour l’instant.'}</Text>}
+              </SectionFiche>
+            )}
+            {safe.actif && !!idsDe(form.value_streams).length && (
+              <Pressable onPress={() => setOkrVsOuverts((x) => !x)} accessibilityRole="button">
+                <Text style={f.hint}>{okrVsOuverts ? '▾' : '▸'} OKR des value streams liés · {okrsVs.length}</Text>
+              </Pressable>
+            )}
+            {safe.actif && okrVsOuverts && !!idsDe(form.value_streams).length && okrsVs.map((o) => <Text key={o.id} style={f.hint}>  🎯 {o.titre}</Text>)}
 
             {/* Quand : dates ; État du portefeuille (5 choix → ligne de choix), déduit des dates s'il n'est pas choisi */}
             <SectionFiche titre="Quand">
@@ -472,6 +513,21 @@ export function EpicForm({
               ]}
               onClose={() => setMenuPlus(false)}
             />
+            {choixOkr && (
+          <FeuilleMulti
+            titre="Choisir des OKR"
+            groupes={[{ options: h.objectifList.filter((o) => !okrsDirects.includes(o.id)).map((o) => ({ value: o.id, label: `🎯 ${o.titre}` })) }]}
+            selection={[]}
+            nouveau={onNouveau ? { label: 'Nouvel OKR', onPress: () => { setChoixOkr(false); onNouveau('objectif'); } } : undefined}
+            vide="Aucun autre OKR."
+            libelleValider={(n) => (n ? `Ajouter ${n} OKR` : 'Ajouter')}
+            onValider={(l) => {
+              setChoixOkr(false);
+              if (l.length) setForm((x) => ({ ...x, okrs: joindreIds([...idsDe(x.okrs), ...l]) }));
+            }}
+            onFermer={() => setChoixOkr(false)}
+          />
+        )}
             {picking && (
               <FeuilleMulti
                 titre="Ajouter à l'epic"

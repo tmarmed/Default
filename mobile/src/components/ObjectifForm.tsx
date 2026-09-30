@@ -7,12 +7,15 @@ import { childrenOf, describeCounts, progressObjectif } from '../hierarchy';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
 import { formatEpicDates } from '../roadmap';
-import { EPIC_COULEURS, Epic, Objectif, ObjectifInput } from '../types';
+import { EPIC_COULEURS, Epic, idsDe, joindreIds, Objectif, ObjectifInput, type ResultatCle, type ValueStream } from '../types';
+import { useMoi } from '../droits';
+import { useOrg } from '../organisation';
+import { droitsStrategie, epicsDeValueStream, epicsDirectesDeOkr, resultatsDeOkr, sansValueStream, texteResultat, valueStreamsDeOkr } from '../strategie';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
-import { AlertList, ColorPicker, TitreFiche, FormSheet, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
+import { AlertList, BlocLecture, ColorPicker, TitreFiche, FormSheet, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
-import { ChampFiche, ListeEnfants, SaisieFiche, SectionFiche } from './Choix';
+import { ChampFiche, FeuilleMulti, LigneEnfant, ListeEnfants, SaisieFiche, SectionFiche } from './Choix';
 import { filTravail } from '../choixTravail';
 import { useSafe } from '../safe';
 
@@ -36,6 +39,13 @@ interface Props {
   onOpenWizard?: (o: Objectif) => void;
   /** Aligner un élément (epic, tâche) sur l'objectif */
   onAlign?: (a: Alignement) => void;
+  /** SAFe (lot 4) : l'objectif est l'OKR — résultats clés, value streams, epics liées directement */
+  onOpenResultat?: (r: ResultatCle) => void;
+  onNouveauResultat?: (o: Objectif) => void;
+  onOpenVs?: (v: ValueStream) => void;
+  onNouveauVs?: (o: Objectif) => void;
+  /** Liens OKR ↔ value streams (portés par le value stream) */
+  onLierVs?: (patchs: { id: string; okrs: string }[]) => Promise<void>;
 }
 
 const empty = (): ObjectifInput => {
@@ -56,7 +66,7 @@ const empty = (): ObjectifInput => {
 const number = (t: string) => t.replace(/[^0-9.,-]/g, '');
 
 /** Fiche d'un objectif : échéance (ou permanent), indicateur, epics, alertes. */
-export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onDeplacer, onOpenEpic, defaults, onAddEpic, onAlign, pile, injection, onNouveauDomaine }: Props) {
+export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onDeplacer, onOpenEpic, defaults, onAddEpic, onAlign, pile, injection, onNouveauDomaine, onOpenResultat, onNouveauResultat, onOpenVs, onNouveauVs, onLierVs }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, objectif, defaults);
   const espaceFil = useEspaceFil(espace);
@@ -66,6 +76,9 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
   /** Epics existantes rangées dans l'objectif : faites à l'enregistrement */
   const [ranger, setRanger] = useState<string[]>([]);
   const safe = useSafe();
+  const org = useOrg();
+  const moi = useMoi();
+  const [choixOkr, setChoixOkr] = useState<'vs' | 'epic' | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -160,6 +173,32 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
       setError(`Non enregistré : ${(e as Error).message}`);
     }
   };
+  /** OKR (SAFe) : value streams et epics sans value stream liés tout de suite, avec « Annuler » */
+  const okrSafe = safe.actif;
+  const mesVs = objectif ? valueStreamsDeOkr(objectif.id, h.valueStreams) : [];
+  const mesEpics = objectif ? epicsDirectesDeOkr(objectif.id, h.epicList) : [];
+  const mesKr = objectif ? resultatsDeOkr(objectif.id, h.resultats) : [];
+  const lierVs = async (ids: string[]) => {
+    if (!objectif || !onLierVs || !ids.length) return;
+    const avant = ids.map((id) => ({ id, okrs: h.valueStreams.find((v) => v.id === id)?.okrs ?? '' }));
+    try {
+      await onLierVs(ids.map((id) => ({ id, okrs: joindreIds([...idsDe(h.valueStreams.find((v) => v.id === id)?.okrs), objectif.id]) })));
+      auto.annoncer({ texte: `${ids.length > 1 ? `${ids.length} value streams liés` : '1 value stream lié'} à « ${objectif.titre} »`, annuler: () => onLierVs(avant) });
+    } catch (e) {
+      setError(`Non enregistré : ${(e as Error).message}`);
+    }
+  };
+  const lierEpicsOkr = async (ids: string[]) => {
+    if (!objectif || !onDeplacer || !ids.length) return;
+    const avant = ids.map((id) => ({ kind: 'epic' as const, id, patch: { okrs: h.epics.get(id)?.okrs ?? '' } }));
+    try {
+      await onDeplacer(ids.map((id) => ({ kind: 'epic' as const, id, patch: { okrs: joindreIds([...idsDe(h.epics.get(id)?.okrs), objectif.id]) } })));
+      auto.annoncer({ texte: `${ids.length > 1 ? `${ids.length} epics liées` : '1 epic liée'} à « ${objectif.titre} »`, annuler: () => onDeplacer(avant) });
+    } catch (e) {
+      setError(`Non enregistré : ${(e as Error).message}`);
+    }
+  };
+  const lectureOkr = okrSafe && !!objectif && !droitsStrategie(moi, org).tout;
   const fermer = async () => {
     if (!objectif) return onClose();
     if (erreurForm) return setError(erreurForm);
@@ -176,7 +215,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
     <HierarchyContext.Provider value={h}>
     <FormSheet
       visible={visible}
-      title={objectif ? 'Objectif' : 'Nouvel objectif'}
+      title={objectif ? (okrSafe ? 'OKR' : 'Objectif') : okrSafe ? 'Nouvel OKR' : 'Nouvel objectif'}
       couleurTitre={form.couleur}
       busy={busy}
       error={error ?? auto.erreur ?? (objectif ? erreurForm : null)}
@@ -196,10 +235,11 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
       <TitreFiche
         icone="🎯"
         titre={form.titre}
-        vide="Titre de l'objectif"
+        vide={okrSafe ? "Titre de l'OKR" : "Titre de l'objectif"}
         sous={form.debut ? (form.fin ? formatEpicDates(form) : `${formatEpicDates(form).split(' →')[0]} → permanent`) : undefined}
         couleur={form.couleur}
       />
+      <BlocLecture raison={lectureOkr ? '🔒 Lecture seule' : undefined}>
 
       <SectionFiche titre="Élément">
         <ChampFiche label="Titre">
@@ -233,8 +273,17 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
         </ChampFiche>
       </SectionFiche>
 
+      {/* SAFe : l'objectif est l'OKR, mesuré par ses résultats clés (éléments à part) */}
+      {okrSafe && (
+        <SectionFiche titre={`Résultats clés · ${mesKr.length}`} onAjouter={onNouveauResultat ? () => void enregistrerPuis(onNouveauResultat) : undefined} ajouterLabel="Nouveau résultat clé">
+          {mesKr.map((r) => (
+            <LigneEnfant key={r.id} texte={`📏 ${r.titre}`} meta={texteResultat(r)} onPress={onOpenResultat ? () => onOpenResultat(r) : undefined} />
+          ))}
+          {!mesKr.length && <Text style={f.videCarte}>{form.cible ? `Indicateur repris : ${texteResultat(form)}. Ajoutez vos résultats clés avec ＋.` : 'Aucun résultat clé pour l’instant.'}</Text>}
+        </SectionFiche>
+      )}
       {/* Indicateur (résultat clé) : sans indicateur, l'avancement suit les tâches terminées */}
-      <SectionFiche titre="Indicateur">
+      {!okrSafe && <SectionFiche titre="Indicateur">
         <ChampFiche label="Actuel">
           <SaisieFiche placeholder="Facultatif (ex. 8)" value={form.actuel} onChangeText={(v) => set('actuel', number(v))} keyboardType="decimal-pad" />
         </ChampFiche>
@@ -250,7 +299,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
             <Progress ratio={progress.ratio} color={form.couleur} />
           </ChampFiche>
         )}
-      </SectionFiche>
+      </SectionFiche>}
 
       <SectionFiche titre="Détails">
         <ChampFiche label="Couleur" colonne>
@@ -261,7 +310,24 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
         </ChampFiche>
       </SectionFiche>
 
-      <ListeEnfants
+      {okrSafe && objectif && (
+        <>
+          <SectionFiche titre={`Value streams · ${mesVs.length}`} onAjouter={onLierVs ? () => setChoixOkr('vs') : undefined} ajouterLabel="Choisir des value streams">
+            {mesVs.map((v) => {
+              const n = epicsDeValueStream(v.id, h.epicList).length;
+              return <LigneEnfant key={v.id} texte={`🌊 ${v.nom}`} meta={`${n} epic${n > 1 ? 's' : ''}`} onPress={onOpenVs ? () => onOpenVs(v) : undefined} />;
+            })}
+            {!mesVs.length && <Text style={f.videCarte}>Aucun value stream pour l'instant.</Text>}
+          </SectionFiche>
+          <SectionFiche titre={`Epics liées directement · ${mesEpics.length}`} onAjouter={onDeplacer ? () => setChoixOkr('epic') : undefined} ajouterLabel="Choisir des epics">
+            {mesEpics.map((e) => (
+              <LigneEnfant key={e.id} texte={`🗂️ ${e.titre}`} meta="sans value stream" onPress={() => onOpenEpic(e)} />
+            ))}
+            {!mesEpics.length && <Text style={f.videCarte}>Seulement les epics sans value stream ; les autres suivent leur value stream.</Text>}
+          </SectionFiche>
+        </>
+      )}
+      {!okrSafe && <ListeEnfants
         titre={`Epics · ${epics.length}`}
         enfants={epics.map((e) => ({ id: e.id, texte: `🗂️ ${e.titre} · ${formatEpicDates(e).split(' · ')[0]}`, onPress: () => onOpenEpic(e) }))}
         candidats={h.epicList
@@ -285,12 +351,12 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
           plusieurs: "Ajoutées à l'objectif à l'enregistrement.",
         }}
         vide="Aucune epic pour l'instant."
-      />
+      />}
 
-      {objectif && progress && (
+      {objectif && progress && !lectureOkr && (
         <>
           <DeleteSection
-            label="Supprimer l'objectif"
+            label={okrSafe ? "Supprimer l'OKR" : "Supprimer l'objectif"}
             name={objectif.titre}
             children={children ? (children.epicIds.size + children.taskIds.size ? describeCounts({ objectifs: 0, epics: children.epicIds.size, taches: children.taskIds.size }) : '') : ''}
             keepText={dom ? `rattaché(e)s au domaine ${dom.icone} ${dom.nom}` : 'sans rattachement'}
@@ -307,6 +373,38 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
             }}
           />
         </>
+      )}
+      </BlocLecture>
+
+      {choixOkr === 'vs' && objectif && (
+        <FeuilleMulti
+          titre="Choisir des value streams"
+          groupes={[{ options: h.valueStreams.filter((v) => !idsDe(v.okrs).includes(objectif.id)).map((v) => ({ value: v.id, label: `🌊 ${v.nom}`, meta: org.portfolio.get(v.portfolio)?.nom ? `💼 ${org.portfolio.get(v.portfolio)?.nom}` : undefined })) }]}
+          selection={[]}
+          nouveau={onNouveauVs ? { label: 'Nouveau value stream', onPress: () => { setChoixOkr(null); onNouveauVs(objectif); } } : undefined}
+          vide="Aucun autre value stream."
+          libelleValider={(n) => (n ? `Ajouter ${n} value stream${n > 1 ? 's' : ''}` : 'Ajouter')}
+          onValider={(l) => {
+            setChoixOkr(null);
+            void lierVs(l);
+          }}
+          onFermer={() => setChoixOkr(null)}
+        />
+      )}
+      {choixOkr === 'epic' && objectif && (
+        <FeuilleMulti
+          titre="Choisir des epics"
+          groupes={[{ titre: 'Sans value stream', options: h.epicList.filter((e) => sansValueStream(e) && !mesEpics.includes(e)).map((e) => ({ value: e.id, label: `🗂️ ${e.titre}` })) }]}
+          selection={[]}
+          nouveau={onAddEpic ? { label: 'Nouvelle epic', onPress: () => { setChoixOkr(null); onAddEpic(objectif); } } : undefined}
+          vide="Aucune autre epic sans value stream (les autres suivent leur value stream)."
+          libelleValider={(n) => (n ? `Ajouter ${n} epic${n > 1 ? 's' : ''}` : 'Ajouter')}
+          onValider={(l) => {
+            setChoixOkr(null);
+            void lierEpicsOkr(l);
+          }}
+          onFermer={() => setChoixOkr(null)}
+        />
       )}
     </FormSheet>
     </HierarchyContext.Provider>

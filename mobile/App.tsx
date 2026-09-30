@@ -73,6 +73,9 @@ import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
+import { StrategieView } from './src/components/StrategieView';
+import { ValueStreamForm } from './src/components/ValueStreamForm';
+import { ResultatForm } from './src/components/ResultatForm';
 import { MoiContext } from './src/droits';
 import { GererEspacesSheet } from './src/components/GererEspacesSheet';
 import { EcranAVenir } from './src/components/EcranAVenir';
@@ -111,6 +114,9 @@ import {
   ObjectifPI,
   ResultatCle,
   ValueStream,
+  type ValueStreamInput,
+  idsDe,
+  joindreIds,
   Settings,
   Statut,
   TYPE_LABELS,
@@ -170,7 +176,7 @@ const TAB_ICONS: Record<Tab, string> = {
 };
 const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches' };
 /** Écrans prévus, encore vides (règles de gestion à définir) */
-const A_VENIR: Tab[] = ['strategie', 'backlog', 'equipe', 'pilotage'];
+const A_VENIR: Tab[] = ['backlog', 'equipe', 'pilotage'];
 /** Nom de l'application : début du nom des fichiers des espaces */
 /** Nom de l'application (début du nom des Google Sheets : « President | Moi ») ; anciens noms : fichiers renommés */
 const NOM_APP = 'President';
@@ -1126,6 +1132,13 @@ function Main() {
     setEditingObjectif(o);
     setObjDefaults(defaults);
     setObjectifFormOpen(true);
+  };
+  /** Lot 4 : fiches Value stream et Résultat clé ; OKR créé depuis un value stream, lié à l'enregistrement */
+  const [vsFiche, setVsFiche] = useState<{ vs: ValueStream | null; defaults?: Partial<ValueStreamInput> } | null>(null);
+  const [krFiche, setKrFiche] = useState<{ kr: ResultatCle | null; okr: string } | null>(null);
+  const lierOkrAuVs = useRef<string | null>(null);
+  const lierVs = async (patchs: { id: string; okrs: string }[]) => {
+    for (const x of patchs) await saveEntity('valuestream', { id: x.id }, { okrs: x.okrs });
   };
   const [featDomaine, setFeatDomaine] = useState<string | undefined>(undefined);
   const openFeature = (f: Feature | null, defaults?: Partial<FeatureInput>, domaine?: string, champ?: string) => {
@@ -2168,6 +2181,16 @@ function Main() {
         />
       )}
 
+      {tab === 'strategie' && (
+        <StrategieView
+          onOpenOkr={(o) => openObjectif(o)}
+          onNouvelOkr={() => openObjectif(null, preselection())}
+          onOpenVs={(v) => setVsFiche({ vs: v })}
+          onNouveauVs={() => setVsFiche({ vs: null, defaults: { espace: visibles.find((v) => espaces.find((e) => e.id === v)?.type === 'entreprise') ?? visibles[0] } })}
+          refreshControl={refreshControl}
+        />
+      )}
+
       {A_VENIR.includes(tab) && <EcranAVenir ecran={tab} />}
 
       {tab === 'taches' && mode !== 'liste' && (
@@ -2316,7 +2339,7 @@ function Main() {
         <BandeauAnnuler bandeau={bandeauApp.bandeau} fermer={bandeauApp.fermer} />
       </View>
 
-      {!A_VENIR.includes(tab) && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
+      {!A_VENIR.includes(tab) && tab !== 'strategie' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 8 + 12 }]}
         onPress={() =>
           tab === 'organisation'
@@ -2397,6 +2420,12 @@ function Main() {
         onClose={() => depiler('objectif')}
         onSave={async (input, rester, ranger) => {
           const saved = (await saveEntity('objectif', editingObjectif, input)) as Objectif | undefined;
+          // OKR créé depuis « ＋ Nouvel OKR » d'un value stream : lié à ce value stream
+          if (saved && !editingObjectif && lierOkrAuVs.current) {
+            const v = hier.valueStreams.find((x) => x.id === lierOkrAuVs.current);
+            lierOkrAuVs.current = null;
+            if (v) await saveEntity('valuestream', v, { okrs: joindreIds([...idsDe(v.okrs), saved.id]) });
+          }
           // Epics rangées dans l'objectif (« Ranger une epic existante ») : faites à l'enregistrement
           if (saved) for (const id of ranger ?? []) await saveEntity('epic', { id }, { objectif: (saved as Objectif).id, domaine: '' });
           if (rester) setEditingObjectif(saved ?? null);
@@ -2412,6 +2441,56 @@ function Main() {
         injection={injectionDe('objectif')}
         onNouveauDomaine={() => nouveauTravail('domaine', editingObjectif?.espace || objDefaults?.espace || visibles[0] || 'moi')}
         onAlign={alignChild}
+        onOpenResultat={(r) => setKrFiche({ kr: r, okr: r.objectif })}
+        onNouveauResultat={(o) => setKrFiche({ kr: null, okr: o.id })}
+        onOpenVs={(v) => setVsFiche({ vs: v })}
+        onNouveauVs={(o) => setVsFiche({ vs: null, defaults: { okrs: o.id, espace: o.espace } })}
+        onLierVs={lierVs}
+      />
+
+      <ValueStreamForm
+        visible={!!vsFiche}
+        vs={vsFiche?.vs ?? null}
+        defaults={vsFiche?.defaults}
+        onClose={() => setVsFiche(null)}
+        onSave={async (input, rester) => {
+          const saved = (await saveEntity('valuestream', vsFiche?.vs ?? null, input)) as ValueStream | undefined;
+          if (rester) setVsFiche((x) => (x ? { ...x, vs: saved ?? x.vs } : x));
+          else setVsFiche(null);
+          return saved;
+        }}
+        onDelete={async (v) => {
+          await deleteEntity('valuestream', v, false);
+          setVsFiche(null);
+        }}
+        onLierEpics={async (l) => {
+          for (const x of l) await saveEntity('epic', { id: x.id }, { value_streams: x.value_streams });
+        }}
+        onOpenEpic={(e) => openEpic(e)}
+        onOpenOkr={(o) => openObjectif(o)}
+        onNouvelOkr={(v) => {
+          lierOkrAuVs.current = v.id;
+          openObjectif(null, { espace: v.espace });
+        }}
+        onNouvelleEpic={(v) => openEpic(null, { value_streams: v.id, espace: v.espace, portfolio: v.portfolio })}
+      />
+
+      <ResultatForm
+        visible={!!krFiche}
+        resultat={krFiche?.kr ?? null}
+        okr={krFiche?.okr ?? ''}
+        onClose={() => setKrFiche(null)}
+        onSave={async (input, rester) => {
+          const okr = hier.objectifs.find((o) => o.id === input.objectif);
+          const saved = (await saveEntity('resultat', krFiche?.kr ?? null, { ...input, espace: okr?.espace })) as ResultatCle | undefined;
+          if (rester) setKrFiche((x) => (x ? { ...x, kr: saved ?? x.kr } : x));
+          else setKrFiche(null);
+          return saved;
+        }}
+        onDelete={async (r) => {
+          await deleteEntity('resultat', r, false);
+          setKrFiche(null);
+        }}
       />
 
       <DomaineForm

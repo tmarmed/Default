@@ -68,6 +68,17 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   disparaît tout seul après 6 s ou dès qu'on touche ailleurs (comme les messages d'information).
   Feuilles de tâches (tâche parente, choisir des sous-tâches) : par feature (sinon epic), celles de la même feature
   d'abord, les autres repliées. « Sans … » : le même libellé que la valeur vide (« Aucune (tâche principale) »).
+- **Stratégie** (lot 4, SAFe) : onglet 🎯 Stratégie avec les OKR (résultats clés, value streams, epics, barre
+  d'avancement = moyenne des résultats clés) et les value streams (type, portfolio, trains, nombre d'OKR et
+  d'epics). L'objectif devient l'OKR : fiche OKR avec « Résultats clés » (éléments à part : actuel → cible),
+  « Value streams » (nombre d'epics de chacun) et « Epics liées directement » (seulement les epics sans value
+  stream ; les autres suivent leur value stream, sans doublon). Fiche Value stream : nom, type
+  (opérationnel / développement), portfolio, trains (les features en découlent), OKR, epics. Fiche Epic : ligne
+  « Value streams », puis « OKR de l'epic » (liés directement si elle n'a pas de value stream) et
+  « ▸ OKR des value streams liés », replié. Dans ces sections de liens, ＋ ouvre directement « Choisir des … »,
+  avec « ＋ Nouveau … » en tête (fiche de création habituelle ; l'élément créé revient lié). Droits : l'Epic Owner
+  du portfolio crée et relie tout, le RTE et le PM relient les value streams de leur train, les autres lisent.
+  Données : onglets « ValueStreams » et « ResultatsCles », colonnes « value_streams » et « okrs » des epics.
 - **Droits d'après les rôles** (lot 3, étape 2 ; démo) : les données d'une équipe restent invisibles (pas de mot
   « Sheet »). Opérationnel (dev, testeur, designer… : ligne « Métier » de la fiche Personne) : voit tout le travail de
   l'équipe, modifie le sien ; Scrum Master : tout ; PO : le backlog ; manager : lecture ; RTE et Product Manager : les
