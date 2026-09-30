@@ -68,6 +68,17 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   disparaît tout seul après 6 s ou dès qu'on touche ailleurs (comme les messages d'information).
   Feuilles de tâches (tâche parente, choisir des sous-tâches) : par feature (sinon epic), celles de la même feature
   d'abord, les autres repliées. « Sans … » : le même libellé que la valeur vide (« Aucune (tâche principale) »).
+- **Enregistrement au fil de l'eau** (toutes les fiches : tâche, feature, epic, objectif, domaine, objectif du PI,
+  Organisation), comme l'arbre de l'Organisation. **Élément existant** : « Fermer » à gauche, pas de bouton
+  Enregistrer ; chaque changement est enregistré tout de suite (un court délai pour le texte), un bandeau dit ce qui
+  a été enregistré (« Responsable : Nina Dupont ») avec « Annuler », et disparaît après 6 s ou dès qu'on touche
+  ailleurs ; « ☑ Choisir des … » rattache tout de suite ; plus de pastille « changée / déplacée ». Une valeur
+  impossible (heure de fin avant le début…) s'affiche en rouge et rien n'est enregistré tant qu'elle n'est pas
+  corrigée. **Nouvel élément** : « Annuler · Nouvelle … · Enregistrer », rien n'est créé avant « Enregistrer ».
+  **Cas combiné** : « ＋ Nouvelle personne » (ou feature, epic…) depuis une ligne d'une fiche existante → la fiche du
+  nouvel élément garde « Enregistrer » ; au retour, il est choisi et enregistré dans la fiche du dessous (« … créé et
+  choisi · Annuler », Annuler défait le choix et la création) ; si la fiche du dessous est nouvelle, le choix attend
+  son « Enregistrer ». « Tout fermer » ne demande confirmation que si une fiche nouvelle n'est pas enregistrée.
 - **Toutes les feuilles** (choix, menus du ＋, confirmations) : « Annuler » en haut, titre centré, des lignes.
   **Pastilles** seulement pour 4 choix courts ou moins (priorité, statut, engagé / bonus) ; au-delà, ligne de choix
   (type, répétition, jour, mois, état d'une epic, valeurs d'un objectif du PI). **Champs en sections à carte

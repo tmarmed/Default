@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { BandeauAnnuler, decrireChangement, useEnregistrementAuto } from './EnregistrementAuto';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChampFiche, LigneChoix, LigneFiche, ListeEnfants, SectionFiche } from './Choix';
 import { childrenOf, describeCounts } from '../hierarchy';
@@ -17,6 +18,8 @@ interface Props {
   onSave: (input: DomaineInput, rester?: boolean, ranger?: string[]) => Promise<Domaine | void | undefined>;
   pile?: PileProps;
   onDelete: (d: Domaine, cascade: boolean) => Promise<void>;
+  /** Domaine existant : objectifs choisis, ajoutés tout de suite (et « Annuler ») */
+  onDeplacer?: (l: { kind: 'objectif'; id: string; patch: Record<string, string> }[]) => Promise<void>;
   onOpenObjectif: (o: Objectif) => void;
   /** + Objectif dans ce domaine */
   onAddObjectif?: (d: Domaine) => void;
@@ -26,7 +29,7 @@ interface Props {
 }
 
 /** Fiche d'un domaine (Pro, Perso…) : nom, icône, couleur, objectifs. */
-export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpenObjectif, onAddObjectif, defaultEspace, pile }: Props) {
+export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onDeplacer, onOpenObjectif, onAddObjectif, defaultEspace, pile }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, domaine, defaultEspace ? { espace: defaultEspace } : undefined);
   const espaceFil = useEspaceFil(espace);
@@ -42,7 +45,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
       setError(null);
       setRanger([]);
     }
-  }, [visible, domaine]);
+  }, [visible, domaine?.id]);
 
   // Sous-domaine : un seul niveau, sous un domaine principal du même espace
   const sousDomaines = domaine ? h.domaineList.filter((d) => d.parent === domaine.id) : [];
@@ -72,6 +75,41 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
       setBusy(false);
     }
   };
+  const erreurForm = form.nom.trim() ? null : 'Donnez un nom au domaine.';
+  // Le domaine tel qu'il est enregistré, à l'ouverture (même forme que le formulaire)
+  const formInitial = useMemo(
+    () => (domaine ? { nom: domaine.nom, icone: domaine.icone, couleur: domaine.couleur, parent: domaine.parent ?? '' } : form),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [domaine?.id],
+  );
+  /** Domaine existant : enregistré au fil de l'eau (bandeau « Annuler »), sans bouton Enregistrer */
+  const auto = useEnregistrementAuto({
+    actif: !!domaine,
+    cle: domaine?.id ?? '',
+    initial: formInitial,
+    form,
+    setForm,
+    bloque: erreurForm,
+    enregistrer: (x) => onSave({ ...x, espace, nom: x.nom.trim() }, true),
+    decrire: (a, b) =>
+      decrireChangement(a, b, { nom: 'Nom', icone: 'Icône', couleur: 'Couleur', parent: 'Sous-domaine de' }, (k, v) => (k === 'parent' ? (h.domaines.get(v)?.nom ?? v) : k === 'couleur' ? 'changée' : v), ['nom']),
+  });
+  /** Domaine existant : objectifs choisis, ajoutés tout de suite (bandeau « Annuler ») */
+  const ajouterObjectifs = async (ids: string[]) => {
+    if (!domaine || !onDeplacer || !ids.length) return;
+    const avant = ids.map((id) => ({ kind: 'objectif' as const, id, patch: { domaine: h.objectifs.get(id)?.domaine ?? '' } }));
+    try {
+      await onDeplacer(ids.map((id) => ({ kind: 'objectif' as const, id, patch: { domaine: domaine.id } })));
+      auto.annoncer({ texte: ids.length > 1 ? `${ids.length} objectifs ajoutés` : `« ${h.objectifs.get(ids[0])?.titre ?? ''} » ajouté`, annuler: () => onDeplacer(avant) });
+    } catch (e) {
+      setError(`Non enregistré : ${(e as Error).message}`);
+    }
+  };
+  const fermer = async () => {
+    if (!domaine) return onClose();
+    if (erreurForm) return setError(erreurForm);
+    if (await auto.avantFermer()) onClose();
+  };
   /** Nouveau domaine : enregistré d'abord, puis l'objectif s'ouvre par-dessus */
   const enregistrerPuis = async (suite: (d: Domaine) => void) => {
     const d = domaine ?? (await save(true));
@@ -85,9 +123,12 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
       title={domaine ? 'Domaine' : 'Nouveau domaine'}
       couleurTitre={form.couleur}
       busy={busy}
-      error={error}
-      onClose={onClose}
+      error={error ?? auto.erreur ?? (domaine ? erreurForm : null)}
+      onClose={domaine ? fermer : onClose}
       onSave={() => save()}
+      auto={!!domaine}
+      bandeau={<BandeauAnnuler bandeau={auto.bandeau} fermer={auto.fermerBandeau} />}
+      onToucher={auto.fermerBandeau}
       retour={pile?.retour}
       espaceFil={espaceFil}
       fil={form.parent && h.domaines.get(form.parent) ? `${h.domaines.get(form.parent)!.icone} ${h.domaines.get(form.parent)!.nom}` : undefined}
@@ -152,6 +193,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onOpe
           })}
         ranger={ranger}
         setRanger={setRanger}
+        ajouterTout={domaine && onDeplacer ? (ids) => void ajouterObjectifs(ids) : undefined}
         nouveau={onAddObjectif ? () => enregistrerPuis(onAddObjectif) : undefined}
         mots={{
           nouveau: 'Nouvel objectif',

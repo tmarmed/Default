@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -47,6 +47,8 @@ import { AlerteChoix, ChampEstimation, ChampFiche, FeuilleMulti, LigneChoix, Sai
 import { filTravail, listeIterations, listeTaches, metaTache } from '../choixTravail';
 import { LiaisonOrg } from './LiaisonOrg';
 import { useEspaceFil } from './EspaceChoix';
+import { AutoContext, BandeauAnnuler, useEnregistrementAuto } from './EnregistrementAuto';
+import { useOrg } from '../organisation';
 import { BoutonRetour, CheminPile, TitreBarre, TitreFiche, type Injection, type PileProps } from './FormSheet';
 
 interface Props {
@@ -62,7 +64,9 @@ interface Props {
   defaults?: Partial<ItemInput>;
   onClose: () => void;
   /** Enregistre ; `sousTaches` = titres des sous-tâches à créer avec une nouvelle tâche parente */
-  onSave: (input: ItemInput, sousTaches: string[], opts?: { terminerSousTaches?: boolean; rangerSous?: string[] }) => Promise<void>;
+  onSave: (input: ItemInput, sousTaches: string[], opts?: { terminerSousTaches?: boolean; rangerSous?: string[]; rester?: boolean }) => Promise<void>;
+  /** Tâche existante : tâches choisies comme sous-tâches, déplacées tout de suite (et « Annuler ») */
+  onDeplacer?: (l: { kind: 'tache'; id: string; patch: Record<string, string> }[]) => Promise<void>;
   /** Supprime ; `cascade` = supprimer aussi les sous-tâches (sinon elles deviennent des tâches normales) */
   onDelete: (item: Item, cascade: boolean) => Promise<void>;
   /** Ouvre une autre fiche (sous-tâche ou parent) */
@@ -170,6 +174,30 @@ const TYPE_ARTICLE: Record<ItemType, string> = {
   bug: 'le bug',
 };
 
+/** Libellés des champs pour le bandeau « … enregistré » */
+const LIBELLES_TACHE: Partial<Record<keyof ItemInput, string>> = {
+  titre: 'Titre',
+  type: 'Type',
+  date: 'Date',
+  date_fin: 'Date de fin',
+  heure: 'Heure',
+  heure_fin: 'Heure de fin',
+  lieu: 'Lieu',
+  description: 'Notes',
+  priorite: 'Priorité',
+  statut: 'Statut',
+  points: 'Estimation',
+  iteration: 'Itération',
+  equipe: 'Équipe',
+  responsable: 'Responsable',
+  parent: 'Tâche parente',
+  periodicite: 'Répétition',
+  echeance: 'Répétition',
+  debut: 'Début de la répétition',
+  fin: 'Fin de la répétition',
+  telephone: 'Numéro',
+};
+
 const STATUTS = (Object.keys(STATUT_LABELS) as Statut[]).map((s) => ({ value: s, label: STATUT_LABELS[s] }));
 
 export function TaskForm({
@@ -189,12 +217,14 @@ export function TaskForm({
   injection,
   onNouveau,
   onNouveauOrg,
+  onDeplacer,
 }: Props) {
   const [form, setForm] = useState<ItemInput>(empty(defaultType, defaultDate, defaultIteration));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const safe = useSafe();
+  const org = useOrg();
   const hTous = useHierarchy();
   // Espaces : une tâche est créée dans un espace ; ses rattachements ne viennent que de cet espace
   const esp = useEspaces();
@@ -269,6 +299,8 @@ export function TaskForm({
       }
       return champ === 'equipe' || champ === 'responsable' ? { ...f, [champ]: id } : f;
     });
+    // Tâche existante : le prochain enregistrement annonce la création, et « Annuler » la défait aussi
+    if (item && injection.supprimer) auto.lierCreation({ texte: `« ${injection.nom ?? 'Élément'} » créé et choisi`, supprimer: injection.supprimer });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [injection]);
 
@@ -286,7 +318,7 @@ export function TaskForm({
     }
     // Réinitialiser seulement à l'ouverture, pas si la date affichée change derrière.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, item]);
+  }, [visible, item?.id]);
 
   // Fil d'Ariane en haut : où est rangée la tâche (sa tâche parente, sinon feature › epic › objectif › domaine)
   const fil = parentItem ? [filTravail(parentItem, h), `${TYPE_ICONS[parentItem.type]} ${parentItem.titre}`].filter(Boolean).join(' › ') : filTravail(form, h);
@@ -302,48 +334,115 @@ export function TaskForm({
   const set = <K extends keyof ItemInput>(key: K, value: ItemInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  /** Ce qui empêche d'enregistrer (null : tout va bien) */
+  const verifier = (f: ItemInput): string | null => {
+    if (!f.titre.trim()) return 'Donnez un titre à cet élément.';
+    const recurrenceError = checkRecurrence(f);
+    if (recurrenceError) return recurrenceError;
+    if (aHeureFin(f.type) && f.heure_fin && (!f.heure || f.heure_fin <= f.heure)) return "L'heure de fin doit être après l'heure de début.";
+    if (aDateFin(f.type) && !f.periodicite && f.date_fin && f.date && f.date_fin < f.date) return 'La date de fin est avant la date.';
+    if (enfants.length && !PARENT_TYPES.includes(f.type)) return 'Cette tâche a des sous-tâches : gardez le type Story, Démarche, Mission ou Exploration.';
+    if ((enfants.length || nouvelles.length || rangees.length) && f.periodicite) return 'Une tâche avec des sous-tâches ne peut pas être répétée.';
+    return null;
+  };
+  /** Ce qui part au Google Sheet */
+  const preparer = (f: ItemInput): ItemInput => {
+    // Un élément répété n'a pas de date unique : ses échéances sont calculées.
+    const base = {
+      ...f,
+      heure_fin: aHeureFin(f.type) ? f.heure_fin : '',
+      // Date de fin : démarches non répétées seulement
+      date_fin: aDateFin(f.type) && !f.periodicite ? f.date_fin : '',
+    };
+    const input = base.periodicite ? { ...base, date: '', statut: 'a_faire' as const } : base;
+    return { ...input, titre: input.titre.trim() };
+  };
+  // Question « terminer aussi les sous-tâches ? » sans réponse : on attend
+  const enAttente = sousOuvertes.length > 0 && passeTermine && terminerSous === null;
+  const erreurForm = verifier(form);
+
+  // La tâche telle qu'elle est enregistrée, à l'ouverture (même forme que le formulaire)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const formInitial = useMemo(() => (item ? toInput(item) : form), [item?.id]);
+  /** Tâche existante : enregistrée au fil de l'eau (bandeau « Annuler »), sans bouton Enregistrer */
+  const auto = useEnregistrementAuto({
+    actif: !!item,
+    cle: item?.id ?? '',
+    initial: formInitial,
+    form,
+    setForm,
+    bloque: erreurForm ?? (enAttente ? 'question' : null),
+    enregistrer: (f) => onSave(preparer(f), [], { terminerSousTaches: passeTermine && !!terminerSous, rester: true }),
+    decrire: (a, b) => decrireTache(a, b),
+  });
+  /** Texte du bandeau : « Responsable : Nina Dupont », « Titre enregistré », « 2 changements enregistrés » */
+  const decrireTache = (a: ItemInput, b: ItemInput) => {
+    const champs = (Object.keys(b) as (keyof ItemInput)[]).filter((k) => a[k] !== b[k]);
+    const liens = ['feature', 'epic', 'objectif', 'domaine'];
+    const vus = champs.some((k) => liens.includes(k)) ? [...champs.filter((k) => !liens.includes(k)), 'feature' as keyof ItemInput] : champs;
+    if (vus.length !== 1) return `${vus.length} changements enregistrés`;
+    const k = vus[0];
+    const v = (x: string) =>
+      k === 'type'
+        ? TYPE_LABELS[x as ItemType]
+        : k === 'statut'
+          ? STATUT_LABELS[x as Statut]
+          : k === 'priorite'
+            ? PRIORITE_LABELS[x as Priorite]
+            : k === 'iteration'
+              ? iterationNom(x)
+              : k === 'responsable'
+                ? (org.personne.get(x)?.nom ?? x)
+                : k === 'equipe'
+                  ? (org.equipe.get(x)?.nom ?? x)
+                  : k === 'parent'
+                    ? (h.items.find((t) => t.id === x)?.titre ?? x)
+                    : x;
+    if (liens.includes(k)) return filTravail(b, h) ? `Rattachée à ${filTravail(b, h).split(' › ').pop()}` : 'Rattachement retiré';
+    const nom = LIBELLES_TACHE[k] ?? 'Changement';
+    const val = String(b[k] ?? '');
+    return ['titre', 'description', 'lieu'].includes(k) ? `${nom} enregistré${k === 'description' ? 'es' : ''}` : `${nom} : ${val ? v(val) : 'aucun'}`;
+  };
+
+  /** Tâche existante : les tâches choisies deviennent ses sous-tâches tout de suite, avec le rattachement du parent */
+  const ajouterSousTaches = async (ids: string[]) => {
+    if (!item || !onDeplacer || !ids.length) return;
+    const liens = { parent: item.id, feature: form.feature, epic: form.epic, objectif: form.objectif, domaine: form.domaine };
+    const avant = ids.map((id) => {
+      const t = h.items.find((x) => x.id === id);
+      return { kind: 'tache' as const, id, patch: { parent: t?.parent ?? '', feature: t?.feature ?? '', epic: t?.epic ?? '', objectif: t?.objectif ?? '', domaine: t?.domaine ?? '' } };
+    });
+    try {
+      await onDeplacer(ids.map((id) => ({ kind: 'tache' as const, id, patch: liens })));
+      const nom = h.items.find((x) => x.id === ids[0])?.titre ?? '';
+      auto.annoncer({ texte: ids.length > 1 ? `${ids.length} tâches ajoutées` : `« ${nom} » ajoutée`, annuler: () => onDeplacer(avant) });
+    } catch (e) {
+      setError(`Non enregistré : ${(e as Error).message}`);
+    }
+  };
+
+  /** Fermer (tâche existante) : enregistre ce qui attend ; une valeur impossible reste affichée */
+  const fermer = async () => {
+    if (!item) return onClose();
+    if (erreurForm) return setError(erreurForm);
+    if (enAttente) return setError('Répondez d’abord : terminer aussi les sous-tâches ? (sous « Statut »)');
+    if (await auto.avantFermer()) onClose();
+  };
+
   const save = async () => {
-    if (!form.titre.trim()) {
-      setError('Donnez un titre à cet élément.');
+    const e = verifier(form);
+    if (e) {
+      setError(e);
       return;
     }
-    const recurrenceError = checkRecurrence(form);
-    if (recurrenceError) {
-      setError(recurrenceError);
-      return;
-    }
-    if (aHeureFin(form.type) && form.heure_fin && (!form.heure || form.heure_fin <= form.heure)) {
-      setError("L'heure de fin doit être après l'heure de début.");
-      return;
-    }
-    if (aDateFin(form.type) && !form.periodicite && form.date_fin && form.date && form.date_fin < form.date) {
-      setError('La date de fin est avant la date.');
-      return;
-    }
-    if (enfants.length && !PARENT_TYPES.includes(form.type)) {
-      setError('Cette tâche a des sous-tâches : gardez le type Story, Démarche, Mission ou Exploration.');
-      return;
-    }
-    if ((enfants.length || nouvelles.length || rangees.length) && form.periodicite) {
-      setError('Une tâche avec des sous-tâches ne peut pas être répétée.');
-      return;
-    }
-    if (sousOuvertes.length && passeTermine && terminerSous === null) {
+    if (enAttente) {
       setError('Répondez d’abord : terminer aussi les sous-tâches ? (sous « Statut »)');
       return;
     }
     setError(null);
     setBusy(true);
     try {
-      // Un élément répété n'a pas de date unique : ses échéances sont calculées.
-      const base = {
-        ...form,
-        heure_fin: aHeureFin(form.type) ? form.heure_fin : '',
-        // Date de fin : démarches non répétées seulement
-        date_fin: aDateFin(form.type) && !form.periodicite ? form.date_fin : '',
-      };
-      const input = base.periodicite ? { ...base, date: '', statut: 'a_faire' as const } : base;
-      await onSave({ ...input, titre: input.titre.trim() }, peutAvoir ? nouvelles : [], { terminerSousTaches: passeTermine && !!terminerSous, rangerSous: peutAvoir ? rangees : [] });
+      await onSave(preparer(form), peutAvoir ? nouvelles : [], { terminerSousTaches: passeTermine && !!terminerSous, rangerSous: peutAvoir ? rangees : [] });
     } catch (e) {
       setError(`Échec de l'enregistrement : ${(e as Error).message}`);
     } finally {
@@ -386,20 +485,23 @@ export function TaskForm({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={[styles.header, (!!pile?.chemin || !!fil || !!espaceFil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
-          <BoutonRetour pile={pile} onPress={onClose} disabled={busy} style={styles.headerBtn} />
+          <BoutonRetour pile={pile} onPress={item ? fermer : onClose} disabled={busy} style={styles.headerBtn} fermer={!!item} />
           <TitreBarre texte={item ? TYPE_LABELS[form.type] : NOUVEAU[form.type]} couleur={typeColors[form.type]} avecFil={!!pile?.chemin || !!fil || !!espaceFil} />
-          <Pressable onPress={save} hitSlop={10} disabled={busy}>
-            {busy ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : (
-              <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>
-            )}
-          </Pressable>
+          {/* Nouvelle tâche : « Enregistrer » ; tâche existante : enregistrée au fil de l'eau */}
+          {item ? (
+            <View style={{ width: 60 }} />
+          ) : (
+            <Pressable onPress={save} hitSlop={10} disabled={busy}>
+              {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>}
+            </Pressable>
+          )}
         </View>
         <CheminPile pile={pile} fil={fil} espace={espaceFil} />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            {error && <Text style={styles.error}>{error}</Text>}
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" onTouchStart={auto.fermerBandeau} onScrollBeginDrag={auto.fermerBandeau}>
+            <AutoContext.Provider value={!!item}>
+            {(error || auto.erreur) && <Text style={styles.error}>{error ?? auto.erreur}</Text>}
+            {!!item && erreurForm && !error && <Text style={styles.error}>{erreurForm}</Text>}
             <TitreFiche icone={TYPE_ICONS[form.type]} titre={form.titre} vide="Titre de la tâche" couleur={typeColors[form.type]} />
             <TextInput
               style={[styles.input, styles.titleInput]}
@@ -691,8 +793,10 @@ export function TaskForm({
                     vide="Aucune tâche à ajouter."
                     libelleValider={(n) => (n ? `Ajouter ${n} tâche${n > 1 ? 's' : ''}` : 'Ajouter')}
                     onValider={(l) => {
-                      setRangees((x) => [...x, ...l.filter((id) => !x.includes(id))]);
                       setRangerOuvert(false);
+                      // Tâche existante : ajoutées tout de suite (bandeau « Annuler ») ; nouvelle tâche : à l'enregistrement
+                      if (item && onDeplacer) return void ajouterSousTaches(l);
+                      setRangees((x) => [...x, ...l.filter((id) => !x.includes(id))]);
                     }}
                     onFermer={() => setRangerOuvert(false)}
                   />
@@ -757,8 +861,10 @@ export function TaskForm({
                 </Text>
               </Pressable>
             )}
+            </AutoContext.Provider>
           </ScrollView>
         </KeyboardAvoidingView>
+        <BandeauAnnuler bandeau={auto.bandeau} fermer={auto.fermerBandeau} />
       </SafeAreaView>
     </Modal>
     </HierarchyContext.Provider>

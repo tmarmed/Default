@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { BandeauAnnuler, decrireChangement, useEnregistrementAuto } from './EnregistrementAuto';
 import { domaineOf } from '../hierarchy';
 import { HierarchyContext, inDomain } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
@@ -18,7 +19,8 @@ interface Props {
   /** Domaine proposé (filtre en cours) */
   defaultDomaine: string;
   onClose: () => void;
-  onSave: (input: ObjectifPIInput) => Promise<void>;
+  /** `rester` : objectif existant enregistré au fil de l'eau, la fiche reste ouverte */
+  onSave: (input: ObjectifPIInput, rester?: boolean) => Promise<void>;
   onDelete: (x: ObjectifPI, cascade: boolean) => Promise<void>;
 }
 
@@ -43,7 +45,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
       setError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, objectif]);
+  }, [visible, objectif?.id]);
 
   const set = <K extends keyof ObjectifPIInput>(k: K, v: ObjectifPIInput[K]) => setForm((x) => ({ ...x, [k]: v }));
   const domEpic = (id: string) => domaineOf({ epic: id }, h)?.id ?? '';
@@ -52,6 +54,38 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
   const current = piOf(new Date());
   const pis = [-1, 0, 1, 2].map((n) => shiftPi(current, n));
   if (form.pi && !pis.includes(form.pi)) pis.push(form.pi);
+
+  const erreurForm = !form.titre.trim() ? "Donnez un titre à l'objectif du PI." : !form.pi ? 'Choisissez le PI.' : null;
+  // L'objectif tel qu'il est enregistré, à l'ouverture (même forme que le formulaire)
+  const formInitial = useMemo(() => {
+    if (!objectif) return form;
+    const { id: _i, cree_le: _c, modifie_le: _m, ...rest } = objectif;
+    return { ...rest, domaine: rest.domaine ?? '', epic: rest.epic ?? '' };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objectif?.id]);
+  /** Objectif du PI existant : enregistré au fil de l'eau (bandeau « Annuler »), sans bouton Enregistrer */
+  const auto = useEnregistrementAuto({
+    actif: !!objectif,
+    cle: objectif?.id ?? '',
+    initial: formInitial as ObjectifPIInput,
+    form,
+    setForm,
+    bloque: erreurForm,
+    enregistrer: (x) => onSave({ ...x, espace, titre: x.titre.trim() }, true),
+    decrire: (a, b) =>
+      decrireChangement(
+        a,
+        b,
+        { titre: 'Titre', pi: 'PI', type: 'Type', valeur_prevue: 'Valeur prévue', valeur_obtenue: 'Valeur obtenue', domaine: 'Domaine', epic: 'Epic' } as never,
+        (k, v) => (k === 'pi' ? `PI ${piLabel(v)}` : k === 'domaine' ? (h.domaines.get(v)?.nom ?? v) : k === 'epic' ? (h.epics.get(v)?.titre ?? v) : k === 'type' ? (v === 'bonus' ? 'Bonus' : 'Engagé') : v),
+        ['titre'] as never,
+      ),
+  });
+  const fermer = async () => {
+    if (!objectif) return onClose();
+    if (erreurForm) return setError(erreurForm);
+    if (await auto.avantFermer()) onClose();
+  };
 
   const save = async () => {
     if (!form.titre.trim()) return setError("Donnez un titre à l'objectif du PI.");
@@ -69,7 +103,19 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
 
   return (
     <HierarchyContext.Provider value={h}>
-    <FormSheet visible={visible} title={objectif ? 'Objectif du PI' : 'Nouvel objectif du PI'} couleurTitre={colors.primary} espaceFil={espaceFil} busy={busy} error={error} onClose={onClose} onSave={save}>
+    <FormSheet
+      visible={visible}
+      title={objectif ? 'Objectif du PI' : 'Nouvel objectif du PI'}
+      couleurTitre={colors.primary}
+      espaceFil={espaceFil}
+      busy={busy}
+      error={error ?? auto.erreur ?? (objectif ? erreurForm : null)}
+      onClose={objectif ? fermer : onClose}
+      onSave={save}
+      auto={!!objectif}
+      bandeau={<BandeauAnnuler bandeau={auto.bandeau} fermer={auto.fermerBandeau} />}
+      onToucher={auto.fermerBandeau}
+    >
       <TitreFiche icone="🎯" titre={form.titre} vide="Titre de l’objectif du PI" sous={form.pi ? `PI ${piLabel(form.pi)}` : undefined} />
       <Field style={f.titleInput} placeholder="Résultat à livrer (ex. Nouveau site en ligne)" value={form.titre} onChangeText={(v) => set('titre', v)} autoFocus={!objectif} />
       <EspaceChoix

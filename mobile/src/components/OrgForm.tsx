@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { BandeauAnnuler, decrireChangement, useEnregistrementAuto } from './EnregistrementAuto';
+import type { Deplacement } from './OrganisationView';
 import { StyleSheet, Text } from 'react-native';
-import { type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, membresDe, NOM_ORG, nomPersonne, type OrgValue } from '../organisation';
+import { CLE_ORG, type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, membresDe, NOM_ORG, nomPersonne, type OrgValue } from '../organisation';
 import { useSafe } from '../safe';
 import { useEspaces } from '../espaces';
 import { colors } from '../theme';
@@ -55,6 +57,7 @@ export function OrgForm({
   onOuvrir,
   injection,
   onDirty,
+  onDeplacer,
 }: {
   visible: boolean;
   kind: KindOrg;
@@ -82,6 +85,8 @@ export function OrgForm({
   injection?: { champ: string; id: string; n: number };
   /** Changements non enregistrés (pour « Tout fermer ») */
   onDirty?: (dirty: boolean) => void;
+  /** Élément existant : enfants choisis, rattachés tout de suite (et « Annuler ») */
+  onDeplacer?: (d: Deplacement[]) => Promise<void>;
 }) {
   const [form, setForm] = useState<Donnees>(VIDES[kind]);
   const [initial, setInitial] = useState<Donnees>(VIDES[kind]);
@@ -104,7 +109,68 @@ export function OrgForm({
     setInitial(v);
     setError(null);
     setRangerTout({});
-  }, [visible, entite, kind, defaults]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, entite?.id, kind]);
+
+  const erreurForm = form.nom?.trim() ? null : 'Donnez un nom.';
+  // L'élément tel qu'il est enregistré, à l'ouverture (même forme que le formulaire)
+  const formInitial = useMemo(() => {
+    const e = entite as unknown as Donnees | null;
+    return Object.fromEntries(Object.keys(VIDES[kind]).map((k) => [k, e?.[k] ?? defaults?.[k] ?? VIDES[kind][k]])) as Donnees;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entite?.id, kind]);
+  /** Élément existant : enregistré au fil de l'eau (bandeau « Annuler »), sans bouton Enregistrer */
+  const auto = useEnregistrementAuto({
+    actif: !!entite,
+    cle: entite?.id ?? '',
+    initial: formInitial,
+    form,
+    setForm,
+    bloque: erreurForm,
+    enregistrer: (x) => onSave({ ...x, nom: (x.nom ?? '').trim() }, true),
+    decrire: (a, b) =>
+      decrireChangement(
+        a,
+        b,
+        { nom: 'Nom', email: 'E-mail', unite: 'Service', manager: 'Manager', capacite: 'Capacité', type: 'Type', parent: 'Au-dessus', responsable: 'Responsable', epic_owner: 'Epic Owner', portfolio: 'Portfolio', rte: 'RTE', pm: 'Product Manager', train: 'Train', po: 'Product Owner', sm: 'Scrum Master', membres: 'Membres' },
+        (k, v) =>
+          ['manager', 'responsable', 'epic_owner', 'rte', 'pm', 'po', 'sm'].includes(String(k))
+            ? nomPersonne(org, v)
+            : k === 'unite' || k === 'parent'
+              ? (org.unite.get(v)?.nom ?? v)
+              : k === 'portfolio'
+                ? (org.portfolio.get(v)?.nom ?? v)
+                : k === 'train'
+                  ? (org.train.get(v)?.nom ?? v)
+                  : k === 'membres'
+                    ? `${membresDe({ membres: v }).length} personne${membresDe({ membres: v }).length > 1 ? 's' : ''}`
+                    : k === 'type'
+                      ? (v === 'direction' ? 'Direction' : 'Service')
+                      : v,
+        ['nom', 'email'],
+      ),
+  });
+  /** Élément existant : enfants choisis (« ☑ Choisir des … »), rattachés tout de suite (bandeau « Annuler ») */
+  const ajouterEnfants = async (k: KindOrg, champ: string, ids: string[]) => {
+    if (!entite || !onDeplacer || !ids.length) return;
+    const liste = org[CLE_ORG[k]] as unknown as Donnees[];
+    const d = ids.map((x) => ({ kind: k, id: x, champ, valeur: entite.id, avant: String(liste.find((y) => y.id === x)?.[champ] ?? '') }));
+    try {
+      await onDeplacer(d);
+      const nom = liste.find((y) => y.id === ids[0])?.nom ?? '';
+      auto.annoncer({
+        texte: ids.length > 1 ? `${ids.length} éléments ajoutés` : `« ${nom} » ajouté`,
+        annuler: () => onDeplacer(d.map((x) => ({ ...x, valeur: x.avant, avant: x.valeur }))),
+      });
+    } catch (e) {
+      setError(`Non enregistré : ${(e as Error).message}`);
+    }
+  };
+  const fermer = async () => {
+    if (!entite) return onClose();
+    if (erreurForm) return setError(erreurForm);
+    if (await auto.avantFermer()) onClose();
+  };
 
   // Élément créé à la volée (fiche du dessus enregistrée) : choisi dans son champ
   useEffect(() => {
@@ -114,9 +180,14 @@ export function OrgForm({
         ? { ...x, membres: [...new Set([...membresDe({ membres: x.membres ?? '' }), injection.id])].join(';') }
         : { ...x, [injection.champ]: injection.id },
     );
+    // Élément existant : le prochain enregistrement annonce la création, et « Annuler » la défait aussi
+    const inj = injection as { nom?: string; supprimer?: () => Promise<void> };
+    if (entite && inj.supprimer) auto.lierCreation({ texte: `« ${inj.nom ?? 'Élément'} » créé et choisi`, supprimer: inj.supprimer });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [injection]);
 
-  const dirty = JSON.stringify(form) !== JSON.stringify(initial) || Object.values(ranger).some((l) => l.length > 0);
+  // Élément existant : rien ne se perd (enregistré au fil de l'eau)
+  const dirty = !entite && (JSON.stringify(form) !== JSON.stringify(initial) || Object.values(ranger).some((l) => l.length > 0));
   useEffect(() => {
     onDirty?.(dirty);
   }, [dirty, onDirty]);
@@ -260,6 +331,7 @@ export function OrgForm({
       candidats={candidats.filter((c) => c.id !== id).map((c) => ({ id: c.id, titre: `${icone} ${c.nom}`, ailleurs: c.ailleurs }))}
       ranger={rangerDe(kindEnfant, champ)}
       setRanger={setRanger(kindEnfant, champ)}
+      ajouterTout={entite && onDeplacer ? (ids) => void ajouterEnfants(kindEnfant, champ, ids) : undefined}
       nouveau={onOuvrir ? () => ouvrirEnfant(kindEnfant, champ, extra) : undefined}
       mots={{ ...mots, feuille: `Ajouter à : ${form.nom || TITRES[kind][1].toLowerCase()}` }}
       vide="Aucun pour l'instant."
@@ -308,9 +380,12 @@ export function OrgForm({
       title={TITRES[kind][entite ? 0 : 1]}
       couleurTitre={colors.primary}
       busy={busy}
-      error={error}
-      onClose={onClose}
+      error={error ?? auto.erreur ?? (entite ? erreurForm : null)}
+      onClose={entite ? fermer : onClose}
       onSave={() => save()}
+      auto={!!entite}
+      bandeau={<BandeauAnnuler bandeau={auto.bandeau} fermer={auto.fermerBandeau} />}
+      onToucher={auto.fermerBandeau}
       retour={pile?.retour}
       fil={fil}
       espaceFil={espaceFil}

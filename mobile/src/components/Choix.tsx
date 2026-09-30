@@ -1,7 +1,8 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useContext, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
 import { colors } from '../theme';
 import { ChoiceSheet } from './ChoiceSheet';
+import { AutoContext } from './EnregistrementAuto';
 
 /**
  * Choix d'une affectation dans une fiche (feature, équipe, responsable, itération, train…) : une ligne de réglage
@@ -247,7 +248,9 @@ export function LigneChoix(p: LigneChoixProps) {
   const ch = useChangement();
   const opts = toutes(p.groupes, p.autres);
   const nom = (v: string) => (v ? (p.libelle?.(v) ?? opts.find((o) => o.value === v)?.label ?? '?') : '');
-  const change = p.changement ? true : !!p.depart && p.value !== p.depart;
+  // Fiche enregistrée au fil de l'eau : pas de pastille, le bandeau « Annuler » la remplace
+  const auto = useContext(AutoContext);
+  const change = !auto && (p.changement ? true : !!p.depart && p.value !== p.depart);
   const afaire = !!p.attendu && !p.value;
   return (
     <View style={s.ligneBloc}>
@@ -434,7 +437,8 @@ export function LigneMulti({
   const opts = toutes(groupes, autres);
   const nom = (v: string) => opts.find((o) => o.value === v)?.label ?? '?';
   const cle = (l: string[]) => [...l].sort().join('|');
-  const change = !!depart && cle(values) !== cle(depart);
+  const auto = useContext(AutoContext);
+  const change = !auto && !!depart && cle(values) !== cle(depart);
   const afaire = !!attendu && !values.length;
   return (
     <View style={s.ligneBloc}>
@@ -659,6 +663,7 @@ export function ListeEnfants({
   candidats,
   ranger,
   setRanger,
+  ajouterTout,
   nouveau,
   mots,
   vide,
@@ -670,6 +675,8 @@ export function ListeEnfants({
   candidats: { id: string; titre: string; ailleurs?: string }[];
   ranger: string[];
   setRanger: (l: string[]) => void;
+  /** Élément existant (enregistré au fil de l'eau) : les éléments choisis sont ajoutés tout de suite */
+  ajouterTout?: (ids: string[]) => void;
   nouveau?: () => void;
   /** « tâche » / « epic »… : « Nouvelle tâche », « Ranger une tâche existante » ; feuille : « Ranger dans l'epic » */
   mots: { nouveau: string; ranger: string; feuille: string; libres: string; autres: string; un: string; plusieurs: string };
@@ -711,8 +718,9 @@ export function ListeEnfants({
           vide="Rien à ajouter."
           libelleValider={(n) => (n ? `Ajouter (${n})` : 'Ajouter')}
           onValider={(l) => {
-            setRanger([...ranger, ...l.filter((id) => !ranger.includes(id))]);
             setFeuille(false);
+            if (ajouterTout) return ajouterTout(l);
+            setRanger([...ranger, ...l.filter((id) => !ranger.includes(id))]);
           }}
           onFermer={() => setFeuille(false)}
         />

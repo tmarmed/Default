@@ -18,6 +18,7 @@ import type { Alerte, Alignement } from '../alerts';
 import { assombrir, colors } from '../theme';
 import { EPIC_COULEURS } from '../types';
 import { TexteAjuste } from './TexteAjuste';
+import { AutoContext } from './EnregistrementAuto';
 
 const nomRetour = (r: string | string[]) => (Array.isArray(r) ? r[0] : r);
 
@@ -44,6 +45,12 @@ interface Props {
   couleurTitre?: string;
   /** Espace de travail en tête du fil (plusieurs espaces affichés) */
   espaceFil?: string;
+  /** Élément existant enregistré au fil de l'eau : « Fermer », pas d'« Enregistrer », pas de pastilles */
+  auto?: boolean;
+  /** Bandeau du bas (« … · Annuler ») */
+  bandeau?: ReactNode;
+  /** Toucher la fiche ferme le bandeau */
+  onToucher?: () => void;
 }
 
 /** Pile de fiches : fiche d'en dessous (« ‹ … »), fil en haut, tout fermer */
@@ -57,6 +64,10 @@ export interface Injection {
   champ: string;
   id: string;
   n: number;
+  /** Nom de l'élément créé (bandeau « … créé et choisi ») */
+  nom?: string;
+  /** Défaire la création (« Annuler » du bandeau de la fiche du dessous, si elle est enregistrée au fil de l'eau) */
+  supprimer?: () => Promise<void>;
 }
 
 /**
@@ -85,22 +96,22 @@ export function CheminPile({ pile, fil, espace, disabled }: { pile?: PileProps; 
 }
 
 /** Bouton gauche de l'en-tête : « Annuler » (dans une pile : revient à la fiche d'en dessous sans enregistrer) */
-export function BoutonRetour({ pile, onPress, disabled, style }: { pile?: PileProps; onPress: () => void; disabled?: boolean; style: object }) {
+export function BoutonRetour({ pile, onPress, disabled, style, fermer }: { pile?: PileProps; onPress: () => void; disabled?: boolean; style: object; fermer?: boolean }) {
   return (
     <Pressable
       onPress={onPress}
       hitSlop={10}
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel={pile?.retour ? `Annuler et revenir à ${nomRetour(pile.retour)}` : undefined}
+      accessibilityLabel={pile?.retour ? `${fermer ? 'Fermer' : 'Annuler'} et revenir à ${nomRetour(pile.retour)}` : undefined}
     >
-      <Text style={style}>Annuler</Text>
+      <Text style={style}>{fermer ? 'Fermer' : 'Annuler'}</Text>
     </Pressable>
   );
 }
 
 /** Fenêtre de formulaire : Annuler / titre / Enregistrer, message d'erreur, contenu défilant. */
-export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil }: Props) {
+export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil, auto, bandeau, onToucher }: Props) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -112,11 +123,11 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
             accessibilityRole="button"
             accessibilityLabel={retour ? `Annuler et revenir à ${nomRetour(retour)}` : undefined}
           >
-            <Text style={styles.headerBtn}>{onSave ? 'Annuler' : 'Fermer'}</Text>
+            <Text style={styles.headerBtn}>{onSave && !auto ? 'Annuler' : 'Fermer'}</Text>
           </Pressable>
           {/* Jamais coupé « … » : le titre rapetisse s'il est long */}
           <TitreBarre texte={title} couleur={couleurTitre} avecFil={!!chemin || !!fil || !!espaceFil} />
-          {onSave ? (
+          {onSave && !auto ? (
             <Pressable onPress={onSave} hitSlop={10} disabled={busy}>
               {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>}
             </Pressable>
@@ -126,11 +137,12 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
         </View>
         <CheminPile pile={chemin || onFermerTout ? { chemin, onFermerTout } : undefined} fil={fil} espace={espaceFil} disabled={busy} />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" onTouchStart={onToucher} onScrollBeginDrag={onToucher}>
             {error && <Text style={styles.error}>{error}</Text>}
-            {children}
+            <AutoContext.Provider value={!!auto}>{children}</AutoContext.Provider>
           </ScrollView>
         </KeyboardAvoidingView>
+        {bandeau}
       </SafeAreaView>
     </Modal>
   );

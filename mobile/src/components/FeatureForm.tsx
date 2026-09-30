@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { decrireChangement, useEnregistrementAuto, BandeauAnnuler } from './EnregistrementAuto';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { childrenOf, describeCounts, domaineOf, objectifOf } from '../hierarchy';
 import { HierarchyContext } from '../hierarchyContext';
@@ -32,6 +33,8 @@ interface Props {
   /** « ＋ Nouveau train / Nouvelle équipe » (section Delivery) */
   onNouveauOrg?: (kind: 'train' | 'equipeagile', champ: 'train' | 'equipe', espace: string) => void;
   onDelete: (x: Feature, cascade: boolean) => Promise<void>;
+  /** Feature existante : tâches choisies, ajoutées tout de suite (et « Annuler ») */
+  onDeplacer?: (l: { kind: 'tache'; id: string; patch: Record<string, string> }[]) => Promise<void>;
   onOpenTask: (t: Item) => void;
   /** Case à cocher d'une tâche de la liste : la terminer (ou la rouvrir) */
   onCocherTache?: (t: Item) => void;
@@ -54,6 +57,7 @@ export function FeatureForm({
   onSave,
   onDelete,
   onOpenTask,
+  onDeplacer,
   onCocherTache,
   defaults,
   onQuickAddTask,
@@ -93,7 +97,7 @@ export function FeatureForm({
       setQuick('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, feature]);
+  }, [visible, feature?.id]);
 
   const set = <K extends keyof FeatureInput>(k: K, v: FeatureInput[K]) => setForm((x) => ({ ...x, [k]: v }));
   const tasks = feature ? h.items.filter((t) => t.feature === feature.id) : [];
@@ -143,11 +147,70 @@ export function FeatureForm({
     const x = feature ?? (await save(true));
     if (x) suite(x);
   };
+  /** Ce qui part au Google Sheet (l'itération doit appartenir au PI choisi) */
+  const preparer = (x: FeatureInput): FeatureInput => ({ ...x, espace, iteration: x.iteration && x.pi && x.iteration.startsWith(x.pi) ? x.iteration : '', titre: x.titre.trim() });
+  const erreurForm = form.titre.trim() ? null : 'Donnez un titre à la feature.';
+  // La feature telle qu'elle est enregistrée, à l'ouverture (même forme que le formulaire)
+  const formInitial = useMemo(() => {
+    if (!feature) return form;
+    const { id: _i, cree_le: _c, modifie_le: _m, ...rest } = feature;
+    return rest;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feature?.id]);
+  /** Feature existante : enregistrée au fil de l'eau (bandeau « Annuler »), sans bouton Enregistrer */
+  const auto = useEnregistrementAuto({
+    actif: !!feature,
+    cle: feature?.id ?? '',
+    initial: formInitial as FeatureInput,
+    form,
+    setForm,
+    bloque: erreurForm,
+    enregistrer: (x) => onSave(preparer(x), { nouvelles: [], existantes: [] }, true),
+    decrire: (a, b) =>
+      decrireChangement(
+        a,
+        b,
+        { titre: 'Titre', description: 'Description', epic: 'Epic', pi: 'PI', iteration: 'Itération prévue', points: 'Estimation', train: 'Train', equipe: 'Équipe' } as never,
+        (k, v) => (k === 'epic' ? (h.epics.get(v)?.titre ?? v) : k === 'pi' ? `PI ${piLabel(v)}` : k === 'iteration' ? iterationNom(v) : v),
+        ['titre', 'description'] as never,
+      ),
+  });
+  /** Feature existante : tâches choisies, ajoutées tout de suite (bandeau « Annuler ») */
+  const ajouterTaches = async (ids: string[]) => {
+    if (!feature || !onDeplacer || !ids.length) return;
+    const avant = ids.map((id) => {
+      const t = h.items.find((x) => x.id === id);
+      return { kind: 'tache' as const, id, patch: { feature: t?.feature ?? '', epic: t?.epic ?? '', objectif: t?.objectif ?? '', domaine: t?.domaine ?? '', iteration: t?.iteration ?? '' } };
+    });
+    try {
+      await onDeplacer(
+        ids.map((id) => {
+          const t = h.items.find((x) => x.id === id);
+          // Sans date ni itération, elle prend l'itération prévue de la feature
+          const it = t && !t.date && !t.iteration && feature.iteration ? feature.iteration : (t?.iteration ?? '');
+          return { kind: 'tache' as const, id, patch: { feature: feature.id, epic: '', objectif: '', domaine: '', iteration: it } };
+        }),
+      );
+      const nom = h.items.find((x) => x.id === ids[0])?.titre ?? '';
+      auto.annoncer({ texte: ids.length > 1 ? `${ids.length} tâches ajoutées` : `« ${nom} » ajoutée`, annuler: () => onDeplacer(avant) });
+    } catch (e) {
+      setError(`Non enregistré : ${(e as Error).message}`);
+    }
+  };
+  /** Fermer (feature existante) : enregistre ce qui attend ; une valeur impossible reste affichée */
+  const fermer = async () => {
+    if (!feature) return onClose();
+    if (erreurForm) return setError(erreurForm);
+    if (await auto.avantFermer()) onClose();
+  };
   // Epic créée dans la fiche du dessus : choisie ici
   useEffect(() => {
     if (injection?.champ === 'epic') setForm((x) => ({ ...x, epic: injection.id }));
     if (injection?.champ === 'train') setForm((x) => ({ ...x, train: injection.id }));
     if (injection?.champ === 'equipe') setForm((x) => ({ ...x, equipe: injection.id }));
+    // Feature existante : le prochain enregistrement annonce la création, et « Annuler » la défait aussi
+    if (feature && injection?.supprimer) auto.lierCreation({ texte: `« ${injection.nom ?? 'Élément'} » créé et choisi`, supprimer: injection.supprimer });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [injection]);
 
   return (
@@ -157,9 +220,12 @@ export function FeatureForm({
       title={feature ? 'Feature' : 'Nouvelle feature'}
       couleurTitre={epic?.couleur}
       busy={busy}
-      error={error}
-      onClose={onClose}
+      error={error ?? auto.erreur ?? (feature ? erreurForm : null)}
+      onClose={feature ? fermer : onClose}
       onSave={() => save()}
+      auto={!!feature}
+      bandeau={<BandeauAnnuler bandeau={auto.bandeau} fermer={auto.fermerBandeau} />}
+      onToucher={auto.fermerBandeau}
       retour={pile?.retour}
       espaceFil={espaceFil}
       fil={filTravail({ epic: form.epic }, h)}
@@ -338,8 +404,10 @@ export function FeatureForm({
           vide="Aucune tâche à ajouter."
           libelleValider={(n) => (n ? `Ajouter ${n} tâche${n > 1 ? 's' : ''}` : 'Ajouter')}
           onValider={(l) => {
-            setExistantes((x) => [...x, ...l.filter((id) => !x.includes(id))]);
             setPicking(false);
+            // Feature existante : ajoutées tout de suite ; nouvelle feature : à l'enregistrement
+            if (feature && onDeplacer) return void ajouterTaches(l);
+            setExistantes((x) => [...x, ...l.filter((id) => !x.includes(id))]);
           }}
           onFermer={() => setPicking(false)}
         />

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { BandeauAnnuler, decrireChangement, useEnregistrementAuto } from './EnregistrementAuto';
 import { Text } from 'react-native';
 import { alertesObjectif, type Alignement } from '../alerts';
 import { addMonths, toDateString } from '../dates';
@@ -26,6 +27,8 @@ interface Props {
   /** « ＋ Nouveau domaine » depuis le choix du domaine */
   onNouveauDomaine?: () => void;
   onDelete: (o: Objectif, cascade: boolean) => Promise<void>;
+  /** Objectif existant : epics choisies, ajoutées tout de suite (et « Annuler ») */
+  onDeplacer?: (l: { kind: 'epic'; id: string; patch: Record<string, string> }[]) => Promise<void>;
   onOpenEpic: (e: Epic) => void;
   /** Valeurs proposées pour un nouvel objectif (ex. domaine) */
   defaults?: Partial<ObjectifInput>;
@@ -53,7 +56,7 @@ const empty = (): ObjectifInput => {
 const number = (t: string) => t.replace(/[^0-9.,-]/g, '');
 
 /** Fiche d'un objectif : échéance (ou permanent), indicateur, epics, alertes. */
-export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onOpenEpic, defaults, onAddEpic, onAlign, pile, injection, onNouveauDomaine }: Props) {
+export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onDeplacer, onOpenEpic, defaults, onAddEpic, onAlign, pile, injection, onNouveauDomaine }: Props) {
   // Espace de la fiche ; les rattachements proposés ne viennent que de cet espace
   const { espace, setEspace, h } = useEspaceFiche(visible, objectif, defaults);
   const espaceFil = useEspaceFil(espace);
@@ -74,7 +77,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
       setRanger([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, objectif]);
+  }, [visible, objectif?.id]);
 
   const set = <K extends keyof ObjectifInput>(k: K, v: ObjectifInput[K]) => setForm((x) => ({ ...x, [k]: v }));
   const epics = objectif ? h.epicList.filter((e) => e.objectif === objectif.id) : [];
@@ -111,8 +114,62 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
     if (o) suite(o);
   };
   // Domaine créé dans la fiche du dessus : choisi ici
+  /** Ce qui empêche d'enregistrer (null : tout va bien) */
+  const erreurForm = !form.titre.trim()
+    ? "Donnez un titre à l'objectif."
+    : !form.debut
+      ? 'Choisissez une date de début.'
+      : form.fin && form.fin < form.debut
+        ? "L'échéance est avant la date de début."
+        : (form.cible && isNaN(parseFloat(form.cible))) || (form.actuel && isNaN(parseFloat(form.actuel)))
+          ? "L'indicateur doit être un nombre."
+          : null;
+  // L'objectif tel qu'il est enregistré, à l'ouverture (même forme que le formulaire)
+  const formInitial = useMemo(() => {
+    if (!objectif) return form;
+    const { id: _i, cree_le: _c, modifie_le: _m, ...rest } = objectif;
+    return rest;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objectif?.id]);
+  /** Objectif existant : enregistré au fil de l'eau (bandeau « Annuler »), sans bouton Enregistrer */
+  const auto = useEnregistrementAuto({
+    actif: !!objectif,
+    cle: objectif?.id ?? '',
+    initial: formInitial as ObjectifInput,
+    form,
+    setForm,
+    bloque: erreurForm,
+    enregistrer: (x) => onSave({ ...x, espace, titre: x.titre.trim() }, true),
+    decrire: (a, b) =>
+      decrireChangement(
+        a,
+        b,
+        { titre: 'Titre', description: 'Description', debut: 'Début', fin: 'Échéance', couleur: 'Couleur', domaine: 'Domaine', actuel: 'Indicateur actuel', cible: 'Cible', unite: 'Unité' } as never,
+        (k, v) => (k === 'domaine' ? (h.domaines.get(v)?.nom ?? v) : k === 'couleur' ? 'changée' : v),
+        ['titre', 'description'] as never,
+      ),
+  });
+  /** Objectif existant : epics choisies, ajoutées tout de suite (bandeau « Annuler ») */
+  const ajouterEpics = async (ids: string[]) => {
+    if (!objectif || !onDeplacer || !ids.length) return;
+    const avant = ids.map((id) => ({ kind: 'epic' as const, id, patch: { objectif: h.epics.get(id)?.objectif ?? '', domaine: h.epics.get(id)?.domaine ?? '' } }));
+    try {
+      await onDeplacer(ids.map((id) => ({ kind: 'epic' as const, id, patch: { objectif: objectif.id, domaine: '' } })));
+      auto.annoncer({ texte: ids.length > 1 ? `${ids.length} epics ajoutées` : `« ${h.epics.get(ids[0])?.titre ?? ''} » ajoutée`, annuler: () => onDeplacer(avant) });
+    } catch (e) {
+      setError(`Non enregistré : ${(e as Error).message}`);
+    }
+  };
+  const fermer = async () => {
+    if (!objectif) return onClose();
+    if (erreurForm) return setError(erreurForm);
+    if (await auto.avantFermer()) onClose();
+  };
   useEffect(() => {
     if (injection?.champ === 'domaine') setForm((x) => ({ ...x, domaine: injection.id }));
+    // Objectif existant : le prochain enregistrement annonce la création, et « Annuler » la défait aussi
+    if (objectif && injection?.supprimer) auto.lierCreation({ texte: `« ${injection.nom ?? 'Élément'} » créé et choisi`, supprimer: injection.supprimer });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [injection]);
 
   return (
@@ -122,9 +179,12 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
       title={objectif ? 'Objectif' : 'Nouvel objectif'}
       couleurTitre={form.couleur}
       busy={busy}
-      error={error}
-      onClose={onClose}
+      error={error ?? auto.erreur ?? (objectif ? erreurForm : null)}
+      onClose={objectif ? fermer : onClose}
       onSave={() => save()}
+      auto={!!objectif}
+      bandeau={<BandeauAnnuler bandeau={auto.bandeau} fermer={auto.fermerBandeau} />}
+      onToucher={auto.fermerBandeau}
       retour={pile?.retour}
       espaceFil={espaceFil}
       fil={filTravail({ domaine: form.domaine }, h)}
@@ -215,6 +275,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onO
           }))}
         ranger={ranger}
         setRanger={setRanger}
+        ajouterTout={objectif && onDeplacer ? (ids) => void ajouterEpics(ids) : undefined}
         nouveau={onAddEpic ? () => enregistrerPuis(onAddEpic) : undefined}
         mots={{
           nouveau: 'Nouvelle epic',

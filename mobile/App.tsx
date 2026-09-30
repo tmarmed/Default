@@ -46,7 +46,7 @@ import { PeriodHeader } from './src/components/PeriodHeader';
 import { Segmented } from './src/components/Segmented';
 import { TexteAjuste } from './src/components/TexteAjuste';
 import type { Injection, PileProps } from './src/components/FormSheet';
-import { OrganisationView, type VueOrg } from './src/components/OrganisationView';
+import { type Deplacement, OrganisationView, type VueOrg } from './src/components/OrganisationView';
 import { OrgForm } from './src/components/OrgForm';
 import { CLE_ORG, dansOrgFiltre, type EntiteOrg, ICONE_ORG, type KindOrg, libelleOrgFiltre, makeOrgValue, NOM_ORG, type Org, ORG_VIDE, OrgContext, type OrgFiltre, OrgFiltreContext } from './src/organisation';
 import { type ActionStockage, StockagePanneau } from './src/components/Stockage';
@@ -482,7 +482,18 @@ function Main() {
     setPileTravail([...(i >= 0 ? p.slice(0, i) : p), { kind, champ: champ ?? (i >= 0 ? p[i].champ : undefined), cle }]);
   };
   /** Ferme une fiche (et celles au-dessus) ; `cree` : l'élément créé est choisi dans la fiche d'en dessous */
-  const depiler = (kind: KindTravail, cree?: { id: string }) => {
+  /** Élément créé depuis une ligne d'une fiche : « Annuler » dans le bandeau de cette fiche le supprime */
+  const supprimerCree = async (kind: KindTravail, id: string) => {
+    if (!settings) return;
+    if (kind === 'tache') {
+      await api.deleteItem(settings, id, false);
+      setItems((prev) => prev.filter((i) => i.id !== id));
+    } else {
+      await api.deleteEntity(settings, kind, id, false);
+      await refresh(settings);
+    }
+  };
+  const depiler = (kind: KindTravail, cree?: { id: string; titre?: string; nom?: string }) => {
     const p = pileTravailRef.current;
     const i = p.findIndex((x) => x.kind === kind);
     if (i < 0) {
@@ -493,7 +504,13 @@ function Main() {
     const f = p[i];
     const reste = p.slice(0, i);
     setPileTravail(
-      cree && f.champ && reste.length ? reste.map((x, k) => (k === reste.length - 1 ? { ...x, injection: { champ: f.champ!, id: cree.id, n: Date.now() } } : x)) : reste,
+      cree && f.champ && reste.length
+        ? reste.map((x, k) =>
+            k === reste.length - 1
+              ? { ...x, injection: { champ: f.champ!, id: cree.id, n: Date.now(), nom: cree.titre ?? cree.nom, supprimer: () => supprimerCree(f.kind, cree.id) } }
+              : x,
+          )
+        : reste,
     );
   };
   const [confirmerFermerTravail, setConfirmerFermerTravail] = useState(false);
@@ -1012,7 +1029,7 @@ function Main() {
   /** Écran Itération : déplacer une carte du Kanban (statut). */
   const setStatut = (item: Item, statut: Item['statut']) => changerStatut(item, statut);
 
-  const save = async (input: ItemInput, sousTaches: string[] = [], opts: { terminerSousTaches?: boolean; rangerSous?: string[] } = {}) => {
+  const save = async (input: ItemInput, sousTaches: string[] = [], opts: { terminerSousTaches?: boolean; rangerSous?: string[]; rester?: boolean } = {}) => {
     if (!settings) return;
     let next: Item[];
     let saved: Item;
@@ -1033,7 +1050,9 @@ function Main() {
       next = next.map((i) => (i.id === s.id ? s : i));
     }
     updateItems(next);
-    depiler('tache', editing ? undefined : saved);
+    // `rester` : tâche existante enregistrée au fil de l'eau, la fiche reste ouverte
+    if (opts.rester) setEditing(saved);
+    else depiler('tache', editing ? undefined : saved);
     // Parent enregistré « Terminé » avec de nouvelles sous-tâches à faire : il est « En cours »
     if (sousTaches.length && saved.statut === 'termine') await enregistrerStatuts([{ item: saved, statut: 'en_cours' }]);
     // Statut changé dans la fiche : mêmes règles que la case à cocher et le Kanban
@@ -1128,6 +1147,29 @@ function Main() {
     }
   };
   /** Rattache une tâche existante à une feature (seul le lien le plus précis est gardé). */
+  /** Organisation : éléments rattachés à un autre parent, tout de suite (arbre, fiche existante) */
+  const deplacerOrg = async (espace: string, d: Deplacement[]) => {
+    if (!settings) return;
+    const dansEsp = orgDe((x) => (x.espace || 'moi') === espace);
+    for (const x of d) {
+      const e = (dansEsp[CLE_ORG[x.kind]] as unknown as { id: string }[]).find((y) => y.id === x.id);
+      if (e) await api.saveOrg(settings, espace, x.kind, { ...e, [x.champ]: x.valeur } as never);
+    }
+    await rechargerOrg(settings, espace);
+  };
+  /** « Tout fermer » ne demande confirmation que si une fiche nouvelle n'est pas encore enregistrée */
+  const travailNouveau = () =>
+    pileTravailRef.current.some((x) =>
+      x.kind === 'tache' ? !editing : x.kind === 'epic' ? !editingEpic : x.kind === 'feature' ? !editingFeature : x.kind === 'objectif' ? !editingObjectif : !editingDomaine,
+    );
+  /** Éléments existants déplacés tout de suite depuis une fiche enregistrée au fil de l'eau (« ☑ Choisir des … ») */
+  const deplacerTravail = async (l: { kind: 'tache' | 'feature' | 'epic' | 'objectif'; id: string; patch: Record<string, string> }[]) => {
+    for (const x of l) {
+      if (x.kind === 'tache') await updateTask({ id: x.id, ...x.patch });
+      else await saveEntity(x.kind, { id: x.id }, x.patch);
+    }
+  };
+
   const linkTaskToFeature = (f: Feature, t: Item) =>
     updateTask({
       id: t.id,
@@ -1737,7 +1779,7 @@ function Main() {
     return {
       retour: i > 0 ? [nomCourtTravail(pileTravail[i - 1]), NOM_KIND_TRAVAIL[pileTravail[i - 1].kind]] : undefined,
       chemin: pileTravail.slice(0, i + 1).map(nomFicheTravail).join(' › '),
-      onFermerTout: () => setConfirmerFermerTravail(true),
+      onFermerTout: () => (travailNouveau() ? setConfirmerFermerTravail(true) : fermerToutTravail()),
     };
   };
   const injectionDe = (kind: KindTravail) => pileTravail.find((x) => x.kind === kind)?.injection;
@@ -2042,16 +2084,7 @@ function Main() {
           onChangeVue={setVueOrg}
           onOuvrir={(kind, e) => ouvrirOrg({ kind, entite: e, espace: e.espace || 'moi' })}
           onAjouter={(kind, espace, defaults) => ouvrirOrg({ kind, entite: null, espace, defaults })}
-          onDeplacer={async (espace, d) => {
-            // « Choisir des … » dans l'arbre : chaque élément change de parent, tout de suite
-            if (!settings) return;
-            const dansEsp = orgDe((x) => (x.espace || 'moi') === espace);
-            for (const x of d) {
-              const e = (dansEsp[CLE_ORG[x.kind]] as unknown as { id: string }[]).find((y) => y.id === x.id);
-              if (e) await api.saveOrg(settings, espace, x.kind, { ...e, [x.champ]: x.valeur } as never);
-            }
-            await rechargerOrg(settings, espace);
-          }}
+          onDeplacer={deplacerOrg}
           onVoirBacklog={(kind, id) => {
             // Lien vers le travail, filtré : portfolio → Portefeuille, train → PI, équipe → Itération
             setOrgFiltre({ kind, id });
@@ -2245,6 +2278,7 @@ function Main() {
         injection={injectionDe('tache')}
         onNouveau={nouveauTravail}
         onNouveauOrg={(k, champ, espace) => nouveauOrgPour('tache', k, champ, espace)}
+        onDeplacer={deplacerTravail}
       />
 
       <EpicForm
@@ -2264,6 +2298,7 @@ function Main() {
           return saved;
         }}
         onDelete={(e, cascade) => deleteEntity('epic', e, cascade)}
+        onDeplacer={deplacerTravail}
         onOpenTask={(t) => openForm(t)}
         onCocherTache={toggle}
         defaults={epicDefaults}
@@ -2290,6 +2325,7 @@ function Main() {
           return saved;
         }}
         onDelete={(o, cascade) => deleteEntity('objectif', o, cascade)}
+        onDeplacer={deplacerTravail}
         onOpenEpic={(e) => openEpic(e)}
         defaults={objDefaults}
         onAddEpic={(o) => openEpic(null, { objectif: o.id, domaine: '' })}
@@ -2314,6 +2350,7 @@ function Main() {
           return saved;
         }}
         onDelete={(d, cascade) => deleteEntity('domaine', d, cascade)}
+        onDeplacer={deplacerTravail}
         onOpenObjectif={(o) => openObjectif(o)}
         onAddObjectif={(d) => openObjectif(null, { domaine: d.id })}
         pile={pileDe('domaine')}
@@ -2342,6 +2379,7 @@ function Main() {
         }}
         onLinkTask={linkTaskToFeature}
         onDelete={(f, cascade) => deleteEntity('feature', f, cascade)}
+        onDeplacer={deplacerTravail}
         onOpenTask={(t) => openForm(t)}
         onCocherTache={toggle}
         defaults={featDefaults}
@@ -2486,9 +2524,11 @@ function Main() {
         defaultPi={piKey}
         defaultDomaine={domFilter === 'tous' ? '' : domFilter}
         onClose={() => setOpiFormOpen(false)}
-        onSave={async (input) => {
-          await saveEntity('objectifpi', editingOPI, input);
-          setOpiFormOpen(false);
+        onSave={async (input, rester) => {
+          const saved = await saveEntity('objectifpi', editingOPI, input);
+          // `rester` : objectif existant enregistré au fil de l'eau, la fiche reste ouverte
+          if (rester) setEditingOPI((saved as ObjectifPI | undefined) ?? editingOPI);
+          else setOpiFormOpen(false);
         }}
         onDelete={(o, cascade) => deleteEntity('objectifpi', o, cascade)}
       />
@@ -2587,11 +2627,16 @@ function Main() {
         const jTravail = rt ? pileTravail.findIndex((x) => x.kind === rt.kind) : -1;
         const dessousTravail = jTravail >= 0 ? pileTravail.slice(0, jTravail + 1) : [];
         // Avec des fiches de travail dessous, on confirme toujours (comme « Tout fermer » d'une fiche de travail)
-        const fermerTout = () => (dessousTravail.length || orgPile.some((x) => x.dirty) ? setConfirmerFermerOrg(true) : setOrgPile([]));
+        const fermerTout = () => {
+          if (travailNouveau() || orgPile.some((x) => !x.entite || x.dirty)) return setConfirmerFermerOrg(true);
+          if (orgPile[0]?.retourTravail) fermerToutTravail();
+          setOrgPile([]);
+        };
         return (
           <OrgForm
             key={fiche.cle}
             visible
+            onDeplacer={(dd) => deplacerOrg(fiche.espace, dd)}
             kind={fiche.kind}
             entite={fiche.entite}
             defaults={fiche.defaults}
@@ -2632,12 +2677,32 @@ function Main() {
               } else if (fiche.retourTravail && !fiche.entite) {
                 // Élément demandé par une fiche de travail : choisi dans son champ
                 const { kind: k, champ } = fiche.retourTravail;
-                setPileTravail(pileTravailRef.current.map((x) => (x.kind === k ? { ...x, injection: { champ, id: o.id, n: Date.now() } } : x)));
+                const supprimer = async () => {
+                  await api.deleteOrg(settings, fiche.espace, fiche.kind, o.id);
+                  await rechargerOrg(settings, fiche.espace);
+                };
+                setPileTravail(pileTravailRef.current.map((x) => (x.kind === k ? { ...x, injection: { champ, id: o.id, n: Date.now(), nom: o.nom, supprimer } } : x)));
                 setOrgPile((p) => p.slice(0, i));
               } else {
                 // Retour à la fiche d'en dessous ; l'élément créé y est choisi si elle l'a demandé
                 setOrgPile((p) =>
-                  p.slice(0, i).map((x, k) => (k === i - 1 && fiche.champ && !fiche.entite ? { ...x, injection: { champ: fiche.champ, id: o.id, n: Date.now() } } : x)),
+                  p.slice(0, i).map((x, k) =>
+                    k === i - 1 && fiche.champ && !fiche.entite
+                      ? {
+                          ...x,
+                          injection: {
+                            champ: fiche.champ,
+                            id: o.id,
+                            n: Date.now(),
+                            nom: o.nom,
+                            supprimer: async () => {
+                              await api.deleteOrg(settings, fiche.espace, fiche.kind, o.id);
+                              await rechargerOrg(settings, fiche.espace);
+                            },
+                          },
+                        }
+                      : x,
+                  ),
                 );
               }
               return o as EntiteOrg<KindOrg>;

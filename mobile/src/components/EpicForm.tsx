@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -22,6 +22,7 @@ import { etatEpic, useSafe } from '../safe';
 import { ETATS_EPIC } from '../types';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
+import { AutoContext, BandeauAnnuler, decrireChangement, useEnregistrementAuto } from './EnregistrementAuto';
 import { TitreBarre, TitreFiche, BoutonRetour, ChildActions, CheminPile, type Injection, type PileProps } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { HierarchyContext } from '../hierarchyContext';
@@ -40,6 +41,8 @@ interface Props {
   /** `rester` : epic enregistrée avant d'ouvrir un enfant (la fiche reste ouverte) ; renvoie l'epic enregistrée */
   onSave: (input: EpicInput, rester?: boolean, ranger?: string[], rangerFeatures?: string[]) => Promise<Epic | void | undefined>;
   onDelete: (epic: Epic, cascade: boolean) => Promise<void>;
+  /** Epic existante : features et tâches choisies, déplacées tout de suite (et « Annuler ») */
+  onDeplacer?: (l: { kind: 'tache' | 'feature'; id: string; patch: Record<string, string> }[]) => Promise<void>;
   /** Pile de fiches (ouverte depuis une autre fiche) */
   pile?: PileProps;
   /** Élément créé dans une fiche du dessus (« ＋ Nouvel objectif ») : choisi ici */
@@ -85,6 +88,7 @@ export function EpicForm({
   onClose,
   onSave,
   onDelete,
+  onDeplacer,
   onOpenTask,
   onCocherTache,
   defaults,
@@ -136,7 +140,7 @@ export function EpicForm({
       setPicking(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, epic]);
+  }, [visible, epic?.id]);
 
   const set = <K extends keyof EpicInput>(key: K, value: EpicInput[K]) => setForm((f) => ({ ...f, [key]: value }));
   const tasks = epic ? tasksOfEpic(epic.id, items, h.featureList) : [];
@@ -175,6 +179,57 @@ export function EpicForm({
       setBusy(false);
     }
   };
+  /** Ce qui empêche d'enregistrer (null : tout va bien) */
+  const verifier = (f: EpicInput): string | null =>
+    !f.titre.trim() ? "Donnez un titre à l'epic." : !f.debut ? 'Choisissez une date de début.' : f.fin && f.fin < f.debut ? 'La date de fin est avant la date de début.' : null;
+  const erreurForm = verifier(form);
+  // L'epic telle qu'elle est enregistrée, à l'ouverture (même forme que le formulaire)
+  const formInitial = useMemo(
+    () =>
+      epic
+        ? { titre: epic.titre, description: epic.description, debut: epic.debut, fin: epic.fin, couleur: epic.couleur, objectif: epic.objectif, domaine: epic.domaine, portfolio: epic.portfolio ?? '', etat: epic.etat }
+        : form,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [epic?.id],
+  );
+  /** Epic existante : enregistrée au fil de l'eau (bandeau « Annuler »), sans bouton Enregistrer */
+  const auto = useEnregistrementAuto({
+    actif: !!epic,
+    cle: epic?.id ?? '',
+    initial: formInitial as EpicInput,
+    form,
+    setForm,
+    bloque: erreurForm,
+    enregistrer: (f) => onSave({ ...f, espace, titre: f.titre.trim() }, true),
+    decrire: (a, b) =>
+      decrireChangement(a, b, { titre: 'Titre', description: 'Description', debut: 'Début', fin: 'Fin', couleur: 'Couleur', objectif: 'Objectif', domaine: 'Domaine', portfolio: 'Portfolio', etat: 'État' }, (k, v) =>
+        k === 'objectif' ? (h.objectifs.get(v)?.titre ?? v) : k === 'domaine' ? (h.domaines.get(v)?.nom ?? v) : k === 'etat' ? (ETATS_EPIC.find((e) => e.value === v)?.label ?? v) : k === 'couleur' ? 'changée' : v,
+      ['titre', 'description']),
+  });
+  /** Epic existante : features ou tâches choisies, ajoutées tout de suite (bandeau « Annuler ») */
+  const ajouter = async (kind: 'feature' | 'tache', ids: string[]) => {
+    if (!epic || !onDeplacer || !ids.length) return;
+    const avant = ids.map((id): { kind: 'tache' | 'feature'; id: string; patch: Record<string, string> } => {
+      if (kind === 'feature') return { kind, id, patch: { epic: h.features.get(id)?.epic ?? '' } };
+      const t = h.items.find((x) => x.id === id);
+      return { kind, id, patch: { epic: t?.epic ?? '', feature: t?.feature ?? '', objectif: t?.objectif ?? '', domaine: t?.domaine ?? '' } };
+    });
+    const patch: Record<string, string> = kind === 'feature' ? { epic: epic.id } : { epic: epic.id, feature: '', objectif: '', domaine: '' };
+    try {
+      await onDeplacer(ids.map((id) => ({ kind, id, patch })));
+      const nom = kind === 'feature' ? h.features.get(ids[0])?.titre : h.items.find((x) => x.id === ids[0])?.titre;
+      auto.annoncer({ texte: ids.length > 1 ? `${ids.length} ${kind === 'feature' ? 'features' : 'tâches'} ajoutées` : `« ${nom ?? ''} » ajoutée`, annuler: () => onDeplacer(avant) });
+    } catch (e) {
+      setError(`Non enregistré : ${(e as Error).message}`);
+    }
+  };
+  /** Fermer (epic existante) : enregistre ce qui attend ; une valeur impossible reste affichée */
+  const fermer = async () => {
+    if (!epic) return onClose();
+    if (erreurForm) return setError(erreurForm);
+    if (await auto.avantFermer()) onClose();
+  };
+
   /** Nouvelle epic : enregistrée d'abord, puis l'enfant s'ouvre par-dessus (il a besoin d'elle) */
   const enregistrerPuis = async (suite: (e: Epic) => void) => {
     const e = epic ?? (await save(true));
@@ -187,6 +242,9 @@ export function EpicForm({
     if (injection.champ === 'objectif') setForm((x) => ({ ...x, objectif: injection.id, domaine: '' }));
     if (injection.champ === 'domaine') setForm((x) => ({ ...x, domaine: injection.id, objectif: '' }));
     if (injection.champ === 'portfolio') setForm((x) => ({ ...x, portfolio: injection.id }));
+    // Epic existante : le prochain enregistrement annonce la création, et « Annuler » la défait aussi
+    if (epic && injection.supprimer) auto.lierCreation({ texte: `« ${injection.nom ?? 'Élément'} » créé et choisi`, supprimer: injection.supprimer });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [injection]);
 
   const doDelete = async (cascade: boolean) => {
@@ -218,20 +276,23 @@ export function EpicForm({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={[styles.header, (!!pile?.chemin || !!fil || !!espaceFil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
-          <BoutonRetour pile={pile} onPress={onClose} disabled={busy} style={styles.headerBtn} />
+          <BoutonRetour pile={pile} onPress={epic ? fermer : onClose} disabled={busy} style={styles.headerBtn} fermer={!!epic} />
           <TitreBarre texte={epic ? 'Epic' : 'Nouvelle epic'} couleur={form.couleur} avecFil={!!pile?.chemin || !!fil || !!espaceFil} />
-          <Pressable onPress={() => save()} hitSlop={10} disabled={busy}>
-            {busy ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : (
-              <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>
-            )}
-          </Pressable>
+          {/* Nouvelle epic : « Enregistrer » ; epic existante : enregistrée au fil de l'eau */}
+          {epic ? (
+            <View style={{ width: 60 }} />
+          ) : (
+            <Pressable onPress={() => save()} hitSlop={10} disabled={busy}>
+              {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>}
+            </Pressable>
+          )}
         </View>
         <CheminPile pile={pile} fil={fil} espace={espaceFil} />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            {error && <Text style={styles.error}>{error}</Text>}
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" onTouchStart={auto.fermerBandeau} onScrollBeginDrag={auto.fermerBandeau}>
+            <AutoContext.Provider value={!!epic}>
+            {(error || auto.erreur) && <Text style={styles.error}>{error ?? auto.erreur}</Text>}
+            {!!epic && erreurForm && !error && <Text style={styles.error}>{erreurForm}</Text>}
 
             {alertes.map((a) => (
               <View key={a.key} style={styles.alert}>
@@ -348,6 +409,7 @@ export function EpicForm({
                   .map((f) => ({ id: f.id, titre: `🧩 ${f.titre}`, ailleurs: f.epic ? `🗂️ ${h.epics.get(f.epic)?.titre ?? '?'}` : undefined }))}
                 ranger={rangerF}
                 setRanger={setRangerF}
+                ajouterTout={epic && onDeplacer ? (ids) => void ajouter('feature', ids) : undefined}
                 nouveau={onAddFeature ? () => enregistrerPuis(onAddFeature) : undefined}
                 mots={{
                   nouveau: 'Nouvelle feature',
@@ -423,8 +485,10 @@ export function EpicForm({
                 vide="Aucune tâche à ajouter."
                 libelleValider={(n) => (n ? `Ajouter ${n} tâche${n > 1 ? 's' : ''}` : 'Ajouter')}
                 onValider={(l) => {
-                  setRanger((x) => [...x, ...l.filter((id) => !x.includes(id))]);
                   setPicking(false);
+                  // Epic existante : ajoutées tout de suite ; nouvelle epic : à l'enregistrement
+                  if (epic && onDeplacer) return void ajouter('tache', l);
+                  setRanger((x) => [...x, ...l.filter((id) => !x.includes(id))]);
                 }}
                 onFermer={() => setPicking(false)}
               />
@@ -446,8 +510,10 @@ export function EpicForm({
                 />
               </>
             )}
+            </AutoContext.Provider>
           </ScrollView>
         </KeyboardAvoidingView>
+        <BandeauAnnuler bandeau={auto.bandeau} fermer={auto.fermerBandeau} />
       </SafeAreaView>
     </Modal>
     </HierarchyContext.Provider>
