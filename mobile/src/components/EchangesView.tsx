@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { colors } from '../theme';
 import type { Echange, EchangeInput } from '../types';
 import { ChampFiche, FeuilleChoix, type GroupeChoix, LigneChoix, SaisieFiche, SectionFiche } from './Choix';
+import { ChatEchanges, type ElementChat } from './ChatEchanges';
 import { FilClaude, type SynchroMissions } from './EchangeView';
 import { FormSheet } from './FormSheet';
 
@@ -95,7 +96,9 @@ const AIDE: { q: string; r: string }[] = [
 ];
 
 export function EchangesView({ moi, echanges, personnes, espaces, claude, president, onEnvoyer, onRepondre, onRetirer, hierarchie }: Props) {
-  const [ouvert, setOuvert] = useState<string | null>(null);
+  const [ouvert, setOuvertEtat] = useState<string | null>(null);
+  /** Mode chat : en ouvrant une conversation, ce qui attend votre réponse défile dans une fenêtre */
+  const [chat, setChat] = useState<{ titre: string; elements: ElementChat[] } | null>(null);
   const [nouveau, setNouveau] = useState<{ a: string } | null>(null);
   const nomDe = (id: string) => (id === 'claude' ? 'Claude' : id === 'president' ? 'President' : personnes.find((p) => p.id === id)?.nom || nomDepuisEmail(id));
   const avecMoi = echanges.filter((e) => e.de === moi || e.a === moi);
@@ -112,7 +115,37 @@ export function EchangesView({ moi, echanges, personnes, espaces, claude, presid
   const nbAlertes = president.alertes.reduce((n, a) => n + a.rouge, 0);
   const nbRappels = president.alertes.reduce((n, a) => n + a.jaune, 0);
 
-  if (ouvert === 'president') return <President {...president} onRetour={() => setOuvert(null)} />;
+  const setOuvert = (id: string | null) => {
+    setOuvertEtat(id);
+    if (!id || id === 'claude') return;
+    const elements: ElementChat[] =
+      id === 'president'
+        ? president.messages.map((m) => ({ kind: 'message' as const, m }))
+        : aTraiter(moi, entre(id))
+            .sort((a, b) => a.cree_le.localeCompare(b.cree_le))
+            .map((e) => ({ kind: 'echange' as const, e, avec: nomDe(id) }));
+    if (elements.length) setChat({ titre: id === 'president' ? '🏛️ President' : `🧑 ${nomDe(id)}`, elements });
+  };
+  const fenetreChat = (
+    <ChatEchanges
+      visible={!!chat}
+      titre={chat?.titre ?? ''}
+      moi={moi}
+      elements={chat?.elements ?? []}
+      onFermer={() => setChat(null)}
+      onRepondre={onRepondre}
+      onRetirer={onRetirer}
+      onLu={president.onLu}
+    />
+  );
+
+  if (ouvert === 'president')
+    return (
+      <>
+        <President {...president} onRetour={() => setOuvert(null)} />
+        {fenetreChat}
+      </>
+    );
   if (ouvert === 'claude' && claude)
     return (
       <View style={s.ecran}>
@@ -135,6 +168,7 @@ export function EchangesView({ moi, echanges, personnes, espaces, claude, presid
           nomDe={nomDe}
         />
         <NouvelEchange a={nouveau?.a ?? ''} visible={!!nouveau} moi={moi} personnes={personnes} espaces={espaces} onClose={() => setNouveau(null)} onEnvoyer={onEnvoyer} />
+        {fenetreChat}
       </>
     );
   }

@@ -73,6 +73,7 @@ import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
+import { ChatEchanges, type ElementChat } from './src/components/ChatEchanges';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
 import { changementEpic, changementFeature, compterChangements, couleurLot, epicDuLot, featureDeEtape, FIL, finLot, NOM_ESPACE_MISSIONS, pointsOuverts, useEchangeActif } from './src/echange/echange';
@@ -1504,6 +1505,23 @@ function Main() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tousHier.echanges, settings]);
+  // Mode chat à l'ouverture de l'application : une fois par ouverture, s'il y a des échanges à traiter ou des
+  // messages de l'application, ils défilent dans une fenêtre (« Plus tard » la referme)
+  const [chatLancement, setChatLancement] = useState<ElementChat[] | null>(null);
+  const chatMontre = useRef(false);
+  useEffect(() => {
+    if (!chargeOk || chatMontre.current || !moiEchange) return;
+    chatMontre.current = true;
+    const autre = (e: Echange) => (e.de === moiEchange ? e.a : e.de);
+    const elements: ElementChat[] = [
+      ...aTraiter(moiEchange, tousHier.echanges ?? [])
+        .sort((a, b) => a.cree_le.localeCompare(b.cree_le))
+        .map((e) => ({ kind: 'echange' as const, e, avec: autre(e) === 'claude' ? 'Claude' : nomEchange(autre(e)) })),
+      ...messagesApp.map((m) => ({ kind: 'message' as const, m })),
+    ];
+    if (elements.length) setChatLancement(elements);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chargeOk]);
   const retirerEchange = async (e: Echange) => {
     if (!settings || (e.de !== moiEchange && e.a !== moiEchange)) return;
     await api.deleteEntity(settings, 'echange', e.id, false);
@@ -2073,6 +2091,18 @@ function Main() {
         </Pressable>
       </View>
       {/* Carte des espaces de travail : dépliée sous la barre (la pastille la replie) */}
+      <ChatEchanges
+        visible={!!chatLancement}
+        titre="💬 À traiter"
+        moi={moiEchange}
+        elements={chatLancement ?? []}
+        onFermer={() => setChatLancement(null)}
+        onRepondre={async (e, reponse, note) => {
+          await saveEntity('echange', e, { reponse, note, statut: 'repondu' });
+        }}
+        onRetirer={retirerEchange}
+        onLu={(id) => majMessagesApp((l) => l.filter((m) => m.id !== id))}
+      />
       <EspacesBar
         plie={espacesPlie} onChange={setVisibles} onAjouter={ouvrirAjout} onEnlever={() => setGestionOpen(true)} onOuvrir={setEspaceFiche} />
       {stockage?.plan.alerte && plusTard !== today && !stockageOpen && (

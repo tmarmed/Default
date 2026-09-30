@@ -97,7 +97,9 @@ qu'on peut donc aussi consulter depuis un ordinateur.
   voient dans l'application (Sheet privé par paire : avec le partage réel des espaces) ; **sans historique** : un message lu, ou une réponse prise en
   compte (« Pris en compte ✓ ») par celui qui a demandé, est supprimé. Fiche Personne : ligne **Type** (🧑 Humain,
   💬 IA chat, 🤖 Agent IA bientôt ; colonne `nature`). Pastille jaune de l'onglet : les échanges qui attendent
-  votre réponse.
+  votre réponse. **Mode chat** : à l'ouverture de l'application (une fois, s'il y a quelque chose à traiter) et en
+  ouvrant une conversation, une fenêtre fait défiler bulle après bulle ce qui attend votre réponse (répondre,
+  « Lu ✓ », « Pris en compte ✓ ») ; « Plus tard » referme.
 - **💬 Échange** (lot 20) : le fil d'échange avec Claude dans President, onglet ajouté à la fin quand il est activé
   sur l'appareil par le lien `?echange` (désactivé par `?echange=0` ; jamais par défaut). Données publiées avec
   l'application (`mobile/src/echange/fil.json`, lecture seule ; captures dans `mobile/public/echange/`).
