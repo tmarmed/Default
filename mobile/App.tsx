@@ -75,7 +75,7 @@ import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, niveauSuperieur, personneParEmail } from './src/echange/hierarchieEchange';
-import { changementEpic, changementFeature, compterChangements, couleurLot, epicDuLot, featureDeEtape, FIL, NOM_ESPACE_MISSIONS, pointsOuverts, useEchangeActif } from './src/echange/echange';
+import { changementEpic, changementFeature, compterChangements, couleurLot, epicDuLot, featureDeEtape, FIL, finLot, NOM_ESPACE_MISSIONS, pointsOuverts, useEchangeActif } from './src/echange/echange';
 import { StrategieView } from './src/components/StrategieView';
 import { BacklogView } from './src/components/BacklogView';
 import { ValueStreamForm } from './src/components/ValueStreamForm';
@@ -1398,7 +1398,7 @@ function Main() {
       if (!ch) continue;
       if (ep) {
         if (!seulementManquants) majE.push({ id: ep.id, ...ch });
-      } else creerE.push({ titre: '', description: '', couleur: '', etat: '', ...ch, debut: today, fin: '', objectif: '', domaine: '', espace: e.id } as EpicInput);
+      } else creerE.push({ titre: '', description: '', couleur: '', etat: '', ...ch, debut: today, fin: finLot(l), objectif: '', domaine: '', espace: e.id } as EpicInput);
     }
     const rE = await api.ecrireLot(settings, e.id, 'epic', creerE, majE);
     const epics = [...d.epics.map((x) => rE.modifies.find((m) => m.id === x.id) ?? x), ...rE.crees];

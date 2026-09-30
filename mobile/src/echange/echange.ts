@@ -175,6 +175,14 @@ function voulueEpic(l: LotFil) {
 }
 const voulueFeature = (e: EtapeFil) => ({ titre: `${e.fait ? '✓ ' : ''}${e.titre}`, description: e.fait ? 'Étape terminée' : 'Étape à faire' });
 
+/** Date de fin d'une mission : livrée (reste la validation) fin octobre, entamée fin novembre, sinon fin décembre ; « à la fin » fin mars */
+export function finLot(l: LotFil): string {
+  const a = avancementLot(l);
+  if (/LA FIN/.test(l.etat)) return '2027-03-31';
+  if (a.faites && a.faites >= a.total - 1) return '2026-10-31';
+  return a.faites ? '2026-11-30' : '2026-12-31';
+}
+
 export const epicDuLot = <T extends EpicLu>(l: LotFil, epics: T[]): T | undefined => epics.find((e) => e.titre.startsWith(prefixeLot(l.num)));
 export const featureDeEtape = <T extends FeatureLue>(e: EtapeFil, epicId: string, features: T[]): T | undefined =>
   features.find((f) => f.epic === epicId && sansCoche(f.titre) === e.titre);
