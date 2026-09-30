@@ -178,7 +178,7 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
     if (out.type !== 'question') out.type = 'message';
     if (!out.titre.trim() && !out.texte.trim()) throw new Error("L'échange est vide.");
     if (out.type === 'question' && !out.choix.split(';').filter((c: string) => c.trim()).length) throw new Error('Une question a au moins un choix.');
-    if (out.statut !== 'repondu') out.statut = 'envoye';
+    if (out.statut !== 'repondu' && out.statut !== 'pris_en_compte') out.statut = 'envoye';
     out.texte = out.texte.slice(0, 4000);
     if (out.element && !RE_ID.test(out.element)) throw new Error('Élément lié invalide.');
   } else if (kind === 'resultat') {

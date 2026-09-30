@@ -1438,6 +1438,17 @@ function Main() {
     return [...m.values()].sort((a, b) => a.nom.localeCompare(b.nom));
   }, [orgTous, tousHier.echanges]);
   const nbARepondre = (echangeActif ? pointsOuverts().length : 0) + aTraiter(moiEchange, tousHier.echanges ?? []).length;
+  // Échanges marqués « pris_en_compte » par une IA (Claude, dans le Sheet) : c'est l'application qui les supprime
+  const suppressionsEnCours = useRef(new Set<string>());
+  useEffect(() => {
+    if (!settings) return;
+    for (const e of tousHier.echanges ?? []) {
+      if (e.statut !== 'pris_en_compte' || suppressionsEnCours.current.has(e.id)) continue;
+      suppressionsEnCours.current.add(e.id);
+      retirerEchange(e).catch(() => suppressionsEnCours.current.delete(e.id));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tousHier.echanges, settings]);
   const retirerEchange = async (e: Echange) => {
     if (!settings) return;
     await api.deleteEntity(settings, 'echange', e.id, false);

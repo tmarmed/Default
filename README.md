@@ -89,7 +89,8 @@ allume par l'interrupteur « Démo »).
   demande), 💬 **Claude** (IA chat : le fil d'échange ci-dessous, activé par `?echange`, et vos messages à Claude,
   copiés avec vos réponses) et les **personnes** (🧑 humains : message ou question à choix, « ＋ Nouvel échange »,
   dans l'espace choisi). Rangés dans l'onglet « Echanges » du Google Sheet de l'espace (id, de, a, type, titre,
-  texte, choix, reponse, note, statut, element) ; **sans historique** : un message lu, ou une réponse prise en
+  texte, choix, reponse, note, statut, element) ; une IA qui lit le Sheet (Claude) ne supprime jamais : elle écrit
+  `pris_en_compte` dans la colonne statut, et l'application supprime ces lignes au chargement ; **sans historique** : un message lu, ou une réponse prise en
   compte (« Pris en compte ✓ ») par celui qui a demandé, est supprimé. Fiche Personne : ligne **Type** (🧑 Humain,
   💬 IA chat, 🤖 Agent IA bientôt ; colonne `nature`). Pastille jaune de l'onglet et « 💬 À répondre · N » des
   espaces : ce qui attend votre réponse.

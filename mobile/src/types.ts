@@ -318,8 +318,12 @@ export interface Echange {
   reponse: string;
   /** Remarque jointe à la réponse */
   note: string;
-  /** envoye : en attente du destinataire ; repondu : en attente de la prise en compte par l'auteur */
-  statut: 'envoye' | 'repondu';
+  /**
+   * envoye : en attente du destinataire ; repondu : en attente de la prise en compte par l'auteur ;
+   * pris_en_compte : marqué par une IA qui a lu l'échange dans le Sheet (Claude ne supprime jamais) — l'application
+   * supprime alors la ligne à l'ouverture suivante.
+   */
+  statut: 'envoye' | 'repondu' | 'pris_en_compte';
   /** Élément concerné (id d'une tâche, epic…), facultatif */
   element: string;
   cree_le: string;
