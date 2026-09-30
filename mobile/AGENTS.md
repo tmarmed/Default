@@ -51,3 +51,7 @@ Google refuse au-delà d'environ **60 écritures par minute** par utilisateur. D
 - Tout passe par `appel` (src/gsheets.ts) : file d'attente du quota (50 lectures et 50 écritures par minute
   glissante, 250 ms d'écart) et attente croissante sur 429 / 5xx. Ne jamais appeler Google sans passer par `appel`.
 - Les lectures d'onglets faites en même temps sont groupées (values:batchGet) : lire un espace = 1 appel.
+- Même règle pour Claude quand il lit ou écrit lui-même dans un Sheet (connecteur Google Sheets) : lectures et
+  écritures groupées (plages multiples en un appel), au plus 50 appels par minute, au moins 1 s entre deux
+  appels ; sur refus (429 / quota), attendre 1 s, 2 s, 4 s… (au plus 64 s) avant de réessayer, 6 fois au plus ;
+  jamais de suppression de ligne (écrire `pris_en_compte`, l'application supprime).
