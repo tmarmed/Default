@@ -805,9 +805,9 @@ function checksRoadmapBrut(h: HierarchyValue, today: string): Check[] {
           { label: 'Voir les tâches ouvertes', action: { kind: 'open', target: 'epic', id: e.id } },
         ],
       });
-    // Epic sans tâche
+    // Epic sans tâche (une epic découpée en features n'est pas vide : son travail est porté par ses features)
     const bientot = toDateString(addDays(parseDate(today), 30));
-    if (!toutes.length && !terminee && e.etat !== 'idee' && e.debut <= bientot && (!e.fin || e.fin >= today))
+    if (!toutes.length && !h.featureList.some((f) => f.epic === e.id) && !terminee && e.etat !== 'idee' && e.debut <= bientot && (!e.fin || e.fin >= today))
       out.push({
         key: `evide:${e.id}`,
         icone: '🕳️',

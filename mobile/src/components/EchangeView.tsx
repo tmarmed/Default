@@ -44,7 +44,15 @@ function categorie(l: LotFil): Exclude<Categorie, 'tous'> {
  *   les coller dans la discussion avec Claude ;
  * - Backlog : les missions comme des epics (lot › étape › point), avancement = étapes terminées ÷ total.
  */
-export function EchangeView() {
+export interface SynchroMissions {
+  /** Nom de l'espace des missions s'il existe déjà, sinon null (il sera créé) */
+  espace: string | null;
+  /** Changements à écrire (null : pas encore lu) */
+  changements: number | null;
+  lancer: () => Promise<string>;
+}
+
+export function EchangeView({ synchro }: { synchro?: SynchroMissions }) {
   const [vue, setVue] = useState<Vue>('questions');
   const [espace, setEspace] = useState<'projet' | 'format'>('projet');
   const [index, setIndex] = useState(0);
@@ -202,6 +210,7 @@ export function EchangeView() {
           }}
           onEtape={setEtapeOuverte}
           onPoint={allerA}
+          synchro={synchro}
         />
       )}
 
@@ -334,7 +343,9 @@ function Backlog({
   onLot,
   onEtape,
   onPoint,
+  synchro,
 }: {
+  synchro?: SynchroMissions;
   cat: Categorie;
   onCat: (c: Categorie) => void;
   lotOuvert: number | null;
@@ -348,6 +359,21 @@ function Backlog({
   const pointsDe = (n: number, e?: string) => FIL.points.filter((p) => p.espace === 'projet' && p.lot === n && (!e || p.etape === e));
   const ouvertsDe = (n: number, e?: string) => pointsDe(n, e).filter(ouvert).length;
   const lots = FIL.lots.filter((l) => cat === 'tous' || categorie(l) === cat);
+  const [occupe, setOccupe] = useState(false);
+  const [retour, setRetour] = useState<string | null>(null);
+  const ecrire = async () => {
+    if (!synchro) return;
+    setOccupe(true);
+    setRetour(null);
+    try {
+      setRetour(await synchro.lancer());
+    } catch (e) {
+      setRetour(`Écriture impossible : ${(e as Error).message}`);
+    } finally {
+      setOccupe(false);
+    }
+  };
+  const aJour = !!synchro?.espace && synchro.changements === 0;
 
   return (
     <ScrollView contentContainerStyle={s.scroll}>
@@ -373,6 +399,27 @@ function Backlog({
           </>
         )}
       </View>
+
+      {!lot && synchro && (
+        <View style={[s.carte, s.sheet]}>
+          <View style={s.corps}>
+            <Text style={s.titre}>📄 Votre Google Sheet</Text>
+            <Text style={s.meta}>
+              {!synchro.espace
+                ? `Écrire les missions dans un nouvel espace « President » : lots = epics, étapes = features.`
+                : aJour
+                  ? `Espace « ${synchro.espace} » à jour.`
+                  : `Espace « ${synchro.espace} »${synchro.changements ? ` · ${synchro.changements} changement${synchro.changements > 1 ? 's' : ''}` : ''}.`}
+            </Text>
+            {!!retour && <Text style={s.meta}>{retour}</Text>}
+          </View>
+          {!aJour && (
+            <Pressable onPress={ecrire} disabled={occupe} style={[s.bouton, occupe && s.inactif]} accessibilityRole="button">
+              <Text style={s.boutonTexte}>{occupe ? 'Écriture…' : synchro.espace ? 'Mettre à jour' : 'Créer et écrire'}</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
 
       {!lot && (
         <>
@@ -518,6 +565,9 @@ const s = StyleSheet.create({
   meta: { fontSize: 12.5, color: colors.muted },
   barre: { height: 5, borderRadius: 3, backgroundColor: '#E3E7EE', overflow: 'hidden', marginTop: 4 },
   barreRemplie: { height: '100%', borderRadius: 3 },
+  sheet: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, marginTop: 12 },
+  bouton: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.primary },
+  boutonTexte: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
   badge: { fontSize: 12.5, fontWeight: '700', color: colors.warning },
   chev: { fontSize: 18, color: '#A0A6B1' },
   etat: { width: 22, textAlign: 'center', fontSize: 15, color: colors.muted },

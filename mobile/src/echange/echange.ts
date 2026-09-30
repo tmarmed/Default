@@ -143,3 +143,63 @@ export function useEchangeActif(): boolean {
   }, []);
   return actif;
 }
+
+// ---------------------------------------------------------------------------
+// Missions dans votre Google Sheet (espace Équipe « President ») : lot = epic, étape = feature, rien en dessous.
+// Retrouvées par leur titre (« Lot 4 · … », étape sans « ✓ ») ; seuls titre, description et état sont réécrits :
+// dates, priorité et tout ce que vous ajoutez restent tels quels.
+// ---------------------------------------------------------------------------
+export const NOM_ESPACE_MISSIONS = 'President';
+const COULEURS_LOTS = ['#1A73E8', '#188038', '#8E24AA', '#E37400', '#00897B', '#C2185B', '#795548'];
+export const couleurLot = (n: number) => COULEURS_LOTS[(n - 1) % COULEURS_LOTS.length];
+
+type EpicLu = { id: string; titre: string; description: string; etat: string; espace?: string };
+type FeatureLue = { id: string; titre: string; description: string; epic: string; espace?: string };
+
+const prefixeLot = (n: number) => `Lot ${n} · `;
+const sansCoche = (t: string) => t.replace(/^✓\s*/, '').trim();
+
+function etatEpicDe(l: LotFil): string {
+  const a = avancementLot(l);
+  if (a.faites === a.total) return 'termine';
+  if (a.faites > 0) return 'en_cours';
+  return /DÉCIDÉ/.test(l.etat) ? 'pret' : 'idee';
+}
+function voulueEpic(l: LotFil) {
+  const a = avancementLot(l);
+  return {
+    titre: `${prefixeLot(l.num)}${l.titre}`,
+    description: `Mission ${l.num} · ${l.etat} · ${a.faites}/${a.total} étapes (publiée par Claude, fil d'échange)`,
+    etat: etatEpicDe(l),
+  };
+}
+const voulueFeature = (e: EtapeFil) => ({ titre: `${e.fait ? '✓ ' : ''}${e.titre}`, description: e.fait ? 'Étape terminée' : 'Étape à faire' });
+
+export const epicDuLot = <T extends EpicLu>(l: LotFil, epics: T[]): T | undefined => epics.find((e) => e.titre.startsWith(prefixeLot(l.num)));
+export const featureDeEtape = <T extends FeatureLue>(e: EtapeFil, epicId: string, features: T[]): T | undefined =>
+  features.find((f) => f.epic === epicId && sansCoche(f.titre) === e.titre);
+
+/** Changement à écrire pour l'epic d'un lot : null s'il est déjà à jour */
+export function changementEpic(l: LotFil, existante: EpicLu | undefined): Record<string, string> | null {
+  const v = voulueEpic(l);
+  if (!existante) return { ...v, couleur: couleurLot(l.num) };
+  const patch = Object.fromEntries(Object.entries(v).filter(([k, x]) => (existante as Record<string, unknown>)[k] !== x));
+  return Object.keys(patch).length ? patch : null;
+}
+export function changementFeature(e: EtapeFil, existante: FeatureLue | undefined): Record<string, string> | null {
+  const v = voulueFeature(e);
+  if (!existante) return v;
+  const patch = Object.fromEntries(Object.entries(v).filter(([k, x]) => (existante as Record<string, unknown>)[k] !== x));
+  return Object.keys(patch).length ? patch : null;
+}
+
+/** Nombre de changements à écrire dans l'espace (epics et features manquantes ou différentes) */
+export function compterChangements(epics: EpicLu[], features: FeatureLue[], f: Fil = FIL): number {
+  let n = 0;
+  for (const l of f.lots) {
+    const ep = epicDuLot(l, epics);
+    if (changementEpic(l, ep)) n++;
+    for (const e of l.etapes) if (changementFeature(e, ep ? featureDeEtape(e, ep.id, features) : undefined)) n++;
+  }
+  return n;
+}

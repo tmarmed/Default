@@ -92,6 +92,11 @@ publiée ; <https://tmarmed.github.io/Default/> y renvoie).
   « 📋 Copier et vider », qui les copie pour la discussion avec Claude. **Backlog des missions** : les missions
   comme des epics (lot › étape › point), avancement = étapes terminées ÷ total, filtre par état. En tête des
   espaces de travail, « 💬 À répondre · N » ouvre l'onglet.
+  **Votre Google Sheet** (en tête du Backlog des missions) : « Créer et écrire » crée l'espace Équipe
+  « President » (son propre Google Sheet) et y écrit les missions — lot = epic (« Lot 4 · … », état, avancement),
+  étape = feature (« ✓ » quand elle est terminée) — sans stories ni tâches. Ensuite, « Mettre à jour · N
+  changements » réécrit seulement titre, description et état ; dates, priorité et ce que vous ajoutez restent.
+  Une epic découpée en features n'est plus signalée « sans tâche ».
 - **Droits d'après les rôles** (lot 3, étape 2 ; démo) : les données d'une équipe restent invisibles (pas de mot
   « Sheet »). Opérationnel (dev, testeur, designer… : ligne « Métier » de la fiche Personne) : voit tout le travail de
   l'équipe, modifie le sien ; Scrum Master : tout ; PO : le backlog ; manager : lecture ; RTE et Product Manager : les

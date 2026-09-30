@@ -74,7 +74,7 @@ import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
 import { EchangeView } from './src/components/EchangeView';
-import { pointsOuverts, useEchangeActif } from './src/echange/echange';
+import { changementEpic, changementFeature, compterChangements, couleurLot, epicDuLot, featureDeEtape, FIL, NOM_ESPACE_MISSIONS, pointsOuverts, useEchangeActif } from './src/echange/echange';
 import { StrategieView } from './src/components/StrategieView';
 import { BacklogView } from './src/components/BacklogView';
 import { ValueStreamForm } from './src/components/ValueStreamForm';
@@ -1321,6 +1321,54 @@ function Main() {
     return saved;
   };
 
+  /**
+   * 💬 Échange : missions écrites dans votre Google Sheet (espace Équipe « President », créé la première fois) :
+   * lot = epic, étape = feature, sans stories ni tâches. « Mettre à jour mon Sheet » réécrit seulement titre,
+   * description et état ; dates, priorité et ce que vous avez ajouté restent.
+   */
+  const espaceMissions = espaces.find((e) => e.type === 'equipe' && e.nom === NOM_ESPACE_MISSIONS);
+  const changementsMissions = useMemo(() => {
+    if (!espaceMissions) return null;
+    const de = (x: { espace?: string }) => x.espace === espaceMissions.id;
+    return compterChangements(tousHier.epics.filter(de), tousHier.features.filter(de));
+  }, [espaceMissions, tousHier]);
+  const synchroMissions = async (): Promise<string> => {
+    if (!settings) throw new Error("Connectez-vous d'abord à Google.");
+    let e = espaceMissions;
+    if (!e) {
+      const nouveau: Espace = { id: `equipe-${Date.now()}`, type: 'equipe', nom: NOM_ESPACE_MISSIONS };
+      e = DEMO ? nouveau : { ...nouveau, fichier: await api.creerFichierEspace(nomFichier(NOM_APP, nouveau), nouveau.type, nouveau.nom) };
+      const liste = [...espacesRef.current, e];
+      espacesRef.current = liste;
+      setEspacesState(liste);
+      await saveEspaces(liste);
+    }
+    api.definirEspaces(connexions(settings), visiblesRef.current[0] ?? 'moi');
+    const d = await api.listItems(settings, e.id);
+    let n = 0;
+    for (const l of FIL.lots) {
+      let ep: Epic | undefined = epicDuLot(l, d.epics);
+      const ch = changementEpic(l, ep);
+      if (ch) {
+        ep = ep
+          ? await api.updateEntity(settings, 'epic', { id: ep.id, ...ch })
+          : await api.createEntity(settings, 'epic', { titre: '', description: '', couleur: '', etat: '', ...ch, debut: today, fin: '', objectif: '', domaine: '', espace: e.id } as EpicInput);
+        n++;
+      }
+      for (const et of l.etapes) {
+        const fe = featureDeEtape(et, ep!.id, d.features);
+        const cf = changementFeature(et, fe);
+        if (!cf) continue;
+        if (fe) await api.updateEntity(settings, 'feature', { id: fe.id, ...cf });
+        else await api.createEntity(settings, 'feature', { titre: '', description: '', ...cf, epic: ep!.id, pi: '', iteration: '', points: '', couleur: couleurLot(l.num), espace: e.id } as FeatureInput);
+        n++;
+      }
+    }
+    if (!visiblesRef.current.includes(e.id)) setVisibles([...visiblesRef.current, e.id]);
+    await refresh(settings);
+    return n ? `${n} changement${n > 1 ? 's' : ''} écrit${n > 1 ? 's' : ''} dans l'espace « ${NOM_ESPACE_MISSIONS} ».` : `L'espace « ${NOM_ESPACE_MISSIONS} » est déjà à jour.`;
+  };
+
   /** Bouton d'une alerte : applique les dates proposées. */
   const fixEntity = async (kind: 'epic' | 'objectif', x: { id: string; titre: string }, patch: { debut?: string; fin?: string }) => {
     try {
@@ -2198,7 +2246,9 @@ function Main() {
         />
       )}
 
-      {tab === 'echange' && <EchangeView />}
+      {tab === 'echange' && (
+        <EchangeView synchro={{ espace: espaceMissions ? NOM_ESPACE_MISSIONS : null, changements: changementsMissions, lancer: synchroMissions }} />
+      )}
 
       {tab === 'strategie' && (
         <StrategieView
