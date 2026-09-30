@@ -415,6 +415,11 @@ function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier }: { 
   );
 }
 
+/** Réponse « Autre » : la personne précise laquelle (remarque obligatoire) */
+export const estAutre = (c: string) => c.trim().toLowerCase() === 'autre';
+export const placeholderNote = (c: string) => (estAutre(c) ? 'Précisez votre réponse « Autre » (obligatoire)' : 'Remarque (facultatif)');
+export const reponsePrete = (c: string, note: string) => !!c && (!estAutre(c) || !!note.trim());
+
 function CarteQuestion({ e, onRepondre, pied }: { e: Echange; onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>; pied?: ReactNode }) {
   const [choix, setChoix] = useState('');
   const [note, setNote] = useState('');
@@ -433,9 +438,9 @@ function CarteQuestion({ e, onRepondre, pied }: { e: Echange; onRepondre: (e: Ec
           </Pressable>
         ))}
       </View>
-      <TextInput value={note} onChangeText={setNote} placeholder="Remarque (facultatif)" placeholderTextColor="#9AA3AF" multiline style={s.note} />
+      <TextInput value={note} onChangeText={setNote} placeholder={placeholderNote(choix)} placeholderTextColor={estAutre(choix) ? colors.warning : '#9AA3AF'} multiline style={[s.note, estAutre(choix) && !note.trim() && { borderColor: colors.warning }]} />
       <Pressable
-        disabled={!choix || busy}
+        disabled={!reponsePrete(choix, note) || busy}
         onPress={async () => {
           setBusy(true);
           try {
@@ -444,7 +449,7 @@ function CarteQuestion({ e, onRepondre, pied }: { e: Echange; onRepondre: (e: Ec
             setBusy(false);
           }
         }}
-        style={[s.action, s.actionPrincipale, (!choix || busy) && s.inactif]}
+        style={[s.action, s.actionPrincipale, (!reponsePrete(choix, note) || busy) && s.inactif]}
         accessibilityRole="button"
       >
         <Text style={[s.actionTexte, s.actionTexteBlanc]}>{busy ? 'Envoi…' : 'Répondre'}</Text>

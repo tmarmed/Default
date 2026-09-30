@@ -3,7 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../theme';
 import type { Echange } from '../types';
-import { FilEchange, type MessageApp } from './EchangesView';
+import { estAutre, FilEchange, type MessageApp, placeholderNote, reponsePrete } from './EchangesView';
 
 /**
  * Mode chat : une fenêtre qui fait défiler, bulle après bulle, ce qui attend votre réponse (à l'ouverture de
@@ -173,11 +173,11 @@ function Actions({
         ))}
       </View>
       <View style={s.saisie}>
-        <TextInput value={note} onChangeText={setNote} placeholder="Remarque (facultatif)" placeholderTextColor="#9AA3AF" style={s.note} multiline />
+        <TextInput value={note} onChangeText={setNote} placeholder={placeholderNote(choix)} placeholderTextColor={estAutre(choix) ? colors.warning : '#9AA3AF'} style={[s.note, estAutre(choix) && !note.trim() && { borderColor: colors.warning }]} multiline autoFocus={estAutre(choix)} />
         <Pressable
-          disabled={!choix || busy}
+          disabled={!reponsePrete(choix, note) || busy}
           onPress={() => faire(() => onRepondre(e, choix, note.trim()), `${choix}${note.trim() ? ` — ${note.trim()}` : ''}`)}
-          style={[s.envoyer, (!choix || busy) && s.inactif]}
+          style={[s.envoyer, (!reponsePrete(choix, note) || busy) && s.inactif]}
           accessibilityRole="button"
           accessibilityLabel="Répondre"
         >

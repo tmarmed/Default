@@ -87,7 +87,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '23';
+const DEMO_DATA_VERSION = '24';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -367,7 +367,7 @@ const SEEDS_EQUIPE: Seeds = {
     // Échanges en cours avec des collègues (onglet Echanges)
     const ech = (id: string, x: Partial<Echange>): Echange => ({ id, de: '', a: '', type: 'message', titre: '', texte: '', choix: '', reponse: '', note: '', statut: 'envoye', element: '', niveau: '', transmis_par: '', prive: '1', ...base, ...x });
     e.echange = [
-      ech('mobx1', { de: 'lea.martin@mobile.example', a: MOI_DEMO, type: 'question', titre: 'Livrer la v2 en deux fois ?', texte: 'Connexion d’abord, notifications ensuite : on gagne trois semaines.', choix: 'Oui, deux livraisons;Non, une seule', element: 'mobe1' }),
+      ech('mobx1', { de: 'lea.martin@mobile.example', a: MOI_DEMO, type: 'question', titre: 'Livrer la v2 en deux fois ?', texte: 'Connexion d’abord, notifications ensuite : on gagne trois semaines.', choix: 'Oui, deux livraisons;Non, une seule;Autre', element: 'mobe1' }),
       ech('mobx2', { de: 'hugo.petit@mobile.example', a: MOI_DEMO, titre: 'Maquette prête', texte: 'La maquette de l’écran de connexion est prête, je l’ai mise dans la feature.' }),
       ech('mobx3', { de: MOI_DEMO, a: 'lea.martin@mobile.example', type: 'question', titre: 'Revue de sprint jeudi ou vendredi ?', choix: 'Jeudi;Vendredi', statut: 'repondu', reponse: 'Jeudi', note: 'À 10 h, salle Atlas.' }),
       ech('mobx4', { de: MOI_DEMO, a: 'hugo.petit@mobile.example', titre: 'Bug Android 12', texte: 'Peux-tu regarder le plantage de l’écran de connexion ?' }),

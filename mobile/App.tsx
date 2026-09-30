@@ -1636,7 +1636,7 @@ function Main() {
   // Deux pastilles par onglet : alertes (rouge) et rappels (jaune)
   const compte = (cs: Check[]) => ({ rouge: nbAlertes(cs, ig, 'alerte'), jaune: nbAlertes(cs, ig, 'rappel') });
   const zero = { rouge: 0, jaune: 0 };
-  const badges: Record<Tab, { rouge: number; jaune: number }> = {
+  const badges: Record<Tab, { rouge: number; jaune: number; chat?: number }> = {
     taches: compte(checks.taches),
     iteration: compte(checks.iteration),
     pi: compte(checks.pi),
@@ -1647,8 +1647,8 @@ function Main() {
     equipe: zero,
     organisation: zero,
     pilotage: zero,
-    // 🔄 Synchro : pastille jaune = échanges qui attendent votre réponse
-    echange: { rouge: 0, jaune: nbARepondre },
+    // 🔄 Synchro : pastille bleue, comme une messagerie = échanges à traiter et messages de President non lus
+    echange: { rouge: 0, jaune: 0, chat: nbARepondre + messagesApp.length },
   };
 
   // Écran Tâches : les alertes défilent avec le contenu (en tête de liste / de calendrier)
@@ -2534,8 +2534,13 @@ function Main() {
           >
             <View>
               <Text style={[styles.tabIcon, tab === key && styles.tabOn]}>{TAB_ICONS[key]}</Text>
-              {(badges[key].rouge > 0 || badges[key].jaune > 0) && (
+              {(badges[key].rouge > 0 || badges[key].jaune > 0 || (badges[key].chat ?? 0) > 0) && (
                 <View style={styles.badges}>
+                  {(badges[key].chat ?? 0) > 0 && (
+                    <View style={[styles.badge, styles.badgeChat]} accessibilityLabel={`${badges[key].chat} à synchroniser`}>
+                      <Text style={styles.badgeText}>{badges[key].chat! > 99 ? '99+' : badges[key].chat}</Text>
+                    </View>
+                  )}
                   {badges[key].rouge > 0 && (
                     <View style={styles.badge} accessibilityLabel={`${badges[key].rouge} alerte${badges[key].rouge > 1 ? 's' : ''}`}>
                       <Text style={styles.badgeText}>{badges[key].rouge > 99 ? '99+' : badges[key].rouge}</Text>
@@ -3330,6 +3335,7 @@ const styles = StyleSheet.create({
   tabIcon: { fontSize: 18, color: colors.muted },
   badges: { position: 'absolute', top: -5, left: 13, flexDirection: 'row', gap: 2 },
   badgeJaune: { backgroundColor: '#F2C230' },
+  badgeChat: { backgroundColor: colors.primary },
   badgeTextJaune: { color: '#3A2E00' },
   badge: {
     minWidth: 17,
