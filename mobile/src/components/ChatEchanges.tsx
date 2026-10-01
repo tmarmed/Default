@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import type { Echange } from '../types';
 import { ChampFiche, FeuilleChoix, SaisieFiche, SectionFiche } from './Choix';
-import { estAutre, FilEchange, type Hierarchie, type MessageApp, placeholderNote, reponsePrete } from './EchangesView';
+import { estAutre, FilEchange, groupesFaireSuivre, type Hierarchie, type MessageApp, placeholderNote, reponsePrete } from './EchangesView';
 import { FormSheet, TitreFiche } from './FormSheet';
 import { idsPieces, PiecesEchange } from './Pieces';
 
@@ -42,7 +42,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [feuille, setFeuille] = useState<'escalader' | 'transmettre' | null>(null);
+  const [feuille, setFeuille] = useState(false);
   useEffect(() => {
     if (visible) {
       setListe(elements);
@@ -200,33 +200,26 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
             <Text style={s.ou}>
               {[hierarchie.libelle(e) && `📍 ${hierarchie.libelle(e)}`, e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`, modifiable ? 'Votre réponse sera retirée : la question repart à la personne choisie.' : !hierarchie.libelle(e) && !e.transmis_par && 'Faites-le suivre sans y répondre.'].filter(Boolean).join(' · ')}
             </Text>
-            {hierarchie.escalade(e).length > 0 && (
-              <Pressable onPress={() => setFeuille('escalader')} disabled={busy} style={[s.ligne, s.bord]} accessibilityRole="button">
-                <Text style={s.action}>⤴ Escalader</Text>
-                <Text style={s.actionMeta} numberOfLines={1}>
-                  {hierarchie.escalade(e).length === 1 ? hierarchie.escalade(e)[0].libelle : hierarchie.escalade(e).map((v) => v.libelle.split(' ')[0]).join(' ou ')} ›
-                </Text>
-              </Pressable>
-            )}
-            {hierarchie.transmission(e).length > 0 && (
-              <Pressable onPress={() => setFeuille('transmettre')} disabled={busy} style={[s.ligne, s.bord]} accessibilityRole="button">
-                <Text style={s.action}>↪ Transmettre</Text>
-                <Text style={s.actionMeta}>à quelqu'un d'autre ›</Text>
-              </Pressable>
-            )}
+            <Pressable onPress={() => setFeuille(true)} disabled={busy} style={[s.ligne, s.bord]} accessibilityRole="button">
+              <Text style={s.action}>↪ Faire suivre</Text>
+              <Text style={s.actionMeta} numberOfLines={1}>
+                {hierarchie.escalade(e).length ? 'escalader ou transmettre ›' : 'transmettre ›'}
+              </Text>
+            </Pressable>
           </SectionFiche>
         )}
         {!!hierarchie && feuille && (
           <FeuilleChoix
-            titre={feuille === 'escalader' ? 'Escalader à' : 'Transmettre à'}
+            titre="Faire suivre à"
             value=""
-            groupes={feuille === 'escalader' ? [{ options: hierarchie.escalade(e).map((v) => ({ value: v.email, label: v.libelle, meta: v.meta })) }] : hierarchie.transmission(e)}
+            groupes={groupesFaireSuivre(hierarchie, e)}
             onChoisir={(v) => {
-              const quoi = feuille;
-              setFeuille(null);
-              if (v) void faire(() => (quoi === 'escalader' ? hierarchie.onEscalader(e, v) : hierarchie.onTransmettre(e, v)), `${quoi === 'escalader' ? 'Escaladé' : 'Transmis'} à ${nomDe(v)}`);
+              setFeuille(false);
+              if (!v) return;
+              const [quoi, email] = [v.slice(0, 4), v.slice(4)];
+              void faire(() => (quoi === 'esc:' ? hierarchie.onEscalader(e, email) : hierarchie.onTransmettre(e, email)), `${quoi === 'esc:' ? 'Escaladé' : 'Transmis'} à ${nomDe(email)}`);
             }}
-            onFermer={() => setFeuille(null)}
+            onFermer={() => setFeuille(false)}
           />
         )}
         {modifiable ? (

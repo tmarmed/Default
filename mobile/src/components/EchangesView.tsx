@@ -83,6 +83,15 @@ export interface Hierarchie {
   onTransmettre: (e: Echange, email: string) => Promise<void>;
 }
 
+/** « ↪ Faire suivre » : une seule feuille — ⤴ Escalader (niveau au-dessus) en premier, puis ↪ Transmettre (valeurs « esc: » / « tra: » + e-mail) */
+export function groupesFaireSuivre(h: Hierarchie, e: Echange): GroupeChoix[] {
+  const esc = h.escalade(e);
+  return [
+    ...(esc.length ? [{ titre: '⤴ Escalader · niveau au-dessus', options: esc.map((v) => ({ value: `esc:${v.email}`, label: v.libelle, meta: v.meta })) }] : []),
+    ...h.transmission(e).map((g) => ({ ...g, titre: `↪ Transmettre${g.titre ? ` · ${g.titre}` : ''}`, options: g.options.map((o) => ({ ...o, value: `tra:${o.value}` })) })),
+  ];
+}
+
 const ICONE_NATURE: Record<string, string> = { humain: '🧑', ia_chat: '💬', agent_ia: '🤖', application: '🏛️' };
 const LIBELLE_NATURE: Record<string, string> = { humain: 'Humain', ia_chat: 'IA chat', agent_ia: 'Agent IA', application: 'Application' };
 
@@ -400,8 +409,7 @@ function Conversation({
   const recues = echanges.filter((e) => e.de === moi && e.statut === 'repondu');
   const attente = echanges.filter((e) => e.de === moi && e.statut === 'envoye');
   const autres = echanges.filter((e) => e.a === moi && e.statut === 'repondu');
-  const [transmettre, setTransmettre] = useState<Echange | null>(null);
-  const [escalader, setEscalader] = useState<Echange | null>(null);
+  const [suivre, setSuivre] = useState<Echange | null>(null);
   const [occupe, setOccupe] = useState<string | null>(null);
   const agir = async (e: Echange, f: () => Promise<void>) => {
     setOccupe(e.id);
@@ -414,7 +422,6 @@ function Conversation({
   // Sous chaque échange à traiter : où il vit, qui l'a transmis, Escalader et Transmettre
   const outils = (e: Echange) => {
     const vers = hierarchie.escalade(e);
-    const unSeul = vers.length === 1 ? vers[0] : null;
     const niveau = hierarchie.libelle(e);
     return (
       <View style={s.outils}>
@@ -422,19 +429,9 @@ function Conversation({
           {[niveau && `📍 ${niveau}`, e.prive !== '0' && '🔒 Privé à deux', e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`, e.de !== moi && `De ${nomDe(e.de)}`].filter(Boolean).join(' · ')}
         </Text>
         <View style={s.choix}>
-          {!!vers.length && (
-            <Pressable
-              disabled={occupe === e.id}
-              onPress={() => (unSeul ? agir(e, () => hierarchie.onEscalader(e, unSeul.email)) : setEscalader(e))}
-              style={s.action}
-              accessibilityRole="button"
-            >
-              <Text style={s.actionTexte}>⤴ Escalader{unSeul ? ` · ${unSeul.libelle}` : ` · ${vers.map((v) => v.libelle.split(' ')[0]).join(' ou ')}`}</Text>
-            </Pressable>
-          )}
-          {!!hierarchie.transmission(e).length && (
-            <Pressable disabled={occupe === e.id} onPress={() => setTransmettre(e)} style={s.action} accessibilityRole="button">
-              <Text style={s.actionTexte}>↪ Transmettre</Text>
+          {(!!vers.length || !!hierarchie.transmission(e).length) && (
+            <Pressable disabled={occupe === e.id} onPress={() => setSuivre(e)} style={s.action} accessibilityRole="button">
+              <Text style={s.actionTexte}>↪ Faire suivre</Text>
             </Pressable>
           )}
         </View>
@@ -471,30 +468,19 @@ function Conversation({
       <Pressable onPress={onNouveau} style={s.bouton} accessibilityRole="button">
         <Text style={s.boutonTexte}>＋ Nouvel échange</Text>
       </Pressable>
-      {escalader && (
+      {suivre && (
         <FeuilleChoix
-          titre="Escalader à"
+          titre="Faire suivre à"
           value=""
-          groupes={[{ options: hierarchie.escalade(escalader).map((v) => ({ value: v.email, label: v.libelle, meta: v.meta })) }]}
+          groupes={groupesFaireSuivre(hierarchie, suivre)}
           onChoisir={(v) => {
-            const e = escalader;
-            setEscalader(null);
-            if (v) agir(e, () => hierarchie.onEscalader(e, v));
+            const e = suivre;
+            setSuivre(null);
+            if (!v) return;
+            const email = v.slice(4);
+            agir(e, () => (v.startsWith('esc:') ? hierarchie.onEscalader(e, email) : hierarchie.onTransmettre(e, email)));
           }}
-          onFermer={() => setEscalader(null)}
-        />
-      )}
-      {transmettre && (
-        <FeuilleChoix
-          titre="Transmettre à"
-          value=""
-          groupes={hierarchie.transmission(transmettre)}
-          onChoisir={(v) => {
-            const e = transmettre;
-            setTransmettre(null);
-            if (v) agir(e, () => hierarchie.onTransmettre(e, v));
-          }}
-          onFermer={() => setTransmettre(null)}
+          onFermer={() => setSuivre(null)}
         />
       )}
     </ScrollView>
