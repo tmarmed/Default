@@ -88,7 +88,11 @@ export function groupesFaireSuivre(h: Hierarchie, e: Echange): GroupeChoix[] {
   const esc = h.escalade(e);
   return [
     ...(esc.length ? [{ titre: '⤴ Escalader · niveau au-dessus', options: esc.map((v) => ({ value: `esc:${v.email}`, label: v.libelle, meta: v.meta })) }] : []),
-    ...h.transmission(e).map((g) => ({ ...g, titre: `↪ Transmettre${g.titre ? ` · ${g.titre}` : ''}`, options: g.options.map((o) => ({ ...o, value: `tra:${o.value}` })) })),
+    // Déjà proposé dans Escalader : pas une seconde fois dans Transmettre
+    ...h
+      .transmission(e)
+      .map((g) => ({ ...g, titre: `↪ Transmettre${g.titre ? ` · ${g.titre}` : ''}`, options: g.options.filter((o) => !esc.some((v) => v.email === o.value)).map((o) => ({ ...o, value: `tra:${o.value}` })) }))
+      .filter((g) => g.options.length),
   ];
 }
 

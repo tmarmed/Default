@@ -97,11 +97,16 @@ export function niveauDe(pid: string, org: OrgValue): Niveau | null {
 }
 
 /**
- * Personnes à qui transmettre un échange (e-mails), par groupe : équipe actuelle, train englobant, unité parente,
- * équipes partenaires. Sans `exclure` (vous et l'auteur).
+ * Personnes à qui transmettre un échange (e-mails), par groupe : seulement **vos** équipes (décidé 01/10), pas les
+ * autres équipes. Les équipes au-dessus sont calculées depuis les rôles de l'Organisation (rien de créé en plus dans
+ * le Sheet) : équipe du train = RTE, PM, SM et PO de ses équipes ; équipe du portfolio = Epic Owner, RTE et PM de ses
+ * trains. Ainsi un membre transmet dans son équipe ; le SM ou le PO l'affecte à un membre de son équipe ou le passe
+ * dans l'équipe du train ; le RTE l'affecte au SM ou au PO d'une équipe ; l'Epic Owner au RTE d'un train.
+ * Sans `exclure` (vous et l'auteur).
  */
-export function destinatairesTransfert(moi: string, niveau: Niveau | null, org: OrgValue, exclure: string[]): { titre: string; emails: string[] }[] {
+export function destinatairesTransfert(moi: string, _niveau: Niveau | null, org: OrgValue, exclure: string[]): { titre: string; emails: string[] }[] {
   const pid = personneParEmail(moi, org)?.id ?? '';
+  if (!pid) return [];
   const email = (id: string) => org.personne.get(id)?.email?.toLowerCase() ?? '';
   const sans = new Set(exclure.map((x) => x.toLowerCase()));
   const vus = new Set<string>();
@@ -110,18 +115,18 @@ export function destinatairesTransfert(moi: string, niveau: Niveau | null, org: 
     emails.forEach((e) => vus.add(e));
     return { titre, emails };
   };
-  const eq = niveau?.kind === 'equipeagile' ? org.equipe.get(niveau.id) : equipesDe(pid, org)[0];
-  const train = org.train.get(eq?.train ?? (niveau?.kind === 'train' ? niveau.id : ''));
-  const membresEq = (e: { po: string; sm: string; membres: string }) => [e.po, e.sm, ...membresDe(e)];
-  const uniteId = niveau?.kind === 'unite' ? niveau.id : org.personne.get(pid)?.unite ?? '';
-  const parent = org.unite.get(org.unite.get(uniteId)?.parent ?? '');
-  const groupes = [
-    groupe(eq ? `Équipe actuelle · ${eq.nom}` : 'Équipe actuelle', eq ? membresEq(eq) : []),
-    groupe(train ? `Train · ${train.nom}` : 'Train', train ? [train.rte, train.pm, ...org.equipes.filter((e) => e.train === train.id && e.id !== eq?.id).flatMap((e) => [e.po, e.sm])] : []),
-    groupe(parent ? `Unité parente · ${parent.nom}` : 'Unité parente', parent ? [parent.responsable, ...org.personnes.filter((p) => p.unite === parent.id).map((p) => p.id)] : []),
-    groupe('Équipes partenaires', org.equipes.filter((e) => e.id !== eq?.id).flatMap(membresEq)),
-  ];
-  return groupes.filter((g) => g.emails.length);
+  // Vos équipes agiles (membre, SM ou PO)
+  const equipes = equipesDe(pid, org).map((e) => groupe(`Équipe · ${e.nom}`, [e.sm, e.po, ...membresDe(e)]));
+  // Équipe du train : vous êtes RTE / PM, ou SM / PO d'une de ses équipes
+  const trainsPilotes = org.trains.filter((t) => t.rte === pid || t.pm === pid || org.equipes.some((e) => e.train === t.id && (e.sm === pid || e.po === pid)));
+  const trains = trainsPilotes.map((t) => groupe(`Équipe du train · ${t.nom}`, [t.rte, t.pm, ...org.equipes.filter((e) => e.train === t.id).flatMap((e) => [e.sm, e.po])]));
+  // Équipe du portfolio : vous êtes Epic Owner, ou RTE / PM d'un de ses trains
+  const pfs = org.portfolios.filter((p) => p.epic_owner === pid || org.trains.some((t) => t.portfolio === p.id && (t.rte === pid || t.pm === pid)));
+  const portfolios = pfs.map((p) => groupe(`Équipe du portfolio · ${p.nom}`, [p.epic_owner, ...org.trains.filter((t) => t.portfolio === p.id).flatMap((t) => [t.rte, t.pm])]));
+  // Hiérarchie : votre unité
+  const u = org.unite.get(org.personne.get(pid)?.unite ?? '');
+  const unite = u ? [groupe(`Unité · ${u.nom}`, [u.responsable, ...org.personnes.filter((p) => p.unite === u.id).map((p) => p.id)])] : [];
+  return [...equipes, ...trains, ...portfolios, ...unite].filter((g) => g.emails.length);
 }
 
 /**
