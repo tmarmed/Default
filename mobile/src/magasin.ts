@@ -465,6 +465,18 @@ export function creerMagasin(p: Persistance) {
       if (garde.length !== lignes.length) await p.ecrire('piecejointe', garde);
       return lignes.length - garde.length;
     },
+    /**
+     * Changer sa réponse à une question : possible tant que l'autre ne l'a pas prise en compte (ligne encore là,
+     * statut « repondu »). Une lecture, une écriture.
+     */
+    async changerReponse(id: string, reponse: string, note: string): Promise<Echange> {
+      const list = (await p.lire('echange')) as Echange[];
+      const current = list.find((e) => e.id === id);
+      if (!current || current.statut !== 'repondu') throw new Error('Déjà prise en compte par l’autre personne : la réponse ne peut plus changer.');
+      const o = { ...nettoyerEntite('echange', { reponse, note }, current, []), id: current.id, cree_le: current.cree_le, modifie_le: new Date().toISOString() } as Echange;
+      await p.ecrire('echange', list.map((e) => (e.id === o.id ? o : e)) as never);
+      return o;
+    },
     /** Espace Équipe (hors entreprise) : ses personnes et sa ligne d'équipe (rôles, membres) — une lecture */
     async listEquipe(): Promise<EquipeEspace> {
       const [personnes, equipes] = await Promise.all([p.lire('personne'), p.lire('equipeagile')]);

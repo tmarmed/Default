@@ -184,7 +184,7 @@ const TAB_ICONS: Record<Tab, string> = {
   pilotage: '📊',
   echange: '🔄',
 };
-const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches', echange: 'Synchronisation' };
+const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches', echange: 'Synchro' };
 /** Messages de l'application gardés sur l'appareil jusqu'à « Lu ✓ » */
 const MESSAGES_APP_KEY = 'president:messages-app';
 /** Écrans prévus, encore vides (règles de gestion à définir) */
@@ -2396,6 +2396,16 @@ function Main() {
           hierarchie={hierarchieEchanges}
           onRepondre={async (e, reponse, note) => {
             await saveEntity('echange', e, { reponse, note, statut: 'repondu' });
+          }}
+          onChangerReponse={async (e, reponse, note) => {
+            if (!settings) return;
+            // Encore possible seulement si l'autre ne l'a pas prise en compte (vérifié dans le Sheet)
+            const r = await api.changerReponse(settings, e.espace ?? 'moi', e.id, reponse, note);
+            setHier((prev) => {
+              const next = { ...prev, echanges: (prev.echanges ?? []).map((x) => (x.id === r.id ? r : x)) };
+              saveHierarchyCache(next).catch(() => {});
+              return next;
+            });
           }}
           onModifier={async (e, patch) => {
             if (!settings) return;

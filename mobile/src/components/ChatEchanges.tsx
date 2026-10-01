@@ -22,13 +22,15 @@ interface Props {
   elements: ElementChat[];
   onFermer: () => void;
   onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>;
+  /** Changer sa réponse tant que l'autre ne l'a pas prise en compte */
+  onChangerReponse?: (e: Echange, reponse: string, note: string) => Promise<void>;
   onRetirer: (e: Echange) => Promise<void>;
   onLu: (id: string) => void;
 }
 
 const cle = (x: ElementChat) => (x.kind === 'echange' ? x.e.id : x.m.id);
 
-export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepondre, onRetirer, onLu }: Props) {
+export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepondre, onChangerReponse, onRetirer, onLu }: Props) {
   // La liste est figée à l'ouverture ; `faits` : ce qui a été répondu (ou passé) pendant cette fenêtre
   const [liste, setListe] = useState<ElementChat[]>([]);
   const [faits, setFaits] = useState<Record<string, { texte: string; passe?: boolean }>>({});
@@ -46,10 +48,13 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
   const i = liste.findIndex((y) => !faits[cle(y)]);
   const x = i >= 0 ? liste[i] : null;
   useEffect(() => {
-    setChoix('');
-    setNote('');
+    // Réponse déjà donnée (en attente de prise en compte) : on repart d'elle pour pouvoir la changer
+    const deja = x?.kind === 'echange' && x.e.a === moi && x.e.statut === 'repondu' ? x.e : null;
+    setChoix(deja?.reponse ?? '');
+    setNote(deja?.note ?? '');
     setError(null);
-  }, [i]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i, liste]);
 
   const faire = async (f: () => Promise<void> | void, texte: string) => {
     if (!x) return;
@@ -57,6 +62,8 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
     setError(null);
     try {
       await f();
+      // Un seul échange ouvert (consultation) : la fenêtre se referme directement
+      if (liste.length === 1) return onFermer();
       setFaits((l) => ({ ...l, [cle(x)]: { texte } }));
     } catch (e) {
       setError(`Non enregistré : ${(e as Error).message}`);
@@ -103,7 +110,10 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
     const recue = e.de === moi && e.statut === 'repondu';
     // Consultation : rien à faire de votre côté (envoyé, en attente de l'autre ; ou déjà répondu, en attente de sa prise en compte)
     const attente = (e.de === moi && e.statut === 'envoye') || (e.a === moi && e.statut === 'repondu');
-    const question = !recue && !attente && e.type === 'question';
+    // Votre réponse attend sa prise en compte : elle peut encore être changée
+    const modifiable = !!onChangerReponse && e.a === moi && e.statut === 'repondu' && e.type === 'question';
+    const question = (!recue && !attente && e.type === 'question') || modifiable;
+    const change = choix !== e.reponse || note.trim() !== (e.note ?? '');
     const options = e.choix.split(';').map((c) => c.trim()).filter(Boolean);
     contenu = (
       <>
@@ -138,7 +148,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
             </View>
           </SectionFiche>
         )}
-        {e.type === 'question' && attente && (
+        {e.type === 'question' && attente && !modifiable && (
           <SectionFiche titre={e.statut === 'repondu' ? 'Votre réponse' : 'Choix proposés'}>
             <ChampFiche label={e.statut === 'repondu' ? 'Choix' : 'Choix'}>
               <Text style={e.statut === 'repondu' ? s.reponse : s.texteNote}>{e.statut === 'repondu' ? e.reponse : options.join(' · ')}</Text>
@@ -164,7 +174,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
         )}
         {question && (
           <>
-            <SectionFiche titre="Votre réponse" aDefinir={choix ? 0 : 1}>
+            <SectionFiche titre={modifiable ? 'Votre réponse · modifiable' : 'Votre réponse'} aDefinir={choix ? 0 : 1}>
               {options.map((o, k) => (
                 <Pressable key={o} onPress={() => setChoix(o)} style={[s.ligne, k > 0 && s.bord]} accessibilityRole="radio" accessibilityState={{ checked: choix === o }}>
                   <View style={[s.rond, choix === o && s.rondOn]}>{choix === o && <View style={s.point} />}</View>
@@ -179,7 +189,17 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
             </SectionFiche>
           </>
         )}
-        {attente ? (
+        {modifiable ? (
+          <>
+            <Bouton
+              label="Changer la réponse"
+              busy={busy}
+              disabled={!change || !reponsePrete(choix, note)}
+              onPress={() => faire(() => onChangerReponse!(e, choix, note.trim()), `Réponse changée : ${choix}${note.trim() ? ` — ${note.trim()}` : ''}`)}
+            />
+            <Text style={s.aide}>Possible tant que {x.avec} ne l’a pas prise en compte.</Text>
+          </>
+        ) : attente ? (
           <Bouton label={reste > 0 ? 'Suivant ›' : 'Fermer'} busy={false} onPress={() => (reste > 0 ? passer() : onFermer())} />
         ) : question ? (
           <Bouton
@@ -231,6 +251,7 @@ const s = StyleSheet.create({
   bouton: { marginTop: 24, paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: colors.primary },
   boutonTexte: { color: '#fff', fontSize: 16, fontWeight: '700' },
   inactif: { opacity: 0.4 },
+  aide: { fontSize: 12.5, color: colors.muted, textAlign: 'center', marginTop: 8 },
   passer: { alignSelf: 'center', marginTop: 14, padding: 6 },
   passerTexte: { fontSize: 14, color: colors.muted, fontWeight: '600' },
   recapTitre: { flex: 1, fontSize: 14.5, color: colors.text },

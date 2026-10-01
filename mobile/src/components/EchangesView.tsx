@@ -59,6 +59,8 @@ interface Props {
   /** Nouvel échange, avec ses pièces jointes (images réduites, fichiers de 1 Mo au plus) */
   onEnvoyer: (e: EchangeInput, pieces: PieceEntree[]) => Promise<void>;
   onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>;
+  /** Changer sa réponse à une question tant que l'autre ne l'a pas prise en compte */
+  onChangerReponse: (e: Echange, reponse: string, note: string) => Promise<void>;
   /** Modifier un échange envoyé : sur place s'il n'est pas lu, sinon en nouvel échange */
   onModifier: (e: Echange, patch: Partial<EchangeInput>) => Promise<void>;
   /** Lu, pris en compte ou retiré : l'échange est supprimé */
@@ -112,7 +114,7 @@ const AIDE: { q: string; r: string }[] = [
   { q: 'Claude', r: '🔄 Synchronisation › Claude : une conversation comme avec une personne (IA chat). Claude lit et répond dans votre Sheet avec le connecteur Google Sheets.' },
 ];
 
-export function EchangesView({ moi, echanges, personnes, espaces, president, onEnvoyer, onRepondre, onModifier, onRetirer, hierarchie }: Props) {
+export function EchangesView({ moi, echanges, personnes, espaces, president, onEnvoyer, onRepondre, onChangerReponse, onModifier, onRetirer, hierarchie }: Props) {
   const [ouvert, setOuvertEtat] = useState<string | null>(null);
   /** Mode chat : en ouvrant une conversation, ce qui attend votre réponse défile dans une fenêtre */
   const [chat, setChat] = useState<{ titre: string; elements: ElementChat[] } | null>(null);
@@ -150,6 +152,7 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
       elements={chat?.elements ?? []}
       onFermer={() => setChat(null)}
       onRepondre={onRepondre}
+      onChangerReponse={onChangerReponse}
       onRetirer={onRetirer}
       onLu={president.onLu}
     />
@@ -245,13 +248,17 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
 
 function Retour({ titre, onRetour }: { titre: string; onRetour: () => void }) {
   return (
+    // Retour aux conversations (même écran) : un bouton rond, puis la personne
     <View style={s.fil}>
-      <Pressable onPress={onRetour} accessibilityRole="button" hitSlop={8}>
-        <Text style={s.filLien}>‹ Conversations</Text>
+      <Pressable onPress={onRetour} style={s.retourRond} accessibilityRole="button" accessibilityLabel="Retour aux conversations" hitSlop={8}>
+        <Text style={s.retourFleche}>‹</Text>
       </Pressable>
-      <Text style={s.filTitre} numberOfLines={1}>
-        {titre}
-      </Text>
+      <View style={s.corps}>
+        <Text style={s.filTitre} numberOfLines={1}>
+          {titre}
+        </Text>
+        <Text style={s.meta}>Conversations</Text>
+      </View>
     </View>
   );
 }
@@ -351,7 +358,7 @@ function Conversation({
             <CarteMessage key={e.id} e={e} gris action="Retirer" onAction={() => onRetirer(e)} modifier={() => onModifier(e)} onOuvrir={() => onOuvrir(e)} />
           ))}
           {autres.map((e) => (
-            <CarteMessage key={e.id} e={e} reponse gris onOuvrir={() => onOuvrir(e)} />
+            <CarteMessage key={e.id} e={e} reponse gris onOuvrir={() => onOuvrir(e)} {...(e.type === "question" ? { modifier: () => onOuvrir(e), libelleModifier: "✏️ Changer la réponse" } : {})} />
           ))}
         </Bloc>
       )}
@@ -402,7 +409,7 @@ function Bloc({ titre, vide, children }: { titre: string; vide: string; children
   );
 }
 
-function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier, onOuvrir }: { e: Echange; action?: string; onAction?: () => void; reponse?: boolean; gris?: boolean; pied?: ReactNode; modifier?: () => void; onOuvrir?: () => void }) {
+function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier, libelleModifier = '✏️ Modifier', onOuvrir }: { e: Echange; action?: string; onAction?: () => void; reponse?: boolean; gris?: boolean; pied?: ReactNode; modifier?: () => void; libelleModifier?: string; onOuvrir?: () => void }) {
   return (
     // Toucher la carte l'ouvre dans la fenêtre (consultation), par-dessus l'écran
     <Pressable onPress={onOuvrir} disabled={!onOuvrir} style={[s.carte, s.carteEchange, gris && s.gris]} accessibilityRole="button">
@@ -422,7 +429,7 @@ function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier, onOu
         <View style={s.actionsLigne}>
           {!!modifier && (
             <Pressable onPress={modifier} style={s.action} accessibilityRole="button">
-              <Text style={s.actionTexte}>✏️ Modifier</Text>
+              <Text style={s.actionTexte}>{libelleModifier}</Text>
             </Pressable>
           )}
           {!!action && onAction && (
@@ -789,6 +796,8 @@ const s = StyleSheet.create({
   videTexte: { marginHorizontal: 16, fontSize: 13, color: colors.muted, paddingVertical: 4 },
   fil: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginTop: 12 },
   filLien: { fontSize: 13.5, fontWeight: '700', color: colors.primary },
+  retourRond: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
+  retourFleche: { fontSize: 24, lineHeight: 26, fontWeight: '600', color: colors.primary, marginTop: -2, marginLeft: -2 },
   filTitre: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
   choix: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choixBouton: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },

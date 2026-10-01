@@ -216,6 +216,10 @@ export async function saveOrg<K extends KindOrg>(settings: Settings, espace: str
   const { espace: _e, ...propre } = data as Record<string, unknown>;
   return marquer(await route(settings, espace).m.saveOrg(kind, propre as never), espace) as unknown as EntiteOrg<K>;
 }
+/** Changer sa réponse tant que l'autre ne l'a pas prise en compte */
+export async function changerReponse(settings: Settings, espace: string, id: string, reponse: string, note: string): Promise<Echange> {
+  return marquer(await route(settings, espace).m.changerReponse(id, reponse, note), espace) as unknown as Echange;
+}
 /** Pièces jointes d'un échange, rangées dans le Sheet de son espace (renvoie les ids) */
 export async function ajouterPieces(settings: Settings, espace: string, pieces: PieceEntree[]): Promise<string[]> {
   return route(settings, espace).m.ajouterPieces(pieces);

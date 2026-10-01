@@ -291,6 +291,15 @@ const ok = (cond: unknown, msg: string) => {
   const restent = await magasinSheets(idL).lirePieces(pjs);
   ok(effacees === 2 && restent.length === 1 && restent[0].id === pjs[0], 'pièces jointes : celle qu\'aucun échange ne cite est effacée, l\'autre reste');
 
+  // Changer sa réponse : possible tant que la réponse n'est pas prise en compte
+  const qr = await l.createEntity('echange', { de: 'lea@x.fr', a: 'moi@x.fr', type: 'question', titre: 'Jeudi ?', texte: '', choix: 'Oui;Non', reponse: 'Oui', note: '', statut: 'repondu', element: '', niveau: '', transmis_par: '', prive: '1' } as never);
+  const qr2 = await l.changerReponse(qr.id, 'Non', 'finalement');
+  ok(qr2.reponse === 'Non' && qr2.note === 'finalement' && qr2.statut === 'repondu', 'changer sa réponse avant la prise en compte');
+  await l.updateEntity('echange', { id: qr.id, statut: 'pris_en_compte' } as never);
+  let refusQr = '';
+  await l.changerReponse(qr.id, 'Oui', '').catch((e) => (refusQr = e.message));
+  ok(refusQr.includes('prise en compte'), 'réponse prise en compte : plus modifiable');
+
   // Espace Équipe : membres et rôles (une lecture, deux écritures au plus par membre)
   const idEq = await creerFichierEspace('President | Équipe | Mobile', 'equipe', 'Mobile');
   const q = magasinSheets(idEq);
