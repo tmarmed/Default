@@ -523,9 +523,9 @@ export interface TypeReunionInfo {
   etapes: string[];
 }
 
-/** Catalogue des réunions (le contenu détaillé de chaque étape est en cours de validation) */
+/** Catalogue des réunions (contenu des étapes : daily validé, src/components/Daily.tsx ; les autres en cours de validation) */
 export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
-  daily: { icone: '☀️', libelle: 'Daily', mode: 'safe', niveau: 'equipe', role: 'sm', duree: 15, etapes: ['Situation', 'Tour de table', 'Blocages', 'Compte rendu'] },
+  daily: { icone: '☀️', libelle: 'Daily', mode: 'safe', niveau: 'equipe', role: 'sm', duree: 15, etapes: ['Situation', 'Tour de table', 'Concrétisation', 'Compte rendu'] },
   planification: { icone: '🧮', libelle: "Planification d'itération", mode: 'safe', niveau: 'equipe', role: 'sm', duree: 120, etapes: ['Capacité', 'Objectifs', 'Stories', 'Engagement'] },
   revue: { icone: '🎬', libelle: "Revue d'itération", mode: 'safe', niveau: 'equipe', role: 'po', duree: 60, etapes: ['Bilan', 'Terminées', 'Non terminées', 'Compte rendu'] },
   retro: { icone: '🔁', libelle: 'Rétrospective', mode: 'safe', niveau: 'equipe', role: 'sm', duree: 60, etapes: ['Indicateurs', 'Ce qui va', 'Ce qui ne va pas', 'Actions', 'Compte rendu'] },
@@ -541,3 +541,33 @@ export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
   revue_semaine: { icone: '📆', libelle: 'Revue de la semaine', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Semaine écoulée', 'En retard', 'Priorités'] },
   revue_objectifs: { icone: '🧭', libelle: 'Revue des objectifs', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Objectifs', 'Domaines délaissés', 'Fin'] },
 };
+
+/** Point noté pendant une réunion (onglet PointsReunion) : préparé par le participant ou noté par l'organisateur */
+export type TypePoint = 'hier' | 'aujourdhui' | 'blocage' | 'decision' | 'action';
+/**
+ * Concrétisation d'un blocage, d'une décision ou d'une action : sous-tâche de l'élément, tâche à part dans
+ * l'itération, rien, escalade au RTE ; vide = pas encore décidé
+ */
+export type Concretisation = '' | 'sous_tache' | 'tache' | 'rien' | 'escalade';
+export interface PointReunion {
+  /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
+  espace?: string;
+  id: string;
+  /** Réunion (son id calculé : type, niveau et date, ex. « daily-equipeagile:acmeqmob-2026-10-02 ») */
+  reunion: string;
+  /** Personne dont c'est le point (e-mail) */
+  personne: string;
+  /** Qui l'a noté (e-mail) : la personne elle-même ou l'organisateur */
+  auteur: string;
+  type: TypePoint;
+  texte: string;
+  /** Élément concerné (id d'une story), facultatif */
+  element: string;
+  concretisation: Concretisation;
+  /** Tâche créée (sous-tâche ou tâche à part) ou échange d'escalade : son id, pour le suivi */
+  tache: string;
+  /** Responsable de la suite (e-mail) */
+  responsable: string;
+  cree_le: string;
+}
+export const TYPES_POINT: TypePoint[] = ['hier', 'aujourdhui', 'blocage', 'decision', 'action'];

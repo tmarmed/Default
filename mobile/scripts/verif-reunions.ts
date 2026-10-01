@@ -3,7 +3,9 @@
  * (portfolio Digital › train Clients › équipes Mobile et Web) : qui voit quelle réunion, quand, et qui l'anime.
  * Lancer : npm run verif:reunions
  */
-import { orgDemo } from '../src/demo';
+import { donneesDemo, orgDemo, pointsDemo } from '../src/demo';
+import { dateCourte, pastillePoint, storiesBloquees, suivis, texteCompteRendu, veilleOuvree } from '../src/daily';
+import { toDateString } from '../src/dates';
 import { makeOrgValue } from '../src/organisation';
 import { participantsReunion, reunionsAVenir } from '../src/reunions';
 import { type Reunion, TYPES_REUNION } from '../src/types';
@@ -94,6 +96,23 @@ ok(du(simple, '2026-10-03').map((r) => r.type).join(',') === 'point_perso,bilan_
 ok(du(simple, '2026-10-05').some((r) => r.type === 'revue_semaine'), 'Simple : revue de la semaine le lundi');
 ok(du(simple, '2026-10-01').some((r) => r.type === 'revue_objectifs'), 'Simple : revue des objectifs le 1er du mois');
 ok(simple.every((r) => !r.niveau && r.organisateur === 'vous@demo'), 'Simple : réunions personnelles, animées par vous');
+
+// Daily (lot 6) : dates des points, suivi des points concrétisés, compte rendu
+ok(veilleOuvree('2026-10-05') === '2026-10-02' && veilleOuvree('2026-10-01') === '2026-09-30', 'daily : « hier » = la veille ouvrée (lundi → vendredi)');
+ok(pastillePoint('hier', '2026-10-01') === 'Hier · 30/09' && pastillePoint('aujourdhui', '2026-10-01') === 'Aujourd’hui · 1/10' && pastillePoint('blocage', '2026-10-01') === 'Blocage', 'daily : pastilles « Hier · 30/09 », « Aujourd’hui · 1/10 », type');
+ok(dateCourte('2026-10-12') === '12/10', 'daily : date courte');
+const dEnt = donneesDemo('demo-entreprise').items;
+const pts = pointsDemo('demo-entreprise');
+const nina = reunionsAVenir(o, mail('acmp7'), toDateString(new Date()), true, 14);
+const prochain = nina.find((r) => r.type === 'daily' && r.niveau === 'equipeagile:acmeqmob')!;
+ok(!!prochain && prochain.organisateur === mail('acmp7') && pts.filter((x) => x.reunion === prochain.id).length === 3, 'démo : Tom a préparé 3 points pour le prochain daily de Mobile (animé par Nina)');
+const s1 = suivis(pts, dEnt);
+ok(s1.length === 2 && s1.every((x) => x.tache.statut !== 'termine'), 'démo : 2 suivis (points concrétisés, tâche pas finie)');
+ok(suivis(pts, dEnt.map((t) => (t.id === 'acm7' ? { ...t, statut: 'termine' as const } : t))).length === 1, 'suivi : une tâche terminée n’est plus suivie');
+ok(suivis(pts.filter((x) => x.responsable === mail('acmp8')), dEnt).length === 1, 'démo : Tom a 1 suivi à son nom');
+ok(storiesBloquees(pts, dEnt).has('acm4'), 'démo : « Écran de connexion » bloquée (blocage noté, pas levé)');
+const cr = texteCompteRendu({ equipe: 'Mobile', jour: '2026-10-02', decisions: ['Livrer en deux fois'], creees: [{ titre: 'Accès API', sous: 'sous-tâche · Tom' }], escalades: [], notes: 1 });
+ok(cr.includes('Décisions · 1') && cr.includes('Actions créées · 1') && !cr.includes('escaladés') && cr.includes('1 autre point noté seulement'), 'compte rendu : décisions, actions créées, blocages escaladés (s’il y en a)');
 
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
 process.exit(erreurs ? 1 : 0);

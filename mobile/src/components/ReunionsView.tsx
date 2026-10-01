@@ -6,6 +6,7 @@ import { type OrgFiltre, type OrgValue } from '../organisation';
 import { dureeReunion, heureReunion, participantsReunion } from '../reunions';
 import { colors } from '../theme';
 import { type Reunion, TYPES_REUNION } from '../types';
+import { type ActionsDaily, FenetreDaily } from './Daily';
 import { FenetreReunion } from './FenetreReunion';
 
 /**
@@ -33,6 +34,8 @@ interface Props {
   filtre: FiltreReunions;
   /** Message de l'application (bandeau du bas) */
   onInfo?: (texte: string) => void;
+  /** Daily : points notés (onglet PointsReunion), tâches et échanges créés au compte rendu */
+  daily?: ActionsDaily;
 }
 
 const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
@@ -54,7 +57,7 @@ function dansDelivery(r: Reunion, f: OrgFiltre, org: OrgValue): boolean {
   return f.kind === 'equipeagile' ? n.kind === 'equipeagile' && n.id === f.id : f.kind === 'train' ? train === f.id : portfolio === f.id;
 }
 
-export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre, onInfo }: Props) {
+export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre, onInfo, daily }: Props) {
   const [ouverte, setOuverte] = useState<Reunion | null>(null);
   const mots = filtre.recherche.toLowerCase().split(/\s+/).filter(Boolean);
   const niveauDe = (r: Reunion) => libelleNiveau(lireNiveau(r.niveau), org);
@@ -119,6 +122,7 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
 
   const filtreActif = !!filtre.niveau || !!filtre.org || mots.length > 0;
   const mode = ouverte && ouverte.organisateur.toLowerCase() === moi.toLowerCase() ? 'organisateur' : 'participant';
+  const fil = ouverte ? [niveauDe(ouverte) || '👤 Personnel', jourCourt(jour(ouverte)), heureReunion(ouverte), dureeReunion(ouverte.duree_min)].join(' · ') : undefined;
   return (
     <>
       <ScrollView contentContainerStyle={s.scroll}>
@@ -142,14 +146,19 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
           </>
         )}
       </ScrollView>
-      <FenetreReunion
-        visible={!!ouverte}
-        reunion={ouverte}
-        mode={mode}
-        fil={ouverte ? [niveauDe(ouverte) || '👤 Personnel', jourCourt(jour(ouverte)), heureReunion(ouverte), dureeReunion(ouverte.duree_min)].join(' · ') : undefined}
-        onFermer={() => setOuverte(null)}
-        onTerminer={() => onInfo?.(mode === 'organisateur' && ouverte?.niveau ? 'Compte rendu : à venir, rien n’est encore envoyé.' : 'Réunion terminée : rien n’est encore enregistré.')}
-      />
+      {ouverte?.type === 'daily' && !!ouverte.niveau && daily ? (
+        // Daily validé : contenu de chaque étape, points enregistrés dans le Sheet de l'équipe
+        <FenetreDaily visible reunion={ouverte} mode={mode} org={org} moi={moi} aujourdhui={aujourdhui} fil={fil} actions={daily} onFermer={() => setOuverte(null)} onInfo={onInfo} />
+      ) : (
+        <FenetreReunion
+          visible={!!ouverte}
+          reunion={ouverte}
+          mode={mode}
+          fil={fil}
+          onFermer={() => setOuverte(null)}
+          onTerminer={() => onInfo?.(mode === 'organisateur' && ouverte?.niveau ? 'Compte rendu : à venir, rien n’est encore envoyé.' : 'Réunion terminée : rien n’est encore enregistré.')}
+        />
+      )}
     </>
   );
 }
