@@ -64,8 +64,10 @@ export function SectionFiche({
   carte?: boolean;
 }) {
   const lectureSection = useContext(LectureContext);
+  // Lecture seule : les lignes vides sont masquées ; une section dont rien ne reste est masquée en entier
+  const [vide, setVide] = useState(false);
   return (
-    <View>
+    <View style={lectureSection && vide && s.masque}>
       <View style={s.titreSec}>
         <Text style={s.titreSecTexte}>{titre}</Text>
         {aDefinir > 0 && <Text style={s.aDefinir}>{aDefinir} à définir{auChoix ? ' (au choix)' : ''}</Text>}
@@ -75,7 +77,7 @@ export function SectionFiche({
           </Pressable>
         )}
       </View>
-      {children != null && (carte ? <View style={s.carte}>{children}</View> : children)}
+      {children != null && (carte ? <View style={s.carte} onLayout={lectureSection ? (ev) => setVide(ev.nativeEvent.layout.height < 2) : undefined}>{children}</View> : children)}
     </View>
   );
 }
@@ -271,7 +273,7 @@ export function LigneChoix(p: LigneChoixProps) {
         <Text style={[s.cle, afaire && s.orange]}>{p.label}</Text>
         <Text style={[s.valeur, !p.value && !afaire && s.valeurGris, afaire && s.orange]}>{p.value ? nom(p.value) : afaire ? 'À définir' : (p.vide ?? 'Facultatif')}</Text>
         {change && <Pastille texte={p.parent ? 'déplacée' : 'changée'} ouvert={ch.ouvert} onPress={ch.basculer} />}
-        {!p.fige && <Text style={s.chev}>›</Text>}
+        {!p.fige && !lectureLigne && <Text style={s.chev}>›</Text>}
       </Pressable>
       {change && ch.ouvert && (
         <DetailChangement
@@ -806,6 +808,7 @@ export function ListeEnfants({
 }
 
 const s = StyleSheet.create({
+  masque: { height: 0, overflow: 'hidden', opacity: 0 },
   croix: { fontSize: 14, color: CLAIR, paddingHorizontal: 4 },
   titreSec: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 7, paddingHorizontal: 4, minHeight: 24 },
   titreSecTexte: { flex: 1, fontSize: 11.5, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.5 },

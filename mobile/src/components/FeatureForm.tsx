@@ -360,7 +360,7 @@ export function FeatureForm({
           <LigneEnfant key={`n${i}`} texte={titre} coche={{ fait: false }} ajoute onAnnuler={() => setNouvelles((l) => l.filter((_, k) => k !== i))} />
         ))}
         {!tasks.length && !existantes.length && !nouvelles.length && <Text style={[f.muted, { padding: 12 }]}>Aucune tâche pour l'instant.</Text>}
-        {(!feature || onQuickAddTask) && (
+        {(!feature || onQuickAddTask) && droitsF.modifier && (
           <TextInput
             style={styles.saisie}
             placeholder={adding ? 'Ajout…' : '＋ Nouvelle tâche'}
@@ -390,7 +390,7 @@ export function FeatureForm({
             }}
           />
         )}
-        {(!feature || onQuickAddTask) && (
+        {(!feature || onQuickAddTask) && droitsF.modifier && (
           <Text style={styles.entree}>{`Entrée pour ajouter${form.iteration ? ` · en ${form.iteration.split('-').pop()}` : ''}`}</Text>
         )}
       </SectionFiche>
