@@ -253,7 +253,6 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
             ]}
             value={vue}
             onChange={setVue}
-            compact
           />
         </View>
         {vue === 'afaire' ? (
