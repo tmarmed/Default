@@ -1420,6 +1420,8 @@ function Main() {
       .map((c) => ({ ...c, email: orgEchanges.personne.get(c.pid)?.email?.toLowerCase() ?? '' }))
       .filter((c) => c.email && c.email !== moiEchange);
   };
+  /** Réponse déjà donnée (pas encore prise en compte) : retirée, la question repart à la nouvelle personne */
+  const repartir = (e: Echange) => (e.statut === 'repondu' ? { statut: 'envoye' as const, reponse: '', note: '' } : {});
   const hierarchieEchanges: Hierarchie = {
     libelle: (e) => libelleNiveau(lireNiveau(e.niveau), orgEchanges),
     escalade: (e) => escaladesDe(e).map((c) => ({ email: c.email, libelle: `${c.role} ${nomEchange(c.email)}`, meta: libelleNiveau(c.niveau, orgEchanges) })),
@@ -1431,13 +1433,13 @@ function Main() {
     onEscalader: async (e, email) => {
       const x = escaladesDe(e).find((c) => c.email === email);
       if (!x) return;
-      await saveEntity('echange', e, { a: x.email, niveau: ecrireNiveau(x.niveau), transmis_par: moiEchange });
+      await saveEntity('echange', e, { a: x.email, niveau: ecrireNiveau(x.niveau), transmis_par: moiEchange, ...repartir(e) });
       setInfo(`Échange « ${e.titre || e.texte.slice(0, 40)} » escaladé à ${nomEchange(x.email)} (${libelleNiveau(x.niveau, orgEchanges)}).`);
     },
     onTransmettre: async (e, email) => {
       const p = personneParEmail(email, orgEchanges);
       const niveau = (p && niveauDe(p.id, orgEchanges)) || lireNiveau(e.niveau);
-      await saveEntity('echange', e, { a: email, niveau: ecrireNiveau(niveau), transmis_par: moiEchange });
+      await saveEntity('echange', e, { a: email, niveau: ecrireNiveau(niveau), transmis_par: moiEchange, ...repartir(e) });
       setInfo(`Échange « ${e.titre || e.texte.slice(0, 40)} » transmis à ${nomEchange(email)}.`);
     },
   };

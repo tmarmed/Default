@@ -195,10 +195,10 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
           </>
         )}
         {/* Reçu, à traiter, dans une entreprise : le faire monter ou le passer à quelqu'un d'autre */}
-        {!!hierarchie && e.a === moi && e.statut === 'envoye' && (hierarchie.escalade(e).length > 0 || hierarchie.transmission(e).length > 0) && (
+        {!!hierarchie && e.a === moi && (e.statut === 'envoye' || modifiable) && (hierarchie.escalade(e).length > 0 || hierarchie.transmission(e).length > 0) && (
           <SectionFiche titre="Pas pour vous ?">
             <Text style={s.ou}>
-              {[hierarchie.libelle(e) && `📍 ${hierarchie.libelle(e)}`, e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`].filter(Boolean).join(' · ') || 'Faites-le suivre sans y répondre.'}
+              {[hierarchie.libelle(e) && `📍 ${hierarchie.libelle(e)}`, e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`, modifiable ? 'Votre réponse sera retirée : la question repart à la personne choisie.' : !hierarchie.libelle(e) && !e.transmis_par && 'Faites-le suivre sans y répondre.'].filter(Boolean).join(' · ')}
             </Text>
             {hierarchie.escalade(e).length > 0 && (
               <Pressable onPress={() => setFeuille('escalader')} disabled={busy} style={[s.ligne, s.bord]} accessibilityRole="button">
