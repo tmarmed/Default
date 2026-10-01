@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
-import { iterationOf, piOf, shiftPi } from './pi';
+import { iterationOf, piOf, piStart, shiftPi } from './pi';
 import { creerMagasin, type Kind, type Persistance, type Table, TABLES, TABLES_ORG } from './magasin';
 import { CLE_ORG, type KindOrg, type Org } from './organisation';
-import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI, type ResultatCle, type ValueStream, type Echange } from './types';
+import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, type ValueStream, type Echange } from './types';
 
 /**
  * Mode démo : données d'exemple enregistrées sur l'appareil, sans Google Sheet. Sert à essayer l'application.
@@ -87,7 +87,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '25';
+const DEMO_DATA_VERSION = '26';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -286,7 +286,7 @@ function sampleEntities(): {
   };
 }
 
-type Seeds = { items: () => Item[]; entities: () => ReturnType<typeof sampleEntities>; org?: () => Org };
+type Seeds = { items: () => Item[]; entities: () => ReturnType<typeof sampleEntities>; org?: () => Org; points?: () => PointReunion[] };
 
 /**
  * Stockage d'un espace de la démo (« moi » : clés historiques ; autres : « mes-taches:demo@<espace> »), avec
@@ -297,7 +297,7 @@ function creerStore(espace: string, seeds: Seeds) {
   const memoire: Partial<Record<Table, unknown[]>> = {};
   const cle = (t: Table) => (t === 'items' ? key : `${key}-${t}`);
   const exemples = (t: Table): unknown[] =>
-    t === 'items' ? seeds.items() : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : (seeds.entities()[t as Kind] ?? []);
+    t === 'items' ? seeds.items() : t === 'pointreunion' ? (seeds.points?.() ?? []) : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : (seeds.entities()[t as Kind] ?? []);
 
   const persistance: Persistance = {
     async lire(t) {
@@ -325,7 +325,7 @@ function creerStore(espace: string, seeds: Seeds) {
   return {
     ...creerMagasin(persistance),
     async reset(): Promise<void> {
-      for (const t of [...TABLES, ...TABLES_ORG]) await persistance.ecrire(t, exemples(t) as never);
+      for (const t of [...TABLES, ...TABLES_ORG, 'pointreunion' as const]) await persistance.ecrire(t, exemples(t) as never);
       await persistance.ecrire('ignoree', []);
     },
   };
@@ -396,12 +396,35 @@ const SEEDS_ENTREPRISE: Seeds = {
   items: () =>
     exemple('acm', [
       ['Choisir le prestataire du nouveau CRM', 'tache', 5, { epic: 'acme1', points: '2' }],
-      ['Migrer les contacts clients', 'story', SANS_DATE, { feature: 'acmf1', points: '8', equipe: 'acmeqmob', responsable: 'acmp7' }],
+      ['Migrer les contacts clients', 'story', SANS_DATE, { feature: 'acmf1', points: '8', equipe: 'acmeqmob', responsable: 'acmp7', iteration: iterationOf(new Date()).key }],
       ['Former les commerciaux', 'mission', 20, { epic: 'acme1' }],
       ['Écran de connexion', 'story', 3, { feature: 'acmf2', points: '3', equipe: 'acmeqmob', responsable: 'acmp8' }],
-      ['Paiement en ligne', 'story', 8, { feature: 'acmf2', points: '5', equipe: 'acmeqmob' }],
+      ['Paiement en ligne', 'story', 8, { feature: 'acmf2', points: '5', equipe: 'acmeqmob', responsable: 'acmp9' }],
       ['Page d’accueil du site', 'story', 6, { feature: 'acmf3', points: '3', equipe: 'acmeqweb', responsable: 'acmp10' }],
+      // Daily de Mobile : tâches nées des dailies précédents, pas encore finies (« suivis »)
+      ['Obtenir les accès à l’API de test', 'tache', SANS_DATE, { parent: 'acm4', feature: 'acmf2', equipe: 'acmeqmob', responsable: 'acmp8', statut: 'en_cours', iteration: iterationOf(new Date()).key }],
+      ['Commander les licences de test', 'tache', SANS_DATE, { equipe: 'acmeqmob', responsable: 'acmp9', iteration: iterationOf(new Date()).key }],
     ]),
+  // Daily de Mobile (onglet PointsReunion) : le point préparé par Tom pour le prochain daily, et deux points
+  // concrétisés aux dailies précédents dont la tâche n'est pas finie
+  points: () => {
+    const jour = prochainDaily(new Date());
+    const avant = joursOuvresAvant(jour, 2);
+    const reunion = (j: string) => `daily-equipeagile:acmeqmob-${j}`;
+    const tom = 'tom.faure@acme.example';
+    const nina = 'nina.dupont@acme.example';
+    const emma = 'emma.roy@acme.example';
+    const pt = (id: string, x: Partial<PointReunion>): PointReunion => ({
+      id, reunion: reunion(jour), personne: tom, auteur: tom, type: 'hier', texte: '', element: '', concretisation: '', tache: '', responsable: '', cree_le: new Date(Date.now() - 3600_000).toISOString(), ...x,
+    });
+    return [
+      pt('acmpt1', { reunion: reunion(avant), type: 'blocage', texte: 'Pas d’accès à l’API de test', element: 'acm4', concretisation: 'sous_tache', tache: 'acm7', responsable: tom, cree_le: `${avant}T09:40:00.000Z` }),
+      pt('acmpt2', { reunion: reunion(avant), personne: emma, auteur: nina, type: 'action', texte: 'Commander les licences de test', concretisation: 'tache', tache: 'acm8', responsable: emma, cree_le: `${avant}T09:42:00.000Z` }),
+      pt('acmpt3', { type: 'hier', texte: 'Formulaire de connexion terminé', element: 'acm4' }),
+      pt('acmpt4', { type: 'aujourdhui', texte: 'Brancher la connexion Google', element: 'acm4' }),
+      pt('acmpt5', { type: 'blocage', texte: 'Le serveur de test refuse les connexions', element: 'acm4' }),
+    ];
+  },
   entities: () => {
     const e = vide();
     const stamp = new Date().toISOString();
@@ -476,6 +499,29 @@ const SEEDS_ENTREPRISE: Seeds = {
   },
 };
 
+/** Jour du prochain daily d'une équipe d'un train : premier jour ouvré, sauf le 1er jour du PI (PI Planning) */
+function prochainDaily(now: Date): string {
+  for (let d = now; ; d = addDays(d, 1)) {
+    const j = toDateString(d);
+    const debutPI = toDateString(joursOuvresApres(piStart(piOf(j)))) === j;
+    if (d.getDay() >= 1 && d.getDay() <= 5 && !debutPI) return j;
+  }
+}
+const joursOuvresApres = (debut: Date) => {
+  let d = debut;
+  while (d.getDay() === 0 || d.getDay() === 6) d = addDays(d, 1);
+  return d;
+};
+/** `n` jours ouvrés avant `jour` */
+function joursOuvresAvant(jour: string, n: number): string {
+  let d = new Date(`${jour}T12:00`);
+  for (let k = 0; k < n; ) {
+    d = addDays(d, -1);
+    if (d.getDay() >= 1 && d.getDay() <= 5) k++;
+  }
+  return toDateString(d);
+}
+
 /** Espaces proposés dans la démo, en plus de « Moi » */
 export const ESPACES_DEMO = [
   { id: 'demo-equipe', type: 'equipe' as const, nom: 'Mobile' },
@@ -516,6 +562,10 @@ export async function effacerDemo(espace: string): Promise<void> {
 export function donneesDemo(espace = 'moi') {
   const seeds = espace === 'moi' ? { items: sample, entities: sampleEntities } : espace === 'demo-equipe' ? SEEDS_EQUIPE : SEEDS_ENTREPRISE;
   return { items: seeds.items(), entities: seeds.entities() };
+}
+/** Points de réunion d'exemple d'un espace de la démo (sans stockage) : pour les vérifications automatiques */
+export function pointsDemo(espace: string): PointReunion[] {
+  return (espace === 'demo-entreprise' ? SEEDS_ENTREPRISE.points?.() : undefined) ?? [];
 }
 /** Organisation d'exemple d'un espace de la démo (sans stockage) : pour les vérifications automatiques */
 export function orgDemo(espace: string): Org {

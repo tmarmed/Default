@@ -16,6 +16,7 @@ import {
   ItemInput,
   Objectif,
   ObjectifPI,
+  PointReunion,
   ResultatCle,
   Echange,
   ValueStream,
@@ -192,6 +193,12 @@ export async function updateItem(settings: Settings, item: Partial<Item> & { id:
   verifierLiens(e, item as unknown as Record<string, unknown>, LIENS_ITEM);
   return marquer(normalize(await m.update(item)), e);
 }
+/** Plusieurs tâches créées dans un espace en un seul passage (une lecture, une écriture : quota Google) */
+export async function creerItems(settings: Settings, espace: string, inputs: ItemInput[]): Promise<Item[]> {
+  const { e, m } = route(settings, espace);
+  for (const i of inputs) verifierLiens(e, i as unknown as Record<string, unknown>, LIENS_ITEM);
+  return (await m.creerItems(inputs.map((i) => ({ ...i, espace: e })))).map((x) => marquer(normalize(x), e));
+}
 /** Supprime une tâche ; ses sous-tâches sont supprimées (cascade) ou deviennent des tâches normales. */
 export async function deleteItem(settings: Settings, id: string, cascade = false): Promise<void> {
   await route(settings, espaceDe(id)).m.remove(id, cascade);
@@ -244,4 +251,23 @@ export async function ecrireMembre(settings: Settings, espace: string, nomEquipe
 /** Supprime un élément de l'Organisation (ce qui le désignait est vidé, rien d'autre n'est supprimé) */
 export async function deleteOrg(settings: Settings, espace: string, kind: KindOrg, id: string): Promise<void> {
   await route(settings, espace).m.deleteOrg(kind, id);
+}
+
+// ---------------------------------------------------------------------------
+// Réunions (lot 6) : points notés (onglet PointsReunion du Sheet de l'espace de l'équipe)
+// ---------------------------------------------------------------------------
+/** Points des réunions dont l'id commence par `prefixe` (ex. tous les dailies d'une équipe) : une lecture */
+export async function lirePoints(settings: Settings, espace: string, prefixe: string): Promise<PointReunion[]> {
+  return (await route(settings, espace).m.lirePoints(prefixe)).map((x) => ({ ...x, espace }));
+}
+/** Points créés, modifiés et retirés en un seul passage (une lecture, une écriture) */
+export async function ecrirePoints(
+  settings: Settings,
+  espace: string,
+  creer: Omit<PointReunion, 'id' | 'cree_le'>[],
+  modifier: (Partial<PointReunion> & { id: string })[],
+  retirer: string[] = [],
+): Promise<{ crees: PointReunion[]; modifies: PointReunion[] }> {
+  const r = await route(settings, espace).m.ecrirePoints(creer, modifier, retirer);
+  return { crees: r.crees.map((x) => ({ ...x, espace })), modifies: r.modifies.map((x) => ({ ...x, espace })) };
 }

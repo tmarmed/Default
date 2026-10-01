@@ -29,6 +29,15 @@ interface Props {
   /** Fil sous l'en-tête (« 👥 Mobile · 9:30 · 15 min ») */
   fil?: string;
   onFermer: () => void;
+  /**
+   * « Suivant » à l'intérieur d'une étape (tour de table : membre suivant) : renvoie vrai si l'étape l'a pris en
+   * charge (on reste sur l'étape)
+   */
+  onSuivant?: (index: number) => boolean;
+  /** Libellé de « Suivant » dans une étape (« Suivant · Paul ») */
+  libelleSuivant?: (index: number) => string | undefined;
+  /** Étape affichée (index à partir de 0), pour le contenu qui en dépend */
+  onEtape?: (index: number) => void;
   /** Dernière étape validée (compte rendu envoyé, point envoyé…) ; la fenêtre se referme ensuite */
   onTerminer?: () => Promise<void> | void;
 }
@@ -36,7 +45,7 @@ interface Props {
 /** Étapes de préparation d'un participant, en attendant celles de chaque réunion (en cours de validation) */
 export const ETAPES_PARTICIPANT = ['Mon point', 'Mes blocages', 'Envoi'];
 
-export function FenetreReunion({ visible, reunion, mode, etapes, libelleFin, renduEtape, fil, onFermer, onTerminer }: Props) {
+export function FenetreReunion({ visible, reunion, mode, etapes, libelleFin, renduEtape, fil, onFermer, onTerminer, onSuivant, libelleSuivant, onEtape }: Props) {
   const info = reunion ? TYPES_REUNION[reunion.type] : null;
   const liste = etapes ?? (mode === 'participant' ? ETAPES_PARTICIPANT : (info?.etapes ?? []));
   const [etape, setEtape] = useState(0);
@@ -51,11 +60,16 @@ export function FenetreReunion({ visible, reunion, mode, etapes, libelleFin, ren
       setError(null);
     }
   }, [visible, reunion?.id, mode]);
+  useEffect(() => {
+    onEtape?.(etape);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etape]);
 
   const derniere = etape >= liste.length - 1;
   const fin = libelleFin ?? (mode === 'participant' ? "Envoyer mon point à l'organisateur" : liste[liste.length - 1] === 'Compte rendu' ? 'Envoyer le compte rendu' : 'Terminer');
   const suivant = async () => {
     setError(null);
+    if (onSuivant?.(etape)) return;
     if (!derniere) {
       setFaites((l) => (l.includes(etape) ? l : [...l, etape]));
       // Après un retour en arrière : on reprend à la première étape pas encore faite
@@ -109,7 +123,7 @@ export function FenetreReunion({ visible, reunion, mode, etapes, libelleFin, ren
   const bas = (
     <View style={s.bas}>
       <Pressable onPress={suivant} disabled={busy || !reunion} style={[s.bouton, (busy || !reunion) && s.inactif]} accessibilityRole="button">
-        <Text style={s.boutonTexte}>{busy ? 'Envoi…' : derniere ? fin : 'Suivant'}</Text>
+        <Text style={s.boutonTexte}>{busy ? 'Envoi…' : (libelleSuivant?.(etape) ?? (derniere ? fin : 'Suivant'))}</Text>
       </Pressable>
     </View>
   );

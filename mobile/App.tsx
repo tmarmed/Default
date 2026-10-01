@@ -76,6 +76,7 @@ import { EspacesSheet } from './src/components/EspacesSheet';
 import { ChatEchanges, type ElementChat } from './src/components/ChatEchanges';
 import { EquipeView, type PersonneConnue } from './src/components/EquipeView';
 import { idsPieces, PiecesContext } from './src/components/Pieces';
+import { type ActionsDaily } from './src/components/Daily';
 import { type NiveauReunion, ReunionsView } from './src/components/ReunionsView';
 import { reunionsAVenir } from './src/reunions';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
@@ -1453,6 +1454,34 @@ function Main() {
     });
   }, [orgValue, equipesEsp, visibles]);
   const reunionsAffichees = useMemo(() => (tab === 'reunions' ? reunionsAVenir(orgReunions, moiEchange, today, safe.actif) : []), [tab, orgReunions, moiEchange, today, safe.actif]);
+  /** Daily : points notés (onglet PointsReunion du Sheet de l'équipe), tâches et échanges créés en lots */
+  const actionsDaily: ActionsDaily = {
+    lirePoints: (espace, prefixe) => (settings ? api.lirePoints(settings, espace, prefixe) : Promise.resolve([])),
+    ecrirePoints: async (espace, creer, modifier, retirer) => {
+      if (!settings) throw new Error('Non connecté.');
+      return api.ecrirePoints(settings, espace, creer, modifier, retirer);
+    },
+    creerTaches: async (espace, inputs) => {
+      if (!settings) throw new Error('Non connecté.');
+      const crees = await api.creerItems(settings, espace, inputs);
+      setItems((prev) => {
+        const next = [...prev, ...crees];
+        saveCache(next).catch(() => {});
+        return next;
+      });
+      return crees;
+    },
+    envoyerEchanges: async (espace, inputs) => {
+      if (!settings || !inputs.length) return;
+      const { crees } = await api.ecrireLot(settings, espace, 'echange', inputs, []);
+      setHier((prev) => {
+        const next = { ...prev, echanges: [...(prev.echanges ?? []), ...crees] };
+        saveHierarchyCache(next).catch(() => {});
+        return next;
+      });
+    },
+    onSetStatut: (t, statut) => setStatut(t, statut),
+  };
   const nomEchange = (email: string) => personneParEmail(email, orgEchanges)?.nom ?? nomDepuisEmail(email);
   /** Escalade : SM ou PO (membre), puis RTE, puis Epic Owner (voir ciblesEscalade) */
   const escaladesDe = (e: Echange) => {
@@ -2555,6 +2584,7 @@ function Main() {
           safeActif={safe.actif}
           filtre={{ niveau: safe.actif ? reunionNiveau : '', org: safe.actif ? orgFiltre : null, recherche: recherche?.trim() ?? '' }}
           onInfo={setInfo}
+          daily={actionsDaily}
         />
       )}
 

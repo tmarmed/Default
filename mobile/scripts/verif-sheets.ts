@@ -317,6 +317,47 @@ const ok = (cond: unknown, msg: string) => {
   const reluEq = await magasinSheets(idEq).listEquipe();
   ok(eqs.equipes[0].po === '' && reluEq.personnes.length === 1 && reluEq.equipes[0].membres === lea, 'espace Équipe : membre retiré (rôle et liste vidés)');
 
+  // Daily (lot 6) : points de réunion (onglet PointsReunion créé au premier usage), écrits et lus en lots
+  const idD = await creerFichierEspace('President | Équipe | Daily', 'equipe', 'Daily');
+  const dm = magasinSheets(idD);
+  await dm.list();
+  const reu = 'daily-equipeagile:eq1-2026-10-02';
+  const pts = Array.from({ length: 10 }, (_, i) => ({
+    reunion: reu, personne: 'Tom@x.fr', auteur: i < 5 ? 'tom@x.fr' : 'nina@x.fr', type: (['hier', 'aujourdhui', 'blocage', 'decision', 'action'] as const)[i % 5], texte: `Point ${i + 1}`,
+    element: '', concretisation: '' as const, tache: '', responsable: '',
+  }));
+  const avantPts = appels;
+  const ecrits = await dm.ecrirePoints(pts, []);
+  ok(ecrits.crees.length === 10 && appels - avantPts <= 4 && fichiers.get(idD)!.feuilles.has('PointsReunion'), `daily : 10 points en ${appels - avantPts} appels (onglet créé au premier usage, une écriture)`);
+  const avantPts2 = appels;
+  await dm.ecrirePoints([{ ...pts[0], reunion: 'daily-equipeagile:eq1-2026-10-05', texte: 'Autre jour' }], []);
+  ok(appels - avantPts2 === 2, `daily : ajout suivant en ${appels - avantPts2} appels (une lecture, une écriture)`);
+  const avantLu = appels;
+  const lusPts = await magasinSheets(idD).lirePoints(reu);
+  ok(lusPts.length === 10 && lusPts[0].personne === 'tom@x.fr' && appels - avantLu === 1, `daily : points d'une réunion lus en ${appels - avantLu} appel (e-mails en minuscules)`);
+  ok((await dm.lirePoints('daily-equipeagile:eq1-')).length === 11, 'daily : tous les dailies de l’équipe (suivi) en une lecture');
+  // Compte rendu : 6 tâches (dont une sous-tâche d'une story) en une écriture, puis les 10 points concrétisés en une écriture
+  const storyD = await dm.create({ ...base, titre: 'Écran de connexion', type: 'story', domaine: '', iteration: '2026-T4-IT1' });
+  const avantTaches = appels;
+  const tachesD = await dm.creerItems([
+    { ...base, titre: 'Accès API de test', type: 'tache', domaine: '', parent: storyD.id, equipe: 'eq1', responsable: 'p1' },
+    ...Array.from({ length: 5 }, (_, i) => ({ ...base, titre: `Action ${i + 1}`, type: 'tache' as const, domaine: '', iteration: '2026-T4-IT1', equipe: 'eq1' })),
+  ]);
+  ok(tachesD.length === 6 && tachesD[0].parent === storyD.id && appels - avantTaches <= 2, `daily : 6 tâches (dont une sous-tâche) en ${appels - avantTaches} appels`);
+  const avantConc = appels;
+  await dm.ecrirePoints([], lusPts.map((x, i) => ({ id: x.id, concretisation: i % 2 ? 'tache' as const : 'rien' as const, tache: i % 2 ? tachesD[1].id : '', responsable: 'Emma@x.fr' })));
+  const nConc = appels - avantConc;
+  const conc = await magasinSheets(idD).lirePoints(reu);
+  ok(nConc === 2 && conc.filter((x) => x.concretisation === 'tache').length === 5 && conc.every((x) => x.responsable === 'emma@x.fr'), `daily : 10 points concrétisés en ${nConc} appels`);
+  // Le participant renvoie sa préparation : ses anciens points sont remplacés (une lecture, une écriture)
+  const anciens = conc.filter((x) => x.auteur === 'tom@x.fr').map((x) => x.id);
+  await dm.ecrirePoints([{ ...pts[0], texte: 'Préparation renvoyée' }], [], anciens);
+  const apresD = await magasinSheets(idD).lirePoints(reu);
+  ok(apresD.length === 6 && apresD.some((x) => x.texte === 'Préparation renvoyée'), 'daily : préparation renvoyée, les anciens points du participant sont remplacés');
+  let refusPt = '';
+  await dm.ecrirePoints([{ ...pts[0], type: 'autre' as never }], []).catch((e) => (refusPt = e.message));
+  ok(refusPt.includes('Type'), 'daily : type de point vérifié');
+
   // Fichier ancien : onglet Taches de 28 colonnes (grille comprise) ; les colonnes ajoutées depuis doivent passer
   const idV = await creerFichierEspace('President | Équipe | Ancien', 'equipe', 'Ancien');
   const fv = fichiers.get(idV)!;
