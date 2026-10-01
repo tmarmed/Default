@@ -8,6 +8,7 @@ import type { Echange, EchangeInput } from '../types';
 import { ChampFiche, FeuilleChoix, type GroupeChoix, LigneChoix, SaisieFiche, SectionFiche } from './Choix';
 import { ChatEchanges, type ElementChat } from './ChatEchanges';
 import { FormSheet, TitreFiche } from './FormSheet';
+import { Segmented } from './Segmented';
 import { ListePieces, PiecesEchange } from './Pieces';
 import type { PieceEntree } from '../api';
 import { choisirFichiers, ecouterCollage, FICHIERS_DISPONIBLES, preparer } from '../fichiers';
@@ -65,6 +66,8 @@ interface Props {
   onModifier: (e: Echange, patch: Partial<EchangeInput>) => Promise<void>;
   /** Lu, pris en compte ou retiré : l'échange est supprimé */
   onRetirer: (e: Echange) => Promise<void>;
+  /** Filtres de l'écran (bloc Filtres, lot 25) : espace, élément concerné, type, avec pièces jointes, recherche */
+  filtre?: { espace: string; element: string; type: string; pj: boolean; recherche: string };
   /** Hiérarchie (entreprise) : niveau affiché, escalade au niveau au-dessus, transmission à quelqu'un d'autre */
   hierarchie: Hierarchie;
 }
@@ -114,13 +117,29 @@ const AIDE: { q: string; r: string }[] = [
   { q: 'Claude', r: '🔄 Synchronisation › Claude : une conversation comme avec une personne (IA chat). Claude lit et répond dans votre Sheet avec le connecteur Google Sheets.' },
 ];
 
-export function EchangesView({ moi, echanges, personnes, espaces, president, onEnvoyer, onRepondre, onChangerReponse, onModifier, onRetirer, hierarchie }: Props) {
+export function EchangesView({ moi, echanges, personnes, espaces, president, onEnvoyer, onRepondre, onChangerReponse, onModifier, onRetirer, hierarchie, filtre }: Props) {
   const [ouvert, setOuvertEtat] = useState<string | null>(null);
   /** Mode chat : en ouvrant une conversation, ce qui attend votre réponse défile dans une fenêtre */
   const [chat, setChat] = useState<{ titre: string; elements: ElementChat[] } | null>(null);
   const [nouveau, setNouveau] = useState<{ a: string; existant?: Echange } | null>(null);
   const nomDe = (id: string) => (id === 'claude' ? 'Claude' : id === 'president' ? 'President' : personnes.find((p) => p.id === id)?.nom || nomDepuisEmail(id));
-  const avecMoi = echanges.filter((e) => e.de === moi || e.a === moi);
+  /** Vue : par conversation (par défaut) ou par ce qu'il y a à faire (lot 25) */
+  const [vue, setVue] = useState<'conversation' | 'afaire'>('conversation');
+  const mots = (filtre?.recherche ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+  const filtreActif = !!filtre && (!!filtre.espace || !!filtre.element || !!filtre.type || filtre.pj || mots.length > 0);
+  // Échanges avec moi, filtrés, du plus ancien au plus récent
+  const avecMoi = echanges
+    .filter((e) => e.de === moi || e.a === moi)
+    .filter((e) => {
+      if (!filtre) return true;
+      if (filtre.espace && (e.espace ?? 'moi') !== filtre.espace) return false;
+      if (filtre.element && e.element !== filtre.element) return false;
+      if (filtre.type && e.type !== filtre.type) return false;
+      if (filtre.pj && !e.pieces_jointes) return false;
+      const texte = `${e.titre} ${e.texte} ${e.reponse} ${e.note} ${nomDe(e.de === moi ? e.a : e.de)}`.toLowerCase();
+      return mots.every((m) => texte.includes(m));
+    })
+    .sort((a, b) => a.cree_le.localeCompare(b.cree_le));
   // Conversations avec des personnes : celles qui ont des échanges en cours, puis les autres connues
   const humains = useMemo(() => {
     const ids = new Set<string>();
@@ -214,9 +233,9 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
   // les autres restent accessibles par « Afficher aussi … »
   const aFaire = (id: string) => (id === 'president' ? president.messages.length + nbAlertes + nbRappels : aTraiter(moi, entre(id)).length) > 0;
   const toutes = [
-    ligne('president', '🏛️', 'President', 'application', [nbAlertes && `${nbAlertes} alerte${nbAlertes > 1 ? 's' : ''}`, nbRappels && `${nbRappels} rappel${nbRappels > 1 ? 's' : ''}`, president.messages.length && `${president.messages.length} message${president.messages.length > 1 ? 's' : ''}`].filter(Boolean).join(' · ') || 'Aucune alerte · aide à la demande', president.messages.length + nbAlertes, 0),
-    // Claude (IA chat) : une conversation comme les autres, toujours proposée
-    ...(humains.some((h) => h.id === 'claude') ? [] : [ligne('claude', '💬', 'Claude', 'ia_chat', 'Écrire à Claude', 0, 1)]),
+    ...(filtreActif ? [] : [ligne('president', '🏛️', 'President', 'application', [nbAlertes && `${nbAlertes} alerte${nbAlertes > 1 ? 's' : ''}`, nbRappels && `${nbRappels} rappel${nbRappels > 1 ? 's' : ''}`, president.messages.length && `${president.messages.length} message${president.messages.length > 1 ? 's' : ''}`].filter(Boolean).join(' · ') || 'Aucune alerte · aide à la demande', president.messages.length + nbAlertes, 0)]),
+    // Claude (IA chat) : une conversation comme les autres, toujours proposée (sauf avec un filtre)
+    ...(filtreActif || humains.some((h) => h.id === 'claude') ? [] : [ligne('claude', '💬', 'Claude', 'ia_chat', 'Écrire à Claude', 0, 1)]),
     ...humains.map((h, k) => ligne(h.id, ICONE_NATURE[h.nature] ?? '🧑', h.nom, h.nature, resume(entre(h.id)), aTraiter(moi, entre(h.id)).length, k + 2)),
   ];
   // Deux sections : « En attente » (quelque chose à faire) puis « Conversations » (les autres, pour voir ce qui reste)
@@ -226,6 +245,31 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
   return (
     <>
       <ScrollView contentContainerStyle={s.scroll}>
+        <View style={s.vue}>
+          <Segmented
+            options={[
+              { value: 'conversation', label: 'Par conversation' },
+              { value: 'afaire', label: 'À faire' },
+            ]}
+            value={vue}
+            onChange={setVue}
+            compact
+          />
+        </View>
+        {vue === 'afaire' ? (
+          <AFaire
+            moi={moi}
+            echanges={avecMoi}
+            nomDe={nomDe}
+            onNouveau={() => setNouveau({ a: '' })}
+            onOuvrir={(e) => {
+              const avec = nomDe(e.de === moi ? e.a : e.de);
+              setChat({ titre: avec, elements: [{ kind: 'echange', e, avec }] });
+            }}
+          />
+        ) : (
+          <>
+        {filtreActif && <Text style={s.aide}>Filtres actifs : seules les conversations qui ont des échanges correspondants sont affichées.</Text>}
         <View style={s.entete}>
           <Text style={s.section}>En attente · {actives.length}</Text>
           <Pressable onPress={() => setNouveau({ a: '' })} style={s.rond} hitSlop={8} accessibilityRole="button" accessibilityLabel="Nouvel échange">
@@ -240,8 +284,68 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
           </>
         )}
         <Text style={s.aide}>Sans historique : un message lu, ou une réponse prise en compte, disparaît.</Text>
+          </>
+        )}
       </ScrollView>
       <NouvelEchange a={nouveau?.a ?? ''} existant={nouveau?.existant} visible={!!nouveau} moi={moi} personnes={personnes} espaces={espaces} onClose={() => setNouveau(null)} onEnvoyer={onEnvoyer} onModifier={onModifier} />
+      {fenetreChat}
+    </>
+  );
+}
+
+/**
+ * Vue « À faire » (lot 25) : tous les échanges, toutes personnes confondues, rangés par ce qu'il y a à faire, le plus
+ * ancien d'abord ; chaque ligne montre l'élément concerné, la personne et la date ; toucher ouvre la fenêtre.
+ */
+function AFaire({ moi, echanges, nomDe, onNouveau, onOuvrir }: { moi: string; echanges: Echange[]; nomDe: (id: string) => string; onNouveau: () => void; onOuvrir: (e: Echange) => void }) {
+  const groupes: { titre: string; l: Echange[]; icone: (e: Echange) => string; meta: (e: Echange) => string }[] = [
+    { titre: 'À répondre', l: echanges.filter((e) => e.a === moi && e.statut === 'envoye' && e.type === 'question'), icone: () => '❓', meta: (e) => nomDe(e.de) },
+    { titre: 'À lire', l: echanges.filter((e) => e.a === moi && e.statut === 'envoye' && e.type !== 'question'), icone: () => '✉️', meta: (e) => nomDe(e.de) },
+    { titre: 'Réponses à prendre en compte', l: echanges.filter((e) => e.de === moi && e.statut === 'repondu'), icone: () => '↩️', meta: (e) => `${nomDe(e.a)} · → ${e.reponse}` },
+    {
+      titre: "En attente de l'autre",
+      l: echanges.filter((e) => (e.de === moi && e.statut === 'envoye') || (e.a === moi && e.statut === 'repondu')),
+      icone: (e) => (e.type === 'question' ? '❓' : '✉️'),
+      meta: (e) => (e.de === moi ? `À ${nomDe(e.a)}` : `${nomDe(e.de)} · votre réponse : ${e.reponse}`),
+    },
+  ];
+  const date = (iso: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
+  const nbPieces = (e: Echange) => (e.pieces_jointes ?? '').split(';').filter(Boolean).length;
+  return (
+    <>
+      <View style={s.entete}>
+        <Text style={s.section}>{echanges.length} échange{echanges.length > 1 ? 's' : ''} · le plus ancien d'abord</Text>
+        <Pressable onPress={onNouveau} style={s.rond} hitSlop={8} accessibilityRole="button" accessibilityLabel="Nouvel échange">
+          <Text style={s.rondTexte}>＋</Text>
+        </Pressable>
+      </View>
+      {groupes.every((g) => !g.l.length) && <Text style={s.videTexte}>✓ Rien à traiter.</Text>}
+      {groupes
+        .filter((g) => g.l.length)
+        .map((g) => (
+          <View key={g.titre}>
+            <Text style={[s.section, s.sectionBloc]}>
+              {g.titre} · {g.l.length}
+            </Text>
+            <View style={s.carte}>
+              {g.l.map((e, i) => (
+                <Pressable key={e.id} onPress={() => onOuvrir(e)} style={[s.ligne, i > 0 && s.ligneBord]} accessibilityRole="button">
+                  <View style={s.corps}>
+                    {!!e.element && <FilEchange id={e.element} />}
+                    <Text style={s.titre} numberOfLines={2}>
+                      {g.icone(e)} {e.titre || e.texte}
+                    </Text>
+                    <Text style={s.meta}>
+                      {g.meta(e)} · {date(e.cree_le)}
+                      {nbPieces(e) ? ` · 📎 ${nbPieces(e)}` : ''}
+                    </Text>
+                  </View>
+                  <Text style={s.chev}>›</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ))}
     </>
   );
 }
@@ -810,6 +914,7 @@ const s = StyleSheet.create({
   actionTexte: { fontSize: 13.5, fontWeight: '700', color: colors.text },
   actionTexteBlanc: { color: '#fff' },
   inactif: { opacity: 0.4 },
+  vue: { marginHorizontal: 16, marginTop: 12 },
   piecesCarte: { padding: 12 },
   joindre: { paddingHorizontal: 12, paddingTop: 12, gap: 2 },
   joindreTexte: { fontSize: 15, fontWeight: '700', color: colors.primary },

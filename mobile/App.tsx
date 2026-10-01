@@ -25,8 +25,8 @@ import { ObjectifPIForm } from './src/components/ObjectifPIForm';
 import { PIView } from './src/components/PIView';
 import { TypeFilter, TypeFiltre } from './src/components/TypeFilter';
 import { PIAddSheet } from './src/components/PIAddSheet';
-import { FeuilleMulti } from './src/components/Choix';
-import { grouper } from './src/choixTravail';
+import { FeuilleChoix, FeuilleMulti } from './src/components/Choix';
+import { filElement, grouper } from './src/choixTravail';
 import { BandeauAnnuler, useBandeau } from './src/components/EnregistrementAuto';
 import { inDomain, RechercheContext } from './src/components/DomainFilter';
 import { DomainesPrincipauxChips, DomainFilterContext, loadDomainFilter, saveDomainFilter, SousDomaineChips } from './src/components/DomainFilter';
@@ -148,7 +148,7 @@ const TEST_LIMITE_KEY = 'president:stockage-test-limite';
 /** Alerte de stockage repliée en une ligne */
 const STOCKAGE_PLIE_KEY = 'president:stockage-plie';
 /** Écrans avec le sous-bloc Filtres (juste sous leur titre) */
-const ECRANS_FILTRES: Tab[] = ['taches', 'iteration', 'pi', 'roadmap', 'portefeuille'];
+const ECRANS_FILTRES: Tab[] = ['taches', 'iteration', 'pi', 'roadmap', 'portefeuille', 'echange'];
 const MODES: { value: Mode; label: string }[] = [
   { value: 'liste', label: 'Liste' },
   { value: 'jour', label: 'Jour' },
@@ -498,6 +498,9 @@ function Main() {
   const [showDone, setShowDone] = useState(false);
   /** Recherche par titre (écran Tâches) ; null = champ fermé */
   const [recherche, setRecherche] = useState<string | null>(null);
+  /** Filtres de la Synchro (lot 25) : espace, élément concerné, type, avec pièces jointes ; la recherche est commune */
+  const [synchroFiltre, setSynchroFiltre] = useState<{ espace: string; element: string; type: '' | 'question' | 'message'; pj: boolean }>({ espace: '', element: '', type: '', pj: false });
+  const [choixElementSynchro, setChoixElementSynchro] = useState(false);
   /** Sous-bloc Filtres replié en une ligne de résumé (mémorisé sur l'appareil) */
   const [filtresPlies, setFiltresPlies] = useState(false);
   useEffect(() => {
@@ -904,13 +907,20 @@ function Main() {
   /** Filtres actifs (l'affichage Liste / Jour / Semaine / Mois n'en est pas un) : type, domaine, itération, recherche */
   // (Écran Tâches : aussi le type et l'itération en cours ; autres écrans : domaine et recherche)
   const surTaches = tab === 'taches';
-  const nbFiltres =
-    (surTaches && filter !== 'tous' ? 1 : 0) +
+  const surSynchro = tab === 'echange';
+  const nbFiltres = surSynchro
+    ? (synchroFiltre.espace ? 1 : 0) + (synchroFiltre.element ? 1 : 0) + (synchroFiltre.type ? 1 : 0) + (synchroFiltre.pj ? 1 : 0) + (recherche?.trim() ? 1 : 0)
+    : (surTaches && filter !== 'tous' ? 1 : 0) +
     (domFilter !== 'tous' ? 1 : 0) +
     (surTaches && safe.actif && itFilter ? 1 : 0) +
     (recherche?.trim() ? 1 : 0) +
     (safe.actif && orgFiltre ? 1 : 0);
   const reinitialiserFiltres = () => {
+    if (surSynchro) {
+      setSynchroFiltre({ espace: '', element: '', type: '', pj: false });
+      setRecherche(null);
+      return;
+    }
     if (surTaches) {
       setFilter('tous');
       setItFilter(false);
@@ -919,7 +929,15 @@ function Main() {
     setRecherche(null);
     setOrgFiltre(null);
   };
-  const resumeFiltres = [
+  const resumeFiltres = surSynchro
+    ? [
+        synchroFiltre.espace ? espaces.find((e) => e.id === synchroFiltre.espace)?.nom ?? '' : 'Tous les espaces',
+        synchroFiltre.element ? filElement(synchroFiltre.element, hv, TYPE_ICONS).split(' › ').pop() : '',
+        synchroFiltre.type === 'question' ? '❓ Questions' : synchroFiltre.type === 'message' ? '✉️ Messages' : '',
+        synchroFiltre.pj ? '📎 Avec pièces jointes' : '',
+        recherche?.trim() ? `« ${recherche.trim()} »` : '',
+      ].filter(Boolean).join(' · ')
+    : [
     !surTaches ? '' : filter === 'tous' ? 'Tous les types' : filter === 'recurrents' ? '🔁 Répétés' : `${TYPE_ICONS[filter]} ${TYPE_LABELS[filter]}`,
     domFilter === 'tous' ? 'Tous les domaines' : domFilter === '' ? 'Sans domaine' : (hv.domaines.get(domFilter)?.nom ?? ''),
     surTaches && safe.actif && itFilter ? '🏃 Itération en cours' : '',
@@ -2199,7 +2217,7 @@ function Main() {
                     autoFocus
                     value={recherche}
                     onChangeText={setRecherche}
-                    placeholder="Rechercher un titre…"
+                    placeholder={surSynchro ? 'Rechercher (titre, texte, personne)…' : 'Rechercher un titre…'}
                     placeholderTextColor={colors.muted}
                     style={styles.champRechercheTexte}
                     returnKeyType="search"
@@ -2226,8 +2244,63 @@ function Main() {
               </Pressable>
             </View>
             <View style={styles.filtresCorps}>
-                {tab === 'taches' && <TypeFilter value={filter} onChange={setFilter} />}
-                {(domaines.length > 0 || (tab === 'taches' && safe.actif)) && (
+                {/* Synchro (lot 25) : espace, élément concerné, type, avec pièces jointes */}
+                {surSynchro && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
+                    {[
+                      { cle: 'tous', label: 'Tous les espaces', on: !synchroFiltre.espace, press: () => setSynchroFiltre((f) => ({ ...f, espace: '' })) },
+                      ...espaces
+                        .filter((e) => visibles.includes(e.id))
+                        .map((e) => ({ cle: e.id, label: `${ICONE_ESPACE[e.type]} ${e.nom}`, on: synchroFiltre.espace === e.id, press: () => setSynchroFiltre((f) => ({ ...f, espace: f.espace === e.id ? '' : e.id })) })),
+                    ].map((c) => (
+                      <Pressable key={c.cle} onPress={c.press} style={[styles.itChip, c.on && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: c.on }}>
+                        <Text style={[styles.itChipText, c.on && styles.itChipTextOn]}>{c.label}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                )}
+                {surSynchro && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
+                    <Pressable onPress={() => setChoixElementSynchro(true)} style={[styles.itChip, !!synchroFiltre.element && styles.itChipOn]} accessibilityRole="button">
+                      <Text style={[styles.itChipText, !!synchroFiltre.element && styles.itChipTextOn]} numberOfLines={1}>
+                        📍 {synchroFiltre.element ? filElement(synchroFiltre.element, hv, TYPE_ICONS).split(' › ').pop() : 'Élément'} ▾
+                      </Text>
+                    </Pressable>
+                    {(
+                      [
+                        ['question', '❓ Questions'],
+                        ['message', '✉️ Messages'],
+                      ] as const
+                    ).map(([v, label]) => (
+                      <Pressable key={v} onPress={() => setSynchroFiltre((f) => ({ ...f, type: f.type === v ? '' : v }))} style={[styles.itChip, synchroFiltre.type === v && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: synchroFiltre.type === v }}>
+                        <Text style={[styles.itChipText, synchroFiltre.type === v && styles.itChipTextOn]}>{label}</Text>
+                      </Pressable>
+                    ))}
+                    <Pressable onPress={() => setSynchroFiltre((f) => ({ ...f, pj: !f.pj }))} style={[styles.itChip, synchroFiltre.pj && styles.itChipOn]} accessibilityRole="switch" accessibilityState={{ checked: synchroFiltre.pj }}>
+                      <Text style={[styles.itChipText, synchroFiltre.pj && styles.itChipTextOn]}>📎 Avec pièces jointes</Text>
+                    </Pressable>
+                  </ScrollView>
+                )}
+                {surSynchro && choixElementSynchro && (
+                  <FeuilleChoix
+                    titre="Élément concerné"
+                    value={synchroFiltre.element}
+                    fixe
+                    groupes={[
+                      {
+                        options: [...new Set((tousHier.echanges ?? []).map((e) => e.element).filter(Boolean))].map((id) => ({ value: id, label: filElement(id, hv, TYPE_ICONS) || id })),
+                      },
+                    ]}
+                    sans={synchroFiltre.element ? 'Tous les éléments' : undefined}
+                    onChoisir={(v) => {
+                      setChoixElementSynchro(false);
+                      setSynchroFiltre((f) => ({ ...f, element: v }));
+                    }}
+                    onFermer={() => setChoixElementSynchro(false)}
+                  />
+                )}
+                {!surSynchro && tab === 'taches' && <TypeFilter value={filter} onChange={setFilter} />}
+                {!surSynchro && (domaines.length > 0 || (tab === 'taches' && safe.actif)) && (
                   <>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
                       {tab === 'taches' && safe.actif && (
@@ -2246,7 +2319,7 @@ function Main() {
                   </>
                 )}
                 {/* Portfolio / Train / Équipe (delivery SAFe d'une entreprise) : liaison entre l'organisation et le travail */}
-                {safe.actif && orgValue.delivery && (
+                {!surSynchro && safe.actif && orgValue.delivery && (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
                     {(
                       [
@@ -2368,6 +2441,7 @@ function Main() {
 
       {tab === 'echange' && (
         <EchangesView
+          filtre={{ ...synchroFiltre, recherche: recherche?.trim() ?? '' }}
           moi={moiEchange}
           echanges={tousHier.echanges ?? []}
           personnes={interlocuteurs}
