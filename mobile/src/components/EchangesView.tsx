@@ -845,9 +845,10 @@ function NouvelEchange({
         <LigneChoix
           label="Élément"
           value={element}
-          vide="Facultatif · sinon la personne ci-dessous"
+          vide="Facultatif"
           sans="Aucun élément"
-          sous={element ? filElement(element, h, TYPE_ICONS) : undefined}
+          // Sous l'élément : seulement où il est rangé (son nom est déjà la valeur)
+          sous={element ? filElement(element, h, TYPE_ICONS).split(' › ').slice(0, -1).join(' › ') || undefined : undefined}
           groupes={[
             { titre: 'Epics', options: h.epicList.map((x) => ({ value: x.id, label: `🗂️ ${x.titre}` })) },
             { titre: 'Features', options: h.featureList.map((x) => ({ value: x.id, label: `🧩 ${x.titre}` })) },
