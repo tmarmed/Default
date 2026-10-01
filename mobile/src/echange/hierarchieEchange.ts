@@ -97,12 +97,11 @@ export function niveauDe(pid: string, org: OrgValue): Niveau | null {
 }
 
 /**
- * Personnes à qui transmettre un échange (e-mails), par groupe : seulement **vos** équipes (décidé 01/10), pas les
- * autres équipes. Les équipes au-dessus sont calculées depuis les rôles de l'Organisation (rien de créé en plus dans
- * le Sheet) : équipe du train = RTE, PM, SM et PO de ses équipes ; équipe du portfolio = Epic Owner, RTE et PM de ses
- * trains. Ainsi un membre transmet dans son équipe ; le SM ou le PO l'affecte à un membre de son équipe ou le passe
- * dans l'équipe du train ; le RTE l'affecte au SM ou au PO d'une équipe ; l'Epic Owner au RTE d'un train.
- * Sans `exclure` (vous et l'auteur).
+ * Personnes à qui transmettre un échange (e-mails) : seulement **votre** équipe (décidé 01/10), jamais une autre
+ * équipe (un SM ne passe pas à un autre SM). Les équipes au-dessus sont calculées depuis les rôles de l'Organisation,
+ * rien n'est créé en plus dans le Sheet : un membre transmet dans son équipe ; le SM ou le PO l'affecte à un membre de
+ * son équipe ; le RTE / PM (équipe du train = SM et PO de ses équipes) l'affecte au SM ou au PO d'une équipe ;
+ * l'Epic Owner (équipe du portfolio) au RTE d'un train. Hors delivery : votre unité. Sans `exclure` (vous et l'auteur).
  */
 export function destinatairesTransfert(moi: string, _niveau: Niveau | null, org: OrgValue, exclure: string[]): { titre: string; emails: string[] }[] {
   const pid = personneParEmail(moi, org)?.id ?? '';
@@ -117,14 +116,11 @@ export function destinatairesTransfert(moi: string, _niveau: Niveau | null, org:
   };
   // Vos équipes agiles (membre, SM ou PO)
   const equipes = equipesDe(pid, org).map((e) => groupe(`Équipe · ${e.nom}`, [e.sm, e.po, ...membresDe(e)]));
-  // Équipe du train : vous êtes RTE / PM, ou SM / PO d'une de ses équipes
-  const trainsPilotes = org.trains.filter((t) => t.rte === pid || t.pm === pid || org.equipes.some((e) => e.train === t.id && (e.sm === pid || e.po === pid)));
-  const trains = trainsPilotes.map((t) => groupe(`Équipe du train · ${t.nom}`, [t.rte, t.pm, ...org.equipes.filter((e) => e.train === t.id).flatMap((e) => [e.sm, e.po])]));
-  // Équipe du portfolio : vous êtes Epic Owner, ou RTE / PM d'un de ses trains
-  const pfs = org.portfolios.filter((p) => p.epic_owner === pid || org.trains.some((t) => t.portfolio === p.id && (t.rte === pid || t.pm === pid)));
-  const portfolios = pfs.map((p) => groupe(`Équipe du portfolio · ${p.nom}`, [p.epic_owner, ...org.trains.filter((t) => t.portfolio === p.id).flatMap((t) => [t.rte, t.pm])]));
-  // Hiérarchie : votre unité
-  const u = org.unite.get(org.personne.get(pid)?.unite ?? '');
+  // Équipe que vous pilotez au-dessus : RTE / PM → SM et PO des équipes du train ; Epic Owner → RTE et PM de ses trains
+  const trains = org.trains.filter((t) => t.rte === pid || t.pm === pid).map((t) => groupe(`Équipe du train · ${t.nom}`, [t.rte, t.pm, ...org.equipes.filter((e) => e.train === t.id).flatMap((e) => [e.sm, e.po])]));
+  const portfolios = org.portfolios.filter((p) => p.epic_owner === pid).map((p) => groupe(`Équipe du portfolio · ${p.nom}`, [p.epic_owner, ...org.trains.filter((t) => t.portfolio === p.id).flatMap((t) => [t.rte, t.pm])]));
+  // Hiérarchie (hors delivery seulement) : votre unité
+  const u = equipes.length || trains.length || portfolios.length ? undefined : org.unite.get(org.personne.get(pid)?.unite ?? '');
   const unite = u ? [groupe(`Unité · ${u.nom}`, [u.responsable, ...org.personnes.filter((p) => p.unite === u.id).map((p) => p.id)])] : [];
   return [...equipes, ...trains, ...portfolios, ...unite].filter((g) => g.emails.length);
 }
