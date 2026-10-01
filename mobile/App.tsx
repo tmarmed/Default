@@ -79,7 +79,7 @@ import { idsPieces, PiecesContext } from './src/components/Pieces';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
 import { StrategieView } from './src/components/StrategieView';
-import { BacklogView } from './src/components/BacklogView';
+import { BacklogView, type Niveau as NiveauBacklog, niveauDuRole } from './src/components/BacklogView';
 import { ValueStreamForm } from './src/components/ValueStreamForm';
 import { ResultatForm } from './src/components/ResultatForm';
 import { MoiContext } from './src/droits';
@@ -148,7 +148,7 @@ const TEST_LIMITE_KEY = 'president:stockage-test-limite';
 /** Alerte de stockage repliée en une ligne */
 const STOCKAGE_PLIE_KEY = 'president:stockage-plie';
 /** Écrans avec le sous-bloc Filtres (juste sous leur titre) */
-const ECRANS_FILTRES: Tab[] = ['taches', 'iteration', 'pi', 'roadmap', 'portefeuille', 'echange'];
+const ECRANS_FILTRES: Tab[] = ['taches', 'iteration', 'pi', 'roadmap', 'portefeuille', 'backlog', 'echange'];
 const MODES: { value: Mode; label: string }[] = [
   { value: 'liste', label: 'Liste' },
   { value: 'jour', label: 'Jour' },
@@ -501,6 +501,9 @@ function Main() {
   /** Filtres de la Synchro (lot 25) : espace, élément concerné, type, avec pièces jointes ; la recherche est commune */
   const [synchroFiltre, setSynchroFiltre] = useState<{ espace: string; element: string; type: '' | 'question' | 'message'; pj: boolean }>({ espace: '', element: '', type: '', pj: false });
   const [choixElementSynchro, setChoixElementSynchro] = useState(false);
+  /** Backlog : niveau (null = selon le rôle) et value stream choisis dans les filtres */
+  const [backlogNiveau, setBacklogNiveau] = useState<NiveauBacklog | null>(null);
+  const [backlogVs, setBacklogVs] = useState('');
   /** Sous-bloc Filtres replié en une ligne de résumé (mémorisé sur l'appareil) */
   const [filtresPlies, setFiltresPlies] = useState(false);
   useEffect(() => {
@@ -908,7 +911,10 @@ function Main() {
   // (Écran Tâches : aussi le type et l'itération en cours ; autres écrans : domaine et recherche)
   const surTaches = tab === 'taches';
   const surSynchro = tab === 'echange';
-  const nbFiltres = surSynchro
+  const surBacklog = tab === 'backlog';
+  const nbFiltres = surBacklog
+    ? (backlogVs ? 1 : 0) + (recherche?.trim() ? 1 : 0) + (safe.actif && orgFiltre ? 1 : 0)
+    : surSynchro
     ? (synchroFiltre.espace ? 1 : 0) + (synchroFiltre.element ? 1 : 0) + (synchroFiltre.type ? 1 : 0) + (synchroFiltre.pj ? 1 : 0) + (recherche?.trim() ? 1 : 0)
     : (surTaches && filter !== 'tous' ? 1 : 0) +
     (domFilter !== 'tous' ? 1 : 0) +
@@ -916,6 +922,12 @@ function Main() {
     (recherche?.trim() ? 1 : 0) +
     (safe.actif && orgFiltre ? 1 : 0);
   const reinitialiserFiltres = () => {
+    if (surBacklog) {
+      setBacklogVs('');
+      setRecherche(null);
+      setOrgFiltre(null);
+      return;
+    }
     if (surSynchro) {
       setSynchroFiltre({ espace: '', element: '', type: '', pj: false });
       setRecherche(null);
@@ -929,7 +941,13 @@ function Main() {
     setRecherche(null);
     setOrgFiltre(null);
   };
-  const resumeFiltres = surSynchro
+  const resumeFiltres = surBacklog
+    ? [
+        backlogVs ? `🌊 ${hv.valueStreams.find((v) => v.id === backlogVs)?.nom ?? ''}` : 'Tous les value streams',
+        recherche?.trim() ? `« ${recherche.trim()} »` : '',
+        safe.actif && orgFiltre ? libelleOrgFiltre(orgFiltre, orgValue) : '',
+      ].filter(Boolean).join(' · ')
+    : surSynchro
     ? [
         synchroFiltre.espace ? espaces.find((e) => e.id === synchroFiltre.espace)?.nom ?? '' : 'Tous les espaces',
         synchroFiltre.element ? filElement(synchroFiltre.element, hv, TYPE_ICONS).split(' › ').pop() : '',
@@ -2299,8 +2317,38 @@ function Main() {
                     onFermer={() => setChoixElementSynchro(false)}
                   />
                 )}
+                {surBacklog && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
+                    {(
+                      [
+                        ['epic', '🗂️ Epics'],
+                        ['feature', '🧩 Features'],
+                        ['tache', '📖 Stories'],
+                      ] as const
+                    ).map(([v, label]) => {
+                      const on = (backlogNiveau ?? niveauDuRole(moi, orgValue)) === v;
+                      return (
+                        <Pressable key={v} onPress={() => setBacklogNiveau(v)} style={[styles.itChip, on && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                          <Text style={[styles.itChipText, on && styles.itChipTextOn]}>{label}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+                {surBacklog && hv.valueStreams.length > 0 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
+                    {[{ id: '', nom: '' }, ...hv.valueStreams].map((v) => {
+                      const on = backlogVs === v.id;
+                      return (
+                        <Pressable key={v.id || 'tous'} onPress={() => setBacklogVs(on ? '' : v.id)} style={[styles.itChip, on && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                          <Text style={[styles.itChipText, on && styles.itChipTextOn]}>{v.id ? `🌊 ${v.nom}` : 'Tous les value streams'}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                )}
                 {!surSynchro && tab === 'taches' && <TypeFilter value={filter} onChange={setFilter} />}
-                {!surSynchro && (domaines.length > 0 || (tab === 'taches' && safe.actif)) && (
+                {!surSynchro && !surBacklog && (domaines.length > 0 || (tab === 'taches' && safe.actif)) && (
                   <>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
                       {tab === 'taches' && safe.actif && (
@@ -2509,6 +2557,11 @@ function Main() {
 
       {tab === 'backlog' && (
         <BacklogView
+          niveau={backlogNiveau ?? niveauDuRole(moi, orgValue)}
+          onNiveau={setBacklogNiveau}
+          vs={backlogVs}
+          onMoveEpic={(e, etat) => saveEntity('epic', e, { etat }).catch((err) => setNotice(`Epic non déplacée : ${(err as Error).message}`))}
+          onMoveStory={(t, statut) => setStatut(t, statut)}
           onOpenEpic={(e) => openEpic(e)}
           onOpenFeature={(f) => openFeature(f)}
           onOpenTask={(t) => openForm(t)}
