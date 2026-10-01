@@ -450,3 +450,94 @@ export const STATUT_LABELS: Record<Statut, string> = {
   en_cours: 'En cours',
   termine: 'Terminé',
 };
+
+// ---------------------------------------------------------------------------
+// Réunions SAFe et agiles (lot 6)
+// ---------------------------------------------------------------------------
+/** Types de réunion : équipe, train, portfolio (mode SAFe) ; rituels personnels (mode Simple) */
+export type TypeReunion =
+  | 'daily'
+  | 'planification'
+  | 'revue'
+  | 'retro'
+  | 'affinage'
+  | 'pi_planning'
+  | 'art_sync'
+  | 'system_demo'
+  | 'inspect_adapt'
+  | 'revue_portfolio'
+  | 'revue_okr'
+  | 'point_perso'
+  | 'bilan_soir'
+  | 'revue_semaine'
+  | 'revue_objectifs';
+
+/** Répétition d'une réunion, vide = une seule fois */
+export type RepetitionReunion = '' | 'quotidienne' | 'hebdomadaire' | 'iteration' | 'mensuelle' | 'trimestrielle' | 'pi';
+
+/**
+ * Réunion : un rendez-vous planifié (répété), animé dans la fenêtre de traitement, une étape à la fois.
+ * Pour l'instant calculée d'après la cadence SAFe et les rôles de l'Organisation (src/reunions.ts), pas enregistrée.
+ */
+export interface Reunion {
+  /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
+  espace?: string;
+  id: string;
+  type: TypeReunion;
+  titre: string;
+  /** Niveau de l'Organisation (même format que les échanges : « equipeagile:id », « train:id », « portfolio:id »), vide = personnel */
+  niveau: string;
+  /** Qui anime (e-mail) */
+  organisateur: string;
+  /** Début : AAAA-MM-JJTHH:MM */
+  debut: string;
+  /** Durée en minutes */
+  duree_min: number;
+  repetition: RepetitionReunion;
+  cree_le: string;
+  modifie_le: string;
+}
+
+/** Rôle qui anime : Scrum Master, Product Owner, RTE, Product Manager, Epic Owner, ou vous (mode Simple) */
+export type RoleOrganisateur = 'sm' | 'po' | 'rte' | 'pm' | 'epic_owner' | 'moi';
+export const LIBELLE_ROLE: Record<RoleOrganisateur, string> = {
+  sm: 'Scrum Master',
+  po: 'Product Owner',
+  rte: 'RTE',
+  pm: 'Product Manager',
+  epic_owner: 'Epic Owner',
+  moi: 'Vous',
+};
+
+export interface TypeReunionInfo {
+  icone: string;
+  libelle: string;
+  /** Mode où la réunion existe */
+  mode: 'safe' | 'simple';
+  niveau: 'equipe' | 'train' | 'portfolio' | 'perso';
+  /** Rôle qui l'anime */
+  role: RoleOrganisateur;
+  /** Durée par défaut, en minutes */
+  duree: number;
+  /** Étapes de l'animation (libellés courts), affichées en haut de la fenêtre */
+  etapes: string[];
+}
+
+/** Catalogue des réunions (le contenu détaillé de chaque étape est en cours de validation) */
+export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
+  daily: { icone: '☀️', libelle: 'Daily', mode: 'safe', niveau: 'equipe', role: 'sm', duree: 15, etapes: ['Situation', 'Tour de table', 'Blocages', 'Compte rendu'] },
+  planification: { icone: '🧮', libelle: "Planification d'itération", mode: 'safe', niveau: 'equipe', role: 'sm', duree: 120, etapes: ['Capacité', 'Objectifs', 'Stories', 'Engagement'] },
+  revue: { icone: '🎬', libelle: "Revue d'itération", mode: 'safe', niveau: 'equipe', role: 'po', duree: 60, etapes: ['Bilan', 'Terminées', 'Non terminées', 'Compte rendu'] },
+  retro: { icone: '🔁', libelle: 'Rétrospective', mode: 'safe', niveau: 'equipe', role: 'sm', duree: 60, etapes: ['Indicateurs', 'Ce qui va', 'Ce qui ne va pas', 'Actions', 'Compte rendu'] },
+  affinage: { icone: '🪄', libelle: 'Affinage du backlog', mode: 'safe', niveau: 'equipe', role: 'po', duree: 60, etapes: ['À préparer', 'Story par story', 'Compte rendu'] },
+  pi_planning: { icone: '🗓️', libelle: 'PI Planning', mode: 'safe', niveau: 'train', role: 'rte', duree: 480, etapes: ['Contexte', 'Capacité', 'Plan', 'Objectifs', 'Risques', 'Vote', 'Compte rendu'] },
+  art_sync: { icone: '🚆', libelle: 'ART sync', mode: 'safe', niveau: 'train', role: 'rte', duree: 60, etapes: ['Vue du train', 'Équipes', 'Risques', 'Compte rendu'] },
+  system_demo: { icone: '🖥️', libelle: 'System demo', mode: 'safe', niveau: 'train', role: 'pm', duree: 60, etapes: ['À montrer', 'Feature par feature', 'Retours', 'Compte rendu'] },
+  inspect_adapt: { icone: '🔍', libelle: 'Inspect & Adapt', mode: 'safe', niveau: 'train', role: 'rte', duree: 240, etapes: ['Démo du PI', 'Mesures', 'Problèmes', 'Actions', 'Compte rendu'] },
+  revue_portfolio: { icone: '💼', libelle: 'Revue du portfolio', mode: 'safe', niveau: 'portfolio', role: 'epic_owner', duree: 90, etapes: ['Vue', 'Epic par epic', 'Nouvelles idées', 'Compte rendu'] },
+  revue_okr: { icone: '🎯', libelle: 'Revue des OKR', mode: 'safe', niveau: 'portfolio', role: 'epic_owner', duree: 60, etapes: ['OKR par OKR', 'Statut', 'Compte rendu'] },
+  point_perso: { icone: '🌅', libelle: 'Point perso', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Hier', "Aujourd'hui", 'Plan figé'] },
+  bilan_soir: { icone: '🌙', libelle: 'Bilan du soir', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Prévu / fait', 'Pas fini', 'Hors plan'] },
+  revue_semaine: { icone: '📆', libelle: 'Revue de la semaine', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Semaine écoulée', 'En retard', 'Priorités'] },
+  revue_objectifs: { icone: '🧭', libelle: 'Revue des objectifs', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Objectifs', 'Domaines délaissés', 'Fin'] },
+};
