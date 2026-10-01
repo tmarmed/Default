@@ -2087,6 +2087,8 @@ function Main() {
         }}
         onRetirer={retirerEchange}
         onLu={(id) => majMessagesApp((l) => l.filter((m) => m.id !== id))}
+        hierarchie={hierarchieEchanges}
+        nomDe={nomEchange}
       />
       <EspacesBar
         plie={espacesPlie} onChange={setVisibles} onAjouter={ouvrirAjout} onEnlever={() => setGestionOpen(true)} onOuvrir={setEspaceFiche} />

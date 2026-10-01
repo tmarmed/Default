@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import type { Echange } from '../types';
-import { ChampFiche, SaisieFiche, SectionFiche } from './Choix';
-import { estAutre, FilEchange, type MessageApp, placeholderNote, reponsePrete } from './EchangesView';
+import { ChampFiche, FeuilleChoix, SaisieFiche, SectionFiche } from './Choix';
+import { estAutre, FilEchange, type Hierarchie, type MessageApp, placeholderNote, reponsePrete } from './EchangesView';
 import { FormSheet, TitreFiche } from './FormSheet';
 import { idsPieces, PiecesEchange } from './Pieces';
 
@@ -26,11 +26,15 @@ interface Props {
   onChangerReponse?: (e: Echange, reponse: string, note: string) => Promise<void>;
   onRetirer: (e: Echange) => Promise<void>;
   onLu: (id: string) => void;
+  /** Échange reçu dans une entreprise : ⤴ Escalader (niveau au-dessus) et ↪ Transmettre (à quelqu'un d'autre) */
+  hierarchie?: Hierarchie;
+  /** Nom d'une personne d'après son e-mail (« Transmis par … ») */
+  nomDe?: (id: string) => string;
 }
 
 const cle = (x: ElementChat) => (x.kind === 'echange' ? x.e.id : x.m.id);
 
-export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepondre, onChangerReponse, onRetirer, onLu }: Props) {
+export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepondre, onChangerReponse, onRetirer, onLu, hierarchie, nomDe = (id) => id }: Props) {
   // La liste est figée à l'ouverture ; `faits` : ce qui a été répondu (ou passé) pendant cette fenêtre
   const [liste, setListe] = useState<ElementChat[]>([]);
   const [faits, setFaits] = useState<Record<string, { texte: string; passe?: boolean }>>({});
@@ -38,6 +42,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [feuille, setFeuille] = useState<'escalader' | 'transmettre' | null>(null);
   useEffect(() => {
     if (visible) {
       setListe(elements);
@@ -189,6 +194,41 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
             </SectionFiche>
           </>
         )}
+        {/* Reçu, à traiter, dans une entreprise : le faire monter ou le passer à quelqu'un d'autre */}
+        {!!hierarchie && e.a === moi && e.statut === 'envoye' && (hierarchie.escalade(e).length > 0 || hierarchie.transmission(e).length > 0) && (
+          <SectionFiche titre="Pas pour vous ?">
+            <Text style={s.ou}>
+              {[hierarchie.libelle(e) && `📍 ${hierarchie.libelle(e)}`, e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`].filter(Boolean).join(' · ') || 'Faites-le suivre sans y répondre.'}
+            </Text>
+            {hierarchie.escalade(e).length > 0 && (
+              <Pressable onPress={() => setFeuille('escalader')} disabled={busy} style={[s.ligne, s.bord]} accessibilityRole="button">
+                <Text style={s.action}>⤴ Escalader</Text>
+                <Text style={s.actionMeta} numberOfLines={1}>
+                  {hierarchie.escalade(e).length === 1 ? hierarchie.escalade(e)[0].libelle : hierarchie.escalade(e).map((v) => v.libelle.split(' ')[0]).join(' ou ')} ›
+                </Text>
+              </Pressable>
+            )}
+            {hierarchie.transmission(e).length > 0 && (
+              <Pressable onPress={() => setFeuille('transmettre')} disabled={busy} style={[s.ligne, s.bord]} accessibilityRole="button">
+                <Text style={s.action}>↪ Transmettre</Text>
+                <Text style={s.actionMeta}>à quelqu'un d'autre ›</Text>
+              </Pressable>
+            )}
+          </SectionFiche>
+        )}
+        {!!hierarchie && feuille && (
+          <FeuilleChoix
+            titre={feuille === 'escalader' ? 'Escalader à' : 'Transmettre à'}
+            value=""
+            groupes={feuille === 'escalader' ? [{ options: hierarchie.escalade(e).map((v) => ({ value: v.email, label: v.libelle, meta: v.meta })) }] : hierarchie.transmission(e)}
+            onChoisir={(v) => {
+              const quoi = feuille;
+              setFeuille(null);
+              if (v) void faire(() => (quoi === 'escalader' ? hierarchie.onEscalader(e, v) : hierarchie.onTransmettre(e, v)), `${quoi === 'escalader' ? 'Escaladé' : 'Transmis'} à ${nomDe(v)}`);
+            }}
+            onFermer={() => setFeuille(null)}
+          />
+        )}
         {modifiable ? (
           <>
             <Bouton
@@ -251,6 +291,9 @@ const s = StyleSheet.create({
   bouton: { marginTop: 24, paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: colors.primary },
   boutonTexte: { color: '#fff', fontSize: 16, fontWeight: '700' },
   inactif: { opacity: 0.4 },
+  ou: { fontSize: 12.5, color: colors.muted, paddingHorizontal: 12, paddingVertical: 10 },
+  action: { fontSize: 15, fontWeight: '700', color: colors.primary },
+  actionMeta: { flex: 1, textAlign: 'right', fontSize: 13.5, color: colors.muted },
   aide: { fontSize: 12.5, color: colors.muted, textAlign: 'center', marginTop: 8 },
   passer: { alignSelf: 'center', marginTop: 14, padding: 6 },
   passerTexte: { fontSize: 14, color: colors.muted, fontWeight: '600' },

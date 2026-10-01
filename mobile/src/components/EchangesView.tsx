@@ -174,6 +174,8 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
       onChangerReponse={onChangerReponse}
       onRetirer={onRetirer}
       onLu={president.onLu}
+      hierarchie={hierarchie}
+      nomDe={nomDe}
     />
   );
 
