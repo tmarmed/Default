@@ -242,50 +242,33 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
   const actives = toutes.filter((l) => aFaire(String(l.key))).map((l, i) => cloneElement(l, { style: [s.ligne, i > 0 && s.ligneBord] }));
   const autres = toutes.filter((l) => !aFaire(String(l.key))).map((l, i) => cloneElement(l, { style: [s.ligne, i > 0 && s.ligneBord] }));
 
-  const bascule = (
-    <View style={s.vue}>
-      <Segmented
-        options={[
-          { value: 'conversation', label: 'Par conversation' },
-          { value: 'afaire', label: 'À faire' },
-        ]}
-        value={vue}
-        onChange={setVue}
-        compact
-      />
-    </View>
-  );
-  // Vue « À faire » : le même écran qu'une conversation (À vous, Réponses reçues, En attente de l'autre), pour toutes
-  // les personnes à la fois, chaque carte indiquant la personne
-  if (vue === 'afaire')
-    return (
-      <>
-        <Conversation
-          moi={moi}
-          titre=""
-          echanges={avecMoi}
-          entete={bascule}
-          avecQui={(e) => (e.de === moi ? `À ${nomDe(e.a)}` : `De ${nomDe(e.de)}`)}
-          onRetour={() => setVue('conversation')}
-          onNouveau={() => setNouveau({ a: '' })}
-          onModifier={(e) => setNouveau({ a: e.a, existant: e })}
-          onOuvrir={(e) => {
-            const avec = nomDe(e.de === moi ? e.a : e.de);
-            setChat({ titre: avec, elements: [{ kind: 'echange', e, avec }] });
-          }}
-          onRepondre={onRepondre}
-          onRetirer={onRetirer}
-          hierarchie={hierarchie}
-          nomDe={nomDe}
-        />
-        <NouvelEchange a={nouveau?.a ?? ''} existant={nouveau?.existant} visible={!!nouveau} moi={moi} personnes={personnes} espaces={espaces} onClose={() => setNouveau(null)} onEnvoyer={onEnvoyer} onModifier={onModifier} />
-        {fenetreChat}
-      </>
-    );
   return (
     <>
       <ScrollView contentContainerStyle={s.scroll}>
-        {bascule}
+        <View style={s.vue}>
+          <Segmented
+            options={[
+              { value: 'conversation', label: 'Par conversation' },
+              { value: 'afaire', label: 'À faire' },
+            ]}
+            value={vue}
+            onChange={setVue}
+            compact
+          />
+        </View>
+        {vue === 'afaire' ? (
+          <AFaire
+            moi={moi}
+            echanges={avecMoi}
+            nomDe={nomDe}
+            onNouveau={() => setNouveau({ a: '' })}
+            onOuvrir={(e) => {
+              const avec = nomDe(e.de === moi ? e.a : e.de);
+              setChat({ titre: avec, elements: [{ kind: 'echange', e, avec }] });
+            }}
+          />
+        ) : (
+          <>
         {filtreActif && <Text style={s.aide}>Filtres actifs : seules les conversations qui ont des échanges correspondants sont affichées.</Text>}
         <View style={s.entete}>
           <Text style={s.section}>En attente · {actives.length}</Text>
@@ -301,9 +284,68 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
           </>
         )}
         <Text style={s.aide}>Sans historique : un message lu, ou une réponse prise en compte, disparaît.</Text>
+          </>
+        )}
       </ScrollView>
       <NouvelEchange a={nouveau?.a ?? ''} existant={nouveau?.existant} visible={!!nouveau} moi={moi} personnes={personnes} espaces={espaces} onClose={() => setNouveau(null)} onEnvoyer={onEnvoyer} onModifier={onModifier} />
       {fenetreChat}
+    </>
+  );
+}
+
+/**
+ * Vue « À faire » (lot 25) : tous les échanges, toutes personnes confondues, rangés par ce qu'il y a à faire, le plus
+ * ancien d'abord ; chaque ligne montre l'élément concerné, la personne et la date ; toucher ouvre la fenêtre.
+ */
+function AFaire({ moi, echanges, nomDe, onNouveau, onOuvrir }: { moi: string; echanges: Echange[]; nomDe: (id: string) => string; onNouveau: () => void; onOuvrir: (e: Echange) => void }) {
+  const groupes: { titre: string; l: Echange[]; icone: (e: Echange) => string; meta: (e: Echange) => string }[] = [
+    { titre: 'À répondre', l: echanges.filter((e) => e.a === moi && e.statut === 'envoye' && e.type === 'question'), icone: () => '❓', meta: (e) => nomDe(e.de) },
+    { titre: 'À lire', l: echanges.filter((e) => e.a === moi && e.statut === 'envoye' && e.type !== 'question'), icone: () => '✉️', meta: (e) => nomDe(e.de) },
+    { titre: 'Réponses à prendre en compte', l: echanges.filter((e) => e.de === moi && e.statut === 'repondu'), icone: () => '↩️', meta: (e) => `${nomDe(e.a)} · → ${e.reponse}` },
+    {
+      titre: "En attente de l'autre",
+      l: echanges.filter((e) => (e.de === moi && e.statut === 'envoye') || (e.a === moi && e.statut === 'repondu')),
+      icone: (e) => (e.type === 'question' ? '❓' : '✉️'),
+      meta: (e) => (e.de === moi ? `À ${nomDe(e.a)}` : `${nomDe(e.de)} · votre réponse : ${e.reponse}`),
+    },
+  ];
+  const date = (iso: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
+  const nbPieces = (e: Echange) => (e.pieces_jointes ?? '').split(';').filter(Boolean).length;
+  return (
+    <>
+      <View style={s.entete}>
+        <Text style={s.section}>{echanges.length} échange{echanges.length > 1 ? 's' : ''} · le plus ancien d'abord</Text>
+        <Pressable onPress={onNouveau} style={s.rond} hitSlop={8} accessibilityRole="button" accessibilityLabel="Nouvel échange">
+          <Text style={s.rondTexte}>＋</Text>
+        </Pressable>
+      </View>
+      {groupes.every((g) => !g.l.length) && <Text style={s.videTexte}>✓ Rien à traiter.</Text>}
+      {groupes
+        .filter((g) => g.l.length)
+        .map((g) => (
+          <View key={g.titre}>
+            <Text style={[s.section, s.sectionBloc]}>
+              {g.titre} · {g.l.length}
+            </Text>
+            <View style={s.carte}>
+              {g.l.map((e, i) => (
+                <Pressable key={e.id} onPress={() => onOuvrir(e)} style={[s.ligne, i > 0 && s.ligneBord]} accessibilityRole="button">
+                  <View style={s.corps}>
+                    {!!e.element && <FilEchange id={e.element} />}
+                    <Text style={s.titre} numberOfLines={2}>
+                      {g.icone(e)} {e.titre || e.texte}
+                    </Text>
+                    <Text style={s.meta}>
+                      {g.meta(e)} · {date(e.cree_le)}
+                      {nbPieces(e) ? ` · 📎 ${nbPieces(e)}` : ''}
+                    </Text>
+                  </View>
+                  <Text style={s.chev}>›</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ))}
     </>
   );
 }
@@ -337,15 +379,9 @@ function Conversation({
   onRetirer,
   hierarchie,
   nomDe,
-  entete,
-  avecQui,
 }: {
   hierarchie: Hierarchie;
   nomDe: (id: string) => string;
-  /** En-tête à la place du retour (vue « À faire » : la bascule Par conversation / À faire) */
-  entete?: ReactNode;
-  /** Vue « À faire » (toutes les personnes) : la personne concernée, affichée sur chaque carte */
-  avecQui?: (e: Echange) => string;
   moi: string;
   titre: string;
   echanges: Echange[];
@@ -405,28 +441,28 @@ function Conversation({
   };
   return (
     <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-      {entete ?? <Retour titre={titre} onRetour={onRetour} />}
+      <Retour titre={titre} onRetour={onRetour} />
       <Bloc titre="À vous" vide="Rien à traiter.">
         {aRepondre.map((e) =>
           e.type === 'question' ? (
-            <CarteQuestion key={e.id} e={e} avec={avecQui?.(e)} onRepondre={onRepondre} pied={outils(e)} onOuvrir={() => onOuvrir(e)} />
+            <CarteQuestion key={e.id} e={e} onRepondre={onRepondre} pied={outils(e)} onOuvrir={() => onOuvrir(e)} />
           ) : (
-            <CarteMessage key={e.id} e={e} avec={avecQui?.(e)} action="Lu ✓" onAction={() => onRetirer(e)} pied={outils(e)} onOuvrir={() => onOuvrir(e)} />
+            <CarteMessage key={e.id} e={e} action="Lu ✓" onAction={() => onRetirer(e)} pied={outils(e)} onOuvrir={() => onOuvrir(e)} />
           ),
         )}
       </Bloc>
       <Bloc titre="Réponses reçues" vide="Aucune réponse en attente de prise en compte.">
         {recues.map((e) => (
-          <CarteMessage key={e.id} e={e} avec={avecQui?.(e)} reponse action="Pris en compte ✓" onAction={() => onRetirer(e)} onOuvrir={() => onOuvrir(e)} />
+          <CarteMessage key={e.id} e={e} reponse action="Pris en compte ✓" onAction={() => onRetirer(e)} onOuvrir={() => onOuvrir(e)} />
         ))}
       </Bloc>
       {!!(attente.length || autres.length) && (
         <Bloc titre="En attente de l'autre" vide="">
           {attente.map((e) => (
-            <CarteMessage key={e.id} e={e} avec={avecQui?.(e)} gris action="Retirer" onAction={() => onRetirer(e)} modifier={() => onModifier(e)} onOuvrir={() => onOuvrir(e)} />
+            <CarteMessage key={e.id} e={e} gris action="Retirer" onAction={() => onRetirer(e)} modifier={() => onModifier(e)} onOuvrir={() => onOuvrir(e)} />
           ))}
           {autres.map((e) => (
-            <CarteMessage key={e.id} e={e} avec={avecQui?.(e)} reponse gris onOuvrir={() => onOuvrir(e)} {...(e.type === "question" ? { modifier: () => onOuvrir(e), libelleModifier: "✏️ Changer la réponse" } : {})} />
+            <CarteMessage key={e.id} e={e} reponse gris onOuvrir={() => onOuvrir(e)} {...(e.type === "question" ? { modifier: () => onOuvrir(e), libelleModifier: "✏️ Changer la réponse" } : {})} />
           ))}
         </Bloc>
       )}
@@ -477,12 +513,12 @@ function Bloc({ titre, vide, children }: { titre: string; vide: string; children
   );
 }
 
-function CarteMessage({ e, avec, action, onAction, reponse, gris, pied, modifier, libelleModifier = '✏️ Modifier', onOuvrir }: { e: Echange; avec?: string; action?: string; onAction?: () => void; reponse?: boolean; gris?: boolean; pied?: ReactNode; modifier?: () => void; libelleModifier?: string; onOuvrir?: () => void }) {
+function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier, libelleModifier = '✏️ Modifier', onOuvrir }: { e: Echange; action?: string; onAction?: () => void; reponse?: boolean; gris?: boolean; pied?: ReactNode; modifier?: () => void; libelleModifier?: string; onOuvrir?: () => void }) {
   return (
     // Toucher la carte l'ouvre dans la fenêtre (consultation), par-dessus l'écran
     <Pressable onPress={onOuvrir} disabled={!onOuvrir} style={[s.carte, s.carteEchange, gris && s.gris]} accessibilityRole="button">
       {!!e.element && <FilEchange id={e.element} />}
-      <Text style={s.type}>{e.type === 'question' ? '❓ Question' : '✉️ Message'}{avec ? `  ·  ${avec}` : ''}{onOuvrir ? '  ·  Ouvrir ›' : ''}</Text>
+      <Text style={s.type}>{e.type === 'question' ? '❓ Question' : '✉️ Message'}{onOuvrir ? '  ·  Ouvrir ›' : ''}</Text>
       {!!e.titre && <Text style={s.titre}>{e.titre}</Text>}
       {!!e.texte && <Text style={s.texte}>{e.texte}</Text>}
       <PiecesEchange e={e} />
@@ -517,7 +553,7 @@ export const estAutre = (c: string) => c.trim().toLowerCase() === 'autre';
 export const placeholderNote = (c: string) => (estAutre(c) ? 'Précisez votre réponse « Autre » (obligatoire)' : 'Remarque (facultatif)');
 export const reponsePrete = (c: string, note: string) => !!c && (!estAutre(c) || !!note.trim());
 
-function CarteQuestion({ e, avec, onRepondre, pied, onOuvrir }: { e: Echange; avec?: string; onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>; pied?: ReactNode; onOuvrir?: () => void }) {
+function CarteQuestion({ e, onRepondre, pied, onOuvrir }: { e: Echange; onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>; pied?: ReactNode; onOuvrir?: () => void }) {
   const [choix, setChoix] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -526,7 +562,7 @@ function CarteQuestion({ e, avec, onRepondre, pied, onOuvrir }: { e: Echange; av
     <View style={[s.carte, s.carteEchange]}>
       {!!e.element && <FilEchange id={e.element} />}
       <Pressable onPress={onOuvrir} disabled={!onOuvrir} accessibilityRole="button">
-        <Text style={s.type}>❓ Question{avec ? `  ·  ${avec}` : ''}{onOuvrir ? '  ·  Ouvrir ›' : ''}</Text>
+        <Text style={s.type}>❓ Question{onOuvrir ? '  ·  Ouvrir ›' : ''}</Text>
         {!!e.titre && <Text style={s.titre}>{e.titre}</Text>}
         {!!e.texte && <Text style={s.texte}>{e.texte}</Text>}
       </Pressable>
