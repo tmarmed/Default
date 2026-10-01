@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors } from '../theme';
 import { BandeauAnnuler, decrireChangement, useEnregistrementAuto } from './EnregistrementAuto';
 import { useHierarchy } from '../hierarchyContext';
 import { useOrg } from '../organisation';
 import { useMoi } from '../droits';
 import { droitsStrategie, epicsDeValueStream, libelleTypeVs, TYPES_VS } from '../strategie';
 import { type Epic, idsDe, joindreIds, type Objectif, type ValueStream, type ValueStreamInput } from '../types';
-import { ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, LigneMulti, SaisieFiche, SectionFiche } from './Choix';
+import { ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, SaisieFiche, SectionFiche } from './Choix';
 import { DeleteSection } from './DeleteSection';
 import { BlocLecture, FormSheet, formStyles as f, TitreFiche } from './FormSheet';
 
@@ -43,7 +44,7 @@ export function ValueStreamForm({ visible, vs, defaults, onClose, onSave, onDele
   const [form, setForm] = useState<ValueStreamInput>(vide());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [choix, setChoix] = useState<'okr' | 'epic' | null>(null);
+  const [choix, setChoix] = useState<'okr' | 'epic' | 'train' | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -106,7 +107,15 @@ export function ValueStreamForm({ visible, vs, defaults, onClose, onSave, onDele
   const lecture = !!vs && !droits.lierVs(vs);
   const okrs = idsDe(form.okrs).map((id) => h.objectifs.get(id)).filter((o): o is Objectif => !!o);
   const epics = vs ? epicsDeValueStream(vs.id, h.epicList) : [];
-  const nbFeatures = h.featureList.filter((x) => x.train && idsDe(form.trains).includes(x.train)).length;
+  // Parcours train › epics : les epics d'un train sont celles dont une feature est dans ce train
+  const parTrain = idsDe(form.trains).map((t) => {
+    const fs = h.featureList.filter((x) => x.train === t);
+    const ids = [...new Set(fs.map((x) => x.epic).filter(Boolean))];
+    const eps = ids.map((id) => h.epics.get(id)).filter((e): e is Epic => !!e).map((e) => ({ e, n: fs.filter((x) => x.epic === e.id).length }));
+    return { id: t, nom: nomTrain(t), eps, sansEpic: fs.filter((x) => !x.epic).length };
+  });
+  const dansTrains = new Set(parTrain.flatMap((t) => t.eps.map((x) => x.e.id)));
+  const autresEpics = epics.filter((e) => !dansTrains.has(e.id));
   const portfolios = org.portfolios.map((p) => ({ value: p.id, label: `💼 ${p.nom}` }));
   const trains = org.trains.filter((t) => !form.portfolio || t.portfolio === form.portfolio).map((t) => ({ value: t.id, label: `🚆 ${t.nom}` }));
 
@@ -152,7 +161,6 @@ export function ValueStreamForm({ visible, vs, defaults, onClose, onSave, onDele
 
         <SectionFiche titre="Rattachement">
           <LigneChoix label="Portfolio" value={form.portfolio} groupes={[{ options: portfolios }]} sans="Sans portfolio" onChange={(v) => setForm((x) => ({ ...x, portfolio: v, trains: '' }))} />
-          <LigneMulti label="Trains" values={idsDe(form.trains)} onChange={(l) => set('trains', joindreIds(l))} groupes={[{ options: trains }]} resume={(n) => `${n} train${n > 1 ? 's' : ''}`} />
         </SectionFiche>
 
         <SectionFiche titre={`OKR · ${okrs.length}`} onAjouter={() => setChoix('okr')} ajouterLabel="Choisir des OKR">
@@ -162,15 +170,39 @@ export function ValueStreamForm({ visible, vs, defaults, onClose, onSave, onDele
           {!okrs.length && <Text style={f.videCarte}>Aucun OKR pour l'instant.</Text>}
         </SectionFiche>
 
+        <SectionFiche titre={`Trains · ${parTrain.length}`} onAjouter={() => setChoix('train')} ajouterLabel="Choisir les trains">
+          {parTrain.map((t) => (
+            <View key={t.id} style={st.train}>
+              <View style={st.trainLigne}>
+                <Text style={st.trainNom}>🚆 {t.nom}</Text>
+                <Text style={st.meta}>
+                  {t.eps.length} epic{t.eps.length > 1 ? 's' : ''}
+                </Text>
+              </View>
+              {t.eps.map(({ e, n }) => (
+                <Pressable key={e.id} onPress={() => onOpenEpic(e)} style={st.epic} accessibilityRole="button">
+                  <Text style={st.epicTexte} numberOfLines={1}>🗂️ {e.titre}</Text>
+                  <Text style={st.meta}>
+                    {n} feature{n > 1 ? 's' : ''} ›
+                  </Text>
+                </Pressable>
+              ))}
+              {t.sansEpic > 0 && <Text style={[st.meta, st.epic]}>{t.sansEpic} feature{t.sansEpic > 1 ? 's' : ''} sans epic</Text>}
+            </View>
+          ))}
+          {!parTrain.length && <Text style={f.videCarte}>Aucun train pour l'instant.</Text>}
+        </SectionFiche>
+        {parTrain.length > 0 && <Text style={f.hint}>Les epics d'un train : celles dont une feature est dans ce train.</Text>}
+
         {vs && (
-          <SectionFiche titre={`Epics · ${epics.length}`} onAjouter={() => setChoix('epic')} ajouterLabel="Choisir des epics">
-            {epics.map((e) => (
+          <SectionFiche titre={`Autres epics hors trains · ${autresEpics.length}`} onAjouter={() => setChoix('epic')} ajouterLabel="Choisir des epics">
+            {autresEpics.map((e) => (
               <LigneEnfant key={e.id} texte={`🗂️ ${e.titre}`} onPress={() => onOpenEpic(e)} />
             ))}
-            {!epics.length && <Text style={f.videCarte}>Aucune epic pour l'instant.</Text>}
+            {!autresEpics.length && <Text style={f.videCarte}>Aucune autre epic.</Text>}
           </SectionFiche>
         )}
-        {idsDe(form.trains).length > 0 && <Text style={f.hint}>Features : {nbFeatures}, par {idsDe(form.trains).length > 1 ? 'les trains' : 'le train'} {idsDe(form.trains).map(nomTrain).join(', ')} (pas de lien direct).</Text>}
+        {vs && autresEpics.length > 0 && <Text style={f.hint}>Liées directement au value stream, sans feature dans un de ses trains.</Text>}
 
         <SectionFiche titre="Détails">
           <ChampFiche label="Description" colonne>
@@ -212,6 +244,20 @@ export function ValueStreamForm({ visible, vs, defaults, onClose, onSave, onDele
           onFermer={() => setChoix(null)}
         />
       )}
+      {choix === 'train' && (
+        <FeuilleMulti
+          titre="Choisir les trains"
+          groupes={[{ options: trains }]}
+          selection={idsDe(form.trains)}
+          vide={form.portfolio ? 'Aucun train dans ce portfolio.' : 'Aucun train.'}
+          libelleValider={() => 'Valider'}
+          onValider={(l) => {
+            setChoix(null);
+            set('trains', joindreIds(l));
+          }}
+          onFermer={() => setChoix(null)}
+        />
+      )}
       {choix === 'epic' && vs && (
         <FeuilleMulti
           titre="Choisir des epics"
@@ -230,3 +276,12 @@ export function ValueStreamForm({ visible, vs, defaults, onClose, onSave, onDele
     </FormSheet>
   );
 }
+
+const st = StyleSheet.create({
+  train: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingBottom: 6 },
+  trainLigne: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 12, paddingBottom: 6, gap: 8 },
+  trainNom: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
+  epic: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 34, paddingRight: 12, paddingVertical: 6 },
+  epicTexte: { flex: 1, fontSize: 14, color: colors.text },
+  meta: { fontSize: 12.5, color: colors.muted },
+});

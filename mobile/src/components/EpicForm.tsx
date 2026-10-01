@@ -345,19 +345,22 @@ export function EpicForm({
               }}
             />
 
-            <LinkPicker
-              levels={safe.actif ? ['domaine'] : ['objectif', 'domaine']}
-              value={form}
-              onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
-              onNouveau={onNouveau ? (n, d) => (n === 'objectif' || n === 'domaine') && onNouveau(n, d) : undefined}
-              initial={epic ? { objectif: epic.objectif, domaine: epic.domaine } : undefined}
-              attendu={safe.actif ? ['domaine'] : undefined}
-            />
+            {/* SAFe : plus de domaine, l'epic est rattachée à son portfolio (section Rattachement ci-dessous) */}
+            {!safe.actif && (
+              <LinkPicker
+                levels={['objectif', 'domaine']}
+                value={form}
+                onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                onNouveau={onNouveau ? (n, d) => (n === 'objectif' || n === 'domaine') && onNouveau(n, d) : undefined}
+                initial={epic ? { objectif: epic.objectif, domaine: epic.domaine } : undefined}
+              />
+            )}
 
             {safe.actif && (
               <LiaisonOrg
                 espace={espace}
                 niveau="epic"
+                titre="Rattachement"
                 valeurs={{ portfolio: form.portfolio, epic: epic?.id }}
                 initial={epic ? { portfolio: epic.portfolio ?? '' } : undefined}
                 onChange={(p) => setForm((x) => ({ ...x, ...p }))}

@@ -20,7 +20,10 @@ export function LiaisonOrg({
   onChange,
   onNouveau,
   initial,
+  titre = 'Delivery',
 }: {
+  /** Titre de la section (l'epic SAFe : « Rattachement », elle n'a plus de domaine) */
+  titre?: string;
   espace: string;
   niveau: 'epic' | 'feature' | 'item';
   valeurs: Valeurs;
@@ -57,7 +60,7 @@ export function LiaisonOrg({
 
   if (niveau === 'epic') {
     return (
-      <SectionFiche titre="Delivery">
+      <SectionFiche titre={titre}>
         <LigneChoix
           label="Portfolio"
           value={valeurs.portfolio ?? ''}
@@ -74,7 +77,7 @@ export function LiaisonOrg({
   if (niveau === 'feature') {
     const equipe = valeurs.equipe ? o.equipe.get(valeurs.equipe) : undefined;
     return (
-      <SectionFiche titre="Delivery">
+      <SectionFiche titre={titre}>
         <LigneChoix
           label="Train"
           value={valeurs.train ?? ''}
@@ -105,7 +108,7 @@ export function LiaisonOrg({
   const personnes = [...o.personnes].sort((a, b) => a.nom.localeCompare(b.nom));
   const trainFeature = feature?.train || (feature?.equipe ? o.equipe.get(feature.equipe)?.train : '') || '';
   return (
-    <SectionFiche titre="Delivery">
+    <SectionFiche titre={titre}>
       <LigneChoix
         label="Équipe"
         value={valeurs.equipe ?? ''}
