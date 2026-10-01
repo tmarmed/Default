@@ -71,25 +71,27 @@ export type Ecran =
   | 'equipe'
   | 'organisation'
   | 'pilotage'
+  /** 📅 Réunions (lot 6) : réunions SAFe et agiles de vos rôles ; en mode Simple, vos rituels personnels */
+  | 'reunions'
   /** 🔄 Synchro (onglet « Synchronisation ») : échanges avec l'application, Claude et les personnes, toujours en dernier */
   | 'echange';
 
 /** Ordre de priorité quand plusieurs espaces sont affichés */
-export const PRIORITE: Ecran[] = ['taches', 'iteration', 'pi', 'strategie', 'backlog', 'portefeuille', 'roadmap', 'equipe', 'organisation', 'pilotage'];
+export const PRIORITE: Ecran[] = ['taches', 'iteration', 'reunions', 'pi', 'strategie', 'backlog', 'portefeuille', 'roadmap', 'equipe', 'organisation', 'pilotage'];
 
 /** Pour chaque cas : les écrans, dans l'ordre de la barre (les 5 premiers), puis ceux de « Plus » */
 export const ECRANS: Record<TypeEspace, { simple: Ecran[]; safe: Ecran[] }> = {
   moi: {
-    simple: ['taches', 'roadmap'],
-    safe: ['taches', 'iteration', 'pi', 'strategie', 'roadmap', 'backlog', 'portefeuille', 'pilotage'],
+    simple: ['taches', 'roadmap', 'reunions'],
+    safe: ['taches', 'iteration', 'reunions', 'pi', 'strategie', 'roadmap', 'backlog', 'portefeuille', 'pilotage'],
   },
   equipe: {
-    simple: ['taches', 'roadmap', 'equipe', 'pilotage'],
-    safe: ['taches', 'iteration', 'backlog', 'pi', 'equipe', 'roadmap', 'strategie', 'pilotage'],
+    simple: ['taches', 'roadmap', 'reunions', 'equipe', 'pilotage'],
+    safe: ['taches', 'iteration', 'reunions', 'backlog', 'pi', 'equipe', 'roadmap', 'strategie', 'pilotage'],
   },
   entreprise: {
-    simple: ['taches', 'roadmap', 'organisation', 'pilotage'],
-    safe: ['taches', 'strategie', 'portefeuille', 'pi', 'pilotage', 'backlog', 'iteration', 'roadmap', 'organisation'],
+    simple: ['taches', 'roadmap', 'reunions', 'organisation', 'pilotage'],
+    safe: ['taches', 'strategie', 'portefeuille', 'pi', 'reunions', 'pilotage', 'backlog', 'iteration', 'roadmap', 'organisation'],
   },
 };
 

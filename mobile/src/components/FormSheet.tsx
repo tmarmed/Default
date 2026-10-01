@@ -55,6 +55,8 @@ interface Props {
   libelleEnregistrer?: string;
   /** Fenêtre posée par-dessus l'écran précédent (qui reste visible, assombri, en haut) au lieu de le remplacer */
   superpose?: boolean;
+  /** Bloc fixe sous l'en-tête, qui ne défile pas avec le contenu (barre des étapes d'une réunion) */
+  haut?: ReactNode;
 }
 
 /** Pile de fiches : fiche d'en dessous (« ‹ … »), fil en haut, tout fermer */
@@ -115,7 +117,7 @@ export function BoutonRetour({ pile, onPress, disabled, style, fermer }: { pile?
 }
 
 /** Fenêtre de formulaire : Annuler / titre / Enregistrer, message d'erreur, contenu défilant. */
-export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil, auto, bandeau, onToucher, libelleEnregistrer = 'Enregistrer', superpose }: Props) {
+export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil, auto, bandeau, onToucher, libelleEnregistrer = 'Enregistrer', superpose, haut }: Props) {
   const cadre = (enfants: ReactNode) =>
     superpose ? (
       <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -157,6 +159,7 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
           )}
         </View>
         <CheminPile pile={chemin || onFermerTout ? { chemin, onFermerTout } : undefined} fil={fil} espace={espaceFil} disabled={busy} />
+        {haut}
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" onTouchStart={onToucher} onScrollBeginDrag={onToucher}>
             {error && <Text style={styles.error}>{error}</Text>}

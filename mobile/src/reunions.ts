@@ -1,5 +1,5 @@
 import { addDays, toDateString } from './dates';
-import { lireNiveau, personneParEmail } from './echange/hierarchieEchange';
+import { lireNiveau } from './echange/hierarchieEchange';
 import { membresDe, type OrgValue } from './organisation';
 import { iterationOf, piEnd, piOf, piStart } from './pi';
 import { type RepetitionReunion, type Reunion, type TypeReunion, TYPES_REUNION } from './types';
@@ -120,14 +120,16 @@ export function reunionsAVenir(org: OrgValue, moi: string, aujourdhui: string, s
     return trier(out);
   }
 
-  const pid = personneParEmail(mail, org)?.id;
-  if (!pid) return [];
+  // Vous : toutes vos fiches de personne (une par entreprise ou espace Équipe), d'après votre e-mail
+  const moiIds = new Set(org.personnes.filter((p) => !!mail && p.email?.toLowerCase() === mail).map((p) => p.id));
+  if (!moiIds.size) return [];
+  const est = (id: string) => !!id && moiIds.has(id);
   // Vos équipes (membre, SM ou PO), vos trains, vos portfolios
-  const equipes = org.equipes.filter((e) => e.sm === pid || e.po === pid || membresDe(e).includes(pid));
-  const pilote = (t: { id: string; rte: string; pm: string }) => t.rte === pid || t.pm === pid;
-  const trainsSync = org.trains.filter((t) => pilote(t) || equipes.some((e) => e.train === t.id && (e.sm === pid || e.po === pid)));
+  const equipes = org.equipes.filter((e) => est(e.sm) || est(e.po) || membresDe(e).some(est));
+  const pilote = (t: { id: string; rte: string; pm: string }) => est(t.rte) || est(t.pm);
+  const trainsSync = org.trains.filter((t) => pilote(t) || equipes.some((e) => e.train === t.id && (est(e.sm) || est(e.po))));
   const trainsTous = org.trains.filter((t) => pilote(t) || equipes.some((e) => e.train === t.id));
-  const portfolios = org.portfolios.filter((p) => p.epic_owner === pid || org.trains.some((t) => t.portfolio === p.id && pilote(t)));
+  const portfolios = org.portfolios.filter((p) => est(p.epic_owner) || org.trains.some((t) => t.portfolio === p.id && pilote(t)));
   // Organisateur d'après le rôle ; à défaut, l'autre pilote de l'équipe (SM ↔ PO) ou du train (RTE ↔ PM)
   const orgaEquipe = (e: { sm: string; po: string }, role: 'sm' | 'po') => emailDe(role === 'sm' ? e.sm || e.po : e.po || e.sm);
   const orgaTrain = (t: { rte: string; pm: string }, role: 'rte' | 'pm') => emailDe(role === 'rte' ? t.rte || t.pm : t.pm || t.rte);

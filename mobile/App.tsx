@@ -76,6 +76,8 @@ import { EspacesSheet } from './src/components/EspacesSheet';
 import { ChatEchanges, type ElementChat } from './src/components/ChatEchanges';
 import { EquipeView, type PersonneConnue } from './src/components/EquipeView';
 import { idsPieces, PiecesContext } from './src/components/Pieces';
+import { type NiveauReunion, ReunionsView } from './src/components/ReunionsView';
+import { reunionsAVenir } from './src/reunions';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
 import { StrategieView } from './src/components/StrategieView';
@@ -147,8 +149,14 @@ const TEST_STOCKAGE_KEY = 'president:stockage-test';
 const TEST_LIMITE_KEY = 'president:stockage-test-limite';
 /** Alerte de stockage repliée en une ligne */
 const STOCKAGE_PLIE_KEY = 'president:stockage-plie';
+/** Filtre de niveau des réunions */
+const NIVEAUX_REUNION: { value: NiveauReunion; label: string }[] = [
+  { value: 'equipeagile', label: '👥 Équipe' },
+  { value: 'train', label: '🚆 Train' },
+  { value: 'portfolio', label: '💼 Portfolio' },
+];
 /** Écrans avec le sous-bloc Filtres (juste sous leur titre) */
-const ECRANS_FILTRES: Tab[] = ['taches', 'iteration', 'pi', 'roadmap', 'portefeuille', 'backlog', 'echange'];
+const ECRANS_FILTRES: Tab[] = ['taches', 'iteration', 'pi', 'roadmap', 'portefeuille', 'backlog', 'reunions', 'echange'];
 const MODES: { value: Mode; label: string }[] = [
   { value: 'liste', label: 'Liste' },
   { value: 'jour', label: 'Jour' },
@@ -169,6 +177,7 @@ const TAB_TITLES: Record<Tab, string> = {
   equipe: 'Équipe',
   organisation: 'Organisation',
   pilotage: 'Pilotage',
+  reunions: 'Réunions',
   echange: 'Synchronisation',
 };
 const TAB_ICONS: Record<Tab, string> = {
@@ -182,6 +191,7 @@ const TAB_ICONS: Record<Tab, string> = {
   equipe: '👥',
   organisation: '🏛️',
   pilotage: '📊',
+  reunions: '📅',
   echange: '🔄',
 };
 const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches', echange: 'Synchro' };
@@ -503,6 +513,8 @@ function Main() {
   const [choixElementSynchro, setChoixElementSynchro] = useState(false);
   /** Backlog : niveau (null = selon le rôle) et value stream choisis dans les filtres */
   const [backlogNiveau, setBacklogNiveau] = useState<NiveauBacklog | null>(null);
+  /** 📅 Réunions (lot 6) : niveau choisi dans les filtres (Équipe / Train / Portfolio), vide = tous */
+  const [reunionNiveau, setReunionNiveau] = useState<NiveauReunion>('');
   const [backlogVs, setBacklogVs] = useState('');
   /** Sous-bloc Filtres replié en une ligne de résumé (mémorisé sur l'appareil) */
   const [filtresPlies, setFiltresPlies] = useState(false);
@@ -912,7 +924,10 @@ function Main() {
   const surTaches = tab === 'taches';
   const surSynchro = tab === 'echange';
   const surBacklog = tab === 'backlog';
-  const nbFiltres = surBacklog
+  const surReunions = tab === 'reunions';
+  const nbFiltres = surReunions
+    ? (safe.actif && reunionNiveau ? 1 : 0) + (recherche?.trim() ? 1 : 0) + (safe.actif && orgFiltre ? 1 : 0)
+    : surBacklog
     ? (backlogVs ? 1 : 0) + (recherche?.trim() ? 1 : 0) + (safe.actif && orgFiltre ? 1 : 0)
     : surSynchro
     ? (synchroFiltre.espace ? 1 : 0) + (synchroFiltre.element ? 1 : 0) + (synchroFiltre.type ? 1 : 0) + (synchroFiltre.pj ? 1 : 0) + (recherche?.trim() ? 1 : 0)
@@ -922,6 +937,12 @@ function Main() {
     (recherche?.trim() ? 1 : 0) +
     (safe.actif && orgFiltre ? 1 : 0);
   const reinitialiserFiltres = () => {
+    if (surReunions) {
+      setReunionNiveau('');
+      setRecherche(null);
+      setOrgFiltre(null);
+      return;
+    }
     if (surBacklog) {
       setBacklogVs('');
       setRecherche(null);
@@ -941,7 +962,13 @@ function Main() {
     setRecherche(null);
     setOrgFiltre(null);
   };
-  const resumeFiltres = surBacklog
+  const resumeFiltres = surReunions
+    ? [
+        safe.actif ? (reunionNiveau ? NIVEAUX_REUNION.find((n) => n.value === reunionNiveau)?.label ?? '' : 'Tous les niveaux') : '',
+        recherche?.trim() ? `« ${recherche.trim()} »` : '',
+        safe.actif && orgFiltre ? libelleOrgFiltre(orgFiltre, orgValue) : '',
+      ].filter(Boolean).join(' · ')
+    : surBacklog
     ? [
         backlogVs ? `🌊 ${hv.valueStreams.find((v) => v.id === backlogVs)?.nom ?? ''}` : 'Tous les value streams',
         recherche?.trim() ? `« ${recherche.trim()} »` : '',
@@ -1412,6 +1439,20 @@ function Main() {
   const orgEchanges = useMemo(() => makeOrgValue(orgTous), [orgTous]);
   // Démo : « Voir en tant que » une personne de l'Organisation = échanger avec son adresse
   const moiEchange = DEMO ? (orgTous.personnes.find((p) => p.id === moiDemo)?.email?.toLowerCase() || MOI_DEMO) : (settings?.googleEmail ?? '').toLowerCase();
+  /**
+   * 📅 Réunions (lot 6) : calculées d'après vos rôles dans l'Organisation des espaces affichés, avec les équipes des
+   * espaces Équipe (rien n'est enregistré)
+   */
+  const orgReunions = useMemo(() => {
+    const eq = Object.entries(equipesEsp).filter(([id]) => visibles.includes(id));
+    if (!eq.length) return orgValue;
+    return makeOrgValue({
+      ...orgValue,
+      personnes: [...orgValue.personnes, ...eq.flatMap(([id, x]) => x.personnes.map((p) => ({ ...p, espace: p.espace || id })))],
+      equipes: [...orgValue.equipes, ...eq.flatMap(([id, x]) => x.equipes.map((e) => ({ ...e, espace: e.espace || id })))],
+    });
+  }, [orgValue, equipesEsp, visibles]);
+  const reunionsAffichees = useMemo(() => (tab === 'reunions' ? reunionsAVenir(orgReunions, moiEchange, today, safe.actif) : []), [tab, orgReunions, moiEchange, today, safe.actif]);
   const nomEchange = (email: string) => personneParEmail(email, orgEchanges)?.nom ?? nomDepuisEmail(email);
   /** Escalade : SM ou PO (membre), puis RTE, puis Epic Owner (voir ciblesEscalade) */
   const escaladesDe = (e: Echange) => {
@@ -1712,6 +1753,7 @@ function Main() {
     equipe: zero,
     organisation: zero,
     pilotage: zero,
+    reunions: zero,
     // 🔄 Synchro : pastille bleue, comme une messagerie = échanges à traiter et messages de President non lus
     echange: { rouge: 0, jaune: 0, chat: nbARepondre + messagesApp.length },
   };
@@ -2352,7 +2394,20 @@ function Main() {
                   </ScrollView>
                 )}
                 {!surSynchro && tab === 'taches' && <TypeFilter value={filter} onChange={setFilter} />}
-                {!surSynchro && !surBacklog && (domaines.length > 0 || (tab === 'taches' && safe.actif)) && (
+                {/* Réunions (lot 6) : niveau Équipe / Train / Portfolio (en SAFe) */}
+                {surReunions && safe.actif && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
+                    {NIVEAUX_REUNION.map((n) => {
+                      const on = reunionNiveau === n.value;
+                      return (
+                        <Pressable key={n.value || 'tous'} onPress={() => setReunionNiveau(on ? '' : n.value)} style={[styles.itChip, on && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                          <Text style={[styles.itChipText, on && styles.itChipTextOn]}>{n.label}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+                {!surSynchro && !surBacklog && !surReunions && (domaines.length > 0 || (tab === 'taches' && safe.actif)) && (
                   <>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
                       {tab === 'taches' && safe.actif && (
@@ -2488,6 +2543,18 @@ function Main() {
           refreshControl={refreshControl}
           moi={moi}
           onChangerMoi={DEMO ? setMoiDemo : undefined}
+        />
+      )}
+
+      {tab === 'reunions' && (
+        <ReunionsView
+          reunions={reunionsAffichees}
+          org={orgReunions}
+          moi={moiEchange}
+          aujourdhui={today}
+          safeActif={safe.actif}
+          filtre={{ niveau: safe.actif ? reunionNiveau : '', org: safe.actif ? orgFiltre : null, recherche: recherche?.trim() ?? '' }}
+          onInfo={setInfo}
         />
       )}
 
@@ -2752,7 +2819,7 @@ function Main() {
         <BandeauAnnuler bandeau={bandeauApp.bandeau} fermer={bandeauApp.fermer} />
       </View>
 
-      {!A_VENIR.includes(tab) && tab !== 'strategie' && tab !== 'backlog' && tab !== 'echange' && tab !== 'equipe' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
+      {!A_VENIR.includes(tab) && tab !== 'strategie' && tab !== 'backlog' && tab !== 'echange' && tab !== 'reunions' && tab !== 'equipe' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 8 + 12 }]}
         onPress={() =>
           tab === 'organisation'
