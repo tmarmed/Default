@@ -2,6 +2,7 @@ import { Children, cloneElement, type ReactNode, useEffect, useMemo, useState } 
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { filElement } from '../choixTravail';
 import { useHierarchy } from '../hierarchyContext';
+import { useOrg } from '../organisation';
 import { colors } from '../theme';
 import { TYPE_ICONS } from '../types';
 import type { Echange, EchangeInput } from '../types';
@@ -681,10 +682,29 @@ function NouvelEchange({
   const [choix, setChoix] = useState<string[]>([]);
   const [saisieChoix, setSaisieChoix] = useState('');
   const [element, setElement] = useState('');
+  /** Destinataire rempli d'office avec le responsable de l'élément (remplacé si on change d'élément) */
+  const [destAuto, setDestAuto] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ouvertPour, setOuvertPour] = useState<string | null>(null);
   const h = useHierarchy();
+  const org = useOrg();
+  /** Responsable d'un élément (e-mail) : tâche → son responsable ; feature → PO de son équipe, sinon PM du train ; epic → Epic Owner du portfolio */
+  const responsableDe = (id: string): { email: string; role: string } | null => {
+    const mail = (pid?: string) => (pid ? (org.personne.get(pid)?.email ?? '').toLowerCase() : '');
+    const t = h.items.find((x) => x.id === id);
+    if (t) return mail(t.responsable) ? { email: mail(t.responsable), role: 'Responsable de la tâche' } : null;
+    const f = h.features.get(id);
+    if (f) {
+      const po = mail(f.equipe ? org.equipe.get(f.equipe)?.po : '');
+      if (po) return { email: po, role: 'PO de l’équipe' };
+      const pm = mail(f.train ? org.train.get(f.train)?.pm : '');
+      return pm ? { email: pm, role: 'PM du train' } : null;
+    }
+    const ep = h.epics.get(id);
+    const eo = mail(ep?.portfolio ? (org.portfolio.get(ep.portfolio) as { epic_owner?: string } | undefined)?.epic_owner : '');
+    return eo ? { email: eo, role: 'Epic Owner du portfolio' } : null;
+  };
   // Remise à zéro à chaque ouverture
   const cle = visible ? existant?.id ?? (a || '·') : null;
   if (cle !== ouvertPour) {
@@ -698,6 +718,7 @@ function NouvelEchange({
       setChoix(existant ? existant.choix.split(';').map((c) => c.trim()).filter(Boolean) : []);
       setSaisieChoix('');
       setElement(existant?.element ?? '');
+      setDestAuto(false);
       setPieces([]);
       setError(null);
     }
@@ -820,35 +841,11 @@ function NouvelEchange({
           <Text style={s.entree}>{choix.length === 1 ? 'Entrée pour ajouter · « Autre » sera ajouté' : 'Entrée pour ajouter'}</Text>
         </SectionFiche>
       )}
-      <SectionFiche titre="Destinataire" aDefinir={dest ? 0 : 1}>
-        <LigneChoix
-          label="À"
-          value={dest}
-          fige={!!existant}
-          attendu
-          groupes={[
-            { titre: 'IA', options: [{ value: 'claude', label: '💬 Claude', meta: 'IA chat' }] },
-            { titre: 'Personnes', options: options.filter((p) => p.id !== 'claude').map((p) => ({ value: p.id, label: `${ICONE_NATURE[p.nature] ?? '🧑'} ${p.nom}`, meta: p.id })) },
-          ]}
-          libelle={nomDest}
-          onChange={setDest}
-        />
-        {(dest === 'claude' ? espaces : espacesPartages).length > 1 && !existant && (
-          <LigneChoix
-            fixe
-            label="Espace"
-            value={dest !== 'claude' && espace === 'moi' ? espacesPartages[0]?.id ?? '' : espace}
-            sous={dest === 'claude' ? "L'espace concerné (celui de l'élément choisi) : pièces jointes comprises, tout y est rangé." : "Rangé au niveau commun le plus proche de l'Organisation (équipe, train, unité) ; privé à deux."}
-            groupes={[{ options: (dest === 'claude' ? espaces : espacesPartages).map((e) => ({ value: e.id, label: e.nom })) }]}
-            onChange={(v) => v && setEspace(v)}
-          />
-        )}
-      </SectionFiche>
       <SectionFiche titre="Concerne">
         <LigneChoix
           label="Élément"
           value={element}
-          vide="Facultatif"
+          vide="Facultatif · sinon la personne ci-dessous"
           sans="Aucun élément"
           sous={element ? filElement(element, h, TYPE_ICONS) : undefined}
           groupes={[
@@ -863,8 +860,42 @@ function NouvelEchange({
             // L'échange va dans l'espace de l'élément concerné
             const x = [...h.epicList, ...h.featureList, ...h.objectifList, ...h.items].find((y) => y.id === v) as { espace?: string } | undefined;
             if (x?.espace && espaces.some((e) => e.id === x.espace)) setEspace(x.espace);
+            // Le responsable de l'élément devient le destinataire (si aucun n'a été choisi à la main)
+            const r = v && !existant ? responsableDe(v) : null;
+            if (r && r.email !== moi && (!dest || destAuto)) {
+              setDest(r.email);
+              setDestAuto(true);
+            }
           }}
         />
+      </SectionFiche>
+      <SectionFiche titre="Destinataire" aDefinir={dest ? 0 : 1}>
+        <LigneChoix
+          label="À"
+          value={dest}
+          fige={!!existant}
+          attendu
+          groupes={[
+            { titre: 'IA', options: [{ value: 'claude', label: '💬 Claude', meta: 'IA chat' }] },
+            { titre: 'Personnes', options: options.filter((p) => p.id !== 'claude').map((p) => ({ value: p.id, label: `${ICONE_NATURE[p.nature] ?? '🧑'} ${p.nom}`, meta: p.id })) },
+          ]}
+          libelle={nomDest}
+          sous={destAuto && element ? `${responsableDe(element)?.role ?? 'Responsable'} · élément concerné` : undefined}
+          onChange={(v) => {
+            setDest(v);
+            setDestAuto(false);
+          }}
+        />
+        {(dest === 'claude' ? espaces : espacesPartages).length > 1 && !existant && (
+          <LigneChoix
+            fixe
+            label="Espace"
+            value={dest !== 'claude' && espace === 'moi' ? espacesPartages[0]?.id ?? '' : espace}
+            sous={dest === 'claude' ? "L'espace concerné (celui de l'élément choisi) : pièces jointes comprises, tout y est rangé." : "Rangé au niveau commun le plus proche de l'Organisation (équipe, train, unité) ; privé à deux."}
+            groupes={[{ options: (dest === 'claude' ? espaces : espacesPartages).map((e) => ({ value: e.id, label: e.nom })) }]}
+            onChange={(v) => v && setEspace(v)}
+          />
+        )}
       </SectionFiche>
     </FormSheet>
   );
