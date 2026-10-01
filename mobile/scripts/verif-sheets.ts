@@ -357,6 +357,46 @@ const ok = (cond: unknown, msg: string) => {
   let refusPt = '';
   await dm.ecrirePoints([{ ...pts[0], type: 'autre' as never }], []).catch((e) => (refusPt = e.message));
   ok(refusPt.includes('Type'), 'daily : type de point vérifié');
+  // Règles du 01/10 : à la Concrétisation, 3 blocages passés en échanges 🔄 Synchro (un lot d'échanges), les points
+  // gardent leur échange (un lot de points) ; le PO envoie ses réponses (décisions liées à l'échange) et reprend sa
+  // préparation en un seul passage
+  const bloc = await dm.ecrirePoints(Array.from({ length: 3 }, (_, i) => ({ ...pts[2], texte: `Blocage ${i + 1}`, element: storyD.id })), []);
+  const avantSy = appels;
+  const echSy = (
+    await dm.ecrireLot(
+      'echange',
+      bloc.crees.map((x) => ({
+        de: 'tom@x.fr', a: 'paul@x.fr', type: 'question' as const, titre: `Blocage · ${x.texte}`, texte: 'Peux-tu le lever ?', choix: 'Je m’en occupe;Autre', reponse: '', note: '',
+        statut: 'envoye' as const, element: storyD.id, niveau: 'equipeagile:eq1', transmis_par: 'nina@x.fr', prive: '1', pieces_jointes: '',
+      })),
+      [],
+    )
+  ).crees;
+  await dm.ecrirePoints([], bloc.crees.map((x, i) => ({ id: x.id, concretisation: 'synchro' as const, tache: echSy[i].id, responsable: 'paul@x.fr' })));
+  const nSy = appels - avantSy;
+  const sy = (await magasinSheets(idD).lirePoints(reu)).filter((x) => x.concretisation === 'synchro');
+  ok(nSy <= 5 && echSy.length === 3 && sy.length === 3 && sy.every((x) => echSy.some((e) => e.id === x.tache)), `daily : 3 blocages passés en 🔄 Synchro (échanges et points) en ${nSy} appels`);
+  // Le PO répond aux 3 échanges dans son parcours : à l'envoi de son point, les réponses partent dans les échanges
+  // (un lot) et sont dupliquées en décisions de la réunion, liées à l'échange (un lot de points, préparation reprise)
+  const prepPO = await dm.ecrirePoints([{ ...pts[0], personne: 'paul@x.fr', auteur: 'paul@x.fr', type: 'hier', texte: 'Story acceptée' }], []);
+  const avantPO = appels;
+  const repEch = await dm.ecrireLot('echange', [], echSy.map((e) => ({ id: e.id, reponse: 'Je m’en occupe', note: '', statut: 'repondu' as const })));
+  const repPO = await dm.ecrirePoints(
+    [
+      ...echSy.map((e, i) => ({ ...pts[0], personne: 'paul@x.fr', auteur: 'paul@x.fr', type: 'decision' as const, texte: `« Blocage ${i + 1} » : Je m’en occupe`, element: storyD.id, tache: e.id })),
+      { ...pts[0], personne: 'paul@x.fr', auteur: 'paul@x.fr', type: 'aujourdhui' as const, texte: 'Préparer « Historique »' },
+    ],
+    [],
+    prepPO.crees.map((x) => x.id),
+  );
+  const nPO = appels - avantPO;
+  const apresPO = await magasinSheets(idD).lirePoints(reu);
+  const decPO = apresPO.filter((x) => x.type === 'decision' && x.personne === 'paul@x.fr');
+  ok(
+    nPO <= 4 && repEch.modifies.every((e) => e.statut === 'repondu') && repPO.crees.length === 4 && decPO.length === 3 &&
+      decPO.every((x) => !x.concretisation && echSy.some((e) => e.id === x.tache)) && !apresPO.some((x) => x.texte === 'Story acceptée'),
+    `daily : 3 réponses du PO (échanges) dupliquées en décisions de la réunion, préparation reprise, en ${nPO} appels`,
+  );
 
   // Fichier ancien : onglet Taches de 28 colonnes (grille comprise) ; les colonnes ajoutées depuis doivent passer
   const idV = await creerFichierEspace('President | Équipe | Ancien', 'equipe', 'Ancien');

@@ -4,10 +4,10 @@
  * Lancer : npm run verif:reunions
  */
 import { donneesDemo, orgDemo, pointsDemo } from '../src/demo';
-import { dateCourte, pastillePoint, storiesBloquees, suivis, texteCompteRendu, veilleOuvree } from '../src/daily';
+import { backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteCompteRendu, texteReponse, veilleOuvree } from '../src/daily';
 import { toDateString } from '../src/dates';
 import { makeOrgValue } from '../src/organisation';
-import { participantsReunion, reunionsAVenir } from '../src/reunions';
+import { etapesParcours, libellesParcours, participantsReunion, reunionsAVenir } from '../src/reunions';
 import { type Reunion, TYPES_REUNION } from '../src/types';
 
 let erreurs = 0;
@@ -107,10 +107,45 @@ const nina = reunionsAVenir(o, mail('acmp7'), toDateString(new Date()), true, 14
 const prochain = nina.find((r) => r.type === 'daily' && r.niveau === 'equipeagile:acmeqmob')!;
 ok(!!prochain && prochain.organisateur === mail('acmp7') && pts.filter((x) => x.reunion === prochain.id).length === 3, 'démo : Tom a préparé 3 points pour le prochain daily de Mobile (animé par Nina)');
 const s1 = suivis(pts, dEnt);
-ok(s1.length === 2 && s1.every((x) => x.tache.statut !== 'termine'), 'démo : 2 suivis (points concrétisés, tâche pas finie)');
-ok(suivis(pts, dEnt.map((t) => (t.id === 'acm7' ? { ...t, statut: 'termine' as const } : t))).length === 1, 'suivi : une tâche terminée n’est plus suivie');
+ok(s1.length === 3 && s1.every((x) => x.tache.statut !== 'termine'), 'démo : 3 suivis (points concrétisés, tâche pas finie)');
+ok(suivis(pts, dEnt.map((t) => (t.id === 'acm7' ? { ...t, statut: 'termine' as const } : t))).length === 2, 'suivi : une tâche terminée n’est plus suivie');
 ok(suivis(pts.filter((x) => x.responsable === mail('acmp8')), dEnt).length === 1, 'démo : Tom a 1 suivi à son nom');
 ok(storiesBloquees(pts, dEnt).has('acm4'), 'démo : « Écran de connexion » bloquée (blocage noté, pas levé)');
+// Règles du 01/10 : « Type · date » des points suivis, parcours fusionné selon les rôles, parcours du PO
+ok(dateRelative('2026-10-02', '2026-10-02') === 'aujourd’hui' && dateRelative('2026-10-02', '2026-10-05') === 'hier' && dateRelative('2026-09-29', '2026-10-02') === '29/09', 'suivi : date « aujourd’hui », « hier » (veille ouvrée), sinon « 29/09 »');
+ok(pastilleSuivi({ type: 'action', reunion: 'daily-equipeagile:acmeqmob-2026-09-29' }, '2026-10-02') === 'Action · 29/09' && pastilleSuivi({ type: 'blocage', reunion: 'daily-equipeagile:acmeqmob-2026-10-01' }, '2026-10-02') === 'Blocage · hier', 'suivi : pastille « Action · 29/09 », « Blocage · hier »');
+const noms = (r: Parameters<typeof etapesParcours>[0]) => etapesParcours(r, PARCOURS_DAILY).map((x) => x.nom).join(', ');
+ok(noms({ membre: true }) === 'Hier, Aujourd’hui, Blocages, Prêt', 'parcours : membre seul → Hier, Aujourd’hui, Blocages, Prêt (plus d’étape « Mes suivis »)');
+ok(noms({}) === noms({ membre: true }), 'parcours : sans rôle connu → celui du membre');
+ok(noms({ membre: true, po: true }) === 'Hier, Aujourd’hui, Blocages, Stories à accepter, Backlog à préparer, Questions de l’équipe, Prêt', 'parcours : PO membre → étapes du membre, puis du PO, un seul « Prêt »');
+ok(noms({ po: true }) === 'Hier, Aujourd’hui, Stories à accepter, Backlog à préparer, Questions de l’équipe, Prêt', 'parcours : PO hors équipe → Hier, Aujourd’hui (ses tâches), étapes du PO, Prêt');
+ok(noms({ membre: true, sm: true }) === 'Hier, Aujourd’hui, Blocages, Situation, Tour de table, Concrétisation, Compte rendu', 'parcours : SM membre → étapes du membre puis animation, sans « Prêt » (préparation intégrée)');
+ok(noms({ sm: true }) === 'Situation, Tour de table, Concrétisation, Compte rendu', 'parcours : SM seul → animation');
+ok(noms({ membre: true, po: true, sm: true }).split(', ').length === 10 && !noms({ membre: true, po: true, sm: true }).includes('Prêt'), 'parcours : membre, PO et organisateur → les trois parties, dans l’ordre');
+const lib = (r: Parameters<typeof etapesParcours>[0]) => libellesParcours(etapesParcours(r, PARCOURS_DAILY), (x) => (x.cle === 'hier' ? 'Hier · 1/10' : x.nom));
+ok(lib({ membre: true })[0] === 'Hier · 1/10' && !lib({ membre: true }).some((x) => x.includes('(')), 'parcours : un seul rôle → pas de rôle affiché');
+ok(lib({ membre: true, po: true }).join(' | ') === 'Hier (membre) | Aujourd’hui | Blocages | Stories à accepter (PO) | Backlog à préparer | Questions de l’équipe | Prêt', 'parcours : plusieurs rôles → « Hier (membre) », « Stories à accepter (PO) »');
+ok(lib({ membre: true, sm: true })[3] === 'Situation (SM)', 'parcours : « Situation (SM) »');
+// Démo : un blocage de Tom passé en 🔄 Synchro vers Paul (PO de Mobile), en attente : 1 question de l'équipe pour Paul
+const echDemo = donneesDemo('demo-entreprise').entities.echange;
+const membresMobile = participantsReunion(prochain, o).map((id) => mail(id).toLowerCase());
+const itMobile = new Set(dEnt.filter((t) => t.equipe === 'acmeqmob').map((t) => t.id));
+const qs = questionsEquipe(echDemo, mail('acmp6'), membresMobile, itMobile);
+ok(qs.length === 1 && qs[0].de === mail('acmp8') && qs[0].element === 'acm4', 'démo : 1 question de Tom pour le PO (échange 🔄 Synchro sur sa story)');
+ok(questionsEquipe(echDemo, mail('acmp7'), membresMobile, itMobile).length === 0, 'questions de l’équipe : seulement celles adressées au PO');
+ok(questionsEquipe(echDemo, mail('acmp6'), membresMobile, new Set()).length === 0, 'questions de l’équipe : seulement sur les stories de l’itération');
+ok(questionsEquipe(echDemo.map((e) => ({ ...e, statut: 'pris_en_compte' as const })), mail('acmp6'), membresMobile, itMobile).length === 0, 'questions de l’équipe : une réponse prise en compte n’y est plus');
+const sy = suivisSynchro(pts, echDemo);
+ok(sy.length === 1 && sy[0].echange.a === mail('acmp6') && suivisSynchro(pts, []).length === 0, 'suivi : le blocage passé en Synchro est suivi tant que son échange existe');
+ok(storiesBloquees(pts.filter((x) => x.concretisation === 'synchro'), dEnt, echDemo).has('acm4') && !storiesBloquees(pts.filter((x) => x.concretisation === 'synchro'), dEnt, echDemo.map((e) => ({ ...e, statut: 'repondu' as const }))).has('acm4'), 'story bloquée tant que l’échange Synchro attend sa réponse');
+const decPaul = { ...sy[0].point, id: 'd1', type: 'decision' as const, personne: mail('acmp6'), auteur: mail('acmp6'), concretisation: 'rien' as const, tache: 'acmx3' };
+ok(suivisSynchro([decPaul], echDemo).length === 1 && suivisSynchro([...pts, decPaul], echDemo).length === 1, 'suivi : réponse du PO notée « rien » suivie tant que l’échange existe, sans doublon avec le blocage');
+ok(texteReponse({ titre: 'Blocage · Règles du mot de passe', reponse: 'Autre', note: 'Je vois avec la sécurité' }) === '« Règles du mot de passe » : Je vois avec la sécurité', 'réponse du PO notée comme décision (« Autre » : la remarque)');
+const mobile = dEnt.filter((t) => t.equipe === 'acmeqmob');
+ok(storiesAAccepter(mobile).map((t) => t.titre).join() === 'Inscription par e-mail', 'démo : 1 story à accepter');
+ok(backlogAPreparer(mobile).map((x) => x.raison).sort().join() === 'sans_estimation,trop_grosse', 'démo : backlog à préparer (une story sans estimation, une de plus de 8 pts)');
+ok(suivis(pts, dEnt).some((x) => x.tache.responsable === 'acmp6'), 'démo : une action d’un daily précédent à suivre pour Paul');
+ok(texteCompteRendu({ equipe: 'Mobile', jour: '2026-10-02', decisions: [], creees: [], escalades: [], synchros: ['Mot de passe (Tom → Paul)'], notes: 0 }).includes('Blocages passés en Synchro · 1'), 'compte rendu : blocages passés en Synchro');
 const cr = texteCompteRendu({ equipe: 'Mobile', jour: '2026-10-02', decisions: ['Livrer en deux fois'], creees: [{ titre: 'Accès API', sous: 'sous-tâche · Tom' }], escalades: [], notes: 1 });
 ok(cr.includes('Décisions · 1') && cr.includes('Actions créées · 1') && !cr.includes('escaladés') && cr.includes('1 autre point noté seulement'), 'compte rendu : décisions, actions créées, blocages escaladés (s’il y en a)');
 

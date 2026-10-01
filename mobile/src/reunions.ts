@@ -203,3 +203,59 @@ export function dureeReunion(min: number): string {
   const m = min % 60;
   return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
 }
+
+// ---------------------------------------------------------------------------
+// Parcours d'une réunion selon les rôles de la personne (règle du 01/10)
+// ---------------------------------------------------------------------------
+/** Rôle dans une réunion : membre de l'équipe, Product Owner, Scrum Master (ou l'organisateur qui anime) */
+export type RoleReunion = 'membre' | 'po' | 'sm';
+export interface EtapeCatalogue {
+  /** Clé stable de l'étape (choisit son contenu) */
+  cle: string;
+  nom: string;
+}
+/** Étapes d'une réunion par rôle */
+export interface CatalogueParcours {
+  membre: EtapeCatalogue[];
+  po: EtapeCatalogue[];
+  /** Clés des étapes du membre que le PO fait aussi quand il n'est pas membre de l'équipe (ses propres tâches) */
+  poSansMembre?: string[];
+  /** Étapes d'animation (Scrum Master, ou l'organisateur) */
+  sm: EtapeCatalogue[];
+  /** Dernière étape de la partie participant (« Prêt » : récapitulatif, envoi à l'organisateur) */
+  fin: EtapeCatalogue;
+}
+export interface EtapeParcours extends EtapeCatalogue {
+  role: RoleReunion;
+  /** Première étape de son rôle (porte le rôle entre parenthèses quand la personne en a plusieurs) */
+  premiere: boolean;
+}
+export const LIBELLE_ROLE_REUNION: Record<RoleReunion, string> = { membre: 'membre', po: 'PO', sm: 'SM' };
+
+/**
+ * Parcours fusionné : une seule fenêtre, une seule barre d'étapes, qui enchaîne dans cet ordre fixe les étapes du
+ * membre (s'il est membre), du PO (s'il est PO), puis de l'animation (s'il anime : Scrum Master, ou organisateur).
+ * La partie participant finit par une seule étape `fin` (« Prêt », envoi à l'organisateur), sauf pour celui qui
+ * anime : sa préparation est intégrée directement et l'on enchaîne sur l'animation. Sans aucun rôle : membre.
+ */
+export function etapesParcours(roles: Partial<Record<RoleReunion, boolean>>, c: CatalogueParcours): EtapeParcours[] {
+  const r = roles.membre || roles.po || roles.sm ? roles : { membre: true };
+  const out: EtapeParcours[] = [];
+  const pousser = (role: RoleReunion, l: EtapeCatalogue[]) => l.forEach((e, k) => out.push({ ...e, role, premiere: k === 0 }));
+  if (r.membre) pousser('membre', c.membre);
+  if (r.po) pousser('po', [...(r.membre ? [] : c.membre.filter((e) => c.poSansMembre?.includes(e.cle))), ...c.po]);
+  if ((r.membre || r.po) && !r.sm) out.push({ ...c.fin, role: out[out.length - 1].role, premiere: false });
+  if (r.sm) pousser('sm', c.sm);
+  return out;
+}
+/** La personne a-t-elle plusieurs rôles dans ce parcours ? (le rôle n'est affiché qu'alors) */
+export const plusieursRoles = (l: Pick<EtapeParcours, 'role'>[]) => new Set(l.map((e) => e.role)).size > 1;
+/**
+ * Libellés de la barre d'étapes : avec plusieurs rôles, la première étape de chaque rôle porte le rôle entre
+ * parenthèses (« Hier (membre) », « Stories à accepter (PO) », « Situation (SM) ») ; sinon `seul` donne le libellé
+ * (ex. avec la date, « Hier · 30/09 »).
+ */
+export function libellesParcours(l: EtapeParcours[], seul: (e: EtapeParcours) => string = (e) => e.nom, roles = LIBELLE_ROLE_REUNION): string[] {
+  const multi = plusieursRoles(l);
+  return l.map((e) => (multi ? `${e.nom}${e.premiere ? ` (${roles[e.role]})` : ''}` : seul(e)));
+}

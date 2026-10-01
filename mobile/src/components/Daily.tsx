@@ -2,52 +2,64 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   aConcretiser,
+  backlogAPreparer,
   concretisationParDefaut,
   dateCourte,
+  dateRelative,
   enRetard,
   jourReunion,
   LIBELLE_CONCRETISATION,
   LIBELLE_TYPE_POINT,
+  PARCOURS_DAILY,
   pastillePoint,
+  pastilleSuivi,
   prefixeReunion,
+  questionsEquipe,
   situationIteration,
+  storiesAAccepter,
   storiesBloquees,
   suivis as calculerSuivis,
+  suivisSynchro,
   texteCompteRendu,
+  texteReponse,
   veilleOuvree,
 } from '../daily';
 import { lireNiveau, personneParEmail } from '../echange/hierarchieEchange';
 import { useHierarchy } from '../hierarchyContext';
-import { type OrgValue, porteurs } from '../organisation';
-import { fmtPoints, iterationOf } from '../pi';
-import { participantsReunion } from '../reunions';
+import { membresDe, type OrgValue, porteurs } from '../organisation';
+import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
+import { type EtapeParcours, etapesParcours, LIBELLE_ROLE_REUNION, libellesParcours, participantsReunion, plusieursRoles, type RoleReunion } from '../reunions';
 import { useSafe } from '../safe';
+import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
-import {
-  type Concretisation,
-  type EchangeInput,
-  type Item,
-  type ItemInput,
-  type PointReunion,
-  RECURRENCE_DEFAUTS,
-  type Reunion,
-  type Statut,
-  type TypePoint,
-  TYPES_REUNION,
-} from '../types';
+import { type Concretisation, type Echange, type EchangeInput, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type Statut, type TypePoint } from '../types';
 import { SectionFiche } from './Choix';
+import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
 import { FenetreReunion, type ModeReunion } from './FenetreReunion';
 import { TitreFiche } from './FormSheet';
 
 /**
- * Daily (lot 6, validé le 01/10) : contenu de la fenêtre de réunion, en deux modes.
- * - Organisateur (Scrum Master) : Situation (compteurs de l'itération, suivis, objectifs) · Tour de table (un membre
- *   à la fois : ses stories, un seul bloc « Points notés » pour ce qu'il a préparé et ce que note le SM) ·
- *   Concrétisation (chaque blocage, décision, action : sous-tâche de la story, tâche à part, rien, ou escalade au
- *   RTE ; avec un responsable) · Compte rendu (tâches créées en un lot, escalades et compte rendu envoyés au RTE).
- * - Participant : Mes suivis · Hier · Aujourd'hui · Blocages · Prêt (préparation facultative, envoyée au SM).
+ * Daily (lot 6, validé le 01/10 ; règles ajoutées le 01/10) : contenu de la fenêtre de réunion. Une seule fenêtre et
+ * une seule barre d'étapes qui enchaîne, dans cet ordre, les étapes de chacun des rôles de la personne
+ * (`etapesParcours`) :
+ * - membre : Hier · date (ses stories et tâches de l'itération, y compris celles nées des réunions, avec à droite
+ *   « Action · 29/09 »), Aujourd'hui · date, Blocages ;
+ * - PO : Stories à accepter (terminées dans l'itération), Backlog à préparer (stories des features du PI sans
+ *   estimation ou trop grosses), Questions de l'équipe (échanges 🔄 Synchro que les membres lui adressent sur les
+ *   stories de l'itération ; il y répond avec les choix de l'échange : à l'envoi de son point, la réponse part dans
+ *   l'échange et est dupliquée en point « décision » de la réunion, que le SM concrétise ; une réponse déjà donnée
+ *   dans la Synchro est dupliquée de même) ;
+ *   s'il n'est pas membre, il fait aussi Hier et Aujourd'hui pour ses propres tâches ;
+ * - participant : « Prêt » (récapitulatif, envoyé au SM) ;
+ * - Scrum Master (organisateur) : Situation (compteurs de l'itération, « Suivi · n », objectifs) · Tour de table (un
+ *   membre à la fois : ses stories, un seul bloc « Points notés » pour ce qu'il a préparé et ce que note le SM) ·
+ *   Concrétisation (sous-tâche de la story, tâche à part, rien, escalade au RTE, ou pour un blocage échange
+ *   🔄 Synchro vers le PO, le SM ou un membre ; avec un responsable) · Compte rendu (tâches créées en un lot ;
+ *   échanges Synchro, escalades et compte rendu au RTE envoyés en un lot). Sa propre préparation (s'il est
+ *   aussi membre) n'est pas envoyée : elle rejoint directement ses points notés.
+ * Une story ou une tâche qui a des sous-tâches affiche « n sous-tâches » et un › : la toucher ouvre sa fiche.
  * Points rangés dans l'onglet PointsReunion du Sheet de l'espace de l'équipe : une lecture à l'ouverture, une
- * relecture en arrivant sur chaque membre (au plus une par membre), une écriture groupée à l'envoi.
+ * relecture en arrivant sur chaque membre au tour de table (au plus une par membre), une écriture groupée à l'envoi.
  */
 
 /** Opérations du daily (fournies par l'application : Sheets, état des tâches et des échanges) */
@@ -56,15 +68,16 @@ export interface ActionsDaily {
   ecrirePoints: (espace: string, creer: Omit<PointReunion, 'id' | 'cree_le'>[], modifier: (Partial<PointReunion> & { id: string })[], retirer: string[]) => Promise<unknown>;
   /** Crée des tâches en un seul passage ; renvoie les tâches créées dans l'ordre */
   creerTaches: (espace: string, inputs: ItemInput[]) => Promise<Item[]>;
-  /** Envoie des échanges (escalades, compte rendu) en un seul passage */
-  envoyerEchanges: (espace: string, inputs: EchangeInput[]) => Promise<void>;
-  /** Statut d'une tâche suivie (tout de suite) */
-  onSetStatut: (t: Item, statut: Statut) => void | Promise<void>;
+  /** Envoie des échanges (Synchro, escalades, compte rendu) en un seul passage ; renvoie les échanges créés dans l'ordre */
+  envoyerEchanges: (espace: string, inputs: EchangeInput[]) => Promise<Echange[]>;
+  /** Réponses du PO aux échanges de l'équipe (réponse normale à l'échange), en un seul passage */
+  repondreEchanges: (reponses: { e: Echange; reponse: string; note: string }[]) => Promise<void>;
 }
 
 interface Props {
   visible: boolean;
   reunion: Reunion | null;
+  /** Organisateur : vous animez (étapes du Scrum Master, après celles de vos autres rôles) */
   mode: ModeReunion;
   org: OrgValue;
   /** Vous (e-mail) */
@@ -75,27 +88,29 @@ interface Props {
   actions: ActionsDaily;
   onFermer: () => void;
   onInfo?: (texte: string) => void;
+  /** Ouvre la fiche d'une tâche (le même ouvreur que le reste de l'application) */
+  onOpenTask?: (t: Item) => void;
+  /** Échanges chargés (🔄 Synchro) : questions de l'équipe au PO, suivi des blocages passés en Synchro */
+  echanges?: Echange[];
 }
 
 type Local = Omit<PointReunion, 'id' | 'cree_le'> & { id: string; cree_le: string };
 const prenom = (nom: string) => nom.split(' ')[0] || nom;
 const arrondi = (n: number) => String(Math.round(n * 10) / 10);
-const STATUTS: { v: Statut; l: string }[] = [
-  { v: 'a_faire', l: 'À faire' },
-  { v: 'en_cours', l: 'En cours' },
-  { v: 'termine', l: 'Fait ✓' },
-];
 let compteurLocal = 0;
 const idLocal = () => `local-${Date.now()}-${++compteurLocal}`;
+const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+/** Ordre des points dans un récapitulatif */
+const ORDRE: TypePoint[] = ['hier', 'aujourdhui', 'blocage', 'decision', 'action'];
 
 export function FenetreDaily(p: Props) {
   const { reunion } = p;
   if (!reunion) return null;
-  return p.mode === 'organisateur' ? <DailyOrganisateur {...p} reunion={reunion} /> : <DailyParticipant {...p} reunion={reunion} />;
+  return <Daily {...p} reunion={reunion} />;
 }
 
-/** Équipe du daily, ses personnes, sa situation d'itération (commun aux deux modes) */
-function useEquipeDaily(reunion: Reunion, org: OrgValue, aujourdhui: string, points: PointReunion[]) {
+/** Équipe du daily, ses personnes, sa situation d'itération */
+function useEquipeDaily(reunion: Reunion, org: OrgValue, aujourdhui: string, points: PointReunion[], echanges: Echange[]) {
   const h = useHierarchy();
   const n = lireNiveau(reunion.niveau);
   const equipe = n?.kind === 'equipeagile' ? org.equipe.get(n.id) : undefined;
@@ -106,7 +121,7 @@ function useEquipeDaily(reunion: Reunion, org: OrgValue, aujourdhui: string, poi
     const e = porteurs(t, h, org).equipe;
     return e ? e === equipe?.id : seuleEquipe && (t.espace || 'moi') === (reunion.espace || 'moi');
   };
-  const bloquees = useMemo(() => storiesBloquees(points, h.items), [points, h.items]);
+  const bloquees = useMemo(() => storiesBloquees(points, h.items, echanges), [points, h.items, echanges]);
   const situation = useMemo(
     () => situationIteration(h.items, dansEquipe, jour, bloquees, aujourdhui),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -120,42 +135,75 @@ function useEquipeDaily(reunion: Reunion, org: OrgValue, aujourdhui: string, poi
   const train = equipe?.train ? org.train.get(equipe.train) : undefined;
   const rte = train?.rte ? org.personne.get(train.rte) : undefined;
   const parId = new Map(h.items.map((t) => [t.id, t]));
-  return { h, equipe, jour, it, situation, bloquees, personnes, role, nomDe, train, rte, parId };
+  const subs = useMemo(() => subtaskMap(h.items), [h.items]);
+  return { h, equipe, jour, it, situation, bloquees, personnes, role, nomDe, train, rte, parId, subs, dansEquipe };
 }
 
-// ---------------------------------------------------------------------------
-// Organisateur
-// ---------------------------------------------------------------------------
-function DailyOrganisateur({ visible, reunion, org, moi, aujourdhui, fil, actions, onFermer, onInfo }: Props & { reunion: Reunion }) {
+function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onFermer, onInfo, onOpenTask, echanges = [] }: Props & { reunion: Reunion }) {
   const safe = useSafe();
-  const [serveur, setServeur] = useState<PointReunion[]>([]);
-  const [charge, setCharge] = useState(false);
-  const [locaux, setLocaux] = useState<Local[]>([]);
-  const [choix, setChoix] = useState<Record<string, { c?: Concretisation; resp?: string }>>({});
-  const [membre, setMembre] = useState(0);
-  const [etape, setEtape] = useState(0);
-  const relus = useRef(new Set<string>());
+  const mail = moi.toLowerCase();
   const espace = reunion.espace || 'moi';
   const prefixe = prefixeReunion(reunion);
+  const [serveur, setServeur] = useState<PointReunion[]>([]);
+  const [charge, setCharge] = useState(false);
+  /** Votre préparation (partie participant) ; ce que vous aviez déjà envoyé est repris, puis remplacé à l'envoi */
+  const [prep, setPrep] = useState<Local[]>([]);
+  /** Ids des points déjà envoyés que la préparation reprend (retirés à l'envoi) */
+  const [anciens, setAnciens] = useState<string[]>([]);
+  /** Notés par l'organisateur pendant la réunion */
+  const [locaux, setLocaux] = useState<Local[]>([]);
+  const [choix, setChoix] = useState<Record<string, { c?: Concretisation; resp?: string; a?: string }>>({});
+  /** PO : ses réponses aux questions de l'équipe (par échange), envoyées avec son point */
+  const [reponses, setReponses] = useState<Record<string, { c: string; note: string }>>({});
+  const [membre, setMembre] = useState(0);
+  const [cle, setCle] = useState('');
+  const relus = useRef(new Set<string>());
 
-  const tous = useMemo(() => [...serveur, ...locaux] as PointReunion[], [serveur, locaux]);
-  const e = useEquipeDaily(reunion, org, aujourdhui, tous);
-  const { equipe, jour, it, situation, personnes, nomDe, rte, parId } = e;
+  const tous = useMemo(() => [...serveur.filter((x) => !anciens.includes(x.id)), ...prep, ...locaux] as PointReunion[], [serveur, anciens, prep, locaux]);
+  const e = useEquipeDaily(reunion, org, aujourdhui, tous, echanges);
+  const { h, equipe, jour, it, situation, personnes, nomDe, rte, parId, subs } = e;
+  const veille = veilleOuvree(jour);
   const dela = (pt: PointReunion) => pt.reunion === reunion.id;
+  const moiP = personneParEmail(mail, org);
+  const sm = equipe?.sm ? org.personne.get(equipe.sm) : undefined;
+  const po = equipe?.po ? org.personne.get(equipe.po) : undefined;
+
+  // Rôles de la personne dans ce daily, et son parcours (étapes de chaque rôle, dans l'ordre membre, PO, SM)
+  const anime = mode === 'organisateur';
+  const estMembre = !!moiP && !!equipe && membresDe(equipe).includes(moiP.id);
+  const estPO = !!moiP && equipe?.po === moiP.id;
+  const parcours = useMemo(() => etapesParcours({ membre: estMembre, po: estPO, sm: anime }, PARCOURS_DAILY), [estMembre, estPO, anime]);
+  const multi = plusieursRoles(parcours);
+  const libRoles: Record<RoleReunion, string> = { ...LIBELLE_ROLE_REUNION, sm: !sm || sm.id === moiP?.id ? LIBELLE_ROLE_REUNION.sm : 'organisateur' };
+  const etapes = libellesParcours(parcours, (x) => (x.cle === 'hier' ? `Hier · ${dateCourte(veille)}` : x.cle === 'aujourdhui' ? `Aujourd’hui · ${dateCourte(jour)}` : x.nom), libRoles);
+  /** Sous-titre d'un écran : avec plusieurs rôles, il rappelle le rôle (« Paul Leroy (PO) · … ») */
+  const sousRole = (role: RoleReunion, sous: string) => (multi ? `${moiP?.nom ?? prenom(nomDe(mail))} (${libRoles[role]}) · ${sous}` : sous);
 
   // Ouverture : une lecture (points de ce daily et des dailies précédents de l'équipe, pour le suivi)
   useEffect(() => {
     if (!visible) return;
     setServeur([]);
+    setPrep([]);
+    setAnciens([]);
     setLocaux([]);
     setChoix({});
+    setReponses({});
     setMembre(0);
     setCharge(false);
-    relus.current = new Set();
+    // Votre propre point est déjà là (votre préparation) : pas de relecture à votre tour
+    relus.current = new Set([mail]);
     let actif = true;
     actions
       .lirePoints(espace, prefixe)
-      .then((l) => actif && (setServeur(l), setCharge(true)))
+      .then((l) => {
+        if (!actif) return;
+        setServeur(l);
+        // Déjà envoyé : la préparation reprend ce qui a été envoyé (pas encore concrétisé)
+        const miens = l.filter((x) => x.reunion === reunion.id && x.personne === mail && x.auteur === mail && !x.concretisation);
+        setAnciens(miens.map((x) => x.id));
+        setPrep(miens.map((x) => ({ ...x, id: idLocal() })));
+        setCharge(true);
+      })
       .catch((err) => actif && (setCharge(true), onInfo?.(`Points du daily non lus : ${(err as Error).message}`)));
     return () => {
       actif = false;
@@ -166,39 +214,144 @@ function DailyOrganisateur({ visible, reunion, org, moi, aujourdhui, fil, action
   // Tour de table : en arrivant sur un membre, on relit ses points (préparés depuis l'ouverture) — une fois par membre
   const courant = personnes[Math.min(membre, Math.max(0, personnes.length - 1))];
   useEffect(() => {
-    if (!visible || etape !== 1 || !courant || relus.current.has(courant.email)) return;
-    relus.current.add(courant.email);
-    const mail = courant.email.toLowerCase();
+    if (!visible || cle !== 'tour' || !courant || relus.current.has(courant.email.toLowerCase())) return;
+    const m = courant.email.toLowerCase();
+    relus.current.add(m);
     actions
       .lirePoints(espace, reunion.id)
-      .then((l) => setServeur((avant) => [...avant.filter((x) => !(dela(x) && x.personne === mail)), ...l.filter((x) => x.personne === mail)]))
+      .then((l) => setServeur((avant) => [...avant.filter((x) => !(dela(x) && x.personne === m)), ...l.filter((x) => x.personne === m)]))
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, etape, courant?.email]);
+  }, [visible, cle, courant?.email]);
 
+  /** Nouveau point de votre préparation */
+  const nouveau = (type: TypePoint, texte: string, element: string, tache = ''): Local => ({
+    id: idLocal(),
+    reunion: reunion.id,
+    personne: mail,
+    auteur: mail,
+    type,
+    texte,
+    element,
+    concretisation: '',
+    tache,
+    responsable: '',
+    cree_le: new Date().toISOString(),
+  });
+  const retirerPrep = (id: string) => setPrep((l) => l.filter((y) => y.id !== id));
+  const fmt = (n: number) => fmtPoints(n, safe.pointsJours);
+  /** Échange 🔄 Synchro auquel répond une décision du PO */
+  const echangeDe = (x: Pick<PointReunion, 'type' | 'tache'>) => (x.type === 'decision' && x.tache ? echanges.find((y) => y.id === x.tache) : undefined);
+  const surStory = (x: { texte: string; element: string }) => {
+    const titre = x.element ? (parId.get(x.element)?.titre ?? 'story') : '';
+    return titre && titre !== x.texte ? `sur 📖 ${titre}` : '';
+  };
+  /** Concrétisation déjà décidée d'un point (réponse du PO) : « → tâche à part · 👤 Tom » */
+  const concretise = (x: Pick<PointReunion, 'type' | 'concretisation' | 'responsable'>) =>
+    x.type === 'decision' && (x.concretisation === 'sous_tache' || x.concretisation === 'tache') ? `→ ${LIBELLE_CONCRETISATION[x.concretisation]} · 👤 ${prenom(nomDe(x.responsable))}` : '';
+  /** Ouvrir la fiche d'un élément qui a des sous-tâches (›) */
+  const ouvrir = (t: Item) => (onOpenTask && (subs.get(t.id)?.length ?? 0) > 0 ? () => onOpenTask(t) : undefined);
+
+  // ---------------------------------------------------------------------------
+  // Partie participant : vos tâches (Hier, Aujourd'hui), blocages, parcours du PO
+  // ---------------------------------------------------------------------------
+  /** Tâches nées d'une réunion (point concrétisé en sous-tâche ou tâche à part) : le point d'origine */
+  const pointDeTache = useMemo(
+    () => new Map(serveur.filter((x) => (x.concretisation === 'sous_tache' || x.concretisation === 'tache') && x.tache).map((x) => [x.tache, x])),
+    [serveur],
+  );
+  const idsIteration = new Set(situation.elements.map((t) => t.id));
+  // Vos éléments : stories, tâches et sous-tâches de l'itération à votre nom, et les tâches nées des réunions
+  const miens = moiP ? h.items.filter((t) => t.responsable === moiP.id && (idsIteration.has(t.id) || pointDeTache.has(t.id))) : [];
+  const hierListe = miens.filter(
+    (t) => t.statut === 'en_cours' || (t.statut === 'termine' && (!t.termine_le || t.termine_le >= veille)) || (pointDeTache.has(t.id) && t.statut !== 'termine'),
+  );
+  const aujListe = miens.filter((t) => t.statut !== 'termine');
+  const coche = (type: TypePoint, t: Item, texte: string) => prep.some((x) => x.type === type && x.element === t.id && x.texte === texte);
+  const basculer = (type: TypePoint, t: Item, texte: string) =>
+    setPrep((l) => (coche(type, t, texte) ? l.filter((x) => !(x.type === type && x.element === t.id && x.texte === texte)) : [...l, nouveau(type, texte, t.id)]));
+
+  /** Ligne d'une de vos tâches : case à cocher, sous-tâches (›), à droite son état ou « Action · 29/09 » */
+  const ligneTache = (type: TypePoint, t: Item, i: number) => {
+    const pt = pointDeTache.get(t.id);
+    const n = subs.get(t.id)?.length ?? 0;
+    const sous = n ? pluriel(n, 'sous-tâche') : t.parent ? `Sous-tâche de ${parId.get(t.parent)?.titre ?? 'la story'}` : '';
+    return (
+      <LigneCase
+        key={t.id}
+        premiere={i === 0}
+        texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`}
+        sous={sous}
+        coche={coche(type, t, t.titre)}
+        onBasculer={() => basculer(type, t, t.titre)}
+        onOuvrir={ouvrir(t)}
+        pastille={pt ? { texte: pastilleSuivi(pt, jour), ton: tonType(pt.type) } : pastilleStatut(t.statut)}
+      />
+    );
+  };
+  const listeTaches = (type: TypePoint, liste: Item[], vide: string) => (liste.length ? liste.map((t, i) => ligneTache(type, t, i)) : <Vide texte={vide} />);
+  /** Points ajoutés à la main (pas une tâche de la liste) */
+  const listeLibres = (type: TypePoint, liste: Item[]) =>
+    prep
+      .filter((x) => x.type === type && !liste.some((t) => x.element === t.id && x.texte === t.titre))
+      .map((x) => <Ligne key={x.id} texte={x.texte} sous={surStory(x) || 'ajouté par vous'} onRetirer={() => retirerPrep(x.id)} />);
+
+  // PO : stories à accepter, backlog à préparer, questions de l'équipe
+  const aAccepter = storiesAAccepter(situation.elements);
+  const pi = piOf(jour);
+  const aPreparer = backlogAPreparer(h.items.filter((t) => t.type === 'story' && !!t.feature && h.features.get(t.feature)?.pi === pi && e.dansEquipe(t)));
+  const questions = estPO ? questionsEquipe(echanges, mail, personnes.map((x) => x.email), idsIteration) : [];
+  /** Réponse déjà notée en point de la réunion (décision du PO liée à l'échange) */
+  const reponseNotee = (q: Echange) => tous.some((x) => x.type === 'decision' && x.personne === mail && (x.tache === q.id || x.texte === texteReponse(q)));
+  /**
+   * Vos réponses : celles données ici (envoyées à l'échange avec votre point) et celles déjà données dans la Synchro.
+   * Chacune est dupliquée en point « décision » de la réunion (rattaché à la story, avec la référence de l'échange) :
+   * l'échange disparaît quand il est pris en compte, le SM la voit et la concrétise quand même.
+   */
+  const reponsesPO = questions.flatMap((q) => {
+    const r = reponses[q.id];
+    const ici = q.statut === 'envoye' && !!r && reponsePrete(r.c, r.note);
+    if (!ici && (q.statut !== 'repondu' || reponseNotee(q))) return [];
+    const e = ici ? { ...q, reponse: r.c, note: r.note.trim() } : q;
+    return [{ q: e, ici, pt: { ...nouveau('decision', texteReponse(e), q.element, q.id), id: `local-rep-${q.id}` } }];
+  });
+  const preparation = [...prep, ...reponsesPO.map((r) => r.pt)];
+
+  // ---- Envoi de votre point au SM : réponses aux échanges (un lot), puis points (un lot) ----
+  const envoyerPreparation = async () => {
+    const ici = reponsesPO.filter((r) => r.ici);
+    if (ici.length) await actions.repondreEchanges(ici.map((r) => ({ e: r.q, reponse: r.q.reponse, note: r.q.note })));
+    await actions.ecrirePoints(
+      espace,
+      preparation.map(({ id: _i, cree_le: _c, ...x }) => x),
+      [],
+      anciens,
+    );
+    onInfo?.(
+      (preparation.length ? `Point envoyé${sm ? ` à ${prenom(sm.nom)} (SM)` : ''} : ${pluriel(preparation.length, 'élément')}` : 'Préparation vide envoyée : rien de noté') +
+        (ici.length ? `, ${pluriel(ici.length, 'réponse')} envoyée${ici.length > 1 ? 's' : ''} dans la Synchro.` : '.'),
+    );
+  };
+
+  // ---------------------------------------------------------------------------
+  // Animation (Scrum Master)
+  // ---------------------------------------------------------------------------
   // Suivi : points concrétisés (dailies précédents, ou celui-ci déjà envoyé) dont la tâche n'est pas finie
-  const suivisEquipe = useMemo(() => calculerSuivis(serveur, e.h.items), [serveur, e.h.items]);
+  const suivisEquipe = useMemo(() => calculerSuivis(serveur, h.items), [serveur, h.items]);
+  const suivisEchanges = useMemo(() => suivisSynchro(serveur, echanges), [serveur, echanges]);
   // À concrétiser : ce qui ne l'a pas encore été (un compte rendu déjà envoyé ne recrée rien)
-  const aDecider = tous.filter((x) => dela(x) && aConcretiser(x) && !x.concretisation);
+  const aDecider = [...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => dela(x) && aConcretiser(x) && !x.concretisation);
   const choixDe = (pt: PointReunion) => {
     const c = choix[pt.id]?.c ?? concretisationParDefaut(pt);
     // Sous-tâche impossible sans story ; escalade impossible sans RTE
     const cc: Concretisation = (c === 'sous_tache' && !pt.element) || (c === 'escalade' && !rte?.email) ? 'tache' : c;
-    return { c: cc, resp: choix[pt.id]?.resp ?? (pt.responsable || pt.personne) };
+    // Échange 🔄 Synchro : vers le PO par défaut (sinon le SM), jamais vers la personne qui a le blocage
+    const defautA = [po?.email, sm?.email].find((x) => !!x && x.toLowerCase() !== pt.personne)?.toLowerCase() ?? '';
+    return { c: cc === 'synchro' && pt.type !== 'blocage' ? 'tache' : cc, resp: choix[pt.id]?.resp ?? (pt.responsable || pt.personne), a: choix[pt.id]?.a ?? defautA };
   };
-
-  const ajouter = (x: { personne: string; type: TypePoint; texte: string; element: string }) =>
-    setLocaux((l) => [
-      ...l,
-      { ...x, id: idLocal(), reunion: reunion.id, auteur: moi.toLowerCase(), personne: x.personne.toLowerCase(), concretisation: '', tache: '', responsable: '', cree_le: new Date().toISOString() },
-    ]);
-
-  // ---- Envoi du compte rendu : tâches (un lot), échanges (un lot), points (un lot) ----
-  const terminer = async () => {
-    const decides = aDecider.map((pt) => ({ pt, ...choixDe(pt) }));
-    const aCreer = decides.filter((d) => d.c === 'sous_tache' || d.c === 'tache');
-    const idDe = (email: string) => personneParEmail(email, org)?.id ?? '';
-    const inputs: ItemInput[] = aCreer.map(({ pt, c, resp }) => ({
+  /** Tâche née d'un point : sous-tâche de sa story ou tâche à part dans l'itération, avec son responsable */
+  function entreeTache(pt: Pick<PointReunion, 'texte' | 'type' | 'personne' | 'element'>, c: 'sous_tache' | 'tache', resp: string): ItemInput {
+    return {
       ...RECURRENCE_DEFAUTS,
       espace,
       titre: pt.texte,
@@ -220,25 +373,57 @@ function DailyOrganisateur({ visible, reunion, org, moi, aujourdhui, fil, action
       iteration: it.key,
       telephone: '',
       equipe: equipe?.id ?? '',
-      responsable: idDe(resp),
-    }));
-    const creees = await actions.creerTaches(espace, inputs);
+      responsable: personneParEmail(resp, org)?.id ?? '',
+    };
+  }
+  const ajouter = (x: { personne: string; type: TypePoint; texte: string; element: string }) =>
+    setLocaux((l) => [...l, { ...nouveau(x.type, x.texte, x.element), personne: x.personne.toLowerCase() }]);
+
+  // ---- Envoi du compte rendu : tâches (un lot), échanges (un lot), points (un lot, votre préparation comprise) ----
+  const envoyerCompteRendu = async () => {
+    const decides = aDecider.map((pt) => ({ pt, ...choixDe(pt) }));
+    const aCreer = decides.filter((d) => d.c === 'sous_tache' || d.c === 'tache');
+    const creees = await actions.creerTaches(espace, aCreer.map(({ pt, c, resp }) => entreeTache(pt, c as 'sous_tache' | 'tache', resp)));
     const tacheDe = new Map(aCreer.map((d, i) => [d.pt.id, creees[i]?.id ?? '']));
+    // Vous êtes aussi le PO : vos réponses données ici partent dans leurs échanges (un lot)
+    const ici = reponsesPO.filter((r) => r.ici);
+    if (ici.length) await actions.repondreEchanges(ici.map((r) => ({ e: r.q, reponse: r.q.reponse, note: r.q.note })));
 
     const escalades = decides.filter((d) => d.c === 'escalade');
+    const synchros = decides.filter((d) => d.c === 'synchro' && !!d.a);
     const decisions = decides.filter((d) => d.pt.type === 'decision');
     const story = (id: string) => (id ? parId.get(id)?.titre : undefined);
+    // Échanges en un seul lot : blocages passés en 🔄 Synchro (de la personne qui a le blocage, transmis par vous),
+    // puis, s'il y a un RTE, escalades et compte rendu
+    const lot: EchangeInput[] = synchros.map((d) => ({
+      de: d.pt.personne,
+      a: d.a,
+      type: 'question' as const,
+      titre: `Blocage · ${d.pt.texte}`.slice(0, 200),
+      texte: `Blocage noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} pour ${nomDe(d.pt.personne)}${story(d.pt.element) ? ` (story « ${story(d.pt.element)} »)` : ''} : peux-tu le lever ?`,
+      choix: 'Je m’en occupe;On en parle après le daily;Autre',
+      reponse: '',
+      note: '',
+      statut: 'envoye' as const,
+      element: d.pt.element,
+      niveau: equipe ? `equipeagile:${equipe.id}` : '',
+      transmis_par: d.pt.personne === mail ? '' : mail,
+      prive: '1',
+      pieces_jointes: '',
+      espace,
+    }));
     if (rte?.email && e.train) {
-      const base = { de: moi.toLowerCase(), a: rte.email.toLowerCase(), type: 'message' as const, choix: '', reponse: '', note: '', statut: 'envoye' as const, niveau: `train:${e.train.id}`, transmis_par: '', prive: '1', pieces_jointes: '', espace };
+      const base = { de: mail, a: rte.email.toLowerCase(), type: 'message' as const, choix: '', reponse: '', note: '', statut: 'envoye' as const, niveau: `train:${e.train.id}`, transmis_par: '', prive: '1', pieces_jointes: '', espace };
       const texte = texteCompteRendu({
         equipe: equipe?.nom ?? '',
         jour,
         decisions: decisions.map((d) => d.pt.texte),
         creees: aCreer.map((d) => ({ titre: d.pt.texte, sous: `${d.c === 'sous_tache' ? `sous-tâche de « ${story(d.pt.element) ?? 'la story'} »` : `tâche à part, ${it.code}`} · ${prenom(nomDe(d.resp))}` })),
         escalades: escalades.map((d) => `${d.pt.texte} (${prenom(nomDe(d.pt.personne))}${story(d.pt.element) ? `, « ${story(d.pt.element)} »` : ''})`),
+        synchros: synchros.map((d) => `${d.pt.texte} (${prenom(nomDe(d.pt.personne))} → ${prenom(nomDe(d.a))})`),
         notes: decides.filter((d) => d.c === 'rien' && d.pt.type !== 'decision').length,
       });
-      await actions.envoyerEchanges(espace, [
+      lot.push(
         ...escalades.map((d) => ({
           ...base,
           titre: `Blocage · ${d.pt.texte}`.slice(0, 200),
@@ -246,417 +431,454 @@ function DailyOrganisateur({ visible, reunion, org, moi, aujourdhui, fil, action
           element: d.pt.element,
         })),
         { ...base, titre: `Compte rendu · Daily ${equipe?.nom ?? ''} du ${dateCourte(jour)}`, texte, element: '' },
-      ]);
+      );
     }
+    const envoyes = lot.length ? await actions.envoyerEchanges(espace, lot) : [];
+    // Le point garde l'échange créé (Synchro, escalade) pour le suivi
+    const echangeDuPoint = new Map([...synchros, ...(rte?.email && e.train ? escalades : [])].map((d, i) => [d.pt.id, envoyes[i]?.id ?? '']));
 
-    const patch = (d: (typeof decides)[number]) => ({ concretisation: d.c, tache: tacheDe.get(d.pt.id) ?? '', responsable: d.c === 'escalade' ? '' : d.resp });
+    // Une réponse du PO (décision) garde le lien vers sa question, sauf si elle devient une tâche
+    const patch = (d: (typeof decides)[number]) => ({
+      concretisation: d.c,
+      tache: tacheDe.get(d.pt.id) || echangeDuPoint.get(d.pt.id) || (d.pt.type === 'decision' && d.c === 'rien' ? d.pt.tache : ''),
+      responsable: d.c === 'escalade' ? '' : d.c === 'synchro' ? d.a : d.resp,
+    });
     const parPoint = new Map(decides.map((d) => [d.pt.id, d]));
-    const creer = locaux.map(({ id: _i, cree_le: _c, ...x }) => {
+    const creer = [...preparation, ...locaux].map(({ id: _i, cree_le: _c, ...x }) => {
       const d = parPoint.get(_i);
       return d ? { ...x, ...patch(d) } : x;
     });
     const modifier = decides.filter((d) => !d.pt.id.startsWith('local-')).map((d) => ({ id: d.pt.id, ...patch(d) }));
-    await actions.ecrirePoints(espace, creer, modifier, []);
+    await actions.ecrirePoints(espace, creer, modifier, anciens);
     onInfo?.(
-      `Compte rendu du daily : ${creees.length} tâche${creees.length > 1 ? 's' : ''} créée${creees.length > 1 ? 's' : ''}` +
-        (escalades.length ? `, ${escalades.length} blocage${escalades.length > 1 ? 's' : ''} escaladé${escalades.length > 1 ? 's' : ''}` : '') +
+      `Compte rendu du daily : ${pluriel(creees.length, 'tâche')} créée${creees.length > 1 ? 's' : ''}` +
+        (escalades.length ? `, ${pluriel(escalades.length, 'blocage')} escaladé${escalades.length > 1 ? 's' : ''}` : '') +
+        (synchros.length ? `, ${pluriel(synchros.length, 'échange')} 🔄 Synchro` : '') +
         (rte?.email ? `, envoyé à ${nomDe(rte.email)} (RTE).` : ' ; pas de RTE : compte rendu non envoyé.'),
     );
   };
 
-  const fmt = (n: number) => fmtPoints(n, safe.pointsJours);
-  const rendu = (k: number) => {
-    if (k === 0) {
-      const s = situation;
-      return (
-        <>
-          <TitreFiche icone="☀️" titre="Situation" vide="" sous={`${it.code} · du ${dateCourte(it.start)} au ${dateCourte(it.end)} · ${equipe?.nom ?? ''}`} />
-          <View style={st.compteurs}>
-            <Compteur valeur={`${arrondi(s.faits)} / ${arrondi(s.prevus)}`} libelle={`${safe.pointsJours ? 'jours' : 'pts'} faits / prévus`} />
-            <Compteur valeur={String(s.bloquees)} libelle={s.bloquees > 1 ? 'stories bloquées' : 'story bloquée'} ton={s.bloquees ? 'rouge' : undefined} />
-            <Compteur valeur={String(s.retard)} libelle="en retard" ton={s.retard ? 'orange' : undefined} />
-          </View>
-          <SectionFiche titre={`Suivi · concrétisé, pas encore fini · ${suivisEquipe.length}`}>
-            {!charge ? (
-              <Vide texte="Lecture des points…" />
-            ) : suivisEquipe.length ? (
-              suivisEquipe.map(({ point, tache }, i) => (
+  // ---------------------------------------------------------------------------
+  // Écrans
+  // ---------------------------------------------------------------------------
+  const rendu = (x: EtapeParcours) => {
+    if (!charge) return <Vide texte="Lecture des points du daily…" />;
+    const sous = (s: string) => sousRole(x.role, s);
+    switch (x.cle) {
+      case 'hier':
+        return (
+          <>
+            <TitreFiche icone="⏪" titre={`Hier · ${dateCourte(veille)}`} vide="" sous={sous('Cochez ce dont vous parlerez')} />
+            <SectionFiche titre={`Mes stories et tâches · ${hierListe.length}`}>
+              {listeTaches('hier', hierListe, 'Rien en cours ni terminé hier.')}
+              {listeLibres('hier', hierListe)}
+              <SaisiePoint types={[]} jour={jour} placeholder="＋ Autre chose fait hier" onAjouter={(_, texte) => setPrep((l) => [...l, nouveau('hier', texte, '')])} />
+            </SectionFiche>
+          </>
+        );
+      case 'aujourdhui':
+        return (
+          <>
+            <TitreFiche icone="▶️" titre={`Aujourd’hui · ${dateCourte(jour)}`} vide="" sous={sous('Ce que vous allez faire')} />
+            <SectionFiche titre={`Mes stories et tâches · ${aujListe.length}`}>
+              {listeTaches('aujourdhui', aujListe, 'Rien à votre nom dans l’itération.')}
+              {listeLibres('aujourdhui', aujListe)}
+              <SaisiePoint types={[]} jour={jour} placeholder="＋ Autre chose aujourd’hui" onAjouter={(_, texte) => setPrep((l) => [...l, nouveau('aujourdhui', texte, '')])} />
+            </SectionFiche>
+          </>
+        );
+      case 'blocages': {
+        const liste = prep.filter((y) => y.type === 'blocage');
+        return (
+          <>
+            <TitreFiche icone="🧱" titre="Blocages" vide="" sous={sous('Ce qui vous empêche d’avancer')} />
+            <SectionFiche titre={`Blocages · ${liste.length}`}>
+              {liste.map((y, i) => (
+                <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={surStory(y) || 'sans story'} onRetirer={() => retirerPrep(y.id)} />
+              ))}
+              <SaisiePoint
+                premiere={!liste.length}
+                types={[]}
+                jour={jour}
+                placeholder="＋ Blocage"
+                stories={situation.cartes.filter((t) => !!moiP && t.responsable === moiP.id)}
+                onAjouter={(_, texte, element) => setPrep((l) => [...l, nouveau('blocage', texte, element)])}
+              />
+            </SectionFiche>
+          </>
+        );
+      }
+      case 'accepter':
+        return (
+          <>
+            <TitreFiche icone="🏁" titre="Stories à accepter" vide="" sous={sous(`${it.code} · terminées, cochez celles que vous accepterez aujourd’hui`)} />
+            <SectionFiche titre={`Terminées · ${aAccepter.length}`}>
+              {aAccepter.length ? (
+                aAccepter.map((t, i) => {
+                  const n = subs.get(t.id)?.length ?? 0;
+                  const resp = t.responsable ? org.personne.get(t.responsable) : undefined;
+                  const texte = `Accepter « ${t.titre} »`;
+                  return (
+                    <LigneCase
+                      key={t.id}
+                      premiere={i === 0}
+                      texte={`📖 ${t.titre}`}
+                      sous={[resp ? `👤 ${prenom(resp.nom)}` : '', pointsOf(t) ? fmt(pointsOf(t)) : '', n ? pluriel(n, 'sous-tâche') : ''].filter(Boolean).join(' · ')}
+                      coche={coche('aujourdhui', t, texte)}
+                      onBasculer={() => basculer('aujourdhui', t, texte)}
+                      onOuvrir={ouvrir(t)}
+                      pastille={pastilleStatut(t.statut)}
+                    />
+                  );
+                })
+              ) : (
+                <Vide texte="Aucune story terminée dans l’itération." />
+              )}
+            </SectionFiche>
+          </>
+        );
+      case 'backlog':
+        return (
+          <>
+            <TitreFiche icone="🪄" titre="Backlog à préparer" vide="" sous={sous(`Stories des features du PI sans estimation ou trop grosses (plus de ${fmt(8)})`)} />
+            <SectionFiche titre={`À préparer · ${aPreparer.length}`}>
+              {aPreparer.length ? (
+                aPreparer.map(({ story: t, raison }, i) => {
+                  const n = subs.get(t.id)?.length ?? 0;
+                  const texte = `Préparer « ${t.titre} »`;
+                  const f = h.features.get(t.feature);
+                  return (
+                    <LigneCase
+                      key={t.id}
+                      premiere={i === 0}
+                      texte={`📖 ${t.titre}`}
+                      sous={[f ? `📦 ${f.titre}` : '', raison === 'trop_grosse' ? `${fmt(pointsOf(t))}, à découper` : '', n ? pluriel(n, 'sous-tâche') : ''].filter(Boolean).join(' · ')}
+                      coche={coche('aujourdhui', t, texte)}
+                      onBasculer={() => basculer('aujourdhui', t, texte)}
+                      onOuvrir={ouvrir(t)}
+                      pastille={{ texte: raison === 'trop_grosse' ? 'trop grosse' : 'sans estimation', ton: 'orange' }}
+                    />
+                  );
+                })
+              ) : (
+                <Vide texte="✓ Backlog du PI prêt : toutes les stories sont estimées." />
+              )}
+            </SectionFiche>
+          </>
+        );
+      case 'questions': {
+        const notees = new Set(reponsesPO.map((r) => r.q.id));
+        return (
+          <>
+            <TitreFiche icone="❓" titre="Questions de l’équipe" vide="" sous={sous('Échanges 🔄 Synchro des membres sur les stories de l’itération ; votre réponse part dans l’échange et rejoint votre point')} />
+            {!questions.length && (
+              <SectionFiche titre="Questions · 0">
+                <Vide texte="✓ Aucune question de l’équipe en attente." />
+              </SectionFiche>
+            )}
+            {questions.map((q) => {
+              const repondu = q.statut === 'repondu';
+              const r = reponses[q.id] ?? { c: '', note: '' };
+              const poser = (y: Partial<typeof r>) => setReponses((mm) => ({ ...mm, [q.id]: { ...r, ...y } }));
+              const choixQ = q.choix.split(';').map((c) => c.trim()).filter(Boolean);
+              return (
+                <View key={q.id} style={st.carteConcret}>
+                  <View style={st.ligneHaut}>
+                    <View style={st.corps}>
+                      <Text style={st.texte}>{q.titre.replace(/^Blocage · /, '')}</Text>
+                      <Text style={st.sous}>
+                        {[`De ${prenom(nomDe(q.de))}`, q.transmis_par ? `transmis par ${prenom(nomDe(q.transmis_par))}` : '', surStory({ texte: '', element: q.element })].filter(Boolean).join(' · ')}
+                      </Text>
+                    </View>
+                    <Pastille {...(repondu ? { texte: 'Répondu', ton: 'vert' as const } : { texte: `Blocage · ${dateRelative(q.cree_le.slice(0, 10), jour)}`, ton: 'rouge' as const })} />
+                  </View>
+                  {repondu ? (
+                    <Text style={st.sous}>
+                      ↳ {estAutre(q.reponse) ? q.note : [q.reponse, q.note].filter(Boolean).join(' — ')}
+                      {notees.has(q.id) ? ' · sera noté comme décision' : ' · noté'}
+                    </Text>
+                  ) : (
+                    <>
+                      <Pastilles options={choixQ.map((c) => ({ value: c, label: c }))} value={r.c} onChange={(v) => poser({ c: v })} />
+                      {!!r.c && (
+                        <TextInput
+                          value={r.note}
+                          onChangeText={(v) => poser({ note: v })}
+                          placeholder={placeholderNote(r.c)}
+                          placeholderTextColor={colors.muted}
+                          style={st.note}
+                          accessibilityLabel={placeholderNote(r.c)}
+                        />
+                      )}
+                      {notees.has(q.id) && <Text style={st.sous}>✓ Partira dans l’échange avec votre point, notée comme décision</Text>}
+                    </>
+                  )}
+                </View>
+              );
+            })}
+          </>
+        );
+      }
+      case 'pret': {
+        const recap = [...preparation].sort((a, b) => ORDRE.indexOf(a.type) - ORDRE.indexOf(b.type));
+        return (
+          <>
+            <TitreFiche icone="✅" titre="Prêt" vide="" sous={sous(`Envoyé à ${sm ? `${sm.nom} (SM)` : 'l’organisateur'} · préparation facultative`)} />
+            <SectionFiche titre={`Mon point · ${recap.length}`}>
+              {recap.map((y, i) => {
+                const q = echangeDe(y);
+                return (
+                  <Ligne
+                    key={y.id}
+                    premiere={i === 0}
+                    texte={y.texte}
+                    sous={[q ? `réponse à ${prenom(nomDe(q.de))}` : '', concretise(y), surStory(y)].filter(Boolean).join(' · ')}
+                    pastille={{ texte: pastillePoint(y.type, jour), ton: tonType(y.type) }}
+                  />
+                );
+              })}
+              {!recap.length && <Vide texte="Rien de préparé : vous ferez votre point de vive voix." />}
+            </SectionFiche>
+          </>
+        );
+      }
+      case 'situation': {
+        const s = situation;
+        return (
+          <>
+            <TitreFiche icone="☀️" titre="Situation" vide="" sous={sous(`${it.code} · du ${dateCourte(it.start)} au ${dateCourte(it.end)} · ${equipe?.nom ?? ''}`)} />
+            <View style={st.compteurs}>
+              <Compteur valeur={`${arrondi(s.faits)} / ${arrondi(s.prevus)}`} libelle={`${safe.pointsJours ? 'jours' : 'pts'} faits / prévus`} />
+              <Compteur valeur={String(s.bloquees)} libelle={s.bloquees > 1 ? 'stories bloquées' : 'story bloquée'} ton={s.bloquees ? 'rouge' : undefined} />
+              <Compteur valeur={String(s.retard)} libelle="en retard" ton={s.retard ? 'orange' : undefined} />
+            </View>
+            <SectionFiche titre={`Suivi · ${suivisEquipe.length + suivisEchanges.length}`}>
+              {suivisEquipe.map(({ point, tache }, i) => (
                 <Ligne
                   key={point.id}
                   premiere={i === 0}
                   texte={tache.titre}
-                  sous={`${LIBELLE_TYPE_POINT[point.type]} · ${LIBELLE_CONCRETISATION[point.concretisation]} · 👤 ${prenom(nomDe(point.responsable || point.personne))} · depuis le ${dateCourte(point.reunion.slice(-10))}`}
-                  pastille={{ texte: tache.statut === 'en_cours' ? 'en cours' : 'à faire', ton: tache.statut === 'en_cours' ? 'bleu' : 'gris' }}
+                  sous={`${LIBELLE_CONCRETISATION[point.concretisation]} · 👤 ${prenom(nomDe(point.responsable || point.personne))} · ${tache.statut === 'en_cours' ? 'en cours' : 'à faire'}`}
+                  pastille={{ texte: pastilleSuivi(point, jour), ton: tonType(point.type) }}
                 />
-              ))
-            ) : (
-              <Vide texte="✓ Rien en attente des dailies précédents." />
-            )}
-          </SectionFiche>
-          <SectionFiche titre="Objectifs de la réunion">
-            <Ligne premiere texte="🎯 Se synchroniser sur l’objectif d’itération" sous="Chacun dit ce qu’il a fait hier et ce qu’il fera aujourd’hui (15 min)" />
-            <Ligne texte="🧱 Lever les blocages" sous="Les noter pendant le tour de table, les concrétiser ensuite" />
-          </SectionFiche>
-        </>
-      );
-    }
-    if (k === 1) {
-      if (!courant) return <Vide texte="Aucun participant dans l’équipe." />;
-      const mail = courant.email.toLowerCase();
-      const stories = situation.cartes.filter((t) => t.responsable === courant.id);
-      const notes = tous.filter((x) => dela(x) && x.personne === mail).sort((a, b) => a.cree_le.localeCompare(b.cree_le));
-      return (
-        <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.membres}>
-            {personnes.map((x, i) => (
-              <Pressable key={x.id} onPress={() => setMembre(i)} style={[st.membre, i === membre && st.membreOn]} accessibilityRole="button" accessibilityState={{ selected: i === membre }}>
-                <Text style={[st.membreTexte, i === membre && st.membreTexteOn]}>{prenom(x.nom)}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-          <TitreFiche icone="👤" titre={courant.nom} vide="" sous={`${membre + 1} sur ${personnes.length} · ${e.role(courant.id)}`} />
-          <SectionFiche titre={`Ses stories · ${stories.length}`}>
-            {stories.length ? (
-              stories.map((t, i) => <LigneStory key={t.id} t={t} premiere={i === 0} bloquee={e.bloquees.has(t.id)} retard={enRetard(t, aujourdhui)} fmt={fmt} />)
-            ) : (
-              <Vide texte="Aucune story de l’itération à son nom." />
-            )}
-          </SectionFiche>
-          <SectionFiche titre={`Points notés · ${notes.length}`}>
-            {notes.map((x, i) => (
-              <Ligne
-                key={x.id}
-                premiere={i === 0}
-                texte={x.texte}
-                sous={`${x.auteur === x.personne ? `par ${prenom(courant.nom)}` : x.auteur === moi.toLowerCase() ? 'par le SM' : `par ${prenom(nomDe(x.auteur))}`}${x.element && parId.get(x.element)?.titre !== x.texte ? ` · sur 📖 ${parId.get(x.element)?.titre ?? 'story'}` : ''}`}
-                pastille={{ texte: pastillePoint(x.type, jour), ton: x.type === 'blocage' ? 'rouge' : aConcretiser(x) ? 'orange' : 'bleu' }}
-                onRetirer={x.id.startsWith('local-') ? () => setLocaux((l) => l.filter((y) => y.id !== x.id)) : undefined}
+              ))}
+              {/* Blocages passés en 🔄 Synchro : suivis tant que l'échange existe (sans historique) */}
+              {suivisEchanges.map(({ point, echange }, i) => (
+                <Ligne
+                  key={point.id}
+                  premiere={!suivisEquipe.length && i === 0}
+                  texte={point.texte}
+                  sous={
+                    point.type === 'decision'
+                      ? `${LIBELLE_CONCRETISATION.synchro} · 👤 ${prenom(nomDe(echange.de))} · à prendre en compte`
+                      : `${LIBELLE_CONCRETISATION.synchro} · 👤 ${prenom(nomDe(echange.a))} · ${echange.statut === 'repondu' ? 'répondu' : 'en attente'}`
+                  }
+                  pastille={{ texte: pastilleSuivi(point, jour), ton: tonType(point.type) }}
+                />
+              ))}
+              {!suivisEquipe.length && !suivisEchanges.length && <Vide texte="✓ Rien en attente des dailies précédents." />}
+            </SectionFiche>
+            <SectionFiche titre="Objectifs de la réunion">
+              <Ligne premiere texte="🎯 Se synchroniser sur l’objectif d’itération" sous="Chacun dit ce qu’il a fait hier et ce qu’il fera aujourd’hui (15 min)" />
+              <Ligne texte="🧱 Lever les blocages" sous="Les noter pendant le tour de table, les concrétiser ensuite" />
+            </SectionFiche>
+          </>
+        );
+      }
+      case 'tour': {
+        if (!courant) return <Vide texte="Aucun participant dans l’équipe." />;
+        const m = courant.email.toLowerCase();
+        const stories = situation.cartes.filter((t) => t.responsable === courant.id);
+        const notes = tous.filter((y) => dela(y) && y.personne === m).sort((a, b) => a.cree_le.localeCompare(b.cree_le));
+        return (
+          <>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.membres}>
+              {personnes.map((y, i) => (
+                <Pressable key={y.id} onPress={() => setMembre(i)} style={[st.membre, i === membre && st.membreOn]} accessibilityRole="button" accessibilityState={{ selected: i === membre }}>
+                  <Text style={[st.membreTexte, i === membre && st.membreTexteOn]}>{prenom(y.nom)}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <TitreFiche icone="👤" titre={courant.nom} vide="" sous={sous(`${membre + 1} sur ${personnes.length} · ${e.role(courant.id)}`)} />
+            <SectionFiche titre={`Ses stories · ${stories.length}`}>
+              {stories.length ? (
+                stories.map((t, i) => (
+                  <LigneStory key={t.id} t={t} premiere={i === 0} bloquee={e.bloquees.has(t.id)} retard={enRetard(t, aujourdhui)} fmt={fmt} nbSous={subs.get(t.id)?.length ?? 0} onOuvrir={ouvrir(t)} />
+                ))
+              ) : (
+                <Vide texte="Aucune story de l’itération à son nom." />
+              )}
+            </SectionFiche>
+            <SectionFiche titre={`Points notés · ${notes.length}`}>
+              {notes.map((y, i) => {
+                const q = echangeDe(y);
+                const par = y.auteur === y.personne ? `par ${prenom(courant.nom)}` : y.auteur === mail ? 'par le SM' : `par ${prenom(nomDe(y.auteur))}`;
+                const story = surStory(y);
+                return (
+                  <Ligne
+                    key={y.id}
+                    premiere={i === 0}
+                    texte={y.texte}
+                    sous={[par, q ? `réponse à ${prenom(nomDe(q.de))}` : '', concretise(y), story].filter(Boolean).join(' · ')}
+                    pastille={{ texte: pastillePoint(y.type, jour), ton: tonType(y.type) }}
+                    onRetirer={y.id.startsWith('local-') ? () => (setLocaux((l) => l.filter((z) => z.id !== y.id)), retirerPrep(y.id)) : undefined}
+                  />
+                );
+              })}
+              <SaisiePoint
+                premiere={!notes.length}
+                types={['hier', 'aujourdhui', 'blocage', 'decision', 'action']}
+                jour={jour}
+                placeholder={`＋ Ajouter pour ${prenom(courant.nom)}…`}
+                stories={stories}
+                onAjouter={(type, texte, element) => ajouter({ personne: m, type, texte, element })}
               />
-            ))}
-            <SaisiePoint
-              premiere={!notes.length}
-              types={['hier', 'aujourdhui', 'blocage', 'decision', 'action']}
-              jour={jour}
-              placeholder={`＋ Ajouter pour ${prenom(courant.nom)}…`}
-              stories={stories}
-              onAjouter={(type, texte, element) => ajouter({ personne: mail, type, texte, element })}
-            />
-          </SectionFiche>
-        </>
-      );
-    }
-    if (k === 2) {
-      return (
-        <>
-          <TitreFiche icone="🧩" titre="Concrétisation" vide="" sous={`${aDecider.length} point${aDecider.length > 1 ? 's' : ''} : blocages, décisions, actions`} />
-          {!aDecider.length && <Vide texte="Aucun blocage, décision ou action noté." />}
-          {aDecider.map((pt) => {
-            const { c, resp } = choixDe(pt);
-            const poser = (x: { c?: Concretisation; resp?: string }) => setChoix((m) => ({ ...m, [pt.id]: { ...m[pt.id], ...x } }));
-            const story = pt.element ? parId.get(pt.element) : undefined;
-            const options: { v: Concretisation; l: string; off?: boolean }[] = [
-              { v: 'sous_tache', l: 'Sous-tâche de la story', off: !pt.element },
-              { v: 'tache', l: `Tâche à part (${it.code})` },
-              { v: 'rien', l: 'Rien' },
-              ...(pt.type === 'blocage' ? [{ v: 'escalade' as const, l: '⤴ Escalader au RTE', off: !rte?.email }] : []),
-            ];
-            return (
-              <View key={pt.id} style={st.carteConcret}>
-                <View style={st.ligneHaut}>
-                  <View style={st.corps}>
-                    <Text style={st.texte}>{pt.texte}</Text>
-                    <Text style={st.sous}>
-                      {prenom(nomDe(pt.personne))}
-                      {story ? ` · sur 📖 ${story.titre}` : ''}
-                    </Text>
+            </SectionFiche>
+          </>
+        );
+      }
+      case 'concretisation':
+        return (
+          <>
+            <TitreFiche icone="🧩" titre="Concrétisation" vide="" sous={sous(`${pluriel(aDecider.length, 'point')} : blocages, décisions, actions`)} />
+            {!aDecider.length && <Vide texte="Aucun blocage, décision ou action noté." />}
+            {aDecider.map((pt) => {
+              const { c, resp, a } = choixDe(pt);
+              const poser = (y: { c?: Concretisation; resp?: string; a?: string }) => setChoix((mm) => ({ ...mm, [pt.id]: { ...mm[pt.id], ...y } }));
+              const story = pt.element ? parId.get(pt.element) : undefined;
+              const options: { v: Concretisation; l: string; off?: boolean }[] = [
+                { v: 'sous_tache', l: 'Sous-tâche de la story', off: !pt.element },
+                { v: 'tache', l: `Tâche à part (${it.code})` },
+                { v: 'rien', l: 'Rien' },
+                ...(pt.type === 'blocage'
+                  ? [
+                      { v: 'escalade' as const, l: '⤴ Escalader au RTE', off: !rte?.email },
+                      { v: 'synchro' as const, l: `🔄 Synchro vers ${c === 'synchro' && a ? prenom(nomDe(a)) : '…'}` },
+                    ]
+                  : []),
+              ];
+              return (
+                <View key={pt.id} style={st.carteConcret}>
+                  <View style={st.ligneHaut}>
+                    <View style={st.corps}>
+                      <Text style={st.texte}>{pt.texte}</Text>
+                      <Text style={st.sous}>
+                        {prenom(nomDe(pt.personne))}
+                        {story ? ` · sur 📖 ${story.titre}` : ''}
+                      </Text>
+                    </View>
+                    <Pastille texte={LIBELLE_TYPE_POINT[pt.type]} ton={tonType(pt.type)} />
                   </View>
-                  <Pastille texte={LIBELLE_TYPE_POINT[pt.type]} ton={pt.type === 'blocage' ? 'rouge' : 'orange'} />
+                  <Pastilles options={options.map((o) => ({ value: o.v, label: o.l, off: o.off }))} value={c} onChange={(v) => poser({ c: v as Concretisation })} />
+                  {c === 'synchro' && (
+                    <>
+                      <Text style={st.petitTitre}>Échange adressé à</Text>
+                      <Pastilles
+                        options={personnes
+                          .filter((y) => y.email.toLowerCase() !== pt.personne)
+                          .map((y) => ({ value: y.email.toLowerCase(), label: `${prenom(y.nom)}${y.id === equipe?.po ? ' (PO)' : y.id === equipe?.sm ? ' (SM)' : ''}` }))}
+                        value={a}
+                        onChange={(v) => poser({ a: v })}
+                        petit
+                      />
+                    </>
+                  )}
+                  {(c === 'sous_tache' || c === 'tache') && (
+                    <>
+                      <Text style={st.petitTitre}>Responsable</Text>
+                      <Pastilles options={personnes.map((y) => ({ value: y.email.toLowerCase(), label: prenom(y.nom) }))} value={resp} onChange={(v) => poser({ resp: v })} petit />
+                    </>
+                  )}
                 </View>
-                <Pastilles options={options.map((o) => ({ value: o.v, label: o.l, off: o.off }))} value={c} onChange={(v) => poser({ c: v as Concretisation })} />
-                {(c === 'sous_tache' || c === 'tache') && (
-                  <>
-                    <Text style={st.petitTitre}>Responsable</Text>
-                    <Pastilles options={personnes.map((x) => ({ value: x.email.toLowerCase(), label: prenom(x.nom) }))} value={resp} onChange={(v) => poser({ resp: v })} petit />
-                  </>
-                )}
-              </View>
-            );
-          })}
-          <SectionFiche titre="Point oublié">
-            <SaisiePoint premiere types={['blocage', 'decision', 'action']} jour={jour} placeholder="＋ Blocage, décision ou action oublié" stories={situation.cartes} onAjouter={(type, texte, element) => ajouter({ personne: moi, type, texte, element })} />
-          </SectionFiche>
-        </>
-      );
+              );
+            })}
+            <SectionFiche titre="Point oublié">
+              <SaisiePoint premiere types={['blocage', 'decision', 'action']} jour={jour} placeholder="＋ Blocage, décision ou action oublié" stories={situation.cartes} onAjouter={(type, texte, element) => ajouter({ personne: mail, type, texte, element })} />
+            </SectionFiche>
+          </>
+        );
+      default: {
+        // Compte rendu
+        const decides = aDecider.map((pt) => ({ pt, ...choixDe(pt) }));
+        const crees = decides.filter((d) => d.c === 'sous_tache' || d.c === 'tache');
+        const escalades = decides.filter((d) => d.c === 'escalade');
+        const synchros = decides.filter((d) => d.c === 'synchro');
+        const notes = decides.filter((d) => d.c === 'rien');
+        return (
+          <>
+            <TitreFiche
+              icone="📨"
+              titre="Compte rendu"
+              vide=""
+              sous={sous(rte?.email ? `Envoyé à ${rte.nom} (RTE du train ${e.train?.nom ?? ''})` : 'Pas de train ni de RTE : les tâches sont créées, le compte rendu n’est envoyé à personne.')}
+            />
+            <SectionFiche titre={`Créé · ${crees.length}`}>
+              {crees.length ? (
+                crees.map((d, i) => (
+                  <Ligne
+                    key={d.pt.id}
+                    premiere={i === 0}
+                    texte={d.pt.texte}
+                    sous={`${d.c === 'sous_tache' ? `Sous-tâche de 📖 ${parId.get(d.pt.element)?.titre ?? 'la story'}` : `Tâche à part · ${it.code}`} · 👤 ${prenom(nomDe(d.resp))}`}
+                    pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }}
+                  />
+                ))
+              ) : (
+                <Vide texte="Aucune tâche à créer." />
+              )}
+            </SectionFiche>
+            {escalades.length > 0 && (
+              <SectionFiche titre={`Escaladé au RTE · ${escalades.length}`}>
+                {escalades.map((d, i) => (
+                  <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`👤 ${prenom(nomDe(d.pt.personne))} · ⤴ ${rte?.nom ?? 'RTE'}`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
+                ))}
+              </SectionFiche>
+            )}
+            {synchros.length > 0 && (
+              <SectionFiche titre={`🔄 Synchro · ${synchros.length}`}>
+                {synchros.map((d, i) => (
+                  <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`${prenom(nomDe(d.pt.personne))} → ${prenom(nomDe(d.a))} · échange envoyé`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
+                ))}
+              </SectionFiche>
+            )}
+            <SectionFiche titre={`Noté seulement · ${notes.length}`}>
+              {notes.length ? (
+                notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`par ${prenom(nomDe(d.pt.personne))}`} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: 'gris' }} />)
+              ) : (
+                <Vide texte="Rien." />
+              )}
+            </SectionFiche>
+          </>
+        );
+      }
     }
-    // Compte rendu
-    const decides = aDecider.map((pt) => ({ pt, ...choixDe(pt) }));
-    const crees = decides.filter((d) => d.c === 'sous_tache' || d.c === 'tache');
-    const escalades = decides.filter((d) => d.c === 'escalade');
-    const notes = decides.filter((d) => d.c === 'rien');
-    return (
-      <>
-        <TitreFiche
-          icone="📨"
-          titre="Compte rendu"
-          vide=""
-          sous={rte?.email ? `Envoyé à ${rte.nom} (RTE du train ${e.train?.nom ?? ''})` : 'Pas de train ni de RTE : les tâches sont créées, le compte rendu n’est envoyé à personne.'}
-        />
-        <SectionFiche titre={`Créé · ${crees.length}`}>
-          {crees.length ? (
-            crees.map((d, i) => (
-              <Ligne
-                key={d.pt.id}
-                premiere={i === 0}
-                texte={d.pt.texte}
-                sous={`${d.c === 'sous_tache' ? `Sous-tâche de 📖 ${parId.get(d.pt.element)?.titre ?? 'la story'}` : `Tâche à part · ${it.code}`} · 👤 ${prenom(nomDe(d.resp))}`}
-                pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: d.pt.type === 'blocage' ? 'rouge' : 'orange' }}
-              />
-            ))
-          ) : (
-            <Vide texte="Aucune tâche à créer." />
-          )}
-        </SectionFiche>
-        {escalades.length > 0 && (
-          <SectionFiche titre={`Escaladé au RTE · ${escalades.length}`}>
-            {escalades.map((d, i) => (
-              <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`👤 ${prenom(nomDe(d.pt.personne))} · ⤴ ${rte?.nom ?? 'RTE'}`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
-            ))}
-          </SectionFiche>
-        )}
-        <SectionFiche titre={`Noté seulement · ${notes.length}`}>
-          {notes.length ? (
-            notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`par ${prenom(nomDe(d.pt.personne))}`} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: 'gris' }} />)
-          ) : (
-            <Vide texte="Rien." />
-          )}
-        </SectionFiche>
-      </>
-    );
   };
 
   const dernier = personnes.length - 1;
+  const cleDe = (k: number) => parcours[k]?.cle ?? '';
   return (
     <FenetreReunion
       visible={visible}
       reunion={reunion}
-      mode="organisateur"
+      mode={anime ? 'organisateur' : 'participant'}
       fil={fil}
-      etapes={TYPES_REUNION.daily.etapes}
-      renduEtape={rendu}
+      etapes={etapes}
+      libelleFin={anime ? 'Envoyer le compte rendu' : `Envoyer au SM${sm ? ` · ${prenom(sm.nom)}` : ''}`}
+      renduEtape={(k) => (parcours[k] ? rendu(parcours[k]) : null)}
       onEtape={(k) => {
-        setEtape(k);
-        if (k === 1) setMembre((m) => Math.min(m, Math.max(0, dernier)));
+        setCle(cleDe(k));
+        if (cleDe(k) === 'tour') setMembre((m) => Math.min(m, Math.max(0, dernier)));
       }}
       onSuivant={(k) => {
-        if (k === 1 && membre < dernier) {
+        if (cleDe(k) === 'tour' && membre < dernier) {
           setMembre(membre + 1);
           return true;
         }
         return false;
       }}
-      libelleSuivant={(k) => (k === 1 && membre < dernier ? `Suivant · ${prenom(personnes[membre + 1]?.nom ?? '')}` : undefined)}
+      libelleSuivant={(k) => (cleDe(k) === 'tour' && membre < dernier ? `Suivant · ${prenom(personnes[membre + 1]?.nom ?? '')}` : undefined)}
       onFermer={onFermer}
-      onTerminer={terminer}
-    />
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Participant
-// ---------------------------------------------------------------------------
-function DailyParticipant({ visible, reunion, org, moi, aujourdhui, fil, actions, onFermer, onInfo }: Props & { reunion: Reunion }) {
-  const mail = moi.toLowerCase();
-  const espace = reunion.espace || 'moi';
-  const [serveur, setServeur] = useState<PointReunion[]>([]);
-  const [charge, setCharge] = useState(false);
-  /** Préparation : points du participant pour ce daily */
-  const [prep, setPrep] = useState<{ type: TypePoint; texte: string; element: string }[]>([]);
-  /** Statuts changés pendant la préparation (affichage immédiat) */
-  const [statuts, setStatuts] = useState<Record<string, Statut>>({});
-  const e = useEquipeDaily(reunion, org, aujourdhui, serveur);
-  const { jour, situation, parId, nomDe, equipe } = e;
-  const veille = veilleOuvree(jour);
-  const moiP = personneParEmail(mail, org);
-
-  useEffect(() => {
-    if (!visible) return;
-    setServeur([]);
-    setPrep([]);
-    setStatuts({});
-    setCharge(false);
-    let actif = true;
-    actions
-      .lirePoints(espace, prefixeReunion(reunion))
-      .then((l) => {
-        if (!actif) return;
-        setServeur(l);
-        // Déjà envoyé : la préparation reprend ce qui a été envoyé
-        setPrep(l.filter((x) => x.reunion === reunion.id && x.personne === mail && x.auteur === mail && !x.concretisation).map((x) => ({ type: x.type, texte: x.texte, element: x.element })));
-        setCharge(true);
-      })
-      .catch((err) => actif && (setCharge(true), onInfo?.(`Points du daily non lus : ${(err as Error).message}`)));
-    return () => {
-      actif = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, reunion.id]);
-
-  const mesSuivis = useMemo(() => calculerSuivis(serveur.filter((x) => x.responsable === mail), e.h.items), [serveur, e.h.items, mail]);
-  // Ses éléments de l'itération (stories, tâches, sous-tâches à son nom)
-  const miens = situation.elements.filter((t) => !!moiP && t.responsable === moiP.id && !mesSuivis.some((x) => x.tache.id === t.id));
-  const statutDe = (t: Item) => statuts[t.id] ?? t.statut;
-  const hierListe = miens.filter((t) => statutDe(t) === 'en_cours' || (statutDe(t) === 'termine' && (!t.termine_le || t.termine_le >= veille)));
-  const aujListe = miens.filter((t) => statutDe(t) !== 'termine');
-  const coche = (type: TypePoint, t: Item) => prep.some((x) => x.type === type && x.element === t.id && x.texte === t.titre);
-  const basculer = (type: TypePoint, t: Item) =>
-    setPrep((l) => (coche(type, t) ? l.filter((x) => !(x.type === type && x.element === t.id && x.texte === t.titre)) : [...l, { type, texte: t.titre, element: t.id }]));
-  const libres = (type: TypePoint, liste: Item[]) => prep.filter((x) => x.type === type && !liste.some((t) => x.element === t.id && x.texte === t.titre));
-  const retirer = (x: (typeof prep)[number]) => setPrep((l) => l.filter((y) => y !== x));
-  /** « sur 📖 story » (sauf pour la story elle-même, cochée) */
-  const surStory = (x: { texte: string; element: string }) => {
-    const titre = x.element ? (parId.get(x.element)?.titre ?? 'story') : '';
-    return titre && titre !== x.texte ? `sur 📖 ${titre}` : undefined;
-  };
-  const sm = equipe?.sm ? org.personne.get(equipe.sm) : undefined;
-
-  const envoyer = async () => {
-    const anciens = serveur.filter((x) => x.reunion === reunion.id && x.personne === mail && x.auteur === mail && !x.concretisation).map((x) => x.id);
-    await actions.ecrirePoints(
-      espace,
-      prep.map((x) => ({ ...x, reunion: reunion.id, personne: mail, auteur: mail, concretisation: '' as const, tache: '', responsable: '' })),
-      [],
-      anciens,
-    );
-    onInfo?.(prep.length ? `Point envoyé${sm ? ` à ${prenom(sm.nom)} (SM)` : ''} : ${prep.length} élément${prep.length > 1 ? 's' : ''}.` : 'Préparation vide envoyée : rien de noté.');
-  };
-
-  const listeCases = (type: TypePoint, liste: Item[], vide: string) =>
-    liste.length ? (
-      liste.map((t, i) => (
-        <Pressable key={t.id} onPress={() => basculer(type, t)} style={[st.ligne, i > 0 && st.bord]} accessibilityRole="checkbox" accessibilityState={{ checked: coche(type, t) }}>
-          <Text style={[st.caseACocher, coche(type, t) && st.caseCochee]}>{coche(type, t) ? '✓' : ''}</Text>
-          <View style={st.corps}>
-            <Text style={st.texte}>
-              {t.type === 'story' ? '📖 ' : ''}
-              {t.titre}
-            </Text>
-            {!!t.parent && <Text style={st.sous}>Sous-tâche de {parId.get(t.parent)?.titre ?? 'la story'}</Text>}
-          </View>
-          <Pastille {...pastilleStatut(statutDe(t))} />
-        </Pressable>
-      ))
-    ) : (
-      <Vide texte={vide} />
-    );
-  const listeLibres = (type: TypePoint, liste: Item[], decale: boolean) =>
-    libres(type, liste).map((x, i) => (
-      <Ligne key={`${x.texte}-${i}`} premiere={!decale && i === 0} texte={x.texte} sous={surStory(x) ?? 'ajouté par vous'} onRetirer={() => retirer(x)} />
-    ));
-
-  const rendu = (k: number) => {
-    if (!charge) return <Vide texte="Lecture de votre préparation…" />;
-    if (k === 0)
-      return (
-        <>
-          <TitreFiche icone="📌" titre="Mes suivis" vide="" sous="Points concrétisés aux dailies précédents, à votre nom" />
-          {mesSuivis.length ? (
-            mesSuivis.map(({ point, tache }) => (
-              <View key={point.id} style={st.carteConcret}>
-                <Text style={st.texte}>{tache.titre}</Text>
-                <Text style={st.sous}>
-                  {LIBELLE_TYPE_POINT[point.type]} · {LIBELLE_CONCRETISATION[point.concretisation]}
-                  {tache.parent ? ` de 📖 ${parId.get(tache.parent)?.titre ?? 'la story'}` : ''} · depuis le {dateCourte(point.reunion.slice(-10))}
-                </Text>
-                <Pastilles
-                  options={STATUTS.map((x) => ({ value: x.v, label: x.l }))}
-                  value={statutDe(tache)}
-                  onChange={(v) => {
-                    setStatuts((m) => ({ ...m, [tache.id]: v as Statut }));
-                    void actions.onSetStatut(tache, v as Statut);
-                  }}
-                />
-              </View>
-            ))
-          ) : (
-            <SectionFiche titre="Suivis · 0">
-              <Vide texte="✓ Rien à suivre." />
-            </SectionFiche>
-          )}
-        </>
-      );
-    if (k === 1)
-      return (
-        <>
-          <TitreFiche icone="⏪" titre={`Hier · ${dateCourte(veille)}`} vide="" sous="Cochez ce dont vous parlerez" />
-          <SectionFiche titre={`Mes stories et tâches · ${hierListe.length}`}>
-            {listeCases('hier', hierListe, 'Rien en cours ni terminé hier.')}
-            {listeLibres('hier', hierListe, true)}
-            <SaisiePoint types={[]} jour={jour} placeholder="＋ Autre chose fait hier" onAjouter={(_, texte) => setPrep((l) => [...l, { type: 'hier', texte, element: '' }])} />
-          </SectionFiche>
-        </>
-      );
-    if (k === 2)
-      return (
-        <>
-          <TitreFiche icone="▶️" titre={`Aujourd’hui · ${dateCourte(jour)}`} vide="" sous="Ce que vous allez faire" />
-          <SectionFiche titre={`Mes stories et tâches · ${aujListe.length}`}>
-            {listeCases('aujourdhui', aujListe, 'Rien à votre nom dans l’itération.')}
-            {listeLibres('aujourdhui', aujListe, true)}
-            <SaisiePoint types={[]} jour={jour} placeholder="＋ Autre chose aujourd’hui" onAjouter={(_, texte) => setPrep((l) => [...l, { type: 'aujourdhui', texte, element: '' }])} />
-          </SectionFiche>
-        </>
-      );
-    if (k === 3) {
-      const blocages = prep.filter((x) => x.type === 'blocage');
-      return (
-        <>
-          <TitreFiche icone="🧱" titre="Blocages" vide="" sous="Ce qui vous empêche d’avancer" />
-          <SectionFiche titre={`Blocages · ${blocages.length}`}>
-            {blocages.map((x, i) => (
-              <Ligne key={`${x.texte}-${i}`} premiere={i === 0} texte={x.texte} sous={x.element ? `sur 📖 ${parId.get(x.element)?.titre ?? 'story'}` : 'sans story'} onRetirer={() => retirer(x)} />
-            ))}
-            <SaisiePoint premiere={!blocages.length} types={[]} jour={jour} placeholder="＋ Blocage" stories={situation.cartes.filter((t) => !!moiP && t.responsable === moiP.id)} onAjouter={(_, texte, element) => setPrep((l) => [...l, { type: 'blocage', texte, element }])} />
-          </SectionFiche>
-        </>
-      );
-    }
-    // Prêt : récapitulatif
-    const ordre: TypePoint[] = ['hier', 'aujourdhui', 'blocage'];
-    const recap = [...prep].sort((a, b) => ordre.indexOf(a.type) - ordre.indexOf(b.type));
-    return (
-      <>
-        <TitreFiche icone="✅" titre="Prêt" vide="" sous={`Envoyé à ${sm ? `${sm.nom} (SM)` : 'l’organisateur'} · préparation facultative`} />
-        <SectionFiche titre={`Mon point · ${recap.length + mesSuivis.length}`}>
-          {mesSuivis.map(({ point, tache }, i) => {
-            const s = statutDe(tache);
-            return <Ligne key={point.id} premiere={i === 0} texte={tache.titre} sous={`${LIBELLE_TYPE_POINT[point.type]} · ${LIBELLE_CONCRETISATION[point.concretisation]}`} pastille={{ texte: `Suivi · ${s === 'termine' ? 'fait' : s === 'en_cours' ? 'en cours' : 'à faire'}`, ton: s === 'termine' ? 'vert' : s === 'en_cours' ? 'bleu' : 'gris' }} />;
-          })}
-          {recap.map((x, i) => (
-            <Ligne
-              key={`${x.type}-${x.texte}-${i}`}
-              premiere={!mesSuivis.length && i === 0}
-              texte={x.texte}
-              sous={surStory(x)}
-              pastille={{ texte: pastillePoint(x.type, jour), ton: x.type === 'blocage' ? 'rouge' : 'bleu' }}
-            />
-          ))}
-          {!recap.length && !mesSuivis.length && <Vide texte="Rien de préparé : vous ferez votre point de vive voix." />}
-        </SectionFiche>
-      </>
-    );
-  };
-
-  return (
-    <FenetreReunion
-      visible={visible}
-      reunion={reunion}
-      mode="participant"
-      fil={fil}
-      etapes={['Mes suivis', `Hier · ${dateCourte(veille)}`, `Aujourd’hui · ${dateCourte(jour)}`, 'Blocages', 'Prêt']}
-      libelleFin={`Envoyer au SM${sm ? ` · ${prenom(sm.nom)}` : ''}`}
-      renduEtape={rendu}
-      onFermer={onFermer}
-      onTerminer={envoyer}
+      onTerminer={anime ? envoyerCompteRendu : envoyerPreparation}
     />
   );
 }
@@ -674,6 +896,8 @@ const TONS: Record<Ton, { fond: string; texte: string }> = {
 };
 const pastilleStatut = (s: Statut): { texte: string; ton: Ton } =>
   s === 'termine' ? { texte: 'terminée', ton: 'vert' } : s === 'en_cours' ? { texte: 'en cours', ton: 'bleu' } : { texte: 'à faire', ton: 'gris' };
+/** Couleur de la pastille d'un point selon son type */
+const tonType = (t: TypePoint): Ton => (t === 'blocage' ? 'rouge' : t === 'decision' || t === 'action' ? 'orange' : 'bleu');
 
 function Pastille({ texte, ton }: { texte: string; ton: Ton }) {
   return (
@@ -696,10 +920,27 @@ function Compteur({ valeur, libelle, ton }: { valeur: string; libelle: string; t
   );
 }
 
-/** Ligne : texte seul, sous-ligne grise, pastille à droite au même niveau */
-function Ligne({ texte, sous, pastille, premiere, onRetirer }: { texte: string; sous?: string; pastille?: { texte: string; ton: Ton }; premiere?: boolean; onRetirer?: () => void }) {
-  return (
-    <View style={[st.ligne, !premiere && st.bord]}>
+/**
+ * Ligne : texte seul, sous-ligne grise, pastille à droite au même niveau ; avec `onOuvrir`, toute la ligne ouvre la
+ * fiche (chevron ›)
+ */
+function Ligne({
+  texte,
+  sous,
+  pastille,
+  premiere,
+  onRetirer,
+  onOuvrir,
+}: {
+  texte: string;
+  sous?: string;
+  pastille?: { texte: string; ton: Ton };
+  premiere?: boolean;
+  onRetirer?: () => void;
+  onOuvrir?: () => void;
+}) {
+  const contenu = (
+    <>
       <View style={st.corps}>
         <Text style={st.texte}>{texte}</Text>
         {!!sous && <Text style={st.sous}>{sous}</Text>}
@@ -710,18 +951,81 @@ function Ligne({ texte, sous, pastille, premiere, onRetirer }: { texte: string; 
           <Text style={st.retirer}>✕</Text>
         </Pressable>
       )}
+      {onOuvrir && <Text style={st.chevron}>›</Text>}
+    </>
+  );
+  return onOuvrir ? (
+    <Pressable onPress={onOuvrir} style={[st.ligne, !premiere && st.bord]} accessibilityRole="button" accessibilityLabel={`Ouvrir « ${texte} »`}>
+      {contenu}
+    </Pressable>
+  ) : (
+    <View style={[st.ligne, !premiere && st.bord]}>{contenu}</View>
+  );
+}
+
+/**
+ * Ligne à cocher (Hier, Aujourd'hui, stories à accepter…) : la case coche ; une tâche qui a des sous-tâches s'ouvre
+ * (le reste de la ligne et ›), sinon toute la ligne coche
+ */
+function LigneCase({
+  texte,
+  sous,
+  pastille,
+  premiere,
+  coche,
+  onBasculer,
+  onOuvrir,
+}: {
+  texte: string;
+  sous?: string;
+  pastille: { texte: string; ton: Ton };
+  premiere?: boolean;
+  coche: boolean;
+  onBasculer: () => void;
+  onOuvrir?: () => void;
+}) {
+  return (
+    <View style={[st.ligne, !premiere && st.bord]}>
+      <Pressable onPress={onBasculer} hitSlop={10} accessibilityRole="checkbox" accessibilityState={{ checked: coche }} accessibilityLabel={texte}>
+        <Text style={[st.caseACocher, coche && st.caseCochee]}>{coche ? '✓' : ''}</Text>
+      </Pressable>
+      <Pressable onPress={onOuvrir ?? onBasculer} style={st.ligneCorps} accessibilityRole="button" accessibilityLabel={onOuvrir ? `Ouvrir « ${texte} »` : texte}>
+        <View style={st.corps}>
+          <Text style={st.texte}>{texte}</Text>
+          {!!sous && <Text style={st.sous}>{sous}</Text>}
+        </View>
+        <Pastille {...pastille} />
+        {onOuvrir && <Text style={st.chevron}>›</Text>}
+      </Pressable>
     </View>
   );
 }
 
-function LigneStory({ t, premiere, bloquee, retard, fmt }: { t: Item; premiere: boolean; bloquee: boolean; retard: boolean; fmt: (n: number) => string }) {
+function LigneStory({
+  t,
+  premiere,
+  bloquee,
+  retard,
+  fmt,
+  nbSous,
+  onOuvrir,
+}: {
+  t: Item;
+  premiere: boolean;
+  bloquee: boolean;
+  retard: boolean;
+  fmt: (n: number) => string;
+  nbSous: number;
+  onOuvrir?: () => void;
+}) {
   const p = parseFloat(t.points);
   return (
     <Ligne
       premiere={premiere}
       texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`}
-      sous={[pastilleStatut(t.statut).texte, p > 0 ? fmt(p) : '', t.date ? `prévu le ${dateCourte(t.date)}` : ''].filter(Boolean).join(' · ')}
+      sous={[pastilleStatut(t.statut).texte, p > 0 ? fmt(p) : '', t.date ? `prévu le ${dateCourte(t.date)}` : '', nbSous ? pluriel(nbSous, 'sous-tâche') : ''].filter(Boolean).join(' · ')}
       pastille={bloquee ? { texte: 'bloquée', ton: 'rouge' } : retard ? { texte: 'en retard', ton: 'orange' } : pastilleStatut(t.statut)}
+      onOuvrir={onOuvrir}
     />
   );
 }
@@ -825,6 +1129,9 @@ const st = StyleSheet.create({
   pastille: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 10, maxWidth: 150 },
   pastilleTexte: { fontSize: 12, fontWeight: '700' },
   retirer: { fontSize: 14, color: colors.muted, paddingHorizontal: 2 },
+  ligneCorps: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  note: { fontSize: 14.5, color: colors.text, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
+  chevron: { fontSize: 22, lineHeight: 24, color: colors.muted, marginLeft: -2 },
   vide: { fontSize: 14, color: colors.muted, paddingHorizontal: 14, paddingVertical: 12 },
   membres: { gap: 6, paddingBottom: 10, paddingHorizontal: 2 },
   membre: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },

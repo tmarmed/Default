@@ -87,7 +87,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '26';
+const DEMO_DATA_VERSION = '27';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -404,25 +404,36 @@ const SEEDS_ENTREPRISE: Seeds = {
       // Daily de Mobile : tâches nées des dailies précédents, pas encore finies (« suivis »)
       ['Obtenir les accès à l’API de test', 'tache', SANS_DATE, { parent: 'acm4', feature: 'acmf2', equipe: 'acmeqmob', responsable: 'acmp8', statut: 'en_cours', iteration: iterationOf(new Date()).key }],
       ['Commander les licences de test', 'tache', SANS_DATE, { equipe: 'acmeqmob', responsable: 'acmp9', iteration: iterationOf(new Date()).key }],
+      // Daily, parcours du PO (Paul) : une story terminée à accepter, deux stories du PI à préparer (trop grosse,
+      // sans estimation), une action notée à un daily précédent à son nom
+      ['Inscription par e-mail', 'story', SANS_DATE, { feature: 'acmf2', points: '2', equipe: 'acmeqmob', responsable: 'acmp9', statut: 'termine', termine_le: toDateString(new Date()), iteration: iterationOf(new Date()).key }],
+      ['Historique des commandes', 'story', SANS_DATE, { feature: 'acmf2', points: '13', equipe: 'acmeqmob' }],
+      ['Notifications de livraison', 'story', SANS_DATE, { feature: 'acmf2', equipe: 'acmeqmob' }],
+      ['Clarifier les règles de remboursement', 'tache', SANS_DATE, { equipe: 'acmeqmob', responsable: 'acmp6', statut: 'en_cours', iteration: iterationOf(new Date()).key }],
     ]),
-  // Daily de Mobile (onglet PointsReunion) : le point préparé par Tom pour le prochain daily, et deux points
-  // concrétisés aux dailies précédents dont la tâche n'est pas finie
+  // Daily de Mobile (onglet PointsReunion) : le point préparé par Tom pour le prochain daily, trois points concrétisés
+  // aux dailies précédents dont la tâche n'est pas finie, et un blocage de Tom passé en échange 🔄 Synchro vers Paul
+  // (le PO), qui le retrouve dans « Questions de l'équipe »
   points: () => {
     const jour = prochainDaily(new Date());
+    const veille = joursOuvresAvant(jour, 1);
     const avant = joursOuvresAvant(jour, 2);
     const reunion = (j: string) => `daily-equipeagile:acmeqmob-${j}`;
     const tom = 'tom.faure@acme.example';
     const nina = 'nina.dupont@acme.example';
     const emma = 'emma.roy@acme.example';
+    const paul = 'paul.leroy@acme.example';
     const pt = (id: string, x: Partial<PointReunion>): PointReunion => ({
       id, reunion: reunion(jour), personne: tom, auteur: tom, type: 'hier', texte: '', element: '', concretisation: '', tache: '', responsable: '', cree_le: new Date(Date.now() - 3600_000).toISOString(), ...x,
     });
     return [
-      pt('acmpt1', { reunion: reunion(avant), type: 'blocage', texte: 'Pas d’accès à l’API de test', element: 'acm4', concretisation: 'sous_tache', tache: 'acm7', responsable: tom, cree_le: `${avant}T09:40:00.000Z` }),
+      pt('acmpt1', { reunion: reunion(veille), type: 'blocage', texte: 'Pas d’accès à l’API de test', element: 'acm4', concretisation: 'sous_tache', tache: 'acm7', responsable: tom, cree_le: `${veille}T09:40:00.000Z` }),
       pt('acmpt2', { reunion: reunion(avant), personne: emma, auteur: nina, type: 'action', texte: 'Commander les licences de test', concretisation: 'tache', tache: 'acm8', responsable: emma, cree_le: `${avant}T09:42:00.000Z` }),
       pt('acmpt3', { type: 'hier', texte: 'Formulaire de connexion terminé', element: 'acm4' }),
       pt('acmpt4', { type: 'aujourdhui', texte: 'Brancher la connexion Google', element: 'acm4' }),
       pt('acmpt5', { type: 'blocage', texte: 'Le serveur de test refuse les connexions', element: 'acm4' }),
+      pt('acmpt6', { reunion: reunion(veille), type: 'blocage', texte: 'Règles du mot de passe à confirmer', element: 'acm4', concretisation: 'synchro', tache: 'acmx3', responsable: paul, auteur: nina, cree_le: `${veille}T09:41:00.000Z` }),
+      pt('acmpt7', { reunion: reunion(avant), personne: paul, auteur: nina, type: 'action', texte: 'Clarifier les règles de remboursement', concretisation: 'tache', tache: 'acm12', responsable: paul, cree_le: `${avant}T09:44:00.000Z` }),
     ];
   },
   entities: () => {
@@ -459,6 +470,18 @@ const SEEDS_ENTREPRISE: Seeds = {
     e.echange = [
       ech('acmx1', { de: 'paul.leroy@acme.example', a: 'nina.dupont@acme.example', type: 'question', titre: 'Découper la story de connexion ?', texte: 'Elle fait 8 points : on la coupe en deux pour cette itération ?', choix: 'Oui, en deux;Non, on la garde' }),
       ech('acmx2', { de: 'tom.faure@acme.example', a: 'nina.dupont@acme.example', titre: 'Budget des licences', texte: 'Il faut valider l’achat des licences de test : ça dépasse l’équipe.' }),
+      // Blocage de Tom passé en 🔄 Synchro vers Paul (PO) au daily d'hier (voir les points du daily)
+      ech('acmx3', {
+        de: 'tom.faure@acme.example',
+        a: 'paul.leroy@acme.example',
+        type: 'question',
+        titre: 'Blocage · Règles du mot de passe à confirmer',
+        texte: 'Blocage noté au daily Mobile pour Tom Faure (story « Écran de connexion ») : peux-tu le lever ?',
+        choix: 'Je m’en occupe;On en parle après le daily;Autre',
+        element: 'acm4',
+        transmis_par: 'nina.dupont@acme.example',
+        cree_le: `${joursOuvresAvant(prochainDaily(new Date()), 1)}T09:45:00.000Z`,
+      }),
     ];
     return e;
   },

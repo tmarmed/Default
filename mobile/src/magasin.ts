@@ -301,7 +301,7 @@ export function nettoyerOrg<K extends KindOrg>(kind: K, data: Partial<EntiteOrg<
   return out as unknown as EntiteOrg<K>;
 }
 
-const CONCRETISATIONS: Concretisation[] = ['', 'sous_tache', 'tache', 'rien', 'escalade'];
+const CONCRETISATIONS: Concretisation[] = ['', 'sous_tache', 'tache', 'rien', 'escalade', 'synchro'];
 /** Point de réunion enregistré : champs connus et vérifiés (type, texte, e-mails, liens) */
 export function nettoyerPoint(data: Partial<PointReunion>, base?: PointReunion): PointReunion {
   const out = {} as Record<string, string>;

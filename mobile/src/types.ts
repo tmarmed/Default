@@ -546,9 +546,10 @@ export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
 export type TypePoint = 'hier' | 'aujourdhui' | 'blocage' | 'decision' | 'action';
 /**
  * Concrétisation d'un blocage, d'une décision ou d'une action : sous-tâche de l'élément, tâche à part dans
- * l'itération, rien, escalade au RTE ; vide = pas encore décidé
+ * l'itération, rien, escalade au RTE, ou (blocage) échange 🔄 Synchro adressé au PO, au SM ou à un membre de
+ * l'équipe ; vide = pas encore décidé
  */
-export type Concretisation = '' | 'sous_tache' | 'tache' | 'rien' | 'escalade';
+export type Concretisation = '' | 'sous_tache' | 'tache' | 'rien' | 'escalade' | 'synchro';
 export interface PointReunion {
   /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
   espace?: string;
@@ -564,7 +565,10 @@ export interface PointReunion {
   /** Élément concerné (id d'une story), facultatif */
   element: string;
   concretisation: Concretisation;
-  /** Tâche créée (sous-tâche ou tâche à part) ou échange d'escalade : son id, pour le suivi */
+  /**
+   * Tâche créée (sous-tâche ou tâche à part), échange d'escalade ou échange 🔄 Synchro : son id, pour le suivi ;
+   * pour une réponse du PO (décision), l'id de l'échange auquel elle répond
+   */
   tache: string;
   /** Responsable de la suite (e-mail) */
   responsable: string;
