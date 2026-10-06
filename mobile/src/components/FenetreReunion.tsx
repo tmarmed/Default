@@ -89,8 +89,10 @@ export function FenetreReunion({ visible, reunion, mode, etapes, libelleFin, ren
     }
   };
 
+  /** Parcours de plusieurs rôles (7 étapes et plus) : libellés plus serrés, sur 3 lignes au plus */
+  const serre = liste.length > 6;
   const barre = (
-    <View style={s.barre} accessibilityRole="tablist">
+    <View style={[s.barre, serre && s.barreSerree]} accessibilityRole="tablist">
       {liste.map((nom, k) => {
         const faite = faites.includes(k) && k !== etape;
         const enCours = k === etape;
@@ -111,7 +113,7 @@ export function FenetreReunion({ visible, reunion, mode, etapes, libelleFin, ren
             <View style={[s.pastille, faite && s.pastilleFaite, enCours && s.pastilleEnCours]}>
               <Text style={[s.pastilleTexte, (faite || enCours) && s.pastilleTexteOn]}>{faite ? '✓' : k + 1}</Text>
             </View>
-            <Text style={[s.nom, enCours && s.nomEnCours, faite && s.nomFait]} numberOfLines={2}>
+            <Text style={[s.nom, serre && s.nomSerre, enCours && s.nomEnCours, faite && s.nomFait]} numberOfLines={serre ? 3 : 2}>
               {nom}
             </Text>
           </Pressable>
@@ -160,6 +162,8 @@ const s = StyleSheet.create({
   pastilleTexte: { fontSize: 12, fontWeight: '800', color: colors.muted },
   pastilleTexteOn: { color: '#fff' },
   nom: { fontSize: 10.5, lineHeight: 13, color: colors.muted, textAlign: 'center', paddingHorizontal: 1 },
+  barreSerree: { paddingHorizontal: 2 },
+  nomSerre: { fontSize: 9.5, lineHeight: 12, paddingHorizontal: 0 },
   nomEnCours: { color: colors.primary, fontWeight: '700' },
   nomFait: { color: colors.success, fontWeight: '600' },
   aVenir: { fontSize: 14.5, color: colors.muted, lineHeight: 20, padding: 12 },

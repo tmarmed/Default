@@ -1472,15 +1472,31 @@ function Main() {
       return crees;
     },
     envoyerEchanges: async (espace, inputs) => {
-      if (!settings || !inputs.length) return;
+      if (!settings || !inputs.length) return [];
       const { crees } = await api.ecrireLot(settings, espace, 'echange', inputs, []);
       setHier((prev) => {
         const next = { ...prev, echanges: [...(prev.echanges ?? []), ...crees] };
         saveHierarchyCache(next).catch(() => {});
         return next;
       });
+      return crees;
     },
-    onSetStatut: (t, statut) => setStatut(t, statut),
+    repondreEchanges: async (reponses) => {
+      if (!settings || !reponses.length) return;
+      // Un lot par espace (en pratique, celui de l'équipe) : réponse normale à l'échange
+      const parEspace = new Map<string, typeof reponses>();
+      for (const r of reponses) parEspace.set(r.e.espace ?? 'moi', [...(parEspace.get(r.e.espace ?? 'moi') ?? []), r]);
+      const modifies: Echange[] = [];
+      for (const [esp, l] of parEspace) {
+        const r = await api.ecrireLot(settings, esp, 'echange', [], l.map((x) => ({ id: x.e.id, reponse: x.reponse, note: x.note, statut: 'repondu' as const })));
+        modifies.push(...r.modifies);
+      }
+      setHier((prev) => {
+        const next = { ...prev, echanges: (prev.echanges ?? []).map((x) => modifies.find((m) => m.id === x.id) ?? x) };
+        saveHierarchyCache(next).catch(() => {});
+        return next;
+      });
+    },
   };
   const nomEchange = (email: string) => personneParEmail(email, orgEchanges)?.nom ?? nomDepuisEmail(email);
   /** Escalade : SM ou PO (membre), puis RTE, puis Epic Owner (voir ciblesEscalade) */
@@ -2585,6 +2601,8 @@ function Main() {
           filtre={{ niveau: safe.actif ? reunionNiveau : '', org: safe.actif ? orgFiltre : null, recherche: recherche?.trim() ?? '' }}
           onInfo={setInfo}
           daily={actionsDaily}
+          onOpenTask={openForm}
+          echanges={tousHier.echanges ?? []}
         />
       )}
 

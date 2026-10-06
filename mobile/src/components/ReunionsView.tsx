@@ -5,7 +5,7 @@ import { libelleNiveau, lireNiveau } from '../echange/hierarchieEchange';
 import { type OrgFiltre, type OrgValue } from '../organisation';
 import { dureeReunion, heureReunion, participantsReunion } from '../reunions';
 import { colors } from '../theme';
-import { type Reunion, TYPES_REUNION } from '../types';
+import { type Echange, type Item, type Reunion, TYPES_REUNION } from '../types';
 import { type ActionsDaily, FenetreDaily } from './Daily';
 import { FenetreReunion } from './FenetreReunion';
 
@@ -36,6 +36,10 @@ interface Props {
   onInfo?: (texte: string) => void;
   /** Daily : points notés (onglet PointsReunion), tâches et échanges créés au compte rendu */
   daily?: ActionsDaily;
+  /** Ouvre la fiche d'une tâche (› d'une story ou d'une tâche qui a des sous-tâches) */
+  onOpenTask?: (t: Item) => void;
+  /** Échanges chargés (questions de l'équipe au PO, suivi des blocages passés en 🔄 Synchro) */
+  echanges?: Echange[];
 }
 
 const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
@@ -57,7 +61,7 @@ function dansDelivery(r: Reunion, f: OrgFiltre, org: OrgValue): boolean {
   return f.kind === 'equipeagile' ? n.kind === 'equipeagile' && n.id === f.id : f.kind === 'train' ? train === f.id : portfolio === f.id;
 }
 
-export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre, onInfo, daily }: Props) {
+export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre, onInfo, daily, onOpenTask, echanges }: Props) {
   const [ouverte, setOuverte] = useState<Reunion | null>(null);
   const mots = filtre.recherche.toLowerCase().split(/\s+/).filter(Boolean);
   const niveauDe = (r: Reunion) => libelleNiveau(lireNiveau(r.niveau), org);
@@ -148,7 +152,7 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
       </ScrollView>
       {ouverte?.type === 'daily' && !!ouverte.niveau && daily ? (
         // Daily validé : contenu de chaque étape, points enregistrés dans le Sheet de l'équipe
-        <FenetreDaily visible reunion={ouverte} mode={mode} org={org} moi={moi} aujourdhui={aujourdhui} fil={fil} actions={daily} onFermer={() => setOuverte(null)} onInfo={onInfo} />
+        <FenetreDaily visible reunion={ouverte} mode={mode} org={org} moi={moi} aujourdhui={aujourdhui} fil={fil} actions={daily} onFermer={() => setOuverte(null)} onInfo={onInfo} onOpenTask={onOpenTask} echanges={echanges} />
       ) : (
         <FenetreReunion
           visible={!!ouverte}

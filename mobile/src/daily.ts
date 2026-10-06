@@ -1,13 +1,17 @@
 import { addDays, toDateString } from './dates';
 import { iterationOf, iterationOfItem, pointsOf } from './pi';
 import { chargeOf, subtaskMap } from './subtasks';
-import type { Concretisation, Item, PointReunion, Reunion, TypePoint } from './types';
+import type { CatalogueParcours } from './reunions';
+import { type Concretisation, type Echange, type Item, type PointReunion, type Reunion, type TypePoint, TYPES_REUNION } from './types';
 
 /**
  * Daily (lot 6, validé le 01/10) : calculs sans affichage, communs à l'organisateur (Scrum Master) et au
  * participant. Les points notés vivent dans l'onglet PointsReunion du Sheet de l'espace de l'équipe ; un point
  * concrétisé (sous-tâche, tâche à part) garde l'id de sa tâche : tant qu'elle n'est pas finie, il est « suivi »
- * (Situation du daily suivant, « Mes suivis » de son responsable).
+ * (section « Suivi » de la Situation du daily suivant) ; pour son responsable, c'est une tâche comme les autres
+ * (étape « Hier », avec à droite « Action · 29/09 »).
+ * Parcours (règle du 01/10) : une seule fenêtre qui enchaîne les étapes de chacun des rôles de la personne (membre,
+ * PO, Scrum Master), voir `etapesParcours` (src/reunions.ts) et `PARCOURS_DAILY`.
  */
 
 const parse = (s: string) => {
@@ -27,6 +31,33 @@ export const dateCourte = (jour: string) => `${Number(jour.slice(8, 10))}/${jour
 /** Préfixe de toutes les réunions du même type et du même niveau (ex. tous les dailies d'une équipe) */
 export const prefixeReunion = (r: Pick<Reunion, 'id'>) => r.id.slice(0, -10);
 
+/**
+ * Parcours du daily par rôle : membre (Hier, Aujourd'hui, Blocages), PO (Stories à accepter, Backlog à préparer,
+ * Questions de l'équipe ; s'il n'est pas membre, il fait aussi Hier et Aujourd'hui pour ses tâches), Scrum Master
+ * (Situation, Tour de table, Concrétisation, Compte rendu) ; « Prêt » finit la partie participant.
+ */
+const [SITUATION, TOUR, CONCRETISATION, COMPTE_RENDU] = TYPES_REUNION.daily.etapes;
+export const PARCOURS_DAILY: CatalogueParcours = {
+  membre: [
+    { cle: 'hier', nom: 'Hier' },
+    { cle: 'aujourdhui', nom: 'Aujourd’hui' },
+    { cle: 'blocages', nom: 'Blocages' },
+  ],
+  po: [
+    { cle: 'accepter', nom: 'Stories à accepter' },
+    { cle: 'backlog', nom: 'Backlog à préparer' },
+    { cle: 'questions', nom: 'Questions de l’équipe' },
+  ],
+  poSansMembre: ['hier', 'aujourdhui'],
+  sm: [
+    { cle: 'situation', nom: SITUATION },
+    { cle: 'tour', nom: TOUR },
+    { cle: 'concretisation', nom: CONCRETISATION },
+    { cle: 'compte_rendu', nom: COMPTE_RENDU },
+  ],
+  fin: { cle: 'pret', nom: 'Prêt' },
+};
+
 export const LIBELLE_TYPE_POINT: Record<TypePoint, string> = {
   hier: 'Hier',
   aujourdhui: 'Aujourd’hui',
@@ -40,6 +71,20 @@ export function pastillePoint(type: TypePoint, jour: string): string {
   if (type === 'aujourdhui') return `Aujourd’hui · ${dateCourte(jour)}`;
   return LIBELLE_TYPE_POINT[type];
 }
+/**
+ * Date relative d'un point (règle du 01/10) : « aujourd'hui », « hier » (veille ouvrée, ou la veille), sinon
+ * « 29/09 », par rapport au jour de la réunion
+ */
+export function dateRelative(date: string, jour: string): string {
+  if (date === jour) return 'aujourd’hui';
+  if (date === veilleOuvree(jour) || date === toDateString(addDays(parse(jour), -1))) return 'hier';
+  return dateCourte(date);
+}
+/** Jour où un point a été noté : celui de sa réunion */
+export const jourPoint = (p: Pick<PointReunion, 'reunion'>) => p.reunion.slice(-10);
+/** Pastille d'un point suivi (ou d'une tâche née d'une réunion) : « Blocage · hier », « Action · 29/09 » */
+export const pastilleSuivi = (p: Pick<PointReunion, 'type' | 'reunion'>, jour: string) => `${LIBELLE_TYPE_POINT[p.type]} · ${dateRelative(jourPoint(p), jour)}`;
+
 /** Points à concrétiser : blocages, décisions, actions */
 export const aConcretiser = (p: Pick<PointReunion, 'type'>) => p.type === 'blocage' || p.type === 'decision' || p.type === 'action';
 
@@ -54,6 +99,7 @@ export const LIBELLE_CONCRETISATION: Record<Concretisation, string> = {
   tache: 'tâche à part',
   rien: 'noté seulement',
   escalade: 'escaladé au RTE',
+  synchro: '🔄 Synchro',
 };
 
 /**
@@ -71,17 +117,84 @@ export function suivis(points: PointReunion[], items: Item[]): { point: PointReu
   return out.sort((a, b) => a.point.cree_le.localeCompare(b.point.cree_le));
 }
 
-/** Story bloquée : un blocage noté sur elle, pas encore réglé (pas concrétisé, ou sa tâche pas terminée) */
-export function storiesBloquees(points: PointReunion[], items: Item[]): Set<string> {
+/**
+ * Échanges 🔄 Synchro suivis : ceux nés d'un blocage (concrétisation « synchro »), et ceux auxquels répond une décision
+ * du PO concrétisée en « rien » ; tant qu'ils sont là : en attente de réponse, ou répondus mais pas encore pris en
+ * compte (sans historique : un échange pris en compte disparaît, le point n'est plus suivi). Un échange n'est suivi
+ * qu'une fois (le blocage d'abord).
+ */
+export function suivisSynchro(points: PointReunion[], echanges: Echange[]): { point: PointReunion; echange: Echange }[] {
+  const parId = new Map(echanges.map((e) => [e.id, e]));
+  const out: { point: PointReunion; echange: Echange }[] = [];
+  const vus = new Set<string>();
+  const candidats = [...points.filter((p) => p.concretisation === 'synchro'), ...points.filter((p) => p.type === 'decision' && p.concretisation === 'rien')];
+  for (const p of candidats) {
+    const e = p.tache && !vus.has(p.tache) ? parId.get(p.tache) : undefined;
+    if (e && e.statut !== 'pris_en_compte') {
+      vus.add(e.id);
+      out.push({ point: p, echange: e });
+    }
+  }
+  return out.sort((a, b) => a.point.cree_le.localeCompare(b.point.cree_le));
+}
+
+/**
+ * Story bloquée : un blocage noté sur elle, pas encore réglé (pas concrétisé, sa tâche pas terminée, ou son échange
+ * 🔄 Synchro encore en attente de réponse)
+ */
+export function storiesBloquees(points: PointReunion[], items: Item[], echanges: Echange[] = []): Set<string> {
   const parId = new Map(items.map((t) => [t.id, t]));
+  const ech = new Map(echanges.map((e) => [e.id, e]));
   const out = new Set<string>();
   for (const p of points) {
     if (p.type !== 'blocage' || !p.element || p.concretisation === 'rien') continue;
+    if (p.concretisation === 'synchro') {
+      if (ech.get(p.tache)?.statut === 'envoye') out.add(p.element);
+      continue;
+    }
     const t = p.tache ? parId.get(p.tache) : undefined;
     if (p.concretisation === 'escalade' || !p.tache || (t && t.statut !== 'termine')) out.add(p.element);
   }
   return out;
 }
+
+/**
+ * Questions de l'équipe (parcours du PO) : échanges 🔄 Synchro adressés au PO par des membres de l'équipe (`de` parmi
+ * `membres`, e-mails) sur des stories de l'itération (`stories`), en attente de réponse ou répondus (pas encore pris
+ * en compte), du plus ancien au plus récent. Lecture seule de ce qui existe déjà.
+ */
+export function questionsEquipe(echanges: Echange[], po: string, membres: string[], stories: Set<string>): Echange[] {
+  const m = new Set(membres.map((x) => x.toLowerCase()));
+  return echanges
+    .filter((e) => e.a === po.toLowerCase() && m.has(e.de) && e.de !== e.a && !!e.element && stories.has(e.element) && (e.statut === 'envoye' || e.statut === 'repondu'))
+    .sort((a, b) => a.cree_le.localeCompare(b.cree_le));
+}
+/** Réponse du PO notée comme décision : « sujet » : réponse (la remarque remplace « Autre ») */
+export function texteReponse(e: Pick<Echange, 'titre' | 'reponse' | 'note'>): string {
+  const sujet = e.titre.replace(/^Blocage · /, '');
+  const rep = e.reponse.trim().toLowerCase() === 'autre' ? e.note.trim() : [e.reponse.trim(), e.note.trim()].filter(Boolean).join(' — ');
+  return `« ${sujet} » : ${rep}`;
+}
+
+/**
+ * Backlog à préparer (PO) : stories pas terminées, sans estimation ou trop grosses (plus de `max` points, à
+ * découper). Il n'existe pas de marque « non prête » sur une story : seules ces deux règles comptent.
+ */
+export type RaisonBacklog = 'sans_estimation' | 'trop_grosse';
+export function backlogAPreparer(stories: Item[], max = 8): { story: Item; raison: RaisonBacklog }[] {
+  return stories
+    .filter((t) => t.type === 'story' && t.statut !== 'termine')
+    .flatMap((t): { story: Item; raison: RaisonBacklog }[] => {
+      const p = pointsOf(t);
+      return !p ? [{ story: t, raison: 'sans_estimation' }] : p > max ? [{ story: t, raison: 'trop_grosse' }] : [];
+    });
+}
+
+/**
+ * Stories à accepter (PO) : stories terminées de l'itération en cours. Il n'existe pas encore de notion
+ * d'acceptation : toutes les stories terminées de l'itération sont proposées.
+ */
+export const storiesAAccepter = (elements: Item[]) => elements.filter((t) => t.type === 'story' && t.statut === 'termine');
 
 /** En retard : date passée, pas terminée (même règle que l'alerte de retard) */
 export const enRetard = (t: Item, aujourdhui: string) => t.statut !== 'termine' && !!t.date && t.date < aujourdhui && !t.periodicite;
@@ -117,6 +230,8 @@ export function texteCompteRendu(o: {
   decisions: string[];
   creees: { titre: string; sous: string }[];
   escalades: string[];
+  /** Blocages passés en échange 🔄 Synchro (« texte (Tom → Paul) ») */
+  synchros?: string[];
   notes: number;
 }): string {
   const l: string[] = [`Daily ${o.equipe} du ${dateCourte(o.jour)}.`];
@@ -124,7 +239,8 @@ export function texteCompteRendu(o: {
   bloc('Décisions', o.decisions);
   bloc('Actions créées', o.creees.map((c) => `${c.titre} (${c.sous})`));
   bloc('Blocages escaladés', o.escalades);
-  if (!o.decisions.length && !o.creees.length && !o.escalades.length) l.push('', 'Rien à signaler : ni décision, ni action, ni blocage.');
+  bloc('Blocages passés en Synchro', o.synchros ?? []);
+  if (!o.decisions.length && !o.creees.length && !o.escalades.length && !o.synchros?.length) l.push('', 'Rien à signaler : ni décision, ni action, ni blocage.');
   if (o.notes) l.push('', `${o.notes} autre${o.notes > 1 ? 's' : ''} point${o.notes > 1 ? 's' : ''} noté${o.notes > 1 ? 's' : ''} seulement.`);
   return l.join('\n');
 }
