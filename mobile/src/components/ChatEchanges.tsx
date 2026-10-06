@@ -194,6 +194,12 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
             </SectionFiche>
           </>
         )}
+        {/* Échange escaladé : suivi dans les réunions de la chaîne, la réponse y est recopiée */}
+        {!!hierarchie?.suivi?.(e) && (
+          <SectionFiche titre="Suivi dans les réunions">
+            <Text style={s.ou}>{`📅 ${hierarchie.suivi(e)} · la réponse y est recopiée en Décision, à concrétiser en réunion.`}</Text>
+          </SectionFiche>
+        )}
         {/* Reçu, à traiter, dans une entreprise : le faire monter ou le passer à quelqu'un d'autre */}
         {!!hierarchie && e.a === moi && (e.statut === 'envoye' || modifiable) && (hierarchie.escalade(e).length > 0 || hierarchie.transmission(e).length > 0) && (
           <SectionFiche titre="Pas pour vous ?">

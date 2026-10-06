@@ -80,7 +80,7 @@ import { type ActionsDaily } from './src/components/Daily';
 import { type NiveauReunion, ReunionsView } from './src/components/ReunionsView';
 import { reunionsAVenir } from './src/reunions';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
-import { type PointAEcrire, parEspace as pointsParEspace, pointsEscalade, pointsReponse, titreEscalade } from './src/suiviEscalade';
+import { chaineEscalade, estEscalade, type PointAEcrire, parEspace as pointsParEspace, pointsEscalade, pointsReponse, titreEscalade } from './src/suiviEscalade';
 import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
 import { StrategieView } from './src/components/StrategieView';
 import { BacklogView, type Niveau as NiveauBacklog, niveauDuRole } from './src/components/BacklogView';
@@ -135,6 +135,7 @@ import {
   TYPE_ICONS,
   type ItemType,
   DOMAINES_DE_BASE,
+  TYPES_REUNION,
 } from './src/types';
 
 type Filter = TypeFiltre;
@@ -1539,6 +1540,12 @@ function Main() {
   const repartir = (e: Echange) => (e.statut === 'repondu' ? { statut: 'envoye' as const, reponse: '', note: '' } : {});
   const hierarchieEchanges: Hierarchie = {
     libelle: (e) => libelleNiveau(lireNiveau(e.niveau), orgEchanges),
+    suivi: (e) =>
+      estEscalade(e)
+        ? chaineEscalade(e, orgEchanges)
+            .map((r) => `${TYPES_REUNION[r.type].libelle} ${libelleNiveau(lireNiveau(r.niveau), orgEchanges)}`)
+            .join(' · ')
+        : '',
     escalade: (e) => escaladesDe(e).map((c) => ({ email: c.email, libelle: `${c.role} ${nomEchange(c.email)}`, meta: libelleNiveau(c.niveau, orgEchanges) })),
     transmission: (e) =>
       destinatairesTransfert(moiEchange, lireNiveau(e.niveau), orgEchanges, [moiEchange, e.de]).map((g) => ({

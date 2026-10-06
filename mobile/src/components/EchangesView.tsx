@@ -77,6 +77,8 @@ export interface Hierarchie {
   libelle: (e: Echange) => string;
   /** À qui l'escalade peut l'envoyer (membre : SM ou PO ; SM / PO : RTE ; RTE : Epic Owner), vide sinon */
   escalade: (e: Echange) => { email: string; libelle: string; meta: string }[];
+  /** Échange escaladé : réunions où il est suivi (« Daily 👥 Mobile · ART sync 🚆 Clients »), vide sinon */
+  suivi?: (e: Echange) => string;
   /** Personnes à qui le transmettre, par groupe */
   transmission: (e: Echange) => GroupeChoix[];
   onEscalader: (e: Echange, email: string) => Promise<void>;
@@ -430,7 +432,7 @@ function Conversation({
     return (
       <View style={s.outils}>
         <Text style={s.meta}>
-          {[niveau && `📍 ${niveau}`, e.prive !== '0' && '🔒 Privé à deux', e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`, e.de !== moi && `De ${nomDe(e.de)}`].filter(Boolean).join(' · ')}
+          {[niveau && `📍 ${niveau}`, !!hierarchie.suivi?.(e) && `📅 Suivi dans les réunions : ${hierarchie.suivi?.(e)}`, e.prive !== '0' && '🔒 Privé à deux', e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`, e.de !== moi && `De ${nomDe(e.de)}`].filter(Boolean).join(' · ')}
         </Text>
         <View style={s.choix}>
           {(!!vers.length || !!hierarchie.transmission(e).length) && (
