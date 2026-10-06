@@ -4,6 +4,7 @@ import {
   aConcretiser,
   backlogAPreparer,
   concretisationParDefaut,
+  pointsFinis,
   dateCourte,
   dateRelative,
   enRetard,
@@ -518,7 +519,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         return pointsEscalade({ echange: ech, par: mail, vers: d.a, avant: equipe ? { kind: 'equipeagile', id: equipe.id } : null, apres: e.train ? { kind: 'train', id: e.train.id } : null, jour, org, dejaNote: true });
       }),
     );
-    await actions.ecrirePoints(espace, [...creer, ...(recus.get(espace) ?? [])], modifier, Object.keys(anciens));
+    // Suivi fini (Rien, ou tâche terminée) dans les réunions précédentes de la série : supprimé dans la même écriture
+    const finis = pointsFinis(serveur, reunion.id, h.items).filter((id) => !modifier.some((m) => m.id === id));
+    await actions.ecrirePoints(espace, [...creer, ...(recus.get(espace) ?? [])], modifier, [...Object.keys(anciens), ...finis]);
     for (const [esp, l] of recus) if (esp !== espace) await actions.ecrirePoints(esp, l, [], []);
     onInfo?.(
       `Compte rendu du daily : ${pluriel(creees.length, 'tâche')} créée${creees.length > 1 ? 's' : ''}` +

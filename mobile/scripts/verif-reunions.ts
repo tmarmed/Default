@@ -4,7 +4,7 @@
  * Lancer : npm run verif:reunions
  */
 import { donneesDemo, orgDemo, pointsDemo } from '../src/demo';
-import { backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteCompteRendu, texteReponse, veilleOuvree } from '../src/daily';
+import { pointsFinis, backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteCompteRendu, texteReponse, veilleOuvree } from '../src/daily';
 import { toDateString } from '../src/dates';
 import { ciblesEscalade, destinatairesTransfert, equipesDePersonne } from '../src/echange/hierarchieEchange';
 import { makeOrgValue } from '../src/organisation';
@@ -204,6 +204,12 @@ ok([...parEspace(rep).keys()].length <= 3 && [...parEspace(rep).values()].flat()
 const serie = esc1[1].reunion.slice(0, -10);
 const pts2 = [{ ...esc1[1], id: 'p1', cree_le: '' }, { ...esc1[1], id: 'p2', cree_le: '', concretisation: 'rien' as const }];
 ok(aReprendre(pts2, `${serie}2026-10-08`).map((x) => x.id).join() === 'p1' && aReprendre(pts2, esc1[1].reunion).length === 0, 'reprise : une escalade reçue non concrétisée revient à la réunion suivante');
+
+// Fin de suivi (06/10) : supprimés au compte rendu suivant de la série (Rien, tâche terminée), pas les autres
+const pf = (id: string, reunion: string, concretisation: string, tache = '') => ({ id, reunion, personne: '', auteur: '', type: 'blocage' as const, texte: '', element: '', concretisation: concretisation as never, tache, responsable: '', cree_le: '' });
+const itemsPF = [{ id: 't1', statut: 'termine' }, { id: 't2', statut: 'en_cours' }] as never[];
+const finis = pointsFinis([pf('a', 'daily-equipeagile:x-2026-10-01', 'rien'), pf('b', 'daily-equipeagile:x-2026-10-01', 'tache', 't1'), pf('c', 'daily-equipeagile:x-2026-10-01', 'tache', 't2'), pf('d', 'daily-equipeagile:x-2026-10-01', 'escalade', 'e1'), pf('e', 'daily-equipeagile:x-2026-10-06', 'rien'), pf('f', 'retro-equipeagile:x-2026-10-01', 'rien')], 'daily-equipeagile:x-2026-10-06', itemsPF);
+ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée supprimés au compte rendu suivant ; tâche en cours, escalade, réunion du jour et autre série gardés');
 
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
 process.exit(erreurs ? 1 : 0);

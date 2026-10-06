@@ -121,6 +121,21 @@ export function suivis(points: PointReunion[], items: Item[]): { point: PointReu
 }
 
 /**
+ * Points dont le suivi est fini (décidé 06/10, pour tous les éléments d'une réunion) : supprimés du Sheet de la
+ * réunion au compte rendu suivant de la série, dans la même écriture groupée. Fini = d'une réunion précédente de la
+ * série et : « Rien », ou sa tâche terminée (ou supprimée). Les points transmis ou escaladés restent tant que leur
+ * échange vit (on ne les supprime pas sans savoir).
+ */
+export function pointsFinis(points: PointReunion[], reunionId: string, items: Item[]): string[] {
+  const serie = reunionId.slice(0, -10);
+  const parId = new Map(items.map((t) => [t.id, t]));
+  return points
+    .filter((p) => p.reunion.startsWith(serie) && p.reunion !== reunionId && !p.id.startsWith('local-'))
+    .filter((p) => p.concretisation === 'rien' || ((p.concretisation === 'sous_tache' || p.concretisation === 'tache') && (!parId.get(p.tache) || parId.get(p.tache)?.statut === 'termine')))
+    .map((p) => p.id);
+}
+
+/**
  * Échanges 🔄 Synchro suivis : ceux nés d'un blocage (concrétisation « synchro »), et ceux auxquels répond une décision
  * du PO concrétisée en « rien » ; tant qu'ils sont là : en attente de réponse, ou répondus mais pas encore pris en
  * compte (sans historique : un échange pris en compte disparaît, le point n'est plus suivi). Un échange n'est suivi
