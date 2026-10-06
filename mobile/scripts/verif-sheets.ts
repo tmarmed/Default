@@ -336,6 +336,10 @@ const ok = (cond: unknown, msg: string) => {
   const lusPts = await magasinSheets(idD).lirePoints(reu);
   ok(lusPts.length === 10 && lusPts[0].personne === 'tom@x.fr' && appels - avantLu === 1, `daily : points d'une réunion lus en ${appels - avantLu} appel (e-mails en minuscules)`);
   ok((await dm.lirePoints('daily-equipeagile:eq1-')).length === 11, 'daily : tous les dailies de l’équipe (suivi) en une lecture');
+  // « ↻ Actualiser » d'une réunion : points, tâches et échanges de l'espace en une seule lecture groupée (batchGet)
+  const avantAct = appels;
+  const act = await magasinSheets(idD).lireReunion(reu);
+  ok(act.points.length === 10 && Array.isArray(act.items) && Array.isArray(act.echanges) && appels - avantAct === 1, `réunion : actualiser (points, tâches, échanges) en ${appels - avantAct} appel`);
   // Compte rendu : 6 tâches (dont une sous-tâche d'une story) en une écriture, puis les 10 points concrétisés en une écriture
   const storyD = await dm.create({ ...base, titre: 'Écran de connexion', type: 'story', domaine: '', iteration: '2026-T4-IT1' });
   const avantTaches = appels;

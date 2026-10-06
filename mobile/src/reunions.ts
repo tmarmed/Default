@@ -205,7 +205,7 @@ export function dureeReunion(min: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Parcours d'une réunion selon les rôles de la personne (règle du 01/10)
+// Parcours d'une réunion selon les rôles de la personne (règle du 06/10 : parcours séparés)
 // ---------------------------------------------------------------------------
 /** Rôle dans une réunion : membre de l'équipe, Product Owner, Scrum Master (ou l'organisateur qui anime) */
 export type RoleReunion = 'membre' | 'po' | 'sm';
@@ -222,40 +222,42 @@ export interface CatalogueParcours {
   poSansMembre?: string[];
   /** Étapes d'animation (Scrum Master, ou l'organisateur) */
   sm: EtapeCatalogue[];
-  /** Dernière étape de la partie participant (« Prêt » : récapitulatif, envoi à l'organisateur) */
+  /** Dernière étape d'un parcours de participant (« Prêt » : récapitulatif, envoi à l'organisateur) */
   fin: EtapeCatalogue;
 }
-export interface EtapeParcours extends EtapeCatalogue {
+/**
+ * Parcours d'un rôle, dans son onglet : « Mon point » (membre), « PO », « Animer » (celui qui anime) ou « Suivre »
+ * (le parcours du SM en lecture seule, pour le PO qui n'anime pas)
+ */
+export interface ParcoursRole {
   role: RoleReunion;
-  /** Première étape de son rôle (porte le rôle entre parenthèses quand la personne en a plusieurs) */
-  premiere: boolean;
+  /** Le parcours du SM en lecture seule : le PO suit, c'est le SM qui anime */
+  lecture: boolean;
+  etapes: EtapeCatalogue[];
 }
 export const LIBELLE_ROLE_REUNION: Record<RoleReunion, string> = { membre: 'membre', po: 'PO', sm: 'SM' };
+/** Libellé de l'onglet d'un parcours : « Mon point », « PO », « Animer », « Suivre » */
+export const ongletParcours = (p: Pick<ParcoursRole, 'role' | 'lecture'>) => (p.role === 'membre' ? 'Mon point' : p.role === 'po' ? 'PO' : p.lecture ? 'Suivre' : 'Animer');
 
 /**
- * Parcours fusionné : une seule fenêtre, une seule barre d'étapes, qui enchaîne dans cet ordre fixe les étapes du
- * membre (s'il est membre), du PO (s'il est PO), puis de l'animation (s'il anime : Scrum Master, ou organisateur).
- * La partie participant finit par une seule étape `fin` (« Prêt », envoi à l'organisateur), sauf pour celui qui
- * anime : sa préparation est intégrée directement et l'on enchaîne sur l'animation. Sans aucun rôle : membre.
+ * Parcours séparés (06/10, remplace le parcours fusionné) : chaque rôle de la personne a son propre parcours, dans
+ * son onglet, avec sa barre d'étapes et sa dernière étape ; pas d'ordre imposé. Les onglets, dans cet ordre :
+ * - membre (s'il est membre) : ses étapes, puis `fin` (« Prêt ») ;
+ * - PO (s'il est PO) : ses étapes, précédées de celles du membre listées dans `poSansMembre` s'il n'est pas membre
+ *   de l'équipe (ses propres tâches), puis `fin` ;
+ * - SM : l'animation s'il anime (Scrum Master, ou organisateur) ; sinon, pour le PO, le même parcours en lecture
+ *   seule (« Suivre »).
+ * Sans aucun rôle : membre.
  */
-export function etapesParcours(roles: Partial<Record<RoleReunion, boolean>>, c: CatalogueParcours): EtapeParcours[] {
+export function etapesParcours(roles: Partial<Record<RoleReunion, boolean>>, c: CatalogueParcours): ParcoursRole[] {
   const r = roles.membre || roles.po || roles.sm ? roles : { membre: true };
-  const out: EtapeParcours[] = [];
-  const pousser = (role: RoleReunion, l: EtapeCatalogue[]) => l.forEach((e, k) => out.push({ ...e, role, premiere: k === 0 }));
-  if (r.membre) pousser('membre', c.membre);
-  if (r.po) pousser('po', [...(r.membre ? [] : c.membre.filter((e) => c.poSansMembre?.includes(e.cle))), ...c.po]);
-  if ((r.membre || r.po) && !r.sm) out.push({ ...c.fin, role: out[out.length - 1].role, premiere: false });
-  if (r.sm) pousser('sm', c.sm);
+  const out: ParcoursRole[] = [];
+  if (r.membre) out.push({ role: 'membre', lecture: false, etapes: [...c.membre, c.fin] });
+  if (r.po) out.push({ role: 'po', lecture: false, etapes: [...(r.membre ? [] : c.membre.filter((e) => c.poSansMembre?.includes(e.cle))), ...c.po, c.fin] });
+  if (r.sm) out.push({ role: 'sm', lecture: false, etapes: c.sm });
+  else if (r.po) out.push({ role: 'sm', lecture: true, etapes: c.sm });
   return out;
 }
-/** La personne a-t-elle plusieurs rôles dans ce parcours ? (le rôle n'est affiché qu'alors) */
-export const plusieursRoles = (l: Pick<EtapeParcours, 'role'>[]) => new Set(l.map((e) => e.role)).size > 1;
-/**
- * Libellés de la barre d'étapes : avec plusieurs rôles, la première étape de chaque rôle porte le rôle entre
- * parenthèses (« Hier (membre) », « Stories à accepter (PO) », « Situation (SM) ») ; sinon `seul` donne le libellé
- * (ex. avec la date, « Hier · 30/09 »).
- */
-export function libellesParcours(l: EtapeParcours[], seul: (e: EtapeParcours) => string = (e) => e.nom, roles = LIBELLE_ROLE_REUNION): string[] {
-  const multi = plusieursRoles(l);
-  return l.map((e) => (multi ? `${e.nom}${e.premiere ? ` (${roles[e.role]})` : ''}` : seul(e)));
-}
+/** Onglet ouvert par défaut : « Animer » pour celui qui anime, sinon le premier */
+export const parcoursParDefaut = (l: Pick<ParcoursRole, 'role' | 'lecture'>[]) => Math.max(0, l.findIndex((p) => p.role === 'sm' && !p.lecture));
+

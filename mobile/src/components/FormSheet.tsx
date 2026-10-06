@@ -57,6 +57,8 @@ interface Props {
   superpose?: boolean;
   /** Bloc fixe sous l'en-tête, qui ne défile pas avec le contenu (barre des étapes d'une réunion) */
   haut?: ReactNode;
+  /** En-tête, à droite, quand il n'y a pas d'« Enregistrer » (« ↻ Actualiser » d'une réunion) */
+  droite?: ReactNode;
 }
 
 /** Pile de fiches : fiche d'en dessous (« ‹ … »), fil en haut, tout fermer */
@@ -117,7 +119,7 @@ export function BoutonRetour({ pile, onPress, disabled, style, fermer }: { pile?
 }
 
 /** Fenêtre de formulaire : Annuler / titre / Enregistrer, message d'erreur, contenu défilant. */
-export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil, auto, bandeau, onToucher, libelleEnregistrer = 'Enregistrer', superpose, haut }: Props) {
+export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil, auto, bandeau, onToucher, libelleEnregistrer = 'Enregistrer', superpose, haut, droite }: Props) {
   const cadre = (enfants: ReactNode) =>
     superpose ? (
       <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -155,7 +157,7 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
               {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>{libelleEnregistrer}</Text>}
             </Pressable>
           ) : (
-            <View style={{ width: 60, alignItems: 'flex-end' }}>{busy && <ActivityIndicator color={colors.primary} />}</View>
+            <View style={{ minWidth: 60, alignItems: 'flex-end' }}>{busy ? <ActivityIndicator color={colors.primary} /> : droite}</View>
           )}
         </View>
         <CheminPile pile={chemin || onFermerTout ? { chemin, onFermerTout } : undefined} fil={fil} espace={espaceFil} disabled={busy} />

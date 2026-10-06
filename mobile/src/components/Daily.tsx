@@ -28,44 +28,58 @@ import { lireNiveau, personneParEmail } from '../echange/hierarchieEchange';
 import { useHierarchy } from '../hierarchyContext';
 import { membresDe, type OrgValue, porteurs } from '../organisation';
 import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
-import { type EtapeParcours, etapesParcours, LIBELLE_ROLE_REUNION, libellesParcours, participantsReunion, plusieursRoles, type RoleReunion } from '../reunions';
+import { type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../reunions';
 import { useSafe } from '../safe';
 import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
 import { type Concretisation, type Echange, type EchangeInput, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type Statut, type TypePoint } from '../types';
 import { FeuilleChoix, LigneChoix, SectionFiche } from './Choix';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
-import { FenetreReunion, type ModeReunion } from './FenetreReunion';
+import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
 import { TitreFiche } from './FormSheet';
 
 /**
- * Daily (lot 6, validé le 01/10 ; règles ajoutées le 01/10) : contenu de la fenêtre de réunion. Une seule fenêtre et
- * une seule barre d'étapes qui enchaîne, dans cet ordre, les étapes de chacun des rôles de la personne
- * (`etapesParcours`) :
- * - membre : Hier · date (ses stories et tâches de l'itération, y compris celles nées des réunions, avec à droite
- *   « Action · 29/09 »), Aujourd'hui · date, Blocages ;
- * - PO : Stories à accepter (terminées dans l'itération), Backlog à préparer (stories des features du PI sans
+ * Daily (lot 6, validé le 01/10 ; parcours séparés le 06/10) : contenu de la fenêtre de réunion. Chaque rôle de la
+ * personne a son propre parcours dans un onglet en haut de la fenêtre (`etapesParcours`), qu'elle fait quand elle
+ * veut, dans l'ordre qu'elle veut, chacun avec sa barre d'étapes et sa dernière étape :
+ * - « Mon point » (membre) : Hier (ses stories et tâches de l'itération, y compris celles nées des réunions, avec à
+ *   droite « Action · 29/09 »), Aujourd'hui, Blocages, Prêt (récapitulatif, « Envoyer au SM ») ; s'il anime, son
+ *   point n'est pas envoyé : « Enregistrer mon point », il rejoint directement ses points notés ;
+ * - « PO » : Stories à accepter (terminées dans l'itération), Backlog à préparer (stories des features du PI sans
  *   estimation ou trop grosses), Questions de l'équipe (échanges 🔄 Synchro que les membres lui adressent sur les
- *   stories de l'itération ; il y répond avec les choix de l'échange : à l'envoi de son point, la réponse part dans
- *   l'échange et est dupliquée en point « décision » de la réunion, que le SM concrétise ; une réponse déjà donnée
- *   dans la Synchro est dupliquée de même) ;
- *   s'il n'est pas membre, il fait aussi Hier et Aujourd'hui pour ses propres tâches ;
- * - participant : « Prêt » (récapitulatif, envoyé au SM) ;
- * - Scrum Master (organisateur) : Situation (compteurs de l'itération, « Suivi · n », objectifs) · Tour de table (un
- *   membre à la fois : ses stories, un seul bloc « Points notés » pour ce qu'il a préparé et ce que note le SM) ·
- *   Concrétisation (sous-tâche de la story, tâche à part, rien, escalade au RTE, ou pour un blocage échange
- *   « Transmettre à » le PO, le SM ou un membre, via un bouton « Concrétiser » qui ouvre toutes les possibilités ; avec un responsable) · Compte rendu (tâches créées en un lot ;
- *   échanges Synchro, escalades et compte rendu au RTE envoyés en un lot). Sa propre préparation (s'il est
- *   aussi membre) n'est pas envoyée : elle rejoint directement ses points notés.
+ *   stories de l'itération ; il y répond avec les choix de l'échange : à l'envoi, la réponse part dans l'échange et
+ *   est dupliquée en point « décision » de la réunion, que le SM concrétise ; une réponse déjà donnée dans la Synchro
+ *   est dupliquée de même), Prêt ; s'il n'est pas membre, il fait d'abord Hier et Aujourd'hui pour ses tâches ;
+ * - « Animer » (Scrum Master, organisateur) : Situation (compteurs de l'itération, « Suivi · n », objectifs) · Tour
+ *   de table (un membre à la fois : ses stories, un seul bloc « Points notés » pour ce qu'il a préparé et ce que note
+ *   le SM) · Concrétisation (sous-tâche de la story, tâche à part, rien, escalade au RTE, ou pour un blocage échange
+ *   « Transmettre à » le PO, le SM ou un membre, via un bouton « Concrétiser » qui ouvre toutes les possibilités ;
+ *   avec un responsable) · Compte rendu (tâches créées en un lot ; échanges Synchro, escalades et compte rendu au RTE
+ *   envoyés en un lot) ;
+ * - « Suivre » (le PO qui n'anime pas) : le parcours du SM en lecture seule, avec les données du Sheet (points
+ *   préparés par chacun, décisions déjà concrétisées) relues à l'ouverture de l'onglet ; rien n'y est modifiable.
+ * L'état de chaque onglet (étape, saisies) est gardé quand on change d'onglet.
  * Une story ou une tâche qui a des sous-tâches affiche « n sous-tâches » et un › : la toucher ouvre sa fiche.
  * Points rangés dans l'onglet PointsReunion du Sheet de l'espace de l'équipe : une lecture à l'ouverture, une
- * relecture en arrivant sur chaque membre au tour de table (au plus une par membre), une écriture groupée à l'envoi.
+ * relecture en arrivant sur chaque membre au tour de table (au plus une par membre), une écriture groupée à l'envoi ;
+ * « ↻ Actualiser » relit les points, les tâches et les échanges de l'espace en une lecture groupée.
  */
 
 /** Opérations du daily (fournies par l'application : Sheets, état des tâches et des échanges) */
 export interface ActionsDaily {
   lirePoints: (espace: string, prefixe: string) => Promise<PointReunion[]>;
-  ecrirePoints: (espace: string, creer: Omit<PointReunion, 'id' | 'cree_le'>[], modifier: (Partial<PointReunion> & { id: string })[], retirer: string[]) => Promise<unknown>;
+  /** Points créés, modifiés et retirés en un seul passage ; renvoie les points créés dans l'ordre */
+  ecrirePoints: (
+    espace: string,
+    creer: Omit<PointReunion, 'id' | 'cree_le'>[],
+    modifier: (Partial<PointReunion> & { id: string })[],
+    retirer: string[],
+  ) => Promise<{ crees: PointReunion[]; modifies: PointReunion[] }>;
+  /**
+   * « ↻ Actualiser » : relit en une lecture groupée les points (id commençant par `prefixe`), les tâches et les
+   * échanges de l'espace (l'application met à jour ses tâches et ses échanges) ; renvoie les points
+   */
+  actualiser?: (espace: string, prefixe: string) => Promise<PointReunion[]>;
   /** Crée des tâches en un seul passage ; renvoie les tâches créées dans l'ordre */
   creerTaches: (espace: string, inputs: ItemInput[]) => Promise<Item[]>;
   /** Envoie des échanges (Synchro, escalades, compte rendu) en un seul passage ; renvoie les échanges créés dans l'ordre */
@@ -94,7 +108,11 @@ interface Props {
   echanges?: Echange[];
 }
 
-type Local = Omit<PointReunion, 'id' | 'cree_le'> & { id: string; cree_le: string };
+/** Parcours d'où vient un point de votre préparation : « Mon point » (membre) ou « PO » (envoyés séparément) */
+type Prep = 'membre' | 'po';
+type Local = Omit<PointReunion, 'id' | 'cree_le'> & { id: string; cree_le: string; onglet?: Prep };
+/** Point à écrire dans le Sheet (sans id, date ni onglet d'origine) */
+const aEcrire = ({ id: _i, cree_le: _c, onglet: _o, ...x }: Local | (PointReunion & { onglet?: Prep })) => x;
 const prenom = (nom: string) => nom.split(' ')[0] || nom;
 const arrondi = (n: number) => String(Math.round(n * 10) / 10);
 let compteurLocal = 0;
@@ -148,8 +166,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const [charge, setCharge] = useState(false);
   /** Votre préparation (partie participant) ; ce que vous aviez déjà envoyé est repris, puis remplacé à l'envoi */
   const [prep, setPrep] = useState<Local[]>([]);
-  /** Ids des points déjà envoyés que la préparation reprend (retirés à l'envoi) */
-  const [anciens, setAnciens] = useState<string[]>([]);
+  /** Points déjà envoyés que la préparation reprend (id → parcours d'origine), retirés à l'envoi de leur parcours */
+  const [anciens, setAnciens] = useState<Record<string, Prep>>({});
   /** Notés par l'organisateur pendant la réunion */
   const [locaux, setLocaux] = useState<Local[]>([]);
   const [choix, setChoix] = useState<Record<string, { c?: Concretisation; resp?: string; a?: string }>>({});
@@ -164,10 +182,13 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** PO : ses réponses aux questions de l'équipe (par échange), envoyées avec son point */
   const [reponses, setReponses] = useState<Record<string, { c: string; note: string }>>({});
   const [membre, setMembre] = useState(0);
+  /** Étape affichée (clé), dans l'onglet ouvert */
   const [cle, setCle] = useState('');
   const relus = useRef(new Set<string>());
+  /** « Suivre » : points relus à la première ouverture de l'onglet */
+  const suiviLu = useRef(false);
 
-  const tous = useMemo(() => [...serveur.filter((x) => !anciens.includes(x.id)), ...prep, ...locaux] as PointReunion[], [serveur, anciens, prep, locaux]);
+  const tous = useMemo(() => [...serveur.filter((x) => !(x.id in anciens)), ...prep, ...locaux] as PointReunion[], [serveur, anciens, prep, locaux]);
   const e = useEquipeDaily(reunion, org, aujourdhui, tous, echanges);
   const { h, equipe, jour, it, situation, personnes, nomDe, rte, parId, subs } = e;
   const veille = veilleOuvree(jour);
@@ -176,23 +197,30 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const sm = equipe?.sm ? org.personne.get(equipe.sm) : undefined;
   const po = equipe?.po ? org.personne.get(equipe.po) : undefined;
 
-  // Rôles de la personne dans ce daily, et son parcours (étapes de chaque rôle, dans l'ordre membre, PO, SM)
+  // Rôles de la personne dans ce daily, et ses parcours séparés (un onglet par rôle : membre, PO, SM)
   const anime = mode === 'organisateur';
   const estMembre = !!moiP && !!equipe && membresDe(equipe).includes(moiP.id);
   const estPO = !!moiP && equipe?.po === moiP.id;
   const parcours = useMemo(() => etapesParcours({ membre: estMembre, po: estPO, sm: anime }, PARCOURS_DAILY), [estMembre, estPO, anime]);
-  const multi = plusieursRoles(parcours);
-  const libRoles: Record<RoleReunion, string> = { ...LIBELLE_ROLE_REUNION, sm: !sm || sm.id === moiP?.id ? LIBELLE_ROLE_REUNION.sm : 'organisateur' };
-  const etapes = libellesParcours(parcours, (x) => (x.cle === 'hier' ? 'Hier' : x.cle === 'aujourdhui' ? 'Aujourd’hui' : x.nom), libRoles);
-  /** Sous-titre d'un écran : avec plusieurs rôles, il rappelle le rôle (« Paul Leroy (PO) · … ») */
-  const sousRole = (role: RoleReunion, sous: string) => (multi ? `${moiP?.nom ?? prenom(nomDe(mail))} (${libRoles[role]}) · ${sous}` : sous);
+  /**
+   * Parcours d'origine d'un point déjà envoyé : « PO » pour une réponse à un échange ou une story à accepter ou à
+   * préparer (ou tout, s'il n'est pas membre), sinon « Mon point »
+   */
+  const ongletDe = (x: Pick<PointReunion, 'type' | 'tache' | 'texte'>): Prep =>
+    !estPO ? 'membre' : !estMembre ? 'po' : (x.type === 'decision' && !!x.tache) || /^(Accepter|Préparer) « /.test(x.texte) ? 'po' : 'membre';
+  /** Déjà envoyé : la préparation de ces parcours reprend ce qui a été envoyé (pas encore concrétisé) */
+  const reprendre = (l: PointReunion[], quels: Prep[]) => {
+    const miens = l.filter((x) => x.reunion === reunion.id && x.personne === mail && x.auteur === mail && !x.concretisation && quels.includes(ongletDe(x)));
+    setAnciens((a) => ({ ...Object.fromEntries(Object.entries(a).filter(([, o]) => !quels.includes(o))), ...Object.fromEntries(miens.map((x) => [x.id, ongletDe(x)])) }));
+    setPrep((p) => [...p.filter((x) => !quels.includes(x.onglet ?? 'membre')), ...miens.map((x) => ({ ...x, id: idLocal(), onglet: ongletDe(x) }))]);
+  };
 
   // Ouverture : une lecture (points de ce daily et des dailies précédents de l'équipe, pour le suivi)
   useEffect(() => {
     if (!visible) return;
     setServeur([]);
     setPrep([]);
-    setAnciens([]);
+    setAnciens({});
     setLocaux([]);
     setChoix({});
     setReponses({});
@@ -200,16 +228,15 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     setCharge(false);
     // Votre propre point est déjà là (votre préparation) : pas de relecture à votre tour
     relus.current = new Set([mail]);
+    // L'onglet ouvert à l'ouverture profite de cette lecture
+    suiviLu.current = parcours[parcoursParDefaut(parcours)]?.lecture ?? false;
     let actif = true;
     actions
       .lirePoints(espace, prefixe)
       .then((l) => {
         if (!actif) return;
         setServeur(l);
-        // Déjà envoyé : la préparation reprend ce qui a été envoyé (pas encore concrétisé)
-        const miens = l.filter((x) => x.reunion === reunion.id && x.personne === mail && x.auteur === mail && !x.concretisation);
-        setAnciens(miens.map((x) => x.id));
-        setPrep(miens.map((x) => ({ ...x, id: idLocal() })));
+        reprendre(l, ['membre', 'po']);
         setCharge(true);
       })
       .catch((err) => actif && (setCharge(true), onInfo?.(`Points du daily non lus : ${(err as Error).message}`)));
@@ -232,8 +259,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, cle, courant?.email]);
 
-  /** Nouveau point de votre préparation */
-  const nouveau = (type: TypePoint, texte: string, element: string, tache = ''): Local => ({
+  /** Nouveau point de votre préparation (`onglet` : le parcours qui l'envoie) */
+  const nouveau = (type: TypePoint, texte: string, element: string, tache = '', onglet: Prep = 'membre'): Local => ({
+    onglet,
     id: idLocal(),
     reunion: reunion.id,
     personne: mail,
@@ -276,11 +304,11 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   );
   const aujListe = miens.filter((t) => t.statut !== 'termine');
   const coche = (type: TypePoint, t: Item, texte: string) => prep.some((x) => x.type === type && x.element === t.id && x.texte === texte);
-  const basculer = (type: TypePoint, t: Item, texte: string) =>
-    setPrep((l) => (coche(type, t, texte) ? l.filter((x) => !(x.type === type && x.element === t.id && x.texte === texte)) : [...l, nouveau(type, texte, t.id)]));
+  const basculer = (type: TypePoint, t: Item, texte: string, onglet: Prep) =>
+    setPrep((l) => (coche(type, t, texte) ? l.filter((x) => !(x.type === type && x.element === t.id && x.texte === texte)) : [...l, nouveau(type, texte, t.id, '', onglet)]));
 
   /** Ligne d'une de vos tâches : case à cocher, sous-tâches (›), à droite son état ou « Action · 29/09 » */
-  const ligneTache = (type: TypePoint, t: Item, i: number) => {
+  const ligneTache = (type: TypePoint, t: Item, i: number, onglet: Prep) => {
     const pt = pointDeTache.get(t.id);
     const n = subs.get(t.id)?.length ?? 0;
     const sous = n ? pluriel(n, 'sous-tâche') : t.parent ? `Sous-tâche de ${parId.get(t.parent)?.titre ?? 'la story'}` : '';
@@ -291,13 +319,13 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`}
         sous={sous}
         coche={coche(type, t, t.titre)}
-        onBasculer={() => basculer(type, t, t.titre)}
+        onBasculer={() => basculer(type, t, t.titre, onglet)}
         onOuvrir={ouvrir(t)}
         pastille={pt ? { ...pastilleSuivi(pt, jour), ton: tonType(pt.type) } : pastilleStatut(t.statut)}
       />
     );
   };
-  const listeTaches = (type: TypePoint, liste: Item[], vide: string) => (liste.length ? liste.map((t, i) => ligneTache(type, t, i)) : <Vide texte={vide} />);
+  const listeTaches = (type: TypePoint, liste: Item[], vide: string, onglet: Prep) => (liste.length ? liste.map((t, i) => ligneTache(type, t, i, onglet)) : <Vide texte={vide} />);
   /** Points ajoutés à la main (pas une tâche de la liste) */
   const listeLibres = (type: TypePoint, liste: Item[]) =>
     prep
@@ -321,23 +349,32 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     const ici = q.statut === 'envoye' && !!r && reponsePrete(r.c, r.note);
     if (!ici && (q.statut !== 'repondu' || reponseNotee(q))) return [];
     const e = ici ? { ...q, reponse: r.c, note: r.note.trim() } : q;
-    return [{ q: e, ici, pt: { ...nouveau('decision', texteReponse(e), q.element, q.id), id: `local-rep-${q.id}` } }];
+    return [{ q: e, ici, pt: { ...nouveau('decision', texteReponse(e), q.element, q.id, 'po'), id: `local-rep-${q.id}` } }];
   });
   const preparation = [...prep, ...reponsesPO.map((r) => r.pt)];
+  /** Préparation d'un parcours (« Mon point » ou « PO ») */
+  const preparationDe = (o: Prep) => preparation.filter((x) => (x.onglet ?? 'membre') === o);
 
-  // ---- Envoi de votre point au SM : réponses aux échanges (un lot), puis points (un lot) ----
-  const envoyerPreparation = async () => {
-    const ici = reponsesPO.filter((r) => r.ici);
+  // ---- Envoi d'un parcours au SM : réponses aux échanges (un lot), puis points (un lot) ----
+  // S'il anime, le point est seulement enregistré : il rejoint ses points notés. Chaque parcours remplace ce qu'il
+  // avait envoyé ; ce qui vient d'être écrit est repris (sans relecture), pour un nouvel envoi ou le compte rendu.
+  const envoyerPreparation = async (o: Prep) => {
+    const pts = preparationDe(o);
+    const ici = o === 'po' ? reponsesPO.filter((r) => r.ici) : [];
     if (ici.length) await actions.repondreEchanges(ici.map((r) => ({ e: r.q, reponse: r.q.reponse, note: r.q.note })));
-    await actions.ecrirePoints(
-      espace,
-      preparation.map(({ id: _i, cree_le: _c, ...x }) => x),
-      [],
-      anciens,
-    );
+    const retires = Object.keys(anciens).filter((id) => anciens[id] === o);
+    const { crees } = await actions.ecrirePoints(espace, pts.map(aEcrire), [], retires);
+    setServeur((l) => [...l.filter((x) => !retires.includes(x.id)), ...crees]);
+    setAnciens((a) => ({ ...Object.fromEntries(Object.entries(a).filter(([id]) => !retires.includes(id))), ...Object.fromEntries(crees.map((x) => [x.id, o])) }));
+    setPrep((l) => [...l.filter((x) => (x.onglet ?? 'membre') !== o), ...crees.map((x) => ({ ...x, id: idLocal(), onglet: o }))]);
+    if (o === 'po') setReponses({});
+    const quoi = o === 'po' ? 'Point PO' : 'Point';
     onInfo?.(
-      (preparation.length ? `Point envoyé${sm ? ` à ${prenom(sm.nom)} (SM)` : ''} : ${pluriel(preparation.length, 'élément')}` : 'Préparation vide envoyée : rien de noté') +
-        (ici.length ? `, ${pluriel(ici.length, 'réponse')} envoyée${ici.length > 1 ? 's' : ''} dans la Synchro.` : '.'),
+      (anime
+        ? `${quoi} enregistré : ${pluriel(pts.length, 'élément')}, il rejoint vos points notés`
+        : pts.length
+          ? `${quoi} envoyé${sm ? ` à ${prenom(sm.nom)} (SM)` : ''} : ${pluriel(pts.length, 'élément')}`
+          : 'Préparation vide envoyée : rien de noté') + (ici.length ? `, ${pluriel(ici.length, 'réponse')} envoyée${ici.length > 1 ? 's' : ''} dans la Synchro.` : '.'),
     );
   };
 
@@ -452,12 +489,12 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       responsable: d.c === 'escalade' ? '' : d.c === 'synchro' ? d.a : d.resp,
     });
     const parPoint = new Map(decides.map((d) => [d.pt.id, d]));
-    const creer = [...preparation, ...locaux].map(({ id: _i, cree_le: _c, ...x }) => {
-      const d = parPoint.get(_i);
-      return d ? { ...x, ...patch(d) } : x;
+    const creer = [...preparation, ...locaux].map((y) => {
+      const d = parPoint.get(y.id);
+      return d ? { ...aEcrire(y), ...patch(d) } : aEcrire(y);
     });
     const modifier = decides.filter((d) => !d.pt.id.startsWith('local-')).map((d) => ({ id: d.pt.id, ...patch(d) }));
-    await actions.ecrirePoints(espace, creer, modifier, anciens);
+    await actions.ecrirePoints(espace, creer, modifier, Object.keys(anciens));
     onInfo?.(
       `Compte rendu du daily : ${pluriel(creees.length, 'tâche')} créée${creees.length > 1 ? 's' : ''}` +
         (escalades.length ? `, ${pluriel(escalades.length, 'blocage')} escaladé${escalades.length > 1 ? 's' : ''}` : '') +
@@ -469,18 +506,33 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   // ---------------------------------------------------------------------------
   // Écrans
   // ---------------------------------------------------------------------------
-  const rendu = (x: EtapeParcours) => {
+  /** Résumé d'une concrétisation : « Sous-tâche · 👤 Tom », « Transmettre à Paul », « ⤴ Escalader au RTE », « Rien » */
+  const resumeChoix = (c: Concretisation | '', resp: string, a: string) =>
+    c === 'sous_tache' || c === 'tache'
+      ? `${c === 'sous_tache' ? 'Sous-tâche' : `Tâche à part (${it.code})`} · 👤 ${prenom(nomDe(resp))}`
+      : c === 'synchro'
+        ? `Transmettre à ${a ? prenom(nomDe(a)) : '…'}`
+        : c === 'escalade'
+          ? '⤴ Escalader au RTE'
+          : 'Rien';
+  /** « Suivre » (lecture seule) : les points de ce daily tels qu'ils sont dans le Sheet, à concrétiser ou concrétisés */
+  const duSheet = serveur.filter((y) => dela(y) && aConcretiser(y));
+
+  const rendu = (x: EtapeCatalogue, o: ParcoursRole) => {
     if (!charge) return <Vide texte="Lecture des points du daily…" />;
-    const sous = (s: string) => sousRole(x.role, s);
+    const sous = (s: string) => s;
+    /** Parcours qui envoie ce qui est coché ou ajouté ici */
+    const pr: Prep = o.role === 'po' ? 'po' : 'membre';
+    const lecture = o.lecture;
     switch (x.cle) {
       case 'hier':
         return (
           <>
             <TitreFiche icone="⏪" titre="Hier" vide="" sous={sous('Cochez ce dont vous parlerez')} />
             <SectionFiche titre={`Mes stories et tâches · ${hierListe.length}`}>
-              {listeTaches('hier', hierListe, 'Rien en cours ni terminé hier.')}
+              {listeTaches('hier', hierListe, 'Rien en cours ni terminé hier.', pr)}
               {listeLibres('hier', hierListe)}
-              <SaisiePoint types={[]} jour={jour} placeholder="＋ Autre chose fait hier" onAjouter={(_, texte) => setPrep((l) => [...l, nouveau('hier', texte, '')])} />
+              <SaisiePoint types={[]} jour={jour} placeholder="＋ Autre chose fait hier" onAjouter={(_, texte) => setPrep((l) => [...l, nouveau('hier', texte, '', '', pr)])} />
             </SectionFiche>
           </>
         );
@@ -489,9 +541,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
           <>
             <TitreFiche icone="▶️" titre="Aujourd’hui" vide="" sous={sous('Ce que vous allez faire')} />
             <SectionFiche titre={`Mes stories et tâches · ${aujListe.length}`}>
-              {listeTaches('aujourdhui', aujListe, 'Rien à votre nom dans l’itération.')}
+              {listeTaches('aujourdhui', aujListe, 'Rien à votre nom dans l’itération.', pr)}
               {listeLibres('aujourdhui', aujListe)}
-              <SaisiePoint types={[]} jour={jour} placeholder="＋ Autre chose aujourd’hui" onAjouter={(_, texte) => setPrep((l) => [...l, nouveau('aujourdhui', texte, '')])} />
+              <SaisiePoint types={[]} jour={jour} placeholder="＋ Autre chose aujourd’hui" onAjouter={(_, texte) => setPrep((l) => [...l, nouveau('aujourdhui', texte, '', '', pr)])} />
             </SectionFiche>
           </>
         );
@@ -533,7 +585,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                       texte={`📖 ${t.titre}`}
                       sous={[resp ? `👤 ${prenom(resp.nom)}` : '', pointsOf(t) ? fmt(pointsOf(t)) : '', n ? pluriel(n, 'sous-tâche') : ''].filter(Boolean).join(' · ')}
                       coche={coche('aujourdhui', t, texte)}
-                      onBasculer={() => basculer('aujourdhui', t, texte)}
+                      onBasculer={() => basculer('aujourdhui', t, texte, 'po')}
                       onOuvrir={ouvrir(t)}
                       pastille={pastilleStatut(t.statut)}
                     />
@@ -562,7 +614,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                       texte={`📖 ${t.titre}`}
                       sous={[f ? `📦 ${f.titre}` : '', raison === 'trop_grosse' ? `${fmt(pointsOf(t))}, à découper` : '', n ? pluriel(n, 'sous-tâche') : ''].filter(Boolean).join(' · ')}
                       coche={coche('aujourdhui', t, texte)}
-                      onBasculer={() => basculer('aujourdhui', t, texte)}
+                      onBasculer={() => basculer('aujourdhui', t, texte, 'po')}
                       onOuvrir={ouvrir(t)}
                       pastille={{ texte: raison === 'trop_grosse' ? 'trop grosse' : 'sans estimation', ton: 'orange' }}
                     />
@@ -628,11 +680,16 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         );
       }
       case 'pret': {
-        const recap = [...preparation].sort((a, b) => ORDRE.indexOf(a.type) - ORDRE.indexOf(b.type));
+        const recap = preparationDe(pr).sort((a, b) => ORDRE.indexOf(a.type) - ORDRE.indexOf(b.type));
         return (
           <>
-            <TitreFiche icone="✅" titre="Prêt" vide="" sous={sous(`Envoyé à ${sm ? `${sm.nom} (SM)` : 'l’organisateur'} · préparation facultative`)} />
-            <SectionFiche titre={`Mon point · ${recap.length}`}>
+            <TitreFiche
+              icone="✅"
+              titre="Prêt"
+              vide=""
+              sous={sous(anime ? 'Vous animez : votre point rejoint vos points notés, sans envoi' : `Envoyé à ${sm ? `${sm.nom} (SM)` : 'l’organisateur'} · préparation facultative`)}
+            />
+            <SectionFiche titre={`${pr === 'po' ? 'Mon point PO' : 'Mon point'} · ${recap.length}`}>
               {recap.map((y, i) => {
                 const q = echangeDe(y);
                 return (
@@ -701,7 +758,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         if (!courant) return <Vide texte="Aucun participant dans l’équipe." />;
         const m = courant.email.toLowerCase();
         const stories = situation.cartes.filter((t) => t.responsable === courant.id);
-        const notes = tous.filter((y) => dela(y) && y.personne === m).sort((a, b) => a.cree_le.localeCompare(b.cree_le));
+        // Lecture seule : les points du Sheet (ce que chacun a envoyé, ce que le SM a noté et concrétisé)
+        const notes = (lecture ? serveur : tous).filter((y) => dela(y) && y.personne === m).sort((a, b) => a.cree_le.localeCompare(b.cree_le));
         return (
           <>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.membres}>
@@ -728,7 +786,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             >
               {notes.filter((y) => !filtreType || y.type === filtreType).map((y, i) => {
                 const q = echangeDe(y);
-                const par = y.auteur === y.personne ? `par ${prenom(courant.nom)}` : y.auteur === mail ? 'par le SM' : `par ${prenom(nomDe(y.auteur))}`;
+                const par =
+                  y.auteur === y.personne ? `par ${prenom(courant.nom)}` : y.auteur === sm?.email.toLowerCase() || (anime && y.auteur === mail) ? 'par le SM' : `par ${prenom(nomDe(y.auteur))}`;
                 const story = surStory(y);
                 return (
                   <Ligne
@@ -737,42 +796,68 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                     texte={y.texte}
                     sous={[par, q ? `réponse à ${prenom(nomDe(q.de))}` : '', concretise(y), story].filter(Boolean).join(' · ')}
                     pastille={{ texte: pastillePoint(y.type, jour), ton: tonType(y.type) }}
-                    onRetirer={y.id.startsWith('local-') ? () => (setLocaux((l) => l.filter((z) => z.id !== y.id)), retirerPrep(y.id)) : undefined}
+                    onRetirer={!lecture && y.id.startsWith('local-') ? () => (setLocaux((l) => l.filter((z) => z.id !== y.id)), retirerPrep(y.id)) : undefined}
                   />
                 );
               })}
-              <SaisiePoint
-                key={filtreType || 'tous'}
-                premiere={!notes.filter((y) => !filtreType || y.type === filtreType).length}
-                types={[filtreType || 'blocage']}
-                aide={filtreType ? undefined : 'Type : Blocage (choisissez un autre type dans les filtres ci-dessus)'}
-                jour={jour}
-                placeholder={`＋ Ajouter pour ${prenom(courant.nom)}…`}
-                stories={stories}
-                onAjouter={(type, texte, element) => ajouter({ personne: m, type, texte, element })}
-              />
+              {lecture ? (
+                !notes.length && <Vide texte="Rien de noté pour l’instant." />
+              ) : (
+                <SaisiePoint
+                  key={filtreType || 'tous'}
+                  premiere={!notes.filter((y) => !filtreType || y.type === filtreType).length}
+                  types={[filtreType || 'blocage']}
+                  aide={filtreType ? undefined : 'Type : Blocage (choisissez un autre type dans les filtres ci-dessus)'}
+                  jour={jour}
+                  placeholder={`＋ Ajouter pour ${prenom(courant.nom)}…`}
+                  stories={stories}
+                  onAjouter={(type, texte, element) => ajouter({ personne: m, type, texte, element })}
+                />
+              )}
             </SectionFiche>
           </>
         );
       }
       case 'concretisation':
+        if (lecture) {
+          // Lecture seule : le choix déjà fait par le SM (compte rendu envoyé), sinon « à décider »
+          const faits = duSheet.filter((pt) => !!pt.concretisation).length;
+          return (
+            <>
+              <TitreFiche icone="🧩" titre="Concrétisation" vide="" sous={`${pluriel(duSheet.length, 'point')} : ${faits} concrétisé${faits > 1 ? 's' : ''}, ${duSheet.length - faits} à décider par le SM`} />
+              {!duSheet.length && <Vide texte="Aucun blocage, décision ou action noté." />}
+              {duSheet.map((pt) => {
+                const story = pt.element ? parId.get(pt.element) : undefined;
+                return (
+                  <View key={pt.id} style={st.carteConcret}>
+                    <View style={st.ligneHaut}>
+                      <View style={st.corps}>
+                        <Text style={st.texte}>{pt.texte}</Text>
+                        <Text style={st.sous}>
+                          {prenom(nomDe(pt.personne))}
+                          {story ? ` · sur 📖 ${story.titre}` : ''}
+                        </Text>
+                      </View>
+                      <Pastille texte={LIBELLE_TYPE_POINT[pt.type]} ton={tonType(pt.type)} />
+                    </View>
+                    <Text style={[st.choixLecture, !pt.concretisation && st.choixADecider]} numberOfLines={1}>
+                      {pt.concretisation ? `→ ${resumeChoix(pt.concretisation, pt.responsable || pt.personne, pt.responsable)}` : 'À décider'}
+                    </Text>
+                  </View>
+                );
+              })}
+            </>
+          );
+        }
         return (
           <>
             <TitreFiche icone="🧩" titre="Concrétisation" vide="" sous={sous(`${pluriel(aDecider.length, 'point')} : blocages, décisions, actions`)} />
             {!aDecider.length && <Vide texte="Aucun blocage, décision ou action noté." />}
             {aDecider.map((pt) => {
               const { c, resp, a } = choixDe(pt);
-              const poser = (y: { c?: Concretisation; resp?: string; a?: string }) => setChoix((mm) => ({ ...mm, [pt.id]: { ...mm[pt.id], ...y } }));
               const story = pt.element ? parId.get(pt.element) : undefined;
               const choisi = !!choix[pt.id]?.c;
-              const resume =
-                c === 'sous_tache' || c === 'tache'
-                  ? `${c === 'sous_tache' ? 'Sous-tâche' : `Tâche à part (${it.code})`} · 👤 ${prenom(nomDe(resp))}`
-                  : c === 'synchro'
-                    ? `Transmettre à ${a ? prenom(nomDe(a)) : '…'}`
-                    : c === 'escalade'
-                      ? '⤴ Escalader au RTE'
-                      : 'Rien';
+              const resume = resumeChoix(c, resp, a);
               return (
                 <View key={pt.id} style={st.carteConcret}>
                   <View style={st.ligneHaut}>
@@ -864,8 +949,11 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
           </>
         );
       default: {
-        // Compte rendu
-        const decides = aDecider.map((pt) => ({ pt, ...choixDe(pt) }));
+        // Compte rendu ; en lecture seule, ce que le SM a déjà concrétisé (dans le Sheet) et ce qui reste à décider
+        const decides = lecture
+          ? duSheet.filter((pt) => !!pt.concretisation).map((pt) => ({ pt, c: pt.concretisation as Concretisation, resp: pt.responsable || pt.personne, a: pt.responsable }))
+          : aDecider.map((pt) => ({ pt, ...choixDe(pt) }));
+        const restants = lecture ? duSheet.filter((pt) => !pt.concretisation) : [];
         const crees = decides.filter((d) => d.c === 'sous_tache' || d.c === 'tache');
         const escalades = decides.filter((d) => d.c === 'escalade');
         const synchros = decides.filter((d) => d.c === 'synchro');
@@ -876,8 +964,21 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               icone="📨"
               titre="Compte rendu"
               vide=""
-              sous={sous(rte?.email ? `Envoyé à ${rte.nom} (RTE du train ${e.train?.nom ?? ''})` : 'Pas de train ni de RTE : les tâches sont créées, le compte rendu n’est envoyé à personne.')}
+              sous={
+                lecture
+                  ? restants.length || !decides.length
+                    ? `Pas encore envoyé : ${sm ? `${sm.nom} (SM)` : 'l’organisateur'} l’enverra${rte?.email ? ` à ${rte.nom} (RTE)` : ''}`
+                    : `Envoyé par ${sm ? `${sm.nom} (SM)` : 'l’organisateur'}${rte?.email ? ` à ${rte.nom} (RTE)` : ''}`
+                  : sous(rte?.email ? `Envoyé à ${rte.nom} (RTE du train ${e.train?.nom ?? ''})` : 'Pas de train ni de RTE : les tâches sont créées, le compte rendu n’est envoyé à personne.')
+              }
             />
+            {restants.length > 0 && (
+              <SectionFiche titre={`À décider · ${restants.length}`}>
+                {restants.map((pt, i) => (
+                  <Ligne key={pt.id} premiere={i === 0} texte={pt.texte} sous={`par ${prenom(nomDe(pt.personne))} · à décider par le SM`} pastille={{ texte: LIBELLE_TYPE_POINT[pt.type], ton: tonType(pt.type) }} />
+                ))}
+              </SectionFiche>
+            )}
             <SectionFiche titre={`Créé · ${crees.length}`}>
               {crees.length ? (
                 crees.map((d, i) => (
@@ -920,30 +1021,77 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     }
   };
 
+  // « ↻ Actualiser » : points, tâches et échanges relus en une lecture groupée ; vos saisies non envoyées (préparation,
+  // points notés, concrétisations, réponses) et l'étape en cours sont gardées
+  const actualiser = async () => {
+    const l = actions.actualiser ? await actions.actualiser(espace, prefixe) : await actions.lirePoints(espace, prefixe);
+    setServeur(l);
+    setCharge(true);
+  };
+  /** « Suivre » : à la première ouverture de l'onglet, les points du Sheet sont relus (une lecture, comme le SM) */
+  const ouvrirSuivi = () => {
+    if (suiviLu.current) return;
+    suiviLu.current = true;
+    actions
+      .lirePoints(espace, prefixe)
+      .then((l) => (setServeur(l), setCharge(true)))
+      .catch((err) => onInfo?.(`Points du daily non lus : ${(err as Error).message}`));
+  };
+
   const dernier = personnes.length - 1;
-  const cleDe = (k: number) => parcours[k]?.cle ?? '';
+  const onglets: OngletReunion[] = parcours.map((o) => {
+    const cleDe = (k: number) => o.etapes[k]?.cle ?? '';
+    const sm_ = o.role === 'sm';
+    return {
+      cle: o.lecture ? 'suivre' : o.role,
+      libelle: ongletParcours(o),
+      etapes: o.etapes.map((x) => x.nom),
+      libelleFin: sm_
+        ? o.lecture
+          ? 'Fermer'
+          : 'Envoyer le compte rendu'
+        : anime
+          ? 'Enregistrer mon point'
+          : `Envoyer au SM${sm ? ` · ${prenom(sm.nom)}` : ''}`,
+      renduEtape: (k) =>
+        o.etapes[k] ? (
+          <>
+            {o.lecture && (
+              <View style={st.bandeauLecture}>
+                <Text style={st.bandeauLectureTexte}>🔒 Lecture seule : c’est le SM qui anime</Text>
+              </View>
+            )}
+            {rendu(o.etapes[k], o)}
+          </>
+        ) : null,
+      onEtape: (k) => {
+        setCle(cleDe(k));
+        if (o.lecture) ouvrirSuivi();
+        if (cleDe(k) === 'tour') setMembre((m) => Math.min(m, Math.max(0, dernier)));
+      },
+      onSuivant: sm_
+        ? (k) => {
+            if (cleDe(k) === 'tour' && membre < dernier) {
+              setMembre(membre + 1);
+              return true;
+            }
+            return false;
+          }
+        : undefined,
+      onTerminer: sm_ ? (o.lecture ? undefined : envoyerCompteRendu) : () => envoyerPreparation(o.role === 'po' ? 'po' : 'membre'),
+      fermer: sm_,
+    };
+  });
   return (
     <FenetreReunion
       visible={visible}
       reunion={reunion}
       mode={anime ? 'organisateur' : 'participant'}
       fil={fil}
-      etapes={etapes}
-      libelleFin={anime ? 'Envoyer le compte rendu' : `Envoyer au SM${sm ? ` · ${prenom(sm.nom)}` : ''}`}
-      renduEtape={(k) => (parcours[k] ? rendu(parcours[k]) : null)}
-      onEtape={(k) => {
-        setCle(cleDe(k));
-        if (cleDe(k) === 'tour') setMembre((m) => Math.min(m, Math.max(0, dernier)));
-      }}
-      onSuivant={(k) => {
-        if (cleDe(k) === 'tour' && membre < dernier) {
-          setMembre(membre + 1);
-          return true;
-        }
-        return false;
-      }}
+      onglets={onglets}
+      ongletInitial={parcoursParDefaut(parcours)}
+      onActualiser={actualiser}
       onFermer={onFermer}
-      onTerminer={anime ? envoyerCompteRendu : envoyerPreparation}
     />
   );
 }
@@ -1288,6 +1436,11 @@ const st = StyleSheet.create({
   boutonSynchroChoisi: { backgroundColor: colors.primary },
   boutonSynchroTexte: { color: colors.primary, fontSize: 13.5, fontWeight: '700' },
   boutonSynchroTexteChoisi: { color: '#fff' },
+  // « Suivre » (lecture seule) : le choix du SM, en texte ; le bandeau discret en haut de l'onglet
+  choixLecture: { fontSize: 13.5, fontWeight: '600', color: colors.text },
+  choixADecider: { color: colors.muted, fontStyle: 'italic', fontWeight: '500' },
+  bandeauLecture: { alignSelf: 'center', backgroundColor: '#EEF1F6', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 10 },
+  bandeauLectureTexte: { fontSize: 12.5, color: colors.muted, fontWeight: '600' },
   ligneHaut: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   petitTitre: { fontSize: 11.5, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
   choix: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

@@ -7,7 +7,7 @@ import { donneesDemo, orgDemo, pointsDemo } from '../src/demo';
 import { backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteCompteRendu, texteReponse, veilleOuvree } from '../src/daily';
 import { toDateString } from '../src/dates';
 import { makeOrgValue } from '../src/organisation';
-import { etapesParcours, libellesParcours, participantsReunion, reunionsAVenir } from '../src/reunions';
+import { etapesParcours, ongletParcours, parcoursParDefaut, participantsReunion, reunionsAVenir } from '../src/reunions';
 import { type Reunion, TYPES_REUNION } from '../src/types';
 
 let erreurs = 0;
@@ -111,25 +111,36 @@ ok(s1.length === 3 && s1.every((x) => x.tache.statut !== 'termine'), 'démo : 3 
 ok(suivis(pts, dEnt.map((t) => (t.id === 'acm7' ? { ...t, statut: 'termine' as const } : t))).length === 2, 'suivi : une tâche terminée n’est plus suivie');
 ok(suivis(pts.filter((x) => x.responsable === mail('acmp8')), dEnt).length === 1, 'démo : Tom a 1 suivi à son nom');
 ok(storiesBloquees(pts, dEnt).has('acm4'), 'démo : « Écran de connexion » bloquée (blocage noté, pas levé)');
-// Règles du 01/10 : « Type · date » des points suivis, parcours fusionné selon les rôles, parcours du PO
+// Règles du 01/10 : « Type · date » des points suivis, parcours séparés selon les rôles (06/10), parcours du PO
 ok(dateRelative('2026-10-02', '2026-10-02') === 'aujourd’hui' && dateRelative('2026-10-02', '2026-10-05') === 'hier' && dateRelative('2026-09-29', '2026-10-02') === '29/09', 'suivi : date « aujourd’hui », « hier » (veille ouvrée), sinon « 29/09 »');
 {
   const a = pastilleSuivi({ type: 'action', reunion: 'daily-equipeagile:acmeqmob-2026-09-29' }, '2026-10-02');
   const b = pastilleSuivi({ type: 'blocage', reunion: 'daily-equipeagile:acmeqmob-2026-10-01' }, '2026-10-02');
   ok(a.texte === 'Action' && a.date === '29/09' && b.texte === 'Blocage' && b.date === 'Hier', 'suivi : type et date dans deux pastilles — [Action] [29/09], [Blocage] [Hier]');
 }
-const noms = (r: Parameters<typeof etapesParcours>[0]) => etapesParcours(r, PARCOURS_DAILY).map((x) => x.nom).join(', ');
-ok(noms({ membre: true }) === 'Hier, Aujourd’hui, Blocages, Prêt', 'parcours : membre seul → Hier, Aujourd’hui, Blocages, Prêt (plus d’étape « Mes suivis »)');
-ok(noms({}) === noms({ membre: true }), 'parcours : sans rôle connu → celui du membre');
-ok(noms({ membre: true, po: true }) === 'Hier, Aujourd’hui, Blocages, Stories à accepter, Backlog à préparer, Questions de l’équipe, Prêt', 'parcours : PO membre → étapes du membre, puis du PO, un seul « Prêt »');
-ok(noms({ po: true }) === 'Hier, Aujourd’hui, Stories à accepter, Backlog à préparer, Questions de l’équipe, Prêt', 'parcours : PO hors équipe → Hier, Aujourd’hui (ses tâches), étapes du PO, Prêt');
-ok(noms({ membre: true, sm: true }) === 'Hier, Aujourd’hui, Blocages, Situation, Tour de table, Concrétisation, Compte rendu', 'parcours : SM membre → étapes du membre puis animation, sans « Prêt » (préparation intégrée)');
-ok(noms({ sm: true }) === 'Situation, Tour de table, Concrétisation, Compte rendu', 'parcours : SM seul → animation');
-ok(noms({ membre: true, po: true, sm: true }).split(', ').length === 10 && !noms({ membre: true, po: true, sm: true }).includes('Prêt'), 'parcours : membre, PO et organisateur → les trois parties, dans l’ordre');
-const lib = (r: Parameters<typeof etapesParcours>[0]) => libellesParcours(etapesParcours(r, PARCOURS_DAILY), (x) => (x.cle === 'hier' ? 'Hier · 1/10' : x.nom));
-ok(lib({ membre: true })[0] === 'Hier · 1/10' && !lib({ membre: true }).some((x) => x.includes('(')), 'parcours : un seul rôle → pas de rôle affiché');
-ok(lib({ membre: true, po: true }).join(' | ') === 'Hier (membre) | Aujourd’hui | Blocages | Stories à accepter (PO) | Backlog à préparer | Questions de l’équipe | Prêt', 'parcours : plusieurs rôles → « Hier (membre) », « Stories à accepter (PO) »');
-ok(lib({ membre: true, sm: true })[3] === 'Situation (SM)', 'parcours : « Situation (SM) »');
+/** « Mon point : Hier, … | PO : … | Suivre (lecture) : … » */
+const onglets = (r: Parameters<typeof etapesParcours>[0]) =>
+  etapesParcours(r, PARCOURS_DAILY)
+    .map((o) => `${ongletParcours(o)}${o.lecture ? ' (lecture)' : ''} : ${o.etapes.map((x) => x.nom).join(', ')}`)
+    .join(' | ');
+const MEMBRE = 'Mon point : Hier, Aujourd’hui, Blocages, Prêt';
+const PO = 'PO : Stories à accepter, Backlog à préparer, Questions de l’équipe, Prêt';
+const SM = 'Situation, Tour de table, Concrétisation, Compte rendu';
+ok(onglets({ membre: true }) === MEMBRE, 'parcours séparés : membre seul → un seul parcours (pas d’onglets) : Hier, Aujourd’hui, Blocages, Prêt');
+ok(onglets({}) === onglets({ membre: true }), 'parcours séparés : sans rôle connu → celui du membre');
+ok(onglets({ membre: true, po: true }) === `${MEMBRE} | ${PO} | Suivre (lecture) : ${SM}`, 'parcours séparés : PO membre → Mon point, PO, Suivre (parcours du SM en lecture seule)');
+ok(onglets({ po: true }) === `PO : Hier, Aujourd’hui, Stories à accepter, Backlog à préparer, Questions de l’équipe, Prêt | Suivre (lecture) : ${SM}`, 'parcours séparés : PO hors équipe → PO (avec Hier et Aujourd’hui pour ses tâches), Suivre');
+ok(onglets({ membre: true, sm: true }) === `${MEMBRE} | Animer : ${SM}`, 'parcours séparés : SM membre → Mon point (avec « Prêt »), Animer');
+ok(onglets({ sm: true }) === `Animer : ${SM}`, 'parcours séparés : SM seul → Animer, sans onglets');
+ok(onglets({ membre: true, po: true, sm: true }) === `${MEMBRE} | ${PO} | Animer : ${SM}`, 'parcours séparés : membre, PO et organisateur → Mon point, PO, Animer (Animer remplace Suivre)');
+ok(
+  !etapesParcours({ membre: true, po: true, sm: true }, PARCOURS_DAILY).some((o) => o.etapes.some((x) => x.nom.includes('('))),
+  'parcours séparés : plus de rôle entre parenthèses dans les étapes',
+);
+ok(
+  parcoursParDefaut(etapesParcours({ membre: true, sm: true }, PARCOURS_DAILY)) === 1 && parcoursParDefaut(etapesParcours({ membre: true, po: true }, PARCOURS_DAILY)) === 0,
+  'parcours séparés : onglet ouvert par défaut « Animer » pour le SM, sinon le premier (Mon point)',
+);
 // Démo : un blocage de Tom passé en 🔄 Synchro vers Paul (PO de Mobile), en attente : 1 question de l'équipe pour Paul
 const echDemo = donneesDemo('demo-entreprise').entities.echange;
 const membresMobile = participantsReunion(prochain, o).map((id) => mail(id).toLowerCase());

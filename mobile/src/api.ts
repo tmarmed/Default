@@ -260,6 +260,18 @@ export async function deleteOrg(settings: Settings, espace: string, kind: KindOr
 export async function lirePoints(settings: Settings, espace: string, prefixe: string): Promise<PointReunion[]> {
   return (await route(settings, espace).m.lirePoints(prefixe)).map((x) => ({ ...x, espace }));
 }
+/**
+ * « ↻ Actualiser » d'une réunion : ses points, les tâches et les échanges de l'espace de l'équipe, en une seule
+ * lecture groupée ; chaque élément est marqué de son espace
+ */
+export async function lireReunion(settings: Settings, espace: string, prefixe: string): Promise<{ points: PointReunion[]; items: Item[]; echanges: Echange[] }> {
+  const r = await route(settings, espace).m.lireReunion(prefixe);
+  return {
+    points: r.points.map((x) => ({ ...x, espace })),
+    items: r.items.map((x) => marquer(normalize(x), espace)),
+    echanges: r.echanges.map((x) => marquer(x, espace)),
+  };
+}
 /** Points créés, modifiés et retirés en un seul passage (une lecture, une écriture) */
 export async function ecrirePoints(
   settings: Settings,

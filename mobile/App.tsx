@@ -1457,6 +1457,24 @@ function Main() {
   /** Daily : points notés (onglet PointsReunion du Sheet de l'équipe), tâches et échanges créés en lots */
   const actionsDaily: ActionsDaily = {
     lirePoints: (espace, prefixe) => (settings ? api.lirePoints(settings, espace, prefixe) : Promise.resolve([])),
+    // « ↻ Actualiser » : points, tâches et échanges de l'espace de l'équipe en une lecture groupée ; les tâches et
+    // les échanges de cet espace sont remplacés par ceux du Sheet (ce que d'autres ont modifié entre-temps)
+    actualiser: async (espace, prefixe) => {
+      if (!settings) throw new Error('Non connecté.');
+      const r = await api.lireReunion(settings, espace, prefixe);
+      const autre = (x: { espace?: string }) => (x.espace || 'moi') !== espace;
+      setItems((prev) => {
+        const next = [...prev.filter(autre), ...r.items];
+        saveCache(next).catch(() => {});
+        return next;
+      });
+      setHier((prev) => {
+        const next = { ...prev, echanges: [...(prev.echanges ?? []).filter(autre), ...r.echanges] };
+        saveHierarchyCache(next).catch(() => {});
+        return next;
+      });
+      return r.points;
+    },
     ecrirePoints: async (espace, creer, modifier, retirer) => {
       if (!settings) throw new Error('Non connecté.');
       return api.ecrirePoints(settings, espace, creer, modifier, retirer);

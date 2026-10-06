@@ -480,6 +480,14 @@ export function creerMagasin(p: Persistance) {
       return (await p.lire('pointreunion')).filter((x) => x.reunion.startsWith(prefixe));
     },
     /**
+     * « ↻ Actualiser » d'une réunion : ses points (id commençant par `prefixe`), les tâches et les échanges de
+     * l'espace, lus en même temps (une seule lecture groupée)
+     */
+    async lireReunion(prefixe: string): Promise<{ points: PointReunion[]; items: Item[]; echanges: Echange[] }> {
+      const [points, items, echanges] = await Promise.all([p.lire('pointreunion'), p.lire('items'), p.lire('echange')]);
+      return { points: points.filter((x) => x.reunion.startsWith(prefixe)), items, echanges };
+    },
+    /**
      * Points d'une réunion en un seul passage (une lecture, une écriture) : `creer` (nouveaux points), `modifier`
      * (concrétisation, tâche créée, responsable…), `retirer` (ids : point repris par le participant qui renvoie sa
      * préparation). Renvoie les points créés et modifiés.
