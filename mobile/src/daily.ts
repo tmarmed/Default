@@ -101,7 +101,7 @@ export const LIBELLE_CONCRETISATION: Record<Concretisation, string> = {
   tache: 'tâche à part',
   rien: 'noté seulement',
   escalade: 'escaladé au RTE',
-  synchro: 'partagé',
+  synchro: 'transmis',
 };
 
 /**
@@ -241,7 +241,7 @@ export function texteCompteRendu(o: {
   bloc('Décisions', o.decisions);
   bloc('Actions créées', o.creees.map((c) => `${c.titre} (${c.sous})`));
   bloc('Blocages escaladés', o.escalades);
-  bloc('Blocages partagés', o.synchros ?? []);
+  bloc('Blocages transmis', o.synchros ?? []);
   if (!o.decisions.length && !o.creees.length && !o.escalades.length && !o.synchros?.length) l.push('', 'Rien à signaler : ni décision, ni action, ni blocage.');
   if (o.notes) l.push('', `${o.notes} autre${o.notes > 1 ? 's' : ''} point${o.notes > 1 ? 's' : ''} noté${o.notes > 1 ? 's' : ''} seulement.`);
   return l.join('\n');

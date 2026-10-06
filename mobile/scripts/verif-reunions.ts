@@ -149,7 +149,7 @@ const mobile = dEnt.filter((t) => t.equipe === 'acmeqmob');
 ok(storiesAAccepter(mobile).map((t) => t.titre).join() === 'Inscription par e-mail', 'démo : 1 story à accepter');
 ok(backlogAPreparer(mobile).map((x) => x.raison).sort().join() === 'sans_estimation,trop_grosse', 'démo : backlog à préparer (une story sans estimation, une de plus de 8 pts)');
 ok(suivis(pts, dEnt).some((x) => x.tache.responsable === 'acmp6'), 'démo : une action d’un daily précédent à suivre pour Paul');
-ok(texteCompteRendu({ equipe: 'Mobile', jour: '2026-10-02', decisions: [], creees: [], escalades: [], synchros: ['Mot de passe (Tom → Paul)'], notes: 0 }).includes('Blocages partagés · 1'), 'compte rendu : blocages partagés');
+ok(texteCompteRendu({ equipe: 'Mobile', jour: '2026-10-02', decisions: [], creees: [], escalades: [], synchros: ['Mot de passe (Tom → Paul)'], notes: 0 }).includes('Blocages transmis · 1'), 'compte rendu : blocages transmis');
 const cr = texteCompteRendu({ equipe: 'Mobile', jour: '2026-10-02', decisions: ['Livrer en deux fois'], creees: [{ titre: 'Accès API', sous: 'sous-tâche · Tom' }], escalades: [], notes: 1 });
 ok(cr.includes('Décisions · 1') && cr.includes('Actions créées · 1') && !cr.includes('escaladés') && cr.includes('1 autre point noté seulement'), 'compte rendu : décisions, actions créées, blocages escaladés (s’il y en a)');
 

@@ -33,7 +33,7 @@ import { useSafe } from '../safe';
 import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
 import { type Concretisation, type Echange, type EchangeInput, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type Statut, type TypePoint } from '../types';
-import { SectionFiche } from './Choix';
+import { FeuilleChoix, SectionFiche } from './Choix';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
 import { FenetreReunion, type ModeReunion } from './FenetreReunion';
 import { TitreFiche } from './FormSheet';
@@ -54,7 +54,7 @@ import { TitreFiche } from './FormSheet';
  * - Scrum Master (organisateur) : Situation (compteurs de l'itération, « Suivi · n », objectifs) · Tour de table (un
  *   membre à la fois : ses stories, un seul bloc « Points notés » pour ce qu'il a préparé et ce que note le SM) ·
  *   Concrétisation (sous-tâche de la story, tâche à part, rien, escalade au RTE, ou pour un blocage échange
- *   « Partager avec » le PO, le SM ou un membre ; avec un responsable) · Compte rendu (tâches créées en un lot ;
+ *   « Transmettre à » le PO, le SM ou un membre, via un bouton « Synchroniser » qui ouvre toutes les possibilités ; avec un responsable) · Compte rendu (tâches créées en un lot ;
  *   échanges Synchro, escalades et compte rendu au RTE envoyés en un lot). Sa propre préparation (s'il est
  *   aussi membre) n'est pas envoyée : elle rejoint directement ses points notés.
  * Une story ou une tâche qui a des sous-tâches affiche « n sous-tâches » et un › : la toucher ouvre sa fiche.
@@ -153,6 +153,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** Notés par l'organisateur pendant la réunion */
   const [locaux, setLocaux] = useState<Local[]>([]);
   const [choix, setChoix] = useState<Record<string, { c?: Concretisation; resp?: string; a?: string }>>({});
+  /** Feuille « Synchroniser » ouverte sur un point : choix de la concrétisation, puis du responsable */
+  const [feuille, setFeuille] = useState<{ id: string; etape: 'quoi' | 'responsable' } | null>(null);
   /** PO : ses réponses aux questions de l'équipe (par échange), envoyées avec son point */
   const [reponses, setReponses] = useState<Record<string, { c: string; note: string }>>({});
   const [membre, setMembre] = useState(0);
@@ -453,7 +455,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     onInfo?.(
       `Compte rendu du daily : ${pluriel(creees.length, 'tâche')} créée${creees.length > 1 ? 's' : ''}` +
         (escalades.length ? `, ${pluriel(escalades.length, 'blocage')} escaladé${escalades.length > 1 ? 's' : ''}` : '') +
-        (synchros.length ? `, ${pluriel(synchros.length, 'point')} partagé${synchros.length > 1 ? 's' : ''}` : '') +
+        (synchros.length ? `, ${pluriel(synchros.length, 'point')} transmis` : '') +
         (rte?.email ? `, envoyé à ${nomDe(rte.email)} (RTE).` : ' ; pas de RTE : compte rendu non envoyé.'),
     );
   };
@@ -746,17 +748,15 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               const { c, resp, a } = choixDe(pt);
               const poser = (y: { c?: Concretisation; resp?: string; a?: string }) => setChoix((mm) => ({ ...mm, [pt.id]: { ...mm[pt.id], ...y } }));
               const story = pt.element ? parId.get(pt.element) : undefined;
-              const options: { v: Concretisation; l: string; off?: boolean }[] = [
-                { v: 'sous_tache', l: 'Sous-tâche de la story', off: !pt.element },
-                { v: 'tache', l: `Tâche à part (${it.code})` },
-                { v: 'rien', l: 'Rien' },
-                ...(pt.type === 'blocage'
-                  ? [
-                      { v: 'escalade' as const, l: '⤴ Escalader au RTE', off: !rte?.email },
-                      { v: 'synchro' as const, l: `Partager avec ${c === 'synchro' && a ? prenom(nomDe(a)) : '…'}` },
-                    ]
-                  : []),
-              ];
+              const choisi = !!choix[pt.id]?.c;
+              const resume =
+                c === 'sous_tache' || c === 'tache'
+                  ? `${c === 'sous_tache' ? 'Sous-tâche' : `Tâche à part (${it.code})`} · 👤 ${prenom(nomDe(resp))}`
+                  : c === 'synchro'
+                    ? `Transmettre à ${a ? prenom(nomDe(a)) : '…'}`
+                    : c === 'escalade'
+                      ? '⤴ Escalader au RTE'
+                      : 'Rien';
               return (
                 <View key={pt.id} style={st.carteConcret}>
                   <View style={st.ligneHaut}>
@@ -769,29 +769,79 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                     </View>
                     <Pastille texte={LIBELLE_TYPE_POINT[pt.type]} ton={tonType(pt.type)} />
                   </View>
-                  <Pastilles options={options.map((o) => ({ value: o.v, label: o.l, off: o.off }))} value={c} onChange={(v) => poser({ c: v as Concretisation })} />
-                  {c === 'synchro' && (
-                    <>
-                      <Text style={st.petitTitre}>Échange adressé à</Text>
-                      <Pastilles
-                        options={personnes
-                          .filter((y) => y.email.toLowerCase() !== pt.personne)
-                          .map((y) => ({ value: y.email.toLowerCase(), label: `${prenom(y.nom)}${y.id === equipe?.po ? ' (PO)' : y.id === equipe?.sm ? ' (SM)' : ''}` }))}
-                        value={a}
-                        onChange={(v) => poser({ a: v })}
-                        petit
-                      />
-                    </>
-                  )}
-                  {(c === 'sous_tache' || c === 'tache') && (
-                    <>
-                      <Text style={st.petitTitre}>Responsable</Text>
-                      <Pastilles options={personnes.map((y) => ({ value: y.email.toLowerCase(), label: prenom(y.nom) }))} value={resp} onChange={(v) => poser({ resp: v })} petit />
-                    </>
-                  )}
+                  {/* Un seul bouton : toutes les possibilités s'ouvrent dans une feuille (règle du 06/10) */}
+                  <Pressable onPress={() => setFeuille({ id: pt.id, etape: 'quoi' })} style={[st.boutonSynchro, choisi && st.boutonSynchroChoisi]} accessibilityRole="button">
+                    <Text style={[st.boutonSynchroTexte, choisi && st.boutonSynchroTexteChoisi]} numberOfLines={1}>
+                      {choisi ? `${resume} ›` : 'Synchroniser ›'}
+                    </Text>
+                  </Pressable>
+                  {!choisi && <Text style={st.sous}>Par défaut : {resume.charAt(0).toLowerCase() + resume.slice(1)}</Text>}
                 </View>
               );
             })}
+            {feuille &&
+              (() => {
+                const pt = aDecider.find((x) => x.id === feuille.id);
+                if (!pt) return null;
+                const { c, resp, a } = choixDe(pt);
+                const poser = (y: { c?: Concretisation; resp?: string; a?: string }) => setChoix((mm) => ({ ...mm, [pt.id]: { ...mm[pt.id], ...y } }));
+                if (feuille.etape === 'responsable')
+                  return (
+                    <FeuilleChoix
+                      titre="Responsable"
+                      value={resp}
+                      groupes={[{ options: personnes.map((y) => ({ value: y.email.toLowerCase(), label: y.nom })) }]}
+                      onChoisir={(v) => {
+                        if (v) poser({ resp: v });
+                        setFeuille(null);
+                      }}
+                      onFermer={() => setFeuille(null)}
+                    />
+                  );
+                const valeur = c === 'synchro' ? `t:${a}` : c === 'escalade' ? 'e:rte' : `c:${c}`;
+                return (
+                  <FeuilleChoix
+                    titre="Synchroniser"
+                    value={valeur}
+                    groupes={[
+                      {
+                        titre: 'Concrétiser',
+                        options: [
+                          ...(pt.element ? [{ value: 'c:sous_tache', label: 'Sous-tâche de la story', meta: parId.get(pt.element)?.titre }] : []),
+                          { value: 'c:tache', label: `Tâche à part (${it.code})` },
+                          { value: 'c:rien', label: 'Rien', meta: 'noté seulement' },
+                        ],
+                      },
+                      ...(pt.type === 'blocage'
+                        ? [
+                            {
+                              titre: 'Transmettre à',
+                              options: personnes
+                                .filter((y) => y.email.toLowerCase() !== pt.personne)
+                                .map((y) => ({ value: `t:${y.email.toLowerCase()}`, label: `${y.nom}${y.id === equipe?.po ? ' (PO)' : y.id === equipe?.sm ? ' (SM)' : ''}` })),
+                            },
+                            ...(rte?.email ? [{ titre: 'Escalader', options: [{ value: 'e:rte', label: `⤴ ${rte.nom}`, meta: 'RTE du train' }] }] : []),
+                          ]
+                        : []),
+                    ]}
+                    onChoisir={(v) => {
+                      if (!v) return setFeuille(null);
+                      if (v.startsWith('t:')) {
+                        poser({ c: 'synchro', a: v.slice(2) });
+                        return setFeuille(null);
+                      }
+                      if (v === 'e:rte') {
+                        poser({ c: 'escalade' });
+                        return setFeuille(null);
+                      }
+                      const cc = v.slice(2) as Concretisation;
+                      poser({ c: cc });
+                      setFeuille(cc === 'sous_tache' || cc === 'tache' ? { id: pt.id, etape: 'responsable' } : null);
+                    }}
+                    onFermer={() => setFeuille(null)}
+                  />
+                );
+              })()}
             <SectionFiche titre="Point oublié">
               <SaisiePoint premiere types={['blocage', 'decision', 'action']} jour={jour} placeholder="＋ Blocage, décision ou action oublié" stories={situation.cartes} onAjouter={(type, texte, element) => ajouter({ personne: mail, type, texte, element })} />
             </SectionFiche>
@@ -835,7 +885,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               </SectionFiche>
             )}
             {synchros.length > 0 && (
-              <SectionFiche titre={`Partagé · ${synchros.length}`}>
+              <SectionFiche titre={`Transmis · ${synchros.length}`}>
                 {synchros.map((d, i) => (
                   <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`${prenom(nomDe(d.pt.personne))} → ${prenom(nomDe(d.a))} · échange envoyé`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
                 ))}
@@ -1146,6 +1196,10 @@ const st = StyleSheet.create({
   membreTexte: { fontSize: 13, color: colors.text },
   membreTexteOn: { color: '#fff', fontWeight: '700' },
   carteConcret: { backgroundColor: colors.card, borderRadius: 12, padding: 12, gap: 8, marginTop: 10 },
+  boutonSynchro: { alignSelf: 'flex-start', borderWidth: 1, borderColor: colors.primary, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, maxWidth: '100%' },
+  boutonSynchroChoisi: { backgroundColor: colors.primary },
+  boutonSynchroTexte: { color: colors.primary, fontSize: 13.5, fontWeight: '700' },
+  boutonSynchroTexteChoisi: { color: '#fff' },
   ligneHaut: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   petitTitre: { fontSize: 11.5, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
   choix: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
