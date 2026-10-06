@@ -199,6 +199,7 @@ const monte = { ...ech, de: nTom.email, transmis_par: nSara.email, niveau: `port
 ok(chaineEscalade(monte, o).map((r) => r.type).join() === 'daily,art_sync,revue_portfolio', 'escalade sur trois niveaux : chaîne daily → ART sync → revue du portfolio');
 const rep = pointsReponse(monte, mail('acmp1'), 'Budget accordé', '2026-10-08', o);
 ok(rep.length === 3 && rep.every((x) => x.type === 'decision' && x.tache === 'ech1' && x.texte === 'Budget accordé'), 'réponse : recopiée en Décision dans les trois réunions de la chaîne');
+ok(pointsReponse({ ...monte, titre: '↪ Blocage · API' }, mail('acmp1'), 'Oui', '2026-10-08', o).length > 0, 'réponse à un échange transmis depuis une réunion : recopiée aussi');
 ok(pointsReponse({ ...monte, titre: 'Question simple' }, mail('acmp1'), 'Oui', '2026-10-08', o).length === 0, 'réponse à un échange non escaladé : rien dans les réunions');
 ok([...parEspace(rep).keys()].length <= 3 && [...parEspace(rep).values()].flat().length === 3, 'points de suivi : regroupés par Sheet (une écriture par Sheet)');
 const serie = esc1[1].reunion.slice(0, -10);
@@ -209,6 +210,8 @@ ok(aReprendre(pts2, `${serie}2026-10-08`).map((x) => x.id).join() === 'p1' && aR
 const pf = (id: string, reunion: string, concretisation: string, tache = '') => ({ id, reunion, personne: '', auteur: '', type: 'blocage' as const, texte: '', element: '', concretisation: concretisation as never, tache, responsable: '', cree_le: '' });
 const itemsPF = [{ id: 't1', statut: 'termine' }, { id: 't2', statut: 'en_cours' }] as never[];
 const finis = pointsFinis([pf('a', 'daily-equipeagile:x-2026-10-01', 'rien'), pf('b', 'daily-equipeagile:x-2026-10-01', 'tache', 't1'), pf('c', 'daily-equipeagile:x-2026-10-01', 'tache', 't2'), pf('d', 'daily-equipeagile:x-2026-10-01', 'escalade', 'e1'), pf('e', 'daily-equipeagile:x-2026-10-06', 'rien'), pf('f', 'retro-equipeagile:x-2026-10-01', 'rien')], 'daily-equipeagile:x-2026-10-06', itemsPF);
+const finis2 = pointsFinis([pf('d', 'daily-equipeagile:x-2026-10-01', 'escalade', 'e1'), { ...pf('g', 'daily-equipeagile:x-2026-10-03', 'rien', 'e1'), type: 'decision' as const }, pf('h', 'daily-equipeagile:x-2026-10-01', 'synchro', 'e2')], 'daily-equipeagile:x-2026-10-06', itemsPF, ['e2']);
+ok(finis2.join() === 'd,g,h', 'fin de suivi : point transmis ou escaladé fini quand sa réponse est concrétisée (avant, ou dans cette réunion)');
 ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée supprimés au compte rendu suivant ; tâche en cours, escalade, réunion du jour et autre série gardés');
 
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');

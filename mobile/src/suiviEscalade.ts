@@ -15,7 +15,12 @@ import type { Echange, PointReunion, TypeReunion } from './types';
 /** Marque d'un échange escaladé, en tête de son titre (visible dans Synchro) */
 export const MARQUE_ESCALADE = '⤴ ';
 export const estEscalade = (e: Pick<Echange, 'titre'>) => e.titre.startsWith(MARQUE_ESCALADE);
-export const titreEscalade = (titre: string) => (titre.startsWith(MARQUE_ESCALADE) ? titre : `${MARQUE_ESCALADE}${titre}`).slice(0, 200);
+export const titreEscalade = (titre: string) => `${MARQUE_ESCALADE}${titre.replace(MARQUE_TRANSMIS, '').replace(MARQUE_ESCALADE, '')}`.slice(0, 200);
+/** Marque d'un échange transmis depuis une réunion (« Transmettre à ») : sa réponse revient aussi dans la réunion */
+export const MARQUE_TRANSMIS = '↪ ';
+export const titreTransmis = (titre: string) => (titre.startsWith(MARQUE_TRANSMIS) ? titre : `${MARQUE_TRANSMIS}${titre}`).slice(0, 200);
+/** Échange suivi dans des réunions : escaladé, ou transmis depuis une réunion */
+export const estSuiviReunion = (e: Pick<Echange, 'titre'>) => estEscalade(e) || e.titre.startsWith(MARQUE_TRANSMIS);
 
 /** Réunion d'un niveau : où vivent ses points de suivi (série = id sans la date) et dans quel Sheet */
 export interface ReunionDeNiveau {
@@ -97,7 +102,7 @@ export function pointsEscalade(o: {
   org: OrgValue;
   dejaNote?: boolean;
 }): PointAEcrire[] {
-  const texte = (o.echange.titre.replace(MARQUE_ESCALADE, '').replace(/^Blocage · /, '') || o.echange.texte).slice(0, 300);
+  const texte = (o.echange.titre.replace(MARQUE_ESCALADE, '').replace(MARQUE_TRANSMIS, '').replace(/^Blocage · /, '') || o.echange.texte).slice(0, 300);
   const base = { type: 'blocage' as const, texte, element: o.echange.element, tache: o.echange.id, personne: o.par.toLowerCase(), auteur: o.par.toLowerCase() };
   const out: PointAEcrire[] = [];
   const bas = reunionDeNiveau(o.avant, o.org);
@@ -113,7 +118,7 @@ export function pointsEscalade(o: {
  * le jour `jour`, à concrétiser par chaque animateur. Rien si l'échange n'est pas une escalade.
  */
 export function pointsReponse(e: Pick<Echange, 'id' | 'de' | 'niveau' | 'transmis_par' | 'titre' | 'element'>, repondant: string, reponse: string, jour: string, org: OrgValue): PointAEcrire[] {
-  if (!estEscalade(e) || !reponse.trim()) return [];
+  if (!estSuiviReunion(e) || !reponse.trim()) return [];
   return chaineEscalade(e, org).map((r) => ({
     reunion: `${r.serie}${jour}`,
     personne: repondant.toLowerCase(),

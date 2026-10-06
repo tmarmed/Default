@@ -123,15 +123,22 @@ export function suivis(points: PointReunion[], items: Item[]): { point: PointReu
 /**
  * Points dont le suivi est fini (décidé 06/10, pour tous les éléments d'une réunion) : supprimés du Sheet de la
  * réunion au compte rendu suivant de la série, dans la même écriture groupée. Fini = d'une réunion précédente de la
- * série et : « Rien », ou sa tâche terminée (ou supprimée). Les points transmis ou escaladés restent tant que leur
- * échange vit (on ne les supprime pas sans savoir).
+ * série et : « Rien », ou sa tâche terminée (ou supprimée) ; un point transmis ou escaladé est fini quand la réponse
+ * revenue dans la réunion (Décision liée au même échange) est concrétisée — ici, ou dans `concretisesIci` (ids
+ * d'échanges dont la réponse est concrétisée dans la réunion en cours).
  */
-export function pointsFinis(points: PointReunion[], reunionId: string, items: Item[]): string[] {
+export function pointsFinis(points: PointReunion[], reunionId: string, items: Item[], concretisesIci: string[] = []): string[] {
   const serie = reunionId.slice(0, -10);
   const parId = new Map(items.map((t) => [t.id, t]));
+  const repondus = new Set([...points.filter((p) => p.reunion.startsWith(serie) && p.type === 'decision' && !!p.tache && !!p.concretisation).map((p) => p.tache), ...concretisesIci]);
   return points
     .filter((p) => p.reunion.startsWith(serie) && p.reunion !== reunionId && !p.id.startsWith('local-'))
-    .filter((p) => p.concretisation === 'rien' || ((p.concretisation === 'sous_tache' || p.concretisation === 'tache') && (!parId.get(p.tache) || parId.get(p.tache)?.statut === 'termine')))
+    .filter(
+      (p) =>
+        p.concretisation === 'rien' ||
+        ((p.concretisation === 'sous_tache' || p.concretisation === 'tache') && (!parId.get(p.tache) || parId.get(p.tache)?.statut === 'termine')) ||
+        ((p.concretisation === 'synchro' || p.concretisation === 'escalade') && repondus.has(p.tache)),
+    )
     .map((p) => p.id);
 }
 

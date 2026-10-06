@@ -26,7 +26,7 @@ import {
   veilleOuvree,
 } from '../daily';
 import { destinatairesTransfert, lireNiveau, personneParEmail } from '../echange/hierarchieEchange';
-import { aReprendre, parEspace, pointsEscalade, titreEscalade } from '../suiviEscalade';
+import { aReprendre, parEspace, pointsEscalade, titreEscalade, titreTransmis } from '../suiviEscalade';
 import { useHierarchy } from '../hierarchyContext';
 import { membresDe, type OrgValue, porteurs } from '../organisation';
 import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
@@ -455,7 +455,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       de: d.pt.personne,
       a: d.a,
       type: 'question' as const,
-      titre: `Blocage · ${d.pt.texte}`.slice(0, 200),
+      titre: titreTransmis(`Blocage · ${d.pt.texte}`),
       texte: `Blocage noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} pour ${nomDe(d.pt.personne)}${story(d.pt.element) ? ` (story « ${story(d.pt.element)} »)` : ''} : peux-tu le lever ?`,
       choix: 'Je m’en occupe;On en parle après le daily;Autre',
       reponse: '',
@@ -520,7 +520,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       }),
     );
     // Suivi fini (Rien, ou tâche terminée) dans les réunions précédentes de la série : supprimé dans la même écriture
-    const finis = pointsFinis(serveur, reunion.id, h.items).filter((id) => !modifier.some((m) => m.id === id));
+    const repIci = decides.filter((d) => d.pt.type === 'decision' && !!d.pt.tache).map((d) => d.pt.tache);
+    const finis = pointsFinis(serveur, reunion.id, h.items, repIci).filter((id) => !modifier.some((m) => m.id === id));
     await actions.ecrirePoints(espace, [...creer, ...(recus.get(espace) ?? [])], modifier, [...Object.keys(anciens), ...finis]);
     for (const [esp, l] of recus) if (esp !== espace) await actions.ecrirePoints(esp, l, [], []);
     onInfo?.(
