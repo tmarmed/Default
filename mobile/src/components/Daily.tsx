@@ -154,6 +154,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const [locaux, setLocaux] = useState<Local[]>([]);
   const [choix, setChoix] = useState<Record<string, { c?: Concretisation; resp?: string; a?: string }>>({});
   /** Feuille « Concrétiser » ouverte sur un point : choix de la concrétisation, puis du responsable */
+  /** Tour de table : filtre des points notés par type (bloc « Filtres » ouvert par défaut, repliable) */
+  const [filtreType, setFiltreType] = useState<TypePoint | ''>('');
+  const [filtresOuverts, setFiltresOuverts] = useState(true);
   const [feuille, setFeuille] = useState<{ id: string; etape: 'quoi' | 'responsable' } | null>(null);
   /** PO : ses réponses aux questions de l'équipe (par échange), envoyées avec son point */
   const [reponses, setReponses] = useState<Record<string, { c: string; note: string }>>({});
@@ -711,8 +714,43 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 <Vide texte="Aucune story de l’itération à son nom." />
               )}
             </SectionFiche>
-            <SectionFiche titre={`Points notés · ${notes.length}`}>
-              {notes.map((y, i) => {
+            {/* Filtre par type, au-dessus des points : même présentation que les filtres des autres écrans */}
+            <View style={st.filtresTete}>
+              <Pressable
+                onPress={() => setFiltresOuverts((o) => !o)}
+                style={[st.pastilleFiltres, !!filtreType && st.pastilleFiltresActive]}
+                accessibilityRole="button"
+                accessibilityLabel={`${filtresOuverts ? 'Replier' : 'Déplier'} les filtres`}
+              >
+                <Entonnoir couleur={filtreType ? colors.primary : colors.text} />
+                <Text style={[st.pastilleFiltresTexte, !!filtreType && { color: colors.primary }]}>Filtres {filtresOuverts ? '▴' : '▾'}</Text>
+                {!!filtreType && (
+                  <View style={st.pastilleFiltresNb}>
+                    <Text style={st.pastilleFiltresNbTexte}>1</Text>
+                  </View>
+                )}
+              </Pressable>
+              {!filtresOuverts && !!filtreType && <Text style={st.sous}>{LIBELLE_TYPE_POINT[filtreType]}</Text>}
+            </View>
+            {filtresOuverts && (
+              <View style={st.filtresBloc}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filtreLigne}>
+                  {(['', 'hier', 'aujourdhui', 'blocage', 'decision', 'action'] as const).map((x) => {
+                    const on = filtreType === x;
+                    const n = x ? notes.filter((y) => y.type === x).length : notes.length;
+                    return (
+                      <Pressable key={x || 'tous'} onPress={() => setFiltreType(x)} style={[st.itChip, on && st.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                        <Text style={[st.itChipText, on && st.itChipTextOn]}>
+                          {x ? LIBELLE_TYPE_POINT[x] : 'Tous'} · {n}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+            <SectionFiche titre={`Points notés · ${filtreType ? `${notes.filter((y) => y.type === filtreType).length} sur ${notes.length}` : notes.length}`}>
+              {notes.filter((y) => !filtreType || y.type === filtreType).map((y, i) => {
                 const q = echangeDe(y);
                 const par = y.auteur === y.personne ? `par ${prenom(courant.nom)}` : y.auteur === mail ? 'par le SM' : `par ${prenom(nomDe(y.auteur))}`;
                 const story = surStory(y);
@@ -728,8 +766,10 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 );
               })}
               <SaisiePoint
-                premiere={!notes.length}
-                types={['hier', 'aujourdhui', 'blocage', 'decision', 'action']}
+                key={filtreType || 'tous'}
+                premiere={!notes.filter((y) => !filtreType || y.type === filtreType).length}
+                types={[filtreType || 'blocage']}
+                aide={filtreType ? undefined : 'Type : Blocage (choisissez un autre type dans les filtres ci-dessus)'}
                 jour={jour}
                 placeholder={`＋ Ajouter pour ${prenom(courant.nom)}…`}
                 stories={stories}
@@ -1121,8 +1161,11 @@ function SaisiePoint({
   placeholder,
   stories = [],
   premiere,
+  aide,
   onAjouter,
 }: {
+  /** Ligne d'aide sous la saisie (ex. le type utilisé quand le filtre est sur « Tous ») */
+  aide?: string;
   types: TypePoint[];
   jour: string;
   placeholder: string;
@@ -1179,11 +1222,34 @@ function SaisiePoint({
           </Pressable>
         )}
       </View>
+      {!!aide && <Text style={st.sous}>{aide}</Text>}
+    </View>
+  );
+}
+
+/** Entonnoir des filtres (même dessin que l'en-tête des écrans) */
+function Entonnoir({ couleur }: { couleur: string }) {
+  return (
+    <View style={{ alignItems: 'center', width: 12 }}>
+      <View style={{ width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 6, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: couleur }} />
+      <View style={{ width: 2.5, height: 5, backgroundColor: couleur, marginTop: -1 }} />
     </View>
   );
 }
 
 const st = StyleSheet.create({
+  filtresTete: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, marginHorizontal: 4 },
+  pastilleFiltres: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 28, paddingHorizontal: 8, borderRadius: 15, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  pastilleFiltresActive: { backgroundColor: '#EAF2FE', borderColor: '#CFE0FB' },
+  pastilleFiltresTexte: { fontSize: 12, fontWeight: '700', color: colors.text },
+  pastilleFiltresNb: { position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.card, alignItems: 'center', justifyContent: 'center' },
+  pastilleFiltresNbTexte: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  filtresBloc: { marginTop: 8, backgroundColor: colors.bg, borderRadius: 14, borderWidth: 1, borderColor: '#EEF1F5', padding: 9 },
+  filtreLigne: { gap: 6, alignItems: 'center' },
+  itChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 18, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.card },
+  itChipOn: { backgroundColor: colors.primary },
+  itChipText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
+  itChipTextOn: { color: '#fff' },
   compteurs: { flexDirection: 'row', gap: 8 },
   compteur: { flex: 1, backgroundColor: colors.card, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 8, alignItems: 'center', gap: 2 },
   compteurValeur: { fontSize: 18, fontWeight: '800', color: colors.text },
