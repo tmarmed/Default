@@ -121,9 +121,15 @@ export function suivis(points: PointReunion[], items: Item[]): { point: PointReu
 }
 
 /**
- * Points dont le suivi est fini (décidé 06/10, pour tous les éléments d'une réunion) : supprimés du Sheet de la
- * réunion au compte rendu suivant de la série, dans la même écriture groupée. Fini = d'une réunion précédente de la
- * série et : « Rien », ou sa tâche terminée (ou supprimée) ; un point transmis ou escaladé est fini quand la réponse
+ * Réunion qui supprime les points au suivi fini, par niveau (décidé 06/10) : la rétro du niveau si elle existe, sinon
+ * sa démo. Jusque-là, les points finis restent dans le Sheet (montrés dans « Réglé pendant l'itération » de la démo,
+ * analysés à la rétro), sans s'afficher dans le Suivi. Suppression dans l'écriture groupée du compte rendu.
+ */
+export const NETTOYAGE = { equipeagile: 'retro', train: 'inspect_adapt', portfolio: 'revue_portfolio' } as const;
+
+/**
+ * Points dont le suivi est fini, à supprimer par la réunion de NETTOYAGE (pour tous les éléments d'une réunion). Fini =
+ * d'une réunion précédente de la série (préfixe de `reunionId`, ou toutes les séries du niveau passées dans `points`) et : « Rien », ou sa tâche terminée (ou supprimée) ; un point transmis ou escaladé est fini quand la réponse
  * revenue dans la réunion (Décision liée au même échange) est concrétisée — ici, ou dans `concretisesIci` (ids
  * d'échanges dont la réponse est concrétisée dans la réunion en cours).
  */
