@@ -54,7 +54,7 @@ import { TitreFiche } from './FormSheet';
  * - Scrum Master (organisateur) : Situation (compteurs de l'itération, « Suivi · n », objectifs) · Tour de table (un
  *   membre à la fois : ses stories, un seul bloc « Points notés » pour ce qu'il a préparé et ce que note le SM) ·
  *   Concrétisation (sous-tâche de la story, tâche à part, rien, escalade au RTE, ou pour un blocage échange
- *   🔄 Synchro vers le PO, le SM ou un membre ; avec un responsable) · Compte rendu (tâches créées en un lot ;
+ *   « Partager avec » le PO, le SM ou un membre ; avec un responsable) · Compte rendu (tâches créées en un lot ;
  *   échanges Synchro, escalades et compte rendu au RTE envoyés en un lot). Sa propre préparation (s'il est
  *   aussi membre) n'est pas envoyée : elle rejoint directement ses points notés.
  * Une story ou une tâche qui a des sous-tâches affiche « n sous-tâches » et un › : la toucher ouvre sa fiche.
@@ -175,7 +175,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const parcours = useMemo(() => etapesParcours({ membre: estMembre, po: estPO, sm: anime }, PARCOURS_DAILY), [estMembre, estPO, anime]);
   const multi = plusieursRoles(parcours);
   const libRoles: Record<RoleReunion, string> = { ...LIBELLE_ROLE_REUNION, sm: !sm || sm.id === moiP?.id ? LIBELLE_ROLE_REUNION.sm : 'organisateur' };
-  const etapes = libellesParcours(parcours, (x) => (x.cle === 'hier' ? `Hier · ${dateCourte(veille)}` : x.cle === 'aujourdhui' ? `Aujourd’hui · ${dateCourte(jour)}` : x.nom), libRoles);
+  const etapes = libellesParcours(parcours, (x) => (x.cle === 'hier' ? 'Hier' : x.cle === 'aujourdhui' ? 'Aujourd’hui' : x.nom), libRoles);
   /** Sous-titre d'un écran : avec plusieurs rôles, il rappelle le rôle (« Paul Leroy (PO) · … ») */
   const sousRole = (role: RoleReunion, sous: string) => (multi ? `${moiP?.nom ?? prenom(nomDe(mail))} (${libRoles[role]}) · ${sous}` : sous);
 
@@ -285,7 +285,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         coche={coche(type, t, t.titre)}
         onBasculer={() => basculer(type, t, t.titre)}
         onOuvrir={ouvrir(t)}
-        pastille={pt ? { texte: pastilleSuivi(pt, jour), ton: tonType(pt.type) } : pastilleStatut(t.statut)}
+        pastille={pt ? { ...pastilleSuivi(pt, jour), ton: tonType(pt.type) } : pastilleStatut(t.statut)}
       />
     );
   };
@@ -453,7 +453,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     onInfo?.(
       `Compte rendu du daily : ${pluriel(creees.length, 'tâche')} créée${creees.length > 1 ? 's' : ''}` +
         (escalades.length ? `, ${pluriel(escalades.length, 'blocage')} escaladé${escalades.length > 1 ? 's' : ''}` : '') +
-        (synchros.length ? `, ${pluriel(synchros.length, 'échange')} 🔄 Synchro` : '') +
+        (synchros.length ? `, ${pluriel(synchros.length, 'point')} partagé${synchros.length > 1 ? 's' : ''}` : '') +
         (rte?.email ? `, envoyé à ${nomDe(rte.email)} (RTE).` : ' ; pas de RTE : compte rendu non envoyé.'),
     );
   };
@@ -468,7 +468,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       case 'hier':
         return (
           <>
-            <TitreFiche icone="⏪" titre={`Hier · ${dateCourte(veille)}`} vide="" sous={sous('Cochez ce dont vous parlerez')} />
+            <TitreFiche icone="⏪" titre="Hier" vide="" sous={sous('Cochez ce dont vous parlerez')} />
             <SectionFiche titre={`Mes stories et tâches · ${hierListe.length}`}>
               {listeTaches('hier', hierListe, 'Rien en cours ni terminé hier.')}
               {listeLibres('hier', hierListe)}
@@ -479,7 +479,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       case 'aujourdhui':
         return (
           <>
-            <TitreFiche icone="▶️" titre={`Aujourd’hui · ${dateCourte(jour)}`} vide="" sous={sous('Ce que vous allez faire')} />
+            <TitreFiche icone="▶️" titre="Aujourd’hui" vide="" sous={sous('Ce que vous allez faire')} />
             <SectionFiche titre={`Mes stories et tâches · ${aujListe.length}`}>
               {listeTaches('aujourdhui', aujListe, 'Rien à votre nom dans l’itération.')}
               {listeLibres('aujourdhui', aujListe)}
@@ -590,7 +590,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                         {[`De ${prenom(nomDe(q.de))}`, q.transmis_par ? `transmis par ${prenom(nomDe(q.transmis_par))}` : '', surStory({ texte: '', element: q.element })].filter(Boolean).join(' · ')}
                       </Text>
                     </View>
-                    <Pastille {...(repondu ? { texte: 'Répondu', ton: 'vert' as const } : { texte: `Blocage · ${dateRelative(q.cree_le.slice(0, 10), jour)}`, ton: 'rouge' as const })} />
+                    <Pastille {...(repondu ? { texte: 'Répondu', ton: 'vert' as const } : { texte: 'Blocage', date: dateRelative(q.cree_le.slice(0, 10), jour).replace(/^./, (c) => c.toUpperCase()), ton: 'rouge' as const })} />
                   </View>
                   {repondu ? (
                     <Text style={st.sous}>
@@ -659,7 +659,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   premiere={i === 0}
                   texte={tache.titre}
                   sous={`${LIBELLE_CONCRETISATION[point.concretisation]} · 👤 ${prenom(nomDe(point.responsable || point.personne))} · ${tache.statut === 'en_cours' ? 'en cours' : 'à faire'}`}
-                  pastille={{ texte: pastilleSuivi(point, jour), ton: tonType(point.type) }}
+                  pastille={{ ...pastilleSuivi(point, jour), ton: tonType(point.type) }}
                 />
               ))}
               {/* Blocages passés en 🔄 Synchro : suivis tant que l'échange existe (sans historique) */}
@@ -673,7 +673,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                       ? `${LIBELLE_CONCRETISATION.synchro} · 👤 ${prenom(nomDe(echange.de))} · à prendre en compte`
                       : `${LIBELLE_CONCRETISATION.synchro} · 👤 ${prenom(nomDe(echange.a))} · ${echange.statut === 'repondu' ? 'répondu' : 'en attente'}`
                   }
-                  pastille={{ texte: pastilleSuivi(point, jour), ton: tonType(point.type) }}
+                  pastille={{ ...pastilleSuivi(point, jour), ton: tonType(point.type) }}
                 />
               ))}
               {!suivisEquipe.length && !suivisEchanges.length && <Vide texte="✓ Rien en attente des dailies précédents." />}
@@ -753,7 +753,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 ...(pt.type === 'blocage'
                   ? [
                       { v: 'escalade' as const, l: '⤴ Escalader au RTE', off: !rte?.email },
-                      { v: 'synchro' as const, l: `🔄 Synchro vers ${c === 'synchro' && a ? prenom(nomDe(a)) : '…'}` },
+                      { v: 'synchro' as const, l: `Partager avec ${c === 'synchro' && a ? prenom(nomDe(a)) : '…'}` },
                     ]
                   : []),
               ];
@@ -835,7 +835,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               </SectionFiche>
             )}
             {synchros.length > 0 && (
-              <SectionFiche titre={`🔄 Synchro · ${synchros.length}`}>
+              <SectionFiche titre={`Partagé · ${synchros.length}`}>
                 {synchros.map((d, i) => (
                   <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`${prenom(nomDe(d.pt.personne))} → ${prenom(nomDe(d.a))} · échange envoyé`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
                 ))}
@@ -898,12 +898,20 @@ const pastilleStatut = (s: Statut): { texte: string; ton: Ton } =>
 /** Couleur de la pastille d'un point selon son type */
 const tonType = (t: TypePoint): Ton => (t === 'blocage' ? 'rouge' : t === 'decision' || t === 'action' ? 'orange' : 'bleu');
 
-function Pastille({ texte, ton }: { texte: string; ton: Ton }) {
-  return (
-    <View style={[st.pastille, { backgroundColor: TONS[ton].fond }]}>
-      <Text style={[st.pastilleTexte, { color: TONS[ton].texte }]} numberOfLines={1}>
-        {texte}
+/** Pastille ; `date` : une seconde pastille grise à côté (le type et la date séparés, règle du 06/10) */
+function Pastille({ texte, ton, date }: { texte: string; ton: Ton; date?: string }) {
+  const une = (t: string, tn: Ton) => (
+    <View style={[st.pastille, { backgroundColor: TONS[tn].fond }]}>
+      <Text style={[st.pastilleTexte, { color: TONS[tn].texte }]} numberOfLines={1}>
+        {t}
       </Text>
+    </View>
+  );
+  if (!date) return une(texte, ton);
+  return (
+    <View style={{ flexDirection: 'row', gap: 4 }}>
+      {une(texte, ton)}
+      {une(date, 'gris')}
     </View>
   );
 }
@@ -933,7 +941,7 @@ function Ligne({
 }: {
   texte: string;
   sous?: string;
-  pastille?: { texte: string; ton: Ton };
+  pastille?: { texte: string; ton: Ton; date?: string };
   premiere?: boolean;
   onRetirer?: () => void;
   onOuvrir?: () => void;
@@ -977,7 +985,7 @@ function LigneCase({
 }: {
   texte: string;
   sous?: string;
-  pastille: { texte: string; ton: Ton };
+  pastille: { texte: string; ton: Ton; date?: string };
   premiere?: boolean;
   coche: boolean;
   onBasculer: () => void;

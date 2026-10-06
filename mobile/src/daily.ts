@@ -65,10 +65,8 @@ export const LIBELLE_TYPE_POINT: Record<TypePoint, string> = {
   decision: 'Décision',
   action: 'Action',
 };
-/** Pastille à droite d'un point : « Hier · 30/09 », « Aujourd'hui · 1/10 », ou le type */
-export function pastillePoint(type: TypePoint, jour: string): string {
-  if (type === 'hier') return `Hier · ${dateCourte(veilleOuvree(jour))}`;
-  if (type === 'aujourdhui') return `Aujourd’hui · ${dateCourte(jour)}`;
+/** Pastille à droite d'un point : « Hier », « Aujourd'hui » (sans date, règle du 06/10), ou le type */
+export function pastillePoint(type: TypePoint, _jour?: string): string {
   return LIBELLE_TYPE_POINT[type];
 }
 /**
@@ -82,8 +80,12 @@ export function dateRelative(date: string, jour: string): string {
 }
 /** Jour où un point a été noté : celui de sa réunion */
 export const jourPoint = (p: Pick<PointReunion, 'reunion'>) => p.reunion.slice(-10);
-/** Pastille d'un point suivi (ou d'une tâche née d'une réunion) : « Blocage · hier », « Action · 29/09 » */
-export const pastilleSuivi = (p: Pick<PointReunion, 'type' | 'reunion'>, jour: string) => `${LIBELLE_TYPE_POINT[p.type]} · ${dateRelative(jourPoint(p), jour)}`;
+/**
+ * Pastilles d'un point suivi (ou d'une tâche née d'une réunion) : le type et la date dans deux pastilles séparées
+ * (règle du 06/10) — [Blocage] [Hier], [Action] [29/09]
+ */
+export const pastilleSuivi = (p: Pick<PointReunion, 'type' | 'reunion'>, jour: string) => ({ texte: LIBELLE_TYPE_POINT[p.type], date: majuscule(dateRelative(jourPoint(p), jour)) });
+const majuscule = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
 
 /** Points à concrétiser : blocages, décisions, actions */
 export const aConcretiser = (p: Pick<PointReunion, 'type'>) => p.type === 'blocage' || p.type === 'decision' || p.type === 'action';
@@ -99,7 +101,7 @@ export const LIBELLE_CONCRETISATION: Record<Concretisation, string> = {
   tache: 'tâche à part',
   rien: 'noté seulement',
   escalade: 'escaladé au RTE',
-  synchro: '🔄 Synchro',
+  synchro: 'partagé',
 };
 
 /**
@@ -239,7 +241,7 @@ export function texteCompteRendu(o: {
   bloc('Décisions', o.decisions);
   bloc('Actions créées', o.creees.map((c) => `${c.titre} (${c.sous})`));
   bloc('Blocages escaladés', o.escalades);
-  bloc('Blocages passés en Synchro', o.synchros ?? []);
+  bloc('Blocages partagés', o.synchros ?? []);
   if (!o.decisions.length && !o.creees.length && !o.escalades.length && !o.synchros?.length) l.push('', 'Rien à signaler : ni décision, ni action, ni blocage.');
   if (o.notes) l.push('', `${o.notes} autre${o.notes > 1 ? 's' : ''} point${o.notes > 1 ? 's' : ''} noté${o.notes > 1 ? 's' : ''} seulement.`);
   return l.join('\n');

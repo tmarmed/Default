@@ -99,7 +99,7 @@ ok(simple.every((r) => !r.niveau && r.organisateur === 'vous@demo'), 'Simple : r
 
 // Daily (lot 6) : dates des points, suivi des points concrétisés, compte rendu
 ok(veilleOuvree('2026-10-05') === '2026-10-02' && veilleOuvree('2026-10-01') === '2026-09-30', 'daily : « hier » = la veille ouvrée (lundi → vendredi)');
-ok(pastillePoint('hier', '2026-10-01') === 'Hier · 30/09' && pastillePoint('aujourdhui', '2026-10-01') === 'Aujourd’hui · 1/10' && pastillePoint('blocage', '2026-10-01') === 'Blocage', 'daily : pastilles « Hier · 30/09 », « Aujourd’hui · 1/10 », type');
+ok(pastillePoint('hier', '2026-10-01') === 'Hier' && pastillePoint('aujourdhui', '2026-10-01') === 'Aujourd’hui' && pastillePoint('blocage', '2026-10-01') === 'Blocage', 'daily : pastilles « Hier », « Aujourd’hui » sans date, type');
 ok(dateCourte('2026-10-12') === '12/10', 'daily : date courte');
 const dEnt = donneesDemo('demo-entreprise').items;
 const pts = pointsDemo('demo-entreprise');
@@ -113,7 +113,11 @@ ok(suivis(pts.filter((x) => x.responsable === mail('acmp8')), dEnt).length === 1
 ok(storiesBloquees(pts, dEnt).has('acm4'), 'démo : « Écran de connexion » bloquée (blocage noté, pas levé)');
 // Règles du 01/10 : « Type · date » des points suivis, parcours fusionné selon les rôles, parcours du PO
 ok(dateRelative('2026-10-02', '2026-10-02') === 'aujourd’hui' && dateRelative('2026-10-02', '2026-10-05') === 'hier' && dateRelative('2026-09-29', '2026-10-02') === '29/09', 'suivi : date « aujourd’hui », « hier » (veille ouvrée), sinon « 29/09 »');
-ok(pastilleSuivi({ type: 'action', reunion: 'daily-equipeagile:acmeqmob-2026-09-29' }, '2026-10-02') === 'Action · 29/09' && pastilleSuivi({ type: 'blocage', reunion: 'daily-equipeagile:acmeqmob-2026-10-01' }, '2026-10-02') === 'Blocage · hier', 'suivi : pastille « Action · 29/09 », « Blocage · hier »');
+{
+  const a = pastilleSuivi({ type: 'action', reunion: 'daily-equipeagile:acmeqmob-2026-09-29' }, '2026-10-02');
+  const b = pastilleSuivi({ type: 'blocage', reunion: 'daily-equipeagile:acmeqmob-2026-10-01' }, '2026-10-02');
+  ok(a.texte === 'Action' && a.date === '29/09' && b.texte === 'Blocage' && b.date === 'Hier', 'suivi : type et date dans deux pastilles — [Action] [29/09], [Blocage] [Hier]');
+}
 const noms = (r: Parameters<typeof etapesParcours>[0]) => etapesParcours(r, PARCOURS_DAILY).map((x) => x.nom).join(', ');
 ok(noms({ membre: true }) === 'Hier, Aujourd’hui, Blocages, Prêt', 'parcours : membre seul → Hier, Aujourd’hui, Blocages, Prêt (plus d’étape « Mes suivis »)');
 ok(noms({}) === noms({ membre: true }), 'parcours : sans rôle connu → celui du membre');
@@ -145,7 +149,7 @@ const mobile = dEnt.filter((t) => t.equipe === 'acmeqmob');
 ok(storiesAAccepter(mobile).map((t) => t.titre).join() === 'Inscription par e-mail', 'démo : 1 story à accepter');
 ok(backlogAPreparer(mobile).map((x) => x.raison).sort().join() === 'sans_estimation,trop_grosse', 'démo : backlog à préparer (une story sans estimation, une de plus de 8 pts)');
 ok(suivis(pts, dEnt).some((x) => x.tache.responsable === 'acmp6'), 'démo : une action d’un daily précédent à suivre pour Paul');
-ok(texteCompteRendu({ equipe: 'Mobile', jour: '2026-10-02', decisions: [], creees: [], escalades: [], synchros: ['Mot de passe (Tom → Paul)'], notes: 0 }).includes('Blocages passés en Synchro · 1'), 'compte rendu : blocages passés en Synchro');
+ok(texteCompteRendu({ equipe: 'Mobile', jour: '2026-10-02', decisions: [], creees: [], escalades: [], synchros: ['Mot de passe (Tom → Paul)'], notes: 0 }).includes('Blocages partagés · 1'), 'compte rendu : blocages partagés');
 const cr = texteCompteRendu({ equipe: 'Mobile', jour: '2026-10-02', decisions: ['Livrer en deux fois'], creees: [{ titre: 'Accès API', sous: 'sous-tâche · Tom' }], escalades: [], notes: 1 });
 ok(cr.includes('Décisions · 1') && cr.includes('Actions créées · 1') && !cr.includes('escaladés') && cr.includes('1 autre point noté seulement'), 'compte rendu : décisions, actions créées, blocages escaladés (s’il y en a)');
 
