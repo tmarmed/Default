@@ -1,9 +1,10 @@
-import { type ReactNode, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import { type Reunion, TYPES_REUNION } from '../types';
 import { SectionFiche } from './Choix';
 import { FormSheet, TitreFiche } from './FormSheet';
+import { Segmented } from './Segmented';
 
 /**
  * Fenêtre d'une réunion (lot 6) : la même feuille superposée que la fenêtre de traitement des échanges, une étape à
@@ -12,9 +13,43 @@ import { FormSheet, TitreFiche } from './FormSheet';
  * `libelleFin` (« Envoyer le compte rendu »…).
  * Deux modes : l'organisateur anime la réunion (étapes du catalogue) ; le participant prépare son point (ses propres
  * étapes, `etapes`) et l'envoie à l'organisateur, sans compte rendu.
+ * Parcours séparés (règle du 06/10) : avec `onglets`, chaque rôle de la personne a son parcours dans un onglet, sous
+ * l'en-tête, au-dessus de la barre des étapes (« Mon point », « PO », « Animer » ou « Suivre ») ; chaque onglet a sa
+ * barre d'étapes, son « Suivant » et sa dernière étape, et garde son étape quand on change d'onglet.
+ * « ↻ Actualiser » (en haut à droite, toutes les réunions) : relit les données de la réunion dans le Sheet
+ * (`onActualiser`, une lecture groupée) sans perdre les saisies ni l'étape ; pas plus d'une fois toutes les 5 s.
  * Le contenu de chaque type de réunion est en cours de validation : `renduEtape` le fournira ; à défaut, « À venir ».
  */
 export type ModeReunion = 'organisateur' | 'participant';
+
+/** Parcours d'un onglet : ses étapes, son contenu, sa dernière étape */
+export interface OngletReunion {
+  /** Clé stable de l'onglet */
+  cle: string;
+  /** « Mon point », « PO », « Animer », « Suivre » */
+  libelle: string;
+  etapes: string[];
+  /** Bouton de la dernière étape (« Envoyer au SM », « Fermer »…) */
+  libelleFin?: string;
+  /** Contenu de l'étape (index à partir de 0) ; par défaut, « À venir » */
+  renduEtape?: (index: number) => ReactNode;
+  /**
+   * « Suivant » à l'intérieur d'une étape (tour de table : membre suivant) : renvoie vrai si l'étape l'a pris en
+   * charge (on reste sur l'étape)
+   */
+  onSuivant?: (index: number) => boolean;
+  /** Libellé de « Suivant » dans une étape (« Suivant · Paul ») */
+  libelleSuivant?: (index: number) => string | undefined;
+  /** Étape affichée (index à partir de 0), à chaque changement d'étape ou d'onglet */
+  onEtape?: (index: number) => void;
+  /** Dernière étape validée (point envoyé, compte rendu envoyé…) */
+  onTerminer?: () => Promise<void> | void;
+  /**
+   * Après la dernière étape : fermer la fenêtre (compte rendu envoyé, « Fermer ») ; sinon l'onglet est marqué fait
+   * (✓) et l'on passe au premier onglet pas encore fait (la fenêtre se ferme s'il n'y en a plus)
+   */
+  fermer?: boolean;
+}
 
 interface Props {
   visible: boolean;
@@ -40,48 +75,98 @@ interface Props {
   onEtape?: (index: number) => void;
   /** Dernière étape validée (compte rendu envoyé, point envoyé…) ; la fenêtre se referme ensuite */
   onTerminer?: () => Promise<void> | void;
+  /**
+   * Parcours séparés : un onglet par rôle (remplace `etapes`, `libelleFin`, `renduEtape`, `onSuivant`,
+   * `libelleSuivant`, `onEtape`, `onTerminer`). Un seul onglet : pas de barre d'onglets.
+   */
+  onglets?: OngletReunion[];
+  /** Onglet ouvert à l'ouverture (index) ; par défaut, le premier */
+  ongletInitial?: number;
+  /** « ↻ Actualiser » : relit les données de la réunion (une lecture groupée) ; absent : pas de bouton */
+  onActualiser?: () => Promise<void>;
 }
 
 /** Étapes de préparation d'un participant, en attendant celles de chaque réunion (en cours de validation) */
 export const ETAPES_PARTICIPANT = ['Mon point', 'Mes blocages', 'Envoi'];
+/** Délai minimal entre deux actualisations (quota Google Sheets) */
+export const DELAI_ACTUALISER_MS = 5000;
+/** « 9:42 » */
+const heureCourte = (d: Date) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 
-export function FenetreReunion({ visible, reunion, mode, etapes, libelleFin, renduEtape, fil, onFermer, onTerminer, onSuivant, libelleSuivant, onEtape }: Props) {
+export function FenetreReunion(p: Props) {
+  const { visible, reunion, mode, fil, onFermer, onglets, ongletInitial = 0, onActualiser } = p;
   const info = reunion ? TYPES_REUNION[reunion.type] : null;
-  const liste = etapes ?? (mode === 'participant' ? ETAPES_PARTICIPANT : (info?.etapes ?? []));
-  const [etape, setEtape] = useState(0);
-  /** Étapes passées avec « Suivant » (on peut y revenir) */
-  const [faites, setFaites] = useState<number[]>([]);
+  // Sans onglets : un seul parcours, celui des props
+  const liste: OngletReunion[] = onglets?.length
+    ? onglets
+    : [
+        {
+          cle: 'unique',
+          libelle: '',
+          etapes: p.etapes ?? (mode === 'participant' ? ETAPES_PARTICIPANT : (info?.etapes ?? [])),
+          libelleFin: p.libelleFin,
+          renduEtape: p.renduEtape,
+          onSuivant: p.onSuivant,
+          libelleSuivant: p.libelleSuivant,
+          onEtape: p.onEtape,
+          onTerminer: p.onTerminer,
+          fermer: true,
+        },
+      ];
+  const [actif, setActif] = useState(ongletInitial);
+  const courant = liste[Math.min(actif, liste.length - 1)];
+  /** Par onglet : étape en cours et étapes passées avec « Suivant » (on peut y revenir) */
+  const [etats, setEtats] = useState<Record<string, { etape: number; faites: number[] }>>({});
+  /** Onglets terminés (point envoyé) */
+  const [finis, setFinis] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Actualiser : lecture en cours, dernier résultat, attente de 5 s entre deux lectures
+  const [lecture, setLecture] = useState(false);
+  const [maj, setMaj] = useState<{ texte: string; erreur?: boolean } | null>(null);
+  const [attente, setAttente] = useState(false);
+  const minuterie = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (visible) {
-      setEtape(0);
-      setFaites([]);
+      setActif(Math.min(ongletInitial, Math.max(0, liste.length - 1)));
+      setEtats({});
+      setFinis([]);
       setError(null);
+      setMaj(null);
     }
-  }, [visible, reunion?.id, mode]);
-  useEffect(() => {
-    onEtape?.(etape);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [etape]);
+  }, [visible, reunion?.id, mode]);
+  useEffect(() => () => void (minuterie.current && clearTimeout(minuterie.current)), []);
 
-  const derniere = etape >= liste.length - 1;
-  const fin = libelleFin ?? (mode === 'participant' ? "Envoyer mon point à l'organisateur" : liste[liste.length - 1] === 'Compte rendu' ? 'Envoyer le compte rendu' : 'Terminer');
+  const { etape, faites } = etats[courant.cle] ?? { etape: 0, faites: [] };
+  const etapes = courant.etapes;
+  const poser = (x: { etape?: number; faites?: number[] }) => setEtats((m) => ({ ...m, [courant.cle]: { etape, faites, ...x } }));
+  useEffect(() => {
+    courant.onEtape?.(etape);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etape, courant.cle]);
+
+  const derniere = etape >= etapes.length - 1;
+  const fin = courant.libelleFin ?? (mode === 'participant' ? "Envoyer mon point à l'organisateur" : etapes[etapes.length - 1] === 'Compte rendu' ? 'Envoyer le compte rendu' : 'Terminer');
   const suivant = async () => {
     setError(null);
-    if (onSuivant?.(etape)) return;
+    if (courant.onSuivant?.(etape)) return;
     if (!derniere) {
-      setFaites((l) => (l.includes(etape) ? l : [...l, etape]));
       // Après un retour en arrière : on reprend à la première étape pas encore faite
       let n = etape + 1;
-      while (n < liste.length - 1 && faites.includes(n)) n++;
-      setEtape(n);
+      while (n < etapes.length - 1 && faites.includes(n)) n++;
+      poser({ etape: n, faites: faites.includes(etape) ? faites : [...faites, etape] });
       return;
     }
     setBusy(true);
     try {
-      await onTerminer?.();
-      onFermer();
+      await courant.onTerminer?.();
+      const restants = liste.filter((o) => o.cle !== courant.cle && !finis.includes(o.cle));
+      if (courant.fermer || !restants.length) return onFermer();
+      setFinis((l) => [...l, courant.cle]);
+      // Onglet suivant pas encore fait (dans l'ordre des onglets, après celui-ci)
+      const apres = liste.slice(actif + 1).find((o) => restants.includes(o)) ?? restants[0];
+      setActif(liste.indexOf(apres));
     } catch (e) {
       setError(`Non envoyé : ${(e as Error).message}`);
     } finally {
@@ -89,19 +174,46 @@ export function FenetreReunion({ visible, reunion, mode, etapes, libelleFin, ren
     }
   };
 
-  /** Parcours de plusieurs rôles (7 étapes et plus) : libellés plus serrés, sur 3 lignes au plus */
-  const serre = liste.length > 6;
+  const actualiser = async () => {
+    if (!onActualiser || lecture || attente) return;
+    setLecture(true);
+    setAttente(true);
+    minuterie.current = setTimeout(() => setAttente(false), DELAI_ACTUALISER_MS);
+    try {
+      await onActualiser();
+      setMaj({ texte: `À jour · ${heureCourte(new Date())}` });
+    } catch (e) {
+      setMaj({ texte: `Échec · ${heureCourte(new Date())}`, erreur: true });
+      setError(`Non actualisé : ${(e as Error).message}`);
+    } finally {
+      setLecture(false);
+    }
+  };
+
+  /** Onglets des parcours (plusieurs rôles) : segments pleine largeur */
+  const barreOnglets = liste.length > 1 && (
+    <View style={s.onglets}>
+      <Segmented
+        options={liste.map((o) => ({ value: o.cle, label: finis.includes(o.cle) ? `${o.libelle} ✓` : o.libelle }))}
+        value={courant.cle}
+        onChange={(v) => !busy && setActif(Math.max(0, liste.findIndex((o) => o.cle === v)))}
+      />
+    </View>
+  );
+
+  /** Parcours longs (7 étapes et plus) : libellés plus serrés, sur 3 lignes au plus */
+  const serre = etapes.length > 6;
   const barre = (
     <View style={[s.barre, serre && s.barreSerree]} accessibilityRole="tablist">
-      {liste.map((nom, k) => {
+      {etapes.map((nom, k) => {
         const faite = faites.includes(k) && k !== etape;
         const enCours = k === etape;
         const premiere = k === 0;
-        const dernier = k === liste.length - 1;
+        const dernier = k === etapes.length - 1;
         return (
           <Pressable
-            key={`${k}-${nom}`}
-            onPress={() => faites.includes(k) && setEtape(k)}
+            key={`${courant.cle}-${k}-${nom}`}
+            onPress={() => faites.includes(k) && poser({ etape: k })}
             disabled={!faites.includes(k) || enCours || busy}
             style={s.etape}
             accessibilityRole="tab"
@@ -122,17 +234,62 @@ export function FenetreReunion({ visible, reunion, mode, etapes, libelleFin, ren
     </View>
   );
 
+  /** En-tête, à droite : « ↻ Actualiser », puis « À jour · 9:42 » */
+  const droite = onActualiser && (
+    <Pressable
+      onPress={actualiser}
+      disabled={lecture || attente || busy}
+      hitSlop={10}
+      style={s.actualiser}
+      accessibilityRole="button"
+      accessibilityLabel="Actualiser : relire les données de la réunion"
+      accessibilityHint={attente && !lecture ? 'Patientez quelques secondes entre deux actualisations' : undefined}
+    >
+      {lecture ? (
+        <View style={s.actualiserLigne}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={s.actualiserTexte}>Lecture…</Text>
+        </View>
+      ) : (
+        <Text style={[s.actualiserTexte, attente && s.actualiserAttente]}>↻ Actualiser</Text>
+      )}
+      {!!maj && !lecture && (
+        <Text style={[s.maj, maj.erreur && s.majErreur]} numberOfLines={1}>
+          {maj.texte}
+        </Text>
+      )}
+    </Pressable>
+  );
+
   const bas = (
     <View style={s.bas}>
       <Pressable onPress={suivant} disabled={busy || !reunion} style={[s.bouton, (busy || !reunion) && s.inactif]} accessibilityRole="button">
-        <Text style={s.boutonTexte}>{busy ? 'Envoi…' : (libelleSuivant?.(etape) ?? (derniere ? fin : 'Suivant'))}</Text>
+        <Text style={s.boutonTexte}>{busy ? 'Envoi…' : (courant.libelleSuivant?.(etape) ?? (derniere ? fin : 'Suivant'))}</Text>
       </Pressable>
     </View>
   );
 
   return (
-    <FormSheet superpose visible={visible} title={reunion?.titre ?? 'Réunion'} busy={busy} error={error} onClose={onFermer} fil={fil} haut={barre} bandeau={bas}>
-      {!!reunion && !!info && (renduEtape ? renduEtape(etape) : <EtapeAVenir icone={info.icone} nom={liste[etape] ?? ''} index={etape} total={liste.length} mode={mode} />)}
+    <FormSheet
+      superpose
+      visible={visible}
+      title={reunion?.titre ?? 'Réunion'}
+      busy={busy}
+      error={error}
+      onClose={onFermer}
+      fil={fil}
+      droite={droite || undefined}
+      haut={
+        <>
+          {barreOnglets}
+          {barre}
+        </>
+      }
+      bandeau={bas}
+    >
+      {!!reunion &&
+        !!info &&
+        (courant.renduEtape ? courant.renduEtape(etape) : <EtapeAVenir icone={info.icone} nom={etapes[etape] ?? ''} index={etape} total={etapes.length} mode={mode} />)}
     </FormSheet>
   );
 }
@@ -150,6 +307,7 @@ export function EtapeAVenir({ icone, nom, index, total, mode }: { icone: string;
 }
 
 const s = StyleSheet.create({
+  onglets: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 2, backgroundColor: colors.card },
   barre: { flexDirection: 'row', paddingHorizontal: 8, paddingTop: 10, paddingBottom: 8, backgroundColor: colors.card, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   etape: { flex: 1, alignItems: 'center', gap: 4, minWidth: 0 },
   trait: { position: 'absolute', top: 11, left: 0, right: 0, height: 2, backgroundColor: colors.border },
@@ -167,6 +325,12 @@ const s = StyleSheet.create({
   nomEnCours: { color: colors.primary, fontWeight: '700' },
   nomFait: { color: colors.success, fontWeight: '600' },
   aVenir: { fontSize: 14.5, color: colors.muted, lineHeight: 20, padding: 12 },
+  actualiser: { alignItems: 'flex-end' },
+  actualiserLigne: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  actualiserTexte: { fontSize: 15, color: colors.primary },
+  actualiserAttente: { opacity: 0.45 },
+  maj: { fontSize: 10.5, color: colors.muted, marginTop: 1 },
+  majErreur: { color: colors.danger },
   bas: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12, backgroundColor: colors.card, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   bouton: { paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: colors.primary },
   boutonTexte: { color: '#fff', fontSize: 16, fontWeight: '700' },

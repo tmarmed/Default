@@ -296,6 +296,14 @@ function creerStore(espace: string, seeds: Seeds) {
   const key = espace === 'moi' ? KEY : `${KEY}@${espace}`;
   const memoire: Partial<Record<Table, unknown[]>> = {};
   const cle = (t: Table) => (t === 'items' ? key : `${key}-${t}`);
+  // Démo dans le navigateur : une autre fenêtre (une autre personne, « Voir en tant que ») qui écrit dans le même
+  // stockage fait relire l'onglet concerné à la prochaine lecture, comme un Google Sheet modifié par quelqu'un d'autre
+  // (« ↻ Actualiser » d'une réunion le montre)
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function')
+    window.addEventListener('storage', (ev) => {
+      // Clés rangées à part en démo (« demo~… »)
+      for (const t of Object.keys(memoire) as Table[]) if (ev.key === null || ev.key === cle(t) || ev.key.endsWith(`~${cle(t)}`)) delete memoire[t];
+    });
   const exemples = (t: Table): unknown[] =>
     t === 'items' ? seeds.items() : t === 'pointreunion' ? (seeds.points?.() ?? []) : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : (seeds.entities()[t as Kind] ?? []);
 

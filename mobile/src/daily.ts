@@ -10,8 +10,8 @@ import { type Concretisation, type Echange, type Item, type PointReunion, type R
  * concrétisé (sous-tâche, tâche à part) garde l'id de sa tâche : tant qu'elle n'est pas finie, il est « suivi »
  * (section « Suivi » de la Situation du daily suivant) ; pour son responsable, c'est une tâche comme les autres
  * (étape « Hier », avec à droite « Action · 29/09 »).
- * Parcours (règle du 01/10) : une seule fenêtre qui enchaîne les étapes de chacun des rôles de la personne (membre,
- * PO, Scrum Master), voir `etapesParcours` (src/reunions.ts) et `PARCOURS_DAILY`.
+ * Parcours séparés (règle du 06/10) : chaque rôle de la personne (membre, PO, Scrum Master) a son parcours dans un
+ * onglet de la fenêtre, voir `etapesParcours` (src/reunions.ts) et `PARCOURS_DAILY`.
  */
 
 const parse = (s: string) => {
@@ -34,7 +34,8 @@ export const prefixeReunion = (r: Pick<Reunion, 'id'>) => r.id.slice(0, -10);
 /**
  * Parcours du daily par rôle : membre (Hier, Aujourd'hui, Blocages), PO (Stories à accepter, Backlog à préparer,
  * Questions de l'équipe ; s'il n'est pas membre, il fait aussi Hier et Aujourd'hui pour ses tâches), Scrum Master
- * (Situation, Tour de table, Concrétisation, Compte rendu) ; « Prêt » finit la partie participant.
+ * (Situation, Tour de table, Concrétisation, Compte rendu ; en lecture seule pour le PO qui n'anime pas) ; « Prêt »
+ * finit le parcours du membre et celui du PO.
  */
 const [SITUATION, TOUR, CONCRETISATION, COMPTE_RENDU] = TYPES_REUNION.daily.etapes;
 export const PARCOURS_DAILY: CatalogueParcours = {

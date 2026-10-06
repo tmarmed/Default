@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDays, startOfWeek, toDateString } from '../dates';
+import { prefixeReunion } from '../daily';
 import { libelleNiveau, lireNiveau } from '../echange/hierarchieEchange';
 import { type OrgFiltre, type OrgValue } from '../organisation';
 import { dureeReunion, heureReunion, participantsReunion } from '../reunions';
@@ -160,6 +161,8 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
           mode={mode}
           fil={fil}
           onFermer={() => setOuverte(null)}
+          // « ↻ Actualiser » dans toutes les réunions : relit les tâches et les échanges de l'espace de la réunion
+          onActualiser={ouverte && daily?.actualiser ? () => daily.actualiser!(ouverte.espace || 'moi', prefixeReunion(ouverte)).then(() => undefined) : undefined}
           onTerminer={() => onInfo?.(mode === 'organisateur' && ouverte?.niveau ? 'Compte rendu : à venir, rien n’est encore envoyé.' : 'Réunion terminée : rien n’est encore enregistré.')}
         />
       )}
