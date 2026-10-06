@@ -54,7 +54,7 @@ import { TitreFiche } from './FormSheet';
  * - Scrum Master (organisateur) : Situation (compteurs de l'itération, « Suivi · n », objectifs) · Tour de table (un
  *   membre à la fois : ses stories, un seul bloc « Points notés » pour ce qu'il a préparé et ce que note le SM) ·
  *   Concrétisation (sous-tâche de la story, tâche à part, rien, escalade au RTE, ou pour un blocage échange
- *   « Transmettre à » le PO, le SM ou un membre, via un bouton « Synchroniser » qui ouvre toutes les possibilités ; avec un responsable) · Compte rendu (tâches créées en un lot ;
+ *   « Transmettre à » le PO, le SM ou un membre, via un bouton « Concrétiser » qui ouvre toutes les possibilités ; avec un responsable) · Compte rendu (tâches créées en un lot ;
  *   échanges Synchro, escalades et compte rendu au RTE envoyés en un lot). Sa propre préparation (s'il est
  *   aussi membre) n'est pas envoyée : elle rejoint directement ses points notés.
  * Une story ou une tâche qui a des sous-tâches affiche « n sous-tâches » et un › : la toucher ouvre sa fiche.
@@ -153,7 +153,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** Notés par l'organisateur pendant la réunion */
   const [locaux, setLocaux] = useState<Local[]>([]);
   const [choix, setChoix] = useState<Record<string, { c?: Concretisation; resp?: string; a?: string }>>({});
-  /** Feuille « Synchroniser » ouverte sur un point : choix de la concrétisation, puis du responsable */
+  /** Feuille « Concrétiser » ouverte sur un point : choix de la concrétisation, puis du responsable */
   const [feuille, setFeuille] = useState<{ id: string; etape: 'quoi' | 'responsable' } | null>(null);
   /** PO : ses réponses aux questions de l'équipe (par échange), envoyées avec son point */
   const [reponses, setReponses] = useState<Record<string, { c: string; note: string }>>({});
@@ -769,10 +769,10 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                     </View>
                     <Pastille texte={LIBELLE_TYPE_POINT[pt.type]} ton={tonType(pt.type)} />
                   </View>
-                  {/* Un seul bouton : toutes les possibilités s'ouvrent dans une feuille (règle du 06/10) */}
+                  {/* Un seul bouton « Concrétiser » : toutes les possibilités s'ouvrent dans une feuille (règle du 06/10) */}
                   <Pressable onPress={() => setFeuille({ id: pt.id, etape: 'quoi' })} style={[st.boutonSynchro, choisi && st.boutonSynchroChoisi]} accessibilityRole="button">
                     <Text style={[st.boutonSynchroTexte, choisi && st.boutonSynchroTexteChoisi]} numberOfLines={1}>
-                      {choisi ? `${resume} ›` : 'Synchroniser ›'}
+                      {choisi ? `${resume} ›` : 'Concrétiser ›'}
                     </Text>
                   </Pressable>
                   {!choisi && <Text style={st.sous}>Par défaut : {resume.charAt(0).toLowerCase() + resume.slice(1)}</Text>}
@@ -801,7 +801,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 const valeur = c === 'synchro' ? `t:${a}` : c === 'escalade' ? 'e:rte' : `c:${c}`;
                 return (
                   <FeuilleChoix
-                    titre="Synchroniser"
+                    titre="Concrétiser"
                     value={valeur}
                     groupes={[
                       {
