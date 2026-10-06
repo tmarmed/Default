@@ -80,6 +80,7 @@ import { type ActionsDaily } from './src/components/Daily';
 import { type NiveauReunion, ReunionsView } from './src/components/ReunionsView';
 import { reunionsAVenir } from './src/reunions';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
+import { type PointAEcrire, parEspace as pointsParEspace, pointsEscalade, pointsReponse, titreEscalade } from './src/suiviEscalade';
 import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
 import { StrategieView } from './src/components/StrategieView';
 import { BacklogView, type Niveau as NiveauBacklog, niveauDuRole } from './src/components/BacklogView';
@@ -1524,6 +1525,16 @@ function Main() {
       .map((c) => ({ ...c, email: orgEchanges.personne.get(c.pid)?.email?.toLowerCase() ?? '' }))
       .filter((c) => c.email && c.email !== moiEchange);
   };
+  /** Points de suivi des escalades (cas d'usage 1 et 2) : une écriture par Sheet concerné */
+  const ecrireSuivis = async (l: PointAEcrire[]) => {
+    if (!settings) return;
+    for (const [esp, pts] of pointsParEspace(l)) await api.ecrirePoints(settings, esp, pts, [], []);
+  };
+  /** Réponse dans Synchro : recopiée en « Décision » dans les réunions de la chaîne, si l'échange est une escalade */
+  const repondreEchange = async (e: Echange, reponse: string, note: string) => {
+    await saveEntity('echange', e, { reponse, note, statut: 'repondu' });
+    await ecrireSuivis(pointsReponse(e, moiEchange, reponse, today, orgEchanges));
+  };
   /** Réponse déjà donnée (pas encore prise en compte) : retirée, la question repart à la nouvelle personne */
   const repartir = (e: Echange) => (e.statut === 'repondu' ? { statut: 'envoye' as const, reponse: '', note: '' } : {});
   const hierarchieEchanges: Hierarchie = {
@@ -1537,7 +1548,10 @@ function Main() {
     onEscalader: async (e, email) => {
       const x = escaladesDe(e).find((c) => c.email === email);
       if (!x) return;
-      await saveEntity('echange', e, { a: x.email, niveau: ecrireNiveau(x.niveau), transmis_par: moiEchange, ...repartir(e) });
+      // Cas d'usage 2 : l'échange monte (marqué ⤴), points de suivi dans la réunion de chacun des deux
+      const titre = titreEscalade(e.titre || e.texte.slice(0, 80));
+      await saveEntity('echange', e, { a: x.email, niveau: ecrireNiveau(x.niveau), transmis_par: moiEchange, titre, ...repartir(e) });
+      await ecrireSuivis(pointsEscalade({ echange: { ...e, titre }, par: moiEchange, vers: x.email, avant: lireNiveau(e.niveau), apres: x.niveau, jour: today, org: orgEchanges }));
       setInfo(`Échange « ${e.titre || e.texte.slice(0, 40)} » escaladé à ${nomEchange(x.email)} (${libelleNiveau(x.niveau, orgEchanges)}).`);
     },
     onTransmettre: async (e, email) => {
@@ -2189,9 +2203,7 @@ function Main() {
         moi={moiEchange}
         elements={chatLancement ?? []}
         onFermer={() => setChatLancement(null)}
-        onRepondre={async (e, reponse, note) => {
-          await saveEntity('echange', e, { reponse, note, statut: 'repondu' });
-        }}
+        onRepondre={repondreEchange}
         onRetirer={retirerEchange}
         onLu={(id) => majMessagesApp((l) => l.filter((m) => m.id !== id))}
         hierarchie={hierarchieEchanges}
@@ -2653,9 +2665,7 @@ function Main() {
             await saveEntity('echange', null, { ...place, pieces_jointes: ids.join(';') });
           }}
           hierarchie={hierarchieEchanges}
-          onRepondre={async (e, reponse, note) => {
-            await saveEntity('echange', e, { reponse, note, statut: 'repondu' });
-          }}
+          onRepondre={repondreEchange}
           onChangerReponse={async (e, reponse, note) => {
             if (!settings) return;
             // Encore possible seulement si l'autre ne l'a pas prise en compte (vérifié dans le Sheet)

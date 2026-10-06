@@ -130,7 +130,8 @@ export function suivisSynchro(points: PointReunion[], echanges: Echange[]): { po
   const parId = new Map(echanges.map((e) => [e.id, e]));
   const out: { point: PointReunion; echange: Echange }[] = [];
   const vus = new Set<string>();
-  const candidats = [...points.filter((p) => p.concretisation === 'synchro'), ...points.filter((p) => p.type === 'decision' && p.concretisation === 'rien')];
+  // Transmis (Transmettre à), escaladés (suivis jusqu'à la réponse), puis réponses du PO notées « rien »
+  const candidats = [...points.filter((p) => p.concretisation === 'synchro' || p.concretisation === 'escalade'), ...points.filter((p) => p.type === 'decision' && p.concretisation === 'rien')];
   for (const p of candidats) {
     const e = p.tache && !vus.has(p.tache) ? parId.get(p.tache) : undefined;
     if (e && e.statut !== 'pris_en_compte') {

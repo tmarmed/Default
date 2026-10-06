@@ -8,6 +8,7 @@ import { backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoi
 import { toDateString } from '../src/dates';
 import { ciblesEscalade, destinatairesTransfert, equipesDePersonne } from '../src/echange/hierarchieEchange';
 import { makeOrgValue } from '../src/organisation';
+import { aReprendre, chaineEscalade, parEspace, pointsEscalade, pointsReponse, reunionDeNiveau, titreEscalade } from '../src/suiviEscalade';
 import { etapesParcours, ongletParcours, parcoursParDefaut, participantsReunion, reunionsAVenir } from '../src/reunions';
 import { type Reunion, TYPES_REUNION } from '../src/types';
 
@@ -180,6 +181,29 @@ ok(!versDe(nTom).includes(nSara.email.toLowerCase()) && !versDe(nTom).includes(n
 const eqMobile = o.equipes.find((e) => e.sm === nNina.id)!;
 const esc = ciblesEscalade(nNina.id, { kind: 'equipeagile', id: eqMobile.id }, o);
 ok(esc.length === 2 && esc.some((c) => c.pid === nSara.id) && esc.some((c) => c.pid === nMarc.id), 'escalader : le SM a deux voies, SM du train (RTE) et PO du train (PM)');
+
+// Suivi des escalades (deux cas d'usage fixés le 06/10) : points de suivi dans la réunion de chacun, réponse recopiée
+const eqM = o.equipes.find((e) => e.sm === nNina.id)!;
+const trM = o.train.get(eqM.train)!;
+const pfM = o.portfolio.get(trM.portfolio)!;
+const nEq = { kind: 'equipeagile' as const, id: eqM.id };
+const nTr = { kind: 'train' as const, id: trM.id };
+const nPf = { kind: 'portfolio' as const, id: pfM.id };
+ok(reunionDeNiveau(nEq, o)?.type === 'daily' && reunionDeNiveau(nTr, o)?.type === 'art_sync' && reunionDeNiveau(nPf, o)?.type === 'revue_portfolio', 'escalade : réunion correspondante (équipe → daily, train → ART sync, portfolio → revue du portfolio)');
+const ech = { id: 'ech1', titre: titreEscalade('Blocage · API pas prête'), texte: 'API pas prête', element: 'st1' };
+const esc1 = pointsEscalade({ echange: ech, par: nNina.email, vers: nSara.email, avant: nEq, apres: nTr, jour: '2026-10-06', org: o });
+ok(esc1.length === 2 && esc1[0].reunion.startsWith('daily-') && esc1[0].concretisation === 'escalade' && esc1[1].reunion.startsWith('art_sync-') && !esc1[1].concretisation && esc1.every((x) => x.tache === 'ech1'), 'escalade du SM : « escaladé » au daily, « Escalade reçue » à l’ART sync, même échange');
+ok(pointsEscalade({ echange: ech, par: nTom.email, vers: nNina.email, avant: nEq, apres: nEq, jour: '2026-10-06', org: o }).length === 1, 'escalade du membre au SM : un seul point, au daily de l’équipe');
+ok(pointsEscalade({ echange: ech, par: nNina.email, vers: nSara.email, avant: nEq, apres: nTr, jour: '2026-10-06', org: o, dejaNote: true }).length === 1, 'escalade décidée en réunion : le point « escaladé » existe déjà, seul « Escalade reçue » est créé');
+const monte = { ...ech, de: nTom.email, transmis_par: nSara.email, niveau: `portfolio:${pfM.id}` };
+ok(chaineEscalade(monte, o).map((r) => r.type).join() === 'daily,art_sync,revue_portfolio', 'escalade sur trois niveaux : chaîne daily → ART sync → revue du portfolio');
+const rep = pointsReponse(monte, mail('acmp1'), 'Budget accordé', '2026-10-08', o);
+ok(rep.length === 3 && rep.every((x) => x.type === 'decision' && x.tache === 'ech1' && x.texte === 'Budget accordé'), 'réponse : recopiée en Décision dans les trois réunions de la chaîne');
+ok(pointsReponse({ ...monte, titre: 'Question simple' }, mail('acmp1'), 'Oui', '2026-10-08', o).length === 0, 'réponse à un échange non escaladé : rien dans les réunions');
+ok([...parEspace(rep).keys()].length <= 3 && [...parEspace(rep).values()].flat().length === 3, 'points de suivi : regroupés par Sheet (une écriture par Sheet)');
+const serie = esc1[1].reunion.slice(0, -10);
+const pts2 = [{ ...esc1[1], id: 'p1', cree_le: '' }, { ...esc1[1], id: 'p2', cree_le: '', concretisation: 'rien' as const }];
+ok(aReprendre(pts2, `${serie}2026-10-08`).map((x) => x.id).join() === 'p1' && aReprendre(pts2, esc1[1].reunion).length === 0, 'reprise : une escalade reçue non concrétisée revient à la réunion suivante');
 
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
 process.exit(erreurs ? 1 : 0);

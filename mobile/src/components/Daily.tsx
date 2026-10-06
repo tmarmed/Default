@@ -25,6 +25,7 @@ import {
   veilleOuvree,
 } from '../daily';
 import { destinatairesTransfert, lireNiveau, personneParEmail } from '../echange/hierarchieEchange';
+import { aReprendre, parEspace, pointsEscalade, titreEscalade } from '../suiviEscalade';
 import { useHierarchy } from '../hierarchyContext';
 import { membresDe, type OrgValue, porteurs } from '../organisation';
 import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
@@ -386,7 +387,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const suivisEquipe = useMemo(() => calculerSuivis(serveur, h.items), [serveur, h.items]);
   const suivisEchanges = useMemo(() => suivisSynchro(serveur, echanges), [serveur, echanges]);
   // À concrétiser : ce qui ne l'a pas encore été (un compte rendu déjà envoyé ne recrée rien)
-  const aDecider = [...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => dela(x) && aConcretiser(x) && !x.concretisation);
+  // Points de suivi reportés des réunions précédentes (escalades reçues, réponses recopiées) : à concrétiser aussi
+  const reportes = useMemo(() => (anime ? aReprendre(serveur, reunion.id).filter(aConcretiser) : []), [anime, serveur, reunion.id]);
+  const aDecider = [...[...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => dela(x) && aConcretiser(x) && !x.concretisation), ...reportes];
   const choixDe = (pt: PointReunion) => {
     const c = choix[pt.id]?.c ?? concretisationParDefaut(pt);
     // Sous-tâche impossible sans story ; escalade impossible sans RTE ni PM
@@ -481,7 +484,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         ...escaladesEnvoyees.map((d) => ({
           ...base,
           a: d.a,
-          titre: `Blocage · ${d.pt.texte}`.slice(0, 200),
+          titre: titreEscalade(`Blocage · ${d.pt.texte}`),
           texte: `Blocage noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} pour ${nomDe(d.pt.personne)}${story(d.pt.element) ? ` (story « ${story(d.pt.element)} »)` : ''} : l'équipe ne peut pas le lever seule.`,
           element: d.pt.element,
         })),
@@ -505,7 +508,18 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       return d ? { ...aEcrire(y), ...patch(d) } : aEcrire(y);
     });
     const modifier = decides.filter((d) => !d.pt.id.startsWith('local-')).map((d) => ({ id: d.pt.id, ...patch(d) }));
-    await actions.ecrirePoints(espace, creer, modifier, Object.keys(anciens));
+    // Cas d'usage 1 : chaque escalade crée un point de suivi « Escalade reçue » dans la réunion correspondante de
+    // celui qui reçoit (ART sync du train) ; même Sheet que ce daily : dans la même écriture, sinon une par Sheet
+    const recus = parEspace(
+      escaladesEnvoyees.flatMap((d) => {
+        const id = echangeDuPoint.get(d.pt.id);
+        if (!id) return [];
+        const ech = { id, titre: titreEscalade(`Blocage · ${d.pt.texte}`), texte: d.pt.texte, element: d.pt.element };
+        return pointsEscalade({ echange: ech, par: mail, vers: d.a, avant: equipe ? { kind: 'equipeagile', id: equipe.id } : null, apres: e.train ? { kind: 'train', id: e.train.id } : null, jour, org, dejaNote: true });
+      }),
+    );
+    await actions.ecrirePoints(espace, [...creer, ...(recus.get(espace) ?? [])], modifier, Object.keys(anciens));
+    for (const [esp, l] of recus) if (esp !== espace) await actions.ecrirePoints(esp, l, [], []);
     onInfo?.(
       `Compte rendu du daily : ${pluriel(creees.length, 'tâche')} créée${creees.length > 1 ? 's' : ''}` +
         (escalades.length ? `, ${pluriel(escalades.length, 'blocage')} escaladé${escalades.length > 1 ? 's' : ''}` : '') +
@@ -738,7 +752,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               <Compteur valeur={String(s.retard)} libelle="en retard" ton={s.retard ? 'orange' : undefined} />
             </View>
             <SectionFiche
-              titre={`Suivi · ${filtreSuivi ? `${[...suivisEquipe, ...suivisEchanges].filter((x) => x.point.type === filtreSuivi).length} sur ` : ''}${suivisEquipe.length + suivisEchanges.length}`}
+              titre={`Suivi · ${filtreSuivi ? `${[...suivisEquipe, ...suivisEchanges].filter((x) => x.point.type === filtreSuivi).length + reportes.filter((x) => x.type === filtreSuivi).length} sur ` : ''}${suivisEquipe.length + suivisEchanges.length + reportes.length}`}
               droite={<PastilleFiltres actif={!!filtreSuivi} ouvert={filtresSuiviOuverts} onPress={() => setFiltresSuiviOuverts((o) => !o)} />}
               entete={filtresSuiviOuverts && <FiltresType types={['blocage', 'decision', 'action']} value={filtreSuivi} onChange={setFiltreSuivi} />}
             >
@@ -760,12 +774,22 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   sous={
                     point.type === 'decision'
                       ? `${LIBELLE_CONCRETISATION.synchro} · 👤 ${prenom(nomDe(echange.de))} · à prendre en compte`
-                      : `${LIBELLE_CONCRETISATION.synchro} · 👤 ${prenom(nomDe(echange.a))} · ${echange.statut === 'repondu' ? 'répondu' : 'en attente'}`
+                      : `${LIBELLE_CONCRETISATION[point.concretisation]} · 👤 ${prenom(nomDe(echange.a))} · ${echange.statut === 'repondu' ? 'répondu' : 'en attente'}`
                   }
                   pastille={{ ...pastilleSuivi(point, jour), ton: tonType(point.type) }}
                 />
               ))}
-              {!suivisEquipe.length && !suivisEchanges.length && <Vide texte="✓ Rien en attente des dailies précédents." />}
+              {/* Points de suivi reportés : escalades reçues et réponses recopiées, à concrétiser (cas d'usage 1 et 2) */}
+              {reportes.filter((x) => !filtreSuivi || x.type === filtreSuivi).map((point, i) => (
+                <Ligne
+                  key={point.id}
+                  premiere={!suivisEquipe.length && !suivisEchanges.length && i === 0}
+                  texte={point.texte}
+                  sous={`${point.type === 'decision' ? 'réponse' : 'escalade reçue'} · 👤 ${prenom(nomDe(point.personne))} · à concrétiser`}
+                  pastille={{ ...pastilleSuivi(point, jour), ton: tonType(point.type) }}
+                />
+              ))}
+              {!suivisEquipe.length && !suivisEchanges.length && !reportes.length && <Vide texte="✓ Rien en attente des dailies précédents." />}
             </SectionFiche>
             <SectionFiche titre="Objectifs de la réunion">
               <Ligne premiere texte="🎯 Se synchroniser sur l’objectif d’itération" sous="Chacun dit ce qu’il a fait hier et ce qu’il fera aujourd’hui (15 min)" />
