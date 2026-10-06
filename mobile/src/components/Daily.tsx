@@ -876,7 +876,6 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         }
         return false;
       }}
-      libelleSuivant={(k) => (cleDe(k) === 'tour' && membre < dernier ? `Suivant · ${prenom(personnes[membre + 1]?.nom ?? '')}` : undefined)}
       onFermer={onFermer}
       onTerminer={anime ? envoyerCompteRendu : envoyerPreparation}
     />
