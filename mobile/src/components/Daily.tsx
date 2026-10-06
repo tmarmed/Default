@@ -33,7 +33,7 @@ import { useSafe } from '../safe';
 import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
 import { type Concretisation, type Echange, type EchangeInput, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type Statut, type TypePoint } from '../types';
-import { FeuilleChoix, SectionFiche } from './Choix';
+import { FeuilleChoix, LigneChoix, SectionFiche } from './Choix';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
 import { FenetreReunion, type ModeReunion } from './FenetreReunion';
 import { TitreFiche } from './FormSheet';
@@ -1142,14 +1142,24 @@ function SaisiePoint({
   const typeLibelle = (x: TypePoint) => (x === 'hier' || x === 'aujourdhui' ? pastillePoint(x, jour) : LIBELLE_TYPE_POINT[x]);
   return (
     <View style={[st.saisieBloc, !premiere && st.bord]}>
-      {types.length > 1 && <Pastilles petit options={types.map((x) => ({ value: x, label: typeLibelle(x) }))} value={type} onChange={(v) => setType(v as TypePoint)} />}
+      {/* Présentation standard (06/10) : le type en pastilles sous son libellé, la story en une ligne de choix */}
+      {types.length > 1 && (
+        <View style={st.champ}>
+          <Text style={st.champLibelle}>Type</Text>
+          <Pastilles petit options={types.map((x) => ({ value: x, label: typeLibelle(x) }))} value={type} onChange={(v) => setType(v as TypePoint)} />
+        </View>
+      )}
       {stories.length > 0 && (
-        <Pastilles
-          petit
-          options={[{ value: '', label: 'Sans story' }, ...stories.map((t) => ({ value: t.id, label: `📖 ${t.titre.length > 28 ? `${t.titre.slice(0, 27)}…` : t.titre}` }))]}
-          value={element}
-          onChange={setElement}
-        />
+        <View style={st.champStory}>
+          <LigneChoix
+            label="Story"
+            value={element}
+            vide="Aucune (point général)"
+            sans="Aucune (point général)"
+            groupes={[{ titre: 'Stories de l’itération', options: stories.map((t) => ({ value: t.id, label: `📖 ${t.titre}` })) }]}
+            onChange={setElement}
+          />
+        </View>
       )}
       <View style={st.saisieLigne}>
         <TextInput
@@ -1180,6 +1190,9 @@ const st = StyleSheet.create({
   compteurLibelle: { fontSize: 11.5, color: colors.muted, textAlign: 'center' },
   ligne: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 11 },
   bord: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  champ: { gap: 6 },
+  champLibelle: { fontSize: 12, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  champStory: { marginHorizontal: -14, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   corps: { flex: 1, minWidth: 0, gap: 2 },
   texte: { fontSize: 15, color: colors.text },
   sous: { fontSize: 12.5, color: colors.muted },
