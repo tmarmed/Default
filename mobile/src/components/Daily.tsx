@@ -154,9 +154,12 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const [locaux, setLocaux] = useState<Local[]>([]);
   const [choix, setChoix] = useState<Record<string, { c?: Concretisation; resp?: string; a?: string }>>({});
   /** Feuille « Concrétiser » ouverte sur un point : choix de la concrétisation, puis du responsable */
-  /** Tour de table : filtre des points notés par type (bloc « Filtres » ouvert par défaut, repliable) */
+  /** Tour de table : filtre des points notés par type (pastille « Filtres » à côté du titre, fermé et « Tous » par défaut) */
   const [filtreType, setFiltreType] = useState<TypePoint | ''>('');
-  const [filtresOuverts, setFiltresOuverts] = useState(true);
+  const [filtresOuverts, setFiltresOuverts] = useState(false);
+  /** Situation : même filtre sur le suivi (fermé, « Tous » par défaut) */
+  const [filtreSuivi, setFiltreSuivi] = useState<TypePoint | ''>('');
+  const [filtresSuiviOuverts, setFiltresSuiviOuverts] = useState(false);
   const [feuille, setFeuille] = useState<{ id: string; etape: 'quoi' | 'responsable' } | null>(null);
   /** PO : ses réponses aux questions de l'équipe (par échange), envoyées avec son point */
   const [reponses, setReponses] = useState<Record<string, { c: string; note: string }>>({});
@@ -657,8 +660,12 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               <Compteur valeur={String(s.bloquees)} libelle={s.bloquees > 1 ? 'stories bloquées' : 'story bloquée'} ton={s.bloquees ? 'rouge' : undefined} />
               <Compteur valeur={String(s.retard)} libelle="en retard" ton={s.retard ? 'orange' : undefined} />
             </View>
-            <SectionFiche titre={`Suivi · ${suivisEquipe.length + suivisEchanges.length}`}>
-              {suivisEquipe.map(({ point, tache }, i) => (
+            <SectionFiche
+              titre={`Suivi · ${filtreSuivi ? `${[...suivisEquipe, ...suivisEchanges].filter((x) => x.point.type === filtreSuivi).length} sur ` : ''}${suivisEquipe.length + suivisEchanges.length}`}
+              droite={<PastilleFiltres actif={!!filtreSuivi} ouvert={filtresSuiviOuverts} onPress={() => setFiltresSuiviOuverts((o) => !o)} />}
+              entete={filtresSuiviOuverts && <FiltresType types={['blocage', 'decision', 'action']} value={filtreSuivi} onChange={setFiltreSuivi} />}
+            >
+              {suivisEquipe.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).map(({ point, tache }, i) => (
                 <Ligne
                   key={point.id}
                   premiere={i === 0}
@@ -668,10 +675,10 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 />
               ))}
               {/* Blocages passés en 🔄 Synchro : suivis tant que l'échange existe (sans historique) */}
-              {suivisEchanges.map(({ point, echange }, i) => (
+              {suivisEchanges.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).map(({ point, echange }, i) => (
                 <Ligne
                   key={point.id}
-                  premiere={!suivisEquipe.length && i === 0}
+                  premiere={!suivisEquipe.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).length && i === 0}
                   texte={point.texte}
                   sous={
                     point.type === 'decision'
@@ -714,42 +721,11 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 <Vide texte="Aucune story de l’itération à son nom." />
               )}
             </SectionFiche>
-            {/* Filtre par type, au-dessus des points : même présentation que les filtres des autres écrans */}
-            <View style={st.filtresTete}>
-              <Pressable
-                onPress={() => setFiltresOuverts((o) => !o)}
-                style={[st.pastilleFiltres, !!filtreType && st.pastilleFiltresActive]}
-                accessibilityRole="button"
-                accessibilityLabel={`${filtresOuverts ? 'Replier' : 'Déplier'} les filtres`}
-              >
-                <Entonnoir couleur={filtreType ? colors.primary : colors.text} />
-                <Text style={[st.pastilleFiltresTexte, !!filtreType && { color: colors.primary }]}>Filtres {filtresOuverts ? '▴' : '▾'}</Text>
-                {!!filtreType && (
-                  <View style={st.pastilleFiltresNb}>
-                    <Text style={st.pastilleFiltresNbTexte}>1</Text>
-                  </View>
-                )}
-              </Pressable>
-              {!filtresOuverts && !!filtreType && <Text style={st.sous}>{LIBELLE_TYPE_POINT[filtreType]}</Text>}
-            </View>
-            {filtresOuverts && (
-              <View style={st.filtresBloc}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filtreLigne}>
-                  {(['', 'hier', 'aujourdhui', 'blocage', 'decision', 'action'] as const).map((x) => {
-                    const on = filtreType === x;
-                    const n = x ? notes.filter((y) => y.type === x).length : notes.length;
-                    return (
-                      <Pressable key={x || 'tous'} onPress={() => setFiltreType(x)} style={[st.itChip, on && st.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                        <Text style={[st.itChipText, on && st.itChipTextOn]}>
-                          {x ? LIBELLE_TYPE_POINT[x] : 'Tous'} · {n}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            )}
-            <SectionFiche titre={`Points notés · ${filtreType ? `${notes.filter((y) => y.type === filtreType).length} sur ${notes.length}` : notes.length}`}>
+            <SectionFiche
+              titre={`Points notés · ${filtreType ? `${notes.filter((y) => y.type === filtreType).length} sur ${notes.length}` : notes.length}`}
+              droite={<PastilleFiltres actif={!!filtreType} ouvert={filtresOuverts} onPress={() => setFiltresOuverts((o) => !o)} />}
+              entete={filtresOuverts && <FiltresType types={['hier', 'aujourdhui', 'blocage', 'decision', 'action']} value={filtreType} onChange={setFiltreType} />}
+            >
               {notes.filter((y) => !filtreType || y.type === filtreType).map((y, i) => {
                 const q = echangeDe(y);
                 const par = y.auteur === y.personne ? `par ${prenom(courant.nom)}` : y.auteur === mail ? 'par le SM' : `par ${prenom(nomDe(y.auteur))}`;
@@ -1227,6 +1203,39 @@ function SaisiePoint({
   );
 }
 
+/** Pastille « Filtres ▾ / ▴ » à côté d'un titre de section, comme dans l'en-tête des écrans */
+function PastilleFiltres({ actif, ouvert, onPress }: { actif: boolean; ouvert: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={[st.pastilleFiltres, actif && st.pastilleFiltresActive]} accessibilityRole="button" accessibilityLabel={`${ouvert ? 'Replier' : 'Déplier'} les filtres`}>
+      <Entonnoir couleur={actif ? colors.primary : colors.text} />
+      <Text style={[st.pastilleFiltresTexte, actif && { color: colors.primary }]}>Filtres {ouvert ? '▴' : '▾'}</Text>
+      {actif && (
+        <View style={st.pastilleFiltresNb}>
+          <Text style={st.pastilleFiltresNbTexte}>1</Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+/** Filtres dépliés : « Tous » puis un type à la fois, sans nombre */
+function FiltresType({ types, value, onChange }: { types: TypePoint[]; value: TypePoint | ''; onChange: (v: TypePoint | '') => void }) {
+  return (
+    <View style={st.filtresBloc}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filtreLigne}>
+        {(['', ...types] as const).map((x) => {
+          const on = value === x;
+          return (
+            <Pressable key={x || 'tous'} onPress={() => onChange(x)} style={[st.itChip, on && st.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
+              <Text style={[st.itChipText, on && st.itChipTextOn]}>{x ? LIBELLE_TYPE_POINT[x] : 'Tous'}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
 /** Entonnoir des filtres (même dessin que l'en-tête des écrans) */
 function Entonnoir({ couleur }: { couleur: string }) {
   return (
@@ -1244,7 +1253,7 @@ const st = StyleSheet.create({
   pastilleFiltresTexte: { fontSize: 12, fontWeight: '700', color: colors.text },
   pastilleFiltresNb: { position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   pastilleFiltresNbTexte: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  filtresBloc: { marginTop: 8, backgroundColor: colors.bg, borderRadius: 14, borderWidth: 1, borderColor: '#EEF1F5', padding: 9 },
+  filtresBloc: { marginBottom: 8, backgroundColor: colors.bg, borderRadius: 14, borderWidth: 1, borderColor: '#EEF1F5', padding: 9 },
   filtreLigne: { gap: 6, alignItems: 'center' },
   itChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 18, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.card },
   itChipOn: { backgroundColor: colors.primary },

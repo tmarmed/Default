@@ -52,7 +52,13 @@ export function SectionFiche({
   ajouterLabel,
   children,
   carte = true,
+  droite,
+  entete,
 }: {
+  /** À côté du titre (ex. la pastille « Filtres ») */
+  droite?: ReactNode;
+  /** Entre le titre et la carte (ex. les filtres dépliés) */
+  entete?: ReactNode;
   titre: string;
   aDefinir?: number;
   /** Les lignes à définir sont au choix (une seule suffit) */
@@ -70,6 +76,7 @@ export function SectionFiche({
     <View style={lectureSection && vide && s.masque}>
       <View style={s.titreSec}>
         <Text style={s.titreSecTexte}>{titre}</Text>
+        {droite}
         {aDefinir > 0 && <Text style={s.aDefinir}>{aDefinir} à définir{auChoix ? ' (au choix)' : ''}</Text>}
         {onAjouter && !lectureSection && (
           <Pressable onPress={onAjouter} hitSlop={10} style={s.rond} accessibilityRole="button" accessibilityLabel={ajouterLabel ?? `Ajouter : ${titre}`}>
@@ -77,6 +84,7 @@ export function SectionFiche({
           </Pressable>
         )}
       </View>
+      {entete}
       {children != null && (carte ? <View style={s.carte} onLayout={lectureSection ? (ev) => setVide(ev.nativeEvent.layout.height < 2) : undefined}>{children}</View> : children)}
     </View>
   );
