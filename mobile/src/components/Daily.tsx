@@ -24,7 +24,7 @@ import {
   texteReponse,
   veilleOuvree,
 } from '../daily';
-import { lireNiveau, personneParEmail } from '../echange/hierarchieEchange';
+import { destinatairesTransfert, lireNiveau, personneParEmail } from '../echange/hierarchieEchange';
 import { useHierarchy } from '../hierarchyContext';
 import { membresDe, type OrgValue, porteurs } from '../organisation';
 import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
@@ -152,9 +152,10 @@ function useEquipeDaily(reunion: Reunion, org: OrgValue, aujourdhui: string, poi
   const nomDe = (email: string) => personneParEmail(email, org)?.nom ?? email.split('@')[0];
   const train = equipe?.train ? org.train.get(equipe.train) : undefined;
   const rte = train?.rte ? org.personne.get(train.rte) : undefined;
+  const pm = train?.pm ? org.personne.get(train.pm) : undefined;
   const parId = new Map(h.items.map((t) => [t.id, t]));
   const subs = useMemo(() => subtaskMap(h.items), [h.items]);
-  return { h, equipe, jour, it, situation, bloquees, personnes, role, nomDe, train, rte, parId, subs, dansEquipe };
+  return { h, equipe, jour, it, situation, bloquees, personnes, role, nomDe, train, rte, pm, parId, subs, dansEquipe };
 }
 
 function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onFermer, onInfo, onOpenTask, echanges = [] }: Props & { reunion: Reunion }) {
@@ -190,7 +191,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
 
   const tous = useMemo(() => [...serveur.filter((x) => !(x.id in anciens)), ...prep, ...locaux] as PointReunion[], [serveur, anciens, prep, locaux]);
   const e = useEquipeDaily(reunion, org, aujourdhui, tous, echanges);
-  const { h, equipe, jour, it, situation, personnes, nomDe, rte, parId, subs } = e;
+  const { h, equipe, jour, it, situation, personnes, nomDe, rte, pm, parId, subs } = e;
   const veille = veilleOuvree(jour);
   const dela = (pt: PointReunion) => pt.reunion === reunion.id;
   const moiP = personneParEmail(mail, org);
@@ -388,11 +389,17 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const aDecider = [...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => dela(x) && aConcretiser(x) && !x.concretisation);
   const choixDe = (pt: PointReunion) => {
     const c = choix[pt.id]?.c ?? concretisationParDefaut(pt);
-    // Sous-tâche impossible sans story ; escalade impossible sans RTE
-    const cc: Concretisation = (c === 'sous_tache' && !pt.element) || (c === 'escalade' && !rte?.email) ? 'tache' : c;
-    // Échange 🔄 Synchro : vers le PO par défaut (sinon le SM), jamais vers la personne qui a le blocage
-    const defautA = [po?.email, sm?.email].find((x) => !!x && x.toLowerCase() !== pt.personne)?.toLowerCase() ?? '';
-    return { c: cc === 'synchro' && pt.type !== 'blocage' ? 'tache' : cc, resp: choix[pt.id]?.resp ?? (pt.responsable || pt.personne), a: choix[pt.id]?.a ?? defautA };
+    // Sous-tâche impossible sans story ; escalade impossible sans RTE ni PM
+    const cc: Concretisation = (c === 'sous_tache' && !pt.element) || (c === 'escalade' && !rte?.email && !pm?.email) ? 'tache' : c;
+    // Échange 🔄 Synchro : vers le PO par défaut (sinon le SM), jamais vers la personne qui a le blocage ;
+    // escalade : aux SM du train (RTE) par défaut, sinon aux PO du train (PM)
+    const defautA =
+      cc === 'escalade'
+        ? (rte?.email || pm?.email || '').toLowerCase()
+        : ([po?.email, sm?.email].find((x) => !!x && x.toLowerCase() !== pt.personne)?.toLowerCase() ?? '');
+    // « Transmettre à » et « Escalader » posent toujours leur destinataire avec leur choix
+    const a = choix[pt.id]?.a ?? defautA;
+    return { c: cc === 'synchro' && pt.type !== 'blocage' ? 'tache' : cc, resp: choix[pt.id]?.resp ?? (pt.responsable || pt.personne), a };
   };
   /** Tâche née d'un point : sous-tâche de sa story ou tâche à part dans l'itération, avec son responsable */
   function entreeTache(pt: Pick<PointReunion, 'texte' | 'type' | 'personne' | 'element'>, c: 'sous_tache' | 'tache', resp: string): ItemInput {
@@ -457,8 +464,10 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       pieces_jointes: '',
       espace,
     }));
-    if (rte?.email && e.train) {
-      const base = { de: mail, a: rte.email.toLowerCase(), type: 'message' as const, choix: '', reponse: '', note: '', statut: 'envoye' as const, niveau: `train:${e.train.id}`, transmis_par: '', prive: '1', pieces_jointes: '', espace };
+    // Escalades : chacune à l'équipe choisie (SM du train → RTE ; PO du train → PM) ; compte rendu au RTE
+    const escaladesEnvoyees = e.train ? escalades.filter((d) => !!d.a) : [];
+    if (e.train) {
+      const base = { de: mail, a: (rte?.email ?? '').toLowerCase(), type: 'message' as const, choix: '', reponse: '', note: '', statut: 'envoye' as const, niveau: `train:${e.train.id}`, transmis_par: '', prive: '1', pieces_jointes: '', espace };
       const texte = texteCompteRendu({
         equipe: equipe?.nom ?? '',
         jour,
@@ -469,24 +478,26 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         notes: decides.filter((d) => d.c === 'rien' && d.pt.type !== 'decision').length,
       });
       lot.push(
-        ...escalades.map((d) => ({
+        ...escaladesEnvoyees.map((d) => ({
           ...base,
+          a: d.a,
           titre: `Blocage · ${d.pt.texte}`.slice(0, 200),
           texte: `Blocage noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} pour ${nomDe(d.pt.personne)}${story(d.pt.element) ? ` (story « ${story(d.pt.element)} »)` : ''} : l'équipe ne peut pas le lever seule.`,
           element: d.pt.element,
         })),
-        { ...base, titre: `Compte rendu · Daily ${equipe?.nom ?? ''} du ${dateCourte(jour)}`, texte, element: '' },
+        ...(rte?.email ? [{ ...base, titre: `Compte rendu · Daily ${equipe?.nom ?? ''} du ${dateCourte(jour)}`, texte, element: '' }] : []),
       );
     }
     const envoyes = lot.length ? await actions.envoyerEchanges(espace, lot) : [];
     // Le point garde l'échange créé (Synchro, escalade) pour le suivi
-    const echangeDuPoint = new Map([...synchros, ...(rte?.email && e.train ? escalades : [])].map((d, i) => [d.pt.id, envoyes[i]?.id ?? '']));
+    const echangeDuPoint = new Map([...synchros, ...escaladesEnvoyees].map((d, i) => [d.pt.id, envoyes[i]?.id ?? '']));
 
     // Une réponse du PO (décision) garde le lien vers sa question, sauf si elle devient une tâche
     const patch = (d: (typeof decides)[number]) => ({
       concretisation: d.c,
       tache: tacheDe.get(d.pt.id) || echangeDuPoint.get(d.pt.id) || (d.pt.type === 'decision' && d.c === 'rien' ? d.pt.tache : ''),
-      responsable: d.c === 'escalade' ? '' : d.c === 'synchro' ? d.a : d.resp,
+      // Escalade et Transmettre à : le destinataire (RTE ou PM ; personne de l'équipe)
+      responsable: d.c === 'escalade' || d.c === 'synchro' ? d.a : d.resp,
     });
     const parPoint = new Map(decides.map((d) => [d.pt.id, d]));
     const creer = [...preparation, ...locaux].map((y) => {
@@ -506,6 +517,15 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   // ---------------------------------------------------------------------------
   // Écrans
   // ---------------------------------------------------------------------------
+  /** Rôle affiché sous un nom dans « Transmettre à » : PO, SM, RTE, PM */
+  const libelleRole = (email: string) => {
+    const id = personneParEmail(email, org)?.id ?? '';
+    if (!id) return '';
+    if (id === rte?.id) return 'RTE';
+    if (id === pm?.id) return 'PM';
+    const eq = org.equipes.find((x) => x.sm === id || x.po === id);
+    return eq ? `${eq.sm === id ? 'SM' : 'PO'} · ${eq.nom}` : '';
+  };
   /** Résumé d'une concrétisation : « Sous-tâche · 👤 Tom », « Transmettre à Paul », « ⤴ Escalader au RTE », « Rien » */
   const resumeChoix = (c: Concretisation | '', resp: string, a: string) =>
     c === 'sous_tache' || c === 'tache'
@@ -513,7 +533,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       : c === 'synchro'
         ? `Transmettre à ${a ? prenom(nomDe(a)) : '…'}`
         : c === 'escalade'
-          ? '⤴ Escalader au RTE'
+          ? `⤴ Escalader aux ${a && a === pm?.email?.toLowerCase() ? 'PO' : 'SM'} du train`
           : 'Rien';
   /** « Suivre » (lecture seule) : les points de ce daily tels qu'ils sont dans le Sheet, à concrétiser ou concrétisés */
   const duSheet = serveur.filter((y) => dela(y) && aConcretiser(y));
@@ -899,7 +919,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                       onFermer={() => setFeuille(null)}
                     />
                   );
-                const valeur = c === 'synchro' ? `t:${a}` : c === 'escalade' ? 'e:rte' : `c:${c}`;
+                const valeur = c === 'synchro' ? `t:${a}` : c === 'escalade' ? `e:${a}` : `c:${c}`;
                 return (
                   <FeuilleChoix
                     titre="Concrétiser"
@@ -915,13 +935,23 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                       },
                       ...(pt.type === 'blocage'
                         ? [
-                            {
-                              titre: 'Transmettre à',
-                              options: personnes
-                                .filter((y) => y.email.toLowerCase() !== pt.personne)
-                                .map((y) => ({ value: `t:${y.email.toLowerCase()}`, label: `${y.nom}${y.id === equipe?.po ? ' (PO)' : y.id === equipe?.sm ? ' (SM)' : ''}` })),
-                            },
-                            ...(rte?.email ? [{ titre: 'Escalader', options: [{ value: 'e:rte', label: `⤴ ${rte.nom}`, meta: 'RTE du train' }] }] : []),
+                            // Transmettre à : une personne de l'une de vos équipes (votre équipe ; SM du train si vous êtes SM)
+                            ...destinatairesTransfert(mail, null, org, [mail, pt.personne]).map((g) => ({
+                              titre: `Transmettre à · ${g.titre}`,
+                              options: g.emails.map((x) => ({ value: `t:${x}`, label: nomDe(x), meta: libelleRole(x) })),
+                            })),
+                            // Escalader : à l'équipe du dessus, par l'une des deux voies du train
+                            ...(rte?.email || pm?.email
+                              ? [
+                                  {
+                                    titre: 'Escalader',
+                                    options: [
+                                      ...(rte?.email ? [{ value: `e:${rte.email.toLowerCase()}`, label: '⤴ Aux SM du train', meta: `obstacle, organisation · ${rte.nom} (RTE)` }] : []),
+                                      ...(pm?.email ? [{ value: `e:${pm.email.toLowerCase()}`, label: '⤴ Aux PO du train', meta: `contenu, priorité · ${pm.nom} (PM)` }] : []),
+                                    ],
+                                  },
+                                ]
+                              : []),
                           ]
                         : []),
                     ]}
@@ -931,8 +961,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                         poser({ c: 'synchro', a: v.slice(2) });
                         return setFeuille(null);
                       }
-                      if (v === 'e:rte') {
-                        poser({ c: 'escalade' });
+                      if (v.startsWith('e:')) {
+                        poser({ c: 'escalade', a: v.slice(2) });
                         return setFeuille(null);
                       }
                       const cc = v.slice(2) as Concretisation;
@@ -995,9 +1025,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               )}
             </SectionFiche>
             {escalades.length > 0 && (
-              <SectionFiche titre={`Escaladé au RTE · ${escalades.length}`}>
+              <SectionFiche titre={`Escaladé · ${escalades.length}`}>
                 {escalades.map((d, i) => (
-                  <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`👤 ${prenom(nomDe(d.pt.personne))} · ⤴ ${rte?.nom ?? 'RTE'}`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
+                  <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`👤 ${prenom(nomDe(d.pt.personne))} · ⤴ ${d.a && d.a === pm?.email?.toLowerCase() ? `PO du train · ${pm?.nom}` : `SM du train · ${rte?.nom ?? 'RTE'}`}`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
                 ))}
               </SectionFiche>
             )}

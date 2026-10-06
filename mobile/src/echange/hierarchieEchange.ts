@@ -5,10 +5,10 @@ import { ICONE_ORG, membresDe, type OrgValue } from '../organisation';
  * l'Organisation — équipe agile, train (équipe englobante du delivery), portfolio, ou unité (service, direction).
  * - à la création : le niveau le plus proche commun aux deux personnes (même équipe, sinon même train, sinon même
  *   portfolio, sinon l'unité commune la plus basse) ;
- * - « Escalader » : l'échange monte d'un niveau et part au responsable du niveau au-dessus (équipe → RTE du train →
- *   Epic Owner du portfolio ; unité → responsable de l'unité parente) ;
- * - « Transmettre » : à une personne de l'équipe actuelle, du train englobant, de l'unité parente ou d'une équipe
- *   partenaire (même train, ou autre train).
+ * - « Escalader » : l'échange monte d'un niveau et part à l'équipe du dessus (équipe → SM du train (RTE) ou PO du
+ *   train (PM) → Epic Owner du portfolio ; unité → responsable de l'unité parente) ;
+ * - « Transmettre » : à une personne de l'une de vos équipes (votre équipe ; SM du train ou PO du train pour un SM ou
+ *   un PO ; portfolio pour un RTE, un PM ou l'Epic Owner) — voir equipesDePersonne.
  * Niveau noté « kind:id » (ex. « equipeagile:acmeqmob »), vide hors entreprise.
  */
 export type KindNiveau = 'equipeagile' | 'train' | 'portfolio' | 'unite';
@@ -97,11 +97,44 @@ export function niveauDe(pid: string, org: OrgValue): Niveau | null {
 }
 
 /**
- * Personnes à qui transmettre un échange (e-mails) : seulement **votre** équipe (décidé 01/10), jamais une autre
- * équipe (un SM ne passe pas à un autre SM). Les équipes au-dessus sont calculées depuis les rôles de l'Organisation,
- * rien n'est créé en plus dans le Sheet : un membre transmet dans son équipe ; le SM ou le PO l'affecte à un membre de
- * son équipe ; le RTE / PM (équipe du train = SM et PO de ses équipes) l'affecte au SM ou au PO d'une équipe ;
- * l'Epic Owner (équipe du portfolio) au RTE d'un train. Hors delivery : votre unité. Sans `exclure` (vous et l'auteur).
+ * Équipes d'une personne (décidé 06/10) : chacun peut appartenir à plusieurs équipes, toutes **calculées** depuis les
+ * rôles de l'Organisation (rien de plus dans le Sheet) :
+ * - membre : son équipe ;
+ * - SM : son équipe + l'équipe des SM du train (les autres SM + le RTE) ;
+ * - PO : son équipe + l'équipe des PO du train (les autres PO + le PM) ;
+ * - RTE : l'équipe des SM de son train + l'équipe du portfolio (Epic Owner, RTE et PM des trains) ;
+ * - PM : l'équipe des PO de son train + l'équipe du portfolio ;
+ * - Epic Owner : l'équipe du portfolio.
+ * Hors delivery : votre unité. Renvoie des groupes d'ids de personnes.
+ */
+export function equipesDePersonne(pid: string, org: OrgValue): { titre: string; ids: string[] }[] {
+  if (!pid) return [];
+  const out: { titre: string; ids: string[] }[] = [];
+  const equipes = equipesDe(pid, org);
+  equipes.forEach((e) => out.push({ titre: `Équipe · ${e.nom}`, ids: [e.sm, e.po, ...membresDe(e)] }));
+  const equipesDuTrain = (t: string) => org.equipes.filter((e) => e.train === t);
+  // SM du train : SM de ses équipes, ou RTE
+  org.trains
+    .filter((t) => t.rte === pid || equipesDuTrain(t.id).some((e) => e.sm === pid))
+    .forEach((t) => out.push({ titre: `SM du train · ${t.nom}`, ids: [...equipesDuTrain(t.id).map((e) => e.sm), t.rte] }));
+  // PO du train : PO de ses équipes, ou PM
+  org.trains
+    .filter((t) => t.pm === pid || equipesDuTrain(t.id).some((e) => e.po === pid))
+    .forEach((t) => out.push({ titre: `PO du train · ${t.nom}`, ids: [...equipesDuTrain(t.id).map((e) => e.po), t.pm] }));
+  // Portfolio : Epic Owner, RTE et PM de ses trains
+  org.portfolios
+    .filter((p) => p.epic_owner === pid || org.trains.some((t) => t.portfolio === p.id && (t.rte === pid || t.pm === pid)))
+    .forEach((p) => out.push({ titre: `Portfolio · ${p.nom}`, ids: [p.epic_owner, ...org.trains.filter((t) => t.portfolio === p.id).flatMap((t) => [t.rte, t.pm])] }));
+  if (!out.length) {
+    const u = org.unite.get(org.personne.get(pid)?.unite ?? '');
+    if (u) out.push({ titre: `Unité · ${u.nom}`, ids: [u.responsable, ...org.personnes.filter((p) => p.unite === u.id).map((p) => p.id)] });
+  }
+  return out;
+}
+
+/**
+ * « Transmettre à » (décidé 06/10) : une personne de l'une de **vos** équipes (voir equipesDePersonne) ; un échange
+ * 🔄 Synchro personnel, au même niveau. Groupes d'e-mails, sans `exclure` (vous et l'auteur), sans doublon.
  */
 export function destinatairesTransfert(moi: string, _niveau: Niveau | null, org: OrgValue, exclure: string[]): { titre: string; emails: string[] }[] {
   const pid = personneParEmail(moi, org)?.id ?? '';
@@ -109,25 +142,18 @@ export function destinatairesTransfert(moi: string, _niveau: Niveau | null, org:
   const email = (id: string) => org.personne.get(id)?.email?.toLowerCase() ?? '';
   const sans = new Set(exclure.map((x) => x.toLowerCase()));
   const vus = new Set<string>();
-  const groupe = (titre: string, ids: string[]) => {
-    const emails = [...new Set(ids.map(email))].filter((e) => e && !sans.has(e) && !vus.has(e));
-    emails.forEach((e) => vus.add(e));
-    return { titre, emails };
-  };
-  // Vos équipes agiles (membre, SM ou PO)
-  const equipes = equipesDe(pid, org).map((e) => groupe(`Équipe · ${e.nom}`, [e.sm, e.po, ...membresDe(e)]));
-  // Équipe que vous pilotez au-dessus : RTE / PM → SM et PO des équipes du train ; Epic Owner → RTE et PM de ses trains
-  const trains = org.trains.filter((t) => t.rte === pid || t.pm === pid).map((t) => groupe(`Équipe du train · ${t.nom}`, [t.rte, t.pm, ...org.equipes.filter((e) => e.train === t.id).flatMap((e) => [e.sm, e.po])]));
-  const portfolios = org.portfolios.filter((p) => p.epic_owner === pid).map((p) => groupe(`Équipe du portfolio · ${p.nom}`, [p.epic_owner, ...org.trains.filter((t) => t.portfolio === p.id).flatMap((t) => [t.rte, t.pm])]));
-  // Hiérarchie (hors delivery seulement) : votre unité
-  const u = equipes.length || trains.length || portfolios.length ? undefined : org.unite.get(org.personne.get(pid)?.unite ?? '');
-  const unite = u ? [groupe(`Unité · ${u.nom}`, [u.responsable, ...org.personnes.filter((p) => p.unite === u.id).map((p) => p.id)])] : [];
-  return [...equipes, ...trains, ...portfolios, ...unite].filter((g) => g.emails.length);
+  return equipesDePersonne(pid, org)
+    .map((g) => {
+      const emails = [...new Set(g.ids.filter((id) => id && id !== pid).map(email))].filter((e) => e && !sans.has(e) && !vus.has(e));
+      emails.forEach((e) => vus.add(e));
+      return { titre: g.titre, emails };
+    })
+    .filter((g) => g.emails.length);
 }
 
 /**
  * Escalade (décidée) : un membre escalade à son Scrum Master ou à son Product Owner (au choix, même équipe) ; le SM
- * ou le PO au RTE du train ; le RTE (ou le PM) à l'Epic Owner du portfolio ; dans la hiérarchie, au responsable de
+ * ou le PO à l'équipe du dessus, par l'une des deux voies du train (SM du train → RTE ; PO du train → PM) ; le RTE (ou le PM) à l'Epic Owner du portfolio ; dans la hiérarchie, au responsable de
  * l'unité parente. Renvoie les personnes possibles (ids), avec leur rôle et le niveau où l'échange arrive.
  */
 export function ciblesEscalade(moi: string, n: Niveau | null, org: OrgValue): { pid: string; role: string; niveau: Niveau }[] {
@@ -139,7 +165,9 @@ export function ciblesEscalade(moi: string, n: Niveau | null, org: OrgValue): { 
     const pilote = eq.sm === moi || eq.po === moi;
     if (!pilote) return sans([{ pid: eq.sm, role: 'Scrum Master', niveau: n }, { pid: eq.po, role: 'Product Owner', niveau: n }]);
     const t = org.train.get(eq.train);
-    return t ? sans([{ pid: t.rte || t.pm, role: t.rte ? 'RTE' : 'Product Manager', niveau: { kind: 'train', id: t.id } }]) : [];
+    // Deux voies (décidé 06/10) : obstacle, organisation → SM du train (RTE) ; contenu, priorité → PO du train (PM)
+    const niv: Niveau = { kind: 'train', id: eq.train };
+    return t ? sans([{ pid: t.rte, role: 'Aux SM du train · RTE', niveau: niv }, { pid: t.pm, role: 'Aux PO du train · PM', niveau: niv }]) : [];
   }
   const sup = niveauSuperieur(n, org);
   if (!sup) return [];

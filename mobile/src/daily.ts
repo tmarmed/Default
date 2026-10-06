@@ -101,7 +101,7 @@ export const LIBELLE_CONCRETISATION: Record<Concretisation, string> = {
   sous_tache: 'sous-tâche',
   tache: 'tâche à part',
   rien: 'noté seulement',
-  escalade: 'escaladé au RTE',
+  escalade: 'escaladé',
   synchro: 'transmis',
 };
 

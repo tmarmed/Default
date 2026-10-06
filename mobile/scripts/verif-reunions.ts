@@ -6,6 +6,7 @@
 import { donneesDemo, orgDemo, pointsDemo } from '../src/demo';
 import { backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteCompteRendu, texteReponse, veilleOuvree } from '../src/daily';
 import { toDateString } from '../src/dates';
+import { ciblesEscalade, destinatairesTransfert, equipesDePersonne } from '../src/echange/hierarchieEchange';
 import { makeOrgValue } from '../src/organisation';
 import { etapesParcours, ongletParcours, parcoursParDefaut, participantsReunion, reunionsAVenir } from '../src/reunions';
 import { type Reunion, TYPES_REUNION } from '../src/types';
@@ -163,6 +164,22 @@ ok(suivis(pts, dEnt).some((x) => x.tache.responsable === 'acmp6'), 'démo : une 
 ok(texteCompteRendu({ equipe: 'Mobile', jour: '2026-10-02', decisions: [], creees: [], escalades: [], synchros: ['Mot de passe (Tom → Paul)'], notes: 0 }).includes('Blocages transmis · 1'), 'compte rendu : blocages transmis');
 const cr = texteCompteRendu({ equipe: 'Mobile', jour: '2026-10-02', decisions: ['Livrer en deux fois'], creees: [{ titre: 'Accès API', sous: 'sous-tâche · Tom' }], escalades: [], notes: 1 });
 ok(cr.includes('Décisions · 1') && cr.includes('Actions créées · 1') && !cr.includes('escaladés') && cr.includes('1 autre point noté seulement'), 'compte rendu : décisions, actions créées, blocages escaladés (s’il y en a)');
+
+// Équipes, Transmettre à, Escalader (décidé 06/10) : SM → son équipe + SM du train ; PO → son équipe + PO du train
+const qui = (nom: string) => o.personnes.find((x) => x.nom.startsWith(nom))!;
+const [nNina, nPaul, nTom, nSara, nMarc] = ['Nina', 'Paul', 'Tom', 'Sara', 'Marc'].map(qui);
+const titres = (id: string) => equipesDePersonne(id, o).map((g) => g.titre.split(' · ')[0]);
+ok(titres(nTom.id).join() === 'Équipe', 'équipes : un membre n’a que son équipe');
+ok(titres(nNina.id).includes('Équipe') && titres(nNina.id).includes('SM du train') && !titres(nNina.id).includes('PO du train'), 'équipes : le SM a son équipe et l’équipe des SM du train');
+ok(titres(nPaul.id).includes('PO du train') && !titres(nPaul.id).includes('SM du train'), 'équipes : le PO a son équipe et l’équipe des PO du train');
+ok(titres(nSara.id).includes('SM du train') && titres(nSara.id).includes('Portfolio'), 'équipes : le RTE a l’équipe des SM et le portfolio');
+const versDe = (p: { email: string }) => destinatairesTransfert(p.email, null, o, [p.email]).flatMap((g) => g.emails);
+ok(versDe(nNina).includes(nSara.email.toLowerCase()) && !versDe(nNina).includes(nMarc.email.toLowerCase()), 'transmettre : le SM peut transmettre au RTE, pas au PM');
+ok(versDe(nPaul).includes(nMarc.email.toLowerCase()) && !versDe(nPaul).includes(nSara.email.toLowerCase()), 'transmettre : le PO peut transmettre au PM, pas au RTE');
+ok(!versDe(nTom).includes(nSara.email.toLowerCase()) && !versDe(nTom).includes(nMarc.email.toLowerCase()), 'transmettre : un membre reste dans son équipe');
+const eqMobile = o.equipes.find((e) => e.sm === nNina.id)!;
+const esc = ciblesEscalade(nNina.id, { kind: 'equipeagile', id: eqMobile.id }, o);
+ok(esc.length === 2 && esc.some((c) => c.pid === nSara.id) && esc.some((c) => c.pid === nMarc.id), 'escalader : le SM a deux voies, SM du train (RTE) et PO du train (PM)');
 
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
 process.exit(erreurs ? 1 : 0);
