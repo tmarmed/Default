@@ -558,6 +558,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     const sous = (s: string) => s;
     /** Parcours qui envoie ce qui est coché ou ajouté ici */
     const pr: Prep = o.role === 'po' ? 'po' : 'membre';
+    // Stories de la personne : proposées dans la fenêtre « Nouveau point »
+    const mesStories = situation.cartes.filter((t) => !!moiP && t.responsable === moiP.id);
     const lecture = o.lecture;
     switch (x.cle) {
       case 'hier':
@@ -567,7 +569,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             <SectionFiche titre={`Mes stories et tâches · ${hierListe.length}`}>
               {listeTaches('hier', hierListe, 'Rien en cours ni terminé hier.', pr)}
               {listeLibres('hier', hierListe)}
-              <SaisiePoint types={[]} jour={jour} placeholder="＋ Autre chose fait hier" onAjouter={(_, texte) => setPrep((l) => [...l, nouveau('hier', texte, '', '', pr)])} />
+              <SaisiePoint types={['hier', 'aujourdhui', 'blocage']} typeDefaut="hier" jour={jour} placeholder="＋ Autre chose fait hier" stories={mesStories} onAjouter={(type, texte, element) => setPrep((l) => [...l, nouveau(type, texte, element, '', pr)])} />
             </SectionFiche>
           </>
         );
@@ -578,7 +580,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             <SectionFiche titre={`Mes stories et tâches · ${aujListe.length}`}>
               {listeTaches('aujourdhui', aujListe, 'Rien à votre nom dans l’itération.', pr)}
               {listeLibres('aujourdhui', aujListe)}
-              <SaisiePoint types={[]} jour={jour} placeholder="＋ Autre chose aujourd’hui" onAjouter={(_, texte) => setPrep((l) => [...l, nouveau('aujourdhui', texte, '', '', pr)])} />
+              <SaisiePoint types={['hier', 'aujourdhui', 'blocage']} typeDefaut="aujourdhui" jour={jour} placeholder="＋ Autre chose aujourd’hui" stories={mesStories} onAjouter={(type, texte, element) => setPrep((l) => [...l, nouveau(type, texte, element, '', pr)])} />
             </SectionFiche>
           </>
         );
@@ -593,11 +595,12 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               ))}
               <SaisiePoint
                 premiere={!liste.length}
-                types={[]}
+                types={['hier', 'aujourdhui', 'blocage']}
+                typeDefaut="blocage"
                 jour={jour}
                 placeholder="＋ Blocage"
-                stories={situation.cartes.filter((t) => !!moiP && t.responsable === moiP.id)}
-                onAjouter={(_, texte, element) => setPrep((l) => [...l, nouveau('blocage', texte, element)])}
+                stories={mesStories}
+                onAjouter={(type, texte, element) => setPrep((l) => [...l, nouveau(type, texte, element, '', pr)])}
               />
             </SectionFiche>
           </>
@@ -851,8 +854,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 <SaisiePoint
                   key={filtreType || 'tous'}
                   premiere={!notes.filter((y) => !filtreType || y.type === filtreType).length}
-                  types={['blocage', 'decision', 'action']}
-                  typeDefaut={filtreType === 'decision' || filtreType === 'action' ? filtreType : 'blocage'}
+                  types={['hier', 'aujourdhui', 'blocage', 'decision', 'action']}
+                  typeDefaut={filtreType || 'blocage'}
                   jour={jour}
                   placeholder={`＋ Ajouter pour ${prenom(courant.nom)}…`}
                   stories={stories}
