@@ -1,0 +1,328 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
+import { addDays, toDateString } from '../../dates';
+import { dateCourte } from '../../daily';
+import { useHierarchy } from '../../hierarchyContext';
+import { colors } from '../../theme';
+import type { Item, Reunion } from '../../types';
+import { SectionFiche } from '../Choix';
+import type { ActionsDaily } from '../Daily';
+import { FenetreReunion } from '../FenetreReunion';
+import { TitreFiche } from '../FormSheet';
+import { Navigation } from './Affinage';
+import { Compteurs } from './base';
+import { Ligne, Pastilles, pastilleStatut, st, Vide } from './ui';
+
+/**
+ * Rituels personnels du mode Simple (lot 6, maquettes r12 à r15), seul : ni live, ni « ↻ Actualiser », ni compte
+ * rendu. Ils agissent sur vos tâches : « Terminer » applique les choix en une écriture groupée par Sheet.
+ * - Point perso du matin : Hier (refaire, reporter, abandonner) · Aujourd'hui (le plan, heures prévues) · Plan figé
+ * - Bilan du soir : Prévu / fait · Pas fini (demain, reporter, abandonner) · Hors plan
+ * - Revue de la semaine : Semaine écoulée · En retard · Semaine à venir · Priorités (3)
+ * - Revue des objectifs : un objectif par écran (garder, décaler l'échéance, abandonner) · Domaines délaissés · Fin
+ * Le plan du jour et les priorités de la semaine restent dans l'appareil (pas dans un Sheet).
+ */
+const TYPES_TACHE = new Set(['tache', 'rendez-vous', 'appel', 'demarche', 'mission']);
+const CLE_PLAN = (jour: string) => `president:plan-${jour}`;
+const CLE_PRIORITES = 'president:priorites-semaine';
+/** Durée d'une tâche en heures : son créneau, sinon 1 h */
+const duree = (t: Item) => {
+  if (t.heure && t.heure_fin) {
+    const [a, b] = [t.heure, t.heure_fin].map((x) => Number(x.slice(0, 2)) + Number(x.slice(3)) / 60);
+    return Math.max(0.25, b - a);
+  }
+  return 1;
+};
+const heures = (n: number) => `${Math.floor(n)} h${n % 1 ? ` ${String(Math.round((n % 1) * 60)).padStart(2, '0')}` : ''}`;
+type Choix = 'auj' | 'demain' | 'reporter' | 'abandon' | 'semaine' | 'plustard';
+const LIB: Record<Choix, string> = { auj: 'Refaire aujourd’hui', demain: 'Demain', reporter: 'Reporter', abandon: 'Abandonner', semaine: 'Cette semaine', plustard: 'Plus tard' };
+
+export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil }: { reunion: Reunion; actions: ActionsDaily; onFermer: () => void; onFini?: () => void; onInfo?: (t: string) => void; fil?: string }) {
+  const h = useHierarchy();
+  const jour = reunion.debut.slice(0, 10);
+  const demain = toDateString(addDays(new Date(`${jour}T12:00`), 1));
+  const dansSemaine = toDateString(addDays(new Date(`${jour}T12:00`), 7));
+  const ilYa7 = toDateString(addDays(new Date(`${jour}T12:00`), -7));
+  const taches = useMemo(() => h.items.filter((t) => TYPES_TACHE.has(t.type) && !t.periodicite && !t.parent), [h.items]);
+  const [choix, setChoix] = useState<Record<string, Choix>>({});
+  const [plan, setPlan] = useState<string[] | null>(null);
+  const [priorites, setPriorites] = useState<string[]>([]);
+  const [idxObj, setIdxObj] = useState(0);
+  const [decObj, setDecObj] = useState<Record<string, string>>({});
+  const [decDom, setDecDom] = useState<Record<string, string>>({});
+  useEffect(() => {
+    AsyncStorage.getItem(CLE_PLAN(jour))
+      .then((x) => setPlan(x ? JSON.parse(x) : null))
+      .catch(() => {});
+    AsyncStorage.getItem(CLE_PRIORITES)
+      .then((x) => x && setPriorites(JSON.parse(x)))
+      .catch(() => {});
+  }, [jour]);
+  const poser = (id: string, c: Choix) => setChoix((m) => ({ ...m, [id]: c }));
+  const ligneChoix = (t: Item, i: number, opts: Choix[], defaut: Choix) => (
+    <View key={t.id} style={[st.ligne, { flexDirection: 'column', alignItems: 'stretch' }, i > 0 && st.bord]}>
+      <View style={st.ligneHaut}>
+        <View style={st.corps}>
+          <Text style={st.texte}>{t.titre}</Text>
+          <Text style={st.sous}>{[t.date ? `prévu le ${dateCourte(t.date)}` : '', t.heure ? t.heure : ''].filter(Boolean).join(' · ')}</Text>
+        </View>
+      </View>
+      <Pastilles petit options={opts.map((o) => ({ value: o, label: o === 'reporter' ? `Reporter · ${dateCourte(toDateString(addDays(new Date(`${jour}T12:00`), 2)))}` : LIB[o] }))} value={choix[t.id] ?? defaut} onChange={(v) => poser(t.id, v as Choix)} />
+    </View>
+  );
+
+  // ---- Point perso ----
+  const hier = taches.filter((t) => t.statut !== 'termine' && !!t.date && t.date < jour);
+  const auj = taches.filter((t) => t.statut !== 'termine' && (t.date === jour || choix[t.id] === 'auj'));
+  const dansPlan = plan ?? auj.map((t) => t.id);
+  const planifie = auj.filter((t) => dansPlan.includes(t.id));
+  const hPlan = planifie.reduce((s, t) => s + duree(t), 0);
+  // ---- Bilan du soir ----
+  const prevus = taches.filter((t) => (plan ?? []).includes(t.id));
+  const faits = prevus.filter((t) => t.statut === 'termine');
+  const pasFinis = prevus.filter((t) => t.statut !== 'termine');
+  const horsPlan = taches.filter((t) => t.statut === 'termine' && t.termine_le === jour && !(plan ?? []).includes(t.id));
+  // ---- Revue de la semaine ----
+  const faitesSemaine = taches.filter((t) => t.statut === 'termine' && !!t.termine_le && t.termine_le > ilYa7 && t.termine_le <= jour);
+  const enRetard = taches.filter((t) => t.statut !== 'termine' && !!t.date && t.date < jour);
+  const aVenir = taches.filter((t) => t.statut !== 'termine' && !!t.date && t.date >= jour && t.date <= dansSemaine);
+  const rdv = aVenir.filter((t) => t.type === 'rendez-vous');
+  const candidatsPrio = taches.filter((t) => t.statut !== 'termine' && t.type !== 'rendez-vous');
+  // ---- Revue des objectifs ----
+  const objectifs = h.objectifList.filter((o) => !o.fin || o.fin >= jour);
+  const il30 = toDateString(addDays(new Date(`${jour}T12:00`), -30));
+  const delaisses = h.domaineList.filter((d) => !h.items.some((t) => t.domaine === d.id && ((t.termine_le && t.termine_le >= il30) || (t.statut !== 'termine' && t.date >= jour))));
+
+  const etapes = TYPES_ETAPES[reunion.type] ?? [];
+  const rendu = (k: number) => {
+    const cle = etapes[k]?.cle;
+    switch (cle) {
+      case 'hier':
+        return (
+          <>
+            <TitreFiche icone="🌅" titre="Hier" vide="" sous={`${hier.length} tâche${hier.length > 1 ? 's' : ''} pas finie${hier.length > 1 ? 's' : ''}`} />
+            <SectionFiche titre="Pas finies">{hier.length ? hier.map((t, i) => ligneChoix(t, i, ['auj', 'reporter', 'abandon'], 'auj')) : <Vide texte="✓ Tout est fait." />}</SectionFiche>
+          </>
+        );
+      case 'aujourdhui':
+        return (
+          <>
+            <TitreFiche icone="☀️" titre="Aujourd’hui" vide="" sous={dateCourte(jour)} />
+            <Compteurs l={[{ valeur: heures(hPlan), libelle: 'prévues' }, { valeur: '7 h', libelle: 'disponibles' }, { valeur: String(planifie.length), libelle: 'tâches', ton: hPlan > 7 ? 'orange' : undefined }]} />
+            <SectionFiche titre="Cochez votre plan">
+              {auj.length ? (
+                auj.map((t, i) => {
+                  const on = dansPlan.includes(t.id);
+                  return (
+                    <Pressable key={t.id} onPress={() => setPlan(on ? dansPlan.filter((x) => x !== t.id) : [...dansPlan, t.id])} style={[st.ligne, i > 0 && st.bord]} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+                      <Text style={[st.caseACocher, on && st.caseCochee]}>{on ? '✓' : ''}</Text>
+                      <View style={st.corps}>
+                        <Text style={st.texte}>{`${t.type === 'rendez-vous' ? '📅 ' : ''}${t.titre}`}</Text>
+                        <Text style={st.sous}>{[t.heure, heures(duree(t))].filter(Boolean).join(' · ')}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })
+              ) : (
+                <Vide texte="Rien de prévu aujourd’hui." />
+              )}
+            </SectionFiche>
+          </>
+        );
+      case 'plan':
+        return (
+          <>
+            <TitreFiche icone="📌" titre="Plan figé" vide="" sous={`${planifie.length} tâche${planifie.length > 1 ? 's' : ''} · ${heures(hPlan)}`} />
+            <SectionFiche titre="Mon plan">{planifie.length ? planifie.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={{ texte: t.heure || heures(duree(t)), ton: 'bleu' }} />) : <Vide texte="Plan vide." />}</SectionFiche>
+            <Text style={[st.sous, { marginHorizontal: 16, marginTop: 8 }]}>Une tâche ajoutée après le plan vous sera proposée au bilan du soir (« hors plan »).</Text>
+          </>
+        );
+      case 'prevu':
+        return (
+          <>
+            <TitreFiche icone="📊" titre="Prévu / fait" vide="" sous={plan ? `Plan du ${dateCourte(jour)}` : 'Pas de plan figé ce matin'} />
+            <Compteurs l={[{ valeur: `${faits.length}/${prevus.length}`, libelle: 'du plan fait', ton: 'vert' }, { valeur: heures(faits.reduce((s, t) => s + duree(t), 0)), libelle: 'faites' }, { valeur: String(horsPlan.length), libelle: 'hors plan', ton: 'orange' }]} />
+            <SectionFiche titre="Plan">{prevus.length ? prevus.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={pastilleStatut(t.statut)} />) : <Vide texte="Pas de plan : faites le point perso le matin." />}</SectionFiche>
+          </>
+        );
+      case 'pasfini':
+        return (
+          <>
+            <TitreFiche icone="⏳" titre={`Pas fini · ${pasFinis.length}`} vide="" sous="Le reste part à demain par défaut" />
+            <SectionFiche titre="Pas fini">{pasFinis.length ? pasFinis.map((t, i) => ligneChoix(t, i, ['demain', 'reporter', 'abandon'], 'demain')) : <Vide texte="✓ Tout le plan est fait." />}</SectionFiche>
+          </>
+        );
+      case 'horsplan':
+        return (
+          <>
+            <TitreFiche icone="➕" titre={`Hors plan · ${horsPlan.length}`} vide="" sous="Fait aujourd’hui sans être dans le plan" />
+            <SectionFiche titre="Hors plan">{horsPlan.length ? horsPlan.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={{ texte: 'fait', ton: 'vert' }} />) : <Vide texte="Rien hors plan." />}</SectionFiche>
+          </>
+        );
+      case 'ecoulee':
+        return (
+          <>
+            <TitreFiche icone="📊" titre="Semaine écoulée" vide="" sous={`${dateCourte(ilYa7)} → ${dateCourte(jour)}`} />
+            <Compteurs l={[{ valeur: String(faitesSemaine.length), libelle: 'faites', ton: 'vert' }, { valeur: String(enRetard.length), libelle: 'en retard', ton: enRetard.length ? 'rouge' : undefined }, { valeur: String(priorites.length), libelle: 'priorités' }]} />
+            <SectionFiche titre={`Priorités de la semaine · ${priorites.length}`}>
+              {priorites.length ? priorites.map((id, i) => {
+                const t = taches.find((x) => x.id === id);
+                return <Ligne key={id} premiere={i === 0} texte={t?.titre ?? 'supprimée'} pastille={t?.statut === 'termine' ? { texte: 'fait', ton: 'vert' } : { texte: 'pas fait', ton: 'rouge' }} />;
+              }) : <Vide texte="Pas de priorités choisies la semaine dernière." />}
+            </SectionFiche>
+          </>
+        );
+      case 'retard':
+        return (
+          <>
+            <TitreFiche icone="⏳" titre={`En retard · ${enRetard.length}`} vide="" sous="" />
+            <SectionFiche titre="En retard">{enRetard.length ? enRetard.map((t, i) => ligneChoix(t, i, ['semaine', 'plustard', 'abandon'], 'semaine')) : <Vide texte="✓ Rien en retard." />}</SectionFiche>
+          </>
+        );
+      case 'avenir':
+        return (
+          <>
+            <TitreFiche icone="📅" titre="Semaine à venir" vide="" sous={`Du ${dateCourte(jour)} au ${dateCourte(dansSemaine)}`} />
+            <SectionFiche titre={`Rendez-vous · ${rdv.length}`}>{rdv.length ? rdv.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={`📅 ${t.titre}`} sous={`${dateCourte(t.date)}${t.heure ? ` · ${t.heure}` : ''}`} pastille={{ texte: heures(duree(t)), ton: 'bleu' }} />) : <Vide texte="Aucun rendez-vous." />}</SectionFiche>
+            <SectionFiche titre={`Tâches prévues · ${aVenir.length - rdv.length}`}>{aVenir.filter((t) => t.type !== 'rendez-vous').map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={dateCourte(t.date)} />)}</SectionFiche>
+          </>
+        );
+      case 'priorites':
+        return (
+          <>
+            <TitreFiche icone="🎯" titre={`Priorités · ${priorites.length} sur 3`} vide="" sous="Proposées en premier à chaque point perso du matin" />
+            <SectionFiche titre="Choisissez 3 priorités">
+              {candidatsPrio.slice(0, 30).map((t, i) => {
+                const on = priorites.includes(t.id);
+                return (
+                  <Pressable key={t.id} onPress={() => setPriorites(on ? priorites.filter((x) => x !== t.id) : priorites.length < 3 ? [...priorites, t.id] : priorites)} style={[st.ligne, i > 0 && st.bord]} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+                    <Text style={[st.caseACocher, on && st.caseCochee]}>{on ? String(priorites.indexOf(t.id) + 1) : ''}</Text>
+                    <View style={st.corps}>
+                      <Text style={st.texte}>{t.titre}</Text>
+                      {!!t.date && <Text style={st.sous}>{dateCourte(t.date)}</Text>}
+                    </View>
+                  </Pressable>
+                );
+              })}
+              {!candidatsPrio.length && <Vide texte="Aucune tâche." />}
+            </SectionFiche>
+          </>
+        );
+      case 'objectifs': {
+        if (!objectifs.length) return <Vide texte="Aucun objectif en cours." />;
+        const i = Math.min(idxObj, objectifs.length - 1);
+        const o = objectifs[i];
+        const pct = Number(o.cible) ? Math.round((100 * (Number(o.actuel) || 0)) / Number(o.cible)) : 0;
+        return (
+          <>
+            <Navigation n={objectifs.length} cur={i} onChoisir={setIdxObj} />
+            <TitreFiche icone="🎯" titre={o.titre} vide="" sous={`objectif ${i + 1} sur ${objectifs.length}${o.fin ? ` · échéance ${dateCourte(o.fin)}` : ''}`} />
+            <Compteurs l={[{ valeur: `${pct} %`, libelle: 'avancement' }, { valeur: String(h.epicList.filter((x) => x.objectif === o.id).length), libelle: 'epics' }, { valeur: String(h.items.filter((t) => t.objectif === o.id && t.statut !== 'termine').length), libelle: 'tâches ouvertes' }]} />
+            <SectionFiche titre="Objectif">
+              <View style={{ padding: 12 }}>
+                <Pastilles petit options={['Garder', 'Décaler l’échéance', 'Abandonner'].map((x) => ({ value: x, label: x }))} value={decObj[o.id] ?? 'Garder'} onChange={(x) => setDecObj((m) => ({ ...m, [o.id]: x }))} />
+              </View>
+            </SectionFiche>
+          </>
+        );
+      }
+      case 'domaines':
+        return (
+          <>
+            <TitreFiche icone="🌱" titre="Domaines délaissés" vide="" sous="Rien depuis 30 jours" />
+            <SectionFiche titre={`Domaines · ${delaisses.length}`}>
+              {delaisses.length ? (
+                delaisses.map((d, i) => (
+                  <View key={d.id} style={[st.ligne, { flexDirection: 'column', alignItems: 'stretch' }, i > 0 && st.bord]}>
+                    <Text style={st.texte}>{`${d.icone} ${d.nom}`}</Text>
+                    <Pastilles petit options={['Planifier une tâche', 'Plus tard', 'Mettre en pause'].map((x) => ({ value: x, label: x }))} value={decDom[d.id] ?? 'Plus tard'} onChange={(x) => setDecDom((m) => ({ ...m, [d.id]: x }))} />
+                  </View>
+                ))
+              ) : (
+                <Vide texte="✓ Aucun domaine délaissé." />
+              )}
+            </SectionFiche>
+          </>
+        );
+      case 'fin':
+        return (
+          <>
+            <TitreFiche icone="✓" titre="Revue terminée" vide="" sous={`${objectifs.length} objectif${objectifs.length > 1 ? 's' : ''} revu${objectifs.length > 1 ? 's' : ''}`} />
+            <SectionFiche titre="Décisions">{objectifs.map((o, i) => <Ligne key={o.id} premiere={i === 0} texte={o.titre} pastille={{ texte: decObj[o.id] ?? 'Gardé', ton: (decObj[o.id] ?? 'Garder') === 'Garder' ? 'vert' : 'orange' }} />)}</SectionFiche>
+            {Object.values(decDom).some((x) => x === 'Planifier une tâche') && <Text style={[st.sous, { marginHorizontal: 16, marginTop: 8, color: colors.primary }]}>Une tâche « À planifier » sera créée pour chaque domaine choisi.</Text>}
+          </>
+        );
+      default:
+        return null;
+    }
+  };
+
+  /** « Terminer » : les choix appliqués (une écriture par Sheet), le plan et les priorités gardés dans l'appareil */
+  const terminer = async () => {
+    const dateDe = (c: Choix): string | null => (c === 'auj' ? jour : c === 'demain' ? demain : c === 'reporter' ? toDateString(addDays(new Date(`${jour}T12:00`), 2)) : c === 'semaine' ? jour : c === 'plustard' ? dansSemaine : c === 'abandon' ? '' : null);
+    const defaut = (t: Item): Choix | null => (reunion.type === 'point_perso' && hier.includes(t) ? 'auj' : reunion.type === 'bilan_soir' && pasFinis.includes(t) ? 'demain' : reunion.type === 'revue_semaine' && enRetard.includes(t) ? 'semaine' : null);
+    const patches = new Map<string, (Partial<Item> & { id: string })[]>();
+    for (const t of taches) {
+      const c = choix[t.id] ?? defaut(t);
+      if (!c) continue;
+      const d = dateDe(c);
+      if (d === null || d === t.date) continue;
+      const esp = t.espace || 'moi';
+      patches.set(esp, [...(patches.get(esp) ?? []), { id: t.id, date: d }]);
+    }
+    let n = 0;
+    if (actions.modifierItems) for (const [esp, l] of patches) n += (await actions.modifierItems(esp, l)).length;
+    if (reunion.type === 'point_perso') await AsyncStorage.setItem(CLE_PLAN(jour), JSON.stringify(dansPlan)).catch(() => {});
+    if (reunion.type === 'revue_semaine') await AsyncStorage.setItem(CLE_PRIORITES, JSON.stringify(priorites)).catch(() => {});
+    onFini?.();
+    onInfo?.(`${TITRES[reunion.type] ?? 'Rituel'} terminé${n ? ` : ${n} tâche${n > 1 ? 's' : ''} déplacée${n > 1 ? 's' : ''}` : ''}.`);
+  };
+
+  return (
+    <FenetreReunion
+      visible
+      reunion={reunion}
+      mode="organisateur"
+      fil={fil}
+      etapes={etapes.map((x) => x.nom)}
+      libelleFin="Terminer"
+      renduEtape={rendu}
+      onSuivant={(k) => {
+        if (etapes[k]?.cle === 'objectifs' && idxObj < objectifs.length - 1) {
+          setIdxObj(idxObj + 1);
+          return true;
+        }
+        return false;
+      }}
+      libelleSuivant={(k) => (etapes[k]?.cle === 'objectifs' && idxObj < objectifs.length - 1 ? 'Objectif suivant ›' : undefined)}
+      onTerminer={terminer}
+      onFermer={onFermer}
+    />
+  );
+}
+const TITRES: Partial<Record<Reunion['type'], string>> = { point_perso: 'Point perso', bilan_soir: 'Bilan du soir', revue_semaine: 'Revue de la semaine', revue_objectifs: 'Revue des objectifs' };
+const TYPES_ETAPES: Partial<Record<Reunion['type'], { cle: string; nom: string }[]>> = {
+  point_perso: [
+    { cle: 'hier', nom: 'Hier' },
+    { cle: 'aujourdhui', nom: 'Aujourd’hui' },
+    { cle: 'plan', nom: 'Plan figé' },
+  ],
+  bilan_soir: [
+    { cle: 'prevu', nom: 'Prévu / fait' },
+    { cle: 'pasfini', nom: 'Pas fini' },
+    { cle: 'horsplan', nom: 'Hors plan' },
+  ],
+  revue_semaine: [
+    { cle: 'ecoulee', nom: 'Semaine écoulée' },
+    { cle: 'retard', nom: 'En retard' },
+    { cle: 'avenir', nom: 'Semaine à venir' },
+    { cle: 'priorites', nom: 'Priorités' },
+  ],
+  revue_objectifs: [
+    { cle: 'objectifs', nom: 'Objectifs' },
+    { cle: 'domaines', nom: 'Domaines délaissés' },
+    { cle: 'fin', nom: 'Fin' },
+  ],
+};
+export const estRituelSimple = (t: Reunion['type']) => !!TYPES_ETAPES[t];

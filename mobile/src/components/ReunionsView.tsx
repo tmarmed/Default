@@ -14,6 +14,7 @@ import { FenetreRetro } from './reunion/Retro';
 import { FenetreRevue } from './reunion/Revue';
 import { FenetrePlanification } from './reunion/Planification';
 import { estReunionNiveau, FenetreNiveau } from './reunion/Niveau';
+import { estRituelSimple, FenetreSimple } from './reunion/Simple';
 
 /**
  * 📅 Réunions (lot 6) : vos réunions, construites comme la liste de la Synchro (« Par conversation ») : sections
@@ -191,6 +192,8 @@ export function FenetreDeReunion(p: {
     return <FenetreDaily visible reunion={ouverte} mode={mode} org={org} moi={moi} aujourdhui={aujourdhui} fil={fil} actions={daily} onFermer={onFermer} onInfo={onInfo} onOpenTask={onOpenTask} echanges={echanges} />;
   // Réunions d'équipe validées (07/10) : contenu de chaque étape, sur le socle commun
   const props = { visible: true, reunion: ouverte, org, moi, aujourdhui, fil, onFermer, onFini: p.onFini, onInfo, onOpenTask, echanges };
+  // Rituels personnels (seul) : sur vos tâches, sans live ni compte rendu
+  if (!ouverte.niveau && daily && estRituelSimple(ouverte.type)) return <FenetreSimple reunion={ouverte} actions={daily} fil={fil} onFermer={onFermer} onFini={p.onFini} onInfo={onInfo} />;
   if (ouverte.niveau && daily) {
     if (ouverte.type === 'affinage') return <FenetreAffinage {...props} actions={daily} />;
     if (ouverte.type === 'retro') return <FenetreRetro {...props} actions={daily} />;
