@@ -10,6 +10,7 @@ import { type Epic, ETATS_EPIC, type Feature, type TypeReunion, TYPES_REUNION } 
 import { SectionFiche } from '../Choix';
 import { TitreFiche } from '../FormSheet';
 import { ListeEditable, MesTaches, Navigation } from './Affinage';
+import { AjoutElement } from './Ajout';
 import { BlocPoints, BlocSuivi, Compteurs, type Equipe, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, prenom, type R, useReunion } from './base';
 import { Ligne, Pastilles, st, Vide } from './ui';
 import { CARTES_CONFIANCE, type DecisionVote, VoteAnimateur, VoteEtoiles, VoteParticipant, votesDe } from './Vote';
@@ -40,10 +41,10 @@ interface Ctx {
 }
 type Etape =
   | { k: 'situation'; compteurs: (c: Ctx) => { valeur: string; libelle: string; ton?: 'rouge' | 'orange' | 'vert' }[]; objectif: string; sousObjectif: string }
-  | { k: 'liste'; icone: string; titre: string; sous: string; lignes: (c: Ctx) => Elem[]; points?: boolean }
-  | { k: 'elements'; icone: string; mot: string; liste: (c: Ctx) => Elem[]; choix?: string[] }
+  | { k: 'liste'; icone: string; titre: string; sous: string; lignes: (c: Ctx) => Elem[]; points?: boolean; ajout?: Ajout }
+  | { k: 'elements'; icone: string; mot: string; liste: (c: Ctx) => Elem[]; choix?: string[]; ajout?: Ajout }
   | { k: 'points'; icone: string; titre: string; sous: string; placeholder: string }
-  | { k: 'saisies'; icone: string; titre: string; sous: string; cle: string; vote?: 'etoiles' }
+  | { k: 'saisies'; icone: string; titre: string; sous: string; cle: string; vote?: 'etoiles'; ajout?: Ajout }
   | { k: 'confiance' }
   | { k: 'budget'; cle: string }
   | { k: 'concretisation' }
@@ -56,6 +57,11 @@ type Etape =
   | { k: 'voter_confiance' }
   | { k: 'voter_etoiles'; cle: string }
   | { k: 'voter_budget'; cle: string };
+/**
+ * « ＋ Ajouter … » d'une étape (08/10) : feature du PI (PI Planning), feature du prochain PI (affinage du train,
+ * préparation du PI), objectif du PI, epic (idée du portfolio), résultat clé de l'OKR en cours
+ */
+type Ajout = 'feature_pi' | 'feature_prochain' | 'objectifpi' | 'epic' | 'resultat';
 interface Config {
   nomCourt: string;
   /** Étapes par rôle : animateur, participant (Mon point), PM ou PO (onglet PO) */
@@ -105,8 +111,8 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
       ['situation', 'Situation', SIT('Un plan par équipe, des objectifs du PI, les risques traités', 'Plans d’équipe, objectifs du PI avec leur valeur, risques (ROAM), un vote de confiance d’au moins 3.', (c) => [{ valeur: String(c.features.length), libelle: 'features du PI' }, { valeur: String(objectifsPI(c).length), libelle: 'objectifs du PI' }, { valeur: String(c.r.donneesDe('risque').length), libelle: 'risques', ton: 'orange' }])],
       ['contexte', 'Contexte', { k: 'saisies', icone: '🧭', titre: 'Contexte', sous: 'Vision du PM, features priorisées', cle: 'vision' }],
       ['capacite', 'Capacité', { k: 'saisies', icone: '👥', titre: 'Capacité par équipe', sous: 'Déclarée par les SM', cle: 'capacite' }],
-      ['plans', 'Plans d’équipe', { k: 'liste', icone: '🗓️', titre: 'Plans d’équipe', sous: 'Features du PI par équipe et sprint', lignes: featuresPI, points: true }],
-      ['objectifs', 'Objectifs du PI', { k: 'liste', icone: '🏁', titre: 'Objectifs du PI', sous: 'Préparés par les PO · valeur par les Business Owners', lignes: objectifsPI, points: true }],
+      ['plans', 'Plans d’équipe', { k: 'liste', icone: '🗓️', titre: 'Plans d’équipe', sous: 'Features du PI par équipe et sprint', lignes: featuresPI, points: true, ajout: 'feature_pi' }],
+      ['objectifs', 'Objectifs du PI', { k: 'liste', icone: '🏁', titre: 'Objectifs du PI', sous: 'Préparés par les PO · valeur par les Business Owners', lignes: objectifsPI, points: true, ajout: 'objectifpi' }],
       ['risques', 'Risques', { k: 'points', icone: '⚠', titre: 'Risques · ROAM', sous: 'Résolu, Owned, Accepté, Mitigé : à la concrétisation', placeholder: '＋ Risque' }],
       ['vote', 'Vote', { k: 'confiance' }],
       ['concretisation', 'Concrétisation', CONC],
@@ -184,7 +190,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
       ['situation', 'Situation', SIT('Décider de l’état de chaque epic', 'Avancer, garder ou arrêter les epics ; trier les nouvelles idées.', (c) => [{ valeur: String(c.epics.length), libelle: 'epics' }, { valeur: String(c.epics.filter((x) => x.etat === 'idee' || !x.etat).length), libelle: 'idées' }, { valeur: String(c.epics.filter((x) => x.etat === 'en_cours').length), libelle: 'en cours' }])],
       ['kanban', 'Kanban', { k: 'liste', icone: '🗂️', titre: 'Kanban des epics', sous: 'Idée → Analyse → Prêt → En cours → Terminé', lignes: epicsPortfolio }],
       ['epics', 'Epics', { k: 'elements', icone: '🗂️', mot: 'Epic', liste: epicsPortfolio, choix: ETATS_EPIC.map((s) => s.label) }],
-      ['idees', 'Idées', { k: 'saisies', icone: '💡', titre: 'Nouvelles idées', sous: 'Proposées par les trains', cle: 'idee_pf' }],
+      ['idees', 'Idées', { k: 'saisies', icone: '💡', titre: 'Nouvelles idées', sous: 'Proposées par les trains', cle: 'idee_pf', ajout: 'epic' }],
       ['concretisation', 'Concrétisation', CONC],
       ['compte_rendu', 'Compte rendu', CR],
     ],
@@ -198,7 +204,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
     nomCourt: 'à la revue des OKR',
     sm: [
       ['situation', 'Situation', SIT('Revoir les OKR du trimestre', 'Où en sont les résultats clés, que viser au trimestre suivant.', (c) => [{ valeur: String(okrs(c).length), libelle: 'OKR' }, { valeur: String(c.e.h.resultats.length), libelle: 'résultats clés' }, { valeur: String(c.epics.length), libelle: 'epics' }])],
-      ['okr', 'OKR', { k: 'elements', icone: '🎯', mot: 'OKR', liste: okrs, choix: ['Garder', 'Ajuster', 'Arrêter'] }],
+      ['okr', 'OKR', { k: 'elements', icone: '🎯', mot: 'OKR', liste: okrs, choix: ['Garder', 'Ajuster', 'Arrêter'], ajout: 'resultat' }],
       ['suivant', 'Trimestre suivant', { k: 'points', icone: '📅', titre: 'Trimestre suivant', sous: 'Décisions et actions', placeholder: '＋ Décision ou action' }],
       ['concretisation', 'Concrétisation', CONC],
       ['compte_rendu', 'Compte rendu', CR],
@@ -213,7 +219,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
     nomCourt: 'à l’affinage du train',
     sm: [
       ['situation', 'Situation', SIT('Préparer les features du prochain PI', 'Features estimées, critères écrits, prêtes pour le PI Planning.', (c) => [{ valeur: String(featuresPrep(c).length), libelle: 'features à préparer', ton: 'orange' }, { valeur: String(featuresPrep(c).filter((f) => f.pastille === 'estimée').length), libelle: 'estimées' }, { valeur: String(c.features.length), libelle: 'features du PI' }])],
-      ['a_preparer', 'Features à préparer', { k: 'liste', icone: '🪄', titre: 'Features à préparer', sous: 'Ordre du PM', lignes: featuresPrep }],
+      ['a_preparer', 'Features à préparer', { k: 'liste', icone: '🪄', titre: 'Features à préparer', sous: 'Ordre du PM', lignes: featuresPrep, ajout: 'feature_prochain' }],
       ['feature', 'Feature', { k: 'elements', icone: '🧩', mot: 'Feature', liste: featuresPrep, choix: ['Prête', 'À reprendre', 'À découper'] }],
       ['concretisation', 'Concrétisation', CONC],
       ['compte_rendu', 'Compte rendu', CR],
@@ -228,7 +234,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
     sm: [
       ['situation', 'Situation', SIT('Préparer le PI Planning', 'Vision, features, capacité, dépendances et organisation des deux jours.', (c) => [{ valeur: String(featuresPrep(c).length), libelle: 'features candidates' }, { valeur: String(c.r.donneesDe('capacite').length), libelle: 'capacités reçues' }, { valeur: String(c.r.tous.filter((x) => c.r.ici(x)).length), libelle: 'points' }])],
       ['vision', 'Vision', { k: 'saisies', icone: '🧭', titre: 'Vision', sous: 'Du PM', cle: 'vision' }],
-      ['features', 'Features du PI', { k: 'liste', icone: '🧩', titre: 'Features du PI', sous: 'Candidates, ordre du PM', lignes: featuresPrep }],
+      ['features', 'Features du PI', { k: 'liste', icone: '🧩', titre: 'Features du PI', sous: 'Candidates, ordre du PM', lignes: featuresPrep, ajout: 'feature_prochain' }],
       ['capacite', 'Capacité', { k: 'saisies', icone: '👥', titre: 'Capacité des équipes', sous: 'Déclarée par les SM', cle: 'capacite' }],
       ['dependances', 'Dépendances', { k: 'points', icone: '🔗', titre: 'Dépendances', sous: 'Entre équipes et avec l’extérieur', placeholder: '＋ Dépendance (blocage) ou action' }],
       ['organisation', 'Organisation', { k: 'points', icone: '🗓️', titre: 'Organisation', sous: 'Salles, horaires, invités', placeholder: '＋ Action ou décision' }],
@@ -351,6 +357,95 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
     return saisiesDe(cle).map((d) => ({ ...d, pts: m.get(d.id) ?? 0 })).sort((a, b) => b.pts - a.pts);
   };
 
+  // « ＋ Ajouter … » : créé ou rattaché tout de suite dans le Sheet de la réunion ; ✕ pour défaire
+  const esp = p.reunion.espace || 'moi';
+  const trainId = n?.kind === 'train' ? n.id : (e.train?.id ?? '');
+  const portfolioId = n?.kind === 'portfolio' ? n.id : (e.portfolio?.id ?? '');
+  const ajoutDe = (a: Ajout | undefined, lecture: boolean, okr?: string) => {
+    if (!a) return null;
+    const act = p.actions;
+    if (a === 'feature_pi' || a === 'feature_prochain') {
+      const pi = a === 'feature_pi' ? c.pi : c.piSuivant;
+      return (
+        <AjoutElement
+          mot="feature"
+          feminin
+          lecture={lecture}
+          aide={`Feature du train ${e.nomNiveau || ''} · PI ${pi}`}
+          existants={e.h.featureList.filter((f) => f.pi !== pi && (!f.train || f.train === trainId)).map((f) => ({ id: f.id, titre: f.titre, sous: [f.pi ? `PI ${f.pi}` : 'sans PI', f.train ? '' : 'sans train'].filter(Boolean).join(' · ') }))}
+          onNouveau={async (titre) => {
+            const [f] = await act.creerEntites!(esp, 'feature', [{ titre, description: '', epic: '', pi, iteration: '', points: '', couleur: '', train: trainId, equipe: '', rang: '' }]);
+            return async () => act.supprimer!('feature', f.id);
+          }}
+          onChoisir={async (id) => {
+            const f = e.h.featureList.find((x) => x.id === id)!;
+            const avant = { pi: f.pi, train: f.train ?? '' };
+            await act.modifierEntites!(f.espace || esp, 'feature', [{ id, pi, train: trainId || avant.train }]);
+            return async () => act.modifierEntites!(f.espace || esp, 'feature', [{ id, ...avant }]);
+          }}
+        />
+      );
+    }
+    if (a === 'objectifpi')
+      return (
+        <AjoutElement
+          mot="objectif du PI"
+          lecture={lecture}
+          aide={`PI ${c.pi} · engagé (modifiable dans sa fiche)`}
+          existants={e.h.objectifsPI.filter((o) => o.pi !== c.pi).map((o) => ({ id: o.id, titre: o.titre, sous: `PI ${o.pi || '—'}` }))}
+          onNouveau={async (titre) => {
+            const [o] = await act.creerEntites!(esp, 'objectifpi', [{ titre, pi: c.pi, type: 'engage', valeur_prevue: '', valeur_obtenue: '', domaine: '', epic: '' }]);
+            return async () => act.supprimer!('objectifpi', o.id);
+          }}
+          onChoisir={async (id) => {
+            const o = e.h.objectifsPI.find((x) => x.id === id)!;
+            const avant = o.pi;
+            await act.modifierEntites!(o.espace || esp, 'objectifpi', [{ id, pi: c.pi }]);
+            return async () => act.modifierEntites!(o.espace || esp, 'objectifpi', [{ id, pi: avant }]);
+          }}
+        />
+      );
+    if (a === 'epic')
+      return (
+        <AjoutElement
+          mot="epic"
+          feminin
+          lecture={lecture}
+          aide={`Epic du portfolio ${e.portfolio?.nom ?? ''} · état Idée`}
+          existants={e.h.epicList.filter((x) => !x.portfolio).map((x) => ({ id: x.id, titre: x.titre, sous: 'sans portfolio' }))}
+          onNouveau={async (titre) => {
+            const [x] = await act.creerEntites!(esp, 'epic', [{ titre, description: '', debut: '', fin: '', couleur: '', objectif: '', domaine: '', etat: 'idee', portfolio: portfolioId, value_streams: '', okrs: '', rang: '' }]);
+            return async () => act.supprimer!('epic', x.id);
+          }}
+          onChoisir={async (id) => {
+            const x = e.h.epicList.find((y) => y.id === id)!;
+            await act.modifierEntites!(x.espace || esp, 'epic', [{ id, portfolio: portfolioId }]);
+            return async () => act.modifierEntites!(x.espace || esp, 'epic', [{ id, portfolio: '' }]);
+          }}
+        />
+      );
+    if (a === 'resultat' && okr)
+      return (
+        <AjoutElement
+          mot="résultat clé"
+          lecture={lecture}
+          aide="Rattaché à cet OKR (cible et unité dans sa fiche)"
+          existants={e.h.resultats.filter((k) => k.objectif !== okr).map((k) => ({ id: k.id, titre: k.titre, sous: 'autre OKR' }))}
+          onNouveau={async (titre) => {
+            const [k] = await act.creerEntites!(esp, 'resultat', [{ titre, objectif: okr, actuel: '', cible: '', unite: '' }]);
+            return async () => act.supprimer!('resultat', k.id);
+          }}
+          onChoisir={async (id) => {
+            const k = e.h.resultats.find((y) => y.id === id)!;
+            const avant = k.objectif;
+            await act.modifierEntites!(k.espace || esp, 'resultat', [{ id, objectif: okr }]);
+            return async () => act.modifierEntites!(k.espace || esp, 'resultat', [{ id, objectif: avant }]);
+          }}
+        />
+      );
+    return null;
+  };
+
   const rendu = (x: EtapeCatalogue, _o: ParcoursRole, lecture: boolean) => {
     const et = etapes.get(x.cle)?.et;
     if (!et) return null;
@@ -374,6 +469,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
           <>
             <TitreFiche icone={et.icone} titre={`${et.titre} · ${l.length}`} vide="" sous={et.sous} />
             <SectionFiche titre={et.titre}>{l.length ? l.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.titre} sous={y.sous} pastille={y.pastille ? { texte: y.pastille, ton: 'bleu' } : undefined} />) : <Vide texte="Rien pour l’instant." />}</SectionFiche>
+            {et.k === 'liste' && ajoutDe(et.ajout, lecture || !r.anime)}
             {et.k === 'liste' && et.points && <BlocPoints r={r} points={r.tous.filter((y) => r.ici(y))} lecture={lecture} stories={[]} />}
             {et.k === 'mes_elements' && <BlocPoints r={r} titre="Mes points" points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={[]} />}
           </>
@@ -398,6 +494,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
                 <View style={{ padding: 12 }}>{lecture ? <Text style={st.texte}>{choix[y.id] || 'À décider'}</Text> : <Pastilles petit options={et.choix.map((z) => ({ value: z, label: z }))} value={choix[y.id] ?? ''} onChange={(z) => setChoix((m) => ({ ...m, [y.id]: z }))} />}</View>
               </SectionFiche>
             )}
+            {ajoutDe(et.ajout, lecture || !r.anime, y.id)}
             <BlocPoints r={r} points={r.tous.filter((z) => r.ici(z) && z.element === y.id)} lecture={lecture} stories={[]} />
           </>
         );
@@ -432,6 +529,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
               )}
             </SectionFiche>
             <BlocPoints r={r} points={r.tous.filter((y) => r.ici(y))} lecture={lecture} stories={[]} />
+            {ajoutDe(et.ajout, lecture || !r.anime)}
           </>
         );
       }

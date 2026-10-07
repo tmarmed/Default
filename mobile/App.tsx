@@ -1613,6 +1613,37 @@ function Main() {
       });
       return crees;
     },
+    creerEntites: async (espace, kind, inputs) => {
+      if (!settings) throw new Error('Non connecté.');
+      if (!inputs.length) return [];
+      const { crees } = await api.ecrireLot(settings, espace, kind, inputs as never, []);
+      const key = LIST_KEY[kind];
+      setHier((prev) => {
+        const next = { ...prev, [key]: [...((prev[key] as { id: string }[]) ?? []), ...(crees as { id: string }[])] } as Hier;
+        saveHierarchyCache(next).catch(() => {});
+        return next;
+      });
+      return crees as { id: string }[];
+    },
+    supprimer: async (kind, id) => {
+      if (!settings) throw new Error('Non connecté.');
+      if (kind === 'item') {
+        await api.deleteItem(settings, id, false);
+        setItems((prev) => {
+          const next = prev.filter((t) => t.id !== id);
+          saveCache(next).catch(() => {});
+          return next;
+        });
+        return;
+      }
+      await api.deleteEntity(settings, kind, id, false);
+      const key = LIST_KEY[kind];
+      setHier((prev) => {
+        const next = { ...prev, [key]: ((prev[key] as { id: string }[]) ?? []).filter((x) => x.id !== id) } as Hier;
+        saveHierarchyCache(next).catch(() => {});
+        return next;
+      });
+    },
     modifierEntites: async (espace, kind, patches) => {
       if (!settings || !patches.length) return;
       const { modifies } = await api.ecrireLot(settings, espace, kind, [], patches as never);

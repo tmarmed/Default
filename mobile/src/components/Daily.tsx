@@ -70,6 +70,8 @@ import { Compteur, pluriel, Entonnoir, FiltresType, Ligne, LigneCase, LigneStory
  */
 
 /** Opérations du daily (fournies par l'application : Sheets, état des tâches et des échanges) */
+/** Éléments qu'une réunion peut ajouter (en plus des tâches) */
+export type KindAjout = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'resultat';
 export interface ActionsDaily {
   lirePoints: (espace: string, prefixe: string) => Promise<PointReunion[]>;
   /** Points créés, modifiés et retirés en un seul passage ; renvoie les points créés dans l'ordre */
@@ -86,8 +88,12 @@ export interface ActionsDaily {
   actualiser?: (espace: string, prefixe: string) => Promise<PointReunion[]>;
   /** Modifie des tâches en un seul passage (stories engagées, acceptées, estimées…) ; renvoie les tâches modifiées */
   modifierItems?: (espace: string, patches: (Partial<Item> & { id: string })[]) => Promise<Item[]>;
-  /** Modifie des epics ou des objectifs en un seul passage (revue du portfolio, revue des objectifs) */
-  modifierEntites?: (espace: string, kind: 'epic' | 'objectif', patches: { id: string; [k: string]: string }[]) => Promise<void>;
+  /** Modifie des epics, objectifs, features… en un seul passage (revue du portfolio, revue des objectifs, ＋ Choisir) */
+  modifierEntites?: (espace: string, kind: KindAjout, patches: { id: string; [k: string]: string }[]) => Promise<void>;
+  /** ＋ Nouveau dans une réunion (08/10) : crée des objectifs, domaines, features, objectifs du PI, epics, résultats clés */
+  creerEntites?: (espace: string, kind: KindAjout, inputs: Record<string, string>[]) => Promise<{ id: string }[]>;
+  /** ✕ sur un ajout de la séance : supprime l'élément créé (tâche ou autre) */
+  supprimer?: (kind: KindAjout | 'item', id: string) => Promise<void>;
   /** Crée des tâches en un seul passage ; renvoie les tâches créées dans l'ordre */
   creerTaches: (espace: string, inputs: ItemInput[]) => Promise<Item[]>;
   /** Envoie des échanges (Synchro, escalades, compte rendu) en un seul passage ; renvoie les échanges créés dans l'ordre */

@@ -12,6 +12,7 @@ import { FeuilleChoix, SectionFiche } from '../Choix';
 import { TitreFiche } from '../FormSheet';
 import { ListeEditable, MesTaches } from './Affinage';
 import { BlocPoints, BlocSuivi, Compteurs, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, prenom, QuestionsEquipe, useReunion } from './base';
+import { AjoutElement, itemReunion } from './Ajout';
 import { Ligne, Pastilles, pastilleStatut, st, Vide } from './ui';
 import { CARTES_POKER, type DecisionVote, VoteAnimateur } from './Vote';
 
@@ -186,6 +187,25 @@ export function FenetrePlanification(p: PropsReunion) {
             <TitreFiche icone="📖" titre="Stories à prendre" vide="" sous="Choix de chacun · vous validez l’affectation" />
             <Compteurs l={[{ valeur: `${pris}`, libelle: 'pts pris' }, { valeur: String(capaTotale), libelle: 'capacité' }, { valeur: String(v.moyenne), libelle: 'vélocité' }]} />
             <SectionFiche titre={`Stories · ${candidates.length}`}>{candidates.length ? candidates.map((y, i) => ligneStory(y, i, lecture)) : <Vide texte="Aucune story prête dans le backlog." />}</SectionFiche>
+            <AjoutElement
+              mot="story"
+              feminin
+              lecture={lecture}
+              aide={`Engagée dans le ${e.it.nom} de l’équipe ${e.nomNiveau}`}
+              existants={e.h.items
+                .filter((t) => t.type === 'story' && t.statut !== 'termine' && !candidates.includes(t) && iterationOfItem(t) !== e.it.key && (e.dansEquipe(t) || !t.equipe))
+                .map((t) => ({ id: t.id, titre: t.titre, sous: [t.equipe ? 'backlog de l’équipe' : 'sans équipe', iterationOfItem(t) ? nomSprintDe(iterationOfItem(t)) : ''].filter(Boolean).join(' · ') }))}
+              onNouveau={async (titre) => {
+                const [t] = await p.actions.creerTaches(p.reunion.espace || 'moi', [itemReunion(p.reunion.espace || 'moi', titre, { type: 'story', equipe: e.equipe?.id ?? '', iteration: e.it.key })]);
+                return async () => p.actions.supprimer?.('item', t.id);
+              }}
+              onChoisir={async (id) => {
+                const t = e.h.items.find((x) => x.id === id)!;
+                const avant = { iteration: t.iteration, equipe: t.equipe ?? '' };
+                await p.actions.modifierItems?.(t.espace || 'moi', [{ id, iteration: e.it.key, equipe: e.equipe?.id ?? avant.equipe }]);
+                return async () => void (await p.actions.modifierItems?.(t.espace || 'moi', [{ id, ...avant }]));
+              }}
+            />
             <SectionFiche titre="Charge par membre · pris / capacité">
               {noms.map((m, i) => {
                 const c = charge(m);

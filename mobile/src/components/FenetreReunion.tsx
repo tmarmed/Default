@@ -382,7 +382,7 @@ const s = StyleSheet.create({
   directContenu: { padding: 12, gap: 6 },
   directLecture: { fontSize: 11.5, color: colors.muted, textAlign: 'center', paddingVertical: 6, backgroundColor: colors.bg },
   hautPlus: { position: 'relative', zIndex: 2 },
-  plusPos: { position: 'absolute', right: 12, top: -26, zIndex: 3 },
+  plusPos: { position: 'absolute', right: 8, top: -25, zIndex: 3, backgroundColor: '#fff', paddingLeft: 6 },
   plus: { paddingHorizontal: 8, paddingVertical: 2 },
   plusTexte: { fontSize: 20, color: colors.muted, fontWeight: '700' },
 });

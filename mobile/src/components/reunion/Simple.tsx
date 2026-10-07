@@ -11,6 +11,7 @@ import type { ActionsDaily } from '../Daily';
 import { FenetreReunion } from '../FenetreReunion';
 import { TitreFiche } from '../FormSheet';
 import { Navigation } from './Affinage';
+import { AjoutElement, ChoixJour } from './Ajout';
 import { Compteurs } from './base';
 import { Ligne, Pastilles, pastilleStatut, st, Vide } from './ui';
 
@@ -57,6 +58,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
   const [decObj, setDecObj] = useState<Record<string, string>>({});
   const [decDom, setDecDom] = useState<Record<string, string>>({});
   const [voirFaites, setVoirFaites] = useState(false);
+  const [jourAjout, setJourAjout] = useState(reunion.debut.slice(0, 10));
   const [gac, setGac] = useState<Gac>({ garder: '', arreter: '', commencer: '' });
   useEffect(() => {
     AsyncStorage.getItem(CLE_PLAN(jour))
@@ -114,6 +116,57 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
     .filter((x) => x.n > 0)
     .sort((a, b) => b.n - a.n);
 
+  // ---- « ＋ Ajouter … » (08/10) : l'élément de chaque étape, nouveau ou existant, enregistré tout de suite ----
+  const nouvelleTache = (titre: string, date: string) => ({ ...RECURRENCE_DEFAUTS, espace: 'moi', titre, type: 'tache' as const, date, heure: '', heure_fin: '', date_fin: '', lieu: '', description: '', priorite: 'normale' as const, statut: 'a_faire' as const, parent: '', feature: '', epic: '', objectif: '', domaine: '', points: '', iteration: '', telephone: '', equipe: '', responsable: '' });
+  const ajoutTache = (date: string, auPlan = false) => ({
+    existants: taches.filter((t) => t.statut !== 'termine' && t.date !== date).map((t) => ({ id: t.id, titre: t.titre, sous: t.date ? `prévue le ${dateCourte(t.date)}` : 'sans date' })),
+    onNouveau: async (titre: string) => {
+      const [t] = await actions.creerTaches('moi', [nouvelleTache(titre, date)]);
+      if (auPlan) setPlan((p) => (p ? [...p, t.id] : p));
+      return async () => {
+        await actions.supprimer?.('item', t.id);
+        if (auPlan) setPlan((p) => (p ? p.filter((x) => x !== t.id) : p));
+      };
+    },
+    onChoisir: async (id: string) => {
+      const t = taches.find((x) => x.id === id)!;
+      const avant = t.date;
+      await actions.modifierItems?.(t.espace || 'moi', [{ id, date }]);
+      if (auPlan) setPlan((p) => (p ? [...p, id] : p));
+      return async () => {
+        await actions.modifierItems?.(t.espace || 'moi', [{ id, date: avant }]);
+        if (auPlan) setPlan((p) => (p ? p.filter((x) => x !== id) : p));
+      };
+    },
+  });
+  const finTrimestre = (() => {
+    const d = new Date(`${jour}T12:00`);
+    return toDateString(new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3 + 3, 0));
+  })();
+  /** Échéance d'un objectif ajouté : 31/12 au point annuel, sinon fin du trimestre */
+  const finObjectif = annuel ? `${jour.slice(0, 4)}-12-31` : finTrimestre;
+  const ajoutObjectif = {
+    existants: h.objectifList.filter((o) => !!o.fin && o.fin < jour).map((o) => ({ id: o.id, titre: o.titre, sous: `échu le ${dateCourte(o.fin)} · repris jusqu'au ${dateCourte(finObjectif)}` })),
+    onNouveau: async (titre: string) => {
+      const [o] = await actions.creerEntites!('moi', 'objectif', [{ titre, debut: jour, fin: finObjectif, description: '', domaine: '', couleur: '', cible: '', actuel: '', unite: '' }]);
+      return async () => actions.supprimer!('objectif', o.id);
+    },
+    onChoisir: async (id: string) => {
+      const o = h.objectifList.find((x) => x.id === id)!;
+      const avant = o.fin;
+      await actions.modifierEntites!(o.espace || 'moi', 'objectif', [{ id, fin: finObjectif }]);
+      return async () => actions.modifierEntites!(o.espace || 'moi', 'objectif', [{ id, fin: avant }]);
+    },
+  };
+  const ajoutDomaine = {
+    existants: [],
+    onNouveau: async (nom: string) => {
+      const [d] = await actions.creerEntites!('moi', 'domaine', [{ nom, icone: '🌱', couleur: '', parent: '' }]);
+      return async () => actions.supprimer!('domaine', d.id);
+    },
+  };
+  const joursSemaine = Array.from({ length: 7 }, (_, k) => toDateString(addDays(new Date(`${jour}T12:00`), k)));
+
   const etapes = TYPES_ETAPES[reunion.type] ?? [];
   const rendu = (k: number) => {
     const cle = etapes[k]?.cle;
@@ -148,6 +201,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
                 <Vide texte="Rien de prévu aujourd’hui." />
               )}
             </SectionFiche>
+            <AjoutElement mot="tâche" feminin aide="Ajoutée au plan d’aujourd’hui" {...ajoutTache(jour, true)} />
           </>
         );
       case 'plan':
@@ -171,6 +225,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
           <>
             <TitreFiche icone="⏳" titre={`Pas fini · ${pasFinis.length}`} vide="" sous="Le reste part à demain par défaut" />
             <SectionFiche titre="Pas fini">{pasFinis.length ? pasFinis.map((t, i) => ligneChoix(t, i, ['demain', 'reporter', 'abandon'], 'demain')) : <Vide texte="✓ Tout le plan est fait." />}</SectionFiche>
+            <AjoutElement mot="tâche" feminin aide={`Pour demain (${dateCourte(demain)})`} {...ajoutTache(demain)} />
           </>
         );
       case 'periode':
@@ -237,7 +292,8 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
           <>
             <TitreFiche icone="📅" titre="Semaine à venir" vide="" sous={`Du ${dateCourte(jour)} au ${dateCourte(dansSemaine)}`} />
             <SectionFiche titre={`Rendez-vous · ${rdv.length}`}>{rdv.length ? rdv.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={`📅 ${t.titre}`} sous={`${dateCourte(t.date)}${t.heure ? ` · ${t.heure}` : ''}`} pastille={{ texte: heures(duree(t)), ton: 'bleu' }} />) : <Vide texte="Aucun rendez-vous." />}</SectionFiche>
-            <SectionFiche titre={`Tâches prévues · ${aVenir.length - rdv.length}`}>{aVenir.filter((t) => t.type !== 'rendez-vous').map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={dateCourte(t.date)} />)}</SectionFiche>
+            <SectionFiche titre={`Tâches prévues · ${aVenir.length - rdv.length}`}>{aVenir.filter((t) => t.type !== 'rendez-vous').map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={dateCourte(t.date)} tache={t} />)}</SectionFiche>
+            <AjoutElement mot="tâche" feminin aide={`Prévue le ${dateCourte(jourAjout)}`} options={<ChoixJour jours={joursSemaine} value={jourAjout} onChange={setJourAjout} />} {...ajoutTache(jourAjout)} />
           </>
         );
       case 'priorites':
@@ -262,7 +318,14 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
           </>
         );
       case 'objectifs': {
-        if (!objectifs.length) return <Vide texte="Aucun objectif en cours." />;
+        const plusObjectif = <AjoutElement mot="objectif" aide={`Échéance : ${dateCourte(finObjectif)}`} {...ajoutObjectif} />;
+        if (!objectifs.length)
+          return (
+            <>
+              <Vide texte="Aucun objectif en cours." />
+              {plusObjectif}
+            </>
+          );
         const i = Math.min(idxObj, objectifs.length - 1);
         const o = objectifs[i];
         const pct = Number(o.cible) ? Math.round((100 * (Number(o.actuel) || 0)) / Number(o.cible)) : 0;
@@ -281,6 +344,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
                 </Text>
               </View>
             </SectionFiche>
+            {plusObjectif}
           </>
         );
       }
@@ -300,6 +364,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
                 <Vide texte="✓ Aucun domaine délaissé." />
               )}
             </SectionFiche>
+            {annuel && <AjoutElement mot="domaine" aide="Un nouveau domaine de votre vie ou de votre travail (🌱, modifiable ensuite)" {...ajoutDomaine} />}
           </>
         );
       case 'fin':

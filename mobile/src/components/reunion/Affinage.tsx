@@ -13,6 +13,7 @@ import { TitreFiche } from '../FormSheet';
 import { BlocPoints, BlocSuivi, Compteurs, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, prenom, QuestionsEquipe, type R, useReunion } from './base';
 import { Ligne, Pastilles, pastilleStatut, pluriel, st, Vide } from './ui';
 import { CARTES_POKER, type DecisionVote, VoteAnimateur, VoteParticipant, votesDe } from './Vote';
+import { AjoutElement, itemReunion } from './Ajout';
 
 /**
  * Affinage du backlog (lot 6, maquette r05 validée le 07/10). Animateur : le SM ; le PO prépare (questions, ordre,
@@ -311,6 +312,22 @@ export function FenetreAffinage(p: PropsReunion) {
                 <Vide texte="✓ Rien à préparer : le backlog est prêt." />
               )}
             </SectionFiche>
+            <AjoutElement
+              mot="story"
+              feminin
+              lecture={lecture}
+              aide={`Dans le backlog de l’équipe ${e.nomNiveau} · à préparer`}
+              existants={e.h.items.filter((t) => t.type === 'story' && t.statut !== 'termine' && !t.equipe && !e.dansEquipe(t)).map((t) => ({ id: t.id, titre: t.titre, sous: 'sans équipe' }))}
+              onNouveau={async (titre) => {
+                const [t] = await p.actions.creerTaches(p.reunion.espace || 'moi', [itemReunion(p.reunion.espace || 'moi', titre, { type: 'story', equipe: e.equipe?.id ?? '' })]);
+                return async () => p.actions.supprimer?.('item', t.id);
+              }}
+              onChoisir={async (id) => {
+                const t = e.h.items.find((x) => x.id === id)!;
+                await p.actions.modifierItems?.(t.espace || 'moi', [{ id, equipe: e.equipe?.id ?? '' }]);
+                return async () => void (await p.actions.modifierItems?.(t.espace || 'moi', [{ id, equipe: '' }]));
+              }}
+            />
             <SectionFiche titre="Prête, c’est">
               <Ligne premiere texte="Estimée par l’équipe · critères d’acceptation écrits · 8 pts au plus · rattachée à une feature" />
             </SectionFiche>
