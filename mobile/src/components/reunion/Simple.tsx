@@ -18,7 +18,7 @@ import { Ligne, Pastilles, pastilleStatut, st, Vide } from './ui';
  * Rituels personnels du mode Simple (lot 6, maquettes r12 à r15), seul : ni live, ni « ↻ Actualiser », ni compte
  * rendu. Ils agissent sur vos tâches : « Terminer » applique les choix en une écriture groupée par Sheet.
  * - Point perso du matin : Hier (refaire, reporter, abandonner) · Aujourd'hui (le plan, heures prévues) · Plan figé
- * - Bilan du soir : Prévu / fait · Pas fini (demain, reporter, abandonner) · Hors plan
+ * - Bilan du soir : Prévu / fait · Pas fini (demain, reporter, abandonner)
  * - Revue de la semaine : Semaine écoulée · En retard · Semaine à venir · Priorités (3)
  * - Revue des objectifs : un objectif par écran (garder, décaler l'échéance, abandonner) · Domaines délaissés · Fin
  * Le plan du jour et les priorités de la semaine restent dans l'appareil (pas dans un Sheet).
@@ -93,7 +93,6 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
   const prevus = taches.filter((t) => (plan ?? []).includes(t.id));
   const faits = prevus.filter((t) => t.statut === 'termine');
   const pasFinis = prevus.filter((t) => t.statut !== 'termine');
-  const horsPlan = taches.filter((t) => t.statut === 'termine' && t.termine_le === jour && !(plan ?? []).includes(t.id));
   // ---- Revue de la semaine ----
   const faitesSemaine = taches.filter((t) => t.statut === 'termine' && !!t.termine_le && t.termine_le > ilYa7 && t.termine_le <= jour);
   const enRetard = taches.filter((t) => t.statut !== 'termine' && !!t.date && t.date < jour);
@@ -163,8 +162,8 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
         return (
           <>
             <TitreFiche icone="📊" titre="Prévu / fait" vide="" sous={plan ? `Plan du ${dateCourte(jour)}` : 'Pas de plan figé ce matin'} />
-            <Compteurs l={[{ valeur: `${faits.length}/${prevus.length}`, libelle: 'du plan fait', ton: 'vert' }, { valeur: heures(faits.reduce((s, t) => s + duree(t), 0)), libelle: 'faites' }, { valeur: String(horsPlan.length), libelle: 'hors plan', ton: 'orange' }]} />
-            <SectionFiche titre="Plan">{prevus.length ? prevus.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={pastilleStatut(t.statut)} />) : <Vide texte="Pas de plan : faites le point perso le matin." />}</SectionFiche>
+            <Compteurs l={[{ valeur: `${faits.length}/${prevus.length}`, libelle: 'du plan fait', ton: 'vert' }, { valeur: heures(faits.reduce((s, t) => s + duree(t), 0)), libelle: 'faites' }, { valeur: String(prevus.length - faits.length), libelle: 'pas fini', ton: prevus.length - faits.length ? 'orange' : undefined }]} />
+            <SectionFiche titre="Plan">{prevus.length ? prevus.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={pastilleStatut(t.statut)} tache={t} />) : <Vide texte="Pas de plan : faites le point perso le matin." />}</SectionFiche>
           </>
         );
       case 'pasfini':
@@ -172,13 +171,6 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
           <>
             <TitreFiche icone="⏳" titre={`Pas fini · ${pasFinis.length}`} vide="" sous="Le reste part à demain par défaut" />
             <SectionFiche titre="Pas fini">{pasFinis.length ? pasFinis.map((t, i) => ligneChoix(t, i, ['demain', 'reporter', 'abandon'], 'demain')) : <Vide texte="✓ Tout le plan est fait." />}</SectionFiche>
-          </>
-        );
-      case 'horsplan':
-        return (
-          <>
-            <TitreFiche icone="➕" titre={`Hors plan · ${horsPlan.length}`} vide="" sous="Fait aujourd’hui sans être dans le plan" />
-            <SectionFiche titre="Hors plan">{horsPlan.length ? horsPlan.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={{ texte: 'fait', ton: 'vert' }} />) : <Vide texte="Rien hors plan." />}</SectionFiche>
           </>
         );
       case 'periode':
@@ -406,7 +398,6 @@ const TYPES_ETAPES: Partial<Record<Reunion['type'], { cle: string; nom: string }
   bilan_soir: [
     { cle: 'prevu', nom: 'Prévu / fait' },
     { cle: 'pasfini', nom: 'Pas fini' },
-    { cle: 'horsplan', nom: 'Hors plan' },
   ],
   revue_semaine: [
     { cle: 'ecoulee', nom: 'Semaine écoulée' },

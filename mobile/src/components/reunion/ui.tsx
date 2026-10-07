@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { createContext, useContext, useState } from 'react';
+import { ChoiceSheet } from '../ChoiceSheet';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { dateCourte, LIBELLE_TYPE_POINT } from '../../daily';
 import { colors } from '../../theme';
@@ -20,6 +21,39 @@ export const TONS: Record<Ton, { fond: string; texte: string }> = {
   orange: { fond: '#FEF3E2', texte: '#B45309' },
   gris: { fond: '#EEF1F6', texte: colors.muted },
 };
+/**
+ * Changer le statut d'une tâche depuis une réunion (08/10) : la pastille À faire / En cours / Terminé est touchable
+ * partout ; l'application enregistre (même règle que l'écran Tâches) et affiche « … · Annuler »
+ */
+export const StatutTacheContext = createContext<((t: Item, statut: Statut) => void) | null>(null);
+const STATUTS: { v: Statut; l: string }[] = [
+  { v: 'a_faire', l: 'À faire' },
+  { v: 'en_cours', l: 'En cours' },
+  { v: 'termine', l: 'Terminé' },
+];
+/** Pastille du statut d'une tâche, touchable : ouvre le choix du statut */
+export function PastilleStatut({ t, affiche }: { t: Item; affiche?: { texte: string; ton: Ton } }) {
+  const changer = useContext(StatutTacheContext);
+  const [ouvert, setOuvert] = useState(false);
+  const p = affiche ?? pastilleStatut(t.statut);
+  if (!changer) return <Pastille {...p} />;
+  return (
+    <>
+      <Pressable onPress={() => setOuvert(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Statut : ${pastilleStatut(t.statut).texte}. Changer`}>
+        <Pastille texte={`${p.texte} ▾`} ton={p.ton} />
+      </Pressable>
+      {ouvert && (
+        <ChoiceSheet
+          visible
+          title={t.titre}
+          message="Statut de la tâche"
+          choices={STATUTS.filter((x) => x.v !== t.statut).map((x) => ({ label: x.l, onPress: () => (setOuvert(false), changer(t, x.v)) }))}
+          onClose={() => setOuvert(false)}
+        />
+      )}
+    </>
+  );
+}
 export const pastilleStatut = (s: Statut): { texte: string; ton: Ton } =>
   s === 'termine' ? { texte: 'terminée', ton: 'vert' } : s === 'en_cours' ? { texte: 'en cours', ton: 'bleu' } : { texte: 'à faire', ton: 'gris' };
 /** Couleur de la pastille d'un point selon son type */
@@ -65,6 +99,7 @@ export function Ligne({
   premiere,
   onRetirer,
   onOuvrir,
+  tache,
 }: {
   texte: string;
   sous?: string;
@@ -72,6 +107,8 @@ export function Ligne({
   premiere?: boolean;
   onRetirer?: () => void;
   onOuvrir?: () => void;
+  /** Tâche de la ligne : sa pastille de statut devient touchable */
+  tache?: Item;
 }) {
   const contenu = (
     <>
@@ -79,7 +116,7 @@ export function Ligne({
         <Text style={st.texte}>{texte}</Text>
         {!!sous && <Text style={st.sous}>{sous}</Text>}
       </View>
-      {pastille && <Pastille {...pastille} />}
+      {tache ? <PastilleStatut t={tache} affiche={pastille} /> : pastille && <Pastille {...pastille} />}
       {onRetirer && (
         <Pressable onPress={onRetirer} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Retirer « ${texte} »`}>
           <Text style={st.retirer}>✕</Text>
@@ -105,6 +142,7 @@ export function LigneCase({
   texte,
   sous,
   pastille,
+  tache,
   premiere,
   coche,
   onBasculer,
@@ -117,6 +155,8 @@ export function LigneCase({
   coche: boolean;
   onBasculer: () => void;
   onOuvrir?: () => void;
+  /** Tâche de la ligne : pastille de statut touchable */
+  tache?: Item;
 }) {
   return (
     <View style={[st.ligne, !premiere && st.bord]}>
@@ -128,7 +168,7 @@ export function LigneCase({
           <Text style={st.texte}>{texte}</Text>
           {!!sous && <Text style={st.sous}>{sous}</Text>}
         </View>
-        <Pastille {...pastille} />
+        {tache ? <PastilleStatut t={tache} affiche={pastille} /> : <Pastille {...pastille} />}
         {onOuvrir && <Text style={st.chevron}>›</Text>}
       </Pressable>
     </View>
@@ -159,6 +199,7 @@ export function LigneStory({
       texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`}
       sous={[pastilleStatut(t.statut).texte, p > 0 ? fmt(p) : '', t.date ? `prévu le ${dateCourte(t.date)}` : '', nbSous ? pluriel(nbSous, 'sous-tâche') : ''].filter(Boolean).join(' · ')}
       pastille={bloquee ? { texte: 'bloquée', ton: 'rouge' } : retard ? { texte: 'en retard', ton: 'orange' } : pastilleStatut(t.statut)}
+      tache={t}
       onOuvrir={onOuvrir}
     />
   );

@@ -375,6 +375,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         onBasculer={() => basculer(type, t, t.titre, onglet)}
         onOuvrir={ouvrir(t)}
         pastille={pt ? { ...pastilleSuivi(pt, jour), ton: tonType(pt.type) } : pastilleStatut(t.statut)}
+        tache={pt ? undefined : t}
       />
     );
   };
@@ -680,6 +681,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                       onBasculer={() => basculer('aujourdhui', t, texte, 'po')}
                       onOuvrir={ouvrir(t)}
                       pastille={pastilleStatut(t.statut)}
+                      tache={t}
                     />
                   );
                 })

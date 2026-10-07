@@ -87,6 +87,7 @@ import { estLancee } from './src/etatReunion';
 import { heureReunion, peutModifierSerie, reunionsAVenir, reunionsDeSerie, seriesACreer, seriesDe, type SerieVue } from './src/reunions';
 import { arreterSerie, modifierOccurrence } from './src/series';
 import { ModifierReunionContext } from './src/components/FenetreReunion';
+import { StatutTacheContext } from './src/components/reunion/ui';
 import { CarteSeries, LIBELLE_PORTEE, type PorteeSerie, SerieForm } from './src/components/SerieForm';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { chaineEscalade, estSuiviReunion, type PointAEcrire, parEspace as pointsParEspace, pointsEscalade, pointsReponse, titreEscalade } from './src/suiviEscalade';
@@ -1678,12 +1679,13 @@ function Main() {
             .map((r) => `${TYPES_REUNION[r.type].libelle} ${libelleNiveau(lireNiveau(r.niveau), orgEchanges)}`)
             .join(' · ')
         : '',
-    escalade: (e) => escaladesDe(e).map((c) => ({ email: c.email, libelle: `${c.role} ${nomEchange(c.email)}`, meta: libelleNiveau(c.niveau, orgEchanges) })),
+    // Règle (08/10) : on n'escalade et ne transmet que les questions ; un message se lit (Lu ✓)
+    escalade: (e) => (e.type !== 'question' ? [] : escaladesDe(e)).map((c) => ({ email: c.email, libelle: `${c.role} ${nomEchange(c.email)}`, meta: libelleNiveau(c.niveau, orgEchanges) })),
     transmission: (e) =>
-      destinatairesTransfert(moiEchange, lireNiveau(e.niveau), orgEchanges, [moiEchange, e.de]).map((g) => ({
+      (e.type !== 'question' ? [] : destinatairesTransfert(moiEchange, lireNiveau(e.niveau), orgEchanges, [moiEchange, e.de]).map((g) => ({
         titre: g.titre,
         options: g.emails.map((m) => ({ value: m, label: nomEchange(m), meta: m })),
-      })),
+      }))),
     onEscalader: async (e, email) => {
       const x = escaladesDe(e).find((c) => c.email === email);
       if (!x) return;
@@ -2425,6 +2427,7 @@ function Main() {
       {/* Carte des espaces de travail : dépliée sous la barre (la pastille la replie) */}
       {reunionOuverte && (
         <ModifierReunionContext.Provider value={setPorteeMenu}>
+        <StatutTacheContext.Provider value={setStatut}>
         <FenetreDeReunion
           reunion={reunionOuverte}
           org={orgReunions}
@@ -2446,6 +2449,7 @@ function Main() {
           onOpenTask={openForm}
           echanges={tousHier.echanges ?? []}
         />
+        </StatutTacheContext.Provider>
         </ModifierReunionContext.Provider>
       )}
       <ChatEchanges

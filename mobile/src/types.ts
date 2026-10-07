@@ -557,7 +557,7 @@ export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
   budget: { icone: '💶', libelle: 'Budget participatif', mode: 'safe', niveau: 'portfolio', role: 'epic_owner', duree: 120, etapes: ['Situation', 'Demandes', 'Vote', 'Répartition', 'Concrétisation', 'Compte rendu'] },
   iteration_ip: { icone: '💡', libelle: 'Semaine IP', mode: 'safe', niveau: 'train', role: 'rte', duree: 60, etapes: ['Situation', 'Programme', 'Hackathon', 'Formation', 'Concrétisation', 'Compte rendu'] },
   point_perso: { icone: '🌅', libelle: 'Point perso', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Hier', "Aujourd'hui", 'Plan figé'] },
-  bilan_soir: { icone: '🌙', libelle: 'Bilan du soir', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Prévu / fait', 'Pas fini', 'Hors plan'] },
+  bilan_soir: { icone: '🌙', libelle: 'Bilan du soir', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Prévu / fait', 'Pas fini'] },
   revue_semaine: { icone: '📆', libelle: 'Revue de la semaine', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Semaine écoulée', 'En retard', 'Priorités'] },
   revue_objectifs: { icone: '🧭', libelle: 'Revue des objectifs', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Objectifs', 'Domaines délaissés', 'Fin'] },
   revue_trimestre: { icone: '🗂️', libelle: 'Revue du trimestre', mode: 'simple', niveau: 'perso', role: 'moi', duree: 45, etapes: ['Trimestre écoulé', 'Objectifs du trimestre', 'Domaines', 'Fin'] },

@@ -29,7 +29,7 @@ const types = (l: Reunion[]) => new Set(l.map((r) => r.type));
 const du = (l: Reunion[], jour: string) => l.filter((r) => r.debut.startsWith(jour));
 
 // Catalogue : chaque type a ses étapes ; les réunions SAFe d'équipe, de train et de portfolio finissent par le compte rendu
-ok(Object.values(TYPES_REUNION).every((t) => t.etapes.length >= 3), 'catalogue : au moins 3 étapes par réunion');
+ok(Object.values(TYPES_REUNION).every((t) => t.etapes.length >= (t.mode === 'simple' ? 2 : 3)), 'catalogue : au moins 3 étapes par réunion (2 pour un rituel Simple)');
 ok(
   Object.entries(TYPES_REUNION)
     .filter(([, t]) => t.mode === 'safe')

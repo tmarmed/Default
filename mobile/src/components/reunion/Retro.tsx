@@ -123,7 +123,7 @@ export function FenetreRetro(p: PropsReunion) {
               {actionsPrec.length ? (
                 actionsPrec.map((y, i) => {
                   const t = e.parId.get(y.tache);
-                  return <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`👤 ${prenom(e.nomDe(y.responsable || y.personne))}`} pastille={t ? pastilleStatut(t.statut) : { texte: 'supprimée', ton: 'gris' }} />;
+                  return <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`👤 ${prenom(e.nomDe(y.responsable || y.personne))}`} pastille={t ? pastilleStatut(t.statut) : { texte: 'supprimée', ton: 'gris' }} tache={t} />;
                 })
               ) : (
                 <Vide texte="Aucune action suivie." />

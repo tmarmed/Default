@@ -154,7 +154,7 @@ export function MesTaches({ r }: { r: R }) {
     <>
       <TitreFiche icone="📋" titre="Mes tâches" vide="" sous={`${moiP?.nom ?? ''} · ${e.it.nom}, tâches des réunions comprises`} />
       <SectionFiche titre={`Mes stories et tâches · ${miens.length}`}>
-        {miens.length ? miens.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} sous={t.type === 'story' ? 'story' : 'tâche'} pastille={pastilleStatut(t.statut)} />) : <Vide texte="Rien à votre nom dans le sprint." />}
+        {miens.length ? miens.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} sous={t.type === 'story' ? 'story' : 'tâche'} pastille={pastilleStatut(t.statut)} tache={t} />) : <Vide texte="Rien à votre nom dans le sprint." />}
       </SectionFiche>
     </>
   );
