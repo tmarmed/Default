@@ -187,7 +187,7 @@ const TAB_TITLES: Record<Tab, string> = {
   organisation: 'Organisation',
   pilotage: 'Pilotage',
   reunions: 'Réunions',
-  echange: 'Synchronisation',
+  echange: 'Chat',
 };
 const TAB_ICONS: Record<Tab, string> = {
   taches: '✓',
@@ -201,9 +201,9 @@ const TAB_ICONS: Record<Tab, string> = {
   organisation: '🏛️',
   pilotage: '📊',
   reunions: '📅',
-  echange: '🔄',
+  echange: '💬',
 };
-const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches', echange: 'Synchro' };
+const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches', echange: 'Chat' };
 /** Messages de l'application gardés sur l'appareil jusqu'à « Lu ✓ » */
 const MESSAGES_APP_KEY = 'president:messages-app';
 /** Écrans prévus, encore vides (règles de gestion à définir) */
@@ -1577,13 +1577,13 @@ function Main() {
       const titre = titreEscalade(e.titre || e.texte.slice(0, 80));
       await saveEntity('echange', e, { a: x.email, niveau: ecrireNiveau(x.niveau), transmis_par: moiEchange, titre, ...repartir(e) });
       await ecrireSuivis(pointsEscalade({ echange: { ...e, titre }, par: moiEchange, vers: x.email, avant: lireNiveau(e.niveau), apres: x.niveau, jour: today, org: orgEchanges }));
-      setInfo(`Échange « ${e.titre || e.texte.slice(0, 40)} » escaladé à ${nomEchange(x.email)} (${libelleNiveau(x.niveau, orgEchanges)}).`);
+      setInfo(`Message « ${e.titre || e.texte.slice(0, 40)} » escaladé à ${nomEchange(x.email)} (${libelleNiveau(x.niveau, orgEchanges)}).`);
     },
     onTransmettre: async (e, email) => {
       const p = personneParEmail(email, orgEchanges);
       const niveau = (p && niveauDe(p.id, orgEchanges)) || lireNiveau(e.niveau);
       await saveEntity('echange', e, { a: email, niveau: ecrireNiveau(niveau), transmis_par: moiEchange, ...repartir(e) });
-      setInfo(`Échange « ${e.titre || e.texte.slice(0, 40)} » transmis à ${nomEchange(email)}.`);
+      setInfo(`Message « ${e.titre || e.texte.slice(0, 40)} » transmis à ${nomEchange(email)}.`);
     },
   };
   /** Nouvel échange avec une personne : rangé au niveau commun le plus proche, dans le Sheet de l'entreprise */
@@ -1614,7 +1614,7 @@ function Main() {
     for (const p of orgTous.personnes) if (p.email) m.set(p.email.toLowerCase(), { nom: p.nom, email: p.email, nature: p.nature || 'humain', ou: `🏢 ${nomEspace(p.espace)}` });
     for (const [id, x] of Object.entries(equipesEsp))
       for (const p of x.personnes) if (p.email && !m.has(p.email.toLowerCase())) m.set(p.email.toLowerCase(), { nom: p.nom, email: p.email, nature: p.nature || 'humain', ou: `👥 ${nomEspace(id)}` });
-    for (const i of interlocuteurs) if (!m.has(i.id)) m.set(i.id, { nom: i.nom, email: i.id, nature: i.nature, ou: '🔄 Synchronisation' });
+    for (const i of interlocuteurs) if (!m.has(i.id)) m.set(i.id, { nom: i.nom, email: i.id, nature: i.nature, ou: '💬 Chat' });
     return [...m.values()].sort((a, b) => a.nom.localeCompare(b.nom));
   }, [orgTous, equipesEsp, interlocuteurs, espaces]);
   // Pastille de l'onglet 🔄 Synchro : seulement les échanges qui attendent votre réponse (pas les questions du fil de Claude)
@@ -2814,7 +2814,7 @@ function Main() {
               saveHierarchyCache(next).catch(() => {});
               return next;
             });
-            setInfo(r.nouveau ? "Déjà lu : votre modification est partie en nouvel échange." : 'Échange modifié.');
+            setInfo(r.nouveau ? "Déjà lu : votre modification est partie en nouveau message." : 'Message modifié.');
           }}
           onRetirer={retirerEchange}
         />

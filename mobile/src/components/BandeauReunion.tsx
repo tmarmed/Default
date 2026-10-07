@@ -30,10 +30,10 @@ export function BandeauxBas({ reunion, chat }: { reunion: InfoBandeauReunion | n
   return (
     <View style={s.pile} pointerEvents="box-none">
       {chat && (
-        <Pressable onPress={chat.onPress} style={[s.bandeau, s.clair]} accessibilityRole="button" accessibilityLabel={`${chat.n} échange${chat.n > 1 ? 's' : ''} à traiter : voir`}>
+        <Pressable onPress={chat.onPress} style={[s.bandeau, s.clair]} accessibilityRole="button" accessibilityLabel={`${chat.n} message${chat.n > 1 ? 's' : ''} à traiter : voir`}>
           <View style={s.corps}>
             <Text style={[s.titre, s.titreClair]} numberOfLines={1}>
-              🔄 {chat.n} échange{chat.n > 1 ? 's' : ''} à traiter
+              💬 {chat.n} message{chat.n > 1 ? 's' : ''} à traiter
             </Text>
             {!!chat.sous && (
               <Text style={[s.sous, s.sousClair]} numberOfLines={1}>

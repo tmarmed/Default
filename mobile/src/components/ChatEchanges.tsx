@@ -255,7 +255,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
   }
 
   return (
-    <FormSheet superpose visible={visible} title={x ? (liste.length > 1 ? `${i + 1} sur ${liste.length}` : 'Échange') : 'Terminé'} busy={busy} error={error} onClose={onFermer} fil={titre}>
+    <FormSheet superpose visible={visible} title={x ? (liste.length > 1 ? `${i + 1} sur ${liste.length}` : 'Message') : 'Terminé'} busy={busy} error={error} onClose={onFermer} fil={titre}>
       {contenu}
       {!!x && !(x.kind === 'echange' && ((x.e.de === moi && x.e.statut === 'envoye') || (x.e.a === moi && x.e.statut === 'repondu'))) && (
         <Pressable onPress={passer} disabled={busy} style={s.passer} accessibilityRole="button">

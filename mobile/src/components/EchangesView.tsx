@@ -127,10 +127,10 @@ export const aTraiter = (moi: string, l: Echange[]) => l.filter((e) => (e.a === 
 /** Petite aide de l'application (en attendant le mode assistant, lot 19) */
 const AIDE: { q: string; r: string }[] = [
   { q: 'Créer un espace de travail', r: 'Carte des espaces (touchez la pastille à côté de « President ») › ＋ : Équipe ou Entreprise, avec son propre Google Sheet.' },
-  { q: 'Envoyer un échange à quelqu’un', r: '🔄 Synchronisation › ＋ Nouvel échange : un message ou une question à choix, rangé dans l’espace choisi. Il disparaît quand il est lu, ou quand la réponse est prise en compte.' },
+  { q: 'Envoyer un message à quelqu’un', r: '💬 Chat › ＋ Nouveau message : un message ou une question à choix, rangé dans l’espace choisi. Il disparaît quand il est lu, ou quand la réponse est prise en compte.' },
   { q: 'Alertes', r: 'Chaque écran signale ce qui ne tient pas (dates, charge, estimation). Un bouton règle le problème, « Ignorer » le range.' },
   { q: 'Droits', r: 'Vos droits viennent de vos rôles : votre travail et celui de votre équipe selon le rôle (Scrum Master, PO, membre…), la lecture ailleurs.' },
-  { q: 'Claude', r: '🔄 Synchronisation › Claude : une conversation comme avec une personne (IA chat). Claude lit et répond dans votre Sheet avec le connecteur Google Sheets.' },
+  { q: 'Claude', r: '💬 Chat › Claude : une conversation comme avec une personne (IA chat). Claude lit et répond dans votre Sheet avec le connecteur Google Sheets.' },
 ];
 
 export function EchangesView({ moi, echanges, personnes, espaces, president, onEnvoyer, onRepondre, onChangerReponse, onModifier, onRetirer, hierarchie, filtre }: Props) {
@@ -286,10 +286,10 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
           />
         ) : (
           <>
-        {filtreActif && <Text style={s.aide}>Filtres actifs : seules les conversations qui ont des échanges correspondants sont affichées.</Text>}
+        {filtreActif && <Text style={s.aide}>Filtres actifs : seules les conversations qui ont des messages correspondants sont affichées.</Text>}
         <View style={s.entete}>
           <Text style={s.section}>En attente · {actives.length}</Text>
-          <Pressable onPress={() => setNouveau({ a: '' })} style={s.rond} hitSlop={8} accessibilityRole="button" accessibilityLabel="Nouvel échange">
+          <Pressable onPress={() => setNouveau({ a: '' })} style={s.rond} hitSlop={8} accessibilityRole="button" accessibilityLabel="Nouveau message">
             <Text style={s.rondTexte}>＋</Text>
           </Pressable>
         </View>
@@ -331,8 +331,8 @@ function AFaire({ moi, echanges, nomDe, onNouveau, onOuvrir }: { moi: string; ec
   return (
     <>
       <View style={s.entete}>
-        <Text style={s.section}>{echanges.length} échange{echanges.length > 1 ? 's' : ''} · le plus ancien d'abord</Text>
-        <Pressable onPress={onNouveau} style={s.rond} hitSlop={8} accessibilityRole="button" accessibilityLabel="Nouvel échange">
+        <Text style={s.section}>{echanges.length} message{echanges.length > 1 ? 's' : ''} · le plus ancien d'abord</Text>
+        <Pressable onPress={onNouveau} style={s.rond} hitSlop={8} accessibilityRole="button" accessibilityLabel="Nouveau message">
           <Text style={s.rondTexte}>＋</Text>
         </Pressable>
       </View>
@@ -472,7 +472,7 @@ function Conversation({
         </Bloc>
       )}
       <Pressable onPress={onNouveau} style={s.bouton} accessibilityRole="button">
-        <Text style={s.boutonTexte}>＋ Nouvel échange</Text>
+        <Text style={s.boutonTexte}>＋ Nouveau message</Text>
       </Pressable>
       {suivre && (
         <FeuilleChoix
@@ -735,7 +735,7 @@ function NouvelEchange({
       }
       setPieces((l) => {
         const tout = [...l, ...prets];
-        if (tout.length > 5) setError('Au plus 5 pièces jointes par échange.');
+        if (tout.length > 5) setError('Au plus 5 pièces jointes par message.');
         return tout.slice(0, 5);
       });
     } finally {
@@ -771,11 +771,11 @@ function NouvelEchange({
     }
   };
   return (
-    <FormSheet visible={visible} title={existant ? "Modifier l'échange" : "Nouvel échange"} busy={busy} error={error} onClose={onClose} onSave={() => void envoyer()} libelleEnregistrer="Envoyer">
+    <FormSheet visible={visible} title={existant ? "Modifier le message" : "Nouveau message"} busy={busy} error={error} onClose={onClose} onSave={() => void envoyer()} libelleEnregistrer="Envoyer">
       {/* Même modèle que les autres fiches : grand titre en haut, puis ce qu'on écrit en premier */}
       <TitreFiche icone={type === 'question' ? '❓' : '✉️'} titre={titre} vide={type === 'question' ? 'Votre question' : 'Titre du message'} sous={dest ? `À ${nomDest(dest)}` : undefined} />
-      {!!existant && <Text style={s.aide}>Pas encore lu : l'échange est modifié. Lu entre-temps : votre modification part en nouvel échange.</Text>}
-      <SectionFiche titre="Échange">
+      {!!existant && <Text style={s.aide}>Pas encore lu : le message est modifié. Lu entre-temps : votre modification part en nouveau message.</Text>}
+      <SectionFiche titre="Message">
         <ChampFiche label="Titre">
           <SaisieFiche placeholder="À écrire" value={titre} onChangeText={setTitre} autoFocus returnKeyType="next" />
         </ChampFiche>

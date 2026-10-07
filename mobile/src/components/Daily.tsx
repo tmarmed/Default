@@ -425,7 +425,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         ? `${quoi} enregistré : ${pluriel(pts.length, 'élément')}, il rejoint vos points notés`
         : pts.length
           ? `${quoi} envoyé${sm ? ` à ${prenom(sm.nom)} (SM)` : ''} : ${pluriel(pts.length, 'élément')}`
-          : 'Préparation vide envoyée : rien de noté') + (ici.length ? `, ${pluriel(ici.length, 'réponse')} envoyée${ici.length > 1 ? 's' : ''} dans la Synchro.` : '.'),
+          : 'Préparation vide envoyée : rien de noté') + (ici.length ? `, ${pluriel(ici.length, 'réponse')} envoyée${ici.length > 1 ? 's' : ''} dans le chat.` : '.'),
     );
   };
 
@@ -720,7 +720,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         const notees = new Set(reponsesPO.map((r) => r.q.id));
         return (
           <>
-            <TitreFiche icone="❓" titre="Questions de l’équipe" vide="" sous={sous('Échanges 🔄 Synchro des membres sur les stories de l’itération ; votre réponse part dans l’échange et rejoint votre point')} />
+            <TitreFiche icone="❓" titre="Questions de l’équipe" vide="" sous={sous('Questions des membres (💬 Chat) sur les stories de l’itération ; votre réponse part dans leur message et rejoint votre point')} />
             {!questions.length && (
               <SectionFiche titre="Questions · 0">
                 <Vide texte="✓ Aucune question de l’équipe en attente." />
@@ -760,7 +760,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                           accessibilityLabel={placeholderNote(r.c)}
                         />
                       )}
-                      {notees.has(q.id) && <Text style={st.sous}>✓ Partira dans l’échange avec votre point, notée comme décision</Text>}
+                      {notees.has(q.id) && <Text style={st.sous}>✓ Partira dans le message avec votre point, notée comme décision</Text>}
                     </>
                   )}
                 </View>
@@ -1106,7 +1106,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             {synchros.length > 0 && (
               <SectionFiche titre={`Transmis · ${synchros.length}`}>
                 {synchros.map((d, i) => (
-                  <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`${prenom(nomDe(d.pt.personne))} → ${prenom(nomDe(d.a))} · échange envoyé`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
+                  <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`${prenom(nomDe(d.pt.personne))} → ${prenom(nomDe(d.a))} · message envoyé`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
                 ))}
               </SectionFiche>
             )}

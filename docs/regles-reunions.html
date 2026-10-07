@@ -59,11 +59,11 @@
 
     <div class="bloc"><h2><i>4</i>Ligne d'état et « En direct »</h2><ul>
       <li><b>Une ligne d'état par réunion</b> (onglet PointsReunion) : étape et élément en cours chez l'animateur, état du vote (fermé, ouvert avec tour et éléments, révélé). Écrite quand l'animateur avance, ouvre ou révèle ; relue par les participants (↻ Actualiser ou toutes les 15 s).</li>
-      <li><b>À l'ouverture de l'application</b>, si une de vos réunions est lancée : sa fenêtre s'ouvre d'abord (votre onglet), puis le chat s'il y a des échanges à traiter, puis l'application normale.</li>
+      <li><b>À l'ouverture de l'application</b>, si une de vos réunions est lancée : sa fenêtre s'ouvre d'abord (votre onglet), puis le chat s'il y a des messages à traiter, puis l'application normale.</li>
       <li><b>Détection des changements</b> : relecture de la seule ligne d'état, avec un numéro de version (l'écran ne change que s'il augmente) ; toutes les 10 s pendant un vote, 15 s sinon, en pause quand l'application n'est pas à l'écran ; ↻ Actualiser en plus.</li>
       <li><b>Live seulement à plusieurs</b> : réunion lancée par l'animateur (pas d'horaire : en avance ou en retard, elle s'affiche quand même), jusqu'à l'envoi du compte rendu, avec au moins un autre participant → live sur l'écran de l'animateur ; seul → ni live ni « ↻ Actualiser ». Calculé à chaque fois : inviter quelqu'un ou changer la réunion l'active tout seul (y compris en mode Simple, à la rétro).</li>
       <li><b>Un seul bandeau de réunion</b>, en bas (au-dessus des onglets, ou du bouton de la fenêtre), 4 états : <b>bientôt</b> (clair, 10 min avant · « Préparer › ») ; <b>en direct</b> dans la fenêtre d'un participant (● « En direct · Nina anime · Tour de table », ▴ = écran de l'animateur en lecture seule, fermé par défaut ; remplace « Suivre ») ; <b>en cours</b> hors de la fenêtre, sur tous les écrans (« Rejoindre › », « Reprendre › » pour l'animateur) ; <b>seul</b> : « Reprendre › », sans point rouge. L'animateur n'a pas de bandeau dans sa fenêtre.</li>
-      <li><b>Bandeau du chat, séparé</b> (il concerne tous les échanges, pas la réunion) : « 🔄 2 échanges à traiter · Voir › », clair, juste au-dessus du bandeau de réunion ; jamais dans la fenêtre d'une réunion. Le chat ne s'ouvre au premier plan qu'à l'ouverture de l'application, si aucune réunion n'est lancée.</li>
+      <li><b>Bandeau du chat, séparé</b> (il concerne tous les messages, pas la réunion) : « 🔄 2 messages à traiter · Voir › », clair, juste au-dessus du bandeau de réunion ; jamais dans la fenêtre d'une réunion. Le chat ne s'ouvre au premier plan qu'à l'ouverture de l'application, si aucune réunion n'est lancée.</li>
       <li><b>Après la réunion : onglet « Compte rendu · 3/10 »</b> (la date dans le titre) pour celui qui reçoit le compte rendu ; lecture seule, disponible jusqu'à la fin de la réunion suivante de la série.</li>
     </ul></div>
 
@@ -77,14 +77,14 @@
 
     <div class="bloc"><h2><i>6</i>Concrétisation (4 écrans, partout)</h2><ul>
       <li>1) liste des points, un bouton « <b>Concrétiser ›</b> » chacun ; 2) feuille : Concrétiser (sous-tâche, tâche à part, rien) · <b>Transmettre à</b> · <b>Escalader</b> ; 3) « Responsable » (par défaut qui a noté le point) ; 4) chaque bouton affiche le choix, modifiable.</li>
-      <li>Rien n'est créé avant « <b>Envoyer le compte rendu</b> » : tâches, échanges, escalades et compte rendu partent en écritures groupées.</li>
+      <li>Rien n'est créé avant « <b>Envoyer le compte rendu</b> » : tâches, messages, escalades et compte rendu partent en écritures groupées.</li>
     </ul></div>
 
     <div class="bloc"><h2><i>7</i>Transmettre et escalader</h2><ul>
       <li>Équipes calculées depuis l'Organisation : membre → son équipe ; SM → + SM du train ; PO → + PO du train ; RTE, PM → + portfolio.</li>
-      <li><b>Transmettre à</b> = une personne de l'une de mes équipes (échange 🔄 Synchro, titre ↪).</li>
+      <li><b>Transmettre à</b> = une personne de l'une de mes équipes (message 💬 Chat, titre ↪).</li>
       <li><b>Escalader</b> = à l'équipe du dessus : aux SM du train (RTE) ou aux PO du train (PM) ; du train au portfolio (titre ⤴). Réunion correspondante : équipe → Daily, train → ART sync, portfolio → revue du portfolio.</li>
-      <li>Points de suivi dans la réunion de chacun ; la <b>réponse est recopiée</b> en Décision dans toutes les réunions de la chaîne ; Synchro affiche « 📅 Suivi dans les réunions ».</li>
+      <li>Points de suivi dans la réunion de chacun ; la <b>réponse est recopiée</b> en Décision dans toutes les réunions de la chaîne ; Chat affiche « 📅 Suivi dans les réunions ».</li>
     </ul></div>
 
     <div class="bloc"><h2><i>8</i>Suivi et fin de vie</h2><ul>

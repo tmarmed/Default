@@ -124,7 +124,7 @@ export function EspacesBar({
             style={[s.puces, Platform.OS === 'web' && (s.fondu as object)]}
           >
             {aRepondre > 0 && onARepondre && (
-              <Pressable onPress={onARepondre} style={[s.chip, s.chipRepondre]} accessibilityRole="button" accessibilityLabel={`${aRepondre} points du fil d'échange à répondre`}>
+              <Pressable onPress={onARepondre} style={[s.chip, s.chipRepondre]} accessibilityRole="button" accessibilityLabel={`${aRepondre} points du fil à répondre`}>
                 <Text style={[s.chipText, s.chipTextRepondre]}>💬 À répondre · {aRepondre}</Text>
               </Pressable>
             )}

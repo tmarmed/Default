@@ -216,16 +216,16 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
   } else if (kind === 'echange') {
     out.de = out.de.trim().toLowerCase();
     out.a = out.a.trim().toLowerCase();
-    if (!out.de || !out.a) throw new Error('Échange : auteur et destinataire obligatoires.');
+    if (!out.de || !out.a) throw new Error('Message : auteur et destinataire obligatoires.');
     if (out.type !== 'question') out.type = 'message';
     out.pieces_jointes = (out.pieces_jointes ?? '').split(';').map((x: string) => x.trim()).filter(Boolean).join(';');
     if (out.pieces_jointes && !/^[0-9A-Za-z;-]+$/.test(out.pieces_jointes)) throw new Error('Pièces jointes invalides.');
-    if (!out.titre.trim() && !out.texte.trim() && !out.pieces_jointes) throw new Error("L'échange est vide.");
+    if (!out.titre.trim() && !out.texte.trim() && !out.pieces_jointes) throw new Error("Le message est vide.");
     if (out.type === 'question' && !out.choix.split(';').filter((c: string) => c.trim()).length) throw new Error('Une question a au moins un choix.');
     if (out.statut !== 'repondu' && out.statut !== 'pris_en_compte') out.statut = 'envoye';
     out.texte = out.texte.slice(0, 4000);
     if (out.element && !RE_ID.test(out.element)) throw new Error('Élément lié invalide.');
-    if (out.niveau && !/^(equipeagile|train|portfolio|unite):[0-9A-Za-z-]+$/.test(out.niveau)) throw new Error('Niveau de l’échange invalide.');
+    if (out.niveau && !/^(equipeagile|train|portfolio|unite):[0-9A-Za-z-]+$/.test(out.niveau)) throw new Error('Niveau du message invalide.');
     out.transmis_par = (out.transmis_par ?? '').trim().toLowerCase();
     out.prive = out.prive === '0' ? '0' : '1';
   } else if (kind === 'resultat') {

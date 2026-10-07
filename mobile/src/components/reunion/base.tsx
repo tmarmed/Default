@@ -248,7 +248,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     onInfo?.(
       anime
         ? `Point enregistré : ${pluriel(n, 'point')}, il rejoint vos étapes d'animation.`
-        : `Envoyé${e.sm ? ` à ${prenom(e.sm.nom)} (SM)` : ''} : ${pluriel(n, 'point')}${pts.length > n ? ' et votre préparation' : ''}${icic.length ? `, ${pluriel(icic.length, 'réponse')} dans la Synchro` : ''}.`,
+        : `Envoyé${e.sm ? ` à ${prenom(e.sm.nom)} (SM)` : ''} : ${pluriel(n, 'point')}${pts.length > n ? ' et votre préparation' : ''}${icic.length ? `, ${pluriel(icic.length, 'réponse')} dans le chat` : ''}.`,
     );
   };
 
@@ -701,7 +701,7 @@ export function QuestionsEquipe({ r }: { r: R }) {
   const notees = new Set(r.reponsesPO.map((x) => x.q.id));
   return (
     <>
-      <TitreFiche icone="❓" titre={`Questions de l’équipe · ${r.questions.length}`} vide="" sous="Échanges 🔄 Synchro de l’équipe, encore sans réponse ; votre réponse part dans l’échange et devient une décision" />
+      <TitreFiche icone="❓" titre={`Questions de l’équipe · ${r.questions.length}`} vide="" sous="Questions de l’équipe (💬 Chat), encore sans réponse ; votre réponse part dans leur message et devient une décision" />
       {!r.questions.length && (
         <SectionFiche titre="Questions · 0">
           <Vide texte="✓ Aucune question de l’équipe en attente." />
@@ -730,7 +730,7 @@ export function QuestionsEquipe({ r }: { r: R }) {
                 {!!rep.c && (
                   <TextInput value={rep.note} onChangeText={(v) => poser({ note: v })} placeholder={placeholderNote(rep.c)} placeholderTextColor={colors.muted} style={st.note} accessibilityLabel={placeholderNote(rep.c)} />
                 )}
-                {notees.has(q.id) && <Text style={st.sous}>✓ Partira dans l’échange à l’envoi, notée comme décision</Text>}
+                {notees.has(q.id) && <Text style={st.sous}>✓ Partira dans le message à l’envoi, notée comme décision</Text>}
               </>
             )}
           </View>
@@ -932,7 +932,7 @@ export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode 
       {synchros.length > 0 && (
         <SectionFiche titre={`Transmis · ${synchros.length}`}>
           {synchros.map((d, i) => (
-            <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`${prenom(e.nomDe(d.pt.personne))} → ${prenom(e.nomDe(d.a))} · échange envoyé`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
+            <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`${prenom(e.nomDe(d.pt.personne))} → ${prenom(e.nomDe(d.a))} · message envoyé`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
           ))}
         </SectionFiche>
       )}
