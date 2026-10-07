@@ -475,10 +475,13 @@ export type TypeReunion =
   | 'point_perso'
   | 'bilan_soir'
   | 'revue_semaine'
-  | 'revue_objectifs';
+  | 'revue_objectifs'
+  | 'revue_trimestre'
+  | 'point_annuel'
+  | 'reunion';
 
 /** Répétition d'une réunion, vide = une seule fois */
-export type RepetitionReunion = '' | 'quotidienne' | 'hebdomadaire' | 'iteration' | 'mensuelle' | 'trimestrielle' | 'pi';
+export type RepetitionReunion = '' | 'quotidienne' | 'hebdomadaire' | 'iteration' | 'mensuelle' | 'trimestrielle' | 'annuelle' | 'pi';
 
 /**
  * Réunion : un rendez-vous planifié (répété), animé dans la fenêtre de traitement, une étape à la fois.
@@ -501,6 +504,13 @@ export interface Reunion {
   repetition: RepetitionReunion;
   cree_le: string;
   modifie_le: string;
+  /** Série d'où vient la réunion (onglet Reunions) et sa date d'origine (celle de la règle, gardée dans l'id) */
+  serie?: string;
+  origine?: string;
+  /** Déplacée par une exception */
+  deplacee?: boolean;
+  /** 📅 Réunion libre : participants (e-mails) */
+  participants?: string[];
 }
 
 /** Rôle qui anime : Scrum Master, Product Owner, RTE, Product Manager, Epic Owner, ou vous (mode Simple) */
@@ -550,6 +560,9 @@ export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
   bilan_soir: { icone: '🌙', libelle: 'Bilan du soir', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Prévu / fait', 'Pas fini', 'Hors plan'] },
   revue_semaine: { icone: '📆', libelle: 'Revue de la semaine', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Semaine écoulée', 'En retard', 'Priorités'] },
   revue_objectifs: { icone: '🧭', libelle: 'Revue des objectifs', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Objectifs', 'Domaines délaissés', 'Fin'] },
+  revue_trimestre: { icone: '🗂️', libelle: 'Revue du trimestre', mode: 'simple', niveau: 'perso', role: 'moi', duree: 45, etapes: ['Trimestre écoulé', 'Objectifs du trimestre', 'Domaines', 'Fin'] },
+  point_annuel: { icone: '🎆', libelle: 'Point annuel', mode: 'simple', niveau: 'perso', role: 'moi', duree: 60, etapes: ["Bilan de l'année", 'Garder · arrêter · commencer', "Objectifs de l'année", 'Domaines', 'Fin'] },
+  reunion: { icone: '📅', libelle: 'Réunion', mode: 'safe', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Points', 'Décisions', 'Compte rendu'] },
 };
 
 /**

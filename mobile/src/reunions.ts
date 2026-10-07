@@ -1,7 +1,8 @@
 import { addDays, toDateString } from './dates';
 import { lireNiveau } from './echange/hierarchieEchange';
 import { calendrierEquipe, membresDe, type OrgValue } from './organisation';
-import { type Calendrier, calendrierCourant, iterationOf, lireCalendrier, piEnd, piOf, piStart } from './pi';
+import { type Calendrier, calendrierCourant, lireCalendrier } from './pi';
+import { occurrences, type SerieReunion, type UniteSerie } from './series';
 import { type RepetitionReunion, type Reunion, type TypeReunion, TYPES_REUNION } from './types';
 
 /**
@@ -61,141 +62,217 @@ const CADENCE: Record<TypeReunion, { heure: string; repetition: RepetitionReunio
   bilan_soir: { heure: '18:30', repetition: 'quotidienne' },
   revue_semaine: { heure: '08:00', repetition: 'hebdomadaire' },
   revue_objectifs: { heure: '09:00', repetition: 'mensuelle' },
+  revue_trimestre: { heure: '09:30', repetition: 'trimestrielle' },
+  point_annuel: { heure: '10:00', repetition: 'annuelle' },
+  reunion: { heure: '10:00', repetition: 'hebdomadaire' },
 };
 
-/** Repères du calendrier SAFe d'un jour */
-function reperes(jour: string, cal: Calendrier = calendrierCourant()) {
-  const it = iterationOf(jour, cal);
-  const pi = piOf(jour, cal);
-  const sprint = it.code !== 'IP';
-  const d = parse(jour);
-  const debutPI = jour === premierOuvre(piStart(pi, cal));
-  return {
-    ouvre: ouvre(d),
-    debutIt: sprint && jour === premierOuvre(it.start),
-    premiereIt: it.code === 'IT1',
-    milieuIt: sprint && jour === premierOuvre(addDays(parse(it.start), Math.floor((7 * cal.semaines) / 2))),
-    finIt: sprint && jour === dernierOuvre(it.end),
-    debutPI,
-    finPI: jour === dernierOuvre(piEnd(pi, cal)),
-    // Itération IP : son premier jour (lancement, préparation du PI Planning suivant)
-    debutIP: it.code === 'IP' && jour === premierOuvre(it.start),
-    // Budget participatif : chaque semestre (PI qui commence en janvier ou en juillet)
-    debutSemestre: debutPI && (d.getMonth() === 0 || d.getMonth() === 6),
-    // ART sync : chaque mercredi, sauf les jours du PI Planning et de l'Inspect & Adapt
-    mercredi: d.getDay() === 3,
-    // Revue du portfolio : 1er mardi du mois
-    premierMardi: d.getDay() === 2 && d.getDate() <= 7,
-    lundi: d.getDay() === 1,
-    premierDuMois: d.getDate() === 1,
-  };
+/** Règle par défaut de chaque type (07/10 : séries de réunions, modifiables dans l'onglet Reunions) */
+export const REGLES: Record<TypeReunion, Pick<SerieReunion, 'unite'> & Partial<SerieReunion>> = {
+  daily: { unite: 'jour', jours: 'ouvres' },
+  planification: { unite: 'sprint', ancre: 'debut' },
+  affinage: { unite: 'sprint', ancre: 'milieu' },
+  revue: { unite: 'sprint', ancre: 'fin' },
+  retro: { unite: 'sprint', ancre: 'fin' },
+  pi_planning: { unite: 'pi', ancre: 'debut' },
+  art_sync: { unite: 'semaine', jours: '3', sauf: 'debut_pi;fin_pi' },
+  system_demo: { unite: 'sprint', ancre: 'fin' },
+  inspect_adapt: { unite: 'pi', ancre: 'fin' },
+  revue_portfolio: { unite: 'mois', ancre: 'debut', jours: '2' },
+  revue_okr: { unite: 'pi', ancre: 'fin' },
+  affinage_train: { unite: 'sprint', ancre: 'milieu' },
+  prepa_pi: { unite: 'pi', ancre: 'ip' },
+  sync_portfolio: { unite: 'sprint', ancre: 'milieu' },
+  // Budget participatif : chaque semestre (un PI sur deux, à partir de celui de janvier)
+  budget: { unite: 'pi', ancre: 'debut', tous: '2', debut: '2026-01-15' },
+  iteration_ip: { unite: 'pi', ancre: 'ip' },
+  point_perso: { unite: 'jour' },
+  bilan_soir: { unite: 'jour' },
+  revue_semaine: { unite: 'semaine', jours: '1' },
+  revue_objectifs: { unite: 'mois', ancre: 'debut', sauf: 'trimestre' },
+  revue_trimestre: { unite: 'trimestre', ancre: 'debut', sauf: 'annee' },
+  point_annuel: { unite: 'annee', ancre: 'debut' },
+  reunion: { unite: 'semaine', jours: '1' },
+};
+const REPETITION: Record<UniteSerie, RepetitionReunion> = { jour: 'quotidienne', semaine: 'hebdomadaire', mois: 'mensuelle', trimestre: 'trimestrielle', annee: 'annuelle', sprint: 'iteration', pi: 'pi' };
+
+/** Série vierge (tous les champs), avec `x` */
+export function serieVide(x: Partial<SerieReunion> & Pick<SerieReunion, 'id'>): SerieReunion {
+  return { type_reunion: '', titre: '', niveau: '', unite: 'semaine', ancre: '', ecart: '', jours: '', tous: '', sauf: '', heure: '09:00', duree: '30', animateur: '', editeurs: '', participants: '', debut: '', fin: '', exceptions: '', actif: '', cree_le: '', modifie_le: '', ...x };
+}
+/** Série par défaut d'un type à un niveau (id : « type-niveau », ou « type-perso ») */
+export function serieParDefaut(type: TypeReunion, niveau: string, sauf: string[] = [], espace?: string): SerieReunion {
+  const r = REGLES[type];
+  return serieVide({
+    espace,
+    id: `${type}-${niveau || 'perso'}`,
+    type_reunion: type,
+    titre: '',
+    niveau,
+    ...r,
+    sauf: [...(r.sauf ? r.sauf.split(';') : []), ...sauf].filter((x, i, l) => l.indexOf(x) === i).join(';'),
+    heure: CADENCE[type].heure,
+    duree: String(TYPES_REUNION[type].duree),
+  });
+}
+
+/** Une série à afficher : la série, son espace, l'animateur d'après le rôle et le calendrier de son niveau */
+export interface SerieVue {
+  serie: SerieReunion;
+  type: TypeReunion;
+  /** Animateur d'après l'Organisation (si la série n'en choisit pas) */
+  orgaDefaut: string;
+  cal: Calendrier;
+  /** Série d'après l'Organisation (pas encore enregistrée) */
+  defaut: boolean;
 }
 
 /**
- * Réunions de `moi` (e-mail) du jour `aujourdhui` (AAAA-MM-JJ) inclus, sur `jours` jours, triées par début.
- * `safeActif` : réunions SAFe d'après les rôles de l'Organisation ; sinon les rituels personnels du mode Simple.
+ * Séries de `moi` (e-mail) : d'après vos rôles dans l'Organisation (mode SAFe) ou les rituels personnels (mode
+ * Simple), remplacées par leur version enregistrée (onglet Reunions) quand elle existe ; plus les 📅 réunions libres
+ * où vous êtes (animateur, participant, peut modifier, ou à votre niveau).
  */
-export function reunionsAVenir(org: OrgValue, moi: string, aujourdhui: string, safeActif: boolean, jours = 92): Reunion[] {
-  const out: Reunion[] = [];
+export function seriesDe(org: OrgValue, moi: string, safeActif: boolean, stockees: SerieReunion[] = []): SerieVue[] {
   const mail = moi.toLowerCase();
   const emailDe = (pid: string) => org.personne.get(pid)?.email?.toLowerCase() ?? '';
-  const ajouter = (type: TypeReunion, jour: string, niveau: string, organisateur: string, espace?: string) => {
-    const c = CADENCE[type];
-    const t = TYPES_REUNION[type];
-    out.push({
-      espace,
-      id: `${type}-${niveau || 'perso'}-${jour}`,
-      type,
-      titre: t.libelle,
-      niveau,
-      organisateur,
-      debut: `${jour}T${c.heure}`,
-      duree_min: t.duree,
-      repetition: c.repetition,
-      cree_le: '',
-      modifie_le: '',
-    });
-  };
-  const listeJours = Array.from({ length: Math.max(0, jours) }, (_, k) => toDateString(addDays(parse(aujourdhui), k)));
-
-  if (!safeActif) {
-    for (const j of listeJours) {
-      const r = reperes(j);
-      ajouter('point_perso', j, '', mail, 'moi');
-      if (r.lundi) ajouter('revue_semaine', j, '', mail, 'moi');
-      if (r.premierDuMois) ajouter('revue_objectifs', j, '', mail, 'moi');
-      ajouter('bilan_soir', j, '', mail, 'moi');
-    }
-    return trier(out);
-  }
-
-  // Vous : toutes vos fiches de personne (une par entreprise ou espace Équipe), d'après votre e-mail
-  const moiIds = new Set(org.personnes.filter((p) => !!mail && p.email?.toLowerCase() === mail).map((p) => p.id));
-  if (!moiIds.size) return [];
-  const est = (id: string) => !!id && moiIds.has(id);
-  // Vos équipes (membre, SM ou PO), vos trains, vos portfolios
-  const equipes = org.equipes.filter((e) => est(e.sm) || est(e.po) || membresDe(e).some(est));
-  const pilote = (t: { id: string; rte: string; pm: string }) => est(t.rte) || est(t.pm);
-  const trainsSync = org.trains.filter((t) => pilote(t) || equipes.some((e) => e.train === t.id && (est(e.sm) || est(e.po))));
-  const trainsTous = org.trains.filter((t) => pilote(t) || equipes.some((e) => e.train === t.id));
-  const portfolios = org.portfolios.filter((p) => est(p.epic_owner) || org.trains.some((t) => t.portfolio === p.id && pilote(t)));
-  // Organisateur d'après le rôle ; à défaut, l'autre pilote de l'équipe (SM ↔ PO) ou du train (RTE ↔ PM)
-  const orgaEquipe = (e: { sm: string; po: string }, role: 'sm' | 'po') => emailDe(role === 'sm' ? e.sm || e.po : e.po || e.sm);
-  const orgaTrain = (t: { rte: string; pm: string }, role: 'rte' | 'pm') => emailDe(role === 'rte' ? t.rte || t.pm : t.pm || t.rte);
-
-  // Calendrier agile de chaque équipe (le sien, sinon celui de son train) et de chaque train (07/10)
   const cals = new Map<string, Calendrier>();
   const calDe = (json: string) => {
     if (!json) return calendrierCourant();
     if (!cals.has(json)) cals.set(json, lireCalendrier(json));
     return cals.get(json)!;
   };
-  for (const j of listeJours) {
-    const r = reperes(j);
-    if (!r.ouvre) continue;
-    for (const e of equipes) {
-      const r = reperes(j, calDe(calendrierEquipe(org, e)));
+  const defauts: SerieVue[] = [];
+  const ajouter = (type: TypeReunion, niveau: string, orga: string, espace: string | undefined, cal: Calendrier, sauf: string[] = []) =>
+    defauts.push({ serie: serieParDefaut(type, niveau, sauf, espace), type, orgaDefaut: orga, cal, defaut: true });
+  const niveaux = new Set<string>();
+
+  if (!safeActif) {
+    for (const t of ['point_perso', 'revue_semaine', 'revue_objectifs', 'revue_trimestre', 'point_annuel', 'bilan_soir'] as TypeReunion[]) ajouter(t, '', mail, 'moi', calendrierCourant());
+    niveaux.add('');
+  } else {
+    // Vous : toutes vos fiches de personne (une par entreprise ou espace Équipe), d'après votre e-mail
+    const moiIds = new Set(org.personnes.filter((p) => !!mail && p.email?.toLowerCase() === mail).map((p) => p.id));
+    const est = (id: string) => !!id && moiIds.has(id);
+    // Vos équipes (membre, SM ou PO), vos trains, vos portfolios
+    const equipes = org.equipes.filter((e) => est(e.sm) || est(e.po) || membresDe(e).some(est));
+    const pilote = (t: { id: string; rte: string; pm: string }) => est(t.rte) || est(t.pm);
+    const trainsSync = org.trains.filter((t) => pilote(t) || equipes.some((e) => e.train === t.id && (est(e.sm) || est(e.po))));
+    const trainsTous = org.trains.filter((t) => pilote(t) || equipes.some((e) => e.train === t.id));
+    const portfolios = org.portfolios.filter((p) => est(p.epic_owner) || org.trains.some((t) => t.portfolio === p.id && pilote(t)));
+    // Organisateur d'après le rôle ; à défaut, l'autre pilote de l'équipe (SM ↔ PO) ou du train (RTE ↔ PM)
+    const orgaEquipe = (e: { sm: string; po: string }) => emailDe(e.sm || e.po);
+    const orgaTrain = (t: { rte: string; pm: string }, role: 'rte' | 'pm') => emailDe(role === 'rte' ? t.rte || t.pm : t.pm || t.rte);
+    const pourEquipe = (e: (typeof org.equipes)[number], types: TypeReunion[]) => {
       const niveau = `equipeagile:${e.id}`;
+      niveaux.add(niveau);
+      // Dans un train : le jour du PI Planning, le train planifie ensemble (ni daily ni réunion d'équipe) ; la
+      // planification du 1er sprint se fait dans le PI Planning
       const enTrain = !!e.train && org.train.has(e.train);
-      // Le jour du PI Planning, le train planifie ensemble (pas de daily ni de planification d'équipe)
-      if (enTrain && r.debutPI) continue;
-      ajouter('daily', j, niveau, orgaEquipe(e, 'sm'), e.espace);
-      if (r.debutIt && !(enTrain && r.premiereIt)) ajouter('planification', j, niveau, orgaEquipe(e, 'sm'), e.espace);
-      if (r.milieuIt) ajouter('affinage', j, niveau, orgaEquipe(e, 'sm'), e.espace);
-      if (r.finIt) {
-        ajouter('revue', j, niveau, orgaEquipe(e, 'sm'), e.espace);
-        ajouter('retro', j, niveau, orgaEquipe(e, 'sm'), e.espace);
-      }
-    }
-    // Revue d'itération : le PM du train y est invité comme partie prenante (ses retours), pour chaque équipe du train
-    for (const t of org.trains.filter((x) => est(x.pm)))
-      for (const e of org.equipes.filter((x) => x.train === t.id && !equipes.includes(x)))
-        if (reperes(j, calDe(calendrierEquipe(org, e))).finIt) ajouter('revue', j, `equipeagile:${e.id}`, orgaEquipe(e, 'sm'), e.espace);
+      const cal = calDe(calendrierEquipe(org, e));
+      for (const t of types) ajouter(t, niveau, orgaEquipe(e), e.espace, cal, enTrain ? (t === 'planification' ? ['debut_pi', 'sprint1'] : ['debut_pi']) : []);
+    };
+    for (const e of equipes) pourEquipe(e, ['daily', 'planification', 'affinage', 'revue', 'retro']);
+    // Revue de sprint : le PM du train y est invité comme partie prenante (ses retours), pour chaque équipe du train
+    for (const t of org.trains.filter((x) => est(x.pm))) for (const e of org.equipes.filter((x) => x.train === t.id && !equipes.includes(x))) pourEquipe(e, ['revue']);
     for (const t of trainsTous) {
-      const r = reperes(j, calDe(t.calendrier?.trim() ?? ''));
       const niveau = `train:${t.id}`;
-      if (r.debutPI) ajouter('pi_planning', j, niveau, orgaTrain(t, 'rte'), t.espace);
-      if (r.finIt) ajouter('system_demo', j, niveau, orgaTrain(t, 'pm'), t.espace);
-      if (r.finPI) ajouter('inspect_adapt', j, niveau, orgaTrain(t, 'rte'), t.espace);
-      if (r.mercredi && !r.debutPI && !r.finPI && trainsSync.includes(t)) ajouter('art_sync', j, niveau, orgaTrain(t, 'rte'), t.espace);
-      // Affinage du backlog du train (PM, avec les PO) au milieu de chaque itération ; IP : lancement et préparation
-      if (r.milieuIt && trainsSync.includes(t)) ajouter('affinage_train', j, niveau, orgaTrain(t, 'pm'), t.espace);
-      if (r.debutIP) {
-        ajouter('iteration_ip', j, niveau, orgaTrain(t, 'rte'), t.espace);
-        if (trainsSync.includes(t)) ajouter('prepa_pi', j, niveau, orgaTrain(t, 'rte'), t.espace);
+      niveaux.add(niveau);
+      const cal = calDe(t.calendrier?.trim() ?? '');
+      ajouter('pi_planning', niveau, orgaTrain(t, 'rte'), t.espace, cal);
+      ajouter('system_demo', niveau, orgaTrain(t, 'pm'), t.espace, cal);
+      ajouter('inspect_adapt', niveau, orgaTrain(t, 'rte'), t.espace, cal);
+      ajouter('iteration_ip', niveau, orgaTrain(t, 'rte'), t.espace, cal);
+      if (trainsSync.includes(t)) {
+        ajouter('art_sync', niveau, orgaTrain(t, 'rte'), t.espace, cal);
+        // Affinage du backlog du train (PM, avec les PO) au milieu de chaque sprint ; IP : préparation du PI
+        ajouter('affinage_train', niveau, orgaTrain(t, 'pm'), t.espace, cal);
+        ajouter('prepa_pi', niveau, orgaTrain(t, 'rte'), t.espace, cal);
       }
     }
     for (const p of portfolios) {
       const niveau = `portfolio:${p.id}`;
+      niveaux.add(niveau);
       const orga = emailDe(p.epic_owner);
-      if (r.premierMardi) ajouter('revue_portfolio', j, niveau, orga, p.espace);
-      if (r.finPI) ajouter('revue_okr', j, niveau, orga, p.espace);
-      // Synchronisation du portfolio au milieu de chaque itération ; budget participatif chaque semestre
-      if (r.milieuIt) ajouter('sync_portfolio', j, niveau, orga, p.espace);
-      if (r.debutSemestre) ajouter('budget', j, niveau, orga, p.espace);
+      for (const t of ['revue_portfolio', 'revue_okr', 'sync_portfolio', 'budget'] as TypeReunion[]) ajouter(t, niveau, orga, p.espace, calendrierCourant());
     }
   }
-  return trier(out);
+
+  // Versions enregistrées : la série elle-même, et ses morceaux « celle-ci et les suivantes » (id~date)
+  const out: SerieVue[] = [];
+  const prises = new Set<string>();
+  for (const d of defauts) {
+    const l = stockees.filter((x) => x.id === d.serie.id || x.id.startsWith(`${d.serie.id}~`));
+    if (!l.length) out.push(d);
+    for (const x of l) {
+      prises.add(x.id);
+      out.push({ ...d, serie: { ...x, espace: x.espace ?? d.serie.espace }, defaut: false });
+    }
+  }
+  // 📅 Réunions libres (et séries d'autres niveaux que vous animez ou pouvez modifier)
+  const dans = (liste: string) => liste.toLowerCase().split(';').map((x) => x.trim()).includes(mail);
+  for (const x of stockees) {
+    if (prises.has(x.id) || x.actif === 'non') continue;
+    const type = (x.type_reunion && x.type_reunion in TYPES_REUNION ? x.type_reunion : 'reunion') as TypeReunion;
+    if (type !== 'reunion' && !safeActif) continue;
+    const moiDedans = (!!mail && x.animateur.toLowerCase() === mail) || dans(x.participants) || dans(x.editeurs) || (type === 'reunion' && !!x.niveau && niveaux.has(x.niveau));
+    if (!moiDedans) continue;
+    const n = lireNiveau(x.niveau);
+    const cal =
+      n?.kind === 'equipeagile' ? calDe(calendrierEquipe(org, org.equipe.get(n.id))) : n?.kind === 'train' ? calDe(org.train.get(n.id)?.calendrier?.trim() ?? '') : calendrierCourant();
+    out.push({ serie: x, type, orgaDefaut: x.animateur.toLowerCase() || mail, cal, defaut: false });
+  }
+  return out;
+}
+
+/** Préfixe des réunions d'une série (avant la date d'origine) : « daily-equipeagile:a1- », « reunion-r-xx- » */
+export const prefixeSerie = (v: Pick<SerieVue, 'serie' | 'type'>) => (v.type === 'reunion' ? `reunion-${v.serie.id.split('~')[0]}-` : `${v.type}-${v.serie.niveau || 'perso'}-`);
+/** Qui anime une série : celui qu'elle choisit, sinon d'après le rôle */
+export const animateurSerie = (v: Pick<SerieVue, 'serie' | 'orgaDefaut'>) => v.serie.animateur.trim().toLowerCase() || v.orgaDefaut;
+/** Peut modifier ou annuler la série et ses réunions : celui qui anime, et les personnes ajoutées */
+export const peutModifierSerie = (v: Pick<SerieVue, 'serie' | 'orgaDefaut'>, moi: string) =>
+  !!moi && (animateurSerie(v) === moi.toLowerCase() || v.serie.editeurs.toLowerCase().split(';').map((x) => x.trim()).includes(moi.toLowerCase()));
+
+/** Réunions d'une série sur [de, de + jours[ (sans les annulées) */
+export function reunionsDeSerie(v: SerieVue, de: string, jours: number): Reunion[] {
+  const a = toDateString(addDays(parse(de), Math.max(0, jours - 1)));
+  const t = TYPES_REUNION[v.type];
+  const prefixe = prefixeSerie(v);
+  return occurrences(v.serie, de, a, v.cal)
+    .filter((o) => !o.annulee && o.debut.slice(0, 10) >= de && o.debut.slice(0, 10) <= a)
+    .map((o) => ({
+      espace: v.serie.espace,
+      id: `${prefixe}${o.origine}`,
+      type: v.type,
+      titre: v.serie.titre.trim() || t.libelle,
+      niveau: v.serie.niveau,
+      organisateur: animateurSerie(v),
+      debut: o.debut,
+      duree_min: o.duree,
+      repetition: REPETITION[v.serie.unite] ?? '',
+      cree_le: v.serie.cree_le,
+      modifie_le: v.serie.modifie_le,
+      serie: v.serie.id,
+      origine: o.origine,
+      deplacee: o.deplacee || undefined,
+      participants: v.type === 'reunion' && v.serie.participants ? v.serie.participants.split(';').map((x) => x.trim().toLowerCase()).filter(Boolean) : undefined,
+    }));
+}
+
+/**
+ * Réunions de `moi` (e-mail) du jour `aujourdhui` (AAAA-MM-JJ) inclus, sur `jours` jours, triées par début.
+ * `safeActif` : réunions SAFe d'après les rôles de l'Organisation ; sinon les rituels personnels du mode Simple.
+ * `stockees` : les séries enregistrées (onglet Reunions) des espaces affichés.
+ */
+export function reunionsAVenir(org: OrgValue, moi: string, aujourdhui: string, safeActif: boolean, jours = 92, stockees: SerieReunion[] = []): Reunion[] {
+  return trier(seriesDe(org, moi, safeActif, stockees).flatMap((v) => reunionsDeSerie(v, aujourdhui, jours)));
+}
+
+/** Séries d'après l'Organisation pas encore enregistrées (mode SAFe), par espace : créées au démarrage, en une écriture par espace */
+export function seriesACreer(org: OrgValue, moi: string, stockees: SerieReunion[]): Map<string, SerieReunion[]> {
+  const m = new Map<string, SerieReunion[]>();
+  for (const v of seriesDe(org, moi, true, stockees))
+    if (v.defaut && v.serie.espace && v.serie.espace !== 'moi') m.set(v.serie.espace, [...(m.get(v.serie.espace) ?? []), v.serie]);
+  return m;
 }
 
 const trier = (l: Reunion[]) => l.sort((a, b) => a.debut.localeCompare(b.debut) || a.titre.localeCompare(b.titre));

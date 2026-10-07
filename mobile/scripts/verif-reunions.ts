@@ -9,7 +9,8 @@ import { toDateString } from '../src/dates';
 import { ciblesEscalade, destinatairesTransfert, equipesDePersonne } from '../src/echange/hierarchieEchange';
 import { makeOrgValue } from '../src/organisation';
 import { aReprendre, chaineEscalade, parEspace, pointsEscalade, pointsReponse, reunionDeNiveau, titreEscalade } from '../src/suiviEscalade';
-import { etapesParcours, ongletParcours, parcoursParDefaut, participantsReunion, reunionsAVenir } from '../src/reunions';
+import { couperSerie, datesRegle, exceptionsOrphelines, libelleRegle, lireExceptions, modifierOccurrence, modifierSerie, occurrences } from '../src/series';
+import { seriesACreer, serieParDefaut, serieVide, etapesParcours, ongletParcours, parcoursParDefaut, participantsReunion, reunionsAVenir } from '../src/reunions';
 import { type Reunion, TYPES_REUNION } from '../src/types';
 import { iterationOf, iterationsOf, lireCalendrier, piOf } from '../src/pi';
 import { avecCriteres, capacite, criteresDe, etatPrete, feriesFrance, joursOuvres, lireNombre, nombreFr } from '../src/reunionsEquipe';
@@ -95,10 +96,11 @@ ok(du(tom2, '2026-10-01').some((r) => r.type === 'pi_planning') && du(tom2, '202
 ok(du(tom2, '2026-10-02').find((r) => r.niveau === 'equipeagile:mobeq')?.organisateur === 'po@mobile.example', 'équipe sans Scrum Master : le daily est animé par le PO');
 
 // Mode Simple : rituels personnels
-const simple = reunionsAVenir(o, 'vous@demo', '2026-10-01', false, 31);
+const simple = reunionsAVenir(o, 'vous@demo', '2026-10-01', false, 40);
 ok(du(simple, '2026-10-03').map((r) => r.type).join(',') === 'point_perso,bilan_soir', 'Simple : point perso et bilan du soir, chaque jour');
 ok(du(simple, '2026-10-05').some((r) => r.type === 'revue_semaine'), 'Simple : revue de la semaine le lundi');
-ok(du(simple, '2026-10-01').some((r) => r.type === 'revue_objectifs'), 'Simple : revue des objectifs le 1er du mois');
+ok(du(simple, '2026-11-02').some((r) => r.type === 'revue_objectifs'), 'Simple : revue des objectifs le 1er jour ouvré du mois (1er novembre : dimanche et férié → lundi 2)');
+ok(du(simple, '2026-10-01').some((r) => r.type === 'revue_trimestre') && !du(simple, '2026-10-01').some((r) => r.type === 'revue_objectifs'), 'Simple : revue du trimestre le 1er octobre (à la place de la revue des objectifs)');
 ok(simple.every((r) => !r.niveau && r.organisateur === 'vous@demo'), 'Simple : réunions personnelles, animées par vous');
 
 // Daily (lot 6) : dates des points, suivi des points concrétisés, compte rendu
@@ -255,6 +257,52 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const sm = org.personne.get(e0.sm)?.email ?? '';
   const plan = reunionsAVenir(org, sm, '2026-10-01', true, 14).filter((r) => r.type === 'planification' && r.niveau === `equipeagile:${e0.id}`);
   ok(plan.length >= 1 && plan.some((r) => r.debut.startsWith('2026-10-08')), 'équipe en sprints d’une semaine : planification chaque semaine');
+}
+// ---------------------------------------------------------------------------
+// Séries de réunions (07/10) : règle + exceptions
+// ---------------------------------------------------------------------------
+{
+  const cal = lireCalendrier('');
+  const fin1 = serieVide({ id: 's1', unite: 'sprint', ancre: 'fin', ecart: '-1', heure: '14:00', duree: '60' });
+  ok(datesRegle(fin1, '2026-10-01', '2026-10-31', cal).join() === '2026-10-13,2026-10-27', 'sprint · fin − 1 jour ouvré');
+  const deb2 = serieVide({ id: 's2', unite: 'sprint', ancre: 'debut', ecart: '2' });
+  ok(datesRegle(deb2, '2026-10-01', '2026-10-20', cal).join() === '2026-10-05,2026-10-19', 'sprint · début + 2 jours ouvrés (week-end sauté)');
+  const ip = serieVide({ id: 's3', unite: 'pi', ancre: 'ip' });
+  ok(datesRegle(ip, '2026-10-01', '2026-12-31', cal).join() === '2026-12-24', 'PI · semaine IP (24 décembre)');
+  const noel = serieVide({ id: 's4', unite: 'semaine', jours: '5' });
+  ok(datesRegle(noel, '2026-12-21', '2026-12-27', cal).join() === '2026-12-24', 'férié (vendredi 25 décembre) : la réunion passe au jour ouvré le plus proche de la semaine');
+  ok(datesRegle(serieVide({ id: 's5', unite: 'jour', jours: 'ouvres' }), '2026-11-09', '2026-11-13', cal).length === 4, 'chaque jour ouvré : le 11 novembre sauté');
+  ok(datesRegle(serieVide({ id: 's6', unite: 'mois', ancre: 'debut', jours: '2' }), '2026-10-01', '2026-12-31', cal).join() === '2026-10-06,2026-11-03,2026-12-01', 'mois · 1er mardi');
+  ok(datesRegle(serieVide({ id: 's7', unite: 'semaine', jours: '1', tous: '2', debut: '2026-10-05' }), '2026-10-01', '2026-10-31', cal).join() === '2026-10-05,2026-10-19', 'toutes les 2 semaines, depuis le début de la série');
+  ok(libelleRegle(fin1) === 'Chaque sprint · fin − 1 j' && libelleRegle(ip) === 'Chaque PI · semaine IP', 'libellé de la règle');
+  // Une réunion déplacée, une annulée ; identique à la série → l'exception est retirée
+  let s = modifierOccurrence(fin1, '2026-10-13', { a: '2026-10-14T10:00' });
+  s = modifierOccurrence(s, '2026-10-27', { annulee: true });
+  const occ = occurrences(s, '2026-10-01', '2026-10-31', cal);
+  ok(occ.length === 2 && occ[0].debut === '2026-10-14T10:00' && occ[0].origine === '2026-10-13' && occ[1].annulee, 'exceptions : déplacée (date d’origine gardée) et annulée');
+  ok(lireExceptions(modifierOccurrence(s, '2026-10-13', { a: '2026-10-13T14:00' })).length === 1, 'exception identique à la série : retirée');
+  // Celle-ci et les suivantes
+  const [av, ap] = couperSerie(s, '2026-10-27', { heure: '16:00' }, 'x');
+  ok(av.fin === '2026-10-26' && ap.id === 's1~2026-10-27' && ap.debut === '2026-10-27' && ap.heure === '16:00' && lireExceptions(av).length === 1 && lireExceptions(ap).length === 1, 'celle-ci et les suivantes : la série est coupée, les exceptions suivent');
+  // Toute la série : l'exception devenue identique disparaît
+  const t = modifierSerie(modifierOccurrence(fin1, '2026-10-13', { a: '2026-10-13T16:00' }), { heure: '16:00' }, 'x');
+  ok(!lireExceptions(t).length, 'toute la série : une exception devenue identique est retirée');
+  // Calendrier changé : exception orpheline
+  const c3 = lireCalendrier({ semaines: 3 });
+  ok(exceptionsOrphelines(s, c3).some((e) => e.d === '2026-10-13'), 'calendrier changé : exception « à revoir »');
+  // Séries d'après l'Organisation : créées une fois, par espace
+  const sm = mail(o.equipes[0].sm);
+  const od = orgDemo('demo-entreprise');
+  const oe = makeOrgValue({ ...od, equipes: od.equipes.map((e) => ({ ...e, espace: 'ent' })), trains: od.trains.map((t) => ({ ...t, espace: 'ent' })), portfolios: od.portfolios.map((p) => ({ ...p, espace: 'ent' })) });
+  const aCreer = seriesACreer(oe, sm, []);
+  const toutes = [...aCreer.values()].flat();
+  ok(aCreer.size >= 1 && toutes.some((x) => x.id === `daily-equipeagile:${o.equipes[0].id}`), 'séries à créer au démarrage (mode SAFe)');
+  ok(seriesACreer(oe, sm, toutes).size === 0, 'séries déjà enregistrées : rien à créer');
+  // Série enregistrée modifiée : le daily à 10:00
+  const daily = toutes.find((x) => x.type_reunion === 'daily')!;
+  const l = reunionsAVenir(oe, sm, '2026-10-02', true, 1, toutes.map((x) => (x.id === daily.id ? { ...x, heure: '10:00' } : x)));
+  ok(l.find((r) => r.type === 'daily' && r.niveau === daily.niveau)?.debut === '2026-10-02T10:00', 'série enregistrée : son heure est suivie');
+  ok(serieParDefaut('daily', 'equipeagile:x').id === 'daily-equipeagile:x', 'id de série stable : type-niveau');
 }
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
 process.exit(erreurs ? 1 : 0);
