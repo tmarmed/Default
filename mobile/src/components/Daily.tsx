@@ -851,7 +851,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
           <>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.membres}>
               {personnes.map((y, i) => (
-                <Pressable key={y.id} onPress={() => setMembre(i)} style={[st.membre, i === membre && st.membreOn]} accessibilityRole="button" accessibilityState={{ selected: i === membre }}>
+                <Pressable key={y.id} disabled={lecture} onPress={() => setMembre(i)} style={[st.membre, i === membre && st.membreOn]} accessibilityRole="button" accessibilityState={{ selected: i === membre }}>
                   <Text style={[st.membreTexte, i === membre && st.membreTexteOn]}>{prenom(y.nom)}</Text>
                 </Pressable>
               ))}

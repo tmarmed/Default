@@ -41,6 +41,8 @@ interface Props {
   onOpenTask?: (t: Item) => void;
   /** Échanges chargés (questions de l'équipe au PO, suivi des blocages passés en 🔄 Synchro) */
   echanges?: Echange[];
+  /** Ouvrir une réunion : la fenêtre est tenue par l'application (bandeau de réunion, ouverture au démarrage) */
+  onOuvrir?: (r: Reunion) => void;
 }
 
 const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
@@ -62,8 +64,10 @@ function dansDelivery(r: Reunion, f: OrgFiltre, org: OrgValue): boolean {
   return f.kind === 'equipeagile' ? n.kind === 'equipeagile' && n.id === f.id : f.kind === 'train' ? train === f.id : portfolio === f.id;
 }
 
-export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre, onInfo, daily, onOpenTask, echanges }: Props) {
-  const [ouverte, setOuverte] = useState<Reunion | null>(null);
+export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre, onInfo, daily, onOpenTask, echanges, onOuvrir }: Props) {
+  const [ouverteIci, setOuverte] = useState<Reunion | null>(null);
+  const ouvrir = (r: Reunion) => (onOuvrir ? onOuvrir(r) : setOuverte(r));
+  const ouverte = onOuvrir ? null : ouverteIci;
   const mots = filtre.recherche.toLowerCase().split(/\s+/).filter(Boolean);
   const niveauDe = (r: Reunion) => libelleNiveau(lireNiveau(r.niveau), org);
   const liste = useMemo(
@@ -102,7 +106,7 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
     const quand = r.repetition === 'quotidienne' && jour(r) !== aujourdhui ? `chaque jour${safeActif ? ' ouvré' : ''}` : avecJour && jourCourt(jour(r));
     const meta = [quand, heureReunion(r), dureeReunion(r.duree_min), nb ? `${nb} participant${nb > 1 ? 's' : ''}` : 'seul', anime && r.niveau ? 'vous animez' : ''].filter(Boolean).join(' · ');
     return (
-      <Pressable key={r.id} onPress={() => setOuverte(r)} style={[s.ligne, i > 0 && s.ligneBord]} accessibilityRole="button" accessibilityHint={anime ? 'Ouvre la réunion : vous animez' : 'Ouvre la réunion : préparer votre point'}>
+      <Pressable key={r.id} onPress={() => ouvrir(r)} style={[s.ligne, i > 0 && s.ligneBord]} accessibilityRole="button" accessibilityHint={anime ? 'Ouvre la réunion : vous animez' : 'Ouvre la réunion : préparer votre point'}>
         <Text style={s.avatar}>{t.icone}</Text>
         <View style={s.corps}>
           <Text style={s.titre} numberOfLines={1}>
@@ -126,8 +130,6 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
   );
 
   const filtreActif = !!filtre.niveau || !!filtre.org || mots.length > 0;
-  const mode = ouverte && ouverte.organisateur.toLowerCase() === moi.toLowerCase() ? 'organisateur' : 'participant';
-  const fil = ouverte ? [niveauDe(ouverte) || '👤 Personnel', jourCourt(jour(ouverte)), heureReunion(ouverte), dureeReunion(ouverte.duree_min)].join(' · ') : undefined;
   return (
     <>
       <ScrollView contentContainerStyle={s.scroll}>
@@ -151,22 +153,51 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
           </>
         )}
       </ScrollView>
-      {ouverte?.type === 'daily' && !!ouverte.niveau && daily ? (
-        // Daily validé : contenu de chaque étape, points enregistrés dans le Sheet de l'équipe
-        <FenetreDaily visible reunion={ouverte} mode={mode} org={org} moi={moi} aujourdhui={aujourdhui} fil={fil} actions={daily} onFermer={() => setOuverte(null)} onInfo={onInfo} onOpenTask={onOpenTask} echanges={echanges} />
-      ) : (
-        <FenetreReunion
-          visible={!!ouverte}
-          reunion={ouverte}
-          mode={mode}
-          fil={fil}
-          onFermer={() => setOuverte(null)}
-          // « ↻ Actualiser » dans toutes les réunions : relit les tâches et les échanges de l'espace de la réunion
-          onActualiser={ouverte && daily?.actualiser ? () => daily.actualiser!(ouverte.espace || 'moi', prefixeReunion(ouverte)).then(() => undefined) : undefined}
-          onTerminer={() => onInfo?.(mode === 'organisateur' && ouverte?.niveau ? 'Compte rendu : à venir, rien n’est encore envoyé.' : 'Réunion terminée : rien n’est encore enregistré.')}
-        />
+      {ouverte && (
+        <FenetreDeReunion reunion={ouverte} org={org} moi={moi} aujourdhui={aujourdhui} daily={daily} onFermer={() => setOuverte(null)} onInfo={onInfo} onOpenTask={onOpenTask} echanges={echanges} />
       )}
     </>
+  );
+}
+
+/**
+ * Fenêtre d'une réunion ouverte (depuis la liste, le bandeau de réunion ou au démarrage) : en organisateur si vous
+ * l'animez, sinon en participant ; le Daily (validé) a son contenu, les autres réunions leurs étapes.
+ */
+export function FenetreDeReunion(p: {
+  reunion: Reunion;
+  org: OrgValue;
+  moi: string;
+  aujourdhui: string;
+  daily?: ActionsDaily;
+  onFermer: () => void;
+  /** Réunion terminée (compte rendu envoyé, ou rituel personnel fini) */
+  onFini?: () => void;
+  onInfo?: (texte: string) => void;
+  onOpenTask?: (t: Item) => void;
+  echanges?: Echange[];
+}) {
+  const { reunion: ouverte, org, moi, aujourdhui, daily, onFermer, onInfo, onOpenTask, echanges } = p;
+  const jour = ouverte.debut.slice(0, 10);
+  const mode = ouverte.organisateur.toLowerCase() === moi.toLowerCase() ? 'organisateur' : 'participant';
+  const fil = [libelleNiveau(lireNiveau(ouverte.niveau), org) || '👤 Personnel', jourCourt(jour), heureReunion(ouverte), dureeReunion(ouverte.duree_min)].join(' · ');
+  if (ouverte.type === 'daily' && !!ouverte.niveau && daily)
+    // Daily validé : contenu de chaque étape, points enregistrés dans le Sheet de l'équipe
+    return <FenetreDaily visible reunion={ouverte} mode={mode} org={org} moi={moi} aujourdhui={aujourdhui} fil={fil} actions={daily} onFermer={onFermer} onInfo={onInfo} onOpenTask={onOpenTask} echanges={echanges} />;
+  return (
+    <FenetreReunion
+      visible
+      reunion={ouverte}
+      mode={mode}
+      fil={fil}
+      onFermer={onFermer}
+      // « ↻ Actualiser » dans les réunions à plusieurs : relit les tâches et les échanges de l'espace de la réunion
+      onActualiser={ouverte.niveau && daily?.actualiser ? () => daily.actualiser!(ouverte.espace || 'moi', prefixeReunion(ouverte)).then(() => undefined) : undefined}
+      onTerminer={() => {
+        p.onFini?.();
+        onInfo?.(mode === 'organisateur' && ouverte.niveau ? 'Compte rendu : à venir, rien n’est encore envoyé.' : 'Réunion terminée : rien n’est encore enregistré.');
+      }}
+    />
   );
 }
 

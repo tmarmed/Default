@@ -79,8 +79,11 @@ import { ChatEchanges, type ElementChat } from './src/components/ChatEchanges';
 import { EquipeView, type PersonneConnue } from './src/components/EquipeView';
 import { idsPieces, PiecesContext } from './src/components/Pieces';
 import { type ActionsDaily } from './src/components/Daily';
-import { type NiveauReunion, ReunionsView } from './src/components/ReunionsView';
-import { reunionsAVenir } from './src/reunions';
+import { FenetreDeReunion, type NiveauReunion, ReunionsView } from './src/components/ReunionsView';
+import { BandeauxBas, hauteurBandeaux, type InfoBandeauChat, type InfoBandeauReunion } from './src/components/BandeauReunion';
+import { useReunionsLancees } from './src/components/useReunionsLancees';
+import { estLancee } from './src/etatReunion';
+import { heureReunion, reunionsAVenir } from './src/reunions';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { chaineEscalade, estSuiviReunion, type PointAEcrire, parEspace as pointsParEspace, pointsEscalade, pointsReponse, titreEscalade } from './src/suiviEscalade';
 import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
@@ -138,6 +141,7 @@ import {
   type ItemType,
   DOMAINES_DE_BASE,
   TYPES_REUNION,
+  type Reunion,
 } from './src/types';
 
 type Filter = TypeFiltre;
@@ -1622,19 +1626,43 @@ function Main() {
   // messages de l'application, ils défilent dans une fenêtre (« Plus tard » la referme)
   const [chatLancement, setChatLancement] = useState<ElementChat[] | null>(null);
   const chatMontre = useRef(false);
-  useEffect(() => {
-    if (!chargeOk || chatMontre.current || !moiEchange) return;
-    chatMontre.current = true;
+  /** Ce que le chat fait défiler : échanges à traiter, puis messages de l'application */
+  const elementsChat = (): ElementChat[] => {
     const autre = (e: Echange) => (e.de === moiEchange ? e.a : e.de);
-    const elements: ElementChat[] = [
+    return [
       ...aTraiter(moiEchange, tousHier.echanges ?? [])
         .sort((a, b) => a.cree_le.localeCompare(b.cree_le))
         .map((e) => ({ kind: 'echange' as const, e, avec: autre(e) === 'claude' ? 'Claude' : nomEchange(autre(e)) })),
       ...messagesApp.map((m) => ({ kind: 'message' as const, m })),
     ];
+  };
+  // Réunions du jour (07/10) : bandeau de réunion, et la réunion lancée s'ouvre d'abord au démarrage
+  const reunionsDuJour = useMemo(() => (moiEchange ? reunionsAVenir(orgReunions, moiEchange, today, safe.actif, 1) : []), [orgReunions, moiEchange, today, safe.actif]);
+  const [reunionOuverte, setReunionOuverte] = useState<Reunion | null>(null);
+  /** Rituel personnel (seul) ouvert puis refermé sans être fini : bandeau « Reprendre › » */
+  const [seulEnCours, setSeulEnCours] = useState<Reunion | null>(null);
+  const lancees = useReunionsLancees({
+    actif: !!chargeOk && !!settings,
+    reunions: reunionsDuJour,
+    org: orgReunions,
+    lirePoints: (espace, prefixe) => (settings ? api.lirePoints(settings, espace, prefixe) : Promise.resolve([])),
+  });
+  // Démarrage : la réunion lancée d'abord (le chat attend dans son bandeau), sinon le chat au premier plan
+  useEffect(() => {
+    if (!chargeOk || chatMontre.current || !moiEchange || (settings && !lancees.pret)) return;
+    chatMontre.current = true;
+    const lancee = reunionsDuJour.find((r) => estLancee(lancees.etats[r.id] ?? null));
+    if (lancee) return setReunionOuverte(lancee);
+    const elements = elementsChat();
     if (elements.length) setChatLancement(elements);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chargeOk]);
+  }, [chargeOk, lancees.pret]);
+  // Horloge du bandeau « bientôt » (10 min avant le début)
+  const [minute, setMinute] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setMinute(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
   const retirerEchange = async (e: Echange) => {
     if (!settings || (e.de !== moiEchange && e.a !== moiEchange)) return;
     await api.deleteEntity(settings, 'echange', e.id, false);
@@ -2178,6 +2206,62 @@ function Main() {
 
   const TAB_BAR = 58;
 
+  // ---- Bandeaux du bas (07/10) : la réunion (bientôt, en cours, seul), et le chat séparé ----
+  const prenomDe = (email: string) => nomEchange(email).split(' ')[0];
+  const bandeauReunion: InfoBandeauReunion | null = (() => {
+    if (reunionOuverte) return null;
+    const lanceesIci = reunionsDuJour.filter((r) => estLancee(lancees.etats[r.id] ?? null));
+    if (lanceesIci.length) {
+      const r = lanceesIci[0];
+      const e = lancees.etats[r.id];
+      const vous = e.anim === moiEchange;
+      return {
+        etat: 'encours',
+        titre: `${TYPES_REUNION[r.type].icone} ${r.titre} en cours · ${vous ? 'vous animez' : `${prenomDe(e.anim)} anime`}`,
+        sous: [e.libelle, e.detail].filter(Boolean).join(' · '),
+        action: vous ? 'Reprendre ›' : 'Rejoindre ›',
+        plus: lanceesIci.length - 1,
+        onPress: () => setReunionOuverte(r),
+      };
+    }
+    if (seulEnCours)
+      return { etat: 'seul', titre: `${TYPES_REUNION[seulEnCours.type].icone} ${seulEnCours.titre} en cours`, sous: 'Vous êtes seul : pas de direct', action: 'Reprendre ›', onPress: () => setReunionOuverte(seulEnCours) };
+    // Bientôt : début dans les 10 minutes
+    const bientot = reunionsDuJour.find((r) => {
+      const d = new Date(r.debut).getTime() - minute;
+      return d >= 0 && d <= 10 * 60_000 && !lancees.etats[r.id]?.fin;
+    });
+    if (bientot) {
+      const n = Math.max(1, Math.round((new Date(bientot.debut).getTime() - minute) / 60_000));
+      const vous = bientot.organisateur.toLowerCase() === moiEchange;
+      return {
+        etat: 'bientot',
+        titre: `${TYPES_REUNION[bientot.type].icone} ${bientot.titre} dans ${n} min · ${heureReunion(bientot)}`,
+        sous: vous ? 'Vous animez' : bientot.niveau ? 'Préparez votre point (facultatif)' : 'Votre rituel',
+        action: vous || !bientot.niveau ? 'Ouvrir ›' : 'Préparer ›',
+        onPress: () => setReunionOuverte(bientot),
+      };
+    }
+    return null;
+  })();
+  const aTraiterChat = aTraiter(moiEchange, tousHier.echanges ?? []);
+  const bandeauChat: InfoBandeauChat | null =
+    aTraiterChat.length && !chatLancement && tab !== 'echange'
+      ? {
+          n: aTraiterChat.length,
+          sous: (() => {
+            const e = aTraiterChat[0];
+            const autre = e.de === moiEchange ? e.a : e.de;
+            return `${autre === 'claude' ? 'Claude' : prenomDe(autre)} · ${e.titre}`;
+          })(),
+          onPress: () => {
+            const l = elementsChat();
+            if (l.length) setChatLancement(l);
+          },
+        }
+      : null;
+  const hautBandeaux = hauteurBandeaux(bandeauReunion, bandeauChat);
+
   return (
     <SafeContext.Provider value={safeAffiche}>
     <HierarchyContext.Provider value={hv}>
@@ -2208,6 +2292,25 @@ function Main() {
         </Pressable>
       </View>
       {/* Carte des espaces de travail : dépliée sous la barre (la pastille la replie) */}
+      {reunionOuverte && (
+        <FenetreDeReunion
+          reunion={reunionOuverte}
+          org={orgReunions}
+          moi={moiEchange}
+          aujourdhui={today}
+          daily={actionsDaily}
+          onFermer={() => {
+            // Rituel personnel refermé sans être fini : « Reprendre › » dans le bandeau
+            if (!reunionOuverte.niveau) setSeulEnCours((x) => (x === null ? reunionOuverte : x));
+            setReunionOuverte(null);
+            lancees.relire();
+          }}
+          onFini={() => setSeulEnCours(null)}
+          onInfo={setInfo}
+          onOpenTask={openForm}
+          echanges={tousHier.echanges ?? []}
+        />
+      )}
       <ChatEchanges
         visible={!!chatLancement}
         titre="💬 À traiter"
@@ -2644,6 +2747,10 @@ function Main() {
           daily={actionsDaily}
           onOpenTask={openForm}
           echanges={tousHier.echanges ?? []}
+          onOuvrir={(r) => {
+            setSeulEnCours(null);
+            setReunionOuverte(r);
+          }}
         />
       )}
 
@@ -2904,13 +3011,18 @@ function Main() {
       {/* Remarques de la démo : languette 📝 au bord droit */}
       <BoutonRemarque />
 
-      {/* Bandeau « … · Annuler » des écrans, au-dessus des onglets */}
-      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: TAB_BAR + insets.bottom + 4, height: 70, zIndex: 20 }}>
+      {/* Bandeaux du bas (07/10) : le chat, puis la réunion, au-dessus des onglets */}
+      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: TAB_BAR + insets.bottom + 6, zIndex: 19 }}>
+        <BandeauxBas reunion={bandeauReunion} chat={bandeauChat} />
+      </View>
+
+      {/* Bandeau « … · Annuler » des écrans, au-dessus des onglets (et des bandeaux du bas) */}
+      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: TAB_BAR + insets.bottom + 4 + hautBandeaux, height: 70, zIndex: 20 }}>
         <BandeauAnnuler bandeau={bandeauApp.bandeau} fermer={bandeauApp.fermer} />
       </View>
 
       {!A_VENIR.includes(tab) && tab !== 'strategie' && tab !== 'backlog' && tab !== 'echange' && tab !== 'reunions' && tab !== 'equipe' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
-        style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 8 + 12 }]}
+        style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 8 + 12 + hautBandeaux }]}
         onPress={() =>
           tab === 'organisation'
             ? setOrgMenu(true)
