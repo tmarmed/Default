@@ -34,8 +34,8 @@ export const prefixeReunion = (r: Pick<Reunion, 'id'>) => r.id.slice(0, -10);
 /**
  * Parcours du daily par rôle : membre (Hier, Aujourd'hui, Blocages), PO (Stories à accepter, Backlog à préparer,
  * Questions de l'équipe ; s'il n'est pas membre, il fait aussi Hier et Aujourd'hui pour ses tâches), Scrum Master
- * (Situation, Tour de table, Concrétisation, Compte rendu ; en lecture seule pour le PO qui n'anime pas) ; « Prêt »
- * finit le parcours du membre et celui du PO.
+ * (Situation, Tour de table, Concrétisation, Compte rendu). Plus d'étape « Prêt » (07/10) : le membre envoie depuis
+ * Blocages, le PO depuis Questions de l'équipe.
  */
 const [SITUATION, TOUR, CONCRETISATION, COMPTE_RENDU] = TYPES_REUNION.daily.etapes;
 export const PARCOURS_DAILY: CatalogueParcours = {
@@ -56,7 +56,6 @@ export const PARCOURS_DAILY: CatalogueParcours = {
     { cle: 'concretisation', nom: CONCRETISATION },
     { cle: 'compte_rendu', nom: COMPTE_RENDU },
   ],
-  fin: { cle: 'pret', nom: 'Prêt' },
 };
 
 export const LIBELLE_TYPE_POINT: Record<TypePoint, string> = {
@@ -65,6 +64,9 @@ export const LIBELLE_TYPE_POINT: Record<TypePoint, string> = {
   blocage: 'Blocage',
   decision: 'Décision',
   action: 'Action',
+  etat: 'État',
+  vote: 'Vote',
+  donnee: 'Préparation',
 };
 /** Pastille à droite d'un point : « Hier », « Aujourd'hui » (sans date, règle du 06/10), ou le type */
 export function pastillePoint(type: TypePoint, _jour?: string): string {
@@ -81,12 +83,18 @@ export function dateRelative(date: string, jour: string): string {
 }
 /** Jour où un point a été noté : celui de sa réunion */
 export const jourPoint = (p: Pick<PointReunion, 'reunion'>) => p.reunion.slice(-10);
+/** Âge en jours (calendaires) d'une date AAAA-MM-JJ au jour `jour` */
+export const ageJours = (date: string, jour: string) => Math.round((parse(jour).getTime() - parse(date).getTime()) / 86_400_000);
+/** Âge affiché d'un point (règle du 07/10) : rien les premiers jours ; à partir de 2 jours, « depuis 3 j » (orange) */
+export const ageAffiche = (date: string, jour: string) => {
+  const n = ageJours(date, jour);
+  return n >= 2 ? `depuis ${n} j` : '';
+};
 /**
- * Pastilles d'un point suivi (ou d'une tâche née d'une réunion) : le type et la date dans deux pastilles séparées
- * (règle du 06/10) — [Blocage] [Hier], [Action] [29/09]
+ * Pastilles d'un point suivi (ou d'une tâche née d'une réunion) : le type, et son âge seulement s'il a 2 jours ou plus
+ * (règle du 07/10 : plus de « Hier » / « Aujourd'hui » à côté d'un blocage) — [Blocage], [Action] [depuis 3 j]
  */
-export const pastilleSuivi = (p: Pick<PointReunion, 'type' | 'reunion'>, jour: string) => ({ texte: LIBELLE_TYPE_POINT[p.type], date: majuscule(dateRelative(jourPoint(p), jour)) });
-const majuscule = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+export const pastilleSuivi = (p: Pick<PointReunion, 'type' | 'reunion'>, jour: string) => ({ texte: LIBELLE_TYPE_POINT[p.type], age: ageAffiche(jourPoint(p), jour) });
 
 /** Points à concrétiser : blocages, décisions, actions */
 export const aConcretiser = (p: Pick<PointReunion, 'type'>) => p.type === 'blocage' || p.type === 'decision' || p.type === 'action';

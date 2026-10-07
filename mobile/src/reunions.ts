@@ -222,8 +222,6 @@ export interface CatalogueParcours {
   poSansMembre?: string[];
   /** Étapes d'animation (Scrum Master, ou l'organisateur) */
   sm: EtapeCatalogue[];
-  /** Dernière étape d'un parcours de participant (« Prêt » : récapitulatif, envoi à l'organisateur) */
-  fin: EtapeCatalogue;
 }
 /**
  * Parcours d'un rôle, dans son onglet : « Mon point » (membre), « PO », « Animer » (celui qui anime) ou « Suivre »
@@ -240,22 +238,24 @@ export const LIBELLE_ROLE_REUNION: Record<RoleReunion, string> = { membre: 'memb
 export const ongletParcours = (p: Pick<ParcoursRole, 'role' | 'lecture'>) => (p.role === 'membre' ? 'Mon point' : p.role === 'po' ? 'PO' : p.lecture ? 'Suivre' : 'Animer');
 
 /**
- * Parcours séparés (06/10, remplace le parcours fusionné) : chaque rôle de la personne a son propre parcours, dans
- * son onglet, avec sa barre d'étapes et sa dernière étape ; pas d'ordre imposé. Les onglets, dans cet ordre :
- * - membre (s'il est membre) : ses étapes, puis `fin` (« Prêt ») ;
+ * Parcours séparés (06/10) : chaque rôle de la personne a son propre parcours, dans son onglet, avec sa barre
+ * d'étapes ; pas d'ordre imposé. Harmonisation (07/10) : plus d'étape « Prêt » (l'envoi se fait depuis la dernière
+ * étape utile) ni d'onglet « Suivre » (remplacé par le bandeau « ● En direct » et l'onglet « Compte rendu · date »).
+ * Les onglets, dans cet ordre :
+ * - membre (s'il est membre) : ses étapes ;
  * - PO (s'il est PO) : ses étapes, précédées de celles du membre listées dans `poSansMembre` s'il n'est pas membre
- *   de l'équipe (ses propres tâches), puis `fin` ;
- * - SM : l'animation s'il anime (Scrum Master, ou organisateur) ; sinon, pour le PO, le même parcours en lecture
- *   seule (« Suivre »).
+ *   de l'équipe (ses propres tâches) ;
+ * - SM : l'animation s'il anime (Scrum Master, ou organisateur).
  * Sans aucun rôle : membre.
  */
 export function etapesParcours(roles: Partial<Record<RoleReunion, boolean>>, c: CatalogueParcours): ParcoursRole[] {
   const r = roles.membre || roles.po || roles.sm ? roles : { membre: true };
   const out: ParcoursRole[] = [];
-  if (r.membre) out.push({ role: 'membre', lecture: false, etapes: [...c.membre, c.fin] });
-  if (r.po) out.push({ role: 'po', lecture: false, etapes: [...(r.membre ? [] : c.membre.filter((e) => c.poSansMembre?.includes(e.cle))), ...c.po, c.fin] });
+  if (r.membre && c.membre.length) out.push({ role: 'membre', lecture: false, etapes: c.membre });
+  if (r.po && c.po.length) out.push({ role: 'po', lecture: false, etapes: [...(r.membre ? [] : c.membre.filter((e) => c.poSansMembre?.includes(e.cle))), ...c.po] });
   if (r.sm) out.push({ role: 'sm', lecture: false, etapes: c.sm });
-  else if (r.po) out.push({ role: 'sm', lecture: true, etapes: c.sm });
+  // Le PO sans parcours propre (rétro) fait celui du membre
+  if (!out.length) out.push({ role: 'membre', lecture: false, etapes: c.membre });
   return out;
 }
 /** Onglet ouvert par défaut : « Animer » pour celui qui anime, sinon le premier */

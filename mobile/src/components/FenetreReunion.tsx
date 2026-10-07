@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import { type Reunion, TYPES_REUNION } from '../types';
 import { SectionFiche } from './Choix';
@@ -19,6 +19,8 @@ import { Segmented } from './Segmented';
  * « ↻ Actualiser » (en haut à droite, toutes les réunions) : relit les données de la réunion dans le Sheet
  * (`onActualiser`, une lecture groupée) sans perdre les saisies ni l'étape ; pas plus d'une fois toutes les 5 s.
  * Le contenu de chaque type de réunion est en cours de validation : `renduEtape` le fournira ; à défaut, « À venir ».
+ * Bandeau de réunion « ● En direct » (07/10, `direct`) : chez le participant d'une réunion lancée à plusieurs, au-dessus
+ * du bouton, fermé par défaut ; « ▴ » ouvre l'écran de l'animateur en lecture seule. L'animateur n'en a pas.
  */
 export type ModeReunion = 'organisateur' | 'participant';
 
@@ -84,6 +86,8 @@ interface Props {
   ongletInitial?: number;
   /** « ↻ Actualiser » : relit les données de la réunion (une lecture groupée) ; absent : pas de bouton */
   onActualiser?: () => Promise<void>;
+  /** Bandeau « ● En direct » (participant d'une réunion lancée à plusieurs) : texte, et l'écran de l'animateur */
+  direct?: { texte: string; contenu?: ReactNode; animateur: string };
 }
 
 /** Étapes de préparation d'un participant, en attendant celles de chaque réunion (en cours de validation) */
@@ -261,8 +265,27 @@ export function FenetreReunion(p: Props) {
     </Pressable>
   );
 
+  const [directOuvert, setDirectOuvert] = useState(false);
   const bas = (
     <View style={s.bas}>
+      {!!p.direct && (
+        <View style={s.direct}>
+          <Pressable onPress={() => setDirectOuvert((o) => !o)} style={s.directBarre} accessibilityRole="button" accessibilityLabel={`En direct : ${p.direct.texte}. ${directOuvert ? 'Fermer' : 'Voir'} l’écran de l’animateur`}>
+            <Text style={s.directPoint}>●</Text>
+            <Text style={s.directTexte} numberOfLines={1}>
+              <Text style={s.gras}>En direct · </Text>
+              {p.direct.texte}
+            </Text>
+            <Text style={s.directFleche}>{directOuvert ? '▾' : '▴'}</Text>
+          </Pressable>
+          {directOuvert && (
+            <View style={[s.directPanneau, { maxHeight: Math.round(Dimensions.get('window').height * 0.45) }]}>
+              <ScrollView contentContainerStyle={s.directContenu}>{p.direct.contenu ?? <Text style={s.aVenir}>L’animateur n’a pas encore commencé.</Text>}</ScrollView>
+              <Text style={s.directLecture}>🔒 Lecture seule · écran de {p.direct.animateur}</Text>
+            </View>
+          )}
+        </View>
+      )}
       <Pressable onPress={suivant} disabled={busy || !reunion} style={[s.bouton, (busy || !reunion) && s.inactif]} accessibilityRole="button">
         <Text style={s.boutonTexte}>{busy ? 'Envoi…' : (courant.libelleSuivant?.(etape) ?? (derniere ? fin : 'Suivant'))}</Text>
       </Pressable>
@@ -336,4 +359,13 @@ const s = StyleSheet.create({
   bouton: { paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: colors.primary },
   boutonTexte: { color: '#fff', fontSize: 16, fontWeight: '700' },
   inactif: { opacity: 0.4 },
+  direct: { marginBottom: 10, borderRadius: 12, overflow: 'hidden', backgroundColor: '#1d2433' },
+  directBarre: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 9 },
+  directPoint: { color: '#ff5a5a', fontSize: 12 },
+  directTexte: { flex: 1, color: '#fff', fontSize: 13.5 },
+  gras: { fontWeight: '800' },
+  directFleche: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  directPanneau: { backgroundColor: colors.bg },
+  directContenu: { padding: 12, gap: 6 },
+  directLecture: { fontSize: 11.5, color: colors.muted, textAlign: 'center', paddingVertical: 6, backgroundColor: colors.bg },
 });

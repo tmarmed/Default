@@ -118,23 +118,23 @@ ok(dateRelative('2026-10-02', '2026-10-02') === 'aujourd’hui' && dateRelative(
 {
   const a = pastilleSuivi({ type: 'action', reunion: 'daily-equipeagile:acmeqmob-2026-09-29' }, '2026-10-02');
   const b = pastilleSuivi({ type: 'blocage', reunion: 'daily-equipeagile:acmeqmob-2026-10-01' }, '2026-10-02');
-  ok(a.texte === 'Action' && a.date === '29/09' && b.texte === 'Blocage' && b.date === 'Hier', 'suivi : type et date dans deux pastilles — [Action] [29/09], [Blocage] [Hier]');
+  ok(a.texte === 'Action' && a.age === 'depuis 3 j' && b.texte === 'Blocage' && b.age === '', 'suivi : âge seulement à partir de 2 jours — [Action] [depuis 3 j], [Blocage] (noté hier : rien)');
 }
 /** « Mon point : Hier, … | PO : … | Suivre (lecture) : … » */
 const onglets = (r: Parameters<typeof etapesParcours>[0]) =>
   etapesParcours(r, PARCOURS_DAILY)
     .map((o) => `${ongletParcours(o)}${o.lecture ? ' (lecture)' : ''} : ${o.etapes.map((x) => x.nom).join(', ')}`)
     .join(' | ');
-const MEMBRE = 'Mon point : Hier, Aujourd’hui, Blocages, Prêt';
-const PO = 'PO : Stories à accepter, Backlog à préparer, Questions de l’équipe, Prêt';
+const MEMBRE = 'Mon point : Hier, Aujourd’hui, Blocages';
+const PO = 'PO : Stories à accepter, Backlog à préparer, Questions de l’équipe';
 const SM = 'Situation, Tour de table, Concrétisation, Compte rendu';
-ok(onglets({ membre: true }) === MEMBRE, 'parcours séparés : membre seul → un seul parcours (pas d’onglets) : Hier, Aujourd’hui, Blocages, Prêt');
+ok(onglets({ membre: true }) === MEMBRE, 'parcours séparés : membre seul → un seul parcours (pas d’onglets) : Hier, Aujourd’hui, Blocages (plus d’étape « Prêt »)');
 ok(onglets({}) === onglets({ membre: true }), 'parcours séparés : sans rôle connu → celui du membre');
-ok(onglets({ membre: true, po: true }) === `${MEMBRE} | ${PO} | Suivre (lecture) : ${SM}`, 'parcours séparés : PO membre → Mon point, PO, Suivre (parcours du SM en lecture seule)');
-ok(onglets({ po: true }) === `PO : Hier, Aujourd’hui, Stories à accepter, Backlog à préparer, Questions de l’équipe, Prêt | Suivre (lecture) : ${SM}`, 'parcours séparés : PO hors équipe → PO (avec Hier et Aujourd’hui pour ses tâches), Suivre');
-ok(onglets({ membre: true, sm: true }) === `${MEMBRE} | Animer : ${SM}`, 'parcours séparés : SM membre → Mon point (avec « Prêt »), Animer');
+ok(onglets({ membre: true, po: true }) === `${MEMBRE} | ${PO}`, 'parcours séparés : PO membre → Mon point, PO (plus d’onglet « Suivre » : bandeau En direct)');
+ok(onglets({ po: true }) === `PO : Hier, Aujourd’hui, Stories à accepter, Backlog à préparer, Questions de l’équipe`, 'parcours séparés : PO hors équipe → PO (avec Hier et Aujourd’hui pour ses tâches)');
+ok(onglets({ membre: true, sm: true }) === `${MEMBRE} | Animer : ${SM}`, 'parcours séparés : SM membre → Mon point, Animer');
 ok(onglets({ sm: true }) === `Animer : ${SM}`, 'parcours séparés : SM seul → Animer, sans onglets');
-ok(onglets({ membre: true, po: true, sm: true }) === `${MEMBRE} | ${PO} | Animer : ${SM}`, 'parcours séparés : membre, PO et organisateur → Mon point, PO, Animer (Animer remplace Suivre)');
+ok(onglets({ membre: true, po: true, sm: true }) === `${MEMBRE} | ${PO} | Animer : ${SM}`, 'parcours séparés : membre, PO et organisateur → Mon point, PO, Animer');
 ok(
   !etapesParcours({ membre: true, po: true, sm: true }, PARCOURS_DAILY).some((o) => o.etapes.some((x) => x.nom.includes('('))),
   'parcours séparés : plus de rôle entre parenthèses dans les étapes',

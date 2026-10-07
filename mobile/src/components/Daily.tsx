@@ -5,13 +5,12 @@ import {
   backlogAPreparer,
   concretisationParDefaut,
   dateCourte,
-  dateRelative,
+  ageAffiche,
   enRetard,
   jourReunion,
   LIBELLE_CONCRETISATION,
   LIBELLE_TYPE_POINT,
   PARCOURS_DAILY,
-  pastillePoint,
   pastilleSuivi,
   prefixeReunion,
   questionsEquipe,
@@ -30,10 +29,13 @@ import { useHierarchy } from '../hierarchyContext';
 import { membresDe, type OrgValue, porteurs } from '../organisation';
 import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
 import { type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../reunions';
+import { PARCOURS_DAILY as CATALOGUE } from '../daily';
 import { useSafe } from '../safe';
 import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
-import { type Concretisation, type Echange, type EchangeInput, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type Statut, type TypePoint } from '../types';
+import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type Statut, type TypePoint } from '../types';
+import { etatDe, texteDirect } from '../etatReunion';
+import { useLive } from './useLive';
 import { FeuilleChoix, SectionFiche } from './Choix';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
@@ -119,8 +121,8 @@ const arrondi = (n: number) => String(Math.round(n * 10) / 10);
 let compteurLocal = 0;
 const idLocal = () => `local-${Date.now()}-${++compteurLocal}`;
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
-/** Ordre des points dans un récapitulatif */
-const ORDRE: TypePoint[] = ['hier', 'aujourdhui', 'blocage', 'decision', 'action'];
+/** Points affichables (sans les lignes techniques : état, votes, préparations) */
+const sansTech = (l: PointReunion[]) => l.filter((x) => !estTechnique(x));
 
 export function FenetreDaily(p: Props) {
   const { reunion } = p;
@@ -187,8 +189,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** Étape affichée (clé), dans l'onglet ouvert */
   const [cle, setCle] = useState('');
   const relus = useRef(new Set<string>());
-  /** « Suivre » : points relus à la première ouverture de l'onglet */
-  const suiviLu = useRef(false);
+  /** Tout ce qui a été lu (lignes techniques comprises : ligne d'état de chaque daily de la série) */
+  const [lus, setLus] = useState<PointReunion[]>([]);
 
   const tous = useMemo(() => [...serveur.filter((x) => !(x.id in anciens)), ...prep, ...locaux] as PointReunion[], [serveur, anciens, prep, locaux]);
   const e = useEquipeDaily(reunion, org, aujourdhui, tous, echanges);
@@ -204,6 +206,35 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const estMembre = !!moiP && !!equipe && membresDe(equipe).includes(moiP.id);
   const estPO = !!moiP && equipe?.po === moiP.id;
   const parcours = useMemo(() => etapesParcours({ membre: estMembre, po: estPO, sm: anime }, PARCOURS_DAILY), [estMembre, estPO, anime]);
+  // Live (07/10) : l'animateur publie la ligne d'état, les participants la relisent (seulement à plusieurs)
+  const live = useLive({
+    visible,
+    reunion,
+    espace,
+    anime,
+    nbParticipants: personnes.length,
+    moi: mail,
+    actions,
+    charge,
+    pointsInitiaux: lus,
+    onPoints: (l) => {
+      const ici = (x: PointReunion) => x.reunion === reunion.id;
+      setLus((avant) => [...avant.filter((x) => !ici(x)), ...l.filter(ici)]);
+      setServeur((avant) => [...avant.filter((x) => !ici(x)), ...sansTech(l).filter(ici)]);
+    },
+  });
+  /** Étape de l'onglet Animer (publiée dans la ligne d'état) */
+  const [etapeSm, setEtapeSm] = useState('');
+  /**
+   * Onglet « Compte rendu · date » (07/10) : le dernier compte rendu envoyé de la série (aujourd'hui, ou le daily
+   * d'avant), visible jusqu'à la fin du daily suivant ; en lecture seule
+   */
+  const dernierCR = useMemo(() => {
+    const ids = lus
+      .filter((x) => x.reunion.startsWith(prefixe) && x.reunion.slice(-10) <= jour && (x.type === 'etat' ? !!etatDe([x], x.reunion)?.fin : aConcretiser(x) && !!x.concretisation))
+      .map((x) => x.reunion);
+    return ids.sort().pop() ?? '';
+  }, [lus, prefixe, jour]);
   /**
    * Parcours d'origine d'un point déjà envoyé : « PO » pour une réponse à un échange ou une story à accepter ou à
    * préparer (ou tout, s'il n'est pas membre), sinon « Mon point »
@@ -221,6 +252,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   useEffect(() => {
     if (!visible) return;
     setServeur([]);
+    setLus([]);
     setPrep([]);
     setAnciens({});
     setLocaux([]);
@@ -230,15 +262,14 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     setCharge(false);
     // Votre propre point est déjà là (votre préparation) : pas de relecture à votre tour
     relus.current = new Set([mail]);
-    // L'onglet ouvert à l'ouverture profite de cette lecture
-    suiviLu.current = parcours[parcoursParDefaut(parcours)]?.lecture ?? false;
     let actif = true;
     actions
       .lirePoints(espace, prefixe)
       .then((l) => {
         if (!actif) return;
-        setServeur(l);
-        reprendre(l, ['membre', 'po']);
+        setLus(l);
+        setServeur(sansTech(l));
+        reprendre(sansTech(l), ['membre', 'po']);
         setCharge(true);
       })
       .catch((err) => actif && (setCharge(true), onInfo?.(`Points du daily non lus : ${(err as Error).message}`)));
@@ -248,6 +279,22 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, reunion.id]);
 
+  // Animateur : chaque étape et chaque membre du tour de table sont publiés dans la ligne d'état
+  useEffect(() => {
+    if (!visible || !anime || !charge || !etapeSm) return;
+    const nom = CATALOGUE.sm.find((x) => x.cle === etapeSm)?.nom ?? '';
+    const c = personnes[Math.min(membre, Math.max(0, personnes.length - 1))];
+    live.publier({ etape: etapeSm, libelle: nom, element: etapeSm === 'tour' ? (c?.email.toLowerCase() ?? '') : '', detail: etapeSm === 'tour' && c ? prenom(c.nom) : '' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, anime, charge, etapeSm, membre]);
+  // Participant : l'écran de l'animateur (bandeau « En direct ») suit son membre du tour de table
+  useEffect(() => {
+    if (anime || live.etat?.etape !== 'tour' || !live.etat.element) return;
+    const i = personnes.findIndex((x) => x.email.toLowerCase() === live.etat?.element);
+    if (i >= 0) setMembre(i);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anime, live.etat?.v]);
+
   // Tour de table : en arrivant sur un membre, on relit ses points (préparés depuis l'ouverture) — une fois par membre
   const courant = personnes[Math.min(membre, Math.max(0, personnes.length - 1))];
   useEffect(() => {
@@ -256,7 +303,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     relus.current.add(m);
     actions
       .lirePoints(espace, reunion.id)
-      .then((l) => setServeur((avant) => [...avant.filter((x) => !(dela(x) && x.personne === m)), ...l.filter((x) => x.personne === m)]))
+      .then((l) => setServeur((avant) => [...avant.filter((x) => !(dela(x) && x.personne === m)), ...sansTech(l).filter((x) => x.personne === m)]))
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, cle, courant?.email]);
@@ -519,8 +566,11 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       }),
     );
     // Points au suivi fini : gardés jusqu'à la rétro (ou la démo) du niveau, qui les supprime (voir NETTOYAGE)
-    await actions.ecrirePoints(espace, [...creer, ...(recus.get(espace) ?? [])], modifier, Object.keys(anciens));
+    // Lignes d'état des dailies précédents : retirées (celle d'aujourd'hui reste jusqu'au compte rendu suivant)
+    const etatsAnciens = lus.filter((x) => x.type === 'etat' && x.reunion !== reunion.id).map((x) => x.id);
+    await actions.ecrirePoints(espace, [...creer, ...(recus.get(espace) ?? [])], modifier, [...Object.keys(anciens), ...etatsAnciens]);
     for (const [esp, l] of recus) if (esp !== espace) await actions.ecrirePoints(esp, l, [], []);
+    live.terminer();
     onInfo?.(
       `Compte rendu du daily : ${pluriel(creees.length, 'tâche')} créée${creees.length > 1 ? 's' : ''}` +
         (escalades.length ? `, ${pluriel(escalades.length, 'blocage')} escaladé${escalades.length > 1 ? 's' : ''}` : '') +
@@ -551,7 +601,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
           ? `⤴ Escalader aux ${a && a === pm?.email?.toLowerCase() ? 'PO' : 'SM'} du train`
           : 'Rien';
   /** « Suivre » (lecture seule) : les points de ce daily tels qu'ils sont dans le Sheet, à concrétiser ou concrétisés */
-  const duSheet = serveur.filter((y) => dela(y) && aConcretiser(y));
+  const duSheetDe = (rid: string) => serveur.filter((y) => y.reunion === rid && aConcretiser(y));
+  const duSheet = duSheetDe(reunion.id);
 
   const rendu = (x: EtapeCatalogue, o: ParcoursRole) => {
     if (!charge) return <Vide texte="Lecture des points du daily…" />;
@@ -687,7 +738,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                         {[`De ${prenom(nomDe(q.de))}`, q.transmis_par ? `transmis par ${prenom(nomDe(q.transmis_par))}` : '', surStory({ texte: '', element: q.element })].filter(Boolean).join(' · ')}
                       </Text>
                     </View>
-                    <Pastille {...(repondu ? { texte: 'Répondu', ton: 'vert' as const } : { texte: 'Blocage', date: dateRelative(q.cree_le.slice(0, 10), jour).replace(/^./, (c) => c.toUpperCase()), ton: 'rouge' as const })} />
+                    <Pastille {...(repondu ? { texte: 'Répondu', ton: 'vert' as const } : { texte: 'Blocage', age: ageAffiche(q.cree_le.slice(0, 10), jour), ton: 'rouge' as const })} />
                   </View>
                   {repondu ? (
                     <Text style={st.sous}>
@@ -713,34 +764,6 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 </View>
               );
             })}
-          </>
-        );
-      }
-      case 'pret': {
-        const recap = preparationDe(pr).sort((a, b) => ORDRE.indexOf(a.type) - ORDRE.indexOf(b.type));
-        return (
-          <>
-            <TitreFiche
-              icone="✅"
-              titre="Prêt"
-              vide=""
-              sous={sous(anime ? 'Vous animez : votre point rejoint vos points notés, sans envoi' : `Envoyé à ${sm ? `${sm.nom} (SM)` : 'l’organisateur'} · préparation facultative`)}
-            />
-            <SectionFiche titre={`${pr === 'po' ? 'Mon point PO' : 'Mon point'} · ${recap.length}`}>
-              {recap.map((y, i) => {
-                const q = echangeDe(y);
-                return (
-                  <Ligne
-                    key={y.id}
-                    premiere={i === 0}
-                    texte={y.texte}
-                    sous={[q ? `réponse à ${prenom(nomDe(q.de))}` : '', concretise(y), surStory(y)].filter(Boolean).join(' · ')}
-                    pastille={{ texte: pastillePoint(y.type, jour), ton: tonType(y.type) }}
-                  />
-                );
-              })}
-              {!recap.length && <Vide texte="Rien de préparé : vous ferez votre point de vive voix." />}
-            </SectionFiche>
           </>
         );
       }
@@ -859,7 +882,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                     premiere={i === 0}
                     texte={y.texte}
                     sous={[par, q ? `réponse à ${prenom(nomDe(q.de))}` : '', concretise(y), story].filter(Boolean).join(' · ')}
-                    pastille={{ texte: pastillePoint(y.type, jour), ton: tonType(y.type) }}
+                    pastille={{ texte: LIBELLE_TYPE_POINT[y.type], ton: tonType(y.type) }}
                     onRetirer={!lecture && y.id.startsWith('local-') ? () => (setLocaux((l) => l.filter((z) => z.id !== y.id)), retirerPrep(y.id)) : undefined}
                   />
                 );
@@ -1024,7 +1047,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
           </>
         );
       default: {
-        // Compte rendu ; en lecture seule, ce que le SM a déjà concrétisé (dans le Sheet) et ce qui reste à décider
+        // Compte rendu ; en lecture seule (bandeau En direct, onglet « Compte rendu · date »), ce que le SM a déjà
+        // concrétisé (dans le Sheet) et ce qui reste à décider
+        const duSheet = duSheetDe(x.cle === 'cr_lecture' ? dernierCR : reunion.id);
         const decides = lecture
           ? duSheet.filter((pt) => !!pt.concretisation).map((pt) => ({ pt, c: pt.concretisation as Concretisation, resp: pt.responsable || pt.personne, a: pt.responsable }))
           : aDecider.map((pt) => ({ pt, ...choixDe(pt) }));
@@ -1100,17 +1125,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   // points notés, concrétisations, réponses) et l'étape en cours sont gardées
   const actualiser = async () => {
     const l = actions.actualiser ? await actions.actualiser(espace, prefixe) : await actions.lirePoints(espace, prefixe);
-    setServeur(l);
+    setLus(l);
+    setServeur(sansTech(l));
     setCharge(true);
-  };
-  /** « Suivre » : à la première ouverture de l'onglet, les points du Sheet sont relus (une lecture, comme le SM) */
-  const ouvrirSuivi = () => {
-    if (suiviLu.current) return;
-    suiviLu.current = true;
-    actions
-      .lirePoints(espace, prefixe)
-      .then((l) => (setServeur(l), setCharge(true)))
-      .catch((err) => onInfo?.(`Points du daily non lus : ${(err as Error).message}`));
   };
 
   const dernier = personnes.length - 1;
@@ -1141,7 +1158,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         ) : null,
       onEtape: (k) => {
         setCle(cleDe(k));
-        if (o.lecture) ouvrirSuivi();
+        if (sm_) setEtapeSm(cleDe(k));
         if (cleDe(k) === 'tour') setMembre((m) => Math.min(m, Math.max(0, dernier)));
       },
       onSuivant: sm_
@@ -1157,6 +1174,26 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       fermer: sm_,
     };
   });
+  // Onglet « Compte rendu · date » : le dernier compte rendu de la série, en lecture seule
+  const lectureCR: ParcoursRole = { role: 'sm', lecture: true, etapes: [{ cle: 'cr_lecture', nom: 'Compte rendu' }] };
+  if (dernierCR)
+    onglets.push({
+      cle: 'cr',
+      libelle: `Compte rendu · ${dateCourte(dernierCR.slice(-10))}`,
+      etapes: ['Compte rendu'],
+      libelleFin: 'Fermer',
+      renduEtape: () => rendu(lectureCR.etapes[0], lectureCR),
+      fermer: true,
+    });
+  // Bandeau « ● En direct » : participant d'un daily lancé à plusieurs ; « ▴ » montre l'écran de l'animateur
+  const etat = live.etat;
+  const lance = !!etat && !!etat.lance && !etat.fin;
+  const ecranAnim: ParcoursRole = { role: 'sm', lecture: true, etapes: CATALOGUE.sm };
+  const etapeAnim = CATALOGUE.sm.find((x) => x.cle === etat?.etape);
+  const direct =
+    !anime && live.live && lance && etat
+      ? { texte: texteDirect(etat, prenom(nomDe(etat.anim))), animateur: prenom(nomDe(etat.anim)), contenu: etapeAnim ? rendu(etapeAnim, ecranAnim) : undefined }
+      : undefined;
   return (
     <FenetreReunion
       visible={visible}
@@ -1164,9 +1201,10 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       mode={anime ? 'organisateur' : 'participant'}
       fil={fil}
       onglets={onglets}
-      ongletInitial={parcoursParDefaut(parcours)}
+      ongletInitial={dernierCR === reunion.id && !anime ? onglets.length - 1 : parcoursParDefaut(parcours)}
       onActualiser={actualiser}
       onFermer={onFermer}
+      direct={direct}
     />
   );
 }
@@ -1187,8 +1225,8 @@ const pastilleStatut = (s: Statut): { texte: string; ton: Ton } =>
 /** Couleur de la pastille d'un point selon son type */
 const tonType = (t: TypePoint): Ton => (t === 'blocage' ? 'rouge' : t === 'decision' || t === 'action' ? 'orange' : 'bleu');
 
-/** Pastille ; `date` : une seconde pastille grise à côté (le type et la date séparés, règle du 06/10) */
-function Pastille({ texte, ton, date }: { texte: string; ton: Ton; date?: string }) {
+/** Pastille ; `age` : une seconde pastille orange à côté, à partir de 2 jours (« depuis 3 j », règle du 07/10) */
+function Pastille({ texte, ton, age: date }: { texte: string; ton: Ton; age?: string }) {
   const une = (t: string, tn: Ton) => (
     <View style={[st.pastille, { backgroundColor: TONS[tn].fond }]}>
       <Text style={[st.pastilleTexte, { color: TONS[tn].texte }]} numberOfLines={1}>
@@ -1200,7 +1238,7 @@ function Pastille({ texte, ton, date }: { texte: string; ton: Ton; date?: string
   return (
     <View style={{ flexDirection: 'row', gap: 4 }}>
       {une(texte, ton)}
-      {une(date, 'gris')}
+      {une(date, 'orange')}
     </View>
   );
 }
@@ -1230,7 +1268,7 @@ function Ligne({
 }: {
   texte: string;
   sous?: string;
-  pastille?: { texte: string; ton: Ton; date?: string };
+  pastille?: { texte: string; ton: Ton; age?: string };
   premiere?: boolean;
   onRetirer?: () => void;
   onOuvrir?: () => void;
@@ -1274,7 +1312,7 @@ function LigneCase({
 }: {
   texte: string;
   sous?: string;
-  pastille: { texte: string; ton: Ton; date?: string };
+  pastille: { texte: string; ton: Ton; age?: string };
   premiere?: boolean;
   coche: boolean;
   onBasculer: () => void;
@@ -1429,7 +1467,7 @@ function SaisiePoint({
         {types.length > 1 && (
           <SectionFiche titre="Type">
             <View style={st.champ}>
-              <Pastilles petit options={types.map((x) => ({ value: x, label: LIBELLE_TYPE_POINT[x] ?? pastillePoint(x, jour) }))} value={type} onChange={(v) => setType(v as TypePoint)} />
+              <Pastilles petit options={types.map((x) => ({ value: x, label: LIBELLE_TYPE_POINT[x] }))} value={type} onChange={(v) => setType(v as TypePoint)} />
             </View>
           </SectionFiche>
         )}
