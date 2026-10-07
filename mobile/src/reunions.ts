@@ -144,9 +144,9 @@ export function reunionsAVenir(org: OrgValue, moi: string, aujourdhui: string, s
       if (enTrain && r.debutPI) continue;
       ajouter('daily', j, niveau, orgaEquipe(e, 'sm'), e.espace);
       if (r.debutIt && !(enTrain && r.premiereIt)) ajouter('planification', j, niveau, orgaEquipe(e, 'sm'), e.espace);
-      if (r.milieuIt) ajouter('affinage', j, niveau, orgaEquipe(e, 'po'), e.espace);
+      if (r.milieuIt) ajouter('affinage', j, niveau, orgaEquipe(e, 'sm'), e.espace);
       if (r.finIt) {
-        ajouter('revue', j, niveau, orgaEquipe(e, 'po'), e.espace);
+        ajouter('revue', j, niveau, orgaEquipe(e, 'sm'), e.espace);
         ajouter('retro', j, niveau, orgaEquipe(e, 'sm'), e.espace);
       }
     }

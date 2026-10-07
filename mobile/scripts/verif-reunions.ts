@@ -11,6 +11,7 @@ import { makeOrgValue } from '../src/organisation';
 import { aReprendre, chaineEscalade, parEspace, pointsEscalade, pointsReponse, reunionDeNiveau, titreEscalade } from '../src/suiviEscalade';
 import { etapesParcours, ongletParcours, parcoursParDefaut, participantsReunion, reunionsAVenir } from '../src/reunions';
 import { type Reunion, TYPES_REUNION } from '../src/types';
+import { avecCriteres, capacite, criteresDe, etatPrete, feriesFrance, joursOuvres, lireNombre, nombreFr } from '../src/reunionsEquipe';
 
 let erreurs = 0;
 const ok = (cond: boolean, msg: string) => {
@@ -50,9 +51,9 @@ ok(du(paul, '2026-10-08').some((r) => r.type === 'affinage'), 'milieu de l’IT1
 ok(du(paul, '2026-10-15').some((r) => r.type === 'planification'), 'début de l’IT2 (15 oct.) : planification');
 // ART sync : mercredi, pour le PO
 ok(du(paul, '2026-10-07').some((r) => r.type === 'art_sync'), 'PO : ART sync le mercredi');
-// Organisateur : SM de Mobile (Nina) pour le daily, PO (Paul) pour la revue
+// Organisateur : SM de Mobile (Nina) pour le daily et la revue (07/10 : le SM anime, le PO prépare)
 ok(du(paul, '2026-10-13').find((r) => r.type === 'daily')?.organisateur === mail('acmp7'), 'daily animé par le Scrum Master');
-ok(du(paul, '2026-10-14').find((r) => r.type === 'revue')?.organisateur === mail('acmp6'), 'revue animée par le Product Owner');
+ok(du(paul, '2026-10-14').find((r) => r.type === 'revue')?.organisateur === mail('acmp7'), 'revue animée par le Scrum Master (le PO prépare et accepte)');
 ok(!types(paul).has('revue_portfolio') && !types(paul).has('revue_okr'), 'PO : pas de revue du portfolio');
 
 // Membre simple (Tom) : pas d'ART sync, mais System demo et PI Planning
@@ -214,5 +215,23 @@ const finis2 = pointsFinis([pf('d', 'daily-equipeagile:x-2026-10-01', 'escalade'
 ok(finis2.join() === 'd,g,h', 'fin de suivi : point transmis ou escaladé fini quand sa réponse est concrétisée (avant, ou dans cette réunion)');
 ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée supprimés au compte rendu suivant ; tâche en cours, escalade, réunion du jour et autre série gardés');
 
+
+// ---------------------------------------------------------------------------
+// Réunions d'équipe (07/10) : critères, Prête, jours ouvrés, capacité
+// ---------------------------------------------------------------------------
+{
+  const desc = 'Le client choisit.\n\nCritères d’acceptation :\n- Envoi en moins de 1 min\n- Désinscription en un clic';
+  ok(criteresDe(desc).join('|') === 'Envoi en moins de 1 min|Désinscription en un clic', 'critères : lus sous « Critères d’acceptation : »');
+  const d2 = avecCriteres(desc, ['Envoi en moins de 1 min', 'Choix des notifications']);
+  ok(criteresDe(d2).length === 2 && d2.startsWith('Le client choisit.'), 'critères : remplacés, le reste de la description gardé');
+  ok(criteresDe(avecCriteres('', ['A'])).join() === 'A', 'critères : section ajoutée si absente');
+  const p1 = etatPrete({ points: 13, criteres: ['a'], feature: 'f' });
+  const p2 = etatPrete({ points: 5, criteres: ['a'], feature: 'f' });
+  ok(!p1.ok && p1.manque.some((x) => x.startsWith('découpage')) && p2.ok, 'Prête : 8 pts au plus, critères, estimation, feature');
+  ok(feriesFrance(2026).includes('2026-04-06') && feriesFrance(2026).includes('2026-05-14') && feriesFrance(2026).includes('2026-11-11'), 'fériés : lundi de Pâques, Ascension, 11 novembre (2026)');
+  const o = joursOuvres('2026-11-09', '2026-11-13');
+  ok(o.jours === 4 && o.feries.join() === '2026-11-11', 'jours ouvrés : une semaine avec le 11 novembre → 4 jours');
+  ok(capacite(9.5, 0.8) === 8 && lireNombre('1,1') === 1.1 && nombreFr(0.8) === '0,8', 'capacité : 9,5 j × 0,8 = 8 pts ; saisie « 1,1 »');
+}
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
 process.exit(erreurs ? 1 : 0);

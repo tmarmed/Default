@@ -1489,6 +1489,16 @@ function Main() {
       if (!settings) throw new Error('Non connecté.');
       return api.ecrirePoints(settings, espace, creer, modifier, retirer);
     },
+    modifierItems: async (espace, patches) => {
+      if (!settings) throw new Error('Non connecté.');
+      const modifs = await api.modifierItems(settings, espace, patches);
+      setItems((prev) => {
+        const next = prev.map((t) => modifs.find((m) => m.id === t.id) ?? t);
+        saveCache(next).catch(() => {});
+        return next;
+      });
+      return modifs;
+    },
     creerTaches: async (espace, inputs) => {
       if (!settings) throw new Error('Non connecté.');
       const crees = await api.creerItems(settings, espace, inputs);

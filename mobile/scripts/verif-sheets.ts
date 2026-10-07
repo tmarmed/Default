@@ -348,6 +348,9 @@ const ok = (cond: unknown, msg: string) => {
     ...Array.from({ length: 5 }, (_, i) => ({ ...base, titre: `Action ${i + 1}`, type: 'tache' as const, domaine: '', iteration: '2026-T4-IT1', equipe: 'eq1' })),
   ]);
   ok(tachesD.length === 6 && tachesD[0].parent === storyD.id && appels - avantTaches <= 2, `daily : 6 tâches (dont une sous-tâche) en ${appels - avantTaches} appels`);
+  const avantModifs = appels;
+  const modifs = await dm.modifierItems(tachesD.slice(1).map((t, i) => ({ id: t.id, iteration: '2026-T4-IT2', points: String(i + 1) })));
+  ok(modifs.length === 5 && modifs[4].points === '5' && modifs[0].iteration === '2026-T4-IT2' && appels - avantModifs === 2, `réunion : 5 stories modifiées (itération, points) en ${appels - avantModifs} appels`);
   const avantConc = appels;
   await dm.ecrirePoints([], lusPts.map((x, i) => ({ id: x.id, concretisation: i % 2 ? 'tache' as const : 'rien' as const, tache: i % 2 ? tachesD[1].id : '', responsable: 'Emma@x.fr' })));
   const nConc = appels - avantConc;

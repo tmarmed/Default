@@ -347,6 +347,24 @@ export function creerMagasin(p: Persistance) {
       await p.ecrire('items', [...items, ...crees]);
       return crees;
     },
+    /**
+     * Plusieurs tâches modifiées d'un coup (une lecture, une écriture) : stories engagées en planification,
+     * acceptées en revue, estimées en affinage… Renvoie les tâches modifiées, dans l'ordre demandé.
+     */
+    async modifierItems(patches: (Partial<Item> & { id: string })[]): Promise<Item[]> {
+      if (!patches.length) return [];
+      let items = await p.lire('items');
+      const out: Item[] = [];
+      for (const patch of patches) {
+        const current = items.find((i) => i.id === patch.id);
+        if (!current) throw new Error('Élément introuvable (peut-être supprimé).');
+        const item = cleanLinks(checkParent({ ...nettoyerItem(patch, current), id: current.id, cree_le: current.cree_le, modifie_le: new Date().toISOString() }, items));
+        items = cascadeLinks(item, items.map((i) => (i.id === item.id ? item : i)));
+        out.push(item);
+      }
+      await p.ecrire('items', items);
+      return out;
+    },
     async update(patch: Partial<Item> & { id: string }): Promise<Item> {
       const items = await p.lire('items');
       const current = items.find((i) => i.id === patch.id);

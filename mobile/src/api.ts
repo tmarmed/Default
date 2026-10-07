@@ -200,6 +200,11 @@ export async function creerItems(settings: Settings, espace: string, inputs: Ite
   return (await m.creerItems(inputs.map((i) => ({ ...i, espace: e })))).map((x) => marquer(normalize(x), e));
 }
 /** Supprime une tâche ; ses sous-tâches sont supprimées (cascade) ou deviennent des tâches normales. */
+/** Plusieurs tâches d'un même espace modifiées en un seul passage (une lecture, une écriture) */
+export async function modifierItems(settings: Settings, espace: string, patches: (Partial<Item> & { id: string })[]): Promise<Item[]> {
+  const { e, m } = route(settings, espace);
+  return (await m.modifierItems(patches)).map((x) => marquer(normalize(x), e));
+}
 export async function deleteItem(settings: Settings, id: string, cascade = false): Promise<void> {
   await route(settings, espaceDe(id)).m.remove(id, cascade);
 }

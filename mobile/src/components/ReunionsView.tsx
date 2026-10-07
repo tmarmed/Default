@@ -9,6 +9,7 @@ import { colors } from '../theme';
 import { type Echange, type Item, type Reunion, TYPES_REUNION } from '../types';
 import { type ActionsDaily, FenetreDaily } from './Daily';
 import { FenetreReunion } from './FenetreReunion';
+import { FenetreAffinage } from './reunion/Affinage';
 
 /**
  * 📅 Réunions (lot 6) : vos réunions, construites comme la liste de la Synchro (« Par conversation ») : sections
@@ -184,6 +185,11 @@ export function FenetreDeReunion(p: {
   if (ouverte.type === 'daily' && !!ouverte.niveau && daily)
     // Daily validé : contenu de chaque étape, points enregistrés dans le Sheet de l'équipe
     return <FenetreDaily visible reunion={ouverte} mode={mode} org={org} moi={moi} aujourdhui={aujourdhui} fil={fil} actions={daily} onFermer={onFermer} onInfo={onInfo} onOpenTask={onOpenTask} echanges={echanges} />;
+  // Réunions d'équipe validées (07/10) : contenu de chaque étape, sur le socle commun
+  const props = { visible: true, reunion: ouverte, org, moi, aujourdhui, fil, onFermer, onFini: p.onFini, onInfo, onOpenTask, echanges };
+  if (ouverte.niveau && daily) {
+    if (ouverte.type === 'affinage') return <FenetreAffinage {...props} actions={daily} />;
+  }
   return (
     <FenetreReunion
       visible
