@@ -15,16 +15,25 @@ import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree
  */
 const DEMO_COMPILE = process.env.EXPO_PUBLIC_DEMO === '1';
 const MODE_DEMO_KEY = 'president:mode-demo';
+/**
+ * Démo dans la version publiée (08/10) : lien « …/safe/?demo » ou bouton « 🧪 Essayer la démo » (écran de
+ * connexion, menu du compte) ; « ?demo=0 » ou « Quitter la démo » revient à vos vraies données. Retenu sur l'appareil.
+ */
 function lireModeDemo(): boolean {
   try {
-    return typeof window !== 'undefined' && window.localStorage?.getItem(MODE_DEMO_KEY) === '1';
+    if (typeof window === 'undefined') return false;
+    const q = new URLSearchParams(window.location?.search ?? '');
+    if (q.has('demo')) {
+      if (q.get('demo') === '0') window.localStorage?.removeItem(MODE_DEMO_KEY);
+      else window.localStorage?.setItem(MODE_DEMO_KEY, '1');
+    }
+    return window.localStorage?.getItem(MODE_DEMO_KEY) === '1';
   } catch {
     return false;
   }
 }
-/** Mode démo retiré de l'application principale : seulement pour la version démo compilée (tests) */
-export const DEMO = DEMO_COMPILE;
-void lireModeDemo;
+/** Démo : version compilée pour les tests, ou demandée dans le navigateur (lien « ?demo », bouton) */
+export const DEMO = DEMO_COMPILE || lireModeDemo();
 /** Démo : votre adresse (auteur et destinataire des échanges) */
 export const MOI_DEMO = 'vous@demo';
 /** Démo · « Vous · tous les rôles » : votre fiche, dans chaque entreprise de la démo */
@@ -51,13 +60,14 @@ export function orgTousLesRoles(o: Org): Org {
     portfolios: o.portfolios.map((p) => ({ ...p, epic_owner: idDe(p.espace || 'moi') })),
   };
 }
-/** Le bouton « Mode démo » existe seulement dans la version principale, dans le navigateur */
-export const DEMO_BASCULABLE = false;
+/** Boutons « 🧪 Essayer la démo » / « Quitter la démo » : dans le navigateur, hors version démo compilée */
+export const DEMO_BASCULABLE = !DEMO_COMPILE && typeof window !== 'undefined' && !!window.localStorage;
 export function changerModeDemo(actif: boolean) {
   try {
     if (actif) window.localStorage.setItem(MODE_DEMO_KEY, '1');
     else window.localStorage.removeItem(MODE_DEMO_KEY);
-    window.location.reload();
+    // Recharge sans « ?demo » dans l'adresse (sinon il remettrait le mode)
+    window.location.replace(window.location.pathname);
   } catch {
     /* navigateur sans stockage : on reste dans le mode actuel */
   }
@@ -77,7 +87,7 @@ export async function purgerRestesDemo(): Promise<boolean> {
       (k) =>
         k.startsWith('mes-taches:demo') ||
         k.startsWith('demo~') ||
-        ['mes-taches:cache', 'mes-taches:cache-epics', 'president:org-cache', 'president:messages-app', 'president:mode-demo', 'president:purge-demo-1'].includes(k),
+        ['mes-taches:cache', 'mes-taches:cache-epics', 'president:org-cache', 'president:messages-app', 'president:purge-demo-1'].includes(k),
     );
     await AsyncStorage.multiRemove(cles);
     await AsyncStorage.setItem(FAIT, '1');

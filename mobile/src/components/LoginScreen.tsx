@@ -1,3 +1,4 @@
+import { changerModeDemo, DEMO_BASCULABLE } from '../demo';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { dernierCompte, signIn } from '../auth';
@@ -62,12 +63,19 @@ export function LoginScreen({ onSignedIn, initialError }: Props) {
           </>
         )}
       </Pressable>
+      {DEMO_BASCULABLE && (
+        <Pressable onPress={() => changerModeDemo(true)} style={styles.demo} accessibilityRole="button" accessibilityHint="Données d'exemple, dans ce navigateur, à part de vos vraies données">
+          <Text style={styles.demoTexte}>🧪 Essayer la démo</Text>
+        </Pressable>
+      )}
       <Text style={styles.version}>Version {VERSION}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  demo: { marginTop: 18, alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 14 },
+  demoTexte: { fontSize: 15, color: colors.primary, fontWeight: '600' },
   version: { marginTop: 24, textAlign: 'center', fontSize: 11, color: colors.muted },
   container: { flex: 1, justifyContent: 'center', padding: 28 },
   logo: {

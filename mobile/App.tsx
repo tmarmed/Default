@@ -71,7 +71,7 @@ import { AuthError, restoreSession, signOut } from './src/auth';
 import { GOOGLE_AUTH, VERSION } from './src/config';
 import { BoutonRemarque } from './src/components/RemarquesDemo';
 import { poserEcran } from './src/remarquesDemo';
-import { DEMO, MOI_DEMO, orgTousLesRoles, purgerRestesDemo, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
+import { changerModeDemo, DEMO, DEMO_BASCULABLE, MOI_DEMO, orgTousLesRoles, purgerRestesDemo, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
 import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, lireNomFichier, loadRetires, loadSupprimes, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveSupprimes, saveVisibles } from './src/espaces';
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
@@ -3407,6 +3407,7 @@ function Main() {
           DEMO
             ? [
                 { label: '☁️ Stockage Google Drive', onPress: ouvrirStockage },
+                ...(DEMO_BASCULABLE ? [{ label: 'Quitter la démo (vos vraies données)', onPress: () => changerModeDemo(false) }] : []),
                 {
                   label: 'Réinitialiser la démo',
                   onPress: async () => {
@@ -3418,6 +3419,7 @@ function Main() {
               ]
             : [
                 { label: '☁️ Stockage Google Drive', onPress: ouvrirStockage },
+                ...(DEMO_BASCULABLE ? [{ label: '🧪 Essayer la démo', onPress: () => changerModeDemo(true) }] : []),
                 { label: 'Se déconnecter', onPress: logout },
               ]
         }
