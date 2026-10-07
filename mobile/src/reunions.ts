@@ -159,6 +159,10 @@ export function reunionsAVenir(org: OrgValue, moi: string, aujourdhui: string, s
         ajouter('retro', j, niveau, orgaEquipe(e, 'sm'), e.espace);
       }
     }
+    // Revue d'itération : le PM du train y est invité comme partie prenante (ses retours), pour chaque équipe du train
+    if (r.finIt)
+      for (const t of org.trains.filter((x) => est(x.pm)))
+        for (const e of org.equipes.filter((x) => x.train === t.id && !equipes.includes(x))) ajouter('revue', j, `equipeagile:${e.id}`, orgaEquipe(e, 'sm'), e.espace);
     for (const t of trainsTous) {
       const niveau = `train:${t.id}`;
       if (r.debutPI) ajouter('pi_planning', j, niveau, orgaTrain(t, 'rte'), t.espace);
@@ -198,6 +202,8 @@ export function participantsReunion(r: Pick<Reunion, 'type' | 'niveau'>, org: Or
   if (n.kind === 'equipeagile') {
     const e = org.equipe.get(n.id);
     if (e) ids.push(e.sm, e.po, ...membresDe(e));
+    // Revue : le PM du train, partie prenante
+    if (e && r.type === 'revue' && e.train) ids.push(org.train.get(e.train)?.pm ?? '');
   } else if (n.kind === 'train') {
     const t = org.train.get(n.id);
     if (t) {

@@ -1509,6 +1509,17 @@ function Main() {
       });
       return crees;
     },
+    modifierEntites: async (espace, kind, patches) => {
+      if (!settings || !patches.length) return;
+      const { modifies } = await api.ecrireLot(settings, espace, kind, [], patches as never);
+      const key = LIST_KEY[kind];
+      setHier((prev) => {
+        const list = prev[key] as { id: string }[];
+        const next = { ...prev, [key]: list.map((x) => (modifies as { id: string }[]).find((m) => m.id === x.id) ?? x) } as Hier;
+        saveHierarchyCache(next).catch(() => {});
+        return next;
+      });
+    },
     envoyerEchanges: async (espace, inputs) => {
       if (!settings || !inputs.length) return [];
       const { crees } = await api.ecrireLot(settings, espace, 'echange', inputs, []);

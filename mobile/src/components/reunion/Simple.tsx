@@ -5,7 +5,7 @@ import { addDays, toDateString } from '../../dates';
 import { dateCourte } from '../../daily';
 import { useHierarchy } from '../../hierarchyContext';
 import { colors } from '../../theme';
-import type { Item, Reunion } from '../../types';
+import { type Item, RECURRENCE_DEFAUTS, type Reunion } from '../../types';
 import { SectionFiche } from '../Choix';
 import type { ActionsDaily } from '../Daily';
 import { FenetreReunion } from '../FenetreReunion';
@@ -274,6 +274,28 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
     }
     let n = 0;
     if (actions.modifierItems) for (const [esp, l] of patches) n += (await actions.modifierItems(esp, l)).length;
+    // Revue des objectifs : échéance décalée de 3 mois, ou objectif arrêté aujourd'hui ; une tâche « à planifier »
+    // par domaine délaissé choisi (une écriture groupée par Sheet)
+    if (reunion.type === 'revue_objectifs') {
+      const parEsp = new Map<string, { id: string; fin: string }[]>();
+      for (const o of objectifs) {
+        const d = decObj[o.id];
+        if (!d || d === 'Garder') continue;
+        const base = o.fin && o.fin > jour ? o.fin : jour;
+        const fin = d === 'Abandonner' ? jour : toDateString(addDays(new Date(`${base}T12:00`), 91));
+        const esp = o.espace || 'moi';
+        parEsp.set(esp, [...(parEsp.get(esp) ?? []), { id: o.id, fin }]);
+      }
+      if (actions.modifierEntites) for (const [esp, l] of parEsp) await actions.modifierEntites(esp, 'objectif', l);
+      const aPlanifier = delaisses.filter((d) => decDom[d.id] === 'Planifier une tâche');
+      const parEspD = new Map<string, typeof aPlanifier>();
+      for (const d of aPlanifier) parEspD.set(d.espace || 'moi', [...(parEspD.get(d.espace || 'moi') ?? []), d]);
+      for (const [esp, l] of parEspD)
+        await actions.creerTaches(
+          esp,
+          l.map((d) => ({ ...RECURRENCE_DEFAUTS, espace: esp, titre: `À planifier · ${d.nom}`, type: 'tache', date: demain, heure: '', heure_fin: '', date_fin: '', lieu: '', description: `Domaine délaissé (revue des objectifs du ${dateCourte(jour)}).`, priorite: 'normale', statut: 'a_faire', parent: '', feature: '', epic: '', objectif: '', domaine: d.id, points: '', iteration: '', telephone: '', equipe: '', responsable: '' })),
+        );
+    }
     if (reunion.type === 'point_perso') await AsyncStorage.setItem(CLE_PLAN(jour), JSON.stringify(dansPlan)).catch(() => {});
     if (reunion.type === 'revue_semaine') await AsyncStorage.setItem(CLE_PRIORITES, JSON.stringify(priorites)).catch(() => {});
     onFini?.();

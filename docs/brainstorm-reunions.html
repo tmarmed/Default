@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Séries de réunions</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system, system-ui, "Segoe UI", Roboto, sans-serif; background:#EEF1F6; color:#18202C; }
+  .page { max-width:1000px; padding:28px 20px 30px; margin:0 auto; }
+  h1 { margin:0; font-size:28px; letter-spacing:-.4px; }
+  h1 span { color:#1A73E8; }
+  .sous { color:#6B7686; font-size:14.5px; margin:6px 0 20px; }
+  .grille { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:12px; }
+  .bloc { background:#fff; border:1px solid #E1E6ED; border-radius:14px; padding:14px 16px; }
+  .bloc.large { grid-column:1 / -1; }
+  .bloc h2 { margin:0 0 8px; font-size:15.5px; display:flex; gap:8px; align-items:center; }
+  .bloc h2 i { font-style:normal; width:26px; height:26px; border-radius:8px; background:#1A73E8; color:#fff; font-size:13px; font-weight:900; display:grid; place-items:center; flex:none; }
+  ul { margin:0; padding-left:18px; }
+  li { font-size:13px; line-height:1.5; color:#3A4556; margin:2px 0; }
+  li b { color:#18202C; }
+  .exc { margin-top:8px; font-size:12.5px; background:#FFF1D6; color:#8A4B00; border-radius:8px; padding:6px 10px; }
+  .ok { margin-top:8px; font-size:12.5px; background:#E3F1E6; color:#1E6B34; border-radius:8px; padding:6px 10px; }
+  .pied { margin-top:16px; font-size:12.5px; color:#6B7686; }
+  code { font-size:12px; background:#F1F4F8; border-radius:5px; padding:1px 5px; color:#18202C; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; color:#3A4556; }
+  th, td { text-align:left; padding:4px 6px; border-bottom:1px solid #EEF1F6; vertical-align:top; }
+  th { color:#18202C; font-size:12px; }
+  /* Maquettes */
+  .maq { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; }
+  .tel { border:1px solid #D5DBE4; border-radius:16px; background:#F8FAFC; padding:12px; font-size:13px; }
+  .tel .titre { font-weight:800; font-size:14.5px; margin-bottom:8px; display:flex; justify-content:space-between; }
+  .tel .titre small { color:#1A73E8; font-weight:600; }
+  .ligne { display:flex; justify-content:space-between; gap:8px; background:#fff; border:1px solid #E1E6ED; border-radius:10px; padding:7px 10px; margin:5px 0; }
+  .ligne span:last-child { color:#6B7686; text-align:right; }
+  .ligne.barre span:first-child { text-decoration:line-through; color:#9AA3B0; }
+  .pastille { display:inline-block; font-size:11px; border-radius:6px; padding:0 6px; background:#FFF1D6; color:#8A4B00; margin-left:4px; }
+  .pastille.bleu { background:#E2EDFD; color:#1A5FC4; }
+  .choix { background:#fff; border:1px solid #E1E6ED; border-radius:10px; padding:8px 10px; margin:5px 0; display:flex; gap:8px; align-items:center; }
+  .choix .rond { width:14px; height:14px; border-radius:50%; border:2px solid #9AA3B0; flex:none; }
+  .choix.sel { border-color:#1A73E8; }
+  .choix.sel .rond { border-color:#1A73E8; background:radial-gradient(#1A73E8 45%, #fff 50%); }
+  .btn { display:block; text-align:center; background:#1A73E8; color:#fff; border-radius:10px; padding:8px; font-weight:700; margin-top:8px; }
+  .gris { color:#6B7686; font-size:12px; }
+  @media (max-width:520px) { .page { padding:20px 16px; } h1 { font-size:23px; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Séries <span>de réunions</span></h1>
+  <div class="sous">President · lot 6 · brainstorm : garder « Rendez-vous », ajouter le type « Réunion » dans le backlog, répétée selon le calendrier SAFe, avec exceptions — pour validation par le PO</div>
+
+  <div class="grille">
+
+    <div class="bloc large"><h2><i>★</i>Recommandation : une « série » enregistrée, des réunions calculées</h2><ul>
+      <li><b>Une seule ligne par série</b> (ex. « Daily · Équipe Alpha »), nouveau type d'élément <b>📅 Réunion</b> dans l'onglet Tâches, à côté de Rendez-vous (inchangé).</li>
+      <li>La ligne contient une <b>règle relative au calendrier SAFe</b>, pas des dates : « chaque jour ouvré à 9:30 », « 1er jour de chaque itération à 10:00 », « milieu d'itération », « dernier jour d'itération », « début du PI »… Les réunions (occurrences) sont <b>calculées</b> à partir de la règle → si les itérations changent, <b>toutes les réunions suivent toutes seules</b>.</li>
+      <li>Les <b>exceptions</b> sont gardées dans la même ligne : « la réunion du 14/10 est déplacée au 15/10 à 14:00 », « celle du 28/10 est annulée ». C'est le principe de Google Agenda (règle + exceptions).</li>
+      <li>Les séries sont <b>créées automatiquement</b> d'après l'Organisation (rôles SM, PO, RTE, PM, Epic Owner) avec les valeurs actuelles, puis <b>modifiables</b> : heure, durée, animateur, participants, lieu/lien. On peut aussi créer sa propre série.</li>
+      <li>Modifier une réunion propose : <b>seulement celle-ci</b> · <b>celle-ci et les suivantes</b> · <b>toute la série</b>.</li>
+    </ul>
+    <div class="ok">On garde les avantages des deux options : de A, rien à recalculer ni à réécrire quand le calendrier bouge (zéro écriture) ; de B, de vraies réunions visibles dans Tâches et l'agenda, modifiables une par une.</div></div>
+
+    <div class="bloc"><h2><i>1</i>Identité stable d'une réunion</h2><ul>
+      <li>Chaque réunion garde l'identifiant actuel : <code>type-niveau-date d'origine</code> (ex. <code>daily-equipeagile:a1-2026-10-14</code>).</li>
+      <li><b>Déplacée, elle garde sa date d'origine</b> dans son identifiant : ses points, votes, ligne d'état (PointsReunion) restent attachés.</li>
+      <li>Une réunion <b>ajoutée hors règle</b> (« réunion en plus ») prend sa propre date comme date d'origine.</li>
+      <li>Après un changement de calendrier, une réunion <b>déjà tenue</b> ou <b>ayant des points</b> est conservée telle quelle (figée), même si la règle ne la produit plus.</li>
+    </ul></div>
+
+    <div class="bloc"><h2><i>2</i>Dans Tâches, l'agenda et Réunions</h2><ul>
+      <li>Comme un rendez-vous répété : <b>une ligne par réunion</b> dans Tâches et l'agenda (« ☀️ Daily · 9:30 · 15 min »), seulement les prochaines (pas 90 dailys d'affilée : la série se replie, « + 12 autres »).</li>
+      <li>Toucher la réunion <b>ouvre la fenêtre de la réunion</b> (Mon point, PO, Animer…), pas la fiche de tâche ; « ⋯ » → modifier la réunion ou la série.</li>
+      <li>L'onglet 📅 Réunions lit <b>les mêmes séries</b> : une seule source.</li>
+      <li><b>État par réunion</b> : à venir · en cours · tenue (compte rendu envoyé) · annulée · manquée. « Tenue » = la date d'origine ajoutée dans <code>faits</code>, comme les rendez-vous répétés.</li>
+    </ul></div>
+
+    <div class="bloc"><h2><i>3</i>Données et quota</h2>
+      <table>
+        <tr><th>Colonne</th><th>Exemple</th></tr>
+        <tr><td>type = reunion</td><td>+ <code>type_reunion</code> = daily</td></tr>
+        <tr><td>niveau</td><td>equipeagile:a1 (vide = perso)</td></tr>
+        <tr><td>regle</td><td>jours_ouvres · debut_it · milieu_it · fin_it · debut_pi · fin_pi · debut_ip · mercredi · 1er_mardi_mois…</td></tr>
+        <tr><td>heure, duree</td><td>09:30 · 15</td></tr>
+        <tr><td>animateur</td><td>vide = d'après le rôle (suit l'Organisation)</td></tr>
+        <tr><td>participants</td><td>vide = d'après l'Organisation ; sinon + / − personnes</td></tr>
+        <tr><td>debut, fin</td><td>2026-10-01 · vide</td></tr>
+        <tr><td>exceptions</td><td><code>2026-10-14&gt;2026-10-15T14:00;2026-10-28:annulee</code></td></tr>
+        <tr><td>faits</td><td>dates d'origine tenues (déjà existant)</td></tr>
+      </table>
+      <ul style="margin-top:6px">
+        <li><b>Une écriture par modification</b> (une ligne réécrite), quelle que soit l'étendue ; création automatique = <b>une écriture groupée</b> pour toutes les séries.</li>
+        <li>Changer le calendrier : <b>aucune écriture</b> de réunion.</li>
+      </ul></div>
+
+    <div class="bloc"><h2><i>4</i>Passage depuis l'existant</h2><ul>
+      <li>Au premier lancement, les règles de <code>reunions.ts</code> deviennent des séries (une par type et par équipe/train/portfolio), écrites <b>en une fois</b>, puis plus jamais recalculées : seul le calcul des dates reste.</li>
+      <li>Les identifiants ne changent pas → les points, votes et comptes rendus existants restent valables.</li>
+      <li>Nouvelle équipe ou nouveau train dans l'Organisation → ses séries sont proposées (« Créer les 5 réunions de l'équipe Beta ? »), groupées en une écriture.</li>
+      <li><b>Mode Simple</b> : mêmes séries pour les rituels (point perso, bilan du soir, revue de la semaine, revue des objectifs) avec des règles civiles (chaque jour, chaque lundi, 1er du mois). On peut les désactiver une à une.</li>
+    </ul></div>
+
+    <div class="bloc large"><h2><i>5</i>Cas particuliers</h2><ul>
+      <li><b>Durée des itérations ou date du PI modifiée</b> : les réunions futures se recalculent ; les passées et celles déjà lancées ne bougent pas.</li>
+      <li><b>Exception orpheline</b> (la date d'origine n'existe plus après le changement) : on ne la perd pas. Si elle a des points ou a été tenue, elle reste comme réunion à part ; sinon elle est signalée « ⚠ 1 exception ne correspond plus au calendrier · Garder / Supprimer », nettoyée à la prochaine écriture de la série.</li>
+      <li><b>Semaine IP</b> : chaque règle dit si elle s'applique en IP (daily oui ; planification, revue, rétro d'équipe non ; Itération IP et préparation du PI seulement en IP). Le jour du PI Planning remplace daily et planification d'équipe, comme aujourd'hui.</li>
+      <li><b>Jours fériés</b> : sautés pour les règles « jour ouvré » ; une réunion d'itération tombant un férié passe au jour ouvré suivant (règle par défaut, modifiable par exception).</li>
+      <li><b>Changement de rôle</b> : animateur vide = suit le rôle, donc le nouveau SM anime automatiquement ; animateur choisi à la main = garde la personne (alerte si elle quitte l'équipe).</li>
+      <li><b>Équipe supprimée</b> : ses séries prennent fin (<code>fin</code> = ce jour), historique gardé ; jamais supprimées tant qu'il y a des comptes rendus.</li>
+      <li><b>Réunion déjà tenue</b> : figée (date, heure, participants du jour) ; « toute la série » ne modifie que l'avenir.</li>
+    </ul></div>
+
+    <div class="bloc"><h2><i>A</i>Alternative : tout calculer (option A)</h2><ul>
+      <li>Les réunions calculées s'affichent comme des rendez-vous dans Tâches, sans rien enregistrer.</li>
+      <li><b>+</b> zéro écriture, rien à migrer. <b>−</b> pas d'heure, d'animateur ni de participants modifiables ; pas d'exception possible ; impossible de créer sa propre réunion.</li>
+    </ul></div>
+
+    <div class="bloc"><h2><i>B</i>Alternative : une ligne par réunion (option B pure)</h2><ul>
+      <li>Chaque réunion devient une ligne du Sheet, générée pour N semaines.</li>
+      <li><b>+</b> simple à modifier une par une. <b>−</b> des centaines de lignes (daily × équipes) ; changer les itérations = réécrire et déplacer toutes les lignes (quota) ; doublons et oublis de génération.</li>
+    </ul></div>
+
+    <div class="bloc"><h2><i>C</i>Alternative : onglet « Reunions » séparé</h2><ul>
+      <li>Même modèle recommandé (série + exceptions), mais dans un petit onglet dédié au lieu de Tâches.</li>
+      <li><b>+</b> colonnes propres, Tâches inchangé. <b>−</b> une lecture de plus au chargement, et il faut fusionner pour l'agenda.</li>
+    </ul>
+    <div class="exc">Recommandation : le modèle « série + exceptions » ; l'emplacement (Tâches ou onglet Reunions) est une décision du PO.</div></div>
+
+    <div class="bloc large"><h2><i>✎</i>Maquettes</h2>
+      <div class="maq">
+        <div class="tel">
+          <div class="titre">Série de réunions <small>Enregistrer</small></div>
+          <div class="ligne"><span>☀️ Daily</span><span>Équipe Alpha</span></div>
+          <div class="ligne"><span>Quand</span><span>Chaque jour ouvré ›</span></div>
+          <div class="ligne"><span>Heure · durée</span><span>9:30 · 15 min</span></div>
+          <div class="ligne"><span>Semaine IP</span><span>Oui</span></div>
+          <div class="ligne"><span>Anime</span><span>Le Scrum Master (Nina) ›</span></div>
+          <div class="ligne"><span>Participants</span><span>L'équipe (6) ›</span></div>
+          <div class="ligne"><span>Exceptions</span><span>2 ›</span></div>
+          <div class="gris" style="margin-top:6px">Suit le calendrier : si les itérations changent, les dates suivent.</div>
+        </div>
+        <div class="tel">
+          <div class="titre">Tâches · cette semaine</div>
+          <div class="ligne"><span>☀️ Daily · mar. 13</span><span>9:30</span></div>
+          <div class="ligne"><span>☀️ Daily · mer. 14 <span class="pastille">déplacée</span></span><span>jeu. 14:00</span></div>
+          <div class="ligne"><span>🪄 Affinage · mer. 14</span><span>14:00</span></div>
+          <div class="ligne barre"><span>☀️ Daily · ven. 16</span><span>annulée</span></div>
+          <div class="ligne"><span>📅 Dentiste <span class="pastille bleu">rendez-vous</span></span><span>17:00</span></div>
+          <div class="gris" style="margin-top:6px">Toucher une réunion ouvre sa fenêtre.</div>
+        </div>
+        <div class="tel">
+          <div class="titre">Modifier le Daily du 14/10</div>
+          <div class="choix sel"><span class="rond"></span><span><b>Cette réunion seulement</b><br><span class="gris">Elle sort de la série (exception)</span></span></div>
+          <div class="choix"><span class="rond"></span><span><b>Celle-ci et les suivantes</b><br><span class="gris">La série change à partir du 14/10</span></span></div>
+          <div class="choix"><span class="rond"></span><span><b>Toute la série</b><br><span class="gris">Les réunions déjà tenues ne changent pas</span></span></div>
+          <span class="btn">Continuer</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bloc large"><h2><i>?</i>Décisions à valider par le PO</h2><ul>
+      <li><b>1.</b> Les séries vont dans l'onglet <b>Tâches</b> (type 📅 Réunion) ou dans un onglet <b>Reunions</b> séparé ?</li>
+      <li><b>2.</b> Création automatique des séries d'après l'Organisation, ou seulement proposée (« Créer les réunions de l'équipe ? ») ?</li>
+      <li><b>3.</b> Dans Tâches : afficher toutes les réunions, seulement la prochaine de chaque série, ou seulement celles où je suis invité ?</li>
+      <li><b>4.</b> Garder les trois choix « cette réunion / celle-ci et les suivantes / toute la série », ou seulement deux ?</li>
+      <li><b>5.</b> Un participant (non animateur) peut-il modifier ou annuler une réunion, ou seulement l'animateur et le PO ?</li>
+      <li><b>6.</b> Jours fériés : sauter la réunion ou la décaler au jour ouvré suivant ? Quel calendrier de fériés (France) ?</li>
+      <li><b>7.</b> Exceptions orphelines : supprimer sans demander si vides, ou toujours demander ?</li>
+      <li><b>8.</b> Le calendrier (durée des itérations, début du PI) devient-il réglable dans l'application ? Aujourd'hui il est fixe (trimestre, 6 × 14 jours + IP).</li>
+      <li><b>9.</b> Mode Simple : rituels créés comme séries désactivables, ou laissés calculés ?</li>
+    </ul></div>
+
+  </div>
+  <div class="pied">Brainstorm, rien n'est encore codé. Existant : réunions calculées (mobile/src/reunions.ts), rendez-vous répétés (mobile/src/recurrence.ts), état des réunions (onglet PointsReunion). Règles communes : docs/regles-reunions.html. Rédigé le 7/10.</div>
+</div>
+</body>
+</html>

@@ -517,7 +517,18 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
 
   const envoyerCR = async () => {
     const dec = Object.entries(choix);
-    // Revue du portfolio : l'état décidé de chaque epic (une écriture groupée)
+    // Revue du portfolio : l'état décidé de chaque epic (une écriture groupée par Sheet)
+    if (p.reunion.type === 'revue_portfolio' && p.actions.modifierEntites) {
+      const parEsp = new Map<string, { id: string; etat: string }[]>();
+      for (const [id, v] of dec) {
+        const ep = epics.find((x) => x.id === id);
+        const etat = ETATS_EPIC.find((s2) => s2.label === v)?.value;
+        if (!ep || !etat || ep.etat === etat) continue;
+        const esp = ep.espace || 'moi';
+        parEsp.set(esp, [...(parEsp.get(esp) ?? []), { id, etat }]);
+      }
+      for (const [esp, l] of parEsp) await p.actions.modifierEntites(esp, 'epic', l);
+    }
     await r.envoyerCompteRendu({
       iteration: '',
       lignes: [

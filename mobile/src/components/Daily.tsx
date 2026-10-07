@@ -86,6 +86,8 @@ export interface ActionsDaily {
   actualiser?: (espace: string, prefixe: string) => Promise<PointReunion[]>;
   /** Modifie des tâches en un seul passage (stories engagées, acceptées, estimées…) ; renvoie les tâches modifiées */
   modifierItems?: (espace: string, patches: (Partial<Item> & { id: string })[]) => Promise<Item[]>;
+  /** Modifie des epics ou des objectifs en un seul passage (revue du portfolio, revue des objectifs) */
+  modifierEntites?: (espace: string, kind: 'epic' | 'objectif', patches: { id: string; [k: string]: string }[]) => Promise<void>;
   /** Crée des tâches en un seul passage ; renvoie les tâches créées dans l'ordre */
   creerTaches: (espace: string, inputs: ItemInput[]) => Promise<Item[]>;
   /** Envoie des échanges (Synchro, escalades, compte rendu) en un seul passage ; renvoie les échanges créés dans l'ordre */

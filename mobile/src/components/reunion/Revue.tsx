@@ -4,6 +4,8 @@ import { LIBELLE_TYPE_POINT, pointsFinis } from '../../daily';
 import { fmtPoints, pointsOf, shiftIteration } from '../../pi';
 import type { CatalogueParcours, EtapeCatalogue, ParcoursRole } from '../../reunions';
 import { criteresDe, velocite } from '../../reunionsEquipe';
+import { lireNiveau, personneParEmail } from '../../echange/hierarchieEchange';
+import { membresDe } from '../../organisation';
 import { useSafe } from '../../safe';
 import type { Item, PointReunion } from '../../types';
 import { SectionFiche } from '../Choix';
@@ -42,14 +44,30 @@ export const PARCOURS_REVUE: CatalogueParcours = {
     { cle: 'compte_rendu', nom: 'Compte rendu' },
   ],
 };
-const libelleEtape = (cle: string) => [...PARCOURS_REVUE.sm, ...PARCOURS_REVUE.membre, ...PARCOURS_REVUE.po].find((x) => x.cle === cle)?.nom ?? '';
+/** Partie prenante invitée (le PM du train) : un seul parcours, ses retours */
+export const PARCOURS_REVUE_PP: CatalogueParcours = {
+  membre: [
+    { cle: 'a_voir', nom: 'À voir' },
+    { cle: 'mes_retours', nom: 'Mes retours' },
+  ],
+  po: [],
+  sm: PARCOURS_REVUE.sm,
+};
+const libelleEtape = (cle: string) => [...PARCOURS_REVUE.sm, ...PARCOURS_REVUE.membre, ...PARCOURS_REVUE.po, ...PARCOURS_REVUE_PP.membre].find((x) => x.cle === cle)?.nom ?? '';
 const ACCEPTATION = ['Acceptée', 'Refusée → backlog', 'Reste à faire'];
 const SORT = ['Reporter', 'Backlog', 'Découper'];
 const MODES_DEMO = ['Démo en direct', 'Capture', 'Vidéo'];
 
 export function FenetreRevue(p: PropsReunion) {
   const safe = useSafe();
-  const r = useReunion(p, PARCOURS_REVUE, { nomCourt: 'à la revue', libelleEtape });
+  // Partie prenante : ni membre de l'équipe, ni son PO, ni l'animateur
+  const partiePrenante = useMemo(() => {
+    const n = lireNiveau(p.reunion.niveau);
+    const eq = n?.kind === 'equipeagile' ? p.org.equipe.get(n.id) : undefined;
+    const moiP = personneParEmail(p.moi, p.org);
+    return !!eq && !!moiP && !membresDe(eq).includes(moiP.id) && eq.po !== moiP.id && eq.sm !== moiP.id && p.reunion.organisateur.toLowerCase() !== p.moi.toLowerCase();
+  }, [p.reunion.niveau, p.org, p.moi, p.reunion.organisateur]);
+  const r = useReunion(p, partiePrenante ? PARCOURS_REVUE_PP : PARCOURS_REVUE, { nomCourt: 'à la revue', libelleEtape });
   const { e } = r;
   const fmt = (n: number) => fmtPoints(n, safe.pointsJours);
   const [cleAnim, setCleAnim] = useState('');
@@ -217,6 +235,26 @@ export function FenetreRevue(p: PropsReunion) {
           </>
         );
       }
+      // ---- Partie prenante ----
+      case 'a_voir':
+        return (
+          <>
+            <TitreFiche icone="👀" titre={`À voir · ${terminees.length + nonTerminees.length} stories`} vide="" sous={`${e.nomNiveau} · ${e.it.code}`} />
+            <SectionFiche titre="Stories">
+              {[...terminees, ...nonTerminees].map((t, i) => (
+                <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={t.feature ? `🧩 ${e.h.features.get(t.feature)?.titre ?? ''}` : ''} pastille={t.statut === 'termine' ? { texte: demoDe(t)?.d.v ?? 'terminée', ton: 'bleu' } : { texte: 'non terminée', ton: 'orange' }} />
+              ))}
+              {!terminees.length && !nonTerminees.length && <Vide texte="Rien à voir." />}
+            </SectionFiche>
+          </>
+        );
+      case 'mes_retours':
+        return (
+          <>
+            <TitreFiche icone="💬" titre="Mes retours" vide="" sous="Notés avant ou pendant la démo" />
+            <BlocPoints r={r} titre="Mes retours" points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={[...terminees, ...nonTerminees]} placeholder="＋ Retour" />
+          </>
+        );
       // ---- PO ----
       case 'questions':
         return <QuestionsEquipe r={r} />;
