@@ -1502,6 +1502,30 @@ function Main() {
   const [serieFiche, setSerieFiche] = useState<{ vue: SerieVue | null; origine?: string; portee: PorteeSerie } | null>(null);
   const [porteeMenu, setPorteeMenu] = useState<Reunion | null>(null);
   const [confirmerSerie, setConfirmerSerie] = useState<{ action: 'annuler' | 'arreter'; r: Reunion } | null>(null);
+  const [finSaisie, setFinSaisie] = useState('');
+  const jourJJMM = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+  const jourLong = (d: string) => `${['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'][new Date(`${d.slice(0, 10)}T12:00`).getDay()]} ${jourJJMM(d)}`;
+  /** Celle-ci et les 4 suivantes de sa série (choix de « Arrêter la série à partir du… ») */
+  const prochainesDe = (r: Reunion) => {
+    const vue = vueDeReunion(r);
+    return vue ? reunionsDeSerie(vue, r.debut.slice(0, 10), 400).filter((x) => x.debut >= r.debut).slice(0, 5) : [r];
+  };
+  /** Annuler une réunion, ou arrêter la série à partir d'un jour (une écriture) */
+  const terminerSerie = (c: { action: 'annuler' | 'arreter'; r: Reunion }, jour: string) => {
+    setConfirmerSerie(null);
+    setFinSaisie('');
+    const vue = vueDeReunion(c.r);
+    if (!vue || !settings || !jour) return;
+    const lot = c.action === 'annuler' ? [modifierOccurrence(vue.serie, jour, { annulee: true })] : [arreterSerie(vue.serie, jour, new Date().toISOString())];
+    api
+      .ecrireSeries(settings, vue.serie.espace || 'moi', lot)
+      .then((l) => {
+        appliquerSeries(l);
+        if (reunionOuverte?.id === c.r.id && (c.action === 'annuler' || c.r.debut.slice(0, 10) >= jour)) setReunionOuverte(null);
+        setInfo(c.action === 'annuler' ? 'Réunion annulée.' : `Série arrêtée à partir du ${jourJJMM(jour)}.`);
+      })
+      .catch((e) => setNotice(`Non enregistré : ${(e as Error).message}`));
+  };
   const niveauxSeries = useMemo(() => {
     const m = new Map<string, { value: string; label: string; espace: string }>();
     for (const v of mesSeries)
@@ -3429,7 +3453,7 @@ function Main() {
                   },
                 })),
                 { label: '✕ Annuler cette réunion', danger: true, onPress: () => (setConfirmerSerie({ action: 'annuler', r: porteeMenu }), setPorteeMenu(null)) },
-                { label: '✕ Arrêter la série à partir de celle-ci', danger: true, onPress: () => (setConfirmerSerie({ action: 'arreter', r: porteeMenu }), setPorteeMenu(null)) },
+                { label: '✕ Arrêter la série à partir du…', danger: true, onPress: () => (setConfirmerSerie({ action: 'arreter', r: porteeMenu }), setPorteeMenu(null)) },
               ]
         }
         onClose={() => setPorteeMenu(null)}
@@ -3438,38 +3462,46 @@ function Main() {
       {!!confirmerSerie && (
       <ChoiceSheet
         visible={!!confirmerSerie}
-        title={confirmerSerie ? (confirmerSerie.action === 'annuler' ? `Annuler ${confirmerSerie.r.titre} du ${confirmerSerie.r.debut.slice(8, 10)}/${confirmerSerie.r.debut.slice(5, 7)} ?` : `Arrêter ${confirmerSerie.r.titre} à partir du ${confirmerSerie.r.debut.slice(8, 10)}/${confirmerSerie.r.debut.slice(5, 7)} ?`) : ''}
+        title={confirmerSerie.action === 'annuler' ? `Annuler ${confirmerSerie.r.titre} du ${jourJJMM(confirmerSerie.r.debut)} ?` : `Arrêter ${confirmerSerie.r.titre} à partir du…`}
         message={
-          confirmerSerie?.action === 'annuler'
+          confirmerSerie.action === 'annuler'
             ? 'Elle disparaît pour tous les participants ; les autres réunions de la série restent.'
-            : 'Plus aucune réunion ensuite. Les réunions passées, leurs points et comptes rendus sont gardés.'
+            : 'Plus aucune réunion à partir de la date choisie. Les réunions passées, leurs points et comptes rendus sont gardés.'
         }
-        choices={[
-          {
-            label: confirmerSerie?.action === 'annuler' ? 'Annuler la réunion' : 'Arrêter la série',
-            danger: true,
-            onPress: () => {
-              const c = confirmerSerie;
-              setConfirmerSerie(null);
-              const vue = c ? vueDeReunion(c.r) : undefined;
-              if (!c || !vue || !settings || !c.r.origine) return;
-              const lot =
-                c.action === 'annuler'
-                  ? [modifierOccurrence(vue.serie, c.r.origine, { annulee: true })]
-                  : [arreterSerie(vue.serie, c.r.origine, new Date().toISOString())];
-              api
-                .ecrireSeries(settings, vue.serie.espace || 'moi', lot)
-                .then((l) => {
-                  appliquerSeries(l);
-                  if (reunionOuverte?.id === c.r.id) setReunionOuverte(null);
-                  setInfo(c.action === 'annuler' ? 'Réunion annulée.' : 'Série arrêtée.');
-                })
-                .catch((e) => setNotice(`Non enregistré : ${(e as Error).message}`));
-            },
-          },
-        ]}
+        choices={
+          confirmerSerie.action === 'annuler'
+            ? [{ label: 'Annuler la réunion', danger: true, onPress: () => terminerSerie(confirmerSerie, confirmerSerie.r.origine ?? '') }]
+            : prochainesDe(confirmerSerie.r).map((x, k) => ({
+                label: k === 0 ? `✕ À partir de celle-ci · ${jourLong(x.debut)}` : `✕ À partir du ${jourLong(x.debut)}`,
+                danger: true,
+                onPress: () => terminerSerie(confirmerSerie, x.origine ?? x.debut.slice(0, 10)),
+              }))
+        }
         onClose={() => setConfirmerSerie(null)}
-      />
+      >
+        {confirmerSerie.action === 'arreter' ? (
+          // Ou une date : plus aucune réunion à partir de ce jour
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 8 }}>
+            <Text style={{ fontSize: 15, color: colors.text }}>Ou à partir du</Text>
+            <TextInput
+              value={finSaisie}
+              onChangeText={(v) => setFinSaisie(v.replace(/[^0-9-]/g, '').slice(0, 10))}
+              placeholder="AAAA-MM-JJ"
+              placeholderTextColor={colors.muted}
+              style={{ flex: 1, fontSize: 15, color: colors.text, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.muted }}
+              accessibilityLabel="Date de fin de la série"
+            />
+            <Pressable
+              disabled={!/^\d{4}-\d{2}-\d{2}$/.test(finSaisie)}
+              onPress={() => terminerSerie(confirmerSerie, finSaisie)}
+              style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: /^\d{4}-\d{2}-\d{2}$/.test(finSaisie) ? colors.danger : '#E4E7EC' }}
+              accessibilityRole="button"
+            >
+              <Text style={{ color: '#fff', fontWeight: '600' }}>Arrêter</Text>
+            </Pressable>
+          </View>
+        ) : undefined}
+      </ChoiceSheet>
       )}
       {!!serieFiche && (
       <SerieForm
