@@ -281,7 +281,12 @@ const trier = (l: Reunion[]) => l.sort((a, b) => a.debut.localeCompare(b.debut) 
  * Participants d'une réunion (ids de l'Organisation) : l'équipe (SM, PO, membres) ; pour l'ART sync, le RTE, le PM,
  * les SM et les PO du train ; pour les autres réunions du train, tout le train ; au portfolio, l'Epic Owner, les RTE et les PM de ses trains. Réunion personnelle : personne.
  */
-export function participantsReunion(r: Pick<Reunion, 'type' | 'niveau'>, org: OrgValue): string[] {
+export function participantsReunion(r: Pick<Reunion, 'type' | 'niveau'> & { participants?: string[]; organisateur?: string }, org: OrgValue): string[] {
+  // 📅 Réunion libre avec ses participants (e-mails) : les personnes connues de l'Organisation, plus l'animateur
+  if (r.participants?.length) {
+    const mails = new Set([...r.participants, r.organisateur ?? ''].map((x) => x.toLowerCase()).filter(Boolean));
+    return [...new Set(org.personnes.filter((p) => mails.has(p.email?.toLowerCase() ?? '')).map((p) => p.id))];
+  }
   const n = lireNiveau(r.niveau);
   if (!n) return [];
   const ids: string[] = [];

@@ -324,6 +324,13 @@ export function couperSerie(s: SerieReunion, origine: string, changes: Partial<S
   return [avant, apres];
 }
 
+/** « Arrêter la série à partir de celle-ci » : elle finit la veille ; sans réunion avant, elle est arrêtée (gardée) */
+export function arreterSerie(s: SerieReunion, origine: string, maintenant: string): SerieReunion {
+  const fin = plus(origine, -1);
+  const vide = !!s.debut && fin < s.debut;
+  return { ...s, fin, actif: vide ? 'non' : s.actif, exceptions: ecrireExceptions(s, lireExceptions(s).filter((e) => e.d < origine)), modifie_le: maintenant };
+}
+
 /** « Toute la série » : les réglages changent ; les exceptions restent (celles devenues identiques sont retirées) */
 export function modifierSerie(s: SerieReunion, changes: Partial<SerieReunion>, maintenant: string): SerieReunion {
   const n = { ...s, ...changes, modifie_le: maintenant };

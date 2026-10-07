@@ -9,7 +9,7 @@ import { toDateString } from '../src/dates';
 import { ciblesEscalade, destinatairesTransfert, equipesDePersonne } from '../src/echange/hierarchieEchange';
 import { makeOrgValue } from '../src/organisation';
 import { aReprendre, chaineEscalade, parEspace, pointsEscalade, pointsReponse, reunionDeNiveau, titreEscalade } from '../src/suiviEscalade';
-import { couperSerie, datesRegle, exceptionsOrphelines, libelleRegle, lireExceptions, modifierOccurrence, modifierSerie, occurrences } from '../src/series';
+import { arreterSerie, couperSerie, datesRegle, exceptionsOrphelines, libelleRegle, lireExceptions, modifierOccurrence, modifierSerie, occurrences } from '../src/series';
 import { seriesACreer, serieParDefaut, serieVide, etapesParcours, ongletParcours, parcoursParDefaut, participantsReunion, reunionsAVenir } from '../src/reunions';
 import { type Reunion, TYPES_REUNION } from '../src/types';
 import { iterationOf, iterationsOf, lireCalendrier, piOf } from '../src/pi';
@@ -287,6 +287,10 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   // Toute la série : l'exception devenue identique disparaît
   const t = modifierSerie(modifierOccurrence(fin1, '2026-10-13', { a: '2026-10-13T16:00' }), { heure: '16:00' }, 'x');
   ok(!lireExceptions(t).length, 'toute la série : une exception devenue identique est retirée');
+  // Arrêter la série à partir d'une réunion : plus rien ensuite, le passé gardé
+  const st = arreterSerie(s, '2026-10-27', 'x');
+  ok(st.fin === '2026-10-26' && datesRegle(st, '2026-10-01', '2026-12-31', cal).join() === '2026-10-13' && st.actif !== 'non', 'arrêter à partir d’une réunion : la série finit la veille');
+  ok(arreterSerie({ ...fin1, debut: '2026-10-13' }, '2026-10-13', 'x').actif === 'non', 'arrêter dès la première réunion : série arrêtée (gardée)');
   // Calendrier changé : exception orpheline
   const c3 = lireCalendrier({ semaines: 3 });
   ok(exceptionsOrphelines(s, c3).some((e) => e.d === '2026-10-13'), 'calendrier changé : exception « à revoir »');

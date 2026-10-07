@@ -271,7 +271,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
     ],
   },
   iteration_ip: {
-    nomCourt: 'au lancement de l’semaine IP',
+    nomCourt: 'au lancement de la semaine IP',
     sm: [
       ['situation', 'Situation', SIT('Lancer la semaine d’innovation et de planification', 'Programme, hackathon, formation, dette technique.', (c) => [{ valeur: String(c.r.donneesDe('idee_ip').length), libelle: 'idées' }, { valeur: String(c.r.donneesDe('formation').length), libelle: 'inscriptions' }, { valeur: String(c.e.personnes.length), libelle: 'participants' }])],
       ['programme', 'Programme', { k: 'points', icone: '🗓️', titre: 'Programme', sous: 'Hackathon, Inspect & Adapt, formation, PI Planning', placeholder: '＋ Décision ou action' }],
@@ -285,6 +285,17 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
       ['formation_m', 'Formation', { k: 'saisie', icone: '🎓', titre: 'Formation', sous: 'Je m’inscris (sujet, dette technique)', cle: 'formation', placeholder: 'Sécurité des applications' }],
       ['votes', 'Mes votes', { k: 'voter_etoiles', cle: 'idee_ip' }],
     ],
+  },
+  // 📅 Réunion libre (07/10) : points, décisions, puis concrétisation et compte rendu, sur le même socle
+  reunion: {
+    nomCourt: 'à la réunion',
+    sm: [
+      ['points', 'Points', { k: 'points', icone: '🗒️', titre: 'Points', sous: 'Ordre du jour et points des participants', placeholder: '＋ Point, blocage ou action' }],
+      ['decisions', 'Décisions', { k: 'points', icone: '✅', titre: 'Décisions', sous: 'Ce qui est décidé, qui fait quoi', placeholder: '＋ Décision ou action' }],
+      ['concretisation', 'Concrétisation', CONC],
+      ['compte_rendu', 'Compte rendu', CR],
+    ],
+    membre: [['notes', 'Mes points', { k: 'notes', titre: 'Mes points pour la réunion' }]],
   },
 };
 export const estReunionNiveau = (t: TypeReunion) => !!CONFIGS[t];

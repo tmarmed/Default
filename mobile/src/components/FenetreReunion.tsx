@@ -1,10 +1,13 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import { type Reunion, TYPES_REUNION } from '../types';
 import { SectionFiche } from './Choix';
 import { FormSheet, TitreFiche } from './FormSheet';
 import { Segmented } from './Segmented';
+
+/** « ⋯ » d'une réunion de série : ouvre le menu Modifier / Annuler (fourni par l'application) */
+export const ModifierReunionContext = createContext<((r: Reunion) => void) | null>(null);
 
 /**
  * Fenêtre d'une réunion (lot 6) : la même feuille superposée que la fenêtre de traitement des échanges, une étape à
@@ -238,6 +241,14 @@ export function FenetreReunion(p: Props) {
     </View>
   );
 
+  // « ⋯ » : modifier ou annuler cette réunion, ou sa série (07/10) — même menu que la liste des réunions
+  const modifier = useContext(ModifierReunionContext);
+  const rr = p.reunion;
+  const plus = modifier && rr?.serie && (
+    <Pressable onPress={() => modifier(rr)} hitSlop={10} style={s.plus} accessibilityRole="button" accessibilityLabel="Modifier ou annuler la réunion">
+      <Text style={s.plusTexte}>⋯</Text>
+    </Pressable>
+  );
   /** En-tête, à droite : « ↻ Actualiser », puis « À jour · 9:42 » */
   const droite = onActualiser && (
     <Pressable
@@ -301,7 +312,12 @@ export function FenetreReunion(p: Props) {
       error={error}
       onClose={onFermer}
       fil={fil}
-      droite={droite || undefined}
+      droite={droite || plus ? (
+        <View style={s.droite}>
+          {plus}
+          {droite}
+        </View>
+      ) : undefined}
       contexte={`${courant.libelle ? `${courant.libelle} · ` : ''}étape ${etape + 1} sur ${etapes.length} : ${etapes[etape] ?? ''}`}
       haut={
         <>
@@ -368,4 +384,7 @@ const s = StyleSheet.create({
   directPanneau: { backgroundColor: colors.bg },
   directContenu: { padding: 12, gap: 6 },
   directLecture: { fontSize: 11.5, color: colors.muted, textAlign: 'center', paddingVertical: 6, backgroundColor: colors.bg },
+  droite: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  plus: { paddingHorizontal: 6 },
+  plusTexte: { fontSize: 20, color: colors.muted, fontWeight: '700' },
 });

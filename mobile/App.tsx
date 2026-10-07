@@ -84,7 +84,9 @@ import { FenetreDeReunion, type NiveauReunion, ReunionsView } from './src/compon
 import { BandeauxBas, hauteurBandeaux, type InfoBandeauChat, type InfoBandeauReunion } from './src/components/BandeauReunion';
 import { useReunionsLancees } from './src/components/useReunionsLancees';
 import { estLancee } from './src/etatReunion';
-import { heureReunion, reunionsAVenir, seriesACreer, seriesDe, type SerieVue } from './src/reunions';
+import { heureReunion, peutModifierSerie, reunionsAVenir, reunionsDeSerie, seriesACreer, seriesDe, type SerieVue } from './src/reunions';
+import { arreterSerie, modifierOccurrence } from './src/series';
+import { ModifierReunionContext } from './src/components/FenetreReunion';
 import { CarteSeries, LIBELLE_PORTEE, type PorteeSerie, SerieForm } from './src/components/SerieForm';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { chaineEscalade, estSuiviReunion, type PointAEcrire, parEspace as pointsParEspace, pointsEscalade, pointsReponse, titreEscalade } from './src/suiviEscalade';
@@ -1499,6 +1501,7 @@ function Main() {
   );
   const [serieFiche, setSerieFiche] = useState<{ vue: SerieVue | null; origine?: string; portee: PorteeSerie } | null>(null);
   const [porteeMenu, setPorteeMenu] = useState<Reunion | null>(null);
+  const [confirmerSerie, setConfirmerSerie] = useState<{ action: 'annuler' | 'arreter'; r: Reunion } | null>(null);
   const niveauxSeries = useMemo(() => {
     const m = new Map<string, { value: string; label: string; espace: string }>();
     for (const v of mesSeries)
@@ -1506,6 +1509,14 @@ function Main() {
     return [...m.values()];
   }, [mesSeries, orgReunions]);
   const vueDeReunion = (r: Reunion) => mesSeries.find((v) => v.serie.id === r.serie && (v.serie.espace || 'moi') === (r.espace || 'moi')) ?? mesSeries.find((v) => v.serie.id === r.serie);
+  const vueMenu = porteeMenu ? vueDeReunion(porteeMenu) : undefined;
+  const peutModifierMenu = !!vueMenu && peutModifierSerie(vueMenu, moiEchange);
+  /** Carte 📅 Réunions de Tâches : le menu de la prochaine réunion de la série (sinon la fiche de la série) */
+  const ouvrirSerie = (vue: SerieVue) => {
+    const r = reunionsDeSerie(vue, today, 400)[0];
+    if (r) setPorteeMenu(r);
+    else setSerieFiche({ vue, portee: 'toutes' });
+  };
   // Séries de réunions (07/10) : en mode SAFe, celles de vos rôles qui manquent sont créées au démarrage, une écriture par espace
   const seriesTentees = useRef(new Set<string>());
   useEffect(() => {
@@ -2377,6 +2388,7 @@ function Main() {
       </View>
       {/* Carte des espaces de travail : dépliée sous la barre (la pastille la replie) */}
       {reunionOuverte && (
+        <ModifierReunionContext.Provider value={setPorteeMenu}>
         <FenetreDeReunion
           reunion={reunionOuverte}
           org={orgReunions}
@@ -2398,6 +2410,7 @@ function Main() {
           onOpenTask={openForm}
           echanges={tousHier.echanges ?? []}
         />
+        </ModifierReunionContext.Provider>
       )}
       <ChatEchanges
         visible={!!chatLancement}
@@ -3017,7 +3030,7 @@ function Main() {
           <>
             {alertesTaches}
             {!recherche?.trim() && (filter === 'tous' || filter === 'recurrents') && (
-              <CarteSeries vues={mesSeries} org={orgReunions} onOuvrir={(vue) => setSerieFiche({ vue, portee: 'toutes' })} onNouvelle={() => setSerieFiche({ vue: null, portee: 'toutes' })} />
+              <CarteSeries vues={mesSeries} org={orgReunions} onOuvrir={ouvrirSerie} onNouvelle={() => setSerieFiche({ vue: null, portee: 'toutes' })} />
             )}
           </>
         }
@@ -3398,18 +3411,61 @@ function Main() {
       />
       <ChoiceSheet
         visible={!!porteeMenu}
-        title={porteeMenu ? `Modifier ${porteeMenu.titre} du ${porteeMenu.debut.slice(8, 10)}/${porteeMenu.debut.slice(5, 7)}` : ''}
-        choices={(['une', 'suivantes', 'toutes'] as PorteeSerie[]).map((p) => ({
-          label: LIBELLE_PORTEE[p],
-          suite: true,
-          onPress: () => {
-            const r = porteeMenu;
-            setPorteeMenu(null);
-            const vue = r ? vueDeReunion(r) : undefined;
-            if (r && vue) setSerieFiche({ vue, origine: r.origine, portee: p });
-          },
-        }))}
+        title={porteeMenu ? `${porteeMenu.titre} du ${porteeMenu.debut.slice(8, 10)}/${porteeMenu.debut.slice(5, 7)}` : ''}
+        message={porteeMenu && !peutModifierMenu ? `Seul ${nomEchange(porteeMenu.organisateur)} (qui anime) et les personnes ajoutées peuvent modifier ou annuler cette réunion.` : undefined}
+        choices={
+          !porteeMenu || !peutModifierMenu
+            ? []
+            : [
+                ...(['une', 'suivantes', 'toutes'] as PorteeSerie[]).map((p) => ({
+                  label: `✎ Modifier ${p === 'une' ? 'cette réunion' : p === 'suivantes' ? 'celle-ci et les suivantes' : 'toute la série'}`,
+                  suite: true,
+                  onPress: () => {
+                    const r = porteeMenu;
+                    setPorteeMenu(null);
+                    const vue = vueDeReunion(r);
+                    if (vue) setSerieFiche({ vue, origine: r.origine, portee: p });
+                  },
+                })),
+                { label: '✕ Annuler cette réunion', danger: true, onPress: () => (setConfirmerSerie({ action: 'annuler', r: porteeMenu }), setPorteeMenu(null)) },
+                { label: '✕ Arrêter la série à partir de celle-ci', danger: true, onPress: () => (setConfirmerSerie({ action: 'arreter', r: porteeMenu }), setPorteeMenu(null)) },
+              ]
+        }
         onClose={() => setPorteeMenu(null)}
+      />
+      <ChoiceSheet
+        visible={!!confirmerSerie}
+        title={confirmerSerie ? (confirmerSerie.action === 'annuler' ? `Annuler ${confirmerSerie.r.titre} du ${confirmerSerie.r.debut.slice(8, 10)}/${confirmerSerie.r.debut.slice(5, 7)} ?` : `Arrêter ${confirmerSerie.r.titre} à partir du ${confirmerSerie.r.debut.slice(8, 10)}/${confirmerSerie.r.debut.slice(5, 7)} ?`) : ''}
+        message={
+          confirmerSerie?.action === 'annuler'
+            ? 'Elle disparaît pour tous les participants ; les autres réunions de la série restent.'
+            : 'Plus aucune réunion ensuite. Les réunions passées, leurs points et comptes rendus sont gardés.'
+        }
+        choices={[
+          {
+            label: confirmerSerie?.action === 'annuler' ? 'Annuler la réunion' : 'Arrêter la série',
+            danger: true,
+            onPress: () => {
+              const c = confirmerSerie;
+              setConfirmerSerie(null);
+              const vue = c ? vueDeReunion(c.r) : undefined;
+              if (!c || !vue || !settings || !c.r.origine) return;
+              const lot =
+                c.action === 'annuler'
+                  ? [modifierOccurrence(vue.serie, c.r.origine, { annulee: true })]
+                  : [arreterSerie(vue.serie, c.r.origine, new Date().toISOString())];
+              api
+                .ecrireSeries(settings, vue.serie.espace || 'moi', lot)
+                .then((l) => {
+                  appliquerSeries(l);
+                  if (reunionOuverte?.id === c.r.id) setReunionOuverte(null);
+                  setInfo(c.action === 'annuler' ? 'Réunion annulée.' : 'Série arrêtée.');
+                })
+                .catch((e) => setNotice(`Non enregistré : ${(e as Error).message}`));
+            },
+          },
+        ]}
+        onClose={() => setConfirmerSerie(null)}
       />
       <SerieForm
         visible={!!serieFiche}
