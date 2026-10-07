@@ -61,9 +61,10 @@
       <li><b>Une ligne d'état par réunion</b> (onglet PointsReunion) : étape et élément en cours chez l'animateur, état du vote (fermé, ouvert avec tour et éléments, révélé). Écrite quand l'animateur avance, ouvre ou révèle ; relue par les participants (↻ Actualiser ou toutes les 15 s).</li>
       <li><b>À l'ouverture de l'application</b>, si une de vos réunions est lancée : sa fenêtre s'ouvre d'abord (votre onglet), puis le chat s'il y a des échanges à traiter, puis l'application normale.</li>
       <li><b>Détection des changements</b> : relecture de la seule ligne d'état, avec un numéro de version (l'écran ne change que s'il augmente) ; toutes les 5 s pendant un vote, 15 s sinon, en pause quand l'application n'est pas à l'écran ; ↻ Actualiser en plus.</li>
-      <li><b>Pendant la séance : bandeau « ● En direct »</b> en bas de l'écran de chaque participant, <b>fermé par défaut</b> ; ouvert, il montre l'écran de l'animateur en lecture seule. Il remplace l'onglet « Suivre ».</li>
+      <li><b>Live seulement à plusieurs</b> : réunion à l'heure et avec au moins un autre participant → live sur l'écran de l'animateur ; seul → ni live ni « ↻ Actualiser ». Calculé à chaque fois : inviter quelqu'un ou changer la réunion l'active tout seul (y compris en mode Simple, à la rétro).</li>
+      <li><b>Un seul bandeau de réunion</b>, en bas (au-dessus des onglets, ou du bouton de la fenêtre), 4 états : <b>bientôt</b> (clair, 10 min avant · « Préparer › ») ; <b>en direct</b> dans la fenêtre d'un participant (● « En direct · Nina anime · Tour de table », ▴ = écran de l'animateur en lecture seule, fermé par défaut ; remplace « Suivre ») ; <b>en cours</b> hors de la fenêtre, sur tous les écrans (« Rejoindre › », « Reprendre › » pour l'animateur) ; <b>seul</b> : « Reprendre › », sans point rouge. L'animateur n'a pas de bandeau dans sa fenêtre.</li>
       <li><b>Après la réunion : onglet « Compte rendu · 3/10 »</b> (la date dans le titre) pour celui qui reçoit le compte rendu ; lecture seule, disponible jusqu'à la fin de la réunion suivante de la série.</li>
-    </ul><div class="exc">Exception : pas de bandeau « En direct » à la rétrospective (l'écran de vote contient tout).</div></div>
+    </ul></div>
 
     <div class="bloc"><h2><i>5</i>Points notés</h2><ul>
       <li>Un seul bloc « <b>Points notés · n</b> » (participant et animateur, origine affichée « par Tom »), filtre « <b>Filtres ▾</b> » à côté du titre, fermé, « Tous » par défaut.</li>
