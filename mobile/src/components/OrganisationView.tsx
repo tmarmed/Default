@@ -150,8 +150,8 @@ export function OrganisationView({
           <LigneChoix
             label="Voir en tant que"
             value={moi ?? 'vous'}
-            groupes={[{ options: [{ value: 'vous', label: 'Vous · tous les droits' }, ...org.personnes.map((p) => ({ value: p.id, label: p.nom, meta: libelleMoi(p.id, org) }))] }]}
-            libelle={(v) => (v && v !== 'vous' ? (org.personne.get(v)?.nom ?? '') : 'Vous · tous les droits')}
+            groupes={[{ options: [{ value: 'vous', label: 'Vous · tous les rôles' }, ...org.personnes.map((p) => ({ value: p.id, label: p.nom, meta: libelleMoi(p.id, org) }))] }]}
+            libelle={(v) => (v && v !== 'vous' ? (org.personne.get(v)?.nom ?? '') : 'Vous · tous les rôles')}
             onChange={(v) => onChangerMoi(v && v !== 'vous' ? v : null)}
           />
         </View>

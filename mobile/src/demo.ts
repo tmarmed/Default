@@ -27,6 +27,30 @@ export const DEMO = DEMO_COMPILE;
 void lireModeDemo;
 /** Démo : votre adresse (auteur et destinataire des échanges) */
 export const MOI_DEMO = 'vous@demo';
+/** Démo · « Vous · tous les rôles » : votre fiche, dans chaque entreprise de la démo */
+export const ID_VOUS_DEMO = 'vous-demo';
+/**
+ * Organisation vue par « Vous » dans la démo : SM et PO de chaque équipe, RTE et PM de chaque train, Epic Owner de
+ * chaque portfolio (toutes les réunions en animateur). Les anciens SM et PO restent membres de leur équipe.
+ */
+export function orgTousLesRoles(o: Org): Org {
+  const espaces = [...new Set([...o.equipes, ...o.trains, ...o.portfolios].map((x) => x.espace || 'moi'))];
+  const idDe = (esp: string) => `${ID_VOUS_DEMO}-${esp}`;
+  const vous = espaces
+    .filter((esp) => !o.personnes.some((p) => p.id === idDe(esp)))
+    .map((esp) => ({ espace: esp, id: idDe(esp), nom: 'Vous (tous les rôles)', email: MOI_DEMO, unite: '', manager: '', capacite: '', metier: 'SM', cree_le: '', modifie_le: '', nature: 'humain' }) as Org['personnes'][number]);
+  return {
+    ...o,
+    personnes: [...o.personnes, ...vous],
+    equipes: o.equipes.map((e) => {
+      const id = idDe(e.espace || 'moi');
+      const membres = [...new Set([id, e.sm, e.po, ...(e.membres ? e.membres.split(';') : [])].filter(Boolean))].join(';');
+      return { ...e, sm: id, po: id, membres };
+    }),
+    trains: o.trains.map((t) => ({ ...t, rte: idDe(t.espace || 'moi'), pm: idDe(t.espace || 'moi') })),
+    portfolios: o.portfolios.map((p) => ({ ...p, epic_owner: idDe(p.espace || 'moi') })),
+  };
+}
 /** Le bouton « Mode démo » existe seulement dans la version principale, dans le navigateur */
 export const DEMO_BASCULABLE = false;
 export function changerModeDemo(actif: boolean) {

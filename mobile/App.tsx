@@ -71,7 +71,7 @@ import { AuthError, restoreSession, signOut } from './src/auth';
 import { GOOGLE_AUTH, VERSION } from './src/config';
 import { BoutonRemarque } from './src/components/RemarquesDemo';
 import { poserEcran } from './src/remarquesDemo';
-import { DEMO, MOI_DEMO, purgerRestesDemo, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
+import { DEMO, MOI_DEMO, orgTousLesRoles, purgerRestesDemo, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
 import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, lireNomFichier, loadRetires, loadSupprimes, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveSupprimes, saveVisibles } from './src/espaces';
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
@@ -1466,13 +1466,19 @@ function Main() {
    */
   const orgReunions = useMemo(() => {
     const eq = Object.entries(equipesEsp).filter(([id]) => visibles.includes(id));
-    if (!eq.length) return orgValue;
-    return makeOrgValue({
-      ...orgValue,
-      personnes: [...orgValue.personnes, ...eq.flatMap(([id, x]) => x.personnes.map((p) => ({ ...p, espace: p.espace || id })))],
-      equipes: [...orgValue.equipes, ...eq.flatMap(([id, x]) => x.equipes.map((e) => ({ ...e, espace: e.espace || id })))],
-    });
-  }, [orgValue, equipesEsp, visibles]);
+    const base: Org = !eq.length
+      ? orgValue
+      : {
+          ...orgValue,
+          personnes: [...orgValue.personnes, ...eq.flatMap(([id, x]) => x.personnes.map((p) => ({ ...p, espace: p.espace || id })))],
+          equipes: [...orgValue.equipes, ...eq.flatMap(([id, x]) => x.equipes.map((e) => ({ ...e, espace: e.espace || id })))],
+        };
+    // Démo, « Vous · tous les rôles » : vous êtes Scrum Master et PO de chaque équipe, RTE et PM de chaque train,
+    // Epic Owner de chaque portfolio (pour valider toutes les réunions en animateur) ; les personnes qui avaient ces
+    // rôles restent membres de leur équipe (les réunions restent à plusieurs)
+    if (DEMO && !moiDemo) return makeOrgValue(orgTousLesRoles(base));
+    return eq.length ? makeOrgValue(base) : orgValue;
+  }, [orgValue, equipesEsp, visibles, moiDemo]);
   // Calendrier agile (07/10) : celui de votre équipe (ou de son train), partout dans l'application
   const monCalendrier = calendrierPersonne(orgReunions, moiEchange);
   definirCalendrier(monCalendrier);
