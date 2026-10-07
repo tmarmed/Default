@@ -13,6 +13,7 @@ import { FenetreAffinage } from './reunion/Affinage';
 import { FenetreRetro } from './reunion/Retro';
 import { FenetreRevue } from './reunion/Revue';
 import { FenetrePlanification } from './reunion/Planification';
+import { estReunionNiveau, FenetreNiveau } from './reunion/Niveau';
 
 /**
  * 📅 Réunions (lot 6) : vos réunions, construites comme la liste de la Synchro (« Par conversation ») : sections
@@ -195,6 +196,7 @@ export function FenetreDeReunion(p: {
     if (ouverte.type === 'retro') return <FenetreRetro {...props} actions={daily} />;
     if (ouverte.type === 'revue') return <FenetreRevue {...props} actions={daily} />;
     if (ouverte.type === 'planification') return <FenetrePlanification {...props} actions={daily} />;
+    if (estReunionNiveau(ouverte.type)) return <FenetreNiveau {...props} actions={daily} />;
   }
   return (
     <FenetreReunion

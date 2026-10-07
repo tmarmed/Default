@@ -52,6 +52,11 @@ const CADENCE: Record<TypeReunion, { heure: string; repetition: RepetitionReunio
   inspect_adapt: { heure: '09:00', repetition: 'pi' },
   revue_portfolio: { heure: '10:00', repetition: 'mensuelle' },
   revue_okr: { heure: '14:00', repetition: 'trimestrielle' },
+  affinage_train: { heure: '11:00', repetition: 'iteration' },
+  prepa_pi: { heure: '14:00', repetition: 'pi' },
+  sync_portfolio: { heure: '11:00', repetition: 'iteration' },
+  budget: { heure: '09:00', repetition: 'pi' },
+  iteration_ip: { heure: '10:00', repetition: 'pi' },
   point_perso: { heure: '08:30', repetition: 'quotidienne' },
   bilan_soir: { heure: '18:30', repetition: 'quotidienne' },
   revue_semaine: { heure: '08:00', repetition: 'hebdomadaire' },
@@ -73,6 +78,10 @@ function reperes(jour: string) {
     finIt: sprint && jour === dernierOuvre(it.end),
     debutPI,
     finPI: jour === dernierOuvre(piEnd(pi)),
+    // Itération IP : son premier jour (lancement, préparation du PI Planning suivant)
+    debutIP: it.code === 'IP' && jour === premierOuvre(it.start),
+    // Budget participatif : chaque semestre (PI qui commence en janvier ou en juillet)
+    debutSemestre: debutPI && (d.getMonth() === 0 || d.getMonth() === 6),
     // ART sync : chaque mercredi, sauf les jours du PI Planning et de l'Inspect & Adapt
     mercredi: d.getDay() === 3,
     // Revue du portfolio : 1er mardi du mois
@@ -156,12 +165,21 @@ export function reunionsAVenir(org: OrgValue, moi: string, aujourdhui: string, s
       if (r.finIt) ajouter('system_demo', j, niveau, orgaTrain(t, 'pm'), t.espace);
       if (r.finPI) ajouter('inspect_adapt', j, niveau, orgaTrain(t, 'rte'), t.espace);
       if (r.mercredi && !r.debutPI && !r.finPI && trainsSync.includes(t)) ajouter('art_sync', j, niveau, orgaTrain(t, 'rte'), t.espace);
+      // Affinage du backlog du train (PM, avec les PO) au milieu de chaque itération ; IP : lancement et préparation
+      if (r.milieuIt && trainsSync.includes(t)) ajouter('affinage_train', j, niveau, orgaTrain(t, 'pm'), t.espace);
+      if (r.debutIP) {
+        ajouter('iteration_ip', j, niveau, orgaTrain(t, 'rte'), t.espace);
+        if (trainsSync.includes(t)) ajouter('prepa_pi', j, niveau, orgaTrain(t, 'rte'), t.espace);
+      }
     }
     for (const p of portfolios) {
       const niveau = `portfolio:${p.id}`;
       const orga = emailDe(p.epic_owner);
       if (r.premierMardi) ajouter('revue_portfolio', j, niveau, orga, p.espace);
       if (r.finPI) ajouter('revue_okr', j, niveau, orga, p.espace);
+      // Synchronisation du portfolio au milieu de chaque itération ; budget participatif chaque semestre
+      if (r.milieuIt) ajouter('sync_portfolio', j, niveau, orga, p.espace);
+      if (r.debutSemestre) ajouter('budget', j, niveau, orga, p.espace);
     }
   }
   return trier(out);
@@ -185,7 +203,7 @@ export function participantsReunion(r: Pick<Reunion, 'type' | 'niveau'>, org: Or
     if (t) {
       const eqs = org.equipes.filter((e) => e.train === t.id);
       ids.push(t.rte, t.pm, ...eqs.flatMap((e) => [e.sm, e.po]));
-      if (r.type !== 'art_sync') ids.push(...eqs.flatMap(membresDe));
+      if (r.type !== 'art_sync' && r.type !== 'affinage_train' && r.type !== 'prepa_pi') ids.push(...eqs.flatMap(membresDe));
     }
   } else if (n.kind === 'portfolio') {
     const p = org.portfolio.get(n.id);

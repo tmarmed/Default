@@ -61,11 +61,17 @@ export function useEquipe(reunion: Reunion, org: OrgValue, aujourdhui: string, p
   const h = useHierarchy();
   const n = lireNiveau(reunion.niveau);
   const equipe = n?.kind === 'equipeagile' ? org.equipe.get(n.id) : undefined;
+  // Niveau de la réunion : équipe, train ou portfolio (07/10 : le même socle pour toutes les réunions)
+  const trainIci = n?.kind === 'train' ? org.train.get(n.id) : undefined;
+  const portfolioIci = n?.kind === 'portfolio' ? org.portfolio.get(n.id) : trainIci?.portfolio ? org.portfolio.get(trainIci.portfolio) : undefined;
   const jour = jourReunion(reunion);
   const it = iterationOf(jour);
   const seuleEquipe = org.equipes.filter((e) => (e.espace || 'moi') === (reunion.espace || 'moi')).length === 1;
   const dansEquipe = (t: Item) => {
-    const e = porteurs(t, h, org).equipe;
+    const pt = porteurs(t, h, org);
+    if (n?.kind === 'train') return pt.train === n.id;
+    if (n?.kind === 'portfolio') return pt.portfolio === n.id;
+    const e = pt.equipe;
     return e ? e === equipe?.id : seuleEquipe && (t.espace || 'moi') === (reunion.espace || 'moi');
   };
   const bloquees = useMemo(() => storiesBloquees(points, h.items, echanges), [points, h.items, echanges]);
@@ -77,16 +83,36 @@ export function useEquipe(reunion: Reunion, org: OrgValue, aujourdhui: string, p
   const personnes = participantsReunion(reunion, org)
     .map((id) => org.personne.get(id))
     .filter((x): x is NonNullable<typeof x> => !!x && !!x.email);
-  const role = (id: string) => (id === equipe?.sm ? 'Scrum Master' : id === equipe?.po ? 'Product Owner' : 'Membre');
+  const role = (id: string) => (id === equipe?.sm ? 'Scrum Master' : id === equipe?.po ? 'Product Owner' : id && id === trainIci?.rte ? 'RTE' : id && id === trainIci?.pm ? 'PM' : id && id === portfolioIci?.epic_owner ? 'Epic Owner' : 'Membre');
   const nomDe = (email: string) => personneParEmail(email, org)?.nom ?? email.split('@')[0];
-  const train = equipe?.train ? org.train.get(equipe.train) : undefined;
+  const train = trainIci ?? (equipe?.train ? org.train.get(equipe.train) : undefined);
   const rte = train?.rte ? org.personne.get(train.rte) : undefined;
   const pm = train?.pm ? org.personne.get(train.pm) : undefined;
-  const sm = equipe?.sm ? org.personne.get(equipe.sm) : undefined;
-  const po = equipe?.po ? org.personne.get(equipe.po) : undefined;
+  const eo = portfolioIci?.epic_owner ? org.personne.get(portfolioIci.epic_owner) : undefined;
+  // Animateur et « PO » du niveau : équipe (SM, PO), train (RTE, PM), portfolio (Epic Owner)
+  const sm = n?.kind === 'train' ? rte : n?.kind === 'portfolio' ? eo : equipe?.sm ? org.personne.get(equipe.sm) : undefined;
+  const po = n?.kind === 'train' ? pm : n?.kind === 'portfolio' ? undefined : equipe?.po ? org.personne.get(equipe.po) : undefined;
+  /** Nom du niveau : « Mobile », « Clients », « Digital » */
+  const nomNiveau = equipe?.nom ?? trainIci?.nom ?? portfolioIci?.nom ?? '';
+  /** Destinataire du compte rendu : équipe → RTE du train ; train → Epic Owner ; portfolio → personne (unité : bientôt) */
+  const destCR =
+    n?.kind === 'equipeagile' ? (rte ? { p: rte, role: `RTE du train ${train?.nom ?? ''}` } : undefined) : n?.kind === 'train' ? (eo ? { p: eo, role: `Epic Owner ${portfolioIci?.nom ?? ''}` } : undefined) : undefined;
+  /** Escalader : à l'équipe du dessus (équipe → SM ou PO du train ; train → portfolio) */
+  const escalades: { email: string; label: string; meta: string; court: string }[] =
+    n?.kind === 'equipeagile'
+      ? [
+          ...(rte?.email ? [{ email: rte.email.toLowerCase(), label: '⤴ Aux SM du train', meta: `obstacle, organisation · ${rte.nom} (RTE)`, court: `SM du train · ${rte.nom}` }] : []),
+          ...(pm?.email ? [{ email: pm.email.toLowerCase(), label: '⤴ Aux PO du train', meta: `contenu, priorité · ${pm.nom} (PM)`, court: `PO du train · ${pm.nom}` }] : []),
+        ]
+      : n?.kind === 'train' && eo?.email
+        ? [{ email: eo.email.toLowerCase(), label: '⤴ Au portfolio', meta: `${eo.nom} · Epic Owner ${portfolioIci?.nom ?? ''}`, court: `portfolio · ${eo.nom}` }]
+        : [];
+  /** Niveau de la réunion et niveau du dessus (points de suivi des escalades) */
+  const niveauIci = n ? { kind: n.kind, id: n.id } : null;
+  const niveauSup = n?.kind === 'equipeagile' && train ? { kind: 'train' as const, id: train.id } : n?.kind === 'train' && portfolioIci ? { kind: 'portfolio' as const, id: portfolioIci.id } : null;
   const parId = new Map(h.items.map((t) => [t.id, t]));
   const subs = useMemo(() => subtaskMap(h.items), [h.items]);
-  return { h, equipe, jour, it, situation, bloquees, personnes, role, nomDe, train, rte, pm, sm, po, parId, subs, dansEquipe };
+  return { h, equipe, jour, it, situation, bloquees, personnes, role, nomDe, train, rte, pm, sm, po, eo, portfolio: portfolioIci, nomNiveau, destCR, escalades, niveauIci, niveauSup, parId, subs, dansEquipe };
 }
 export type Equipe = ReturnType<typeof useEquipe>;
 
@@ -129,8 +155,9 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
   const e = useEquipe(reunion, org, aujourdhui, tous, echanges);
   const moiP = personneParEmail(mail, org);
   const anime = reunion.organisateur.toLowerCase() === mail;
-  const estMembre = !!moiP && !!e.equipe && membresDe(e.equipe).includes(moiP.id);
-  const estPO = !!moiP && e.equipe?.po === moiP.id;
+  // Membre : de l'équipe, ou participant d'une réunion de train ou de portfolio ; « PO » : le PO (équipe) ou le PM (train)
+  const estMembre = !!moiP && (e.equipe ? membresDe(e.equipe).includes(moiP.id) : e.personnes.some((x) => x.id === moiP.id) && moiP.id !== e.po?.id);
+  const estPO = !!moiP && !!e.po && e.po.id === moiP.id;
   const parcours = useMemo(() => etapesParcours({ membre: estMembre, po: estPO, sm: anime }, catalogue), [estMembre, estPO, anime, catalogue]);
 
   /** Onglet d'origine d'un point ou d'une donnée envoyés */
@@ -276,9 +303,10 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
   const aDecider = [...[...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => ici(x) && aConcretiser(x) && !x.concretisation), ...reportes];
   const choixDe = (pt: PointReunion) => {
     const c = choix[pt.id]?.c ?? concretisationParDefaut(pt);
-    const cc: Concretisation = (c === 'sous_tache' && !pt.element) || (c === 'escalade' && !e.rte?.email && !e.pm?.email) ? 'tache' : c;
+    // Sous-tâche : seulement d'une story ou d'une tâche (pas d'une feature, d'un epic…)
+    const cc: Concretisation = (c === 'sous_tache' && !e.parId.has(pt.element)) || (c === 'escalade' && !e.escalades.length) ? 'tache' : c;
     const defautA =
-      cc === 'escalade' ? (e.rte?.email || e.pm?.email || '').toLowerCase() : ([e.po?.email, e.sm?.email].find((x) => !!x && x.toLowerCase() !== pt.personne)?.toLowerCase() ?? '');
+      cc === 'escalade' ? (e.escalades[0]?.email ?? '') : ([e.po?.email, e.sm?.email].find((x) => !!x && x.toLowerCase() !== pt.personne)?.toLowerCase() ?? '');
     const a = choix[pt.id]?.a ?? defautA;
     // Responsable par défaut : qui a noté le point, s'il fait partie de l'équipe ; sinon le PO
     const dansEq = e.personnes.some((x) => x.email.toLowerCase() === (pt.responsable || pt.personne));
@@ -298,7 +326,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     heure_fin: '',
     date_fin: '',
     lieu: '',
-    description: `${LIBELLE_TYPE_POINT[pt.type]} noté ${opts.nomCourt} ${e.equipe?.nom ?? ''} du ${dateCourte(e.jour)} (${prenom(e.nomDe(pt.personne))}).`,
+    description: `${LIBELLE_TYPE_POINT[pt.type]} noté ${opts.nomCourt} ${e.nomNiveau} du ${dateCourte(e.jour)} (${prenom(e.nomDe(pt.personne))}).`,
     priorite: pt.type === 'blocage' ? 'haute' : 'normale',
     statut: 'a_faire',
     parent: c === 'sous_tache' ? pt.element : '',
@@ -332,7 +360,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     const escalades = decides.filter((d) => d.c === 'escalade');
     const synchros = decides.filter((d) => d.c === 'synchro' && !!d.a);
     const story = (id: string) => (id ? e.parId.get(id)?.titre : undefined);
-    const quand = `${opts.nomCourt} ${e.equipe?.nom ?? ''} du ${dateCourte(e.jour)}`;
+    const quand = `${opts.nomCourt} ${e.nomNiveau} du ${dateCourte(e.jour)}`;
     const lot: EchangeInput[] = synchros.map((d) => ({
       de: d.pt.personne,
       a: d.a,
@@ -344,16 +372,16 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
       note: '',
       statut: 'envoye' as const,
       element: d.pt.element,
-      niveau: e.equipe ? `equipeagile:${e.equipe.id}` : '',
+      niveau: e.niveauIci ? `${e.niveauIci.kind}:${e.niveauIci.id}` : '',
       transmis_par: d.pt.personne === mail ? '' : mail,
       prive: '1',
       pieces_jointes: '',
       espace,
     }));
-    const escaladesEnvoyees = e.train ? escalades.filter((d) => !!d.a) : [];
-    if (e.train) {
-      const base = { de: mail, a: (e.rte?.email ?? '').toLowerCase(), type: 'message' as const, choix: '', reponse: '', note: '', statut: 'envoye' as const, niveau: `train:${e.train.id}`, transmis_par: '', prive: '1', pieces_jointes: '', espace };
-      const l: string[] = [`${TYPES_REUNION[reunion.type].libelle} ${e.equipe?.nom ?? ''} du ${dateCourte(e.jour)}.`, '', ...o.lignes];
+    const escaladesEnvoyees = e.niveauSup ? escalades.filter((d) => !!d.a) : [];
+    {
+      const base = { de: mail, a: (e.destCR?.p.email ?? '').toLowerCase(), type: 'message' as const, choix: '', reponse: '', note: '', statut: 'envoye' as const, niveau: e.niveauSup ? `${e.niveauSup.kind}:${e.niveauSup.id}` : '', transmis_par: '', prive: '1', pieces_jointes: '', espace };
+      const l: string[] = [`${TYPES_REUNION[reunion.type].libelle} ${e.nomNiveau} du ${dateCourte(e.jour)}.`, '', ...o.lignes];
       const bloc = (titre: string, x: string[]) => x.length && l.push('', `${titre} · ${x.length}`, ...x.map((y) => `• ${y}`));
       bloc('Créé', aCreer.map((d) => `${d.pt.texte} (${d.c === 'sous_tache' ? `sous-tâche de « ${story(d.pt.element) ?? 'la story'} »` : 'tâche à part'} · ${prenom(e.nomDe(d.resp))})`));
       bloc('Escaladé', escalades.map((d) => d.pt.texte));
@@ -367,7 +395,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
           texte: `${LIBELLE_TYPE_POINT[d.pt.type]} noté ${quand} pour ${e.nomDe(d.pt.personne)}${story(d.pt.element) ? ` (story « ${story(d.pt.element)} »)` : ''} : l'équipe ne peut pas le lever seule.`,
           element: d.pt.element,
         })),
-        ...(e.rte?.email ? [{ ...base, titre: `Compte rendu · ${TYPES_REUNION[reunion.type].libelle} ${e.equipe?.nom ?? ''} du ${dateCourte(e.jour)}`, texte: l.join('\n'), element: '' }] : []),
+        ...(e.destCR?.p.email ? [{ ...base, titre: `Compte rendu · ${TYPES_REUNION[reunion.type].libelle} ${e.nomNiveau} du ${dateCourte(e.jour)}`, texte: l.join('\n'), element: '' }] : []),
       );
     }
     const envoyes = lot.length ? await actions.envoyerEchanges(espace, lot) : [];
@@ -388,7 +416,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
         const id = echangeDuPoint.get(d.pt.id);
         if (!id) return [];
         const ech = { id, titre: titreEscalade(`Blocage · ${d.pt.texte}`), texte: d.pt.texte, element: d.pt.element };
-        return pointsEscalade({ echange: ech, par: mail, vers: d.a, avant: e.equipe ? { kind: 'equipeagile', id: e.equipe.id } : null, apres: e.train ? { kind: 'train', id: e.train.id } : null, jour: e.jour, org, dejaNote: true });
+        return pointsEscalade({ echange: ech, par: mail, vers: d.a, avant: e.niveauIci, apres: e.niveauSup, jour: e.jour, org, dejaNote: true });
       }),
     );
     // Lignes d'état des réunions précédentes de la série : retirées (celle-ci reste jusqu'au compte rendu suivant)
@@ -402,7 +430,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
         (o.stories?.length ? `, ${pluriel(o.stories.length, 'story')} mise${o.stories.length > 1 ? 's' : ''} à jour` : '') +
         (escalades.length ? `, ${escalades.length} escaladé${escalades.length > 1 ? 's' : ''}` : '') +
         (synchros.length ? `, ${synchros.length} transmis` : '') +
-        (e.rte?.email ? ` ; envoyé à ${e.nomDe(e.rte.email)} (RTE).` : '.'),
+        (e.destCR?.p.email ? ` ; envoyé à ${e.destCR.p.nom} (${e.destCR.role.split(' ')[0]}).` : '.'),
     );
   };
 
@@ -750,7 +778,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
       : c === 'synchro'
         ? `Transmettre à ${a ? prenom(e.nomDe(a)) : '…'}`
         : c === 'escalade'
-          ? `⤴ Escalader aux ${a && a === e.pm?.email?.toLowerCase() ? 'PO' : 'SM'} du train`
+          ? `⤴ Escalader · ${e.escalades.find((x) => x.email === a)?.court ?? '…'}`
           : 'Rien';
   const liste = lecture ? r.serveur.filter((y) => r.ici(y) && aConcretiser(y)) : r.aDecider;
   return (
@@ -820,7 +848,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
                 {
                   titre: 'Concrétiser',
                   options: [
-                    ...(pt.element ? [{ value: 'c:sous_tache', label: 'Sous-tâche de la story', meta: e.parId.get(pt.element)?.titre }] : []),
+                    ...(e.parId.has(pt.element) ? [{ value: 'c:sous_tache', label: 'Sous-tâche de la story', meta: e.parId.get(pt.element)?.titre }] : []),
                     { value: 'c:tache', label: `Tâche à part (${iterationCode})` },
                     { value: 'c:rien', label: 'Rien', meta: 'noté seulement' },
                   ],
@@ -831,17 +859,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
                         titre: `Transmettre à · ${g.titre}`,
                         options: g.emails.map((x) => ({ value: `t:${x}`, label: e.nomDe(x) })),
                       })),
-                      ...(e.rte?.email || e.pm?.email
-                        ? [
-                            {
-                              titre: 'Escalader',
-                              options: [
-                                ...(e.rte?.email ? [{ value: `e:${e.rte.email.toLowerCase()}`, label: '⤴ Aux SM du train', meta: `obstacle, organisation · ${e.rte.nom} (RTE)` }] : []),
-                                ...(e.pm?.email ? [{ value: `e:${e.pm.email.toLowerCase()}`, label: '⤴ Aux PO du train', meta: `contenu, priorité · ${e.pm.nom} (PM)` }] : []),
-                              ],
-                            },
-                          ]
-                        : []),
+                      ...(e.escalades.length ? [{ titre: 'Escalader', options: e.escalades.map((x) => ({ value: `e:${x.email}`, label: x.label, meta: x.meta })) }] : []),
                     ]
                   : []),
               ]}
@@ -897,14 +915,14 @@ export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode 
   const escalades = decides.filter((d) => d.c === 'escalade');
   const synchros = decides.filter((d) => d.c === 'synchro');
   const notes = decides.filter((d) => d.c === 'rien');
-  const dest = e.rte?.email ? `${e.rte.nom} (RTE du train ${e.train?.nom ?? ''})` : '';
+  const dest = e.destCR ? `${e.destCR.p.nom} (${e.destCR.role})` : '';
   return (
     <>
       <TitreFiche
         icone="📨"
         titre={lecture ? `Compte rendu du ${dateCourte(id.slice(-10))}` : 'Compte rendu'}
         vide=""
-        sous={lecture ? `Lecture seule${dest ? ` · envoyé à ${dest}` : ''}` : dest ? `Envoyé à ${dest}` : 'Pas de train ni de RTE : les tâches sont créées, le compte rendu n’est envoyé à personne.'}
+        sous={lecture ? `Lecture seule${dest ? ` · envoyé à ${dest}` : ''}` : dest ? `Envoyé à ${dest}` : 'Pas de destinataire : les tâches sont créées, le compte rendu n’est envoyé à personne.'}
       />
       {entete}
       <SectionFiche titre={`Créé · ${crees.length}`}>
@@ -925,7 +943,7 @@ export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode 
       {escalades.length > 0 && (
         <SectionFiche titre={`Escaladé · ${escalades.length}`}>
           {escalades.map((d, i) => (
-            <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`⤴ ${d.a && d.a === e.pm?.email?.toLowerCase() ? `PO du train · ${e.pm?.nom}` : `SM du train · ${e.rte?.nom ?? 'RTE'}`}`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
+            <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`⤴ ${e.escalades.find((x) => x.email === d.a)?.court ?? 'niveau du dessus'}`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
           ))}
         </SectionFiche>
       )}

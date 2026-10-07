@@ -467,6 +467,11 @@ export type TypeReunion =
   | 'inspect_adapt'
   | 'revue_portfolio'
   | 'revue_okr'
+  | 'affinage_train'
+  | 'prepa_pi'
+  | 'sync_portfolio'
+  | 'budget'
+  | 'iteration_ip'
   | 'point_perso'
   | 'bilan_soir'
   | 'revue_semaine'
@@ -536,6 +541,11 @@ export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
   inspect_adapt: { icone: '🔍', libelle: 'Inspect & Adapt', mode: 'safe', niveau: 'train', role: 'rte', duree: 240, etapes: ['Démo du PI', 'Mesures', 'Problèmes', 'Actions', 'Compte rendu'] },
   revue_portfolio: { icone: '💼', libelle: 'Revue du portfolio', mode: 'safe', niveau: 'portfolio', role: 'epic_owner', duree: 90, etapes: ['Vue', 'Epic par epic', 'Nouvelles idées', 'Compte rendu'] },
   revue_okr: { icone: '🎯', libelle: 'Revue des OKR', mode: 'safe', niveau: 'portfolio', role: 'epic_owner', duree: 60, etapes: ['OKR par OKR', 'Statut', 'Compte rendu'] },
+  affinage_train: { icone: '🪄', libelle: 'Affinage du backlog du train', mode: 'safe', niveau: 'train', role: 'pm', duree: 60, etapes: ['Situation', 'Features à préparer', 'Feature', 'Concrétisation', 'Compte rendu'] },
+  prepa_pi: { icone: '🧭', libelle: 'Préparation du PI Planning', mode: 'safe', niveau: 'train', role: 'rte', duree: 90, etapes: ['Situation', 'Vision', 'Features du PI', 'Capacité', 'Dépendances', 'Organisation', 'Concrétisation', 'Compte rendu'] },
+  sync_portfolio: { icone: '🔄', libelle: 'Synchronisation du portfolio', mode: 'safe', niveau: 'portfolio', role: 'epic_owner', duree: 45, etapes: ['Situation', 'Epics en cours', 'Escalades des trains', 'Concrétisation', 'Compte rendu'] },
+  budget: { icone: '💶', libelle: 'Budget participatif', mode: 'safe', niveau: 'portfolio', role: 'epic_owner', duree: 120, etapes: ['Situation', 'Demandes', 'Vote', 'Répartition', 'Concrétisation', 'Compte rendu'] },
+  iteration_ip: { icone: '💡', libelle: 'Itération IP', mode: 'safe', niveau: 'train', role: 'rte', duree: 60, etapes: ['Situation', 'Programme', 'Hackathon', 'Formation', 'Concrétisation', 'Compte rendu'] },
   point_perso: { icone: '🌅', libelle: 'Point perso', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Hier', "Aujourd'hui", 'Plan figé'] },
   bilan_soir: { icone: '🌙', libelle: 'Bilan du soir', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Prévu / fait', 'Pas fini', 'Hors plan'] },
   revue_semaine: { icone: '📆', libelle: 'Revue de la semaine', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Semaine écoulée', 'En retard', 'Priorités'] },
