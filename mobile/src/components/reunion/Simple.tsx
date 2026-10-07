@@ -74,7 +74,8 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
 
   // ---- Point perso ----
   const hier = taches.filter((t) => t.statut !== 'termine' && !!t.date && t.date < jour);
-  const auj = taches.filter((t) => t.statut !== 'termine' && (t.date === jour || choix[t.id] === 'auj'));
+  // Aujourd'hui : prévu aujourd'hui, plus ce qu'on refait d'hier (choix par défaut)
+  const auj = taches.filter((t) => t.statut !== 'termine' && (t.date === jour || (choix[t.id] ?? (hier.includes(t) ? 'auj' : '')) === 'auj'));
   const dansPlan = plan ?? auj.map((t) => t.id);
   const planifie = auj.filter((t) => dansPlan.includes(t.id));
   const hPlan = planifie.reduce((s, t) => s + duree(t), 0);

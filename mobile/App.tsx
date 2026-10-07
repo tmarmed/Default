@@ -1651,6 +1651,8 @@ function Main() {
   const [reunionOuverte, setReunionOuverte] = useState<Reunion | null>(null);
   /** Rituel personnel (seul) ouvert puis refermé sans être fini : bandeau « Reprendre › » */
   const [seulEnCours, setSeulEnCours] = useState<Reunion | null>(null);
+  /** Réunion terminée (compte rendu envoyé, rituel fini) : pas de « Reprendre › » à sa fermeture */
+  const reunionFinie = useRef('');
   const lancees = useReunionsLancees({
     actif: !!chargeOk && !!settings,
     reunions: reunionsDuJour,
@@ -2311,11 +2313,15 @@ function Main() {
           daily={actionsDaily}
           onFermer={() => {
             // Rituel personnel refermé sans être fini : « Reprendre › » dans le bandeau
-            if (!reunionOuverte.niveau) setSeulEnCours((x) => (x === null ? reunionOuverte : x));
+            if (!reunionOuverte.niveau) setSeulEnCours(reunionFinie.current === reunionOuverte.id ? null : reunionOuverte);
+            reunionFinie.current = '';
             setReunionOuverte(null);
             lancees.relire();
           }}
-          onFini={() => setSeulEnCours(null)}
+          onFini={() => {
+            reunionFinie.current = reunionOuverte.id;
+            setSeulEnCours(null);
+          }}
           onInfo={setInfo}
           onOpenTask={openForm}
           echanges={tousHier.echanges ?? []}
