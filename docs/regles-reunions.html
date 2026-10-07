@@ -59,6 +59,8 @@
 
     <div class="bloc"><h2><i>4</i>Ligne d'état et « En direct »</h2><ul>
       <li><b>Une ligne d'état par réunion</b> (onglet PointsReunion) : étape et élément en cours chez l'animateur, état du vote (fermé, ouvert avec tour et éléments, révélé). Écrite quand l'animateur avance, ouvre ou révèle ; relue par les participants (↻ Actualiser ou toutes les 15 s).</li>
+      <li><b>À l'ouverture de l'application</b>, si une de vos réunions est lancée : sa fenêtre s'ouvre d'abord (votre onglet), puis le chat s'il y a des échanges à traiter, puis l'application normale.</li>
+      <li><b>Détection des changements</b> : relecture de la seule ligne d'état, avec un numéro de version (l'écran ne change que s'il augmente) ; toutes les 5 s pendant un vote, 15 s sinon, en pause quand l'application n'est pas à l'écran ; ↻ Actualiser en plus.</li>
       <li><b>Pendant la séance : bandeau « ● En direct »</b> en bas de l'écran de chaque participant, <b>fermé par défaut</b> ; ouvert, il montre l'écran de l'animateur en lecture seule. Il remplace l'onglet « Suivre ».</li>
       <li><b>Après la réunion : onglet « Compte rendu · 3/10 »</b> (la date dans le titre) pour celui qui reçoit le compte rendu ; lecture seule, disponible jusqu'à la fin de la réunion suivante de la série.</li>
     </ul><div class="exc">Exception : pas de bandeau « En direct » à la rétrospective (l'écran de vote contient tout).</div></div>
@@ -85,6 +87,7 @@
 
     <div class="bloc"><h2><i>8</i>Suivi et fin de vie</h2><ul>
       <li>« <b>Suivi · n</b> » à la Situation : points concrétisés non finis, escalades en attente, réponses à concrétiser.</li>
+      <li><b>Âge d'un point suivi</b> : rien les premiers jours ; à partir de 2 jours, pastille orange « depuis 3 j » (plus de « Hier » / « Aujourd'hui » à côté d'un blocage).</li>
       <li><b>Fini</b> = « Rien », tâche terminée, ou réponse concrétisée (transmis, escaladé).</li>
       <li>Points finis gardés jusqu'à la <b>rétro du niveau, sinon sa démo</b> (équipe → rétrospective, train → Inspect &amp; Adapt, portfolio → revue du portfolio), puis supprimés du Sheet au compte rendu. La démo les montre dans « Réglé pendant l'itération ».</li>
     </ul></div>
