@@ -82,7 +82,7 @@ export function SectionCalendrier({ value, onChange, herite, nomHerite }: { valu
   );
 }
 
-function Puces({ options, value, onChange }: { options: { v: string; l: string }[]; value: string; onChange: (v: string) => void }) {
+export function Puces({ options, value, onChange }: { options: { v: string; l: string }[]; value: string; onChange: (v: string) => void }) {
   return (
     <View style={s.puces}>
       {options.map((o) => (
@@ -94,7 +94,7 @@ function Puces({ options, value, onChange }: { options: { v: string; l: string }
   );
 }
 
-function Pas({ valeur, min, max, onChange, suffixe = '' }: { valeur: number; min: number; max: number; onChange: (n: number) => void; suffixe?: string }) {
+export function Pas({ valeur, min, max, onChange, suffixe = '' }: { valeur: number; min: number; max: number; onChange: (n: number) => void; suffixe?: string }) {
   return (
     <View style={s.rang}>
       <Pressable onPress={() => onChange(Math.max(min, valeur - 1))} style={s.pas} accessibilityLabel="Moins">

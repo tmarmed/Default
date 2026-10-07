@@ -6,7 +6,7 @@ import { dateCourte } from '../../daily';
 import { useHierarchy } from '../../hierarchyContext';
 import { colors } from '../../theme';
 import { type Item, RECURRENCE_DEFAUTS, type Reunion } from '../../types';
-import { SectionFiche } from '../Choix';
+import { SaisieFiche, SectionFiche } from '../Choix';
 import type { ActionsDaily } from '../Daily';
 import { FenetreReunion } from '../FenetreReunion';
 import { TitreFiche } from '../FormSheet';
@@ -26,6 +26,9 @@ import { Ligne, Pastilles, pastilleStatut, st, Vide } from './ui';
 const TYPES_TACHE = new Set(['tache', 'rendez-vous', 'appel', 'demarche', 'mission']);
 const CLE_PLAN = (jour: string) => `president:plan-${jour}`;
 const CLE_PRIORITES = 'president:priorites-semaine';
+/** Point annuel : garder, arrêter, commencer (dans l'appareil) */
+const CLE_GAC = (jour: string) => `president:annuel-${jour.slice(0, 4)}`;
+type Gac = { garder: string; arreter: string; commencer: string };
 /** Durée d'une tâche en heures : son créneau, sinon 1 h */
 const duree = (t: Item) => {
   if (t.heure && t.heure_fin) {
@@ -51,12 +54,16 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
   const [idxObj, setIdxObj] = useState(0);
   const [decObj, setDecObj] = useState<Record<string, string>>({});
   const [decDom, setDecDom] = useState<Record<string, string>>({});
+  const [gac, setGac] = useState<Gac>({ garder: '', arreter: '', commencer: '' });
   useEffect(() => {
     AsyncStorage.getItem(CLE_PLAN(jour))
       .then((x) => setPlan(x ? JSON.parse(x) : null))
       .catch(() => {});
     AsyncStorage.getItem(CLE_PRIORITES)
       .then((x) => x && setPriorites(JSON.parse(x)))
+      .catch(() => {});
+    AsyncStorage.getItem(CLE_GAC(jour))
+      .then((x) => x && setGac(JSON.parse(x)))
       .catch(() => {});
   }, [jour]);
   const poser = (id: string, c: Choix) => setChoix((m) => ({ ...m, [id]: c }));
@@ -94,6 +101,16 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
   const objectifs = h.objectifList.filter((o) => !o.fin || o.fin >= jour);
   const il30 = toDateString(addDays(new Date(`${jour}T12:00`), -30));
   const delaisses = h.domaineList.filter((d) => !h.items.some((t) => t.domaine === d.id && ((t.termine_le && t.termine_le >= il30) || (t.statut !== 'termine' && t.date >= jour))));
+
+  // ---- Revue du trimestre, point annuel : la période écoulée ----
+  const annuel = reunion.type === 'point_annuel';
+  const debutPeriode = toDateString(addDays(new Date(`${jour}T12:00`), annuel ? -365 : -91));
+  const faitesPeriode = taches.filter((t) => t.statut === 'termine' && !!t.termine_le && t.termine_le >= debutPeriode && t.termine_le <= jour);
+  const objectifsFinis = h.objectifList.filter((o) => !!o.fin && o.fin >= debutPeriode && o.fin < jour);
+  const parDomaine = h.domaineList
+    .map((d) => ({ d, n: faitesPeriode.filter((t) => t.domaine === d.id).length }))
+    .filter((x) => x.n > 0)
+    .sort((a, b) => b.n - a.n);
 
   const etapes = TYPES_ETAPES[reunion.type] ?? [];
   const rendu = (k: number) => {
@@ -159,6 +176,30 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
           <>
             <TitreFiche icone="➕" titre={`Hors plan · ${horsPlan.length}`} vide="" sous="Fait aujourd’hui sans être dans le plan" />
             <SectionFiche titre="Hors plan">{horsPlan.length ? horsPlan.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={{ texte: 'fait', ton: 'vert' }} />) : <Vide texte="Rien hors plan." />}</SectionFiche>
+          </>
+        );
+      case 'periode':
+        return (
+          <>
+            <TitreFiche icone="📊" titre={annuel ? "Bilan de l'année" : 'Trimestre écoulé'} vide="" sous={`${dateCourte(debutPeriode)} → ${dateCourte(jour)}`} />
+            <Compteurs l={[{ valeur: String(faitesPeriode.length), libelle: 'tâches faites', ton: 'vert' }, { valeur: String(objectifsFinis.length), libelle: 'objectifs échus' }, { valeur: String(enRetard.length), libelle: 'en retard', ton: enRetard.length ? 'rouge' : undefined }]} />
+            <SectionFiche titre={`Par domaine · ${parDomaine.length}`}>
+              {parDomaine.length ? parDomaine.map((x, i) => <Ligne key={x.d.id} premiere={i === 0} texte={`${x.d.icone} ${x.d.nom}`} pastille={{ texte: `${x.n} faite${x.n > 1 ? 's' : ''}`, ton: 'bleu' }} />) : <Vide texte="Aucune tâche terminée sur la période." />}
+            </SectionFiche>
+            {objectifsFinis.length > 0 && (
+              <SectionFiche titre={`Objectifs échus · ${objectifsFinis.length}`}>{objectifsFinis.map((o, i) => <Ligne key={o.id} premiere={i === 0} texte={o.titre} sous={o.fin ? `échéance ${dateCourte(o.fin)}` : undefined} />)}</SectionFiche>
+            )}
+          </>
+        );
+      case 'gac':
+        return (
+          <>
+            <TitreFiche icone="🔁" titre="Garder · arrêter · commencer" vide="" sous="Une idée par ligne ; gardé dans l'appareil jusqu'au prochain point annuel" />
+            {(['garder', 'arreter', 'commencer'] as const).map((k) => (
+              <SectionFiche key={k} titre={k === 'garder' ? '✅ Garder' : k === 'arreter' ? '⛔ Arrêter' : '🌱 Commencer'}>
+                <SaisieFiche multiline value={gac[k]} onChangeText={(v) => setGac((g) => ({ ...g, [k]: v }))} placeholder={k === 'garder' ? 'Ce qui marche' : k === 'arreter' ? 'Ce qui ne sert plus' : 'Ce que je veux essayer'} style={{ margin: 12 }} />
+              </SectionFiche>
+            ))}
           </>
         );
       case 'ecoulee':
@@ -276,7 +317,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
     if (actions.modifierItems) for (const [esp, l] of patches) n += (await actions.modifierItems(esp, l)).length;
     // Revue des objectifs : échéance décalée de 3 mois, ou objectif arrêté aujourd'hui ; une tâche « à planifier »
     // par domaine délaissé choisi (une écriture groupée par Sheet)
-    if (reunion.type === 'revue_objectifs') {
+    if (reunion.type === 'revue_objectifs' || reunion.type === 'revue_trimestre' || reunion.type === 'point_annuel') {
       const parEsp = new Map<string, { id: string; fin: string }[]>();
       for (const o of objectifs) {
         const d = decObj[o.id];
@@ -298,6 +339,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
     }
     if (reunion.type === 'point_perso') await AsyncStorage.setItem(CLE_PLAN(jour), JSON.stringify(dansPlan)).catch(() => {});
     if (reunion.type === 'revue_semaine') await AsyncStorage.setItem(CLE_PRIORITES, JSON.stringify(priorites)).catch(() => {});
+    if (reunion.type === 'point_annuel') await AsyncStorage.setItem(CLE_GAC(jour), JSON.stringify(gac)).catch(() => {});
     onFini?.();
     onInfo?.(`${TITRES[reunion.type] ?? 'Rituel'} terminé${n ? ` : ${n} tâche${n > 1 ? 's' : ''} déplacée${n > 1 ? 's' : ''}` : ''}.`);
   };
@@ -324,7 +366,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
     />
   );
 }
-const TITRES: Partial<Record<Reunion['type'], string>> = { point_perso: 'Point perso', bilan_soir: 'Bilan du soir', revue_semaine: 'Revue de la semaine', revue_objectifs: 'Revue des objectifs' };
+const TITRES: Partial<Record<Reunion['type'], string>> = { point_perso: 'Point perso', bilan_soir: 'Bilan du soir', revue_semaine: 'Revue de la semaine', revue_objectifs: 'Revue des objectifs', revue_trimestre: 'Revue du trimestre', point_annuel: 'Point annuel' };
 const TYPES_ETAPES: Partial<Record<Reunion['type'], { cle: string; nom: string }[]>> = {
   point_perso: [
     { cle: 'hier', nom: 'Hier' },
@@ -345,6 +387,20 @@ const TYPES_ETAPES: Partial<Record<Reunion['type'], { cle: string; nom: string }
   revue_objectifs: [
     { cle: 'objectifs', nom: 'Objectifs' },
     { cle: 'domaines', nom: 'Domaines délaissés' },
+    { cle: 'fin', nom: 'Fin' },
+  ],
+  // Revue du trimestre et point annuel (07/10) : le bilan de la période, puis la revue des objectifs
+  revue_trimestre: [
+    { cle: 'periode', nom: 'Trimestre écoulé' },
+    { cle: 'objectifs', nom: 'Objectifs du trimestre' },
+    { cle: 'domaines', nom: 'Domaines' },
+    { cle: 'fin', nom: 'Fin' },
+  ],
+  point_annuel: [
+    { cle: 'periode', nom: "Bilan de l'année" },
+    { cle: 'gac', nom: 'Garder · arrêter · commencer' },
+    { cle: 'objectifs', nom: "Objectifs de l'année" },
+    { cle: 'domaines', nom: 'Domaines' },
     { cle: 'fin', nom: 'Fin' },
   ],
 };

@@ -49,6 +49,8 @@ interface Props {
   echanges?: Echange[];
   /** Ouvrir une réunion : la fenêtre est tenue par l'application (bandeau de réunion, ouverture au démarrage) */
   onOuvrir?: (r: Reunion) => void;
+  /** « ⋯ » : modifier cette réunion, celle-ci et les suivantes, ou toute la série */
+  onModifier?: (r: Reunion) => void;
 }
 
 const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
@@ -70,7 +72,7 @@ function dansDelivery(r: Reunion, f: OrgFiltre, org: OrgValue): boolean {
   return f.kind === 'equipeagile' ? n.kind === 'equipeagile' && n.id === f.id : f.kind === 'train' ? train === f.id : portfolio === f.id;
 }
 
-export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre, onInfo, daily, onOpenTask, echanges, onOuvrir }: Props) {
+export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre, onInfo, daily, onOpenTask, echanges, onOuvrir, onModifier }: Props) {
   const [ouverteIci, setOuverte] = useState<Reunion | null>(null);
   const ouvrir = (r: Reunion) => (onOuvrir ? onOuvrir(r) : setOuverte(r));
   const ouverte = onOuvrir ? null : ouverteIci;
@@ -92,7 +94,7 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
   const jour = (r: Reunion) => r.debut.slice(0, 10);
   // Après aujourd'hui, une réunion de chaque jour (daily, point perso…) n'apparaît qu'une fois (la prochaine) ;
   // « Plus tard » : seulement les réunions qui ne sont ni aujourd'hui ni cette semaine, la prochaine de chacune
-  const cle = (r: Reunion) => `${r.type}|${r.niveau}`;
+  const cle = (r: Reunion) => `${r.serie ?? r.type}|${r.niveau}`;
   const auj = liste.filter((r) => jour(r) === aujourdhui);
   const vues = new Set<string>();
   const unique = (r: Reunion) => {
@@ -122,6 +124,11 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
             {meta}
           </Text>
         </View>
+        {!!onModifier && !!r.serie && (
+          <Pressable onPress={() => onModifier(r)} hitSlop={10} style={s.plus} accessibilityRole="button" accessibilityLabel="Modifier la réunion ou la série">
+            <Text style={s.plusTexte}>⋯</Text>
+          </Pressable>
+        )}
         <Text style={s.chev}>›</Text>
       </Pressable>
     );
@@ -235,4 +242,6 @@ const s = StyleSheet.create({
   aide: { marginHorizontal: 16, marginTop: 10, fontSize: 12.5, color: colors.muted },
   videTexte: { marginHorizontal: 16, fontSize: 13, color: colors.muted, paddingVertical: 4 },
   videSeul: { marginTop: 16 },
+  plus: { paddingHorizontal: 8, paddingVertical: 4 },
+  plusTexte: { fontSize: 18, color: colors.muted, fontWeight: '700' },
 });

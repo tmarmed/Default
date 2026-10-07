@@ -84,7 +84,8 @@ import { FenetreDeReunion, type NiveauReunion, ReunionsView } from './src/compon
 import { BandeauxBas, hauteurBandeaux, type InfoBandeauChat, type InfoBandeauReunion } from './src/components/BandeauReunion';
 import { useReunionsLancees } from './src/components/useReunionsLancees';
 import { estLancee } from './src/etatReunion';
-import { heureReunion, reunionsAVenir, seriesACreer } from './src/reunions';
+import { heureReunion, reunionsAVenir, seriesACreer, seriesDe, type SerieVue } from './src/reunions';
+import { CarteSeries, LIBELLE_PORTEE, type PorteeSerie, SerieForm } from './src/components/SerieForm';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { chaineEscalade, estSuiviReunion, type PointAEcrire, parEspace as pointsParEspace, pointsEscalade, pointsReponse, titreEscalade } from './src/suiviEscalade';
 import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
@@ -1490,6 +1491,21 @@ function Main() {
       return next;
     });
   }, []);
+  // 📅 Vos séries de réunions (Tâches › 📅 Réunions, ＋ Réunion, « ⋯ » d'une réunion)
+  const mesSeries = useMemo(
+    () => (moiEchange ? seriesDe(orgReunions, moiEchange, safe.actif, seriesStockees) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orgReunions, moiEchange, safe.actif, seriesStockees, monCalendrier],
+  );
+  const [serieFiche, setSerieFiche] = useState<{ vue: SerieVue | null; origine?: string; portee: PorteeSerie } | null>(null);
+  const [porteeMenu, setPorteeMenu] = useState<Reunion | null>(null);
+  const niveauxSeries = useMemo(() => {
+    const m = new Map<string, { value: string; label: string; espace: string }>();
+    for (const v of mesSeries)
+      if (v.serie.niveau && !m.has(v.serie.niveau)) m.set(v.serie.niveau, { value: v.serie.niveau, label: libelleNiveau(lireNiveau(v.serie.niveau), orgReunions), espace: v.serie.espace || 'moi' });
+    return [...m.values()];
+  }, [mesSeries, orgReunions]);
+  const vueDeReunion = (r: Reunion) => mesSeries.find((v) => v.serie.id === r.serie && (v.serie.espace || 'moi') === (r.espace || 'moi')) ?? mesSeries.find((v) => v.serie.id === r.serie);
   // Séries de réunions (07/10) : en mode SAFe, celles de vos rôles qui manquent sont créées au démarrage, une écriture par espace
   const seriesTentees = useRef(new Set<string>());
   useEffect(() => {
@@ -2823,6 +2839,7 @@ function Main() {
             setSeulEnCours(null);
             setReunionOuverte(r);
           }}
+          onModifier={(r) => setPorteeMenu(r)}
         />
       )}
 
@@ -2996,7 +3013,14 @@ function Main() {
           </Text>
         )}
         stickySectionHeadersEnabled={false}
-        ListHeaderComponent={alertesTaches}
+        ListHeaderComponent={
+          <>
+            {alertesTaches}
+            {!recherche?.trim() && (filter === 'tous' || filter === 'recurrents') && (
+              <CarteSeries vues={mesSeries} org={orgReunions} onOuvrir={(vue) => setSerieFiche({ vue, portee: 'toutes' })} onNouvelle={() => setSerieFiche({ vue: null, portee: 'toutes' })} />
+            )}
+          </>
+        }
         refreshControl={refreshControl}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
@@ -3359,8 +3383,48 @@ function Main() {
       <ChoiceSheet
         visible={typeMenu}
         title="Ajouter"
-        choices={(Object.keys(TYPE_LABELS) as ItemType[]).map((t) => ({ label: `${TYPE_ICONS[t]} ${TYPE_LABELS[t]}`, principal: t === 'tache', onPress: () => nouveauDuType(t) }))}
+        choices={[
+          ...(Object.keys(TYPE_LABELS) as ItemType[]).map((t) => ({ label: `${TYPE_ICONS[t]} ${TYPE_LABELS[t]}`, principal: t === 'tache', onPress: () => nouveauDuType(t) })),
+          // 📅 Réunion (07/10) : une série (règle de répétition), à côté des rendez-vous
+          {
+            label: '📅 Réunion',
+            onPress: () => {
+              setTypeMenu(false);
+              setSerieFiche({ vue: null, portee: 'toutes' });
+            },
+          },
+        ]}
         onClose={() => setTypeMenu(false)}
+      />
+      <ChoiceSheet
+        visible={!!porteeMenu}
+        title={porteeMenu ? `Modifier ${porteeMenu.titre} du ${porteeMenu.debut.slice(8, 10)}/${porteeMenu.debut.slice(5, 7)}` : ''}
+        choices={(['une', 'suivantes', 'toutes'] as PorteeSerie[]).map((p) => ({
+          label: LIBELLE_PORTEE[p],
+          suite: true,
+          onPress: () => {
+            const r = porteeMenu;
+            setPorteeMenu(null);
+            const vue = r ? vueDeReunion(r) : undefined;
+            if (r && vue) setSerieFiche({ vue, origine: r.origine, portee: p });
+          },
+        }))}
+        onClose={() => setPorteeMenu(null)}
+      />
+      <SerieForm
+        visible={!!serieFiche}
+        vue={serieFiche?.vue ?? null}
+        origine={serieFiche?.origine}
+        portee={serieFiche?.portee ?? 'toutes'}
+        org={orgReunions}
+        moi={moiEchange}
+        safeActif={safe.actif}
+        niveaux={niveauxSeries}
+        onClose={() => setSerieFiche(null)}
+        onEnregistrer={async (espace, lot) => {
+          if (!settings) throw new Error('Non connecté.');
+          appliquerSeries(await api.ecrireSeries(settings, espace, lot));
+        }}
       />
       <ChoiceSheet
         visible={!!askSubs}
