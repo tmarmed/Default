@@ -140,7 +140,8 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
     superpose ? (
       <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
         <View style={styles.voile}>
-          <Pressable style={styles.voileHaut} onPress={busy ? undefined : onClose} accessibilityLabel="Fermer" />
+          {/* Le voile ne fait rien (07/10) : toucher derrière la fenêtre n'agit ni sur l'écran ni ne la ferme */}
+          <Pressable style={styles.voileHaut} onPress={() => undefined} accessible={false} />
           <SafeAreaView style={[styles.container, styles.feuille]} edges={['bottom']}>
             <View style={styles.poignee} />
             {enfants}

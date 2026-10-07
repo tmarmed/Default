@@ -1,7 +1,7 @@
 import { addDays, toDateString } from './dates';
 import { lireNiveau } from './echange/hierarchieEchange';
 import { calendrierEquipe, membresDe, type OrgValue } from './organisation';
-import { type Calendrier, calendrierCourant, lireCalendrier } from './pi';
+import { type Calendrier, calendrierCourant, iterationOf, lireCalendrier, piLabel, piOf } from './pi';
 import { occurrences, type SerieReunion, type UniteSerie } from './series';
 import { type RepetitionReunion, type Reunion, type TypeReunion, TYPES_REUNION } from './types';
 
@@ -307,6 +307,34 @@ export function participantsReunion(r: Pick<Reunion, 'type' | 'niveau'> & { part
     if (p) ids.push(p.epic_owner, ...org.trains.filter((t) => t.portfolio === p.id).flatMap((t) => [t.rte, t.pm]));
   }
   return [...new Set(ids.filter(Boolean))];
+}
+
+const MOIS_LONGS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+/**
+ * Période d'une réunion (07/10, affichée en doux sous la réunion) : « Sprint S1 · 1 oct. → 14 oct. », « semaine du
+ * 12/10 », « octobre 2026 », « T4 2026 », « année 2027 », « PI 2026-T4 » ; rien pour une réunion de chaque jour
+ */
+export function periodeReunion(r: Pick<Reunion, 'debut' | 'repetition' | 'origine'>): string {
+  const j = (r.origine ?? r.debut).slice(0, 10);
+  const d = parse(j);
+  switch (r.repetition) {
+    case 'iteration':
+      return `Sprint ${iterationOf(j).label}`;
+    case 'pi':
+      return `PI ${piLabel(piOf(j))}`;
+    case 'hebdomadaire': {
+      const l = addDays(d, -((d.getDay() + 6) % 7));
+      return `semaine du ${l.getDate()}/${l.getMonth() + 1}`;
+    }
+    case 'mensuelle':
+      return `${MOIS_LONGS[d.getMonth()]} ${d.getFullYear()}`;
+    case 'trimestrielle':
+      return `T${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`;
+    case 'annuelle':
+      return `année ${d.getFullYear()}`;
+    default:
+      return '';
+  }
 }
 
 /** « 9:30 », « 14:00 » */

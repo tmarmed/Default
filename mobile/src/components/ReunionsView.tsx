@@ -4,7 +4,7 @@ import { addDays, startOfWeek, toDateString } from '../dates';
 import { prefixeReunion } from '../daily';
 import { libelleNiveau, lireNiveau } from '../echange/hierarchieEchange';
 import { type OrgFiltre, type OrgValue } from '../organisation';
-import { dureeReunion, heureReunion, participantsReunion } from '../reunions';
+import { dureeReunion, heureReunion, participantsReunion, periodeReunion } from '../reunions';
 import { colors } from '../theme';
 import { type Echange, type Item, type Reunion, TYPES_REUNION } from '../types';
 import { type ActionsDaily, FenetreDaily } from './Daily';
@@ -113,6 +113,7 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
     const niveau = niveauDe(r);
     const quand = r.repetition === 'quotidienne' && jour(r) !== aujourdhui ? `chaque jour${safeActif ? ' ouvré' : ''}` : avecJour && jourCourt(jour(r));
     const meta = [quand, heureReunion(r), dureeReunion(r.duree_min), nb ? `${nb} participant${nb > 1 ? 's' : ''}` : 'seul', anime && r.niveau ? 'vous animez' : '', r.deplacee ? 'déplacée' : ''].filter(Boolean).join(' · ');
+    const periode = periodeReunion(r);
     return (
       <Pressable key={r.id} onPress={() => ouvrir(r)} style={[s.ligne, i > 0 && s.ligneBord]} accessibilityRole="button" accessibilityHint={anime ? 'Ouvre la réunion : vous animez' : 'Ouvre la réunion : préparer votre point'}>
         <Text style={s.avatar}>{t.icone}</Text>
@@ -123,6 +124,7 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
           <Text style={s.meta} numberOfLines={2}>
             {meta}
           </Text>
+          {!!periode && <Text style={s.periode} numberOfLines={1}>{periode}</Text>}
         </View>
         {!!onModifier && !!r.serie && (
           <Pressable onPress={() => onModifier(r)} hitSlop={10} style={s.plus} accessibilityRole="button" accessibilityLabel="Modifier la réunion ou la série">
@@ -193,7 +195,7 @@ export function FenetreDeReunion(p: {
   const { reunion: ouverte, org, moi, aujourdhui, daily, onFermer, onInfo, onOpenTask, echanges } = p;
   const jour = ouverte.debut.slice(0, 10);
   const mode = ouverte.organisateur.toLowerCase() === moi.toLowerCase() ? 'organisateur' : 'participant';
-  const fil = [libelleNiveau(lireNiveau(ouverte.niveau), org) || '👤 Personnel', jourCourt(jour), heureReunion(ouverte), dureeReunion(ouverte.duree_min)].join(' · ');
+  const fil = [libelleNiveau(lireNiveau(ouverte.niveau), org) || '👤 Personnel', periodeReunion(ouverte), jourCourt(jour), heureReunion(ouverte), dureeReunion(ouverte.duree_min)].filter(Boolean).join(' · ');
   if (ouverte.type === 'daily' && !!ouverte.niveau && daily)
     // Daily validé : contenu de chaque étape, points enregistrés dans le Sheet de l'équipe
     return <FenetreDaily visible reunion={ouverte} mode={mode} org={org} moi={moi} aujourdhui={aujourdhui} fil={fil} actions={daily} onFermer={onFermer} onInfo={onInfo} onOpenTask={onOpenTask} echanges={echanges} />;
@@ -246,4 +248,5 @@ const s = StyleSheet.create({
   videSeul: { marginTop: 16 },
   plus: { paddingHorizontal: 8, paddingVertical: 4 },
   plusTexte: { fontSize: 18, color: colors.muted, fontWeight: '700' },
+  periode: { fontSize: 11.5, color: '#9AA1AD', marginTop: 1 },
 });

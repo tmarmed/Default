@@ -26,6 +26,8 @@ import { Ligne, Pastilles, pastilleStatut, st, Vide } from './ui';
 const TYPES_TACHE = new Set(['tache', 'rendez-vous', 'appel', 'demarche', 'mission']);
 const CLE_PLAN = (jour: string) => `president:plan-${jour}`;
 const CLE_PRIORITES = 'president:priorites-semaine';
+const REPOUSSER = 'Repousser de 3 mois';
+const CREER_TACHE = 'Créer une tâche';
 /** Point annuel : garder, arrêter, commencer (dans l'appareil) */
 const CLE_GAC = (jour: string) => `president:annuel-${jour.slice(0, 4)}`;
 type Gac = { garder: string; arreter: string; commencer: string };
@@ -54,6 +56,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
   const [idxObj, setIdxObj] = useState(0);
   const [decObj, setDecObj] = useState<Record<string, string>>({});
   const [decDom, setDecDom] = useState<Record<string, string>>({});
+  const [voirFaites, setVoirFaites] = useState(false);
   const [gac, setGac] = useState<Gac>({ garder: '', arreter: '', commencer: '' });
   useEffect(() => {
     AsyncStorage.getItem(CLE_PLAN(jour))
@@ -183,6 +186,21 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
           <>
             <TitreFiche icone="📊" titre={annuel ? "Bilan de l'année" : 'Trimestre écoulé'} vide="" sous={`${dateCourte(debutPeriode)} → ${dateCourte(jour)}`} />
             <Compteurs l={[{ valeur: String(faitesPeriode.length), libelle: 'tâches faites', ton: 'vert' }, { valeur: String(objectifsFinis.length), libelle: 'objectifs échus' }, { valeur: String(enRetard.length), libelle: 'en retard', ton: enRetard.length ? 'rouge' : undefined }]} />
+            <SectionFiche titre={`Tâches faites · ${faitesPeriode.length}`}>
+              {faitesPeriode.length ? (
+                [...faitesPeriode]
+                  .sort((a, b) => (b.termine_le ?? '').localeCompare(a.termine_le ?? ''))
+                  .slice(0, voirFaites ? 200 : 5)
+                  .map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={t.termine_le ? `faite le ${dateCourte(t.termine_le)}` : undefined} />)
+              ) : (
+                <Vide texte="Aucune tâche terminée sur la période." />
+              )}
+              {faitesPeriode.length > 5 && (
+                <Pressable onPress={() => setVoirFaites((v) => !v)} style={{ padding: 12 }} accessibilityRole="button">
+                  <Text style={{ color: colors.primary, fontWeight: '600' }}>{voirFaites ? 'Voir moins' : `Voir les ${faitesPeriode.length}`}</Text>
+                </Pressable>
+              )}
+            </SectionFiche>
             <SectionFiche titre={`Par domaine · ${parDomaine.length}`}>
               {parDomaine.length ? parDomaine.map((x, i) => <Ligne key={x.d.id} premiere={i === 0} texte={`${x.d.icone} ${x.d.nom}`} pastille={{ texte: `${x.n} faite${x.n > 1 ? 's' : ''}`, ton: 'bleu' }} />) : <Vide texte="Aucune tâche terminée sur la période." />}
             </SectionFiche>
@@ -263,7 +281,12 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
             <Compteurs l={[{ valeur: `${pct} %`, libelle: 'avancement' }, { valeur: String(h.epicList.filter((x) => x.objectif === o.id).length), libelle: 'epics' }, { valeur: String(h.items.filter((t) => t.objectif === o.id && t.statut !== 'termine').length), libelle: 'tâches ouvertes' }]} />
             <SectionFiche titre="Objectif">
               <View style={{ padding: 12 }}>
-                <Pastilles petit options={['Garder', 'Décaler l’échéance', 'Abandonner'].map((x) => ({ value: x, label: x }))} value={decObj[o.id] ?? 'Garder'} onChange={(x) => setDecObj((m) => ({ ...m, [o.id]: x }))} />
+                <Pastilles petit options={['Garder', REPOUSSER, 'Abandonner'].map((x) => ({ value: x, label: x }))} value={decObj[o.id] ?? 'Garder'} onChange={(x) => setDecObj((m) => ({ ...m, [o.id]: x }))} />
+                <Text style={[st.sous, { marginTop: 8 }]}>
+                  {o.fin
+                    ? `Échéance : date à laquelle l'objectif doit être atteint (${dateCourte(o.fin)}). ${REPOUSSER} : ${dateCourte(o.fin)} → ${dateCourte(toDateString(addDays(new Date(`${(o.fin > jour ? o.fin : jour)}T12:00`), 91)))}.`
+                    : `Pas d'échéance (date à laquelle l'objectif doit être atteint). ${REPOUSSER} : la fixe au ${dateCourte(toDateString(addDays(new Date(`${jour}T12:00`), 91)))}.`}
+                </Text>
               </View>
             </SectionFiche>
           </>
@@ -272,13 +295,13 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
       case 'domaines':
         return (
           <>
-            <TitreFiche icone="🌱" titre="Domaines délaissés" vide="" sous="Rien depuis 30 jours" />
+            <TitreFiche icone="🌱" titre="Domaines délaissés" vide="" sous="Aucune tâche faite ni prévue depuis 30 jours. « Créer une tâche » : une tâche « À planifier » pour demain, dans ce domaine ; « Garder tel quel » : rien ne change." />
             <SectionFiche titre={`Domaines · ${delaisses.length}`}>
               {delaisses.length ? (
                 delaisses.map((d, i) => (
                   <View key={d.id} style={[st.ligne, { flexDirection: 'column', alignItems: 'stretch' }, i > 0 && st.bord]}>
                     <Text style={st.texte}>{`${d.icone} ${d.nom}`}</Text>
-                    <Pastilles petit options={['Planifier une tâche', 'Plus tard', 'Mettre en pause'].map((x) => ({ value: x, label: x }))} value={decDom[d.id] ?? 'Plus tard'} onChange={(x) => setDecDom((m) => ({ ...m, [d.id]: x }))} />
+                    <Pastilles petit options={[CREER_TACHE, 'Garder tel quel'].map((x) => ({ value: x, label: x }))} value={decDom[d.id] ?? 'Garder tel quel'} onChange={(x) => setDecDom((m) => ({ ...m, [d.id]: x }))} />
                   </View>
                 ))
               ) : (
@@ -292,7 +315,14 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
           <>
             <TitreFiche icone="✓" titre="Revue terminée" vide="" sous={`${objectifs.length} objectif${objectifs.length > 1 ? 's' : ''} revu${objectifs.length > 1 ? 's' : ''}`} />
             <SectionFiche titre="Décisions">{objectifs.map((o, i) => <Ligne key={o.id} premiere={i === 0} texte={o.titre} pastille={{ texte: decObj[o.id] ?? 'Gardé', ton: (decObj[o.id] ?? 'Garder') === 'Garder' ? 'vert' : 'orange' }} />)}</SectionFiche>
-            {Object.values(decDom).some((x) => x === 'Planifier une tâche') && <Text style={[st.sous, { marginHorizontal: 16, marginTop: 8, color: colors.primary }]}>Une tâche « À planifier » sera créée pour chaque domaine choisi.</Text>}
+            {delaisses.length > 0 && (
+              <SectionFiche titre="Domaines délaissés">
+                {delaisses.map((d, i) => (
+                  <Ligne key={d.id} premiere={i === 0} texte={`${d.icone} ${d.nom}`} pastille={decDom[d.id] === CREER_TACHE ? { texte: 'tâche créée demain', ton: 'bleu' } : { texte: 'gardé', ton: 'vert' }} />
+                ))}
+              </SectionFiche>
+            )}
+            {Object.values(decDom).some((x) => x === CREER_TACHE) && <Text style={[st.sous, { marginHorizontal: 16, marginTop: 8, color: colors.primary }]}>Une tâche « À planifier · domaine » sera créée pour demain pour chaque domaine choisi.</Text>}
           </>
         );
       default:
@@ -328,7 +358,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
         parEsp.set(esp, [...(parEsp.get(esp) ?? []), { id: o.id, fin }]);
       }
       if (actions.modifierEntites) for (const [esp, l] of parEsp) await actions.modifierEntites(esp, 'objectif', l);
-      const aPlanifier = delaisses.filter((d) => decDom[d.id] === 'Planifier une tâche');
+      const aPlanifier = delaisses.filter((d) => decDom[d.id] === CREER_TACHE);
       const parEspD = new Map<string, typeof aPlanifier>();
       for (const d of aPlanifier) parEspD.set(d.espace || 'moi', [...(parEspD.get(d.espace || 'moi') ?? []), d]);
       for (const [esp, l] of parEspD)

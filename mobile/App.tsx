@@ -251,6 +251,12 @@ type Hier = {
   echanges: Echange[];
   series?: SerieReunion[];
 };
+// Web (07/10) : la page ne glisse jamais dans le vide (ni sur le côté, ni en rebond)
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const st = document.createElement('style');
+  st.textContent = 'html,body,#root{overflow-x:hidden;max-width:100vw;overscroll-behavior:none}';
+  document.head.appendChild(st);
+}
 const EMPTY_HIER: Hier = { epics: [], objectifs: [], domaines: [], features: [], objectifsPI: [], ignorees: [], valueStreams: [], resultats: [], echanges: [], series: [] };
 
 /** Nouvelle sous-tâche : rangement du parent ; sans date, elle prend l'itération du parent. */
@@ -3160,12 +3166,15 @@ function Main() {
         <BandeauAnnuler bandeau={bandeauApp.bandeau} fermer={bandeauApp.fermer} />
       </View>
 
-      {!A_VENIR.includes(tab) && tab !== 'strategie' && tab !== 'backlog' && tab !== 'echange' && tab !== 'reunions' && tab !== 'equipe' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
+      {!A_VENIR.includes(tab) && tab !== 'strategie' && tab !== 'backlog' && tab !== 'echange' && tab !== 'equipe' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 8 + 12 + hautBandeaux }]}
         onPress={() =>
           tab === 'organisation'
             ? setOrgMenu(true)
-            : tab === 'pi'
+            : // 📅 Réunions : nouvelle réunion (série)
+              tab === 'reunions'
+              ? setSerieFiche({ vue: null, portee: 'toutes' })
+              : tab === 'pi'
             ? setPiAdd(true)
             : tab === 'roadmap' || tab === 'portefeuille'
               ? setAddMenu(true)
@@ -3177,7 +3186,7 @@ function Main() {
                   : openForm(null)
         }
         accessibilityRole="button"
-        accessibilityLabel={tab === 'roadmap' ? 'Nouvelle epic' : 'Ajouter'}
+        accessibilityLabel={tab === 'roadmap' ? 'Nouvelle epic' : tab === 'reunions' ? 'Nouvelle réunion' : 'Ajouter'}
       >
         <Text style={styles.fabText}>+</Text>
       </Pressable>}
