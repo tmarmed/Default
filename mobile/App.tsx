@@ -33,6 +33,7 @@ import { DomainesPrincipauxChips, DomainFilterContext, loadDomainFilter, saveDom
 import { ProjectWizard, WizardStart } from './src/components/ProjectWizard';
 import { applyDraft } from './src/wizard';
 import { cascadeLinks, parentsLies, pointsCheck, subtaskMap } from './src/subtasks';
+import type { SerieReunion } from './src/series';
 import type { Alignement } from './src/alerts';
 import { type Action, type Check, checksDatesDomaine, checksParEcran, signaturesExistantes, situationDe } from './src/checks';
 import { AlertsCard, CheckActionContext, IgnoreContext, nbAlertes } from './src/components/AlertsCard';
@@ -83,7 +84,7 @@ import { FenetreDeReunion, type NiveauReunion, ReunionsView } from './src/compon
 import { BandeauxBas, hauteurBandeaux, type InfoBandeauChat, type InfoBandeauReunion } from './src/components/BandeauReunion';
 import { useReunionsLancees } from './src/components/useReunionsLancees';
 import { estLancee } from './src/etatReunion';
-import { heureReunion, reunionsAVenir } from './src/reunions';
+import { heureReunion, reunionsAVenir, seriesACreer } from './src/reunions';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
 import { chaineEscalade, estSuiviReunion, type PointAEcrire, parEspace as pointsParEspace, pointsEscalade, pointsReponse, titreEscalade } from './src/suiviEscalade';
 import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
@@ -245,8 +246,9 @@ type Hier = {
   valueStreams: ValueStream[];
   resultats: ResultatCle[];
   echanges: Echange[];
+  series?: SerieReunion[];
 };
-const EMPTY_HIER: Hier = { epics: [], objectifs: [], domaines: [], features: [], objectifsPI: [], ignorees: [], valueStreams: [], resultats: [], echanges: [] };
+const EMPTY_HIER: Hier = { epics: [], objectifs: [], domaines: [], features: [], objectifsPI: [], ignorees: [], valueStreams: [], resultats: [], echanges: [], series: [] };
 
 /** Nouvelle sous-tâche : rangement du parent ; sans date, elle prend l'itération du parent. */
 const subtaskInput = (parent: Item, titre: string): ItemInput => ({
@@ -326,6 +328,7 @@ function Main() {
       valueStreams: (tousHier.valueStreams ?? []).filter(dansVisibles),
       resultats: (tousHier.resultats ?? []).filter(dansVisibles),
       echanges: (tousHier.echanges ?? []).filter(dansVisibles),
+      series: (tousHier.series ?? []).filter(dansVisibles),
       // Les alertes ignorées sont personnelles (espace Moi) : toujours toutes
       ignorees: tousHier.ignorees,
     }),
@@ -408,6 +411,7 @@ function Main() {
         valueStreams: [...(prev.valueStreams ?? []).filter(garde), ...(next.valueStreams ?? [])],
         resultats: [...(prev.resultats ?? []).filter(garde), ...(next.resultats ?? [])],
         echanges: [...(prev.echanges ?? []).filter(garde), ...(next.echanges ?? [])],
+        series: [...(prev.series ?? []).filter(garde), ...(next.series ?? [])],
         ignorees: next.ignorees,
       };
       saveHierarchyCache(all).catch(() => {});
@@ -478,6 +482,8 @@ function Main() {
   const [refreshing, setRefreshing] = useState(false);
   /** Nombre de chargements complets réussis (déclenche l'écriture des missions manquantes) */
   const [chargeOk, setChargeOk] = useState(0);
+  /** Espaces lus au moins une fois (séries de réunions : créées seulement là où on a pu les lire) */
+  const espacesChargesRef = useRef(new Set<string>());
   const [offline, setOffline] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -753,7 +759,7 @@ function Main() {
         const garde = (x: { espace?: string }) => !chargés.has(x.espace || 'moi');
         const list = [...tousItemsRef.current.filter(garde), ...ok.flatMap((o) => o.d.items)];
         const cat = <K extends keyof Omit<Hier, 'ignorees'>>(k: K) => [...((tousHierRef.current[k] ?? []) as { espace?: string }[]).filter(garde), ...ok.flatMap((o) => (o.d[k] ?? []) as { espace?: string }[])] as Hier[K];
-        const rest: Omit<Hier, 'ignorees'> = { epics: cat('epics'), objectifs: cat('objectifs'), domaines: cat('domaines'), features: cat('features'), objectifsPI: cat('objectifsPI'), valueStreams: cat('valueStreams'), resultats: cat('resultats'), echanges: cat('echanges') };
+        const rest: Omit<Hier, 'ignorees'> = { epics: cat('epics'), objectifs: cat('objectifs'), domaines: cat('domaines'), features: cat('features'), objectifsPI: cat('objectifsPI'), valueStreams: cat('valueStreams'), resultats: cat('resultats'), echanges: cat('echanges'), series: cat('series') };
         // Domaines de base de Moi (Pro › Projets, Travail ; Perso › Santé ; Famille ; Loisirs) : ceux qui manquent
         // sont ajoutés au démarrage, une fois par fichier et par version de la liste (un domaine supprimé ensuite ne revient pas)
         const fichierMoi = espacesRef.current[0]?.fichier;
@@ -804,6 +810,7 @@ function Main() {
         setHier(all);
         saveHierarchyCache(all).catch(() => {});
         setOffline(echecs.length ? `Espace de travail injoignable : ${echecs.map((e) => e.nom).join(', ')}.` : null);
+        espacesChargesRef.current = new Set([...espacesChargesRef.current, ...chargés]);
         setChargeOk((n) => n + 1);
       } catch (e) {
         if (e instanceof AuthError) {
@@ -1466,7 +1473,37 @@ function Main() {
   // Calendrier agile (07/10) : celui de votre équipe (ou de son train), partout dans l'application
   const monCalendrier = calendrierPersonne(orgReunions, moiEchange);
   definirCalendrier(monCalendrier);
-  const reunionsAffichees = useMemo(() => (tab === 'reunions' ? reunionsAVenir(orgReunions, moiEchange, today, safe.actif) : []), [tab, orgReunions, moiEchange, today, safe.actif]);
+  const seriesStockees = hier.series;
+  const reunionsAffichees = useMemo(
+    () => (tab === 'reunions' ? reunionsAVenir(orgReunions, moiEchange, today, safe.actif, 92, seriesStockees) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tab, orgReunions, moiEchange, today, safe.actif, seriesStockees, monCalendrier],
+  );
+  /** Séries enregistrées après une création ou une modification : remplacent leur version dans l'état */
+  const appliquerSeries = useCallback((l: SerieReunion[]) => {
+    if (!l.length) return;
+    const cle = (x: SerieReunion) => `${x.espace || 'moi'}|${x.id}`;
+    const nouvelles = new Set(l.map(cle));
+    setHier((prev) => {
+      const next = { ...prev, series: [...(prev.series ?? []).filter((x) => !nouvelles.has(cle(x))), ...l] };
+      saveHierarchyCache(next).catch(() => {});
+      return next;
+    });
+  }, []);
+  // Séries de réunions (07/10) : en mode SAFe, celles de vos rôles qui manquent sont créées au démarrage, une écriture par espace
+  const seriesTentees = useRef(new Set<string>());
+  useEffect(() => {
+    if (!chargeOk || !settings || !safe.actif || !moiEchange) return;
+    for (const [espace, lot] of seriesACreer(orgReunions, moiEchange, seriesStockees ?? [])) {
+      if (!espacesChargesRef.current.has(espace) || seriesTentees.current.has(espace)) continue;
+      seriesTentees.current.add(espace);
+      api
+        .ecrireSeries(settings, espace, lot)
+        .then(appliquerSeries)
+        .catch(() => seriesTentees.current.delete(espace));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chargeOk, safe.actif, moiEchange, orgReunions]);
   /** Daily : points notés (onglet PointsReunion du Sheet de l'équipe), tâches et échanges créés en lots */
   const actionsDaily: ActionsDaily = {
     lirePoints: (espace, prefixe) => (settings ? api.lirePoints(settings, espace, prefixe) : Promise.resolve([])),
@@ -1661,7 +1698,11 @@ function Main() {
     ];
   };
   // Réunions du jour (07/10) : bandeau de réunion, et la réunion lancée s'ouvre d'abord au démarrage
-  const reunionsDuJour = useMemo(() => (moiEchange ? reunionsAVenir(orgReunions, moiEchange, today, safe.actif, 1) : []), [orgReunions, moiEchange, today, safe.actif]);
+  const reunionsDuJour = useMemo(
+    () => (moiEchange ? reunionsAVenir(orgReunions, moiEchange, today, safe.actif, 1, seriesStockees) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orgReunions, moiEchange, today, safe.actif, seriesStockees, monCalendrier],
+  );
   const [reunionOuverte, setReunionOuverte] = useState<Reunion | null>(null);
   /** Rituel personnel (seul) ouvert puis refermé sans être fini : bandeau « Reprendre › » */
   const [seulEnCours, setSeulEnCours] = useState<Reunion | null>(null);
@@ -2059,6 +2100,7 @@ function Main() {
       valueStreams: (prev.valueStreams ?? []).filter(autre),
       resultats: (prev.resultats ?? []).filter(autre),
       echanges: (prev.echanges ?? []).filter(autre),
+      series: (prev.series ?? []).filter(autre),
       ignorees: prev.ignorees,
     }));
   };

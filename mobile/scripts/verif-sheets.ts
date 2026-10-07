@@ -351,6 +351,17 @@ const ok = (cond: unknown, msg: string) => {
   const avantModifs = appels;
   const modifs = await dm.modifierItems(tachesD.slice(1).map((t, i) => ({ id: t.id, iteration: '2026-T4-IT2', points: String(i + 1) })));
   ok(modifs.length === 5 && modifs[4].points === '5' && modifs[0].iteration === '2026-T4-IT2' && appels - avantModifs === 2, `réunion : 5 stories modifiées (itération, points) en ${appels - avantModifs} appels`);
+  // Séries de réunions (07/10) : 12 séries créées au démarrage en une écriture, puis une coupée en deux en 2 appels
+  const lotSeries = Array.from({ length: 12 }, (_, i) => ({ id: `daily-equipeagile:e${i}`, type_reunion: 'daily', titre: '', niveau: `equipeagile:e${i}`, unite: 'jour' as const, ancre: '' as const, ecart: '', jours: 'ouvres', tous: '', sauf: '', heure: '09:30', duree: '15', animateur: '', editeurs: '', participants: '', debut: '', fin: '', exceptions: '', actif: '', cree_le: '', modifie_le: '' }));
+  const avantSeries = appels;
+  const series = await dm.ecrireSeries(lotSeries);
+  ok(series.length === 12 && appels - avantSeries <= 4 && fichiers.get(idD)!.feuilles.has('Reunions'), `séries : 12 séries en ${appels - avantSeries} appels (onglet Reunions créé au premier usage)`);
+  const avantCoupe = appels;
+  await dm.ecrireSeries([{ ...series[0], fin: '2026-10-26' }, { ...series[0], id: `${series[0].id}~2026-10-27`, debut: '2026-10-27', heure: '10:00' }]);
+  ok(appels - avantCoupe === 2 && (await dm.listAll()).series?.length === 13, `séries : « celle-ci et les suivantes » en ${appels - avantCoupe} appels`);
+  let refusSerie = '';
+  await dm.ecrireSeries([{ ...series[1], heure: '25h' }]).catch((e) => (refusSerie = (e as Error).message));
+  ok(refusSerie.includes('heure'), 'séries : heure invalide refusée');
   const avantConc = appels;
   await dm.ecrirePoints([], lusPts.map((x, i) => ({ id: x.id, concretisation: i % 2 ? 'tache' as const : 'rien' as const, tache: i % 2 ? tachesD[1].id : '', responsable: 'Emma@x.fr' })));
   const nConc = appels - avantConc;

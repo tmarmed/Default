@@ -1,3 +1,4 @@
+import type { SerieReunion } from './series';
 import { type Domaine, type Echange, type Epic, type EntityKind, type Feature, idsDe, type Ignoree, type Item, joindreIds, type Objectif, type ObjectifPI, type ResultatCle, type ValueStream } from './types';
 
 /**
@@ -86,6 +87,8 @@ export interface Data {
   resultats?: ResultatCle[];
   /** Échanges en cours (sans historique) */
   echanges?: Echange[];
+  /** Séries de réunions (onglet Reunions) */
+  series?: SerieReunion[];
 }
 
 export interface DeletionCounts {

@@ -1,3 +1,4 @@
+import type { SerieReunion } from './series';
 import { DEMO, demoApiFor } from './demo';
 import type { EntiteOrg, KindOrg, Org } from './organisation';
 import { adopterFichier, corbeille, creerFichierEspace, effacerFichier, fichiersCorbeille, fichiersEspaces, magasinSheets, poidsFichiers, quotaDrive, renommerFichier } from './gsheets';
@@ -106,6 +107,7 @@ export async function listItems(settings: Settings, espace = 'moi'): Promise<Dat
     valueStreams: m(all.valueStreams ?? []),
     resultats: m(all.resultats ?? []),
     echanges: m(all.echanges ?? []),
+    series: m(all.series ?? []),
     version: API_VERSION_SUPPR_SOUS_DOMAINES,
   };
 }
@@ -262,6 +264,11 @@ export async function deleteOrg(settings: Settings, espace: string, kind: KindOr
 // Réunions (lot 6) : points notés (onglet PointsReunion du Sheet de l'espace de l'équipe)
 // ---------------------------------------------------------------------------
 /** Points des réunions dont l'id commence par `prefixe` (ex. tous les dailies d'une équipe) : une lecture */
+/** Séries de réunions créées ou modifiées dans l'espace (une lecture, une écriture pour tout le lot) */
+export async function ecrireSeries(settings: Settings, espace: string, lot: SerieReunion[]): Promise<SerieReunion[]> {
+  const propres = lot.map(({ espace: _e, ...x }) => x as SerieReunion);
+  return (await route(settings, espace).m.ecrireSeries(propres)).map((x) => marquer(x, espace));
+}
 export async function lirePoints(settings: Settings, espace: string, prefixe: string): Promise<PointReunion[]> {
   return (await route(settings, espace).m.lirePoints(prefixe)).map((x) => ({ ...x, espace }));
 }

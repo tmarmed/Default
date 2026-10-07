@@ -1,5 +1,6 @@
 import { toDateString } from './dates';
 import { lireCalendrier } from './pi';
+import { COLONNES_SERIE, type SerieReunion } from './series';
 import { cleanLinks, type Data, type DeletionCounts, planDeletion } from './hierarchy';
 import { aPurger } from './stockage';
 import { cascadeLinks, checkParent } from './subtasks';
@@ -16,7 +17,7 @@ export type Kind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 
 /** Tables de base (tous les espaces) */
 export type TableBase = 'items' | Kind;
 /** Tables de l'Organisation (seulement dans le Google Sheet d'une entreprise, onglets créés au premier usage) */
-export type Table = TableBase | KindOrg | 'piecejointe' | 'pointreunion';
+export type Table = TableBase | KindOrg | 'piecejointe' | 'pointreunion' | 'serie';
 export type EntityOf<K extends Kind> = K extends 'epic'
   ? Epic
   : K extends 'objectif'
@@ -34,7 +35,7 @@ export type EntityOf<K extends Kind> = K extends 'epic'
               : K extends 'echange'
                 ? Echange
                 : Ignoree;
-type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : T extends 'piecejointe' ? LignePiece : T extends 'pointreunion' ? PointReunion : never;
+type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : T extends 'piecejointe' ? LignePiece : T extends 'pointreunion' ? PointReunion : T extends 'serie' ? SerieReunion : never;
 /** Morceau d'une pièce jointe (onglet PiecesJointes) : une cellule contient au plus 50 000 caractères */
 export interface LignePiece {
   id: string;
@@ -110,7 +111,9 @@ export const ONGLET_POINTS = {
   nom: 'PointsReunion',
   colonnes: ['id', 'reunion', 'personne', 'auteur', 'type', 'texte', 'element', 'concretisation', 'tache', 'responsable', 'cree_le'],
 };
-export const ONGLETS_TOUS: Record<Table, { nom: string; colonnes: string[] }> = { ...ONGLETS, ...ONGLETS_ORG, piecejointe: ONGLET_PIECES, pointreunion: ONGLET_POINTS };
+/** Séries de réunions (07/10) : une ligne par série (règle + exceptions), onglet créé au premier usage */
+export const ONGLET_SERIES = { nom: 'Reunions', colonnes: [...COLONNES_SERIE] as string[] };
+export const ONGLETS_TOUS: Record<Table, { nom: string; colonnes: string[] }> = { ...ONGLETS, ...ONGLETS_ORG, piecejointe: ONGLET_PIECES, pointreunion: ONGLET_POINTS, serie: ONGLET_SERIES };
 
 /** Lecture et écriture d'une table : sur l'appareil (démo) ou dans un Google Sheet */
 export interface Persistance {
@@ -304,6 +307,43 @@ export function nettoyerOrg<K extends KindOrg>(kind: K, data: Partial<EntiteOrg<
   return out as unknown as EntiteOrg<K>;
 }
 
+const UNITES = ['jour', 'semaine', 'mois', 'trimestre', 'annee', 'sprint', 'pi'];
+/** Série de réunions enregistrée : champs connus et vérifiés (règle, heure, durée, e-mails, exceptions) */
+export function nettoyerSerie(data: Partial<SerieReunion>, base?: SerieReunion): SerieReunion {
+  const out = {} as Record<string, string>;
+  for (const k of ONGLET_SERIES.colonnes) out[k] = txt((data as Record<string, unknown>)[k] ?? (base as Record<string, unknown> | undefined)?.[k]);
+  if (!/^[0-9A-Za-z:~_-]{1,120}$/.test(out.id)) throw new Error('Série : identifiant invalide.');
+  if (!UNITES.includes(out.unite)) throw new Error('Série : périodicité invalide.');
+  if (!['', 'debut', 'milieu', 'fin', 'ip'].includes(out.ancre)) out.ancre = '';
+  if (!/^-?\d{0,3}$/.test(out.ecart)) out.ecart = '';
+  if (!/^(ouvres|[1-7](;[1-7])*)?$/.test(out.jours)) throw new Error('Série : jours invalides.');
+  if (!/^\d{0,2}$/.test(out.tous)) out.tous = '';
+  out.sauf = out.sauf.split(';').filter((x) => ['debut_pi', 'fin_pi', 'sprint1', 'ip', 'trimestre', 'annee'].includes(x)).join(';');
+  if (!/^\d{1,2}:\d{2}$/.test(out.heure)) throw new Error('Série : heure invalide (ex. 9:30).');
+  if (!/^\d{1,3}$/.test(out.duree) || Number(out.duree) < 5) throw new Error('Série : durée invalide (minutes).');
+  for (const k of ['debut', 'fin']) if (out[k] && !/^\d{4}-\d{2}-\d{2}$/.test(out[k])) throw new Error('Série : date invalide.');
+  out.animateur = out.animateur.trim().toLowerCase();
+  if (out.animateur && !RE_EMAIL.test(out.animateur)) throw new Error('Série : e-mail de l’animateur invalide.');
+  for (const k of ['editeurs', 'participants']) {
+    const l = [...new Set(out[k].split(';').map((x) => x.trim().toLowerCase()).filter(Boolean))];
+    if (l.some((x) => !RE_EMAIL.test(x))) throw new Error('Série : e-mail invalide.');
+    out[k] = l.join(';');
+  }
+  if (out.exceptions) {
+    let ok = false;
+    try {
+      ok = Array.isArray(JSON.parse(out.exceptions));
+    } catch {
+      ok = false;
+    }
+    if (!ok) throw new Error('Série : exceptions invalides.');
+  }
+  out.titre = out.titre.trim().slice(0, 200);
+  if (!out.type_reunion && !out.titre) throw new Error('Donnez un titre à la réunion.');
+  if (out.actif !== 'non') out.actif = '';
+  return out as unknown as SerieReunion;
+}
+
 const CONCRETISATIONS: Concretisation[] = ['', 'sous_tache', 'tache', 'rien', 'escalade', 'synchro'];
 /** Point de réunion enregistré : champs connus et vérifiés (type, texte, e-mails, liens) */
 export function nettoyerPoint(data: Partial<PointReunion>, base?: PointReunion): PointReunion {
@@ -397,7 +437,7 @@ export function creerMagasin(p: Persistance) {
       return parties;
     },
     async listAll(): Promise<Omit<Data, 'items'>> {
-      const [epics, objectifs, domaines, features, objectifsPI, ignorees, valueStreams, resultats, echanges] = await Promise.all([
+      const [epics, objectifs, domaines, features, objectifsPI, ignorees, valueStreams, resultats, echanges, series] = await Promise.all([
         p.lire('epic'),
         p.lire('objectif'),
         p.lire('domaine'),
@@ -407,8 +447,9 @@ export function creerMagasin(p: Persistance) {
         p.lire('valuestream'),
         p.lire('resultat'),
         p.lire('echange'),
+        p.lire('serie'),
       ]);
-      return { epics, objectifs, domaines, features, objectifsPI, ignorees, valueStreams, resultats, echanges };
+      return { epics, objectifs, domaines, features, objectifsPI, ignorees, valueStreams, resultats, echanges, series };
     },
     async createEntity<K extends Kind>(kind: K, input: Omit<EntityOf<K>, 'id' | 'cree_le' | 'modifie_le'>): Promise<EntityOf<K>> {
       const list = await p.lire(kind);
@@ -495,6 +536,25 @@ export function creerMagasin(p: Persistance) {
       const avant = await p.lire('piecejointe');
       await p.ecrire('piecejointe', [...avant, ...lignes]);
       return ids;
+    },
+    /**
+     * Séries de réunions créées ou modifiées en un seul passage (une lecture, une écriture), quel que soit leur
+     * nombre (création des séries au démarrage, « celle-ci et les suivantes »…). Jamais de suppression : une série
+     * arrêtée garde sa ligne (`actif` = « non »).
+     */
+    async ecrireSeries(lot: SerieReunion[]): Promise<SerieReunion[]> {
+      if (!lot.length) return [];
+      let list = await p.lire('serie');
+      const now = new Date().toISOString();
+      const out: SerieReunion[] = [];
+      for (const x of lot) {
+        const base = list.find((y) => y.id === x.id);
+        const o = { ...nettoyerSerie(x, base), cree_le: base?.cree_le || x.cree_le || now, modifie_le: now };
+        list = base ? list.map((y) => (y.id === o.id ? o : y)) : [...list, o];
+        out.push(o);
+      }
+      await p.ecrire('serie', list);
+      return out;
     },
     /** Points des réunions dont l'id commence par `prefixe` (ex. tous les dailies d'une équipe) : une lecture */
     async lirePoints(prefixe: string): Promise<PointReunion[]> {
