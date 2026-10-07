@@ -34,7 +34,7 @@ import { useSafe } from '../safe';
 import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
 import { type Concretisation, type Echange, type EchangeInput, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type Statut, type TypePoint } from '../types';
-import { FeuilleChoix, LigneChoix, SectionFiche } from './Choix';
+import { FeuilleChoix, SectionFiche } from './Choix';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
 import { FormSheet, TitreFiche } from './FormSheet';
@@ -569,7 +569,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             <SectionFiche titre={`Mes stories et tâches · ${hierListe.length}`}>
               {listeTaches('hier', hierListe, 'Rien en cours ni terminé hier.', pr)}
               {listeLibres('hier', hierListe)}
-              <SaisiePoint types={['hier', 'aujourdhui', 'blocage']} typeDefaut="hier" jour={jour} placeholder="＋ Autre chose fait hier" stories={mesStories} onAjouter={(type, texte, element) => setPrep((l) => [...l, nouveau(type, texte, element, '', pr)])} />
+              <SaisiePoint types={['hier', 'aujourdhui', 'blocage']} typeDefaut="hier" titre="Ajouter à « Hier »" jour={jour} placeholder="＋ Autre chose fait hier" stories={mesStories} onAjouter={(type, texte, element) => setPrep((l) => [...l, nouveau(type, texte, element, '', pr)])} />
             </SectionFiche>
           </>
         );
@@ -580,7 +580,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             <SectionFiche titre={`Mes stories et tâches · ${aujListe.length}`}>
               {listeTaches('aujourdhui', aujListe, 'Rien à votre nom dans l’itération.', pr)}
               {listeLibres('aujourdhui', aujListe)}
-              <SaisiePoint types={['hier', 'aujourdhui', 'blocage']} typeDefaut="aujourdhui" jour={jour} placeholder="＋ Autre chose aujourd’hui" stories={mesStories} onAjouter={(type, texte, element) => setPrep((l) => [...l, nouveau(type, texte, element, '', pr)])} />
+              <SaisiePoint types={['hier', 'aujourdhui', 'blocage']} typeDefaut="aujourdhui" titre="Ajouter à « Aujourd’hui »" jour={jour} placeholder="＋ Autre chose aujourd’hui" stories={mesStories} onAjouter={(type, texte, element) => setPrep((l) => [...l, nouveau(type, texte, element, '', pr)])} />
             </SectionFiche>
           </>
         );
@@ -597,6 +597,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 premiere={!liste.length}
                 types={['hier', 'aujourdhui', 'blocage']}
                 typeDefaut="blocage"
+                titre="Ajouter un blocage"
                 jour={jour}
                 placeholder="＋ Blocage"
                 stories={mesStories}
@@ -856,6 +857,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   premiere={!notes.filter((y) => !filtreType || y.type === filtreType).length}
                   types={['hier', 'aujourdhui', 'blocage', 'decision', 'action']}
                   typeDefaut={filtreType || 'blocage'}
+                  titre={`Ajouter un point noté · ${prenom(courant.nom)}`}
                   jour={jour}
                   placeholder={`＋ Ajouter pour ${prenom(courant.nom)}…`}
                   stories={stories}
@@ -1002,7 +1004,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 );
               })()}
             <SectionFiche titre="Point oublié">
-              <SaisiePoint premiere types={['blocage', 'decision', 'action']} typeDefaut="blocage" jour={jour} placeholder="＋ Blocage, décision ou action oublié" stories={situation.cartes} onAjouter={(type, texte, element) => ajouter({ personne: mail, type, texte, element })} />
+              <SaisiePoint premiere types={['blocage', 'decision', 'action']} typeDefaut="blocage" titre="Ajouter un point oublié" jour={jour} placeholder="＋ Blocage, décision ou action oublié" stories={situation.cartes} onAjouter={(type, texte, element) => ajouter({ personne: mail, type, texte, element })} />
             </SectionFiche>
           </>
         );
@@ -1344,6 +1346,7 @@ function SaisiePoint({
   stories = [],
   elementDefaut = '',
   typeDefaut,
+  titre = 'Ajouter un point noté',
   premiere,
   aide,
   onAjouter,
@@ -1358,6 +1361,8 @@ function SaisiePoint({
   elementDefaut?: string;
   /** Type prérempli (celui du filtre, Blocage si « Tous ») */
   typeDefaut?: TypePoint;
+  /** Titre de la fenêtre, selon la liste où l'on ajoute (« Ajouter un point noté », « Ajouter un blocage »…) */
+  titre?: string;
   premiere?: boolean;
   onAjouter: (type: TypePoint, texte: string, element: string) => void;
 }) {
@@ -1387,7 +1392,7 @@ function SaisiePoint({
         <Text style={st.ajouterLien}>＋ {libelle}</Text>
       </Pressable>
       {!!aide && <Text style={st.sous}>{aide}</Text>}
-      <FormSheet superpose visible={ouvert} title="Nouveau point" busy={false} error={null} onClose={() => setOuvert(false)} onSave={valider} libelleEnregistrer="Ajouter">
+      <FormSheet superpose visible={ouvert} title={titre} busy={false} error={null} onClose={() => setOuvert(false)} onSave={valider} libelleEnregistrer="Ajouter">
         {types.length > 1 && (
           <SectionFiche titre="Type">
             <View style={st.champ}>
@@ -1395,16 +1400,12 @@ function SaisiePoint({
             </View>
           </SectionFiche>
         )}
+        {/* Une seule fenêtre : la story se choisit ici, sans seconde feuille */}
         {stories.length > 0 && (
           <SectionFiche titre="Story">
-            <LigneChoix
-              label="Story"
-              value={element}
-              vide="Aucune (point général)"
-              sans="Aucune (point général)"
-              groupes={[{ titre: 'Stories de l’itération', options: stories.map((t) => ({ value: t.id, label: `📖 ${t.titre}` })) }]}
-              onChange={setElement}
-            />
+            <View style={st.champ}>
+              <Pastilles petit options={[{ value: '', label: 'Aucune' }, ...stories.map((t) => ({ value: t.id, label: `📖 ${t.titre}` }))]} value={element} onChange={setElement} />
+            </View>
           </SectionFiche>
         )}
         <SectionFiche titre="Point">
