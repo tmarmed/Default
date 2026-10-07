@@ -143,7 +143,7 @@ export function OrgForm({
       decrireChangement(
         a,
         b,
-        { nom: 'Nom', email: 'E-mail', unite: 'Service', manager: 'Manager', capacite: 'Capacité', metier: 'Métier', nature: 'Type de personne', type: 'Type', parent: 'Au-dessus', responsable: 'Responsable', epic_owner: 'Epic Owner', portfolio: 'Portfolio', rte: 'RTE', pm: 'Product Manager', train: 'Train', po: 'Product Owner', sm: 'Scrum Master', membres: 'Membres' },
+        { nom: 'Nom', email: 'E-mail', unite: 'Service', manager: 'Manager', capacite: 'Capacité', metier: 'Métier', nature: 'Type de personne', type: 'Type', parent: 'Au-dessus', responsable: 'Responsable', epic_owner: 'Epic Owner', portfolio: 'Portfolio', rte: 'RTE', pm: 'Product Manager', train: 'Train', po: 'Product Owner', sm: 'Scrum Master', membres: 'Membres', calendrier: 'Calendrier agile' },
         (k, v) =>
           ['manager', 'responsable', 'epic_owner', 'rte', 'pm', 'po', 'sm'].includes(String(k))
             ? nomPersonne(org, v)
@@ -158,7 +158,7 @@ export function OrgForm({
                     : k === 'type'
                       ? (v === 'direction' ? 'Direction' : 'Service')
                       : v,
-        ['nom', 'email'],
+        ['nom', 'email', 'calendrier'],
       ),
   });
   /** Élément existant : enfants choisis (« ☑ Choisir des … »), rattachés tout de suite (bandeau « Annuler ») */

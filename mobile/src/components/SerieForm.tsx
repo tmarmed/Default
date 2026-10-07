@@ -149,8 +149,8 @@ export function SerieForm({
   return (
     <FormSheet
       visible={visible}
-      title={portee === 'toutes' || nouvelle ? titre : `${titre} · ${LIBELLE_PORTEE[portee].toLowerCase()}`}
-      fil={niveauTexte || undefined}
+      title={titre}
+      fil={[niveauTexte, portee !== 'toutes' && !nouvelle ? LIBELLE_PORTEE[portee] : ''].filter(Boolean).join(' · ') || undefined}
       busy={busy}
       error={error}
       onClose={onClose}
@@ -172,7 +172,10 @@ export function SerieForm({
             <SaisieFiche value={occ.heure} editable={modifiable && !occ.annulee} onChangeText={(v) => setOcc((o) => ({ ...o, heure: v.replace(/[^0-9:]/g, '').slice(0, 5) }))} placeholder="9:30" />
           </ChampFiche>
           <ChampFiche label="Durée">
-            <SaisieFiche value={occ.duree} editable={modifiable && !occ.annulee} keyboardType="number-pad" onChangeText={(v) => setOcc((o) => ({ ...o, duree: v.replace(/\D/g, '').slice(0, 3) }))} placeholder="minutes" />
+            <View style={s.rang}>
+              <SaisieFiche value={occ.duree} editable={modifiable && !occ.annulee} keyboardType="number-pad" onChangeText={(v) => setOcc((o) => ({ ...o, duree: v.replace(/\D/g, '').slice(0, 3) }))} placeholder="minutes" style={s.minutes} />
+              {!!occ.duree && <Text style={s.gris}>min</Text>}
+            </View>
           </ChampFiche>
           <ChampFiche label="Annulée">
             <Puces options={[{ v: 'n', l: 'Non' }, { v: 'o', l: 'Oui, annulée' }]} value={occ.annulee ? 'o' : 'n'} onChange={(v) => modifiable && setOcc((o) => ({ ...o, annulee: v === 'o' }))} />
@@ -262,8 +265,11 @@ export function SerieForm({
               <ChampFiche label="Heure">
                 <SaisieFiche value={f.heure} onChangeText={(v) => set({ heure: v.replace(/[^0-9:]/g, '').slice(0, 5) })} placeholder="9:30" />
               </ChampFiche>
-              <ChampFiche label="Durée" sous={Number(f.duree) ? dureeReunion(Number(f.duree)) : undefined}>
-                <SaisieFiche value={f.duree} keyboardType="number-pad" onChangeText={(v) => set({ duree: v.replace(/\D/g, '').slice(0, 3) })} placeholder="minutes" />
+              <ChampFiche label="Durée">
+                <View style={s.rang}>
+                  <SaisieFiche value={f.duree} keyboardType="number-pad" onChangeText={(v) => set({ duree: v.replace(/\D/g, '').slice(0, 3) })} placeholder="minutes" style={s.minutes} />
+                  {!!f.duree && <Text style={s.gris}>min{Number(f.duree) >= 60 ? ` (${dureeReunion(Number(f.duree))})` : ''}</Text>}
+                </View>
               </ChampFiche>
               <ChampFiche label="Début">
                 <SaisieFiche value={f.debut} onChangeText={(v) => set({ debut: v.replace(/[^0-9-]/g, '').slice(0, 10) })} placeholder="Dès maintenant" />
@@ -381,7 +387,7 @@ export function CarteSeries({ vues, org, onOuvrir, onNouvelle }: { vues: SerieVu
                     {niveau ? <Text style={s.gris}> · {niveau}</Text> : null}
                   </Text>
                   <Text style={s.meta} numberOfLines={1}>
-                    {libelleRegle(v.serie)} · {v.serie.heure}
+                    {libelleRegle(v.serie)} · {v.serie.heure.replace(/^0/, '')}
                     {prochaine ? ` · prochaine ${jourCourt(prochaine.debut.slice(0, 10))}` : ''}
                   </Text>
                 </View>
@@ -402,7 +408,7 @@ const s = StyleSheet.create({
   info: { fontSize: 13, color: colors.muted, marginBottom: 10 },
   aide: { fontSize: 12, color: colors.muted, paddingHorizontal: 12, paddingVertical: 8 },
   regle: { fontSize: 12.5, color: colors.primary, paddingHorizontal: 12, paddingVertical: 9, fontWeight: '600' },
-  rang: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  rang: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   texte: { fontSize: 15, color: colors.text },
   orange: { color: '#C2410C' },
   retirer: { fontSize: 15, color: colors.muted },
@@ -420,7 +426,8 @@ const s = StyleSheet.create({
   icone: { fontSize: 18, width: 26, textAlign: 'center' },
   corps: { flex: 1, minWidth: 0 },
   titre: { fontSize: 15, color: colors.text },
-  gris: { color: colors.muted },
+  gris: { color: colors.muted, fontSize: 15 },
+  minutes: { flex: 0, flexGrow: 0, width: 44 },
   meta: { fontSize: 12.5, color: colors.muted, marginTop: 2 },
   chev: { fontSize: 16, color: colors.muted },
   nouvelle: { fontSize: 15, color: colors.primary, fontWeight: '600' },

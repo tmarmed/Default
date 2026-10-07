@@ -112,7 +112,7 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
     const anime = r.organisateur.toLowerCase() === moi.toLowerCase();
     const niveau = niveauDe(r);
     const quand = r.repetition === 'quotidienne' && jour(r) !== aujourdhui ? `chaque jour${safeActif ? ' ouvré' : ''}` : avecJour && jourCourt(jour(r));
-    const meta = [quand, heureReunion(r), dureeReunion(r.duree_min), nb ? `${nb} participant${nb > 1 ? 's' : ''}` : 'seul', anime && r.niveau ? 'vous animez' : ''].filter(Boolean).join(' · ');
+    const meta = [quand, heureReunion(r), dureeReunion(r.duree_min), nb ? `${nb} participant${nb > 1 ? 's' : ''}` : 'seul', anime && r.niveau ? 'vous animez' : '', r.deplacee ? 'déplacée' : ''].filter(Boolean).join(' · ');
     return (
       <Pressable key={r.id} onPress={() => ouvrir(r)} style={[s.ligne, i > 0 && s.ligneBord]} accessibilityRole="button" accessibilityHint={anime ? 'Ouvre la réunion : vous animez' : 'Ouvre la réunion : préparer votre point'}>
         <Text style={s.avatar}>{t.icone}</Text>
