@@ -38,7 +38,7 @@ import { type Action, type Check, checksDatesDomaine, checksParEcran, signatures
 import { AlertsCard, CheckActionContext, IgnoreContext, nbAlertes } from './src/components/AlertsCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
-import { iterationNom, iterationOf, iterationOfItem, piLabel, piOf } from './src/pi';
+import { definirCalendrier, iterationNom, iterationOf, iterationOfItem, piLabel, piOf } from './src/pi';
 import { Roadmap } from './src/components/Roadmap';
 import { LoginScreen } from './src/components/LoginScreen';
 import { TaskForm } from './src/components/TaskForm';
@@ -50,7 +50,7 @@ import { TexteAjuste } from './src/components/TexteAjuste';
 import type { Injection, PileProps } from './src/components/FormSheet';
 import { type Deplacement, OrganisationView, type VueOrg } from './src/components/OrganisationView';
 import { OrgForm } from './src/components/OrgForm';
-import { CLE_ORG, dansOrgFiltre, type EntiteOrg, ICONE_ORG, type KindOrg, libelleOrgFiltre, makeOrgValue, NOM_ORG, type Org, ORG_VIDE, OrgContext, type OrgFiltre, OrgFiltreContext } from './src/organisation';
+import { calendrierPersonne, CLE_ORG, dansOrgFiltre, type EntiteOrg, ICONE_ORG, type KindOrg, libelleOrgFiltre, makeOrgValue, NOM_ORG, type Org, ORG_VIDE, OrgContext, type OrgFiltre, OrgFiltreContext } from './src/organisation';
 import { type ActionStockage, StockagePanneau } from './src/components/Stockage';
 import { FormSheet } from './src/components/FormSheet';
 import { aPurger, copieCsv, moisAnnee, octetsLignes, type Plan, planifier, pourcent, type Quota, quotaSimule, SEUIL_ALERTE, SEUIL_CIBLE, type TestStockage } from './src/stockage';
@@ -1463,6 +1463,9 @@ function Main() {
       equipes: [...orgValue.equipes, ...eq.flatMap(([id, x]) => x.equipes.map((e) => ({ ...e, espace: e.espace || id })))],
     });
   }, [orgValue, equipesEsp, visibles]);
+  // Calendrier agile (07/10) : celui de votre équipe (ou de son train), partout dans l'application
+  const monCalendrier = calendrierPersonne(orgReunions, moiEchange);
+  definirCalendrier(monCalendrier);
   const reunionsAffichees = useMemo(() => (tab === 'reunions' ? reunionsAVenir(orgReunions, moiEchange, today, safe.actif) : []), [tab, orgReunions, moiEchange, today, safe.actif]);
   /** Daily : points notés (onglet PointsReunion du Sheet de l'équipe), tâches et échanges créés en lots */
   const actionsDaily: ActionsDaily = {

@@ -1,4 +1,5 @@
 import { toDateString } from './dates';
+import { lireCalendrier } from './pi';
 import { cleanLinks, type Data, type DeletionCounts, planDeletion } from './hierarchy';
 import { aPurger } from './stockage';
 import { cascadeLinks, checkParent } from './subtasks';
@@ -97,8 +98,8 @@ export const ONGLETS_ORG: Record<KindOrg, { nom: string; colonnes: string[] }> =
   personne: { nom: 'Personnes', colonnes: ['id', 'nom', 'email', 'unite', 'manager', 'capacite', 'metier', 'cree_le', 'modifie_le', 'nature'] },
   unite: { nom: 'Unites', colonnes: ['id', 'nom', 'type', 'parent', 'responsable', 'cree_le', 'modifie_le'] },
   portfolio: { nom: 'Portfolios', colonnes: ['id', 'nom', 'epic_owner', 'cree_le', 'modifie_le'] },
-  train: { nom: 'Trains', colonnes: ['id', 'nom', 'portfolio', 'rte', 'pm', 'cree_le', 'modifie_le'] },
-  equipeagile: { nom: 'EquipesAgiles', colonnes: ['id', 'nom', 'train', 'po', 'sm', 'membres', 'cree_le', 'modifie_le'] },
+  train: { nom: 'Trains', colonnes: ['id', 'nom', 'portfolio', 'rte', 'pm', 'cree_le', 'modifie_le', 'calendrier'] },
+  equipeagile: { nom: 'EquipesAgiles', colonnes: ['id', 'nom', 'train', 'po', 'sm', 'membres', 'cree_le', 'modifie_le', 'calendrier'] },
 };
 export const TABLES_ORG = Object.keys(ONGLETS_ORG) as KindOrg[];
 /** Toutes les tables et leurs onglets */
@@ -295,6 +296,8 @@ export function nettoyerOrg<K extends KindOrg>(kind: K, data: Partial<EntiteOrg<
     out.membres = [...new Set(out.membres.split(';').map((m) => m.trim()).filter(Boolean))].join(';');
     if (!/^[0-9A-Za-z;-]*$/.test(out.membres)) throw new Error('Liste des membres invalide.');
   }
+  // Calendrier agile (train, équipe) : JSON borné ; vide = celui du train, ou par défaut
+  if (kind === 'train' || kind === 'equipeagile') out.calendrier = out.calendrier?.trim() ? JSON.stringify(lireCalendrier(out.calendrier)) : '';
   const liste = org[CLE_ORG[kind]] as { id: string; nom: string }[];
   if (liste.some((x) => x.id !== id && x.nom.trim().toLowerCase() === out.nom.toLowerCase()))
     throw new Error(`Ce nom existe déjà (${out.nom}).`);

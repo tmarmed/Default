@@ -1,7 +1,7 @@
 import { addDays, toDateString } from './dates';
 import { lireNiveau } from './echange/hierarchieEchange';
-import { membresDe, type OrgValue } from './organisation';
-import { iterationOf, piEnd, piOf, piStart } from './pi';
+import { calendrierEquipe, membresDe, type OrgValue } from './organisation';
+import { type Calendrier, calendrierCourant, iterationOf, lireCalendrier, piEnd, piOf, piStart } from './pi';
 import { type RepetitionReunion, type Reunion, type TypeReunion, TYPES_REUNION } from './types';
 
 /**
@@ -64,20 +64,20 @@ const CADENCE: Record<TypeReunion, { heure: string; repetition: RepetitionReunio
 };
 
 /** Repères du calendrier SAFe d'un jour */
-function reperes(jour: string) {
-  const it = iterationOf(jour);
-  const pi = piOf(jour);
+function reperes(jour: string, cal: Calendrier = calendrierCourant()) {
+  const it = iterationOf(jour, cal);
+  const pi = piOf(jour, cal);
   const sprint = it.code !== 'IP';
   const d = parse(jour);
-  const debutPI = jour === premierOuvre(piStart(pi));
+  const debutPI = jour === premierOuvre(piStart(pi, cal));
   return {
     ouvre: ouvre(d),
     debutIt: sprint && jour === premierOuvre(it.start),
     premiereIt: it.code === 'IT1',
-    milieuIt: sprint && jour === premierOuvre(addDays(parse(it.start), 7)),
+    milieuIt: sprint && jour === premierOuvre(addDays(parse(it.start), Math.floor((7 * cal.semaines) / 2))),
     finIt: sprint && jour === dernierOuvre(it.end),
     debutPI,
-    finPI: jour === dernierOuvre(piEnd(pi)),
+    finPI: jour === dernierOuvre(piEnd(pi, cal)),
     // Itération IP : son premier jour (lancement, préparation du PI Planning suivant)
     debutIP: it.code === 'IP' && jour === premierOuvre(it.start),
     // Budget participatif : chaque semestre (PI qui commence en janvier ou en juillet)
@@ -143,10 +143,18 @@ export function reunionsAVenir(org: OrgValue, moi: string, aujourdhui: string, s
   const orgaEquipe = (e: { sm: string; po: string }, role: 'sm' | 'po') => emailDe(role === 'sm' ? e.sm || e.po : e.po || e.sm);
   const orgaTrain = (t: { rte: string; pm: string }, role: 'rte' | 'pm') => emailDe(role === 'rte' ? t.rte || t.pm : t.pm || t.rte);
 
+  // Calendrier agile de chaque équipe (le sien, sinon celui de son train) et de chaque train (07/10)
+  const cals = new Map<string, Calendrier>();
+  const calDe = (json: string) => {
+    if (!json) return calendrierCourant();
+    if (!cals.has(json)) cals.set(json, lireCalendrier(json));
+    return cals.get(json)!;
+  };
   for (const j of listeJours) {
     const r = reperes(j);
     if (!r.ouvre) continue;
     for (const e of equipes) {
+      const r = reperes(j, calDe(calendrierEquipe(org, e)));
       const niveau = `equipeagile:${e.id}`;
       const enTrain = !!e.train && org.train.has(e.train);
       // Le jour du PI Planning, le train planifie ensemble (pas de daily ni de planification d'équipe)
@@ -160,10 +168,11 @@ export function reunionsAVenir(org: OrgValue, moi: string, aujourdhui: string, s
       }
     }
     // Revue d'itération : le PM du train y est invité comme partie prenante (ses retours), pour chaque équipe du train
-    if (r.finIt)
-      for (const t of org.trains.filter((x) => est(x.pm)))
-        for (const e of org.equipes.filter((x) => x.train === t.id && !equipes.includes(x))) ajouter('revue', j, `equipeagile:${e.id}`, orgaEquipe(e, 'sm'), e.espace);
+    for (const t of org.trains.filter((x) => est(x.pm)))
+      for (const e of org.equipes.filter((x) => x.train === t.id && !equipes.includes(x)))
+        if (reperes(j, calDe(calendrierEquipe(org, e))).finIt) ajouter('revue', j, `equipeagile:${e.id}`, orgaEquipe(e, 'sm'), e.espace);
     for (const t of trainsTous) {
+      const r = reperes(j, calDe(t.calendrier?.trim() ?? ''));
       const niveau = `train:${t.id}`;
       if (r.debutPI) ajouter('pi_planning', j, niveau, orgaTrain(t, 'rte'), t.espace);
       if (r.finIt) ajouter('system_demo', j, niveau, orgaTrain(t, 'pm'), t.espace);

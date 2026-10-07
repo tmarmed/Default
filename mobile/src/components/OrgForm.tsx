@@ -9,6 +9,7 @@ import { colors } from '../theme';
 import { METIERS, roleDansEquipe } from '../droits';
 import { ChampFiche, LigneChoix, LigneEnfant, LigneMulti, ListeEnfants, SaisieFiche, SectionFiche, type AutresChoix, type GroupeChoix } from './Choix';
 import { DeleteSection } from './DeleteSection';
+import { SectionCalendrier } from './CalendrierAgile';
 import { FormSheet, formStyles as f, TitreFiche } from './FormSheet';
 
 type Donnees = Record<string, string>;
@@ -29,8 +30,8 @@ const VIDES: Record<KindOrg, Donnees> = {
   personne: { nom: '', email: '', unite: '', manager: '', capacite: '', metier: '', nature: 'humain' },
   unite: { nom: '', type: 'service', parent: '', responsable: '' },
   portfolio: { nom: '', epic_owner: '' },
-  train: { nom: '', portfolio: '', rte: '', pm: '' },
-  equipeagile: { nom: '', train: '', po: '', sm: '', membres: '' },
+  train: { nom: '', portfolio: '', rte: '', pm: '', calendrier: '' },
+  equipeagile: { nom: '', train: '', po: '', sm: '', membres: '', calendrier: '' },
 };
 
 const TITRES: Record<KindOrg, [string, string]> = {
@@ -551,6 +552,7 @@ export function OrgForm({
             {choix({ label: 'RTE', k: 'rte', liste: listePersonnes(), nouveau: nouvellePersonne(), sans: 'Sans RTE' })}
             {choix({ label: 'Product Manager', k: 'pm', liste: listePersonnes(), nouveau: nouvellePersonne(), sans: 'Sans Product Manager' })}
           </SectionFiche>
+          {safe.actif && <SectionCalendrier value={form.calendrier ?? ''} onChange={(v) => setForm((x) => ({ ...x, calendrier: v }))} />}
           {enfants({
             titre: 'Équipes agiles',
             liste: org.equipes.filter((e) => e.train === id && !!id),
@@ -590,6 +592,14 @@ export function OrgForm({
               resume={(n) => `${n} membre${n > 1 ? 's' : ''}`}
             />
           </SectionFiche>
+          {safe.actif && (
+            <SectionCalendrier
+              value={form.calendrier ?? ''}
+              onChange={(v) => setForm((x) => ({ ...x, calendrier: v }))}
+              herite={org.train.get(form.train)?.calendrier ?? ''}
+              nomHerite={org.train.get(form.train)?.nom ?? ''}
+            />
+          )}
           {membres.length > 0 && (
             <SectionFiche titre="Droits · d'après les rôles">
               {membres.map((m) => {

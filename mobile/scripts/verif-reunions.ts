@@ -11,6 +11,7 @@ import { makeOrgValue } from '../src/organisation';
 import { aReprendre, chaineEscalade, parEspace, pointsEscalade, pointsReponse, reunionDeNiveau, titreEscalade } from '../src/suiviEscalade';
 import { etapesParcours, ongletParcours, parcoursParDefaut, participantsReunion, reunionsAVenir } from '../src/reunions';
 import { type Reunion, TYPES_REUNION } from '../src/types';
+import { iterationOf, iterationsOf, lireCalendrier, piOf } from '../src/pi';
 import { avecCriteres, capacite, criteresDe, etatPrete, feriesFrance, joursOuvres, lireNombre, nombreFr } from '../src/reunionsEquipe';
 
 let erreurs = 0;
@@ -232,6 +233,28 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const o = joursOuvres('2026-11-09', '2026-11-13');
   ok(o.jours === 4 && o.feries.join() === '2026-11-11', 'jours ouvrés : une semaine avec le 11 novembre → 4 jours');
   ok(capacite(9.5, 0.8) === 8 && lireNombre('1,1') === 1.1 && nombreFr(0.8) === '0,8', 'capacité : 9,5 j × 0,8 = 8 pts ; saisie « 1,1 »');
+}
+// ---------------------------------------------------------------------------
+// Calendrier agile par équipe (07/10)
+// ---------------------------------------------------------------------------
+{
+  const d = lireCalendrier('');
+  const l = iterationsOf('2026-T4', d);
+  ok(l.length === 7 && l[0].start === '2026-10-01' && l[0].end === '2026-10-14' && l[6].code === 'IP' && l[6].end === '2026-12-31', 'calendrier par défaut : 6 sprints de 2 semaines + IP, comme avant');
+  const c3 = lireCalendrier({ semaines: 3, sprints: 4, ip: false });
+  const l3 = iterationsOf('2026-T4', c3);
+  ok(l3.length === 4 && l3[1].start === '2026-10-22' && l3[3].end === '2026-12-31', 'sprints de 3 semaines, 4 sprints, sans IP : le dernier va jusqu’à la fin du PI');
+  const cd = lireCalendrier({ decalage: 4 });
+  ok(piOf('2026-10-02', cd) === '2026-T3' && iterationOf('2026-10-05', cd).key === '2026-T4-IT1' && iterationsOf('2026-T3', cd).at(-1)!.end === '2026-10-04', 'PI décalé de 4 jours : le 2/10 est encore dans le PI d’avant');
+  const ce = lireCalendrier({ exceptions: [{ pi: '2027-T1', debut: '2027-01-11' }] });
+  ok(iterationOf('2027-01-05', ce).key === '2026-T4-IP' && iterationOf('2027-01-11', ce).key === '2027-T1-IT1', 'exception : le PI de janvier commence le 11');
+  ok(lireCalendrier('{"semaines":9,"sprints":0}').semaines === 4 && lireCalendrier('pas du json').sprints === 6, 'calendrier : valeurs bornées, JSON invalide → par défaut');
+  const od = orgDemo('demo-entreprise');
+  const org = makeOrgValue({ ...od, equipes: od.equipes.map((e, i) => (i === 0 ? { ...e, calendrier: JSON.stringify({ semaines: 1, sprints: 6, ip: true, decalage: 0 }) } : e)) });
+  const e0 = od.equipes[0];
+  const sm = org.personne.get(e0.sm)?.email ?? '';
+  const plan = reunionsAVenir(org, sm, '2026-10-01', true, 14).filter((r) => r.type === 'planification' && r.niveau === `equipeagile:${e0.id}`);
+  ok(plan.length >= 1 && plan.some((r) => r.debut.startsWith('2026-10-08')), 'équipe en sprints d’une semaine : planification chaque semaine');
 }
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
 process.exit(erreurs ? 1 : 0);

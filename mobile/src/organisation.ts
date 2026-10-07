@@ -65,6 +65,8 @@ export interface Train {
   pm: string;
   cree_le: string;
   modifie_le: string;
+  /** Calendrier agile du train (JSON, voir pi.ts) : par défaut pour ses équipes ; vide = calendrier par défaut */
+  calendrier?: string;
 }
 
 export interface EquipeAgile {
@@ -79,6 +81,8 @@ export interface EquipeAgile {
   membres: string;
   cree_le: string;
   modifie_le: string;
+  /** Calendrier agile de l'équipe (JSON) ; vide = celui de son train */
+  calendrier?: string;
 }
 
 export type KindOrg = 'personne' | 'unite' | 'portfolio' | 'train' | 'equipeagile';
@@ -215,4 +219,16 @@ export function useFiltreOrg() {
     }),
     [f, o, h],
   );
+}
+
+/** Calendrier agile d'une équipe (JSON) : le sien, sinon celui de son train ; '' = calendrier par défaut */
+export function calendrierEquipe(org: { trains: Train[] }, e: EquipeAgile | undefined): string {
+  if (!e) return '';
+  return e.calendrier?.trim() || org.trains.find((t) => t.id === e.train)?.calendrier?.trim() || '';
+}
+/** Calendrier agile d'une personne (e-mail) : celui de sa première équipe (membre, PO ou SM) */
+export function calendrierPersonne(org: { personnes: Personne[]; equipes: EquipeAgile[]; trains: Train[] }, email: string): string {
+  const id = org.personnes.find((p) => p.email?.toLowerCase() === email.toLowerCase())?.id;
+  if (!id) return '';
+  return calendrierEquipe(org, org.equipes.find((e) => e.po === id || e.sm === id || membresDe(e).includes(id)));
 }

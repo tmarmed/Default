@@ -2,13 +2,51 @@ import { addDays, toDateString } from './dates';
 import { aDateFin, type Item } from './types';
 
 /**
- * Calendrier SAFe : un PI = un trimestre civil, découpé en 6 itérations de 14 jours
- * à partir du 1er jour du trimestre ; les jours restants forment la semaine IP
- * (innovation et planification).
+ * Calendrier agile (SAFe) : un PI par trimestre civil, découpé en sprints à partir de son premier jour ; les jours
+ * restants forment la semaine IP (innovation et planification). Par défaut : 6 sprints de 2 semaines à partir du
+ * 1er jour du trimestre. Réglable par équipe et par train (07/10, Organisation › 🗓️ Calendrier agile) : durée d'un
+ * sprint, nombre de sprints, semaine IP, décalage du début du PI, et des exceptions occasionnelles (un PI qui commence
+ * un autre jour). Le calendrier « courant » est celui de votre équipe (`definirCalendrier`) ; les clés des sprints
+ * ne changent pas (« 2026-T4-IT3 »).
  */
+export interface Calendrier {
+  /** Durée d'un sprint, en semaines (1 à 4) */
+  semaines: number;
+  /** Nombre de sprints par PI, avant la semaine IP */
+  sprints: number;
+  /** Semaine IP en fin de PI (sinon le dernier sprint va jusqu'à la fin du PI) */
+  ip: boolean;
+  /** Le PI commence ce nombre de jours après le 1er jour du trimestre */
+  decalage: number;
+  /** Exceptions occasionnelles : ce PI commence un autre jour (AAAA-MM-JJ) */
+  exceptions?: { pi: string; debut: string }[];
+}
+export const CALENDRIER_DEFAUT: Calendrier = { semaines: 2, sprints: 6, ip: true, decalage: 0 };
+/** Calendrier lu depuis sa colonne (JSON), valeurs bornées ; vide ou invalide → par défaut */
+export function lireCalendrier(x: string | Partial<Calendrier> | null | undefined): Calendrier {
+  let c: Partial<Calendrier> = {};
+  try {
+    c = typeof x === 'string' ? (x.trim() ? JSON.parse(x) : {}) : (x ?? {});
+  } catch {
+    c = {};
+  }
+  const borne = (v: unknown, min: number, max: number, d: number) => (Number.isFinite(Number(v)) ? Math.min(max, Math.max(min, Math.round(Number(v)))) : d);
+  return {
+    semaines: borne(c.semaines, 1, 4, CALENDRIER_DEFAUT.semaines),
+    sprints: borne(c.sprints, 1, 12, CALENDRIER_DEFAUT.sprints),
+    ip: c.ip === undefined ? true : !!c.ip,
+    decalage: borne(c.decalage, 0, 60, 0),
+    exceptions: Array.isArray(c.exceptions) ? c.exceptions.filter((e) => /^\d{4}-T[1-4]$/.test(e?.pi ?? '') && /^\d{4}-\d{2}-\d{2}$/.test(e?.debut ?? '')) : [],
+  };
+}
+/** Calendrier par défaut ? (rien à enregistrer) */
+export const estDefaut = (c: Calendrier) => c.semaines === 2 && c.sprints === 6 && c.ip && !c.decalage && !c.exceptions?.length;
+let courant: Calendrier = CALENDRIER_DEFAUT;
+/** Calendrier courant (celui de votre équipe) : utilisé partout où l'on ne précise pas de calendrier */
+export const definirCalendrier = (c?: Partial<Calendrier> | string | null) => void (courant = lireCalendrier(c ?? null));
+export const calendrierCourant = () => courant;
 
-export const ITERATIONS = ['IT1', 'IT2', 'IT3', 'IT4', 'IT5', 'IT6', 'IP'] as const;
-export type IterationCode = (typeof ITERATIONS)[number];
+export type IterationCode = string;
 
 const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 const court = (d: Date) => `${d.getDate() === 1 ? '1er' : d.getDate()} ${MOIS[d.getMonth()]}`;
@@ -17,25 +55,31 @@ const parse = (s: string) => {
   return new Date(y, m - 1, d);
 };
 
-/** « 2026-T4 » du jour donné */
-export function piOf(date: string | Date): string {
+/** Trimestre civil d'un jour : « 2026-T4 » */
+const trimestre = (d: Date) => `${d.getFullYear()}-T${Math.floor(d.getMonth() / 3) + 1}`;
+/** PI d'un jour : « 2026-T4 » (avant le début décalé du PI : le PI d'avant) */
+export function piOf(date: string | Date, cal: Calendrier = courant): string {
   const d = typeof date === 'string' ? parse(date) : date;
-  return `${d.getFullYear()}-T${Math.floor(d.getMonth() / 3) + 1}`;
+  const t = trimestre(d);
+  return toDateString(d) < toDateString(piStart(t, cal)) ? shiftPi(t, -1) : t;
 }
 
-export function piStart(pi: string): Date {
+/** Premier jour du PI : le 1er du trimestre, plus le décalage ; ou le jour d'une exception */
+export function piStart(pi: string, cal: Calendrier = courant): Date {
+  const ex = cal.exceptions?.find((e) => e.pi === pi);
+  if (ex) return parse(ex.debut);
   const [y, q] = pi.split('-T').map(Number);
-  return new Date(y, (q - 1) * 3, 1);
+  return addDays(new Date(y, (q - 1) * 3, 1), cal.decalage || 0);
 }
 
-export function piEnd(pi: string): Date {
-  const [y, q] = pi.split('-T').map(Number);
-  return new Date(y, q * 3, 0);
+/** Dernier jour du PI : la veille du début du PI suivant */
+export function piEnd(pi: string, cal: Calendrier = courant): Date {
+  return addDays(piStart(shiftPi(pi, 1), cal), -1);
 }
 
 export function shiftPi(pi: string, n: number): string {
-  const s = piStart(pi);
-  return piOf(new Date(s.getFullYear(), s.getMonth() + 3 * n, 1));
+  const [y, q] = pi.split('-T').map(Number);
+  return trimestre(new Date(y, (q - 1) * 3 + 3 * n, 1));
 }
 
 /** « T4 2026 » */
@@ -64,40 +108,45 @@ export interface Iteration {
   label: string;
 }
 
-export function iterationsOf(pi: string): Iteration[] {
-  const s = piStart(pi);
-  const e = piEnd(pi);
-  return ITERATIONS.map((code, i) => {
-    const a = addDays(s, 14 * i);
-    const b = code === 'IP' ? e : addDays(s, 14 * i + 13);
-    return {
-      key: `${pi}-${code}`,
-      pi,
-      code,
-      nom: nomSprint(code),
-      start: toDateString(a),
-      end: toDateString(b),
-      label: `${nomSprint(code)} · ${court(a)} → ${court(b)}`,
-    };
-  });
+/** Sprints d'un PI (puis la semaine IP), selon le calendrier */
+export function iterationsOf(pi: string, cal: Calendrier = courant): Iteration[] {
+  const s = piStart(pi, cal);
+  const e = piEnd(pi, cal);
+  const fin = toDateString(e);
+  const long = 7 * cal.semaines;
+  const out: Iteration[] = [];
+  const ajouter = (code: string, a: Date, b: Date) =>
+    out.push({ key: `${pi}-${code}`, pi, code, nom: nomSprint(code), start: toDateString(a), end: toDateString(b), label: `${nomSprint(code)} · ${court(a)} → ${court(b)}` });
+  for (let i = 0; i < cal.sprints; i++) {
+    const a = addDays(s, long * i);
+    if (toDateString(a) > fin) break;
+    let b = addDays(s, long * i + long - 1);
+    if (toDateString(b) > fin || (i === cal.sprints - 1 && !cal.ip)) b = e;
+    ajouter(`IT${i + 1}`, a, b);
+  }
+  const apres = addDays(parse(out[out.length - 1]?.end ?? toDateString(addDays(s, -1))), 1);
+  if (toDateString(apres) <= fin) ajouter('IP', apres, e);
+  return out;
 }
 
-export function iterationByKey(key: string): Iteration | undefined {
-  const m = /^(\d{4}-T[1-4])-(IT[1-6]|IP)$/.exec(key);
-  return m ? iterationsOf(m[1]).find((it) => it.code === m[2]) : undefined;
+export function iterationByKey(key: string, cal: Calendrier = courant): Iteration | undefined {
+  const m = /^(\d{4}-T[1-4])-(IT\d{1,2}|IP)$/.exec(key);
+  return m ? iterationsOf(m[1], cal).find((it) => it.code === m[2]) : undefined;
 }
 
-/** Itération contenant le jour donné. */
-export function iterationOf(date: string | Date): Iteration {
+/** Sprint (ou semaine IP) contenant le jour donné */
+export function iterationOf(date: string | Date, cal: Calendrier = courant): Iteration {
   const d = typeof date === 'string' ? date : toDateString(date);
-  return iterationsOf(piOf(d)).find((it) => it.start <= d && d <= it.end)!;
+  const l = iterationsOf(piOf(d, cal), cal);
+  return l.find((it) => it.start <= d && d <= it.end) ?? l[l.length - 1];
 }
 
-export function shiftIteration(key: string, n: number): string {
-  const it = iterationByKey(key)!;
+export function shiftIteration(key: string, n: number, cal: Calendrier = courant): string {
+  const it = iterationByKey(key, cal);
+  if (!it) return key;
   const d = n > 0 ? addDays(parse(it.end), 1) : addDays(parse(it.start), -1);
-  const next = iterationOf(d).key;
-  return Math.abs(n) > 1 ? shiftIteration(next, n - Math.sign(n)) : next;
+  const next = iterationOf(d, cal).key;
+  return Math.abs(n) > 1 ? shiftIteration(next, n - Math.sign(n), cal) : next;
 }
 
 /** Itération d'une tâche : d'après sa date, sinon celle choisie à la main. Les tâches répétées n'en ont pas. */
