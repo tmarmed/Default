@@ -10,6 +10,9 @@ import { type Echange, type Item, type Reunion, TYPES_REUNION } from '../types';
 import { type ActionsDaily, FenetreDaily } from './Daily';
 import { FenetreReunion } from './FenetreReunion';
 import { FenetreAffinage } from './reunion/Affinage';
+import { FenetreRetro } from './reunion/Retro';
+import { FenetreRevue } from './reunion/Revue';
+import { FenetrePlanification } from './reunion/Planification';
 
 /**
  * 📅 Réunions (lot 6) : vos réunions, construites comme la liste de la Synchro (« Par conversation ») : sections
@@ -189,6 +192,9 @@ export function FenetreDeReunion(p: {
   const props = { visible: true, reunion: ouverte, org, moi, aujourdhui, fil, onFermer, onFini: p.onFini, onInfo, onOpenTask, echanges };
   if (ouverte.niveau && daily) {
     if (ouverte.type === 'affinage') return <FenetreAffinage {...props} actions={daily} />;
+    if (ouverte.type === 'retro') return <FenetreRetro {...props} actions={daily} />;
+    if (ouverte.type === 'revue') return <FenetreRevue {...props} actions={daily} />;
+    if (ouverte.type === 'planification') return <FenetrePlanification {...props} actions={daily} />;
   }
   return (
     <FenetreReunion
