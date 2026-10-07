@@ -68,6 +68,8 @@ import {
 } from './src/dates';
 import { AuthError, restoreSession, signOut } from './src/auth';
 import { GOOGLE_AUTH, VERSION } from './src/config';
+import { BoutonRemarque } from './src/components/RemarquesDemo';
+import { poserEcran } from './src/remarquesDemo';
 import { DEMO, MOI_DEMO, purgerRestesDemo, demoApiFor, effacerDemo, ESPACES_DEMO } from './src/demo';
 import { type Ecran, type Espace, ESPACE_MOI, espaceParId, EspacesContext, ICONE_ESPACE, libelleEspace, loadEspaces, lireNomFichier, loadRetires, loadSupprimes, loadVisibles, nomFichier, onglets, saveEspaces, saveRetires, saveSupprimes, saveVisibles } from './src/espaces';
 import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
@@ -441,6 +443,8 @@ function Main() {
   const [featDefaults, setFeatDefaults] = useState<Partial<FeatureInput> | undefined>();
   const [wizard, setWizard] = useState<{ open: boolean; start: WizardStart; pre?: { espace: string; domaine?: string } }>({ open: false, start: null });
   const [tab, setTab] = useState<Tab>('taches');
+  // Remarques de la démo : l'onglet affiché fait partie du contexte noté
+  useEffect(() => poserEcran(`${TAB_ICONS[tab]} ${TAB_LABELS[tab]}`), [tab]);
   /** Menu « ⋯ Plus » (écrans au-delà des 5 de la barre) */
   /** Onglets des espaces affichés, selon leur type et le mode : 5 dans la barre, les autres dans « ⋯ Plus » */
   const tabs = useMemo(
@@ -2896,6 +2900,9 @@ function Main() {
         </ScrollView>
         </View>
       </View>
+
+      {/* Remarques de la démo : languette 📝 au bord droit */}
+      <BoutonRemarque />
 
       {/* Bandeau « … · Annuler » des écrans, au-dessus des onglets */}
       <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: TAB_BAR + insets.bottom + 4, height: 70, zIndex: 20 }}>

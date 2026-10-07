@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bilan des réunions</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system, system-ui, "Segoe UI", Roboto, sans-serif; background:#EEF1F6; color:#18202C; }
+  .page { max-width:1000px; padding:28px 16px 30px; margin:0 auto; }
+  h1 { margin:0; font-size:28px; letter-spacing:-.4px; }
+  h1 span { color:#1A73E8; }
+  h2 { font-size:17px; margin:22px 0 8px; }
+  .sous { color:#6B7686; font-size:14.5px; margin:6px 0 16px; }
+  .tab { overflow-x:auto; background:#fff; border:1px solid #E1E6ED; border-radius:14px; }
+  table { border-collapse:collapse; width:100%; min-width:640px; font-size:13px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #EEF1F5; vertical-align:top; }
+  th { font-size:11.5px; text-transform:uppercase; letter-spacing:.4px; color:#6B7686; background:#F7F9FC; }
+  tr:last-child td { border-bottom:0; }
+  .p { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11.5px; font-weight:700; white-space:nowrap; }
+  .ok { background:#E3F4E8; color:#16703A; } .enc { background:#FFF1D6; color:#8A4B00; } .non { background:#EEF1F5; color:#5A6576; } .ko { background:#FDE7E5; color:#B3261E; }
+  .grille { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:12px; }
+  .bloc { background:#fff; border:1px solid #E1E6ED; border-radius:14px; padding:14px 16px; min-width:0; }
+  .bloc h3 { margin:0 0 6px; font-size:15px; }
+  ul, ol { margin:0; padding-left:18px; } li { font-size:13px; line-height:1.5; color:#3A4556; margin:3px 0; } li b { color:#18202C; }
+  .pied { margin-top:16px; font-size:12.5px; color:#6B7686; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Bilan <span>des réunions</span></h1>
+  <div class="sous">President · lot 6 · état au 7/10 : maquettes (validées ou non) et code (développé ou non), puis les questions restées sans réponse — pour fixer les priorités</div>
+
+  <h2>Les 20 réunions</h2>
+  <div class="tab"><table>
+    <tr><th>#</th><th>Réunion</th><th>Maquette</th><th>Code</th><th>Reste à faire</th></tr>
+    <tr><td>1</td><td>☀️ Daily (équipe)</td><td><span class="p ok">validée</span></td><td><span class="p ok">développée</span></td><td>Aligner sur l'harmonisation : enlever l'étape « Prêt » et l'onglet « Suivre », ajouter bandeau et onglet Compte rendu ; question Hier / Aujourd'hui des blocages</td></tr>
+    <tr><td>2</td><td>🗓️ Planification d'itération</td><td><span class="p ok">validée</span></td><td><span class="p non">squelette</span></td><td>Coder ; refaire l'écran membre du poker rapide avec le bloc de vote commun</td></tr>
+    <tr><td>3</td><td>🔁 Revue d'itération</td><td><span class="p ok">validée</span></td><td><span class="p non">squelette</span></td><td>Coder</td></tr>
+    <tr><td>4</td><td>🔄 Rétrospective</td><td><span class="p ok">validée</span></td><td><span class="p non">squelette</span></td><td>Coder (dont la suppression des points finis, prévue à la rétro)</td></tr>
+    <tr><td>5</td><td>🧹 Affinage du backlog</td><td><span class="p ok">validée</span></td><td><span class="p non">squelette</span></td><td>Coder (bloc de vote, Prête calculée, forçage)</td></tr>
+    <tr><td>6</td><td>🎯 PI Planning</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p non">squelette</span></td><td>Valider (prochaine)</td></tr>
+    <tr><td>7</td><td>🔄 ART sync</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p non">squelette</span></td><td>Valider</td></tr>
+    <tr><td>8</td><td>🖥️ System demo</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p non">squelette</span></td><td>Valider</td></tr>
+    <tr><td>9</td><td>🔍 Inspect &amp; Adapt</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p non">squelette</span></td><td>Valider</td></tr>
+    <tr><td>10</td><td>🧭 Revue du portfolio</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p non">squelette</span></td><td>Valider</td></tr>
+    <tr><td>11</td><td>🎯 Revue des OKR</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p non">squelette</span></td><td>Valider</td></tr>
+    <tr><td>12</td><td>🌅 Point perso du matin (Simple)</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p non">squelette</span></td><td>Valider</td></tr>
+    <tr><td>13</td><td>🌙 Bilan du soir (Simple)</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p non">squelette</span></td><td>Valider</td></tr>
+    <tr><td>14</td><td>📆 Revue de la semaine (Simple)</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p non">squelette</span></td><td>Valider</td></tr>
+    <tr><td>15</td><td>🎯 Revue des objectifs (Simple)</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p non">squelette</span></td><td>Valider</td></tr>
+    <tr><td>16</td><td>🪄 Affinage du backlog du train</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p ko">absente</span></td><td>Valider, puis l'ajouter aux types de réunion</td></tr>
+    <tr><td>17</td><td>🧭 Préparation du PI Planning</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p ko">absente</span></td><td>Valider, puis l'ajouter</td></tr>
+    <tr><td>18</td><td>🔄 Synchronisation du portfolio</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p ko">absente</span></td><td>Valider, puis l'ajouter</td></tr>
+    <tr><td>19</td><td>💶 Budget participatif</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p ko">absente</span></td><td>Valider, puis l'ajouter</td></tr>
+    <tr><td>20</td><td>💡 Itération IP</td><td><span class="p enc">harmonisée, à valider</span></td><td><span class="p ko">absente</span></td><td>Valider, puis l'ajouter</td></tr>
+  </table></div>
+  <div class="pied">Squelette = la réunion existe dans 📅 Réunions (fenêtre, étapes, ↻ Actualiser) mais ses étapes affichent « À venir ». Absente = pas encore dans l'application.</div>
+
+  <h2>Fonctions communes</h2>
+  <div class="grille">
+    <div class="bloc"><h3>Développées</h3><ul>
+      <li><b>Fenêtre de réunion</b> : étapes, onglets par rôle, « ↻ Actualiser » (une lecture groupée, 5 s au moins).</li>
+      <li><b>Ajout d'un point</b> en une fenêtre (« Nouveau blocage »…), avec Concrétisation pour un oubli (Daily).</li>
+      <li><b>Concrétisation</b> 4 écrans, <b>Transmettre à</b> / <b>Escalader</b>, points de suivi, réponse recopiée dans la chaîne, « 📅 Suivi dans les réunions » dans Synchro.</li>
+      <li><b>Remarques de la démo</b> (nouveau, 7/10) : languette 📝, écran et étape pris automatiquement, « Copier le compte rendu ».</li>
+    </ul></div>
+    <div class="bloc"><h3>Pas encore développées</h3><ul>
+      <li><b>Ligne d'état</b> et <b>bandeau « ● En direct »</b>.</li>
+      <li><b>Onglet « Compte rendu · date »</b> pour son destinataire.</li>
+      <li><b>Bloc de vote commun</b> (ouvrir, x sur y, révéler, Retenir · Nouveau tour · Reporter).</li>
+      <li><b>Barre « ‹ 1 · 2 › »</b> des écrans élément par élément.</li>
+      <li><b>Suppression des points finis</b> à la rétro, sinon à la démo (le Daily les garde déjà jusque-là).</li>
+    </ul></div>
+  </div>
+
+  <h2>Questions sans réponse</h2>
+  <div class="bloc"><ol>
+    <li><b>Daily · Hier / Aujourd'hui sur un blocage</b> : garder la date du blocage (son âge), la montrer autrement, ou la retirer ? — brainstorm en cours.</li>
+    <li><b>Bandeau « En direct »</b> : vous avez demandé de le garder « en dehors ». En dehors de la fenêtre de la réunion (sur tous les écrans de l'application pendant la séance), ou aussi en mode Simple et à la rétro, où il est retiré aujourd'hui ?</li>
+    <li><b>Suivi en direct</b> : quel mécanisme choisir (relecture régulière de la ligne d'état, durée entre deux relectures), et où l'afficher hors de la fenêtre ?</li>
+    <li><b>Code du Daily</b> : l'aligner maintenant sur l'harmonisation (sans « Prêt » ni « Suivre »), ou après la validation des autres réunions ?</li>
+    <li><b>Ordre de développement</b> des 4 réunions validées pas encore codées (Planification, Revue, Rétrospective, Affinage).</li>
+    <li><b>Hard sync et réunions configurables</b> : mis de côté (« on n'en parle pas ») ; à reprendre quand ?</li>
+    <li><b>Dépôt privé</b> : à faire par vous (Settings › General › Change visibility, puis Pages › Unpublish) ; fait ?</li>
+  </ol></div>
+  <div class="pied">Règles communes : docs/regles-reunions.html · détail des décisions : docs/mission.html (lot 6). Mis à jour le 7/10.</div>
+</div>
+</body>
+</html>

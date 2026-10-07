@@ -279,6 +279,7 @@ export function FenetreReunion(p: Props) {
       onClose={onFermer}
       fil={fil}
       droite={droite || undefined}
+      contexte={`${courant.libelle ? `${courant.libelle} · ` : ''}étape ${etape + 1} sur ${etapes.length} : ${etapes[etape] ?? ''}`}
       haut={
         <>
           {barreOnglets}

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -19,6 +19,8 @@ import { assombrir, colors } from '../theme';
 import { EPIC_COULEURS } from '../types';
 import { TexteAjuste } from './TexteAjuste';
 import { AutoContext, LectureContext } from './EnregistrementAuto';
+import { BoutonRemarque } from './RemarquesDemo';
+import { ouvrirCouche } from '../remarquesDemo';
 
 const nomRetour = (r: string | string[]) => (Array.isArray(r) ? r[0] : r);
 
@@ -59,6 +61,8 @@ interface Props {
   haut?: ReactNode;
   /** En-tête, à droite, quand il n'y a pas d'« Enregistrer » (« ↻ Actualiser » d'une réunion) */
   droite?: ReactNode;
+  /** Remarques de la démo : détail de l'écran affiché (onglet et étape d'une réunion) */
+  contexte?: string;
 }
 
 /** Pile de fiches : fiche d'en dessous (« ‹ … »), fil en haut, tout fermer */
@@ -119,7 +123,19 @@ export function BoutonRetour({ pile, onPress, disabled, style, fermer }: { pile?
 }
 
 /** Fenêtre de formulaire : Annuler / titre / Enregistrer, message d'erreur, contenu défilant. */
-export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil, auto, bandeau, onToucher, libelleEnregistrer = 'Enregistrer', superpose, haut, droite }: Props) {
+export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil, auto, bandeau, onToucher, libelleEnregistrer = 'Enregistrer', superpose, haut, droite, contexte = '' }: Props) {
+  // Remarques de la démo : la fenêtre visible s'ajoute à la pile du contexte (titre, puis étape)
+  const couche = useRef<ReturnType<typeof ouvrirCouche> | null>(null);
+  useEffect(() => {
+    if (!visible) return;
+    couche.current = ouvrirCouche(fil ? `${title} (${fil})` : title, contexte);
+    return () => {
+      couche.current?.fermer();
+      couche.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+  useEffect(() => couche.current?.maj(fil ? `${title} (${fil})` : title, contexte), [title, fil, contexte]);
   const cadre = (enfants: ReactNode) =>
     superpose ? (
       <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -169,6 +185,7 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
           </ScrollView>
         </KeyboardAvoidingView>
         {bandeau}
+        <BoutonRemarque />
     </>,
   );
 }
