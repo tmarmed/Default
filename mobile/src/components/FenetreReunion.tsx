@@ -312,18 +312,15 @@ export function FenetreReunion(p: Props) {
       error={error}
       onClose={onFermer}
       fil={fil}
-      droite={droite || plus ? (
-        <View style={s.droite}>
-          {plus}
-          {droite}
-        </View>
-      ) : undefined}
+      droite={droite || undefined}
       contexte={`${courant.libelle ? `${courant.libelle} · ` : ''}étape ${etape + 1} sur ${etapes.length} : ${etapes[etape] ?? ''}`}
       haut={
-        <>
+        <View style={s.hautPlus}>
+          {/* « ⋯ » au bout de la ligne de la réunion (niveau · date · heure), sans gêner le titre */}
+          {!!plus && <View style={s.plusPos}>{plus}</View>}
           {barreOnglets}
           {barre}
-        </>
+        </View>
       }
       bandeau={bas}
     >
@@ -384,7 +381,8 @@ const s = StyleSheet.create({
   directPanneau: { backgroundColor: colors.bg },
   directContenu: { padding: 12, gap: 6 },
   directLecture: { fontSize: 11.5, color: colors.muted, textAlign: 'center', paddingVertical: 6, backgroundColor: colors.bg },
-  droite: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  plus: { paddingHorizontal: 6 },
+  hautPlus: { position: 'relative', zIndex: 2 },
+  plusPos: { position: 'absolute', right: 12, top: -26, zIndex: 3 },
+  plus: { paddingHorizontal: 8, paddingVertical: 2 },
   plusTexte: { fontSize: 20, color: colors.muted, fontWeight: '700' },
 });

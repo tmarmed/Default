@@ -3409,6 +3409,7 @@ function Main() {
         ]}
         onClose={() => setTypeMenu(false)}
       />
+      {!!porteeMenu && (
       <ChoiceSheet
         visible={!!porteeMenu}
         title={porteeMenu ? `${porteeMenu.titre} du ${porteeMenu.debut.slice(8, 10)}/${porteeMenu.debut.slice(5, 7)}` : ''}
@@ -3433,6 +3434,8 @@ function Main() {
         }
         onClose={() => setPorteeMenu(null)}
       />
+      )}
+      {!!confirmerSerie && (
       <ChoiceSheet
         visible={!!confirmerSerie}
         title={confirmerSerie ? (confirmerSerie.action === 'annuler' ? `Annuler ${confirmerSerie.r.titre} du ${confirmerSerie.r.debut.slice(8, 10)}/${confirmerSerie.r.debut.slice(5, 7)} ?` : `Arrêter ${confirmerSerie.r.titre} à partir du ${confirmerSerie.r.debut.slice(8, 10)}/${confirmerSerie.r.debut.slice(5, 7)} ?`) : ''}
@@ -3467,6 +3470,8 @@ function Main() {
         ]}
         onClose={() => setConfirmerSerie(null)}
       />
+      )}
+      {!!serieFiche && (
       <SerieForm
         visible={!!serieFiche}
         vue={serieFiche?.vue ?? null}
@@ -3482,6 +3487,7 @@ function Main() {
           appliquerSeries(await api.ecrireSeries(settings, espace, lot));
         }}
       />
+      )}
       <ChoiceSheet
         visible={!!askSubs}
         title="Terminer aussi les sous-tâches ?"
