@@ -9,7 +9,8 @@ import { feriesFrance } from './reunionsEquipe';
  *
  * Périodicité : d'abord l'unité — standard (jour, semaine, mois, trimestre, année) ou agile (sprint, PI) — puis le
  * moment dans la période : début, milieu, fin, début + x jours ouvrés, fin − x jours ouvrés (PI : aussi la semaine
- * IP) ; ou des jours de la semaine (« chaque mercredi », « 1er mardi du mois »).
+ * IP), milieu ± x jours ouvrés ; ou des jours de la semaine (« chaque mercredi », « 1er mardi du mois »). Toujours des
+ * jours ouvrés.
  * Jour férié ou week-end : la réunion passe au jour ouvré le plus proche, sans sortir de sa période (début : plutôt
  * après ; fin : plutôt avant). Règle « chaque jour ouvré » : les fériés sont sautés.
  * Exceptions (même ligne, JSON) : une réunion déplacée ou annulée, repérée par sa date d'origine (gardée dans l'id de
@@ -168,7 +169,8 @@ function decaler(j: string, n: number, debut: string, fin: string): string {
 /** Dates (d'origine) produites par la règle dans une période */
 function datesPeriode(s: SerieReunion, p: Periode, cal: Calendrier): string[] {
   const jours = listeJours(s);
-  if (s.unite === 'jour') return s.jours === 'ouvres' && !estOuvre(p.debut) ? [] : [p.debut];
+  // Toujours des jours ouvrés (règle du 07/10)
+  if (s.unite === 'jour') return estOuvre(p.debut) ? [p.debut] : [];
   if (s.unite === 'semaine') {
     const l = jours.length ? jours : [1];
     return l.map((n) => plus(p.debut, n - 1)).flatMap((j) => (estOuvre(j) ? [j] : (ouvreProche(j, p.debut, p.fin, 1) ?? [])));
@@ -333,7 +335,7 @@ export function libelleRegle(s: Pick<SerieReunion, 'unite' | 'ancre' | 'ecart' |
   const tous = Math.max(1, nombre(s.tous, 1));
   const jours = listeJours(s);
   const nomJours = jours.map((n) => JOURS_SEMAINE[n]).join(', ');
-  if (s.unite === 'jour') return s.jours === 'ouvres' ? 'Chaque jour ouvré' : tous > 1 ? `Tous les ${tous} jours` : 'Chaque jour';
+  if (s.unite === 'jour') return tous > 1 ? `Tous les ${tous} jours ouvrés` : 'Chaque jour ouvré';
   if (s.unite === 'semaine') return `${tous > 1 ? `Toutes les ${tous} semaines` : 'Chaque semaine'} · ${nomJours || 'lundi'}`;
   const unite = { mois: 'mois', trimestre: 'trimestre', annee: 'année', sprint: 'sprint', pi: 'PI' }[s.unite as 'mois'];
   const chaque = tous > 1 ? `Tous les ${tous} ${s.unite === 'annee' ? 'ans' : s.unite === 'mois' ? 'mois' : `${unite}s`}` : `Chaque ${unite}`;
@@ -348,7 +350,9 @@ export function libelleRegle(s: Pick<SerieReunion, 'unite' | 'ancre' | 'ecart' |
             ? `fin − ${Math.abs(e)} j`
             : 'fin'
           : s.ancre === 'milieu'
-            ? 'milieu'
+            ? e
+              ? `milieu ${e > 0 ? '+' : '−'} ${Math.abs(e)} j`
+              : 'milieu'
             : e
               ? `début + ${e} j`
               : 'début';

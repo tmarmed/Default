@@ -97,7 +97,7 @@ ok(du(tom2, '2026-10-02').find((r) => r.niveau === 'equipeagile:mobeq')?.organis
 
 // Mode Simple : rituels personnels
 const simple = reunionsAVenir(o, 'vous@demo', '2026-10-01', false, 40);
-ok(du(simple, '2026-10-03').map((r) => r.type).join(',') === 'point_perso,bilan_soir', 'Simple : point perso et bilan du soir, chaque jour');
+ok(du(simple, '2026-10-02').map((r) => r.type).join(',') === 'point_perso,bilan_soir' && !du(simple, '2026-10-03').length, 'Simple : point perso et bilan du soir, chaque jour ouvré (pas le samedi)');
 ok(du(simple, '2026-10-05').some((r) => r.type === 'revue_semaine'), 'Simple : revue de la semaine le lundi');
 ok(du(simple, '2026-11-02').some((r) => r.type === 'revue_objectifs'), 'Simple : revue des objectifs le 1er jour ouvré du mois (1er novembre : dimanche et férié → lundi 2)');
 ok(du(simple, '2026-10-01').some((r) => r.type === 'revue_trimestre') && !du(simple, '2026-10-01').some((r) => r.type === 'revue_objectifs'), 'Simple : revue du trimestre le 1er octobre (à la place de la revue des objectifs)');

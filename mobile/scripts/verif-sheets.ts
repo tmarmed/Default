@@ -5,6 +5,7 @@
  * Lancer : npm run verif:sheets
  */
 import { adopterFichier, corbeille, reglerQuota, creerFichierEspace, fichiersCorbeille, fichiersEspaces, magasinSheets, renommerFichier, utiliserJeton } from '../src/gsheets';
+import { ONGLETS } from '../src/magasin';
 
 type Feuille = string[][];
 const fichiers = new Map<string, { titre: string; props: Record<string, string>; feuilles: Map<string, Feuille>; jete?: boolean }>();
@@ -351,6 +352,13 @@ const ok = (cond: unknown, msg: string) => {
   const avantModifs = appels;
   const modifs = await dm.modifierItems(tachesD.slice(1).map((t, i) => ({ id: t.id, iteration: '2026-T4-IT2', points: String(i + 1) })));
   ok(modifs.length === 5 && modifs[4].points === '5' && modifs[0].iteration === '2026-T4-IT2' && appels - avantModifs === 2, `réunion : 5 stories modifiées (itération, points) en ${appels - avantModifs} appels`);
+  // « Sprint » dans le Sheet (07/10) : la colonne s'appelle « sprint » ; un ancien en-tête « iteration » est renommé
+  const ongletTaches = ONGLETS.items.nom;
+  const enteteT = () => fichiers.get(idD)!.feuilles.get(ongletTaches)![0] as string[];
+  ok(enteteT().includes('sprint') && !enteteT().includes('iteration'), 'Sheet : colonne « sprint » (plus « iteration »)');
+  enteteT()[enteteT().indexOf('sprint')] = 'iteration';
+  const relus = await dm.list();
+  ok(relus.find((x) => x.id === storyD.id)?.iteration === '2026-T4-IT1' && enteteT().includes('sprint') && !enteteT().includes('iteration'), 'Sheet : ancien en-tête « iteration » lu puis renommé « sprint »');
   // Séries de réunions (07/10) : 12 séries créées au démarrage en une écriture, puis une coupée en deux en 2 appels
   const lotSeries = Array.from({ length: 12 }, (_, i) => ({ id: `daily-equipeagile:e${i}`, type_reunion: 'daily', titre: '', niveau: `equipeagile:e${i}`, unite: 'jour' as const, ancre: '' as const, ecart: '', jours: 'ouvres', tous: '', sauf: '', heure: '09:30', duree: '15', animateur: '', editeurs: '', participants: '', debut: '', fin: '', exceptions: '', actif: '', cree_le: '', modifie_le: '' }));
   const avantSeries = appels;

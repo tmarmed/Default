@@ -196,7 +196,7 @@ export async function creerFichierEspace(titre: string, type: TypeEspace, nomEsp
   await appel(`${SHEETS}/${f.id}:batchUpdate`, { method: 'POST', body: JSON.stringify({ requests }) });
   await appel(`${SHEETS}/${f.id}/values:batchUpdate`, {
     method: 'POST',
-    body: JSON.stringify({ valueInputOption: 'RAW', data: TABLES.map((t) => ({ range: plage(ONGLETS[t].nom, 'A1'), values: [ONGLETS[t].colonnes] })) }),
+    body: JSON.stringify({ valueInputOption: 'RAW', data: TABLES.map((t) => ({ range: plage(ONGLETS[t].nom, 'A1'), values: [enteteSheet(ONGLETS[t].colonnes)] })) }),
   });
   return f.id;
 }
@@ -212,6 +212,14 @@ function colonne(n: number): string {
   for (; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
   return s;
 }
+
+/**
+ * Nom d'une colonne dans le Sheet quand il diffère du champ de l'application (07/10 : « Sprint » partout, même dans
+ * le Sheet ; le champ reste `iteration`). Un ancien en-tête « iteration » est renommé « sprint » à la lecture.
+ */
+const NOM_SHEET: Record<string, string> = { iteration: 'sprint' };
+const CHAMP_DE: Record<string, string> = { ...Object.fromEntries(Object.entries(NOM_SHEET).map(([c, n]) => [n, c])) };
+const enteteSheet = (cols: string[]) => cols.map((c) => NOM_SHEET[c] ?? c);
 
 function persistanceSheets(fichier: string): Persistance {
   /** Colonnes lues de chaque onglet (celles du fichier, plus les nouvelles de l'application ajoutées à la fin) */
@@ -230,7 +238,7 @@ function persistanceSheets(fichier: string): Persistance {
     });
     await appel(`${SHEETS}/${fichier}/values:batchUpdate`, {
       method: 'POST',
-      body: JSON.stringify({ valueInputOption: 'RAW', data: tables.map((t) => ({ range: plage(ONGLETS_TOUS[t].nom, 'A1'), values: [ONGLETS_TOUS[t].colonnes] })) }),
+      body: JSON.stringify({ valueInputOption: 'RAW', data: tables.map((t) => ({ range: plage(ONGLETS_TOUS[t].nom, 'A1'), values: [enteteSheet(ONGLETS_TOUS[t].colonnes)] })) }),
     });
   };
 
@@ -300,16 +308,19 @@ function persistanceSheets(fichier: string): Persistance {
       await assurerOnglet(t);
       const nom = ONGLETS_TOUS[t].nom;
       const [entete = [], ...rows] = await lireValeurs(t);
-      const cols = entete.map((h) => String(h).trim());
-      // Colonnes de l'application absentes du fichier : ajoutées à la fin
+      const brut = entete.map((h) => String(h).trim());
+      // Champs de l'application (« sprint » du Sheet = champ `iteration`)
+      const cols = brut.map((h) => CHAMP_DE[h] ?? h);
+      // Colonnes de l'application absentes du fichier : ajoutées à la fin ; ancien nom (« iteration ») : renommé
       const nouvelles = ONGLETS_TOUS[t].colonnes.filter((c) => !cols.includes(c));
-      if (nouvelles.length) {
+      const aRenommer = brut.some((h) => !!NOM_SHEET[h]);
+      if (nouvelles.length || aRenommer) {
         // Tout l'en-tête réécrit depuis A1 : Google agrandit alors la grille si elle est trop étroite (un fichier
         // ancien de 28 colonnes) ; écrire à partir de la 29ᵉ colonne serait refusé (« exceeds grid limits »)
         cols.push(...nouvelles);
         await appel(`${SHEETS}/${fichier}/values/${encodeURIComponent(plage(nom, 'A1'))}?valueInputOption=RAW`, {
           method: 'PUT',
-          body: JSON.stringify({ values: [cols] }),
+          body: JSON.stringify({ values: [enteteSheet(cols)] }),
         });
       }
       entetes.set(t, cols);

@@ -30,6 +30,8 @@ import { FormSheet } from './FormSheet';
 export type PorteeSerie = 'une' | 'suivantes' | 'toutes';
 export const LIBELLE_PORTEE: Record<PorteeSerie, string> = { une: 'Cette réunion', suivantes: 'Celle-ci et les suivantes', toutes: 'Toute la série' };
 
+/** « Tous les mois », « tous les 2 sprints » */
+const PLURIEL: Record<UniteSerie, string> = { jour: 'jours', semaine: 'semaines', mois: 'mois', trimestre: 'trimestres', annee: 'ans', sprint: 'sprints', pi: 'PI' };
 const jourCourt = (j: string) => {
   const d = new Date(`${j}T12:00`);
   return `${['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'][d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`;
@@ -111,7 +113,8 @@ export function SerieForm({
   }, [f, aujourdhui, vue?.cal]);
   const orphelines = useMemo(() => (vue ? exceptionsOrphelines(f, vue.cal) : []), [f, vue]);
 
-  const enregistrer = async () => {
+  /** `annuler` : « Annuler cette réunion » (elle n'apparaît plus) */
+  const enregistrer = async (annuler = false) => {
     if (!modifiable) return onClose();
     setBusy(true);
     setError(null);
@@ -120,8 +123,8 @@ export function SerieForm({
       const espace = f.espace || vue?.serie.espace || niveaux.find((n) => n.value === f.niveau)?.espace || 'moi';
       let lot: SerieReunion[];
       if (vue && portee === 'une' && origine) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(occ.date) || !/^\d{1,2}:\d{2}$/.test(occ.heure)) throw new Error('Date (AAAA-MM-JJ) et heure (ex. 9:30) attendues.');
-        lot = [modifierOccurrence(vue.serie, origine, occ.annulee ? { annulee: true } : { a: `${occ.date}T${occ.heure.padStart(5, '0')}`, duree: Number(occ.duree) || undefined })];
+        if (!annuler && !/^\d{4}-\d{2}-\d{2}$/.test(occ.date) || !/^\d{1,2}:\d{2}$/.test(occ.heure)) throw new Error('Date (AAAA-MM-JJ) et heure (ex. 9:30) attendues.');
+        lot = [modifierOccurrence(vue.serie, origine, annuler ? { annulee: true } : { a: `${occ.date}T${occ.heure.padStart(5, '0')}`, duree: Number(occ.duree) || undefined })];
       } else if (vue && portee === 'suivantes' && origine) {
         lot = couperSerie(vue.serie, origine, changements(vue.serie, f), maintenant);
       } else if (vue) lot = [modifierSerie(vue.serie, changements(vue.serie, f), maintenant)];
@@ -154,7 +157,7 @@ export function SerieForm({
       busy={busy}
       error={error}
       onClose={onClose}
-      onSave={modifiable ? enregistrer : undefined}
+      onSave={modifiable ? () => enregistrer() : undefined}
       contexte={`Série ${f.id}`}
     >
       {!modifiable && (
@@ -166,23 +169,26 @@ export function SerieForm({
       {vue && portee === 'une' && origine ? (
         <SectionFiche titre={`Réunion du ${jourCourt(origine)}`}>
           <ChampFiche label="Date">
-            <SaisieFiche value={occ.date} editable={modifiable && !occ.annulee} onChangeText={(v) => setOcc((o) => ({ ...o, date: v.replace(/[^0-9-]/g, '').slice(0, 10) }))} placeholder="AAAA-MM-JJ" />
+            <SaisieFiche value={occ.date} editable={modifiable} onChangeText={(v) => setOcc((o) => ({ ...o, date: v.replace(/[^0-9-]/g, '').slice(0, 10) }))} placeholder="AAAA-MM-JJ" />
           </ChampFiche>
           <ChampFiche label="Heure">
-            <SaisieFiche value={occ.heure} editable={modifiable && !occ.annulee} onChangeText={(v) => setOcc((o) => ({ ...o, heure: v.replace(/[^0-9:]/g, '').slice(0, 5) }))} placeholder="9:30" />
+            <SaisieFiche value={occ.heure} editable={modifiable} onChangeText={(v) => setOcc((o) => ({ ...o, heure: v.replace(/[^0-9:]/g, '').slice(0, 5) }))} placeholder="9:30" />
           </ChampFiche>
           <ChampFiche label="Durée">
             <View style={s.rang}>
-              <SaisieFiche value={occ.duree} editable={modifiable && !occ.annulee} keyboardType="number-pad" onChangeText={(v) => setOcc((o) => ({ ...o, duree: v.replace(/\D/g, '').slice(0, 3) }))} placeholder="minutes" style={s.minutes} />
+              <SaisieFiche value={occ.duree} editable={modifiable} keyboardType="number-pad" onChangeText={(v) => setOcc((o) => ({ ...o, duree: v.replace(/\D/g, '').slice(0, 3) }))} placeholder="minutes" style={s.minutes} />
               {!!occ.duree && <Text style={s.gris}>min</Text>}
             </View>
           </ChampFiche>
-          <ChampFiche label="Annulée">
-            <Puces options={[{ v: 'n', l: 'Non' }, { v: 'o', l: 'Oui, annulée' }]} value={occ.annulee ? 'o' : 'n'} onChange={(v) => modifiable && setOcc((o) => ({ ...o, annulee: v === 'o' }))} />
-          </ChampFiche>
           <Text style={s.aide}>Les autres réunions de la série ne changent pas. Revenue à l'identique, l'exception disparaît.</Text>
         </SectionFiche>
-      ) : (
+      ) : null}
+      {vue && portee === 'une' && origine && modifiable ? (
+        <Pressable onPress={() => enregistrer(true)} style={s.arreter} accessibilityRole="button" disabled={busy}>
+          <Text style={s.arreterTexte}>Annuler cette réunion</Text>
+        </Pressable>
+      ) : null}
+      {vue && portee === 'une' && origine ? null : (
         <>
           {(nouvelle || type === 'reunion') && (
             <SectionFiche titre="Réunion">
@@ -208,17 +214,12 @@ export function SerieForm({
                 <Puces
                   options={UNITES_STANDARD.map((u) => ({ v: u, l: LIBELLE_UNITE[u] }))}
                   value={unite}
-                  onChange={(v) => set({ unite: v as UniteSerie, ancre: v === 'jour' || v === 'semaine' ? '' : f.ancre || 'debut', jours: v === 'semaine' ? '1' : v === 'jour' ? 'ouvres' : '', ecart: '' })}
+                  onChange={(v) => set({ unite: v as UniteSerie, ancre: v === 'jour' || v === 'semaine' ? '' : f.ancre || 'debut', jours: v === 'semaine' ? '1' : '', ecart: '' })}
                 />
               </ChampFiche>
               {safeActif && (
                 <ChampFiche label="Agile" colonne>
                   <Puces options={UNITES_AGILES.map((u) => ({ v: u, l: LIBELLE_UNITE[u] }))} value={unite} onChange={(v) => set({ unite: v as UniteSerie, ancre: f.ancre || 'debut', jours: '', ecart: '' })} />
-                </ChampFiche>
-              )}
-              {unite === 'jour' && (
-                <ChampFiche label="Jours">
-                  <Puces options={[{ v: 'ouvres', l: 'Jours ouvrés' }, { v: '', l: 'Tous les jours' }]} value={f.jours === 'ouvres' ? 'ouvres' : ''} onChange={(v) => set({ jours: v })} />
                 </ChampFiche>
               )}
               {unite === 'semaine' && (
@@ -237,9 +238,14 @@ export function SerieForm({
                   <ChampFiche label="Moment" colonne>
                     <Puces options={moments} value={f.ancre || 'debut'} onChange={(v) => set({ ancre: v as AncreSerie, ecart: '' })} />
                   </ChampFiche>
-                  {(f.ancre || 'debut') !== 'milieu' && (f.ancre || 'debut') !== 'ip' && !jours.length && (
-                    <ChampFiche label={f.ancre === 'fin' ? 'Fin −' : 'Début +'} sous="Jours ouvrés">
-                      <Pas valeur={Math.abs(ecart)} min={0} max={30} onChange={(n) => set({ ecart: n ? String(f.ancre === 'fin' ? -n : n) : '' })} suffixe=" j" />
+                  {/* Début + x, fin − x ; milieu ± x (jours ouvrés) */}
+                  {(f.ancre || 'debut') !== 'ip' && !jours.length && (
+                    <ChampFiche label={f.ancre === 'fin' ? 'Fin −' : f.ancre === 'milieu' ? 'Milieu ±' : 'Début +'} sous="Jours ouvrés">
+                      {f.ancre === 'milieu' ? (
+                        <Pas valeur={ecart} min={-10} max={10} onChange={(n) => set({ ecart: n ? String(n) : '' })} format={(n) => (n ? `${n > 0 ? '+' : '−'} ${Math.abs(n)} j` : '0 j')} />
+                      ) : (
+                        <Pas valeur={Math.abs(ecart)} min={0} max={30} onChange={(n) => set({ ecart: n ? String(f.ancre === 'fin' ? -n : n) : '' })} suffixe=" j" />
+                      )}
                     </ChampFiche>
                   )}
                   {unite !== 'sprint' && unite !== 'pi' && (
@@ -256,7 +262,7 @@ export function SerieForm({
                 </>
               )}
               <ChampFiche label="Tous les">
-                <Pas valeur={Math.max(1, Number(f.tous) || 1)} min={1} max={12} onChange={(n) => set({ tous: n > 1 ? String(n) : '' })} suffixe={` ${unite === 'annee' ? 'an(s)' : LIBELLE_UNITE[unite].toLowerCase()}`} />
+                <Pas valeur={Math.max(1, Number(f.tous) || 1)} min={1} max={12} onChange={(n) => set({ tous: n > 1 ? String(n) : '' })} format={(n) => (n > 1 ? `${n} ${PLURIEL[unite]}` : PLURIEL[unite])} />
               </ChampFiche>
               <Text style={s.regle}>{libelleRegle(f)}</Text>
             </SectionFiche>

@@ -94,15 +94,14 @@ export function Puces({ options, value, onChange }: { options: { v: string; l: s
   );
 }
 
-export function Pas({ valeur, min, max, onChange, suffixe = '' }: { valeur: number; min: number; max: number; onChange: (n: number) => void; suffixe?: string }) {
+export function Pas({ valeur, min, max, onChange, suffixe = '', format }: { valeur: number; min: number; max: number; onChange: (n: number) => void; suffixe?: string; format?: (n: number) => string }) {
   return (
     <View style={s.rang}>
       <Pressable onPress={() => onChange(Math.max(min, valeur - 1))} style={s.pas} accessibilityLabel="Moins">
         <Text style={s.pasTexte}>−</Text>
       </Pressable>
       <Text style={s.valeur}>
-        {valeur}
-        {suffixe}
+        {format ? format(valeur) : `${valeur}${suffixe}`}
       </Text>
       <Pressable onPress={() => onChange(Math.min(max, valeur + 1))} style={s.pas} accessibilityLabel="Plus">
         <Text style={s.pasTexte}>＋</Text>
