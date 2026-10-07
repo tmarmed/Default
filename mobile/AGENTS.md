@@ -48,7 +48,7 @@ Google refuse au-delà d'environ **60 écritures par minute** par utilisateur. D
   grouper avec `ecrireLot` (une lecture et une écriture par onglet), ou ajouter une opération groupée équivalente.
 - Toute nouvelle écriture de plusieurs éléments a un test dans `scripts/verif-sheets.ts` qui compte les appels
   (ex. « 110 éléments en 4 appels »).
-- Tout passe par `appel` (src/gsheets.ts) : file d'attente du quota (50 lectures et 50 écritures par minute
+- Tout passe par `appel` (src/gsheets.ts) : file d'attente du quota (30 lectures et 30 écritures par minute
   glissante, 250 ms d'écart) et attente croissante sur 429 / 5xx. Ne jamais appeler Google sans passer par `appel`.
 - Les lectures d'onglets faites en même temps sont groupées (values:batchGet) : lire un espace = 1 appel.
 - Même règle pour Claude quand il lit ou écrit lui-même dans un Sheet (connecteur Google Sheets) : lectures et

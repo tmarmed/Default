@@ -60,9 +60,10 @@
     <div class="bloc"><h2><i>4</i>Ligne d'état et « En direct »</h2><ul>
       <li><b>Une ligne d'état par réunion</b> (onglet PointsReunion) : étape et élément en cours chez l'animateur, état du vote (fermé, ouvert avec tour et éléments, révélé). Écrite quand l'animateur avance, ouvre ou révèle ; relue par les participants (↻ Actualiser ou toutes les 15 s).</li>
       <li><b>À l'ouverture de l'application</b>, si une de vos réunions est lancée : sa fenêtre s'ouvre d'abord (votre onglet), puis le chat s'il y a des échanges à traiter, puis l'application normale.</li>
-      <li><b>Détection des changements</b> : relecture de la seule ligne d'état, avec un numéro de version (l'écran ne change que s'il augmente) ; toutes les 5 s pendant un vote, 15 s sinon, en pause quand l'application n'est pas à l'écran ; ↻ Actualiser en plus.</li>
-      <li><b>Live seulement à plusieurs</b> : réunion à l'heure et avec au moins un autre participant → live sur l'écran de l'animateur ; seul → ni live ni « ↻ Actualiser ». Calculé à chaque fois : inviter quelqu'un ou changer la réunion l'active tout seul (y compris en mode Simple, à la rétro).</li>
+      <li><b>Détection des changements</b> : relecture de la seule ligne d'état, avec un numéro de version (l'écran ne change que s'il augmente) ; toutes les 10 s pendant un vote, 15 s sinon, en pause quand l'application n'est pas à l'écran ; ↻ Actualiser en plus.</li>
+      <li><b>Live seulement à plusieurs</b> : réunion lancée par l'animateur (pas d'horaire : en avance ou en retard, elle s'affiche quand même), jusqu'à l'envoi du compte rendu, avec au moins un autre participant → live sur l'écran de l'animateur ; seul → ni live ni « ↻ Actualiser ». Calculé à chaque fois : inviter quelqu'un ou changer la réunion l'active tout seul (y compris en mode Simple, à la rétro).</li>
       <li><b>Un seul bandeau de réunion</b>, en bas (au-dessus des onglets, ou du bouton de la fenêtre), 4 états : <b>bientôt</b> (clair, 10 min avant · « Préparer › ») ; <b>en direct</b> dans la fenêtre d'un participant (● « En direct · Nina anime · Tour de table », ▴ = écran de l'animateur en lecture seule, fermé par défaut ; remplace « Suivre ») ; <b>en cours</b> hors de la fenêtre, sur tous les écrans (« Rejoindre › », « Reprendre › » pour l'animateur) ; <b>seul</b> : « Reprendre › », sans point rouge. L'animateur n'a pas de bandeau dans sa fenêtre.</li>
+      <li><b>Bandeau du chat, séparé</b> (il concerne tous les échanges, pas la réunion) : « 🔄 2 échanges à traiter · Voir › », clair, juste au-dessus du bandeau de réunion ; jamais dans la fenêtre d'une réunion. Le chat ne s'ouvre au premier plan qu'à l'ouverture de l'application, si aucune réunion n'est lancée.</li>
       <li><b>Après la réunion : onglet « Compte rendu · 3/10 »</b> (la date dans le titre) pour celui qui reçoit le compte rendu ; lecture seule, disponible jusqu'à la fin de la réunion suivante de la série.</li>
     </ul></div>
 
@@ -96,7 +97,7 @@
     <div class="bloc"><h2><i>9</i>Compte rendu et quota</h2><ul>
       <li>Compte rendu au niveau du dessus (équipe → RTE, train → Epic Owner, portfolio → responsable de l'unité) ; jamais « N+1 » à l'écran : on nomme le rôle et la personne.</li>
       <li>Mode Simple : seul, sans compte rendu ni onglets, ni bandeau « En direct » ni « ↻ Actualiser ».</li>
-      <li>Google Sheets : écritures groupées, au plus une par Sheet et par envoi ; jamais un appel par élément.</li>
+      <li>Google Sheets : écritures groupées, au plus une par Sheet et par envoi ; jamais un appel par élément ; au plus 30 lectures et 30 écritures par minute et par personne (le quota du projet, environ 300 par minute, est partagé par tous).</li>
     </ul></div>
 
   </div>

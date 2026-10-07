@@ -19,10 +19,11 @@ export const utiliserJeton = (f: (force?: boolean) => Promise<string>) => {
 /**
  * Quota de l'API Google Sheets (par utilisateur) : 60 lectures et 60 écritures par minute, comptées à part ; au-delà,
  * Google répond 429. C'est un nombre d'appels, pas une taille : un appel groupé (plusieurs onglets, des centaines
- * de lignes) compte pour un seul. L'application garde une marge : au plus 50 appels de chaque sorte par minute
- * glissante, espacés d'au moins 250 ms ; les appels en trop attendent leur tour (file d'attente, dans l'ordre).
+ * de lignes) compte pour un seul. L'application garde une marge, et ménage le quota du projet (environ 300 par
+ * minute, partagé par tous ses utilisateurs) : au plus 30 appels de chaque sorte par minute glissante (07/10),
+ * espacés d'au moins 250 ms ; les appels en trop attendent leur tour (file d'attente, dans l'ordre).
  */
-const QUOTA = { limite: 50, fenetre: 60_000, ecart: 250, base: 1000 };
+const QUOTA = { limite: 30, fenetre: 60_000, ecart: 250, base: 1000 };
 /** Vérifications automatiques : quota réglable (sans attente, ou très court pour tester la file) */
 export const reglerQuota = (q: Partial<typeof QUOTA>) => Object.assign(QUOTA, q);
 const historique: Record<'lecture' | 'ecriture', number[]> = { lecture: [], ecriture: [] };
