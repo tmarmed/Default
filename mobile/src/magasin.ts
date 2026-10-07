@@ -151,7 +151,7 @@ function verifierSafe(o: Record<string, string>) {
     if (o.points && !RE_NOMBRE.test(o.points)) throw new Error('Points : nombre attendu.');
     if (o.rang && !/^\d+$/.test(o.rang)) o.rang = '';
   }
-  if (o.iteration && !RE_ITERATION.test(o.iteration)) throw new Error('Itération invalide (ex. 2026-T4-IT3).');
+  if (o.iteration && !RE_ITERATION.test(o.iteration)) throw new Error('Sprint invalide (ex. 2026-T4-IT3).');
   if (o.pi && !RE_PI.test(o.pi)) throw new Error('PI invalide (ex. 2026-T4).');
 }
 

@@ -463,7 +463,7 @@ export function OrgForm({
               sans="Sans métier"
               onChange={(v) => set('metier' as never)(v as never)}
             />
-            <ChampFiche label="Capacité" sous={safe.pointsJours ? 'Jours par itération.' : 'Points par itération.'}>
+            <ChampFiche label="Capacité" sous={safe.pointsJours ? 'Jours par sprint.' : 'Points par sprint.'}>
               <SaisieFiche placeholder="Facultatif (ex. 8)" value={form.capacite} onChangeText={set('capacite')} keyboardType="decimal-pad" />
             </ChampFiche>
           </SectionFiche>

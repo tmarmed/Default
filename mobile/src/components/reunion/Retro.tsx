@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { pointsFinis } from '../../daily';
 import type { VoteEtat } from '../../etatReunion';
-import { shiftIteration } from '../../pi';
+import { shiftIteration, nomSprintDe } from '../../pi';
 import type { CatalogueParcours, EtapeCatalogue, ParcoursRole } from '../../reunions';
 import { velocite } from '../../reunionsEquipe';
 import { TYPES_REUNION } from '../../types';
@@ -102,11 +102,11 @@ export function FenetreRetro(p: PropsReunion) {
       case 'situation':
         return (
           <>
-            <TitreFiche icone="📊" titre="Situation" vide="" sous={`${e.it.code} · ${auteurs.size} participant${auteurs.size > 1 ? 's' : ''} sur ${e.personnes.length} ont envoyé leurs idées`} />
+            <TitreFiche icone="📊" titre="Situation" vide="" sous={`${e.it.nom} · ${auteurs.size} participant${auteurs.size > 1 ? 's' : ''} sur ${e.personnes.length} ont envoyé leurs idées`} />
             <Compteurs l={[{ valeur: String(idees.length), libelle: 'idées reçues' }, { valeur: String(idees.filter((y) => y.anonyme).length), libelle: 'anonymes' }, { valeur: String(actionsPrec.length), libelle: 'actions suivies', ton: 'orange' }]} />
             <BlocSuivi r={r} lecture={lecture} onAjouter />
             <SectionFiche titre="Objectifs de la réunion">
-              <Ligne premiere texte="🎯 Regarder l’itération sans chercher de coupable" sous="Choisir 1 ou 2 améliorations concrètes, avec un responsable, pour l’itération suivante." />
+              <Ligne premiere texte="🎯 Regarder le sprint sans chercher de coupable" sous="Choisir 1 ou 2 améliorations concrètes, avec un responsable, pour le sprint suivante." />
             </SectionFiche>
           </>
         );
@@ -114,10 +114,10 @@ export function FenetreRetro(p: PropsReunion) {
         const prev = e.situation.prevus ? Math.round((100 * e.situation.faits) / e.situation.prevus) : 0;
         return (
           <>
-            <TitreFiche icone="📈" titre="Indicateurs" vide="" sous={`Calculés · ${v.iterations.map((y) => y.key.split('-').pop()).join(' à ')}`} />
+            <TitreFiche icone="📈" titre="Indicateurs" vide="" sous={`Calculés · ${v.iterations.map((y) => nomSprintDe(y.key)).join(' à ')}`} />
             <Compteurs l={[{ valeur: String(v.iterations[v.iterations.length - 1]?.points ?? 0), libelle: 'vélocité' }, { valeur: `${prev} %`, libelle: 'prévisibilité', ton: prev < 80 ? 'orange' : 'vert' }, { valeur: String(e.situation.bloquees), libelle: 'stories bloquées', ton: e.situation.bloquees ? 'rouge' : undefined }]} />
             <SectionFiche titre="Vélocité">
-              <Ligne premiere texte={v.iterations.map((y) => y.key.split('-').pop()).join(' → ')} sous={`moyenne ${v.moyenne} pts`} pastille={{ texte: v.iterations.map((y) => y.points).join(' · '), ton: 'bleu' }} />
+              <Ligne premiere texte={v.iterations.map((y) => nomSprintDe(y.key)).join(' → ')} sous={`moyenne ${v.moyenne} pts`} pastille={{ texte: v.iterations.map((y) => y.points).join(' · '), ton: 'bleu' }} />
             </SectionFiche>
             <SectionFiche titre={`Actions des rétros précédentes · ${actionsPrec.length}`}>
               {actionsPrec.length ? (
@@ -214,18 +214,18 @@ export function FenetreRetro(p: PropsReunion) {
           </>
         );
       case 'concretisation':
-        return <EtapeConcretisation r={r} lecture={lecture} iterationCode={e.it.code} />;
+        return <EtapeConcretisation r={r} lecture={lecture} iterationCode={e.it.nom} />;
       case 'compte_rendu':
         return (
           <EtapeCompteRendu
             r={r}
             lecture={lecture}
-            iterationCode={shiftIteration(e.it.key, 1).split('-').pop() ?? ''}
+            iterationCode={nomSprintDe(shiftIteration(e.it.key, 1))}
             entete={
               <>
                 <Compteurs l={[{ valeur: String(idees.length), libelle: 'idées' }, { valeur: String(retenues.length), libelle: 'en atelier', ton: 'vert' }, { valeur: `${auteurs.size}/${e.personnes.length}`, libelle: 'participants' }]} />
                 <SectionFiche titre={`En atelier · ${retenues.length}`}>{retenues.length ? retenues.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} />) : <Vide texte="Aucune." />}</SectionFiche>
-                <Text style={[st.sous, { marginHorizontal: 16, marginTop: 8 }]}>À l’envoi, les points réglés de l’itération (daily, planification, affinage, revue, rétro) sont supprimés du Sheet : la trace reste dans les comptes rendus.</Text>
+                <Text style={[st.sous, { marginHorizontal: 16, marginTop: 8 }]}>À l’envoi, les points réglés du sprint (daily, planification, affinage, revue, rétro) sont supprimés du Sheet : la trace reste dans les comptes rendus.</Text>
               </>
             }
           />
@@ -281,7 +281,7 @@ export function FenetreRetro(p: PropsReunion) {
       libelleFin={() => 'Envoyer mes idées'}
       etapeAnim={{ cle: cleAnim, setCle: setCleAnim }}
       envoyerCR={envoyerCR}
-      renduCR={(rid) => <EtapeCompteRendu r={r} lecture reunionId={rid} iterationCode={e.it.code} />}
+      renduCR={(rid) => <EtapeCompteRendu r={r} lecture reunionId={rid} iterationCode={e.it.nom} />}
     />
   );
 }

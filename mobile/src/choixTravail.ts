@@ -206,7 +206,7 @@ export function listeIterations(piPrefere?: string, prevue?: string, choisie?: s
     titre: `PI ${piLabel(p)}${p === piPrefere ? ' · PI de la feature' : ''}`,
     options: iterationsOf(p).map((it) => ({
       value: it.key,
-      label: it.code,
+      label: it.nom,
       meta: `${fmtCourt(it.start)} → ${fmtCourt(it.end)}`,
       badge: it.key === courante ? { texte: 'en cours', ton: 'vert' as const } : it.key === prevue ? { texte: 'prévue', ton: 'bleu' as const } : undefined,
     })),

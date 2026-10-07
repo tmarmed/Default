@@ -526,7 +526,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         equipe: equipe?.nom ?? '',
         jour,
         decisions: decisions.map((d) => d.pt.texte),
-        creees: aCreer.map((d) => ({ titre: d.pt.texte, sous: `${d.c === 'sous_tache' ? `sous-tâche de « ${story(d.pt.element) ?? 'la story'} »` : `tâche à part, ${it.code}`} · ${prenom(nomDe(d.resp))}` })),
+        creees: aCreer.map((d) => ({ titre: d.pt.texte, sous: `${d.c === 'sous_tache' ? `sous-tâche de « ${story(d.pt.element) ?? 'la story'} »` : `tâche à part, ${it.nom}`} · ${prenom(nomDe(d.resp))}` })),
         escalades: escalades.map((d) => `${d.pt.texte} (${prenom(nomDe(d.pt.personne))}${story(d.pt.element) ? `, « ${story(d.pt.element)} »` : ''})`),
         synchros: synchros.map((d) => `${d.pt.texte} (${prenom(nomDe(d.pt.personne))} → ${prenom(nomDe(d.a))})`),
         notes: decides.filter((d) => d.c === 'rien' && d.pt.type !== 'decision').length,
@@ -598,7 +598,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** Résumé d'une concrétisation : « Sous-tâche · 👤 Tom », « Transmettre à Paul », « ⤴ Escalader au RTE », « Rien » */
   const resumeChoix = (c: Concretisation | '', resp: string, a: string) =>
     c === 'sous_tache' || c === 'tache'
-      ? `${c === 'sous_tache' ? 'Sous-tâche' : `Tâche à part (${it.code})`} · 👤 ${prenom(nomDe(resp))}`
+      ? `${c === 'sous_tache' ? 'Sous-tâche' : `Tâche à part (${it.nom})`} · 👤 ${prenom(nomDe(resp))}`
       : c === 'synchro'
         ? `Transmettre à ${a ? prenom(nomDe(a)) : '…'}`
         : c === 'escalade'
@@ -633,7 +633,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
           <>
             <TitreFiche icone="▶️" titre="Aujourd’hui" vide="" sous={sous('Ce que vous allez faire')} />
             <SectionFiche titre={`Mes stories et tâches · ${aujListe.length}`}>
-              {listeTaches('aujourdhui', aujListe, 'Rien à votre nom dans l’itération.', pr)}
+              {listeTaches('aujourdhui', aujListe, 'Rien à votre nom dans le sprint.', pr)}
               {listeLibres('aujourdhui', aujListe)}
               <SaisiePoint types={['aujourdhui']} jour={jour} placeholder="＋ Autre chose aujourd’hui" stories={mesStories} onAjouter={(type, texte, element) => setPrep((l) => [...l, nouveau(type, texte, element, '', pr)])} />
             </SectionFiche>
@@ -663,7 +663,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       case 'accepter':
         return (
           <>
-            <TitreFiche icone="🏁" titre="Stories à accepter" vide="" sous={sous(`${it.code} · terminées, cochez celles que vous accepterez aujourd’hui`)} />
+            <TitreFiche icone="🏁" titre="Stories à accepter" vide="" sous={sous(`${it.nom} · terminées, cochez celles que vous accepterez aujourd’hui`)} />
             <SectionFiche titre={`Terminées · ${aAccepter.length}`}>
               {aAccepter.length ? (
                 aAccepter.map((t, i) => {
@@ -684,7 +684,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   );
                 })
               ) : (
-                <Vide texte="Aucune story terminée dans l’itération." />
+                <Vide texte="Aucune story terminée dans le sprint." />
               )}
             </SectionFiche>
           </>
@@ -722,7 +722,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         const notees = new Set(reponsesPO.map((r) => r.q.id));
         return (
           <>
-            <TitreFiche icone="❓" titre="Questions de l’équipe" vide="" sous={sous('Questions des membres (💬 Chat) sur les stories de l’itération ; votre réponse part dans leur message et rejoint votre point')} />
+            <TitreFiche icone="❓" titre="Questions de l’équipe" vide="" sous={sous('Questions des membres (💬 Chat) sur les stories du sprint ; votre réponse part dans leur message et rejoint votre point')} />
             {!questions.length && (
               <SectionFiche titre="Questions · 0">
                 <Vide texte="✓ Aucune question de l’équipe en attente." />
@@ -775,7 +775,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         const s = situation;
         return (
           <>
-            <TitreFiche icone="☀️" titre="Situation" vide="" sous={sous(`${it.code} · du ${dateCourte(it.start)} au ${dateCourte(it.end)} · ${equipe?.nom ?? ''}`)} />
+            <TitreFiche icone="☀️" titre="Situation" vide="" sous={sous(`${it.nom} · du ${dateCourte(it.start)} au ${dateCourte(it.end)} · ${equipe?.nom ?? ''}`)} />
             <View style={st.compteurs}>
               <Compteur valeur={`${arrondi(s.faits)} / ${arrondi(s.prevus)}`} libelle={`${safe.pointsJours ? 'jours' : 'pts'} faits / prévus`} />
               <Compteur valeur={String(s.bloquees)} libelle={s.bloquees > 1 ? 'stories bloquées' : 'story bloquée'} ton={s.bloquees ? 'rouge' : undefined} />
@@ -839,7 +839,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               )}
             </SectionFiche>
             <SectionFiche titre="Objectifs de la réunion">
-              <Ligne premiere texte="🎯 Se synchroniser sur l’objectif d’itération" sous="Chacun dit ce qu’il a fait hier et ce qu’il fera aujourd’hui (15 min)" />
+              <Ligne premiere texte="🎯 Se synchroniser sur l’objectif de sprint" sous="Chacun dit ce qu’il a fait hier et ce qu’il fera aujourd’hui (15 min)" />
               <Ligne texte="🧱 Lever les blocages" sous="Les noter pendant le tour de table, les concrétiser ensuite" />
             </SectionFiche>
           </>
@@ -867,7 +867,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   <LigneStory key={t.id} t={t} premiere={i === 0} bloquee={e.bloquees.has(t.id)} retard={enRetard(t, aujourdhui)} fmt={fmt} nbSous={subs.get(t.id)?.length ?? 0} onOuvrir={ouvrir(t)} />
                 ))
               ) : (
-                <Vide texte="Aucune story de l’itération à son nom." />
+                <Vide texte="Aucune story du sprint à son nom." />
               )}
             </SectionFiche>
             <SectionFiche
@@ -1001,7 +1001,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                         titre: 'Concrétiser',
                         options: [
                           ...(pt.element ? [{ value: 'c:sous_tache', label: 'Sous-tâche de la story', meta: parId.get(pt.element)?.titre }] : []),
-                          { value: 'c:tache', label: `Tâche à part (${it.code})` },
+                          { value: 'c:tache', label: `Tâche à part (${it.nom})` },
                           { value: 'c:rien', label: 'Rien', meta: 'noté seulement' },
                         ],
                       },
@@ -1090,7 +1090,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                     key={d.pt.id}
                     premiere={i === 0}
                     texte={d.pt.texte}
-                    sous={`${d.c === 'sous_tache' ? `Sous-tâche de 📖 ${parId.get(d.pt.element)?.titre ?? 'la story'}` : `Tâche à part · ${it.code}`} · 👤 ${prenom(nomDe(d.resp))}`}
+                    sous={`${d.c === 'sous_tache' ? `Sous-tâche de 📖 ${parId.get(d.pt.element)?.titre ?? 'la story'}` : `Tâche à part · ${it.nom}`} · 👤 ${prenom(nomDe(d.resp))}`}
                     pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }}
                   />
                 ))

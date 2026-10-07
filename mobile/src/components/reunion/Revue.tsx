@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { LIBELLE_TYPE_POINT, pointsFinis } from '../../daily';
-import { fmtPoints, pointsOf, shiftIteration } from '../../pi';
+import { fmtPoints, pointsOf, shiftIteration, nomSprintDe } from '../../pi';
 import type { CatalogueParcours, EtapeCatalogue, ParcoursRole } from '../../reunions';
 import { criteresDe, velocite } from '../../reunionsEquipe';
 import { lireNiveau, personneParEmail } from '../../echange/hierarchieEchange';
@@ -127,7 +127,7 @@ export function FenetreRevue(p: PropsReunion) {
       case 'situation':
         return (
           <>
-            <TitreFiche icone="📊" titre="Situation" vide="" sous={`${e.it.code} · du ${e.it.start.slice(8)}/${e.it.start.slice(5, 7)} au ${e.it.end.slice(8)}/${e.it.end.slice(5, 7)}`} />
+            <TitreFiche icone="📊" titre="Situation" vide="" sous={`${e.it.nom} · du ${e.it.start.slice(8)}/${e.it.start.slice(5, 7)} au ${e.it.end.slice(8)}/${e.it.end.slice(5, 7)}`} />
             <Compteurs l={[{ valeur: String(terminees.length), libelle: 'stories à revoir' }, { valeur: String(nonTerminees.length), libelle: 'non terminées', ton: nonTerminees.length ? 'orange' : undefined }, { valeur: String(r.reponsesPO.length), libelle: 'réponses du PO' }]} />
             <BlocSuivi r={r} lecture={lecture} onAjouter />
             <SectionFiche titre="Objectifs de la réunion">
@@ -139,19 +139,19 @@ export function FenetreRevue(p: PropsReunion) {
         const prev = e.situation.prevus ? Math.round((100 * e.situation.faits) / e.situation.prevus) : 0;
         return (
           <>
-            <TitreFiche icone="📈" titre="Bilan de l’itération" vide="" sous={`Calculé · ${e.it.code}`} />
+            <TitreFiche icone="📈" titre="Bilan du sprint" vide="" sous={`Calculé · ${e.it.nom}`} />
             <Compteurs l={[{ valeur: `${Math.round(e.situation.faits)}/${Math.round(e.situation.prevus)}`, libelle: 'pts faits' }, { valeur: `${prev} %`, libelle: 'prévisibilité', ton: prev < 80 ? 'orange' : 'vert' }, { valeur: String(v.moyenne), libelle: 'vélocité moyenne' }]} />
             <SectionFiche titre="Vélocité · 3 dernières">
-              <Ligne premiere texte={v.iterations.map((y) => y.key.split('-').pop()).join(' · ')} sous={`moyenne ${v.moyenne} pts`} pastille={{ texte: v.iterations.map((y) => y.points).join(' · '), ton: 'bleu' }} />
+              <Ligne premiere texte={v.iterations.map((y) => nomSprintDe(y.key)).join(' · ')} sous={`moyenne ${v.moyenne} pts`} pastille={{ texte: v.iterations.map((y) => y.points).join(' · '), ton: 'bleu' }} />
             </SectionFiche>
-            <SectionFiche titre={`✓ Réglé pendant l’itération · ${regles.length}`}>
+            <SectionFiche titre={`✓ Réglé pendant le sprint · ${regles.length}`}>
               {regles.length ? regles.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`${y.concretisation === 'rien' ? 'noté' : y.concretisation === 'escalade' ? 'escaladé, réglé' : 'fait'} · ${y.reunion.split('-')[0]} du ${y.reunion.slice(-2)}/${y.reunion.slice(-5, -3)}`} pastille={{ texte: LIBELLE_TYPE_POINT[y.type], ton: tonType(y.type) }} />) : <Vide texte={lecture ? 'Vu par l’animateur.' : 'Rien de réglé pour l’instant.'} />}
             </SectionFiche>
           </>
         );
       }
       case 'stories': {
-        if (!n) return <Vide texte="Aucune story terminée dans l’itération." />;
+        if (!n) return <Vide texte="Aucune story terminée dans le sprint." />;
         const k = lecture ? Math.max(0, terminees.findIndex((t) => t.id === r.live.etat?.element)) : Math.min(idx, n - 1);
         const t = terminees[k] ?? story;
         const crit = criteresDe(t.description);
@@ -181,7 +181,7 @@ export function FenetreRevue(p: PropsReunion) {
                 <Ligne premiere texte={sortDe(t) ? `→ ${sortDe(t)}` : 'À décider'} sous={sortPO(t) ? `proposé par le PO : ${sortPO(t)}` : `${fmt(pointsOf(t))} · ${t.statut === 'en_cours' ? 'en cours' : 'pas commencée'}`} />
                 {!lecture && (
                   <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
-                    <Pastilles petit options={SORT.map((y) => ({ value: y, label: y === 'Reporter' ? `Reporter en ${suivante.split('-').pop()}` : y }))} value={sortDe(t)} onChange={(y) => setSorts((m) => ({ ...m, [t.id]: y }))} />
+                    <Pastilles petit options={SORT.map((y) => ({ value: y, label: y === 'Reporter' ? `Reporter en ${nomSprintDe(suivante)}` : y }))} value={sortDe(t)} onChange={(y) => setSorts((m) => ({ ...m, [t.id]: y }))} />
                   </View>
                 )}
               </SectionFiche>
@@ -198,14 +198,14 @@ export function FenetreRevue(p: PropsReunion) {
           </>
         );
       case 'concretisation':
-        return <EtapeConcretisation r={r} lecture={lecture} iterationCode={suivante.split('-').pop() ?? ''} />;
+        return <EtapeConcretisation r={r} lecture={lecture} iterationCode={nomSprintDe(suivante)} />;
       case 'compte_rendu': {
         const acc = terminees.filter((t) => decision(t) === 'Acceptée').length;
         return (
           <EtapeCompteRendu
             r={r}
             lecture={lecture}
-            iterationCode={suivante.split('-').pop() ?? ''}
+            iterationCode={nomSprintDe(suivante)}
             entete={<Compteurs l={[{ valeur: String(acc), libelle: 'acceptées', ton: 'vert' }, { valeur: String(terminees.filter((t) => decision(t) && decision(t) !== 'Acceptée').length), libelle: 'à reprendre', ton: 'orange' }, { valeur: String(nonTerminees.filter((t) => sortDe(t) === 'Reporter').length), libelle: 'reportées' }]} />}
           />
         );
@@ -239,7 +239,7 @@ export function FenetreRevue(p: PropsReunion) {
       case 'a_voir':
         return (
           <>
-            <TitreFiche icone="👀" titre={`À voir · ${terminees.length + nonTerminees.length} stories`} vide="" sous={`${e.nomNiveau} · ${e.it.code}`} />
+            <TitreFiche icone="👀" titre={`À voir · ${terminees.length + nonTerminees.length} stories`} vide="" sous={`${e.nomNiveau} · ${e.it.nom}`} />
             <SectionFiche titre="Stories">
               {[...terminees, ...nonTerminees].map((t, i) => (
                 <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={t.feature ? `🧩 ${e.h.features.get(t.feature)?.titre ?? ''}` : ''} pastille={t.statut === 'termine' ? { texte: demoDe(t)?.d.v ?? 'terminée', ton: 'bleu' } : { texte: 'non terminée', ton: 'orange' }} />
@@ -259,7 +259,7 @@ export function FenetreRevue(p: PropsReunion) {
       case 'questions':
         return <QuestionsEquipe r={r} />;
       case 'acceptation': {
-        if (!n) return <Vide texte="Aucune story terminée dans l’itération." />;
+        if (!n) return <Vide texte="Aucune story terminée dans le sprint." />;
         const k = Math.min(idxPo, n - 1);
         const t = terminees[k];
         const crit = criteresDe(t.description);
@@ -280,7 +280,7 @@ export function FenetreRevue(p: PropsReunion) {
             {nonTerminees.map((t) => (
               <SectionFiche key={t.id} titre={`${t.titre} · ${fmt(pointsOf(t))}`}>
                 <View style={{ padding: 12 }}>
-                  <Pastilles petit options={SORT.map((y) => ({ value: y, label: y === 'Reporter' ? `Reporter en ${suivante.split('-').pop()}` : y }))} value={sortPO(t)} onChange={(y) => r.poserDonnee('sort', t.id, { v: y }, 'po', t.id)} />
+                  <Pastilles petit options={SORT.map((y) => ({ value: y, label: y === 'Reporter' ? `Reporter en ${nomSprintDe(suivante)}` : y }))} value={sortPO(t)} onChange={(y) => r.poserDonnee('sort', t.id, { v: y }, 'po', t.id)} />
                 </View>
               </SectionFiche>
             ))}
@@ -335,7 +335,7 @@ export function FenetreRevue(p: PropsReunion) {
       }}
       libelleSuivant={(role, cle) => ((role === 'sm' && cle === 'stories' && idx < n - 1) || (role === 'po' && cle === 'acceptation' && idxPo < n - 1) ? 'Story suivante ›' : undefined)}
       envoyerCR={envoyerCR}
-      renduCR={(rid) => <EtapeCompteRendu r={r} lecture reunionId={rid} iterationCode={e.it.code} />}
+      renduCR={(rid) => <EtapeCompteRendu r={r} lecture reunionId={rid} iterationCode={e.it.nom} />}
     />
   );
 }

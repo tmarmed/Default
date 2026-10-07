@@ -488,7 +488,7 @@ function VueDelivery({ o, espace, replies, basculer, onOuvrir, onAjouter, onPlus
       sous={[role('PO', e.po), role('SM', e.sm), nb(membresDe(e).length, 'membre', 'membres')].filter(Boolean).join(' · ')}
       onPress={() => onOuvrir('equipeagile', e)}
       surligne={flash.has(e.id)}
-      lien={{ label: `${nb(nbStories(e.id), 'story ou tâche', 'stories et tâches')} en cours › Itération`, onPress: () => onVoirBacklog('equipeagile', e.id) }}
+      lien={{ label: `${nb(nbStories(e.id), 'story ou tâche', 'stories et tâches')} en cours › Sprint`, onPress: () => onVoirBacklog('equipeagile', e.id) }}
     />
   );
   const train = (t: OrgValue['trains'][number], niveau: number) => (

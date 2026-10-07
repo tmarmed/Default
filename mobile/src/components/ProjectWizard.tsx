@@ -815,9 +815,9 @@ function NodeRow({ node: n, map, draft, safeOn, parentOptions, parentValue, onPa
               />
               {!!n.f.pi && (
                 <>
-                  <Text style={s.panelLabel}>Itération prévue</Text>
+                  <Text style={s.panelLabel}>Sprint prévu</Text>
                   <Chips
-                    options={[{ value: '', label: 'Non planifiée' }, ...iterationsOf(n.f.pi).map((it) => ({ value: it.key, label: it.code }))]}
+                    options={[{ value: '', label: 'Non planifiée' }, ...iterationsOf(n.f.pi).map((it) => ({ value: it.key, label: it.nom }))]}
                     value={n.f.iteration}
                     onChange={(v) => setF('iteration', v)}
                     compact
@@ -840,7 +840,7 @@ function NodeRow({ node: n, map, draft, safeOn, parentOptions, parentValue, onPa
                 <>
                   <Text style={s.panelLabel}>Itération (PI {piLabel(taskPi)})</Text>
                   <Chips
-                    options={[{ value: '', label: 'Aucune' }, ...iterationsOf(taskPi).map((it) => ({ value: it.key, label: it.code }))]}
+                    options={[{ value: '', label: 'Aucune' }, ...iterationsOf(taskPi).map((it) => ({ value: it.key, label: it.nom }))]}
                     value={n.f.iteration}
                     onChange={(v) => setF('iteration', v)}
                     compact

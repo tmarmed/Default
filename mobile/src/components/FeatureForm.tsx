@@ -175,7 +175,7 @@ export function FeatureForm({
       decrireChangement(
         a,
         b,
-        { titre: 'Titre', description: 'Description', epic: 'Epic', pi: 'PI', iteration: 'Itération prévue', points: 'Estimation', train: 'Train', equipe: 'Équipe' } as never,
+        { titre: 'Titre', description: 'Description', epic: 'Epic', pi: 'PI', iteration: 'Sprint prévu', points: 'Estimation', train: 'Train', equipe: 'Équipe' } as never,
         (k, v) => (k === 'epic' ? (h.epics.get(v)?.titre ?? v) : k === 'pi' ? `PI ${piLabel(v)}` : k === 'iteration' ? iterationNom(v) : v),
         ['titre', 'description'] as never,
       ),
@@ -302,7 +302,7 @@ export function FeatureForm({
         />
         {!!form.pi && (
           <LigneChoix
-            fixe label="Itération prévue"
+            fixe label="Sprint prévu"
             value={form.iteration}
             depart={feature?.iteration}
             groupes={listeIterations(form.pi).groupes}

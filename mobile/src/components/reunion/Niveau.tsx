@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import type { VoteEtat } from '../../etatReunion';
-import { fmtPoints, piOf, shiftPi } from '../../pi';
+import { fmtPoints, piOf, shiftPi, nomSprintDe } from '../../pi';
 import type { CatalogueParcours, EtapeCatalogue, ParcoursRole } from '../../reunions';
 import { lireNombre } from '../../reunionsEquipe';
 import { useSafe } from '../../safe';
@@ -71,7 +71,7 @@ const avancementFeature = (c: Ctx, f: Feature) => {
   return st_.length ? Math.round((100 * faits) / st_.length) : 0;
 };
 const featuresPI = (c: Ctx): Elem[] =>
-  c.features.map((f) => ({ id: f.id, titre: f.titre, sous: [f.equipe ? `👥 ${c.r.org.equipe.get(f.equipe)?.nom ?? ''}` : '', f.iteration ? f.iteration.split('-').pop() : '', f.points ? c.fmt(Number(f.points) || 0) : ''].filter(Boolean).join(' · '), pastille: `${avancementFeature(c, f)} %` }));
+  c.features.map((f) => ({ id: f.id, titre: f.titre, sous: [f.equipe ? `👥 ${c.r.org.equipe.get(f.equipe)?.nom ?? ''}` : '', f.iteration ? nomSprintDe(f.iteration) : '', f.points ? c.fmt(Number(f.points) || 0) : ''].filter(Boolean).join(' · '), pastille: `${avancementFeature(c, f)} %` }));
 const featuresPrep = (c: Ctx): Elem[] =>
   c.e.h.featureList
     .filter((f) => (f.train ?? '') === (c.e.train?.id ?? '') && (!f.pi || f.pi >= c.piSuivant))
@@ -105,7 +105,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
       ['situation', 'Situation', SIT('Un plan par équipe, des objectifs du PI, les risques traités', 'Plans d’équipe, objectifs du PI avec leur valeur, risques (ROAM), un vote de confiance d’au moins 3.', (c) => [{ valeur: String(c.features.length), libelle: 'features du PI' }, { valeur: String(objectifsPI(c).length), libelle: 'objectifs du PI' }, { valeur: String(c.r.donneesDe('risque').length), libelle: 'risques', ton: 'orange' }])],
       ['contexte', 'Contexte', { k: 'saisies', icone: '🧭', titre: 'Contexte', sous: 'Vision du PM, features priorisées', cle: 'vision' }],
       ['capacite', 'Capacité', { k: 'saisies', icone: '👥', titre: 'Capacité par équipe', sous: 'Déclarée par les SM', cle: 'capacite' }],
-      ['plans', 'Plans d’équipe', { k: 'liste', icone: '🗓️', titre: 'Plans d’équipe', sous: 'Features du PI par équipe et itération', lignes: featuresPI, points: true }],
+      ['plans', 'Plans d’équipe', { k: 'liste', icone: '🗓️', titre: 'Plans d’équipe', sous: 'Features du PI par équipe et sprint', lignes: featuresPI, points: true }],
       ['objectifs', 'Objectifs du PI', { k: 'liste', icone: '🏁', titre: 'Objectifs du PI', sous: 'Préparés par les PO · valeur par les Business Owners', lignes: objectifsPI, points: true }],
       ['risques', 'Risques', { k: 'points', icone: '⚠', titre: 'Risques · ROAM', sous: 'Résolu, Owned, Accepté, Mitigé : à la concrétisation', placeholder: '＋ Risque' }],
       ['vote', 'Vote', { k: 'confiance' }],
@@ -114,7 +114,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
     ],
     membre: [
       ['taches', 'Mes tâches', TACHES],
-      ['capacite_m', 'Capacité', { k: 'saisie', icone: '👥', titre: 'Capacité de mon équipe', sous: 'SM : jours et points par itération, absences connues', cle: 'capacite', placeholder: 'IT1 : 30 pts (Nina absente 2 j)' }],
+      ['capacite_m', 'Capacité', { k: 'saisie', icone: '👥', titre: 'Capacité de mon équipe', sous: 'SM : jours et points par sprint, absences connues', cle: 'capacite', placeholder: 'S1 : 30 pts (Nina absente 2 j)' }],
       ['risques_m', 'Risques', { k: 'notes', titre: 'Nos risques et points' }],
       ['vote_m', 'Vote', { k: 'voter_confiance' }],
     ],
@@ -148,7 +148,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
   system_demo: {
     nomCourt: 'à la System demo',
     sm: [
-      ['situation', 'Situation', SIT('Montrer le système intégré', 'Ce que le train a fini pendant l’itération, et recueillir les retours.', (c) => [{ valeur: String(c.features.filter((f) => avancementFeature(c, f) === 100).length), libelle: 'features finies', ton: 'vert' }, { valeur: String(c.features.length), libelle: 'features du PI' }, { valeur: String(c.r.tous.filter((x) => c.r.ici(x)).length), libelle: 'retours' }])],
+      ['situation', 'Situation', SIT('Montrer le système intégré', 'Ce que le train a fini pendant le sprint, et recueillir les retours.', (c) => [{ valeur: String(c.features.filter((f) => avancementFeature(c, f) === 100).length), libelle: 'features finies', ton: 'vert' }, { valeur: String(c.features.length), libelle: 'features du PI' }, { valeur: String(c.r.tous.filter((x) => c.r.ici(x)).length), libelle: 'retours' }])],
       ['a_montrer', 'À montrer', { k: 'liste', icone: '🖥️', titre: 'À montrer', sous: 'Features du PI, avancement', lignes: featuresPI }],
       ['features', 'Features', { k: 'elements', icone: '🧩', mot: 'Feature', liste: featuresPI }],
       ['retours', 'Retours', { k: 'points', icone: '💬', titre: 'Retours', sous: 'Des Business Owners et parties prenantes', placeholder: '＋ Retour' }],
@@ -236,7 +236,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
       ['compte_rendu', 'Compte rendu', CR],
     ],
     membre: [
-      ['capacite_m', 'Capacité', { k: 'saisie', icone: '👥', titre: 'Capacité de mon équipe', sous: 'Par itération, absences connues', cle: 'capacite', placeholder: 'IT1 : 30 pts' }],
+      ['capacite_m', 'Capacité', { k: 'saisie', icone: '👥', titre: 'Capacité de mon équipe', sous: 'Par sprint, absences connues', cle: 'capacite', placeholder: 'S1 : 30 pts' }],
       ['notes', 'Mes points', { k: 'notes' }],
     ],
     po: [['vision_po', 'Vision', { k: 'saisie', icone: '🧭', titre: 'Vision du PI', sous: 'Message de vision', cle: 'vision', placeholder: 'Message de vision' }]],
@@ -271,9 +271,9 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
     ],
   },
   iteration_ip: {
-    nomCourt: 'au lancement de l’itération IP',
+    nomCourt: 'au lancement de l’semaine IP',
     sm: [
-      ['situation', 'Situation', SIT('Lancer l’itération d’innovation et de planification', 'Programme, hackathon, formation, dette technique.', (c) => [{ valeur: String(c.r.donneesDe('idee_ip').length), libelle: 'idées' }, { valeur: String(c.r.donneesDe('formation').length), libelle: 'inscriptions' }, { valeur: String(c.e.personnes.length), libelle: 'participants' }])],
+      ['situation', 'Situation', SIT('Lancer la semaine d’innovation et de planification', 'Programme, hackathon, formation, dette technique.', (c) => [{ valeur: String(c.r.donneesDe('idee_ip').length), libelle: 'idées' }, { valeur: String(c.r.donneesDe('formation').length), libelle: 'inscriptions' }, { valeur: String(c.e.personnes.length), libelle: 'participants' }])],
       ['programme', 'Programme', { k: 'points', icone: '🗓️', titre: 'Programme', sous: 'Hackathon, Inspect & Adapt, formation, PI Planning', placeholder: '＋ Décision ou action' }],
       ['hackathon', 'Hackathon', { k: 'saisies', icone: '💡', titre: 'Hackathon', sous: 'Idées du train · vote : 1 étoile par idée, 3 au total', cle: 'idee_ip', vote: 'etoiles' }],
       ['formation', 'Formation', { k: 'saisies', icone: '🎓', titre: 'Formation et dette', sous: 'Inscriptions et sujets', cle: 'formation' }],

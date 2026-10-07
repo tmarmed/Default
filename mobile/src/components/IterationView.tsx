@@ -92,7 +92,7 @@ export function IterationView({
   return (
     <View style={styles.flex}>
       <PeriodHeader
-        title={`${it.code} · ${piLabel(it.pi)}`}
+        title={`${it.nom} · ${piLabel(it.pi)}`}
         onPrev={() => step(-1)}
         onNext={() => step(1)}
         onToday={itKey === current ? undefined : () => onChangeIteration(current)}
@@ -103,7 +103,7 @@ export function IterationView({
             {it.label.split(' · ')[1]}
             {isIP ? ' · semaine d’innovation et de planification' : ''}
           </Text>
-          <AlertsCard ecran="iteration" titre={`${it.code} · ${piLabel(it.pi)}`} checks={checksIteration(filtrerDomaine(h, dom), itKey, today, (e) => capaciteDe(safe, e), h, safe.pointsJours)} />
+          <AlertsCard ecran="iteration" titre={`${it.nom} · ${piLabel(it.pi)}`} checks={checksIteration(filtrerDomaine(h, dom), itKey, today, (e) => capaciteDe(safe, e), h, safe.pointsJours)} />
 
           {/* Charge : une jauge par espace affiché (chaque espace a sa capacité) */}
           {lesEspaces.map((e) => {
@@ -290,7 +290,7 @@ export function IterationView({
                               </Text>
                               <Text style={styles.kidMeta}>
                                 {pointsOf(c) ? fmt(pointsOf(c)) : ''}
-                                {!ici ? `${pointsOf(c) ? ' · ' : ''}${autre ? `en ${autre.split('-').slice(-1)[0]}${autre.slice(0, 7) !== itKey.slice(0, 7) ? ` (${autre.split('-')[1]})` : ''}` : 'hors itération'}` : ''}
+                                {!ici ? `${pointsOf(c) ? ' · ' : ''}${autre ? `en ${autre.split('-').slice(-1)[0]}${autre.slice(0, 7) !== itKey.slice(0, 7) ? ` (${autre.split('-')[1]})` : ''}` : 'hors sprint'}` : ''}
                               </Text>
                             </Pressable>
                           </View>

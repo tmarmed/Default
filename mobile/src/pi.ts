@@ -41,10 +41,14 @@ export function shiftPi(pi: string, n: number): string {
 /** « T4 2026 » */
 export const piLabel = (pi: string) => `${pi.split('-')[1]} ${pi.split('-')[0]}`;
 
-/** « IT1 · T4 2026 » : nom d'une itération, le même partout */
+/** Nom affiché d'un sprint (07/10 : « Itération » devient « Sprint » partout) : « IT3 » → « S3 » ; « IP » reste */
+export const nomSprint = (code: string) => code.replace(/^IT(\d+)$/, 'S$1');
+/** « S3 » d'après une clé « 2026-T4-IT3 » */
+export const nomSprintDe = (key: string) => nomSprint(key.split('-').pop() ?? key);
+/** « S1 · T4 2026 » : nom d'un sprint, le même partout (clé interne inchangée : « 2026-T4-IT1 ») */
 export const iterationNom = (key: string) => {
   const m = /^(\d{4})-(T[1-4])-(IT[1-6]|IP)$/.exec(key);
-  return m ? `${m[3]} · ${m[2]} ${m[1]}` : key;
+  return m ? `${nomSprint(m[3])} · ${m[2]} ${m[1]}` : key;
 };
 
 export interface Iteration {
@@ -52,6 +56,8 @@ export interface Iteration {
   key: string;
   pi: string;
   code: IterationCode;
+  /** Nom affiché (07/10 : « Sprint ») : « S3 », « IP » */
+  nom: string;
   start: string;
   end: string;
   /** « IT3 · 29 oct. → 11 nov. » */
@@ -68,9 +74,10 @@ export function iterationsOf(pi: string): Iteration[] {
       key: `${pi}-${code}`,
       pi,
       code,
+      nom: nomSprint(code),
       start: toDateString(a),
       end: toDateString(b),
-      label: `${code} · ${court(a)} → ${court(b)}`,
+      label: `${nomSprint(code)} · ${court(a)} → ${court(b)}`,
     };
   });
 }

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { dateCourte } from '../../daily';
 import type { VoteEtat } from '../../etatReunion';
-import { fmtPoints, iterationOfItem, pointsOf, shiftIteration } from '../../pi';
+import { fmtPoints, iterationOfItem, pointsOf, shiftIteration, nomSprintDe } from '../../pi';
 import type { CatalogueParcours, EtapeCatalogue, ParcoursRole } from '../../reunions';
 import { capacite, joursTravailles, lireNombre, nombreFr, PTS_JOUR_DEFAUT, storiesPretes, velocite } from '../../reunionsEquipe';
 import { useSafe } from '../../safe';
@@ -130,14 +130,14 @@ export function FenetrePlanification(p: PropsReunion) {
         const vp = v.iterations[v.iterations.length - 1]?.points ?? 0;
         return (
           <>
-            <TitreFiche icone="📊" titre="Situation" vide="" sous={`${precedente.split('-').pop()} terminée · ${e.it.code} du ${dateCourte(e.it.start)} au ${dateCourte(e.it.end)}`} />
-            <Compteurs l={[{ valeur: String(vp), libelle: `vélocité ${precedente.split('-').pop()}` }, { valeur: String(v.moyenne), libelle: 'moyenne 3 IT' }, { valeur: String(reportees.length), libelle: 'reportées', ton: reportees.length ? 'orange' : undefined }]} />
+            <TitreFiche icone="📊" titre="Situation" vide="" sous={`${nomSprintDe(precedente)} terminé · ${e.it.nom} du ${dateCourte(e.it.start)} au ${dateCourte(e.it.end)}`} />
+            <Compteurs l={[{ valeur: String(vp), libelle: `vélocité ${nomSprintDe(precedente)}` }, { valeur: String(v.moyenne), libelle: 'moyenne 3 sprints' }, { valeur: String(reportees.length), libelle: 'reportées', ton: reportees.length ? 'orange' : undefined }]} />
             <BlocSuivi r={r} lecture={lecture} onAjouter />
-            <SectionFiche titre={`Reportées de ${precedente.split('-').pop()} · ${reportees.length}`}>
+            <SectionFiche titre={`Reportées de ${nomSprintDe(precedente)} · ${reportees.length}`}>
               {reportees.length ? reportees.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={`${fmt(pointsOf(t))}${t.responsable ? ` · 👤 ${prenom(r.org.personne.get(t.responsable)?.nom ?? '')}` : ''}`} pastille={{ texte: 'à reprendre', ton: 'orange' }} />) : <Vide texte="✓ Rien de reporté." />}
             </SectionFiche>
             <SectionFiche titre="Objectifs de la réunion">
-              <Ligne premiere texte="🎯 S’engager sur l’itération" sous="Fixer la capacité, valider les objectifs du PO, s’engager sur les stories." />
+              <Ligne premiere texte="🎯 S’engager sur le sprint" sous="Fixer la capacité, valider les objectifs du PO, s’engager sur les stories." />
             </SectionFiche>
           </>
         );
@@ -166,7 +166,7 @@ export function FenetrePlanification(p: PropsReunion) {
               })}
             </SectionFiche>
             <SectionFiche titre="Repère">
-              <Ligne premiere texte="Vélocité moyenne (3 IT)" pastille={{ texte: `${v.moyenne} pts`, ton: 'bleu' }} />
+              <Ligne premiere texte="Vélocité moyenne (3 sprints)" pastille={{ texte: `${v.moyenne} pts`, ton: 'bleu' }} />
             </SectionFiche>
             <Text style={[st.sous, { marginHorizontal: 16, marginTop: 8 }]}>Les absences viennent du point de chacun, jours fériés compris. Les points par jour se saisissent (ex. 1,1). Engagement conseillé : {Math.min(capaTotale, v.moyenne || capaTotale)} pts au plus.</Text>
           </>
@@ -174,8 +174,8 @@ export function FenetrePlanification(p: PropsReunion) {
       case 'objectifs':
         return (
           <>
-            <TitreFiche icone="🎯" titre={`Objectifs d’itération · ${objectifs.length}`} vide="" sous="Préparés par le PO, validés par l’équipe" />
-            <ListeEditable titre="Objectifs" l={objectifs} lecture={lecture} onChange={(l) => setObjectifsAjoutes(l.filter((o) => !objectifsPO.includes(o)))} placeholder="Objectif d’itération" />
+            <TitreFiche icone="🎯" titre={`Objectifs de sprint · ${objectifs.length}`} vide="" sous="Préparés par le PO, validés par l’équipe" />
+            <ListeEditable titre="Objectifs" l={objectifs} lecture={lecture} onChange={(l) => setObjectifsAjoutes(l.filter((o) => !objectifsPO.includes(o)))} placeholder="Objectif de sprint" />
           </>
         );
       case 'stories': {
@@ -244,7 +244,7 @@ export function FenetrePlanification(p: PropsReunion) {
               <FeuilleChoix
                 titre={t.titre}
                 value={assigne(t)}
-                groupes={[{ options: [{ value: '-', label: 'Pas prise cette itération' }, ...noms.map((m) => ({ value: m, label: e.nomDe(m), meta: `${choisiPar(t).includes(m) ? 'l’a choisie · ' : ''}${fmt(charge(m))}/${fmt(capa(m))}` }))] }]}
+                groupes={[{ options: [{ value: '-', label: 'Pas prise ce sprint' }, ...noms.map((m) => ({ value: m, label: e.nomDe(m), meta: `${choisiPar(t).includes(m) ? 'l’a choisie · ' : ''}${fmt(charge(m))}/${fmt(capa(m))}` }))] }]}
                 onChoisir={(val) => {
                   if (val) setAffect((a) => ({ ...a, [t.id]: val === '-' ? '' : val }));
                   setFeuille('');
@@ -256,16 +256,16 @@ export function FenetrePlanification(p: PropsReunion) {
         );
       }
       case 'concretisation':
-        return <EtapeConcretisation r={r} lecture={lecture} iterationCode={e.it.code} />;
+        return <EtapeConcretisation r={r} lecture={lecture} iterationCode={e.it.nom} />;
       case 'compte_rendu':
         return (
           <EtapeCompteRendu
             r={r}
             lecture={lecture}
-            iterationCode={e.it.code}
+            iterationCode={e.it.nom}
             entete={
               <SectionFiche titre="Engagé">
-                <Ligne premiere texte={`${engagees.length} stor${engagees.length > 1 ? 'ies' : 'y'} · ${fmt(pris)}`} sous={engagees.map((t) => t.titre).join(' · ')} pastille={{ texte: e.it.code, ton: 'bleu' }} />
+                <Ligne premiere texte={`${engagees.length} stor${engagees.length > 1 ? 'ies' : 'y'} · ${fmt(pris)}`} sous={engagees.map((t) => t.titre).join(' · ')} pastille={{ texte: e.it.nom, ton: 'bleu' }} />
                 {objectifs.map((o, i) => (
                   <Ligne key={o} texte={o} sous={`objectif ${i + 1}`} />
                 ))}
@@ -283,7 +283,7 @@ export function FenetrePlanification(p: PropsReunion) {
             {pasFinies.map((t) => (
               <SectionFiche key={t.id} titre={`${t.titre} · non terminée`}>
                 <View style={{ padding: 12 }}>
-                  <Pastilles petit options={[{ value: 'continuer', label: `Continuer en ${e.it.code}` }, { value: 'backlog', label: 'Rendre au backlog' }]} value={reports.find((y) => y.d.c === t.id)?.d.v ?? 'continuer'} onChange={(y) => r.poserDonnee('report', t.id, { v: y }, 'membre', t.id)} />
+                  <Pastilles petit options={[{ value: 'continuer', label: `Continuer en ${e.it.nom}` }, { value: 'backlog', label: 'Rendre au backlog' }]} value={reports.find((y) => y.d.c === t.id)?.d.v ?? 'continuer'} onChange={(y) => r.poserDonnee('report', t.id, { v: y }, 'membre', t.id)} />
                 </View>
               </SectionFiche>
             ))}
@@ -302,9 +302,9 @@ export function FenetrePlanification(p: PropsReunion) {
         };
         return (
           <>
-            <TitreFiche icone="📅" titre="Mes disponibilités" vide="" sous={`${e.it.code} du ${dateCourte(e.it.start)} au ${dateCourte(e.it.end)}`} />
+            <TitreFiche icone="📅" titre="Mes disponibilités" vide="" sous={`${e.it.nom} du ${dateCourte(e.it.start)} au ${dateCourte(e.it.end)}`} />
             <SectionFiche titre="Mes absences · description et jours">
-              <Ligne premiere texte="Jours fériés" sous={d.feries.length ? d.feries.map((f) => dateCourte(f)).join(', ') : 'aucun pendant l’itération'} pastille={{ texte: 'Auto', ton: 'bleu' }} />
+              <Ligne premiere texte="Jours fériés" sous={d.feries.length ? d.feries.map((f) => dateCourte(f)).join(', ') : 'aucun pendant le sprint'} pastille={{ texte: 'Auto', ton: 'bleu' }} />
               {mes.map((a) => (
                 <Ligne key={a.p.id} texte={a.d.desc} pastille={{ texte: `${nombreFr(Number(a.d.jours) || 0)} j`, ton: 'orange' }} onRetirer={() => r.poserDonnee('absence', a.d.c ?? '', null)} />
               ))}
@@ -354,7 +354,7 @@ export function FenetrePlanification(p: PropsReunion) {
       case 'objectifs_po':
         return (
           <>
-            <TitreFiche icone="🎯" titre="Objectifs d’itération" vide="" sous={`Ce que l’équipe pourrait viser en ${e.it.code}`} />
+            <TitreFiche icone="🎯" titre="Objectifs de sprint" vide="" sous={`Ce que l’équipe pourrait viser en ${e.it.nom}`} />
             <ListeEditable titre="Objectifs" l={objectifsPO} onChange={(l) => r.poserDonnee('objectifs', 'objectifs', { l }, 'po')} placeholder="Objectif" />
           </>
         );
@@ -421,7 +421,7 @@ export function FenetrePlanification(p: PropsReunion) {
       libelleFin={() => `Envoyer à ${prenom(e.nomDe(p.reunion.organisateur))}`}
       etapeAnim={{ cle: cleAnim, setCle: setCleAnim, detail: cleAnim === 'stories' ? `${pris} pts pris sur ${capaTotale}` : '' }}
       envoyerCR={envoyerCR}
-      renduCR={(rid) => <EtapeCompteRendu r={r} lecture reunionId={rid} iterationCode={e.it.code} />}
+      renduCR={(rid) => <EtapeCompteRendu r={r} lecture reunionId={rid} iterationCode={e.it.nom} />}
     />
   );
 }

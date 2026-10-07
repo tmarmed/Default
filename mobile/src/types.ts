@@ -531,8 +531,8 @@ export interface TypeReunionInfo {
 /** Catalogue des réunions (contenu des étapes : daily validé, src/components/Daily.tsx ; les autres en cours de validation) */
 export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
   daily: { icone: '☀️', libelle: 'Daily', mode: 'safe', niveau: 'equipe', role: 'sm', duree: 15, etapes: ['Situation', 'Tour de table', 'Concrétisation', 'Compte rendu'] },
-  planification: { icone: '🧮', libelle: "Planification d'itération", mode: 'safe', niveau: 'equipe', role: 'sm', duree: 120, etapes: ['Capacité', 'Objectifs', 'Stories', 'Engagement'] },
-  revue: { icone: '🎬', libelle: "Revue d'itération", mode: 'safe', niveau: 'equipe', role: 'po', duree: 60, etapes: ['Bilan', 'Terminées', 'Non terminées', 'Compte rendu'] },
+  planification: { icone: '🧮', libelle: "Planification de sprint", mode: 'safe', niveau: 'equipe', role: 'sm', duree: 120, etapes: ['Capacité', 'Objectifs', 'Stories', 'Engagement'] },
+  revue: { icone: '🎬', libelle: "Revue de sprint", mode: 'safe', niveau: 'equipe', role: 'po', duree: 60, etapes: ['Bilan', 'Terminées', 'Non terminées', 'Compte rendu'] },
   retro: { icone: '🔁', libelle: 'Rétrospective', mode: 'safe', niveau: 'equipe', role: 'sm', duree: 60, etapes: ['Indicateurs', 'Ce qui va', 'Ce qui ne va pas', 'Actions', 'Compte rendu'] },
   affinage: { icone: '🪄', libelle: 'Affinage du backlog', mode: 'safe', niveau: 'equipe', role: 'po', duree: 60, etapes: ['À préparer', 'Story par story', 'Compte rendu'] },
   pi_planning: { icone: '🗓️', libelle: 'PI Planning', mode: 'safe', niveau: 'train', role: 'rte', duree: 480, etapes: ['Contexte', 'Capacité', 'Plan', 'Objectifs', 'Risques', 'Vote', 'Compte rendu'] },
@@ -545,7 +545,7 @@ export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
   prepa_pi: { icone: '🧭', libelle: 'Préparation du PI Planning', mode: 'safe', niveau: 'train', role: 'rte', duree: 90, etapes: ['Situation', 'Vision', 'Features du PI', 'Capacité', 'Dépendances', 'Organisation', 'Concrétisation', 'Compte rendu'] },
   sync_portfolio: { icone: '🔄', libelle: 'Synchronisation du portfolio', mode: 'safe', niveau: 'portfolio', role: 'epic_owner', duree: 45, etapes: ['Situation', 'Epics en cours', 'Escalades des trains', 'Concrétisation', 'Compte rendu'] },
   budget: { icone: '💶', libelle: 'Budget participatif', mode: 'safe', niveau: 'portfolio', role: 'epic_owner', duree: 120, etapes: ['Situation', 'Demandes', 'Vote', 'Répartition', 'Concrétisation', 'Compte rendu'] },
-  iteration_ip: { icone: '💡', libelle: 'Itération IP', mode: 'safe', niveau: 'train', role: 'rte', duree: 60, etapes: ['Situation', 'Programme', 'Hackathon', 'Formation', 'Concrétisation', 'Compte rendu'] },
+  iteration_ip: { icone: '💡', libelle: 'Semaine IP', mode: 'safe', niveau: 'train', role: 'rte', duree: 60, etapes: ['Situation', 'Programme', 'Hackathon', 'Formation', 'Concrétisation', 'Compte rendu'] },
   point_perso: { icone: '🌅', libelle: 'Point perso', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Hier', "Aujourd'hui", 'Plan figé'] },
   bilan_soir: { icone: '🌙', libelle: 'Bilan du soir', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Prévu / fait', 'Pas fini', 'Hors plan'] },
   revue_semaine: { icone: '📆', libelle: 'Revue de la semaine', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Semaine écoulée', 'En retard', 'Priorités'] },

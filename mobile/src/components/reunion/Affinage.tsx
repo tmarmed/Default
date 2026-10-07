@@ -152,9 +152,9 @@ export function MesTaches({ r }: { r: R }) {
   const miens = moiP ? e.situation.elements.filter((t) => t.responsable === moiP.id) : [];
   return (
     <>
-      <TitreFiche icone="📋" titre="Mes tâches" vide="" sous={`${moiP?.nom ?? ''} · ${e.it.code}, tâches des réunions comprises`} />
+      <TitreFiche icone="📋" titre="Mes tâches" vide="" sous={`${moiP?.nom ?? ''} · ${e.it.nom}, tâches des réunions comprises`} />
       <SectionFiche titre={`Mes stories et tâches · ${miens.length}`}>
-        {miens.length ? miens.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} sous={t.type === 'story' ? 'story' : 'tâche'} pastille={pastilleStatut(t.statut)} />) : <Vide texte="Rien à votre nom dans l’itération." />}
+        {miens.length ? miens.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} sous={t.type === 'story' ? 'story' : 'tâche'} pastille={pastilleStatut(t.statut)} />) : <Vide texte="Rien à votre nom dans le sprint." />}
       </SectionFiche>
     </>
   );
@@ -281,17 +281,17 @@ export function FenetreAffinage(p: PropsReunion) {
         const v = velocite(e.h.items, e.dansEquipe, e.it.key);
         return (
           <>
-            <TitreFiche icone="📊" titre="Situation" vide="" sous={`${e.it.code} · avant la planification de l’itération suivante`} />
+            <TitreFiche icone="📊" titre="Situation" vide="" sous={`${e.it.nom} · avant la planification du sprint suivant`} />
             <Compteurs
               l={[
                 { valeur: String(stories.length), libelle: 'à préparer', ton: stories.length ? 'orange' : undefined },
                 { valeur: String(pretes.reduce((s, t) => s + pointsOf(t), 0)), libelle: 'pts prêts', ton: 'vert' },
-                { valeur: String(v.moyenne * 2), libelle: 'pts visés (2 itérations)' },
+                { valeur: String(v.moyenne * 2), libelle: 'pts visés (2 sprints)' },
               ]}
             />
             <BlocSuivi r={r} lecture={lecture} onAjouter />
             <SectionFiche titre="Objectifs de la réunion">
-              <Ligne premiere texte="🎯 Deux itérations de stories prêtes" sous="Estimées, critères écrits, 8 pts au plus, rattachées à une feature." />
+              <Ligne premiere texte="🎯 Deux sprints de stories prêtes" sous="Estimées, critères écrits, 8 pts au plus, rattachées à une feature." />
             </SectionFiche>
           </>
         );
@@ -358,9 +358,9 @@ export function FenetreAffinage(p: PropsReunion) {
         );
       }
       case 'concretisation':
-        return <EtapeConcretisation r={r} lecture={lecture} iterationCode={e.it.code} />;
+        return <EtapeConcretisation r={r} lecture={lecture} iterationCode={e.it.nom} />;
       case 'compte_rendu':
-        return <EtapeCompteRendu r={r} lecture={lecture} iterationCode={e.it.code} entete={sectionsBilan(true)} />;
+        return <EtapeCompteRendu r={r} lecture={lecture} iterationCode={e.it.nom} entete={sectionsBilan(true)} />;
       // ---- Mon point ----
       case 'taches':
         return <MesTaches r={r} />;
@@ -539,7 +539,7 @@ export function FenetreAffinage(p: PropsReunion) {
         return undefined;
       }}
       envoyerCR={envoyerCR}
-      renduCR={(rid) => <EtapeCompteRendu r={r} lecture reunionId={rid} iterationCode={e.it.code} />}
+      renduCR={(rid) => <EtapeCompteRendu r={r} lecture reunionId={rid} iterationCode={e.it.nom} />}
     />
   );
 }

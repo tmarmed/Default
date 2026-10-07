@@ -189,7 +189,7 @@ const LIBELLES_TACHE: Partial<Record<keyof ItemInput, string>> = {
   priorite: 'Priorité',
   statut: 'Statut',
   points: 'Estimation',
-  iteration: 'Itération',
+  iteration: 'Sprint',
   equipe: 'Équipe',
   responsable: 'Responsable',
   parent: 'Tâche parente',
@@ -651,15 +651,15 @@ export function TaskForm({
               {safe.actif &&
                 !form.periodicite &&
                 (form.date ? (
-                  <LigneFiche label="Itération" valeur={iterationOf(form.date).label} sous="D'après la date de la tâche" />
+                  <LigneFiche label="Sprint" valeur={iterationOf(form.date).label} sous="D'après la date de la tâche" />
                 ) : (
                   <LigneChoix
-                    fixe label="Itération"
+                    fixe label="Sprint"
                     value={form.iteration}
                     depart={item?.iteration}
                     {...listeIterations(featureCourante?.pi, featureCourante?.iteration, form.iteration)}
                     libelle={(v) => iterationNom(v)}
-                    sans="Sans itération"
+                    sans="Sans sprint"
                     onChange={(v) => set('iteration', v)}
                   />
                 ))}

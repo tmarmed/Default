@@ -37,26 +37,26 @@ export function PIAddSheet({ visible, piKey, onClose, onChoose }: Props) {
       choices={[
         { label: '＋ Nouvelle feature', principal: true, onPress: () => onChoose('newFeature', itKey) },
         { label: '☑ Choisir des features', suite: true, onPress: () => onChoose('pickFeature', itKey) },
-        { label: '＋ Nouvelle tâche', principal: !sansIt, inactif: sansIt, sous: sansIt ? 'Choisissez une itération' : undefined, onPress: () => onChoose('newTask', itKey) },
-        { label: '☑ Choisir des tâches', suite: true, inactif: sansIt, sous: sansIt ? 'Choisissez une itération' : undefined, onPress: () => onChoose('pickTask', itKey) },
+        { label: '＋ Nouvelle tâche', principal: !sansIt, inactif: sansIt, sous: sansIt ? 'Choisissez un sprint' : undefined, onPress: () => onChoose('newTask', itKey) },
+        { label: '☑ Choisir des tâches', suite: true, inactif: sansIt, sous: sansIt ? 'Choisissez un sprint' : undefined, onPress: () => onChoose('pickTask', itKey) },
       ]}
     >
       <LigneChoix
-        fixe label="Itération"
+        fixe label="Sprint"
         value={itKey}
         groupes={[
           {
             options: its.map((it) => ({
               value: it.key,
-              label: it.code,
+              label: it.nom,
               meta: it.label.split(' · ')[1],
               badge: it.key === courante ? { texte: 'en cours', ton: 'vert' as const } : undefined,
             })),
           },
         ]}
-        libelle={(v) => its.find((it) => it.key === v)?.code ?? v}
-        vide="Sans itération"
-        sans="Sans itération"
+        libelle={(v) => its.find((it) => it.key === v)?.nom ?? v}
+        vide="Sans sprint"
+        sans="Sans sprint"
         onChange={setItKey}
       />
     </ChoiceSheet>

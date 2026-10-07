@@ -4,7 +4,7 @@ import { addDays, parseDate, toDateString } from '../dates';
 import { domaineOf } from '../hierarchy';
 import { chargeOf, subtaskMap } from '../subtasks';
 import { useHierarchy } from '../hierarchyContext';
-import { fmtPoints, iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piOf, piStart, pointsOf, shiftPi } from '../pi';
+import { fmtPoints, iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLabel, piOf, piStart, pointsOf, shiftPi, nomSprint } from '../pi';
 import { capaciteDe, useSafe } from '../safe';
 import { useEspaces } from '../espaces';
 import { prefixeEspace } from '../nomsEspaces';
@@ -145,7 +145,7 @@ export function PIView({
       // Bandeau « … · Annuler » (comme partout) : remet l'itération ou la date d'avant
       const it = iterationByKey(m.itKey);
       onBandeau?.({
-        texte: `« ${m.kind === 'feature' ? m.f.titre : m.t.titre} » déplacée en ${it?.code ?? ''}`,
+        texte: `« ${m.kind === 'feature' ? m.f.titre : m.t.titre} » déplacée en ${it?.nom ?? ''}`,
         annuler: () => (m.kind === 'feature' ? onMoveFeature(m.f, m.f.iteration) : onMoveTask(m.t, m.t.date ? { date: m.t.date } : { iteration: m.t.iteration })),
       });
     } catch (e) {
@@ -166,7 +166,7 @@ export function PIView({
         style={[styles.cell, it.key === currentIt && styles.nowCol]}
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel={`Déplacer ${label} en ${it.code}`}
+        accessibilityLabel={`Déplacer ${label} en ${nomSprint(it.code)}`}
       />
     );
   const colorOf = (t: Item) =>
@@ -244,9 +244,9 @@ export function PIView({
                   style={[styles.cell, styles.headCell, it.key === currentIt && styles.nowCol]}
                   onPress={() => onOpenIteration(it.key)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Ouvrir l'itération ${it.code}`}
+                  accessibilityLabel={`Ouvrir le sprint ${it.nom}`}
                 >
-                  <Text style={[styles.itCode, it.code === 'IP' && { color: colors.warning }]}>{it.code} ›</Text>
+                  <Text style={[styles.itCode, it.code === 'IP' && { color: colors.warning }]}>{it.nom} ›</Text>
                   <Text style={styles.itDates}>{it.label.split(' · ')[1].split(' → ')[0]}</Text>
                 </Pressable>
               ))}
@@ -375,7 +375,7 @@ export function PIView({
                           <Pressable
                             style={[styles.block, { backgroundColor: done ? colors.success : color }]}
                             onPress={() => onOpenTask(t)}
-                            accessibilityLabel={`${t.titre} en ${it.code}`}
+                            accessibilityLabel={`${t.titre} en ${it.nom}`}
                           >
                             <Text style={styles.blockText} numberOfLines={1}>
                               {done ? '✓ ' : ''}
@@ -433,15 +433,15 @@ export function PIView({
       <ChoiceSheet
         key={`deplacer-${move ? (move.kind === 'feature' ? move.f.id : move.t.id) : ''}-${move?.itKey ?? ''}`}
         visible={!!move && !!moveIt}
-        title={move && moveIt ? `Déplacer en ${moveIt.code} ?` : ''}
+        title={move && moveIt ? `Déplacer en ${moveIt.nom} ?` : ''}
         message={
           move && moveIt
             ? [
-                `« ${move.kind === 'feature' ? move.f.titre : move.t.titre} » · ${moveIt.code} : ${moveIt.label.split(' · ')[1].replace(/\.?$/, '.')}`,
+                `« ${move.kind === 'feature' ? move.f.titre : move.t.titre} » · ${moveIt.nom} : ${moveIt.label.split(' · ')[1].replace(/\.?$/, '.')}`,
                 move.kind === 'feature'
-                  ? 'L’itération prévue de la feature change ; ses tâches gardent leur date ou leur itération.'
+                  ? 'Le sprint prévu de la feature change ; ses tâches gardent leur date ou leur sprint.'
                   : (subs.get(move.t.id) ?? []).length
-                    ? 'Ses sous-tâches gardent leur date ou leur itération.'
+                    ? 'Ses sous-tâches gardent leur date ou leur sprint.'
                     : '',
                 move.kind === 'task' && move.t.date ? `Elle a une date (${court(parseDate(move.t.date))}) : choisissez la nouvelle.` : '',
               ]
@@ -453,7 +453,7 @@ export function PIView({
           move && moveIt
             ? [
                 {
-                  label: moving ? 'Déplacement…' : move.kind === 'task' && move.t.date && newDate ? `Déplacer au ${court(parseDate(newDate))}` : `Déplacer en ${moveIt.code}`,
+                  label: moving ? 'Déplacement…' : move.kind === 'task' && move.t.date && newDate ? `Déplacer au ${court(parseDate(newDate))}` : `Déplacer en ${moveIt.nom}`,
                   principal: true,
                   garder: true,
                   inactif: moving || (move.kind === 'task' && !!move.t.date && !newDate),
@@ -468,7 +468,7 @@ export function PIView({
         {move?.kind === 'task' && !!move.t.date ? (
           <ChampFiche
             label="Nouvelle date"
-            sous={dateIt && dateIt.key !== move.itKey ? `⚠ Le ${court(parseDate(newDate))} tombe en ${dateIt.code}${dateIt.pi !== piKey ? ` du PI ${piLabel(dateIt.pi)}` : ''} : la tâche ira là.` : undefined}
+            sous={dateIt && dateIt.key !== move.itKey ? `⚠ Le ${court(parseDate(newDate))} tombe en ${dateIt.nom}${dateIt.pi !== piKey ? ` du PI ${piLabel(dateIt.pi)}` : ''} : la tâche ira là.` : undefined}
           >
             <DateField nu mode="date" value={newDate} onChange={setNewDate} placeholder="Nouvelle date" />
           </ChampFiche>

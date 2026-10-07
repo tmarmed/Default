@@ -177,7 +177,7 @@ const MODES: { value: Mode; label: string }[] = [
 type Tab = Ecran;
 const TAB_TITLES: Record<Tab, string> = {
   taches: 'Tâches',
-  iteration: 'Itération',
+  iteration: 'Sprint',
   pi: 'PI',
   roadmap: 'Roadmap',
   portefeuille: 'Portefeuille',
@@ -996,7 +996,7 @@ function Main() {
     : [
     !surTaches ? '' : filter === 'tous' ? 'Tous les types' : filter === 'recurrents' ? '🔁 Répétés' : `${TYPE_ICONS[filter]} ${TYPE_LABELS[filter]}`,
     domFilter === 'tous' ? 'Tous les domaines' : domFilter === '' ? 'Sans domaine' : (hv.domaines.get(domFilter)?.nom ?? ''),
-    surTaches && safe.actif && itFilter ? '🏃 Itération en cours' : '',
+    surTaches && safe.actif && itFilter ? '🏃 Sprint en cours' : '',
     recherche?.trim() ? `« ${recherche.trim()} »` : '',
     safe.actif && orgFiltre ? libelleOrgFiltre(orgFiltre, orgValue) : '',
   ]
@@ -1863,7 +1863,7 @@ function Main() {
               title: t.titre,
               sub: [
                 hv.epics.get(t.epic)?.titre ?? hv.objectifs.get(t.objectif)?.titre ?? hv.domaines.get(t.domaine)?.nom ?? 'sans rattachement',
-                t.iteration ? `prévue en ${iterationNom(t.iteration)}` : 'pas d’itération',
+                t.iteration ? `prévue en ${iterationNom(t.iteration)}` : 'pas de sprint',
               ].join(' · '),
             }))
         : [];
@@ -2633,7 +2633,7 @@ function Main() {
                           accessibilityRole="switch"
                           accessibilityState={{ checked: itFilter }}
                         >
-                          <Text style={[styles.itChipText, itFilter && styles.itChipTextOn]}>🏃 Itération en cours</Text>
+                          <Text style={[styles.itChipText, itFilter && styles.itChipTextOn]}>🏃 Sprint en cours</Text>
                         </Pressable>
                       )}
                       {domaines.length > 0 && <DomainesPrincipauxChips />}

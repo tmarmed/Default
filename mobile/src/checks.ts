@@ -519,7 +519,7 @@ function checksIterationBrut(
   const subs = subtaskMap(h.items);
 
   // Surcharge : la capacité est commune à tous les domaines, propre à chaque espace
-  if (it.code !== 'IP') out.push(...surcharges(complet.items, itKey, it.code, capacite, u));
+  if (it.code !== 'IP') out.push(...surcharges(complet.items, itKey, it.nom, capacite, u));
 
   // Points incohérents : parent ≠ total de ses sous-tâches (parents présents dans l'itération)
   const parents = new Set<string>();
@@ -556,7 +556,7 @@ function checksIterationBrut(
   const nonFaites = tasks.filter((t) => ouvert(t) && t.type !== 'rendez-vous');
   if (bientotFinie && nonFaites.length) {
     const suivante = shiftIteration(itKey, 1);
-    const code = iterationByKey(suivante)!.code;
+    const code = iterationByKey(suivante)!.nom;
     const sansDate = nonFaites.filter((t) => !t.date);
     const datees = nonFaites.filter((t) => t.date);
     // Tâches datées : itération finie → demain ; sinon → premier jour de l'itération suivante (sans dépasser une date de fin)
@@ -573,7 +573,7 @@ function checksIterationBrut(
       // Itération pas encore finie : rappel (jaune) ; finie : alerte (rouge)
       ...(it.end < today ? {} : { niveau: 'rappel' as const }),
       icone: '↪️',
-      message: `${it.end < today ? 'Itération terminée' : `Fin de l'itération le ${court(it.end)}`} : ${nbFamilles} tâche${nbFamilles > 1 ? 's' : ''} non faite${nbFamilles > 1 ? 's' : ''}${nbSous ? `, avec ${nbSous} sous-tâche${nbSous > 1 ? 's' : ''}` : ''}.`,
+      message: `${it.end < today ? 'Sprint terminé' : `Fin de l'sprint le ${court(it.end)}`} : ${nbFamilles} tâche${nbFamilles > 1 ? 's' : ''} non faite${nbFamilles > 1 ? 's' : ''}${nbSous ? `, avec ${nbSous} sous-tâche${nbSous > 1 ? 's' : ''}` : ''}.`,
       actions: [
         ...(sansDate.length
           ? [
@@ -636,7 +636,7 @@ function checksPIBrut(h: HierarchyValue, piKey: string, today: string, capacite:
   // Itérations surchargées (capacité commune à tous les domaines, propre à chaque espace)
   for (const it of its) {
     if (it.code === 'IP') continue;
-    out.push(...surcharges(complet.items, it.key, it.code, capacite, u, [{ label: `Ouvrir ${it.code}`, action: { kind: 'iteration', itKey: it.key }, principal: true }]));
+    out.push(...surcharges(complet.items, it.key, it.nom, capacite, u, [{ label: `Ouvrir ${it.nom}`, action: { kind: 'iteration', itKey: it.key }, principal: true }]));
   }
 
   const features = h.featureList.filter((f) => f.pi === piKey);
@@ -647,7 +647,7 @@ function checksPIBrut(h: HierarchyValue, piKey: string, today: string, capacite:
     if (epic) {
       const itf = f.iteration ? iterationByKey(f.iteration) : undefined;
       const [fd, ff] = itf ? [itf.start, itf.end] : [toDateString(piStart(piKey)), toDateString(piEnd(piKey))];
-      const periode = itf ? `son itération ${itf.code} (${court(fd)} → ${court(ff)})` : `le PI ${piLabel(piKey)}`;
+      const periode = itf ? `son sprint ${itf.nom} (${court(fd)} → ${court(ff)})` : `le PI ${piLabel(piKey)}`;
       // Sans itération, le PI entier ne fait que « chevaucher » : on ne signale qu'un PI complètement en dehors
       const avant = epic.debut && (itf ? fd < epic.debut : ff < epic.debut);
       const apres = epic.fin && (itf ? ff > epic.fin : fd > epic.fin);
@@ -677,7 +677,7 @@ function checksPIBrut(h: HierarchyValue, piKey: string, today: string, capacite:
       out.push({
         key: `sansit:${f.id}`,
         icone: '🧩',
-        message: `La feature « ${f.titre} » n'a pas d'itération prévue dans ce PI.`,
+        message: `La feature « ${f.titre} » n'a pas de sprint prévu dans ce PI.`,
         actions: [{ label: 'Ouvrir la feature', action: { kind: 'open', target: 'feature', id: f.id }, principal: true }],
       });
     // Feature en retard sur son plan : des tâches tombent après son itération prévue
@@ -686,7 +686,7 @@ function checksPIBrut(h: HierarchyValue, piKey: string, today: string, capacite:
       if (tard.length) {
         const derniere = tard.map(iterationOfItem).sort((a, b) => itStart(a).localeCompare(itStart(b))).pop()!;
         const sansDate = tard.filter((t) => !t.date);
-        const code = (k: string) => iterationByKey(k)?.code ?? k;
+        const code = (k: string) => iterationByKey(k)?.nom ?? k;
         out.push({
           key: `tard:${f.id}`,
           icone: '🧩',
