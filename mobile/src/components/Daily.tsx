@@ -37,7 +37,7 @@ import { type Concretisation, type Echange, type EchangeInput, type Item, type I
 import { FeuilleChoix, LigneChoix, SectionFiche } from './Choix';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
-import { TitreFiche } from './FormSheet';
+import { FormSheet, TitreFiche } from './FormSheet';
 
 /**
  * Daily (lot 6, validé le 01/10 ; parcours séparés le 06/10) : contenu de la fenêtre de réunion. Chaque rôle de la
@@ -851,8 +851,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 <SaisiePoint
                   key={filtreType || 'tous'}
                   premiere={!notes.filter((y) => !filtreType || y.type === filtreType).length}
-                  types={[filtreType || 'blocage']}
-                  aide={filtreType ? undefined : 'Type : Blocage (choisissez un autre type dans les filtres ci-dessus)'}
+                  types={['blocage', 'decision', 'action']}
+                  typeDefaut={filtreType === 'decision' || filtreType === 'action' ? filtreType : 'blocage'}
                   jour={jour}
                   placeholder={`＋ Ajouter pour ${prenom(courant.nom)}…`}
                   stories={stories}
@@ -999,7 +999,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 );
               })()}
             <SectionFiche titre="Point oublié">
-              <SaisiePoint premiere types={['blocage', 'decision', 'action']} jour={jour} placeholder="＋ Blocage, décision ou action oublié" stories={situation.cartes} onAjouter={(type, texte, element) => ajouter({ personne: mail, type, texte, element })} />
+              <SaisiePoint premiere types={['blocage', 'decision', 'action']} typeDefaut="blocage" jour={jour} placeholder="＋ Blocage, décision ou action oublié" stories={situation.cartes} onAjouter={(type, texte, element) => ajouter({ personne: mail, type, texte, element })} />
             </SectionFiche>
           </>
         );
@@ -1339,69 +1339,88 @@ function SaisiePoint({
   jour,
   placeholder,
   stories = [],
+  elementDefaut = '',
+  typeDefaut,
   premiere,
   aide,
   onAjouter,
 }: {
-  /** Ligne d'aide sous la saisie (ex. le type utilisé quand le filtre est sur « Tous ») */
+  /** Ligne d'aide sous le lien (ex. le type utilisé quand le filtre est sur « Tous ») */
   aide?: string;
   types: TypePoint[];
   jour: string;
   placeholder: string;
   stories?: Item[];
+  /** Élément en cours (story affichée) : prérempli dans la fenêtre, modifiable */
+  elementDefaut?: string;
+  /** Type prérempli (celui du filtre, Blocage si « Tous ») */
+  typeDefaut?: TypePoint;
   premiere?: boolean;
   onAjouter: (type: TypePoint, texte: string, element: string) => void;
 }) {
-  const [type, setType] = useState<TypePoint>(types[types.length > 2 ? 2 : 0] ?? 'hier');
+  // Règle commune (07/10) : un simple « ＋ … » sous la liste, qui ouvre une fenêtre (type, élément prérempli, texte)
+  const [ouvert, setOuvert] = useState(false);
+  const parDefaut = (): TypePoint => typeDefaut ?? types[0] ?? 'hier';
+  const [type, setType] = useState<TypePoint>(parDefaut());
   const [texte, setTexte] = useState('');
-  const [element, setElement] = useState('');
+  const [element, setElement] = useState(elementDefaut);
+  const ouvrir = () => {
+    setType(parDefaut());
+    setElement(elementDefaut);
+    setTexte('');
+    setOuvert(true);
+  };
   const valider = () => {
     const t = texte.trim();
     if (!t) return;
     onAjouter(type, t, element);
-    setTexte('');
+    setOuvert(false);
   };
   const typeLibelle = (x: TypePoint) => (x === 'hier' || x === 'aujourdhui' ? pastillePoint(x, jour) : LIBELLE_TYPE_POINT[x]);
+  const libelle = placeholder.replace(/^＋\s*/, '');
   return (
     <View style={[st.saisieBloc, !premiere && st.bord]}>
-      {/* Présentation standard (06/10) : le type en pastilles sous son libellé, la story en une ligne de choix */}
-      {types.length > 1 && (
-        <View style={st.champ}>
-          <Text style={st.champLibelle}>Type</Text>
-          <Pastilles petit options={types.map((x) => ({ value: x, label: typeLibelle(x) }))} value={type} onChange={(v) => setType(v as TypePoint)} />
-        </View>
-      )}
-      {stories.length > 0 && (
-        <View style={st.champStory}>
-          <LigneChoix
-            label="Story"
-            value={element}
-            vide="Aucune (point général)"
-            sans="Aucune (point général)"
-            groupes={[{ titre: 'Stories de l’itération', options: stories.map((t) => ({ value: t.id, label: `📖 ${t.titre}` })) }]}
-            onChange={setElement}
-          />
-        </View>
-      )}
-      <View style={st.saisieLigne}>
-        <TextInput
-          value={texte}
-          onChangeText={setTexte}
-          placeholder={placeholder}
-          placeholderTextColor={colors.primary}
-          onSubmitEditing={valider}
-          submitBehavior="submit"
-          returnKeyType="done"
-          style={st.saisie}
-          accessibilityLabel={placeholder.replace('＋ ', '')}
-        />
-        {!!texte.trim() && (
-          <Pressable onPress={valider} hitSlop={8} style={st.ajouter} accessibilityRole="button" accessibilityLabel="Ajouter">
-            <Text style={st.ajouterTexte}>Ajouter</Text>
-          </Pressable>
-        )}
-      </View>
+      <Pressable onPress={ouvrir} style={st.saisieLigne} accessibilityRole="button" accessibilityLabel={libelle}>
+        <Text style={st.ajouterLien}>＋ {libelle}</Text>
+      </Pressable>
       {!!aide && <Text style={st.sous}>{aide}</Text>}
+      <FormSheet superpose visible={ouvert} title="Nouveau point" busy={false} error={null} onClose={() => setOuvert(false)} onSave={valider} libelleEnregistrer="Ajouter">
+        {types.length > 1 && (
+          <SectionFiche titre="Type">
+            <View style={st.champ}>
+              <Pastilles petit options={types.map((x) => ({ value: x, label: typeLibelle(x) }))} value={type} onChange={(v) => setType(v as TypePoint)} />
+            </View>
+          </SectionFiche>
+        )}
+        {stories.length > 0 && (
+          <SectionFiche titre="Story">
+            <LigneChoix
+              label="Story"
+              value={element}
+              vide="Aucune (point général)"
+              sans="Aucune (point général)"
+              groupes={[{ titre: 'Stories de l’itération', options: stories.map((t) => ({ value: t.id, label: `📖 ${t.titre}` })) }]}
+              onChange={setElement}
+            />
+          </SectionFiche>
+        )}
+        <SectionFiche titre="Point">
+          <View style={st.champPoint}>
+          <TextInput
+            value={texte}
+            onChangeText={setTexte}
+            placeholder="Écrivez le point…"
+            placeholderTextColor={colors.muted}
+            onSubmitEditing={valider}
+            submitBehavior="submit"
+            returnKeyType="done"
+            autoFocus
+            style={st.saisie}
+            accessibilityLabel="Point"
+          />
+          </View>
+        </SectionFiche>
+      </FormSheet>
     </View>
   );
 }
@@ -1508,7 +1527,9 @@ const st = StyleSheet.create({
   choixTexteOn: { color: '#fff', fontWeight: '600' },
   saisieBloc: { paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
   saisieLigne: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  saisie: { flex: 1, fontSize: 15, color: colors.text, paddingVertical: 6 },
+  ajouterLien: { color: colors.primary, fontSize: 15, fontWeight: '600', paddingVertical: 4 },
+  saisie: { flex: 1, fontSize: 15, color: colors.text, paddingVertical: 6, outlineStyle: 'none' as never },
+  champPoint: { backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 6, marginHorizontal: 16 },
   ajouter: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, backgroundColor: colors.primary },
   ajouterTexte: { color: '#fff', fontWeight: '700', fontSize: 13 },
   caseACocher: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#A0A6B1', textAlign: 'center', lineHeight: 19, fontSize: 14, color: '#fff', overflow: 'hidden' },
