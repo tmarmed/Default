@@ -3,9 +3,9 @@
 # La version simple (branche claude/mobile-task-management-app-q8jysq) n'est plus publiée.
 name: Publier la version web
 
+# Publication arrêtée (07/10) : l'application n'est plus publiée à chaque envoi (dépôt privé, pas de livraison
+# pour l'instant). Pour republier : remettre le déclencheur « push » ci-dessous, ou lancer à la main.
 on:
-  push:
-    branches: [claude/mobile-task-management-app-q8jysq, claude/version-safe]
   workflow_dispatch:
 
 permissions:
