@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Règles des réunions</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system, system-ui, "Segoe UI", Roboto, sans-serif; background:#EEF1F6; color:#18202C; }
+  .page { max-width:1000px; padding:28px 20px 30px; margin:0 auto; }
+  h1 { margin:0; font-size:28px; letter-spacing:-.4px; }
+  h1 span { color:#1A73E8; }
+  .sous { color:#6B7686; font-size:14.5px; margin:6px 0 20px; }
+  .grille { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:12px; }
+  .bloc { background:#fff; border:1px solid #E1E6ED; border-radius:14px; padding:14px 16px; }
+  .bloc h2 { margin:0 0 8px; font-size:15.5px; display:flex; gap:8px; align-items:center; }
+  .bloc h2 i { font-style:normal; width:26px; height:26px; border-radius:8px; background:#1A73E8; color:#fff; font-size:13px; font-weight:900; display:grid; place-items:center; flex:none; }
+  ul { margin:0; padding-left:18px; }
+  li { font-size:13px; line-height:1.5; color:#3A4556; margin:2px 0; }
+  li b { color:#18202C; }
+  .exc { margin-top:8px; font-size:12.5px; background:#FFF1D6; color:#8A4B00; border-radius:8px; padding:6px 10px; }
+  .pied { margin-top:16px; font-size:12.5px; color:#6B7686; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Règles <span>des réunions</span></h1>
+  <div class="sous">President · lot 6 · règles communes à toutes les réunions (équipe, train, portfolio), validées en brainstorm — à appliquer à chaque nouvelle réunion</div>
+  <div class="grille">
+
+    <div class="bloc"><h2><i>1</i>Fenêtre et parcours</h2><ul>
+      <li><b>Un onglet par rôle</b> : « Mon point » (membre), « PO », « Animer » (SM ou animateur), « Suivre » (lecture seule de l'animation).</li>
+      <li><b>Mon point du SM ou du PO aussi membres = celui des membres</b>, mêmes étapes ; l'animateur « Enregistre » au lieu d'« Envoyer ».</li>
+      <li>Toutes les étapes en haut, bouton <b>« Suivant »</b> seul ; <b>« ↻ Actualiser »</b> dans l'en-tête (une lecture groupée, au plus toutes les 5 s, sans perdre la saisie ni l'étape).</li>
+      <li>Une story, un objectif, une idée… <b>par écran</b> quand on les prépare (« Story 1 sur 3 »).</li>
+    </ul></div>
+
+    <div class="bloc"><h2><i>2</i>Préparation et séance</h2><ul>
+      <li><b>La préparation n'est pas obligatoire</b> : sans elle, l'animateur note pour la personne en séance.</li>
+      <li>En préparation, on lit, on écrit ses idées et <b>ses questions</b> (points) : elles arrivent chez l'animateur et sont <b>discutées en séance</b>.</li>
+      <li>L'envoi se fait depuis la dernière étape utile (« Envoyer mes points », « Envoyer mes idées »), sans écran récapitulatif vide de sens.</li>
+    </ul></div>
+
+    <div class="bloc"><h2><i>3</i>Votes (poker, étoiles)</h2><ul>
+      <li><b>L'animateur ouvre le vote</b>, aidé d'un compteur (« Idées reçues : 4 sur 5 ») ; il peut l'ouvrir avant que tout le monde ait fini.</li>
+      <li>Participant : « Le vote n'est pas encore ouvert · ↻ Actualiser », puis <b>tout sur un écran</b> (une ligne de cartes par story, ou les étoiles) → « Envoyer mes votes ».</li>
+      <li><b>Vote préparé facultatif</b> : celui qui a déjà voté voit son vote et fait « Suivant » (il peut le changer) ; sinon il vote en séance.</li>
+      <li>Votes <b>cachés</b> jusqu'à « Révéler » ; les accords sont retenus d'un coup ; <b>« Nouveau tour »</b> seulement pour les éléments en écart.</li>
+      <li>Vote ouvert chez l'animateur : <b>« Suivant » devient « Passer le vote »</b>.</li>
+      <li>Rétro : 1 étoile par idée, 3 au total. Poker : cartes 1, 2, 3, 5, 8, 13, ?.</li>
+    </ul></div>
+
+    <div class="bloc"><h2><i>4</i>Ligne d'état et « En direct »</h2><ul>
+      <li><b>Une ligne d'état par réunion</b> (onglet PointsReunion) : étape et élément en cours chez l'animateur, état du vote (fermé, ouvert avec tour et éléments, révélé). Écrite quand l'animateur avance, ouvre ou révèle ; relue par les participants (↻ Actualiser ou toutes les 15 s).</li>
+      <li><b>Bandeau « ● En direct »</b> en bas de l'écran du participant, <b>fermé par défaut</b> ; ouvert, il montre l'écran de l'animateur en lecture seule.</li>
+    </ul><div class="exc">Exception : pas de bandeau « En direct » à la rétrospective (l'écran de vote contient tout).</div></div>
+
+    <div class="bloc"><h2><i>5</i>Points notés</h2><ul>
+      <li>Un seul bloc « <b>Points notés · n</b> » (participant et animateur, origine affichée « par Tom »), filtre « <b>Filtres ▾</b> » à côté du titre, fermé, « Tous » par défaut.</li>
+      <li>Types : <b>Blocage, Décision, Action</b>. Ligne « <b>Type ›</b> » (type du filtre, Blocage si « Tous ») puis « <b>Story ›</b> » (ou Feature, Epic ; « Aucune (point général) »).</li>
+      <li>« ＋ » devient un champ de saisie avec « Ajouter ». Type et date dans deux pastilles ; « Hier », « Aujourd'hui » sans date.</li>
+    </ul></div>
+
+    <div class="bloc"><h2><i>6</i>Concrétisation (4 écrans, partout)</h2><ul>
+      <li>1) liste des points, un bouton « <b>Concrétiser ›</b> » chacun ; 2) feuille : Concrétiser (sous-tâche, tâche à part, rien) · <b>Transmettre à</b> · <b>Escalader</b> ; 3) « Responsable » (par défaut qui a noté le point) ; 4) chaque bouton affiche le choix, modifiable.</li>
+      <li>Rien n'est créé avant « <b>Envoyer le compte rendu</b> » : tâches, échanges, escalades et compte rendu partent en écritures groupées.</li>
+    </ul></div>
+
+    <div class="bloc"><h2><i>7</i>Transmettre et escalader</h2><ul>
+      <li>Équipes calculées depuis l'Organisation : membre → son équipe ; SM → + SM du train ; PO → + PO du train ; RTE, PM → + portfolio.</li>
+      <li><b>Transmettre à</b> = une personne de l'une de mes équipes (échange 🔄 Synchro, titre ↪).</li>
+      <li><b>Escalader</b> = à l'équipe du dessus : aux SM du train (RTE) ou aux PO du train (PM) ; du train au portfolio (titre ⤴). Réunion correspondante : équipe → Daily, train → ART sync, portfolio → revue du portfolio.</li>
+      <li>Points de suivi dans la réunion de chacun ; la <b>réponse est recopiée</b> en Décision dans toutes les réunions de la chaîne ; Synchro affiche « 📅 Suivi dans les réunions ».</li>
+    </ul></div>
+
+    <div class="bloc"><h2><i>8</i>Suivi et fin de vie</h2><ul>
+      <li>« <b>Suivi · n</b> » à la Situation : points concrétisés non finis, escalades en attente, réponses à concrétiser.</li>
+      <li><b>Fini</b> = « Rien », tâche terminée, ou réponse concrétisée (transmis, escaladé).</li>
+      <li>Points finis gardés jusqu'à la <b>rétro du niveau, sinon sa démo</b> (équipe → rétrospective, train → Inspect &amp; Adapt, portfolio → revue du portfolio), puis supprimés du Sheet au compte rendu. La démo les montre dans « Réglé pendant l'itération ».</li>
+    </ul></div>
+
+    <div class="bloc"><h2><i>9</i>Compte rendu et quota</h2><ul>
+      <li>Compte rendu au niveau du dessus (équipe → RTE, train → Epic Owner, portfolio → responsable de l'unité) ; jamais « N+1 » à l'écran : on nomme le rôle et la personne.</li>
+      <li>Mode Simple : seul, sans compte rendu ni onglets.</li>
+      <li>Google Sheets : écritures groupées, au plus une par Sheet et par envoi ; jamais un appel par élément.</li>
+    </ul></div>
+
+  </div>
+  <div class="pied">Détail et historique des décisions : docs/mission.html (lot 6). Mis à jour le 7/10.</div>
+</div>
+</body>
+</html>
