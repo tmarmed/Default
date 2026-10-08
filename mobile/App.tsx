@@ -1789,7 +1789,12 @@ function Main() {
     // Transmettre (validation du 08/10) : toute l'organisation, vos équipes d'abord ; tout message se transmet
     destinataires: (e) => {
       const exclure = [moiEchange, e.de];
-      const groupes = destinatairesTransfert(moiEchange, lireNiveau(e.niveau), orgEchanges, exclure);
+      // Espace Équipe de l'échange (hors entreprise) : ses personnes d'abord
+      const esp = equipesEsp[e.espace ?? ''];
+      const equipeEsp = esp
+        ? esp.equipes.map((q) => ({ titre: `Équipe · ${q.nom}`, emails: esp.personnes.filter((p) => p.email && (membresDe(q).includes(p.id) || q.sm === p.id || q.po === p.id) && !exclure.includes(p.email.toLowerCase())).map((p) => p.email.toLowerCase()) })).filter((g) => g.emails.length)
+        : [];
+      const groupes = [...equipeEsp, ...destinatairesTransfert(moiEchange, lireNiveau(e.niveau), orgEchanges, [...exclure, ...equipeEsp.flatMap((g) => g.emails)])];
       const vus = new Set([...exclure, ...groupes.flatMap((g) => g.emails)]);
       const reste = orgEchanges.personnes
         .filter((p) => p.email && !vus.has(p.email.toLowerCase()))
