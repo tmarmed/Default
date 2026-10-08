@@ -16,6 +16,21 @@ Faire valider par l'utilisateur, écran par écran (captures de la démo + quest
    « Avancement » (fiche tâche) ; onglet « Ma préparation ».
 Démo : `?demo`, ACME, daily de l'équipe Mobile (suivis à valider prêts dans la démo).
 
+### Remarques de validation (session du 08/10, en cours)
+Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
+- [ ] Situation : toutes les lignes de suivi au même format « 📌 Suivi · Responsable : Emma Roy · … » (noms entiers,
+      fini « tâche à part · 👤 Emma »).
+- [ ] Feuille du suivi : titre en entier (passe à la ligne, pas coupé).
+- [ ] Saisie d'une note : vocabulaire Note (« Nouvelle note · Tom Faure », « NOTE », « Écrivez la note… »,
+      « Aucun · note générale »).
+- [ ] Escalade : libellé avec le nom du niveau (« ⤴ Train Clients (escalader) »).
+- [ ] Nouveau type de note « Décision à prendre » (en plus de Décision = décision prise).
+- [ ] Situation, toutes réunions : filtre suivis concrétisés / notes pas encore concrétisées (reportées des réunions
+      précédentes). Pas de « Plus tard » : ne pas concrétiser = plus tard.
+- En discussion : remplacer les puces Moi / Mon équipe / Niveau du dessus par un seul « Responsable › » groupé ;
+  Validation : par défaut l'animateur (Scrum Master au daily), modifiable — l'utilisateur garde « Validation ».
+Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
+
 ## Session d'après
 - **Pilotage (lot 5)** : reprendre le brainstorm (pilotage et calendrier ; voir docs/mission.html lot 5).
 
