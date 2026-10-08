@@ -35,6 +35,8 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
       « Suivre », libellé « Escaladé au train Clients »). Validation inchangée (animateur par défaut, modifiable). VALIDÉ.
 - [ ] Compte rendu (étape 4 et onglet) : 4 sections toujours affichées, même à 0 : Créé, Suivis, Transmis (escalade
       fusionnée dans Transmis : notion déjà fusionnée par l'utilisateur), Clos ; noms entiers (« Tom Faure → Paul Leroy »).
+- [ ] Fiche d'un élément : suivis au format de la Situation (Responsable, Validation, Échéance) ; corriger « Sa sous-tâche
+      seront conservé(e)s » ; « Sprint » partout au lieu de « IT1 » / « itération » (toute l'application).
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
