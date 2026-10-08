@@ -59,6 +59,17 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
   deux côtés. Plus de bandes de questions (AskUserQuestion) : poser les questions dans le texte.
 - [ ] Écran 7 (Chat « Valider ? ») : avis en attente (« Faire suivre » → « ↪ Transmettre › »).
 - [ ] Écran 8 (Ma préparation) : remplir la démo (une story en cours et une note préparée pour « Vous »), puis remontrer.
+- Décisions Chat ↔ réunion (08/10, suite) :
+  - les suivis se rattachent toujours à une réunion (pas de « Mes suivis » hors réunion) ;
+  - « Valider ? » d'une tâche créée depuis le Chat → information « Terminé ✓ » à l'expéditeur ;
+  - c'est celui qui reçoit qui décide de lier ou non à une réunion ; s'il répond, rien n'est proposé ; s'il transmet,
+    « 📌 Suivre à <sa réunion par défaut> » est proposé (modifiable, décochable). Une chaîne mélange des maillons liés et
+    non liés à une réunion ;
+  - confidentialité : le message reste privé ; la note de réunion est reformulée (texte à écrire) et liée à l'échange
+    (noms visibles, contenu non) ;
+  - plusieurs destinataires : dès une réponse, l'expéditeur peut relancer ou clôturer ; clôturé = disparaît chez tous ;
+  - méthode : étudier le diagramme d'états (1. possibilités à la réception, 2. boucle répondre / transmettre,
+    3. finalisation).
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
