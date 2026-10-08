@@ -41,7 +41,7 @@ import { FeuilleChoix, SectionFiche } from './Choix';
 import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, patchConcretise, resumeChoix as resumeConcret, resumePoint } from '../concretisation';
 import { libelleElement } from '../elementConcerne';
 import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../pointsSuivi';
-import { type CtxSuivi, LignesSuivi, pointsDeSuivi, statutAffiche } from './reunion/Suivi';
+import { type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, statutAffiche } from './reunion/Suivi';
 import { FeuilleConcretiser } from './reunion/Concretiser';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
@@ -907,7 +907,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   key={point.id}
                   premiere={!nouveauxSuivis.length && !suivisEquipe.length && !suivisEchanges.length && i === 0}
                   texte={point.texte}
-                  sous={`📝 Note à concrétiser · notée le ${jourCourt(point.reunion.slice(-10))} par ${nomDe(point.personne)}`}
+                  sous={`📝 Note à concrétiser · notée le ${jourCourt(point.reunion.slice(-10))} par ${nomDe(point.personne)}${point.echange ? ` · ${lienPrive(point, echanges, nomDe)}` : ''}`}
                   pastille={{ ...pastilleSuivi(point, jour), ton: tonType(point.type) }}
                 />
               ))}

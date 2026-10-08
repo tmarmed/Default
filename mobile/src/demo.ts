@@ -121,7 +121,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '28';
+const DEMO_DATA_VERSION = '29';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -534,16 +534,44 @@ const SEEDS_ENTREPRISE: Seeds = {
         transmis_par: 'nina.dupont@acme.example',
         cree_le: `${joursOuvresAvant(prochainDaily(new Date()), 1)}T09:45:00.000Z`,
       }),
-      // « Valider ? » d'un point de suivi (08/10) : la réponse de l'escalade est redescendue, à vous de valider
+      // Rappel d'un suivi à valider (08/10) : la réponse de la transmission est redescendue ; « Valider » se fait en
+      // réunion (Situation, « À valider »), le Chat ne reçoit qu'un rappel
       ech('acmx5', {
         de: 'sara.martin@acme.example',
         a: MOI_DEMO,
-        type: 'question',
-        titre: 'Valider ? API de paiement bloquée',
-        texte: 'Réponse de Sara Martin : accès donné par le prestataire (clé dans le coffre)',
-        choix: 'Valider;Re-concrétiser;À reprendre (motif);Abandonner (motif)',
+        titre: '📌 À valider en réunion · API de paiement bloquée',
+        texte: 'Réponse de Sara Martin : accès donné par le prestataire (clé dans le coffre). Validez-le dans la Situation du daily Mobile (« À valider »).',
         element: 'acm4',
         point: 'demo-entreprise|acmpt10',
+      }),
+      // Transmettre (08/10) : Tom vous signale un blocage ; vous l'avez transmis à Sara Martin en restant dans la boucle ;
+      // elle a répondu : à vous de l'accepter et de faire redescendre la réponse à Tom (reformulée)
+      ech('acmx6', {
+        de: 'tom.faure@acme.example',
+        a: MOI_DEMO,
+        type: 'question',
+        nature: 'blocage',
+        titre: 'Serveur de test hors service',
+        texte: 'Il ne répond plus depuis lundi, je ne peux plus tester la connexion.',
+        choix: 'Résolu;Pas résolu (motif)',
+        statut: 'transmis',
+        element: 'acm4',
+      }),
+      ech('acmx7', {
+        de: MOI_DEMO,
+        a: 'sara.martin@acme.example',
+        type: 'question',
+        nature: 'blocage',
+        titre: 'Serveur de test de l’équipe Mobile indisponible',
+        texte: '↪ Transmis par Vous (tous les rôles) · pas mon périmètre',
+        choix: 'Résolu;Pas résolu (motif)',
+        statut: 'repondu',
+        reponse: 'Résolu',
+        note: 'Redémarré ce matin, la supervision est en place.',
+        transmis_par: MOI_DEMO,
+        parent: 'acmx6',
+        niveau: 'train:acmtr1',
+        element: 'acm4',
       }),
     ];
     return e;

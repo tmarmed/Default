@@ -29,7 +29,7 @@ import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, pat
 import { FeuilleConcretiser } from './Concretiser';
 import { libelleElement } from '../../elementConcerne';
 import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../../pointsSuivi';
-import { type CtxSuivi, LignesSuivi, pointsDeSuivi, statutAffiche } from './Suivi';
+import { type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, statutAffiche } from './Suivi';
 import { colors } from '../../theme';
 import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type TypePoint, TYPES_REUNION } from '../../types';
 import { FeuilleChoix, SectionFiche } from '../Choix';
@@ -725,7 +725,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
         />
       ))}
       {!aValider && vue !== 'suivis' && notesVues.map((point) => (
-        <Ligne key={point.id} premiere={k++ === 0} texte={point.texte} sous={`📝 Note à concrétiser · notée le ${jourCourt(point.reunion.slice(-10))} par ${e.nomDe(point.personne)}`} pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }} />
+        <Ligne key={point.id} premiere={k++ === 0} texte={point.texte} sous={`📝 Note à concrétiser · notée le ${jourCourt(point.reunion.slice(-10))} par ${e.nomDe(point.personne)}${point.echange ? ` · ${lienPrive(point, r.echanges, e.nomDe)}` : ''}`} pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }} />
       ))}
       {!n && <Vide texte="✓ Rien en attente des réunions précédentes." />}
       {onAjouter && r.anime && !lecture && (

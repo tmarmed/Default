@@ -5,7 +5,9 @@ import { useHierarchy } from '../hierarchyContext';
 import { useOrg } from '../organisation';
 import { colors } from '../theme';
 import { TYPE_ICONS } from '../types';
-import type { Echange, EchangeInput } from '../types';
+import { CHOIX_NATURE, type Echange, type EchangeInput, LIBELLE_NATURE, type NatureEchange, natureDe, seLitSeulement } from '../types';
+/** Icône de la nature d'un message (même vocabulaire que les notes) */
+export const ICONE_NATURE_ECH: Record<Exclude<NatureEchange, ''>, string> = { information: '✉️', question: '❓', blocage: '🧱', decision_a_prendre: '⚖️', decision_prise: '✅', action: '✓' };
 import type { Transmission } from '../echange/transmettre';
 import { ChampFiche, FeuilleChoix, type GroupeChoix, LigneChoix, SaisieFiche, SectionFiche } from './Choix';
 import { ChatEchanges, type ElementChat } from './ChatEchanges';
@@ -101,7 +103,7 @@ export interface Hierarchie {
 }
 
 const ICONE_NATURE: Record<string, string> = { humain: '🧑', ia_chat: '💬', agent_ia: '🤖', application: '🏛️' };
-const LIBELLE_NATURE: Record<string, string> = { humain: 'Humain', ia_chat: 'IA chat', agent_ia: 'Agent IA', application: 'Application' };
+const LIBELLE_INTERLOCUTEUR: Record<string, string> = { humain: 'Humain', ia_chat: 'IA chat', agent_ia: 'Agent IA', application: 'Application' };
 
 /** « lea.martin@… » → « Lea Martin » (personne absente de l'Organisation) */
 export const nomDepuisEmail = (e: string) =>
@@ -231,7 +233,7 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
       <Text style={s.avatar}>{icone}</Text>
       <View style={s.corps}>
         <Text style={s.titre}>
-          {nom} <Text style={s.nature}>· {LIBELLE_NATURE[nature] ?? nature}</Text>
+          {nom} <Text style={s.nature}>· {LIBELLE_INTERLOCUTEUR[nature] ?? nature}</Text>
         </Text>
         <Text style={s.meta}>{meta}</Text>
       </View>
@@ -494,7 +496,7 @@ function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier, libe
     // Toucher la carte l'ouvre dans la fenêtre (consultation), par-dessus l'écran
     <Pressable onPress={onOuvrir} disabled={!onOuvrir} style={[s.carte, s.carteEchange, gris && s.gris]} accessibilityRole="button">
       {!!e.element && <FilEchange id={e.element} />}
-      <Text style={s.type}>{e.type === 'question' ? '❓ Question' : '✉️ Message'}{onOuvrir ? '  ·  Ouvrir ›' : ''}</Text>
+      <Text style={s.type}>{`${ICONE_NATURE_ECH[natureDe(e)]} ${LIBELLE_NATURE[natureDe(e)]}`}{onOuvrir ? '  ·  Ouvrir ›' : ''}</Text>
       {!!e.titre && <Text style={s.titre}>{e.titre}</Text>}
       {!!e.texte && <Text style={s.texte}>{e.texte}</Text>}
       <PiecesEchange e={e} />
@@ -652,7 +654,11 @@ function NouvelEchange({
   const [lecture, setLecture] = useState(false);
   const [dest, setDest] = useState(a);
   const [espace, setEspace] = useState(espaces.find((e) => e.id !== 'moi')?.id ?? espaces[0]?.id ?? 'moi');
-  const [type, setType] = useState<'message' | 'question'>('message');
+  // Nature (validation du 08/10) : un seul vocabulaire avec les notes de réunion ; Question par défaut
+  const [nature, setNature] = useState<Exclude<NatureEchange, ''>>('question');
+  const type: 'message' | 'question' = seLitSeulement(nature) ? 'message' : 'question';
+  /** Question : les choix de l'auteur ; blocage, demande d'action, décision à prendre : choix prédéfinis */
+  const choixLibres = nature === 'question';
   const [titre, setTitre] = useState('');
   const [texte, setTexte] = useState('');
   const [choix, setChoix] = useState<string[]>([]);
@@ -688,7 +694,7 @@ function NouvelEchange({
     if (visible) {
       setDest(existant?.a ?? a);
       setEspace(existant?.espace ?? espaces.find((e) => e.id !== 'moi')?.id ?? espaces[0]?.id ?? 'moi');
-      setType(existant?.type ?? 'message');
+      setNature(existant ? natureDe(existant) : 'question');
       setTitre(existant?.titre ?? '');
       setTexte(existant?.texte ?? '');
       setChoix(existant ? existant.choix.split(';').map((c) => c.trim()).filter(Boolean) : []);
@@ -736,17 +742,18 @@ function NouvelEchange({
     // Un choix tapé sans Entrée compte aussi ; « ; » est le séparateur du Sheet
     const liste = [...new Set([...choix, saisieChoix].map((c) => c.replace(/;/g, ',').trim()).filter(Boolean))];
     // Un seul choix : « Autre » est ajouté pour qu'on puisse répondre autrement
-    if (type === 'question' && liste.length === 1) liste.push('Autre');
-    if (type === 'question' && !liste.length) return setError('Ajoutez au moins un choix de réponse.');
+    if (choixLibres && liste.length === 1) liste.push('Autre');
+    if (choixLibres && !liste.length) return setError('Ajoutez au moins un choix de réponse.');
+    const choixFinal = type !== 'question' ? '' : choixLibres ? liste.join(';') : (CHOIX_NATURE[nature] ?? 'Fait;Autre');
     setBusy(true);
     try {
-      const contenu = { type, titre: titre.trim(), texte: texte.trim(), choix: type === 'question' ? liste.join(';') : '', element };
+      const contenu = { type, nature, titre: titre.trim(), texte: texte.trim(), choix: choixFinal, element };
       if (existant) {
         await onModifier(existant, contenu);
         onClose();
         return;
       }
-      await onEnvoyer({ espace: espaceFinal, de: moi, a: dest, type, titre: titre.trim(), texte: texte.trim(), choix: type === 'question' ? liste.join(';') : '', reponse: '', note: '', statut: 'envoye', element, niveau: '', transmis_par: '', prive: '1' }, pieces);
+      await onEnvoyer({ espace: espaceFinal, de: moi, a: dest, type, nature, titre: titre.trim(), texte: texte.trim(), choix: choixFinal, reponse: '', note: '', statut: 'envoye', element, niveau: '', transmis_par: '', prive: '1' }, pieces);
       onClose();
     } catch (e) {
       setError(`Envoi impossible : ${(e as Error).message}`);
@@ -757,7 +764,7 @@ function NouvelEchange({
   return (
     <FormSheet visible={visible} title={existant ? "Modifier le message" : "Nouveau message"} busy={busy} error={error} onClose={onClose} onSave={() => void envoyer()} libelleEnregistrer="Envoyer">
       {/* Même modèle que les autres fiches : grand titre en haut, puis ce qu'on écrit en premier */}
-      <TitreFiche icone={type === 'question' ? '❓' : '✉️'} titre={titre} vide={type === 'question' ? 'Votre question' : 'Titre du message'} sous={dest ? `À ${nomDest(dest)}` : undefined} />
+      <TitreFiche icone={ICONE_NATURE_ECH[nature]} titre={titre} vide={LIBELLE_NATURE[nature]} sous={dest ? `À ${nomDest(dest)}` : undefined} />
       {!!existant && <Text style={s.aide}>Pas encore lu : le message est modifié. Lu entre-temps : votre modification part en nouveau message.</Text>}
       <SectionFiche titre="Message">
         <ChampFiche label="Titre">
@@ -769,9 +776,9 @@ function NouvelEchange({
         <LigneChoix
           fixe
           label="Type"
-          value={type}
-          groupes={[{ options: [{ value: 'message', label: '✉️ Message' }, { value: 'question', label: '❓ Question', meta: 'avec des choix de réponse' }] }]}
-          onChange={(v) => v && setType(v as 'message' | 'question')}
+          value={nature}
+          groupes={[{ options: (Object.keys(LIBELLE_NATURE) as Exclude<NatureEchange, ''>[]).map((n) => ({ value: n, label: `${ICONE_NATURE_ECH[n]} ${LIBELLE_NATURE[n]}`, meta: n === 'question' ? 'avec des choix de réponse' : CHOIX_NATURE[n] ? `réponse : ${CHOIX_NATURE[n]!.split(';').join(' ou ')}` : 'à lire' })) }]}
+          onChange={(v) => v && setNature(v as Exclude<NatureEchange, ''>)}
         />
       </SectionFiche>
       {/* Pièces jointes : images (vignettes, visionneuse) et fichiers ; pas encore sur téléphone (lot 18) */}
@@ -790,7 +797,7 @@ function NouvelEchange({
         </SectionFiche>
       )}
       {/* Choix de réponse : saisie rapide, comme les tâches d'une feature (Entrée pour ajouter) */}
-      {type === 'question' && (
+      {choixLibres && (
         <SectionFiche titre={`Choix de réponse · ${choix.length}`} aDefinir={choix.length ? 0 : 1}>
           {choix.map((c, i) => (
             <View key={`${c}${i}`} style={[s.ligneChoix, i > 0 && s.ligneBord]}>

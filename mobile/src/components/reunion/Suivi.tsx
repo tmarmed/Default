@@ -63,7 +63,20 @@ export function statutAffiche(p: PointReunion, items: Item[], jour: string): { s
 }
 
 /** Sous-titre en toutes lettres : « Tâche · Responsable : Emma Roy », « Réponse de Sara Martin : … », motif… */
-export function sousSuivi(p: PointReunion, st: StatutSuivi, nomDe: (e: string) => string): string {
+export function sousSuivi(p: PointReunion, st: StatutSuivi, nomDe: (e: string) => string, echanges?: Echange[]): string {
+  const base = sousSuiviSansLien(p, st, nomDe);
+  return echanges && p.echange ? [base, lienPrive(p, echanges, nomDe)].filter(Boolean).join(' · ') : base;
+}
+/**
+ * Note liée à un message du Chat (validation du 08/10) : les noms sont visibles, pas le contenu ; le message disparu,
+ * la note reste avec « 🔒 Échange privé terminé »
+ */
+export function lienPrive(p: Pick<PointReunion, 'echange'>, echanges: Echange[], nomDe: (e: string) => string): string {
+  if (!p.echange) return '';
+  const e = echanges.find((x) => x.id === p.echange);
+  return e ? `🔒 Échange privé · ${nomDe(e.de)} → ${nomDe(e.a)}` : '🔒 Échange privé terminé';
+}
+function sousSuiviSansLien(p: PointReunion, st: StatutSuivi, nomDe: (e: string) => string): string {
   const resp = p.responsable || p.personne;
   if (st === 'valide') return `${quoiSuivi(p)} · validé par ${nomDe(p.validateur || resp)}`;
   if ((st === 'fait' && roleEscalade(p) === 'bas') || ((st === 'a_reprendre' || st === 'abandonne') && p.note)) return p.note || '';
@@ -105,7 +118,7 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true }: { points
   return (
     <>
       {liste.map(({ p, a }, i) => (
-        <Ligne key={p.id} premiere={premiere && i === 0} texte={p.texte} sous={sousSuivi(p, a.s, ctx.nomDe)} pastille={a.texte ? { texte: a.texte, ton: a.ton } : undefined} onOuvrir={ctx.lecture ? undefined : () => setOuvert(p)} />
+        <Ligne key={p.id} premiere={premiere && i === 0} texte={p.texte} sous={sousSuivi(p, a.s, ctx.nomDe, ctx.echanges)} pastille={a.texte ? { texte: a.texte, ton: a.ton } : undefined} onOuvrir={ctx.lecture ? undefined : () => setOuvert(p)} />
       ))}
       {ouvert && (
         <FeuilleSuivi
