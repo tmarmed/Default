@@ -7,6 +7,8 @@ CLAUDE.md s'y charge). Branche de travail : `claude/version-safe` ; toujours com
 - Répondre **en français, court**. Valider par captures d'écran et questions/réponses (AskUserQuestion).
 - Libellés complets, noms entiers (« Responsable : Sara Martin · Validation : Nina Dupont »), jamais d'abréviations.
 - Brainstorm : recommander une solution, puis poser les questions ; ne pas coder avant « je valide ».
+- **Chaque question de l'utilisateur** : l'explication, puis toujours les choix (AskUserQuestion), pour qu'il relise
+  l'explication s'il l'a manquée.
 - Garder à jour : `docs/regles-reunions.html`, `docs/mission.html`, `docs/bilan-reunions.html`.
 
 ## Fiches à lire seulement quand le sujet arrive (ne pas les charger d'avance)
