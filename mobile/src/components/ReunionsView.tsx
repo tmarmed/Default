@@ -202,7 +202,7 @@ export function FenetreDeReunion(p: {
   // Réunions d'équipe validées (07/10) : contenu de chaque étape, sur le socle commun
   const props = { visible: true, reunion: ouverte, org, moi, aujourdhui, fil, onFermer, onFini: p.onFini, onInfo, onOpenTask, echanges };
   // Rituels personnels (seul) : sur vos tâches, sans live ni compte rendu
-  if (!ouverte.niveau && daily && estRituelSimple(ouverte.type)) return <FenetreSimple reunion={ouverte} actions={daily} fil={fil} onFermer={onFermer} onFini={p.onFini} onInfo={onInfo} />;
+  if (!ouverte.niveau && daily && estRituelSimple(ouverte.type)) return <FenetreSimple reunion={ouverte} actions={daily} fil={fil} onFermer={onFermer} onFini={p.onFini} onInfo={onInfo} moi={moi} echanges={echanges} />;
   // 📅 Réunion libre : son parcours (points, décisions, compte rendu), même personnelle
   if (ouverte.type === 'reunion' && daily) return <FenetreNiveau {...props} actions={daily} />;
   if (ouverte.niveau && daily) {

@@ -1773,8 +1773,13 @@ function Main() {
         .map((e) => ({ value: `${esp}|daily-equipeagile:${e.id}-`, label: `${TYPES_REUNION.daily.libelle} 👥 ${e.nom}` }))
         .filter((r) => !vues.has(r.value) && !!vues.add(r.value));
     });
-    return [...entreprise, ...equipes];
-  }, [orgReunions, moiEchange, equipesEsp]);
+    // Mode Simple (08/10) : les mêmes suivis, dans vos rituels personnels (🔒 Moi)
+    const perso = safe.actif ? [] : [
+      { value: 'moi|point_perso-perso-', label: '☀️ Point perso (🔒 Moi)' },
+      { value: 'moi|revue_semaine-perso-', label: '🗓️ Revue de la semaine (🔒 Moi)' },
+    ];
+    return [...entreprise, ...equipes, ...perso];
+  }, [orgReunions, moiEchange, equipesEsp, safe.actif]);
   /** Points d'un Sheet : créés et modifiés en une écriture */
   const ecrireNotes = async (espace: string, creer: PointAEcrire[], modifier: (Partial<PointReunion> & { id: string })[]) =>
     settings ? (await api.ecrirePoints(settings, espace, creer.map(({ espace: _e, ...p }) => p), modifier, [])).crees.map((p) => ({ ...p, espace })) : [];

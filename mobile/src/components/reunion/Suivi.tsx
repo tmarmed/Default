@@ -100,9 +100,11 @@ async function creerUn(a: ActionsDaily, espace: string, x: ACreer, niveau: strin
  * feuille (Fait pour le responsable ou l'animateur ; Valider · Re-concrétiser · À reprendre · Abandonner pour le
  * validateur). `aValider` : seulement ceux à valider par vous.
  */
-export function LignesSuivi({ points, ctx, aValider, premiere = true }: { points: PointReunion[]; ctx: CtxSuivi; aValider?: boolean; premiere?: boolean }) {
+export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = [] }: { points: PointReunion[]; ctx: CtxSuivi; aValider?: boolean; premiere?: boolean; notes?: PointReunion[] }) {
   const [ouvert, setOuvert] = useState<PointReunion | null>(null);
   const [reconc, setReconc] = useState<PointReunion | null>(null);
+  // Notes pas encore concrétisées (mode Simple : même feuille, écrite tout de suite)
+  const [conc, setConc] = useState<PointReunion | null>(null);
   const liste = points
     .map((p) => ({ p, a: statutAffiche(p, ctx.items, ctx.jour) }))
     .filter((x) => !aValider || (x.a.s === 'fait' && validateurDe(x.p, ctx.animateur) === ctx.moi.toLowerCase()));
@@ -123,6 +125,17 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true }: { points
       {liste.map(({ p, a }, i) => (
         <Ligne key={p.id} premiere={premiere && i === 0} texte={p.texte} sous={sousSuivi(p, a.s, ctx.nomDe, ctx.echanges)} pastille={a.texte ? { texte: a.texte, ton: a.ton } : undefined} onOuvrir={ctx.lecture ? undefined : () => setOuvert(p)} />
       ))}
+      {!aValider &&
+        notes.map((p, i) => (
+          <Ligne
+            key={p.id}
+            premiere={premiere && !liste.length && i === 0}
+            texte={p.texte}
+            sous={[`📝 Note à concrétiser · notée le ${jourCourt(p.reunion.slice(-10))}`, lienPrive(p, ctx.echanges, ctx.nomDe)].filter(Boolean).join(' · ')}
+            pastille={{ texte: 'Concrétiser ›', ton: 'bleu' }}
+            onOuvrir={ctx.lecture ? undefined : () => setConc(p)}
+          />
+        ))}
       {ouvert && (
         <FeuilleSuivi
           pt={ouvert}
@@ -138,27 +151,33 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true }: { points
           }}
         />
       )}
-      {reconc && (
+      {(reconc || conc) && (
         <FeuilleConcretiser
-          titre="Re-concrétiser"
-          sous={`« ${reconc.texte} »${reconc.note ? ` · ${reconc.note}` : ''}`}
-          valeur={{ ...choixParDefaut({ ...reconc, type: 'action', responsable: reconc.responsable }, { animateur: ctx.animateur, echeance: ctx.echeance, h: ctx.h, moi: ctx.moi }), valid: validateurDe(reconc, ctx.animateur) }}
+          titre={reconc ? 'Re-concrétiser' : 'Concrétiser'}
+          sous={`« ${(reconc ?? conc)!.texte} »${reconc?.note ? ` · ${reconc.note}` : ''}`}
+          valeur={
+            reconc
+              ? { ...choixParDefaut({ ...reconc, type: 'action', responsable: reconc.responsable }, { animateur: ctx.animateur, echeance: ctx.echeance, h: ctx.h, moi: ctx.moi }), valid: validateurDe(reconc, ctx.animateur) }
+              : choixParDefaut(conc!, { animateur: ctx.animateur, echeance: ctx.echeance, h: ctx.h, moi: ctx.moi })
+          }
           dessus={[]}
           {...ctx.concret}
-          onFermer={() => setReconc(null)}
+          onFermer={() => (setReconc(null), setConc(null))}
           onValider={async (c: ChoixConcret) => {
-            const pt = reconc;
+            const pt = (reconc ?? conc)!;
+            const re = !!reconc;
             setReconc(null);
+            setConc(null);
             try {
               const lien = c.que === 'creer' ? await creerUn(ctx.actions, ctx.espace, elementACreer(c, pt, ctx.ctxCreer(pt)), ctx.niveau) : c.que === 'suivre' ? pt.tache : '';
               const patch = { id: pt.id, ...patchConcretise(c, lien), note: '', ...(c.que === 'rien' ? { statut: 'valide' as const } : {}) };
               const { modifies } = await ctx.actions.ecrirePoints(ctx.espace, [], [patch], []);
-              // Les « Valider ? » encore ouverts sur ce point sont réglés : le point repart
+              // Les rappels encore ouverts sur ce point sont réglés : le point repart
               const ref = refPoint(ctx.espace, pt.id);
-              const ouvertes = ctx.echanges.filter((e) => e.type === 'question' && e.statut === 'envoye' && !!e.point && (e.point === ref || e.point.startsWith(`${ref}|`)));
+              const ouvertes = ctx.echanges.filter((e) => e.statut === 'envoye' && !!e.point && (e.point === ref || e.point.startsWith(`${ref}|`)));
               if (ouvertes.length && ctx.actions.modifierEchanges) await ctx.actions.modifierEchanges(ouvertes.map((e) => ({ e, patch: { statut: 'pris_en_compte' as const, reponse: 'Re-concrétiser', note: '' } })));
               ctx.onPoints(modifies.map((x) => ({ ...x, espace: ctx.espace })));
-              ctx.onInfo?.(`« ${pt.texte} » re-concrétisé${c.que === 'creer' ? ` : ${LIBELLE_TYPE_CREE(c.type).toLowerCase()} « ${c.titre} » créé` : ''}.`);
+              ctx.onInfo?.(`« ${pt.texte} » ${re ? 're-concrétisé' : 'concrétisé'}${c.que === 'creer' ? ` : ${LIBELLE_TYPE_CREE(c.type).toLowerCase()} « ${c.titre} » créé` : ''}.`);
             } catch (e) {
               ctx.onInfo?.((e as Error).message);
             }

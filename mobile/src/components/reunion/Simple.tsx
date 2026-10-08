@@ -5,7 +5,7 @@ import { addDays, toDateString } from '../../dates';
 import { dateCourte } from '../../daily';
 import { useHierarchy } from '../../hierarchyContext';
 import { colors } from '../../theme';
-import { type Item, RECURRENCE_DEFAUTS, type Reunion } from '../../types';
+import { type Echange, type Item, RECURRENCE_DEFAUTS, type Reunion } from '../../types';
 import { SaisieFiche, SectionFiche } from '../Choix';
 import type { ActionsDaily } from '../Daily';
 import { FenetreReunion } from '../FenetreReunion';
@@ -13,6 +13,7 @@ import { TitreFiche } from '../FormSheet';
 import { Navigation } from './Affinage';
 import { AjoutElement, ChoixJour } from './Ajout';
 import { Compteurs } from './base';
+import { SuivisPerso } from './SuivisPerso';
 import { Ligne, Pastilles, pastilleStatut, st, Vide } from './ui';
 
 /**
@@ -44,7 +45,7 @@ const heures = (n: number) => `${Math.floor(n)} h${n % 1 ? ` ${String(Math.round
 type Choix = 'auj' | 'demain' | 'reporter' | 'abandon' | 'semaine' | 'plustard';
 const LIB: Record<Choix, string> = { auj: 'Refaire aujourd’hui', demain: 'Demain', reporter: 'Reporter', abandon: 'Abandonner', semaine: 'Cette semaine', plustard: 'Plus tard' };
 
-export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil }: { reunion: Reunion; actions: ActionsDaily; onFermer: () => void; onFini?: () => void; onInfo?: (t: string) => void; fil?: string }) {
+export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil, moi = '', echanges = [] }: { reunion: Reunion; actions: ActionsDaily; onFermer: () => void; onFini?: () => void; onInfo?: (t: string) => void; fil?: string; moi?: string; echanges?: Echange[] }) {
   const h = useHierarchy();
   const jour = reunion.debut.slice(0, 10);
   const demain = toDateString(addDays(new Date(`${jour}T12:00`), 1));
@@ -171,6 +172,9 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
   const rendu = (k: number) => {
     const cle = etapes[k]?.cle;
     switch (cle) {
+      // Suivis et notes (08/10) : les mêmes que les réunions d'équipe ; le Chat peut y lier un message
+      case 'suivis':
+        return <SuivisPerso reunion={reunion} moi={moi} echanges={echanges} actions={actions} onInfo={onInfo} />;
       case 'hier':
         return (
           <>
@@ -454,35 +458,42 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil 
   );
 }
 const TITRES: Partial<Record<Reunion['type'], string>> = { point_perso: 'Point perso', bilan_soir: 'Bilan du soir', revue_semaine: 'Revue de la semaine', revue_objectifs: 'Revue des objectifs', revue_trimestre: 'Revue du trimestre', point_annuel: 'Point annuel' };
+const SUIVIS = { cle: 'suivis', nom: 'Suivis' };
 const TYPES_ETAPES: Partial<Record<Reunion['type'], { cle: string; nom: string }[]>> = {
   point_perso: [
+    SUIVIS,
     { cle: 'hier', nom: 'Hier' },
     { cle: 'aujourdhui', nom: 'Aujourd’hui' },
     { cle: 'plan', nom: 'Plan figé' },
   ],
   bilan_soir: [
+    SUIVIS,
     { cle: 'prevu', nom: 'Prévu / fait' },
     { cle: 'pasfini', nom: 'Pas fini' },
   ],
   revue_semaine: [
+    SUIVIS,
     { cle: 'ecoulee', nom: 'Semaine écoulée' },
     { cle: 'retard', nom: 'En retard' },
     { cle: 'avenir', nom: 'Semaine à venir' },
     { cle: 'priorites', nom: 'Priorités' },
   ],
   revue_objectifs: [
+    SUIVIS,
     { cle: 'objectifs', nom: 'Objectifs' },
     { cle: 'domaines', nom: 'Domaines délaissés' },
     { cle: 'fin', nom: 'Fin' },
   ],
   // Revue du trimestre et point annuel (07/10) : le bilan de la période, puis la revue des objectifs
   revue_trimestre: [
+    SUIVIS,
     { cle: 'periode', nom: 'Trimestre écoulé' },
     { cle: 'objectifs', nom: 'Objectifs du trimestre' },
     { cle: 'domaines', nom: 'Domaines' },
     { cle: 'fin', nom: 'Fin' },
   ],
   point_annuel: [
+    SUIVIS,
     { cle: 'periode', nom: "Bilan de l'année" },
     { cle: 'gac', nom: 'Garder · arrêter · commencer' },
     { cle: 'objectifs', nom: "Objectifs de l'année" },
