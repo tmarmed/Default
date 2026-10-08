@@ -14,39 +14,29 @@ Validation écran par écran, puis les deux blocs codés (captures vérifiées d
   « ✓ Je m'en occupe » ; nature des messages ; lien privé sur la note ; plus de note d'office ni de réponse
   recopiée ; rappel « À valider en réunion » au lieu de « Valider ? ». Diagramme : docs/cycles-de-vie.html.
 
-## Prochaine session : faire valider les deux blocs, puis le reste
-- Montrer à l'utilisateur (captures) : Situation et filtre, note Décision, Responsable groupé, compte rendu, Chat
-  (Transmettre, Accepter et renvoyer, Suivre en réunion), Ma préparation.
-- Fait aussi le 08/10 (suite) : rappel « 📌 À valider » avec ✅ Valider dans le Chat (même suivi que la réunion) ou
-  laisser à la réunion ; mode Simple : étape « Suivis » dans chaque rituel (mêmes composants : suivis, notes à
-  concrétiser, Concrétiser, lien privé) et « Suivre à » propose le point perso et la revue de la semaine ; pièces
-  jointes à cocher quand on transmet ; « ✓ Terminé » / « ⊘ Pas fait » au demandeur d'un « Je m'en occupe » ;
-  plusieurs destinataires : « n réponses sur m », 🔔 Relancer, ⊘ Clôturer chez tous ; message retiré par
-  l'expéditeur : la note liée passe à « Clos par l'expéditeur ». (Le Responsable d'une autre équipe recevait déjà
-  « 📌 Nouveau suivi » au compte rendu.)
-- Codé ensuite : rappel sans « Lu ✓ » ; notes « Information » (concrétisées comme les autres, Rien possible), « Risque » et « Dépendance » au train ;
-  étape « Suivis » du mode Simple toujours affichée (les notes du Chat y arrivent) ; « Suivre à » ne propose que les
-  réunions des espaces affichés (un espace masqué : ni ses messages ni ses réunions) ; onglet « Compte rendu » ouvert à tous ceux qui ouvrent la réunion ; participants repris de
-  l'Organisation. Reste : un « Je m'en occupe » d'avant le 08/10 ne prévient personne (sans importance).
-- **Chantier à part (mode Simple)** : modèle des réunions du mode Simple pour une personne, une équipe, une entreprise
-  (réunion mensuelle, annuelle…), qui animent ; adapter alors les suivis et le Chat (déjà branchés) à ce modèle.
+## Fait aussi le 08/10 (suite)
+Rappel « 📌 À valider » (✅ Valider dans le Chat ou en réunion, sans « Lu ») ; mode Simple : étape « Suivis » toujours
+affichée dans chaque rituel (mêmes composants) ; « Suivre à » : réunions des espaces affichés seulement, point perso
+et revue de la semaine en mode Simple ; pièces jointes à cocher ; « ✓ Terminé » / « ⊘ Pas fait » au demandeur ;
+plusieurs destinataires (n réponses sur m, Relancer, Clôturer chez tous) ; « Clos par l'expéditeur » ; notes
+Information (concrétisées comme les autres), Risque et Dépendance au train ; revue des OKR (Arrêter clôt l'OKR,
+Ajuster ajoute une note à concrétiser) ; participants repris de l'Organisation ; Compte rendu visible de l'équipe.
 
-- Décidé (08/10, suite) : rappel « 📌 À valider » sans « Lu ✓ » (il part quand le suivi est validé, ici ou en
-  réunion) ; type de note « Information » ; Risque et Dépendance pour les réunions du train (PI Planning, ART sync) ;
-  étape « Suivis » du mode Simple toujours affichée ; « Suivi dans › » abandonné ; réunions d'un espace Équipe masqué :
-  pas dans les onglets, rappelées par les popups, pas proposées dans « Suivre à » ; participants non modifiables
-  (repris de l'Organisation) ; onglet « Compte rendu » visible de toute l'équipe, même sans avoir participé (plus
-  tard peut-être : ajouter des participants).
+## Reste à faire
+1. Faire voir à l'utilisateur, en captures, ce qui a été codé après la validation (Chat : Transmettre, Accepter et
+   renvoyer, rappel ✅ Valider ; mode Simple « Suivis » ; types Information, Risque, Dépendance ; revue des OKR).
+2. Revue de sprint : inviter les parties prenantes hors équipe.
+3. Onglet « Compte rendu » pour le destinataire hors équipe (le RTE le reçoit déjà dans le Chat).
+4. Plus tard : ajouter des participants à une réunion (aujourd'hui repris de l'Organisation).
+5. **Chantier à part (mode Simple)** : modèle des réunions du mode Simple pour une personne, une équipe, une
+   entreprise (réunion mensuelle, annuelle…), qui animent ; adapter alors les suivis et le Chat (déjà branchés).
 
 ## Session d'après
 - **Pilotage (lot 5)** : reprendre le brainstorm (pilotage et calendrier ; voir docs/mission.html lot 5).
 
-## Décidé, pas encore codé (attendre « on code »)
-- (Abandonné le 08/10 : « Suivi dans › », « Mes suivis » hors réunion, « Valider ? » d'une tâche terminée.)
-
 ## Questions ouvertes à l'utilisateur
-- Lot 5 pilotage (brainstorm sans réponse) ; plus tard : ajouter des participants. (Fait le 08/10 : revue des OKR,
-  « Arrêter » clôt l'OKR, « Ajuster » ajoute une note à concrétiser ; l'état des epics était déjà écrit.)
+- Lot 5 pilotage (brainstorm sans réponse).
+- Abandonné le 08/10 : « Suivi dans › », « Mes suivis » hors réunion, « Valider ? » d'une tâche terminée.
 
 ## Fait récemment (08/10)
 - Suivis complets (statuts, validation, Chat « Valider ? », escalade qui redescend), vocabulaire Notes / Suivis partout (plus de « point »), fiche de l'élément en deux blocs, escalader force « Suivre », fichiers .md.
