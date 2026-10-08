@@ -13,6 +13,7 @@ import { arreterSerie, couperSerie, datesRegle, exceptionsOrphelines, libelleReg
 import { seriesACreer, serieParDefaut, serieVide, etapesParcours, ongletParcours, parcoursParDefaut, participantsReunion, reunionsAVenir } from '../src/reunions';
 import { type Reunion, TYPES_REUNION } from '../src/types';
 import { iterationOf, iterationsOf, lireCalendrier, piOf } from '../src/pi';
+import { checkParent } from '../src/subtasks';
 import { avecCriteres, capacite, criteresDe, etatPrete, feriesFrance, joursOuvres, lireNombre, nombreFr } from '../src/reunionsEquipe';
 
 let erreurs = 0;
@@ -307,6 +308,24 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const l = reunionsAVenir(oe, sm, '2026-10-02', true, 1, toutes.map((x) => (x.id === daily.id ? { ...x, heure: '10:00' } : x)));
   ok(l.find((r) => r.type === 'daily' && r.niveau === daily.niveau)?.debut === '2026-10-02T10:00', 'série enregistrée : son heure est suivie');
   ok(serieParDefaut('daily', 'equipeagile:x').id === 'daily-equipeagile:x', 'id de série stable : type-niveau');
+}
+// Sous-tâches pour tous les types (08/10), un seul niveau ; sous un élément répété : la date de l'occurrence
+{
+  const base = { titre: 'x', domaine: 'd', feature: 'f', epic: '', objectif: '', parent: '', periodicite: '', date: '', type: 'tache' } as never;
+  const rdv = { ...(base as object), id: 'rdv', type: 'rendez-vous' } as never;
+  const rdvRep = { ...(base as object), id: 'rdvr', type: 'rendez-vous', periodicite: 'hebdomadaire' } as never;
+  const sous = { ...(base as object), id: 'sous', parent: 'rdv' } as never;
+  const err = (f: () => unknown) => {
+    try {
+      f();
+      return '';
+    } catch (e) {
+      return (e as Error).message;
+    }
+  };
+  ok(!err(() => checkParent({ titre: 'Préparer', parent: 'rdv', type: 'tache' }, [rdv])), 'sous-tâche sous un rendez-vous');
+  ok(!!err(() => checkParent({ titre: 'Trop loin', parent: 'sous', type: 'tache' }, [rdv, sous])), 'un seul niveau de sous-tâches');
+  ok(!!err(() => checkParent({ titre: 'Préparer', parent: 'rdvr', type: 'tache' }, [rdvRep])) && !err(() => checkParent({ titre: 'Préparer', parent: 'rdvr', type: 'tache', date: '2026-10-14' }, [rdvRep])), 'élément répété : sous-tâche avec la date de l’occurrence');
 }
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
 process.exit(erreurs ? 1 : 0);

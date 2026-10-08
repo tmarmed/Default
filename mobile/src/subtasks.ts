@@ -2,14 +2,14 @@ import { pointsOf } from './pi';
 import type { Item, ItemType, Statut } from './types';
 
 /**
- * Sous-tâches (même règle que le script, checkParent_) : un seul niveau ; parent de type story, démarche,
- * mission ou exploration, non répété ; une sous-tâche a toujours le rangement de son parent.
+ * Sous-tâches (08/10) : un seul niveau ; **tous les types** peuvent en avoir (tâche, rendez-vous, appel, story…).
+ * Sous un élément répété, une sous-tâche est rattachée à une occurrence : elle a sa date (« préparer le RDV du
+ * 14/10 ») et ne se répète pas. Une sous-tâche a toujours le rangement de son parent.
  */
-export const PARENT_TYPES: ItemType[] = ['story', 'demarche', 'mission', 'exploration'];
+export const PARENT_TYPES: ItemType[] = ['tache', 'rendez-vous', 'appel', 'demarche', 'mission', 'story', 'exploration', 'bug'];
 export const LIENS = ['feature', 'epic', 'objectif', 'domaine'] as const;
 
-export const canHaveSubtasks = (t: Pick<Item, 'type' | 'periodicite' | 'parent'>) =>
-  PARENT_TYPES.includes(t.type) && !t.periodicite && !t.parent;
+export const canHaveSubtasks = (t: Pick<Item, 'type' | 'periodicite' | 'parent'>) => PARENT_TYPES.includes(t.type) && !t.parent;
 
 /** Sous-tâches par parent (ordre : non faites d'abord, puis date). */
 export function subtaskMap(items: Item[]): Map<string, Item[]> {
@@ -33,17 +33,17 @@ export function checkParent<T extends Partial<Item> & { parent?: string; type?: 
   const enfants = item.id ? items.filter((t) => t.parent === item.id) : [];
   if (enfants.length) {
     if (item.parent) throw new Error('cette tâche a des sous-tâches : elle ne peut pas devenir une sous-tâche.');
-    if (item.type && !PARENT_TYPES.includes(item.type))
-      throw new Error('cette tâche a des sous-tâches : gardez le type Story, Démarche, Mission ou Exploration.');
-    if (item.periodicite) throw new Error('une tâche avec des sous-tâches ne peut pas être répétée.');
+    if (item.type && !PARENT_TYPES.includes(item.type)) throw new Error('ce type ne peut pas avoir de sous-tâches.');
+    if (item.periodicite && enfants.some((k) => !k.date)) throw new Error('élément répété : chaque sous-tâche doit avoir la date de son occurrence.');
   }
   if (!item.parent) return item;
   if (item.parent === item.id) throw new Error('une tâche ne peut pas être sa propre sous-tâche.');
   const parent = items.find((t) => t.id === item.parent);
   if (!parent) throw new Error('tâche parente introuvable.');
   if (parent.parent) throw new Error('une sous-tâche ne peut pas avoir de sous-tâches.');
-  if (!PARENT_TYPES.includes(parent.type)) throw new Error('seules les stories, démarches, missions et explorations ont des sous-tâches.');
-  if (parent.periodicite) throw new Error('une tâche répétée ne peut pas avoir de sous-tâches.');
+  if (!PARENT_TYPES.includes(parent.type)) throw new Error('ce type ne peut pas avoir de sous-tâches.');
+  // Sous un élément répété : la sous-tâche est rattachée à une occurrence (sa date)
+  if (parent.periodicite && !item.date) throw new Error('élément répété : donnez la date de l’occurrence (ex. le rendez-vous du 14/10).');
   if (item.periodicite) throw new Error('une sous-tâche ne peut pas être répétée.');
   const out = { ...item };
   for (const k of LIENS) (out as Record<string, unknown>)[k] = parent[k];

@@ -342,8 +342,9 @@ export function TaskForm({
     if (recurrenceError) return recurrenceError;
     if (aHeureFin(f.type) && f.heure_fin && (!f.heure || f.heure_fin <= f.heure)) return "L'heure de fin doit être après l'heure de début.";
     if (aDateFin(f.type) && !f.periodicite && f.date_fin && f.date && f.date_fin < f.date) return 'La date de fin est avant la date.';
-    if (enfants.length && !PARENT_TYPES.includes(f.type)) return 'Cette tâche a des sous-tâches : gardez le type Story, Démarche, Mission ou Exploration.';
-    if ((enfants.length || nouvelles.length || rangees.length) && f.periodicite) return 'Une tâche avec des sous-tâches ne peut pas être répétée.';
+    if (enfants.length && !PARENT_TYPES.includes(f.type)) return 'Ce type ne peut pas avoir de sous-tâches.';
+    // Élément répété (08/10) : ses sous-tâches sont rattachées à une occurrence (avec sa date)
+    if (f.periodicite && (nouvelles.length || enfants.some((k) => !k.date))) return 'Élément répété : chaque sous-tâche doit avoir la date de son occurrence (ex. « préparer le RDV du 14/10 »).';
     return null;
   };
   /** Ce qui part au Google Sheet */
@@ -553,7 +554,7 @@ export function TaskForm({
 
             {/* Quand : répétition, date, heure */}
             <SectionFiche titre="Quand">
-              {!form.parent && !enfants.length && !nouvelles.length && (
+              {!form.parent && !nouvelles.length && (
                 <RecurrenceFields value={form} onChange={(patch) => setForm((f) => ({ ...f, ...patch }))} />
               )}
               {!form.periodicite && (
