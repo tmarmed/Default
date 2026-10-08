@@ -23,14 +23,16 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
 - [ ] Feuille du suivi : titre en entier (passe à la ligne, pas coupé).
 - [ ] Saisie d'une note : vocabulaire Note (« Nouvelle note · Tom Faure », « NOTE », « Écrivez la note… »,
       « Aucun · note générale »).
-- [ ] Escalade : libellé avec le nom du niveau (« ⤴ Train Clients (escalader) »).
-- [ ] Décision : un seul type avec un sous-type « à prendre » / « prise » (même parcours que Blocage / Blocage résolu) ; en discussion.
+- [ ] Décision : un seul type, sous-type « à prendre » / « prise » (puces à la saisie, défaut : à prendre). À prendre se
+      concrétise comme un blocage (Suivre, Responsable = qui décide, escalade) ; à la réponse elle devient « prise » avec
+      la réponse. Blocage : « en cours » / « résolu ». VALIDÉ.
 - [ ] Situation, toutes réunions : filtre suivis concrétisés / notes pas encore concrétisées (reportées des réunions
       précédentes). Pas de « Plus tard » : ne pas concrétiser = plus tard. VALIDÉ : « 📌 Suivis · 7 · Notes à
       concrétiser · 2 », « noté le 6/10 », filtre Tout · Suivis · Notes à concrétiser · À valider ; ces notes
       reviennent aussi à l'étape Concrétisation.
-- En discussion : remplacer les puces Moi / Mon équipe / Niveau du dessus par un seul « Responsable › » groupé ;
-  l'utilisateur demande aussi les autres équipes du train (voir « Suivi dans › » décidé) ; Validation : par défaut l'animateur (Scrum Master au daily), modifiable — l'utilisateur garde « Validation ».
+- [ ] Feuille Concrétiser : plus de puces Moi / Mon équipe / Niveau du dessus ; un seul « Responsable › » groupé : Moi ·
+      Équipe Mobile · autres équipes du train (= transmettre, sans escalader) · Train Clients (RTE, PM = escalade, force
+      « Suivre », libellé « Escaladé au train Clients »). Validation inchangée (animateur par défaut, modifiable). VALIDÉ.
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
