@@ -33,6 +33,8 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
 - [ ] Feuille Concrétiser : plus de puces Moi / Mon équipe / Niveau du dessus ; un seul « Responsable › » groupé : Moi ·
       Équipe Mobile · autres équipes du train (= transmettre, sans escalader) · Train Clients (RTE, PM = escalade, force
       « Suivre », libellé « Escaladé au train Clients »). Validation inchangée (animateur par défaut, modifiable). VALIDÉ.
+- [ ] Compte rendu (étape 4 et onglet) : 4 sections toujours affichées, même à 0 : Créé, Suivis, Transmis (escalade
+      fusionnée dans Transmis : notion déjà fusionnée par l'utilisateur), Clos ; noms entiers (« Tom Faure → Paul Leroy »).
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
