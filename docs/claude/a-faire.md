@@ -89,6 +89,10 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
     transmettre (monter ou sur le côté), faire redescendre. Cas ajoutés par Claude : pièces jointes (ne suivent jamais
     d'office), réunion → Chat et réunion → réunion (texte déjà public, pas de reformulation), « Valider ? » dans le Chat
     (dernier mot reformulé). « 🔒 Confidentiel » devient inutile.
+  - Décidé : « Valider » dans le Chat = validation personnelle 1 à 1 d'une réponse entre deux maillons ; n'agit jamais
+    sur une note de réunion. La validation d'une note se fait en réunion (« À valider · n »). Proposé : le « Valider ? »
+    envoyé aujourd'hui par l'application devient un simple rappel « À valider au daily Mobile › » (ouvre la réunion).
+    Change ce qui a été livré le 08/10 (repondreEchange → planSuivi dans App.tsx).
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
