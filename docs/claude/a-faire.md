@@ -47,8 +47,10 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
   chez celui qui transmet, réponse qui redescend) ; haut / côté / parallèle. Cas 1 : mon message hors équipe (« À › »
   groupé, suivi + « Valider ? » au retour si question). Cas 2 : message reçu → « ↪ Transmettre › » + motif rapide (Pas
   mon périmètre, Pas le droit de répondre, Absent, Autre), l'expéditeur voit « Transmis par … à … ». Règles : toute
-  l'organisation, un maillon par destinataire, pas de boucle, valeur `escalade` gardée en interne. Questions ouvertes :
-  suivi selon le motif ? parallèle « tous » ou « le premier » ? transmettre aussi les simples messages ?
+  l'organisation, un maillon par destinataire, pas de boucle, valeur `escalade` gardée en interne. Tranché (08/10) :
+  tout message se transmet (question ou information) ; dans le Chat, transmettre ne crée JAMAIS de suivi (relais, la
+  réponse va à l'expéditeur) : le suivi vient de la réunion (concrétisation, ou « 📌 Au prochain … » du Chat) ;
+  plusieurs destinataires en parallèle, fait quand tous ont répondu.
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
