@@ -1853,6 +1853,17 @@ function Main() {
       if (ref && p.point) await ecrireNotes(ref.espace, [], [{ id: ref.id, ...p.point.patch }]);
       await retirerEchange(p.retirer);
     },
+    onRelancer: async (e) => {
+      const l = maillonsDe(e, echangesTous()).filter((x) => x.statut === 'envoye');
+      await actionsDaily.envoyerEchanges(e.espace ?? 'moi', l.map((x) => ({ de: moiEchange, a: x.a, type: 'message', nature: 'information', titre: `🔔 Relance · ${x.titre}`.slice(0, 200), texte: `${nomEchange(moiEchange)} attend votre réponse.`, choix: '', reponse: '', note: '', statut: 'envoye', element: x.element, niveau: x.niveau, transmis_par: '', prive: '1', espace: x.espace })));
+      setInfo(`Relance envoyée à ${l.map((x) => nomEchange(x.a)).join(', ')}.`);
+    },
+    onCloturer: async (e) => {
+      // Les maillons disparaissent chez tous ; l'échange vous revient (à répondre vous-même)
+      for (const x of maillonsDe(e, echangesTous())) await retirerEchange(x);
+      await saveEntity('echange', e, { statut: 'envoye' });
+      setInfo('Transmission clôturée chez tous : le message vous revient.');
+    },
     onAReprendre: async (c, motif) => {
       await saveEntity('echange', c, patchAReprendre(motif));
     },
@@ -2005,9 +2016,12 @@ function Main() {
     const t = setInterval(() => setMinute(Date.now()), 30_000);
     return () => clearInterval(t);
   }, []);
-  const retirerEchange = async (e: Echange) => {
+  const retirerEchange = async (e: Echange, parExpediteur = false) => {
     if (!settings || (e.de !== moiEchange && e.a !== moiEchange)) return;
     await api.deleteEntity(settings, 'echange', e.id, false);
+    // Retiré par l'expéditeur avant toute réponse : la note liée reste, « Clos par l'expéditeur » (validation du 08/10)
+    const ref = parExpediteur && e.de === moiEchange && e.statut === 'envoye' ? lireRef(e.point ?? '') : null;
+    if (ref) await api.ecrirePoints(settings, ref.espace, [], [{ id: ref.id, statut: 'abandonne', note: 'Clos par l’expéditeur' }], []).catch(() => {});
     // Pas d'historique : ses pièces jointes sont effacées aussi (et celles qu'aucun échange ne cite plus)
     if (e.pieces_jointes) api.purgerPieces(settings, e.espace ?? 'moi').catch(() => {});
     setHier((prev) => {
@@ -2670,7 +2684,7 @@ function Main() {
         elements={chatLancement ?? []}
         onFermer={() => setChatLancement(null)}
         onRepondre={repondreEchange}
-        onRetirer={retirerEchange}
+        onRetirer={(e) => retirerEchange(e, true)}
         onLu={(id) => majMessagesApp((l) => l.filter((m) => m.id !== id))}
         hierarchie={hierarchieEchanges}
         nomDe={nomEchange}
@@ -3159,7 +3173,7 @@ function Main() {
             });
             setInfo(r.nouveau ? "Déjà lu : votre modification est partie en nouveau message." : 'Message modifié.');
           }}
-          onRetirer={retirerEchange}
+          onRetirer={(e) => retirerEchange(e, true)}
         />
       )}
 

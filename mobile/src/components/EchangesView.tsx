@@ -100,6 +100,10 @@ export interface Hierarchie {
   onMOccuper: (e: Echange) => Promise<void>;
   /** Maillons transmis d'un échange (dans la boucle) */
   maillons: (e: Echange) => Echange[];
+  /** Plusieurs destinataires : relancer ceux qui n'ont pas répondu */
+  onRelancer: (e: Echange) => Promise<void>;
+  /** Clôturer : les maillons sont supprimés chez tous ; l'échange vous revient pour y répondre vous-même */
+  onCloturer: (e: Echange) => Promise<void>;
   /** L'échange dont un maillon est la suite (`parent`) */
   parentDe: (e: Echange) => Echange | undefined;
 }
@@ -437,8 +441,27 @@ function Conversation({
   };
   const transmisA = (e: Echange) => {
     const l = hierarchie.maillons(e);
-    return l.length ? `↪ Transmis à ${l.map((x) => `${nomDe(x.a)}${x.statut === 'repondu' ? ' (répondu)' : ''}`).join(', ')}` : '↪ Transmis';
+    const n = l.filter((x) => x.statut === 'repondu').length;
+    return l.length ? `↪ Transmis à ${l.map((x) => `${nomDe(x.a)}${x.statut === 'repondu' ? ' (répondu)' : ''}`).join(', ')}${l.length > 1 ? ` · ${n} réponse${n > 1 ? 's' : ''} sur ${l.length}` : ''}` : '↪ Transmis';
   };
+  // Échange transmis (dans la boucle) : relancer ceux qui n'ont pas répondu, ou clôturer chez tous
+  const piedTransmis = (e: Echange) => (
+    <View>
+      <Text style={s.meta}>{transmisA(e)}</Text>
+      {e.a === moi && hierarchie.maillons(e).length > 0 && (
+        <View style={s.actionsLigne}>
+          {hierarchie.maillons(e).some((x) => x.statut === 'envoye') && (
+            <Pressable onPress={() => void hierarchie.onRelancer(e)} style={s.action} accessibilityRole="button">
+              <Text style={s.actionTexte}>🔔 Relancer</Text>
+            </Pressable>
+          )}
+          <Pressable onPress={() => void hierarchie.onCloturer(e)} style={s.action} accessibilityRole="button">
+            <Text style={s.actionTexte}>⊘ Clôturer chez tous</Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
   return (
     <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
       <Retour titre={titre} onRetour={onRetour} />
@@ -464,7 +487,7 @@ function Conversation({
               e={e}
               gris
               {...(e.de === moi && e.statut === 'envoye' ? { action: 'Retirer', onAction: () => onRetirer(e), modifier: () => onModifier(e) } : {})}
-              pied={e.statut === 'transmis' ? <Text style={s.meta}>{transmisA(e)}</Text> : undefined}
+              pied={e.statut === 'transmis' ? piedTransmis(e) : undefined}
               onOuvrir={() => onOuvrir(e)}
             />
           ))}

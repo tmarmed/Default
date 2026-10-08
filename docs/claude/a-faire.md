@@ -17,14 +17,18 @@ Validation écran par écran, puis les deux blocs codés (captures vérifiées d
 ## Prochaine session : faire valider les deux blocs, puis le reste
 - Montrer à l'utilisateur (captures) : Situation et filtre, note Décision, Responsable groupé, compte rendu, Chat
   (Transmettre, Accepter et renvoyer, Suivre en réunion), Ma préparation.
-- Reste à coder : « Terminé ✓ » / « Pas fait » à l'expéditeur quand la tâche « Je m'en occupe » est finie ou
-  supprimée ; « fait quand tous ont répondu » (plusieurs destinataires : compteur « 2 réponses sur 3 », Relancer,
-  Clôturer chez tous) ; « Clos par l'expéditeur » sur la note liée ; supprimer un rappel « À valider » perd le lien
-  du refus (À reprendre au-dessus) ; Responsable d'une autre équipe en réunion : envoyer un message à son Chat ;
-  Information (type de note) en réunion ; dailies des espaces Équipe non affichés : pas proposés dans « Suivre à ».
-- Demandé le 08/10 : pièces jointes à cocher quand on transmet (« Pièces jointes transmises » : chaque pièce du
-  message reçu cochable, décochée par défaut ; seules les cochées partent avec le maillon ; jamais vers une note de
-  réunion).
+- Fait aussi le 08/10 (suite) : rappel « 📌 À valider » avec ✅ Valider dans le Chat (même suivi que la réunion) ou
+  laisser à la réunion ; mode Simple : étape « Suivis » dans chaque rituel (mêmes composants : suivis, notes à
+  concrétiser, Concrétiser, lien privé) et « Suivre à » propose le point perso et la revue de la semaine ; pièces
+  jointes à cocher quand on transmet ; « ✓ Terminé » / « ⊘ Pas fait » au demandeur d'un « Je m'en occupe » ;
+  plusieurs destinataires : « n réponses sur m », 🔔 Relancer, ⊘ Clôturer chez tous ; message retiré par
+  l'expéditeur : la note liée passe à « Clos par l'expéditeur ». (Le Responsable d'une autre équipe recevait déjà
+  « 📌 Nouveau suivi » au compte rendu.)
+- Reste à coder : « Lu ✓ » sur un rappel « À valider » efface le lien du refus vers le maillon du dessus (À reprendre
+  ne rouvre plus le dessus) ; type « Information » pour les notes de réunion ; dailies des espaces Équipe non
+  affichés : pas proposés dans « Suivre à » ; un « Je m'en occupe » d'avant le 08/10 ne prévient personne.
+- **Chantier à part (mode Simple)** : modèle des réunions du mode Simple pour une personne, une équipe, une entreprise
+  (réunion mensuelle, annuelle…), qui animent ; adapter alors les suivis et le Chat (déjà branchés) à ce modèle.
 
 ## Session d'après
 - **Pilotage (lot 5)** : reprendre le brainstorm (pilotage et calendrier ; voir docs/mission.html lot 5).
