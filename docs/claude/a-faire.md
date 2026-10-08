@@ -70,6 +70,10 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
   - plusieurs destinataires : dès une réponse, l'expéditeur peut relancer ou clôturer ; clôturé = disparaît chez tous ;
   - méthode : étudier le diagramme d'états (1. possibilités à la réception, 2. boucle répondre / transmettre,
     3. finalisation).
+  - proposé (à valider) : la réponse redescend par un geste explicite. Le maillon non lié reçoit « ↩ Réponse de … à
+    faire redescendre » (↩ Renvoyer à … · ✎ Compléter · ↪ Re-transmettre · ↩ À reprendre) ; à la transmission,
+    « Je reste dans la boucle » (défaut) ou « Je me retire » (la réponse saute ce maillon) ; « À reprendre » va au
+    voisin du dessus, celui qui m'a renvoyé la réponse (règle du voisin).
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
