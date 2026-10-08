@@ -262,6 +262,9 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
   st.textContent = 'html,body,#root{overflow-x:hidden;max-width:100vw;overscroll-behavior:none}';
   document.head.appendChild(st);
 }
+/** Tâche prise en charge depuis le Chat : l'adresse de celui qui a demandé, dans la description */
+const MARQUE_DEMANDE = 'demandé par ';
+const RE_DEMANDE = /demandé par ([^\s]+@[^\s]+)/;
 const EMPTY_HIER: Hier = { epics: [], objectifs: [], domaines: [], features: [], objectifsPI: [], ignorees: [], valueStreams: [], resultats: [], echanges: [], series: [] };
 
 /** Nouvelle sous-tâche : rangement du parent ; sans date, elle prend l'itération du parent. */
@@ -1119,10 +1122,13 @@ function Main() {
    * Enregistre des statuts (mise à jour immédiate à l'écran, annulée si le Google Sheet refuse),
    * avec les parents qui suivent leurs sous-tâches (sous-tâche rouverte ou commencée → parent « En cours »).
    */
+  /** « ✓ Je m'en occupe » (Chat) : prévenir celui qui a demandé quand la tâche est finie ou supprimée (défini plus bas) */
+  const prevenirDemandeur = useRef<(item: Item, quoi: 'termine' | 'supprime') => void>(() => {});
   const enregistrerStatuts = useCallback(
     async (demandes: { item: Item; statut: Statut }[]) => {
       if (!settings || !demandes.length) return;
       const changes = [...demandes, ...parentsLies(demandes, items)];
+      for (const c of changes) if (c.statut === 'termine' && c.item.statut !== 'termine') prevenirDemandeur.current(c.item, 'termine');
       noterStatutAvant(changes);
       const voulu = new Map(changes.map((c) => [c.item.id, c.statut]));
       const now = new Date().toISOString();
@@ -1253,6 +1259,7 @@ function Main() {
   const remove = async (item: Item, cascade = false) => {
     if (!settings) return;
     await api.deleteItem(settings, item.id, cascade);
+    if (item.statut !== 'termine') prevenirDemandeur.current(item, 'supprime');
     // Sous-tâches : supprimées (cascade) ou détachées
     updateItems(
       items.filter((i) => i.id !== item.id && !(cascade && i.parent === item.id)).map((i) => (i.parent === item.id ? { ...i, parent: '' } : i)),
@@ -1884,7 +1891,8 @@ function Main() {
           date: '',
           heure: '',
           lieu: '',
-          description: `Pris en charge depuis le Chat (de ${nomEchange(e.de)}).`,
+          // Le demandeur est prévenu quand la tâche est finie (« ✓ Terminé ») ou supprimée (« Pas fait »)
+          description: `Pris en charge depuis le Chat · ${MARQUE_DEMANDE}${e.de}`,
           priorite: 'normale',
           statut: 'a_faire',
           parent: e.element && items.some((x) => x.id === e.element) ? e.element : '',
@@ -1896,6 +1904,13 @@ function Main() {
       ]);
       await saveEntity('echange', e, { statut: 'repondu', reponse: 'Pris en charge', note: `Tâche « ${t?.titre ?? titre} » créée par ${nomEchange(moiEchange)}.` });
     },
+  };
+  prevenirDemandeur.current = (item, quoi) => {
+    const m = item.description?.match(RE_DEMANDE);
+    if (!m || !settings) return;
+    const a = m[1].toLowerCase();
+    const e = placerEchange({ de: moiEchange, a, type: 'message', nature: 'information', titre: `${quoi === 'termine' ? '✓ Terminé' : '⊘ Pas fait'} · ${item.titre}`.slice(0, 200), texte: quoi === 'termine' ? `${nomEchange(moiEchange)} a terminé la tâche prise en charge.` : `${nomEchange(moiEchange)} a supprimé la tâche prise en charge : elle ne sera pas faite.`, choix: '', reponse: '', note: '', statut: 'envoye', element: item.parent || '', niveau: '', transmis_par: '', prive: '1', espace: item.espace || 'moi' });
+    saveEntity('echange', null, e).catch(() => {});
   };
   /** Nouvel échange avec une personne : rangé au niveau commun le plus proche, dans le Sheet de l'entreprise */
   const placerEchange = (e: EchangeInput): EchangeInput => {

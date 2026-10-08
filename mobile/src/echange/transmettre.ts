@@ -5,7 +5,7 @@ import { type Echange, type EchangeInput, natureDe, type PointReunion, type Sous
 /**
  * Transmettre (validation du 08/10, docs/cycles-de-vie.html) : un seul verbe pour l'ancienne escalade et la
  * transmission, vers le haut, sur le côté ou en parallèle. Chaque transmission est un **maillon** : un nouvel échange
- * par destinataire, au texte **reformulé** (le message reçu reste privé, ses pièces jointes ne suivent jamais).
+ * par destinataire, au texte **reformulé** (le message reçu reste privé ; ses pièces jointes ne suivent que cochées).
  * - « Je reste dans la boucle » (défaut) : le maillon part de moi (`parent` = l'échange reçu, qui passe « transmis ») ;
  *   la réponse me revient, je l'accepte et la fais redescendre (reformulée) ou je la fais reprendre.
  * - « Je me retire » : le maillon part au nom de l'expéditeur (`transmis_par` = moi), la réponse va directement à lui ;
@@ -25,6 +25,8 @@ export interface Transmission {
   motif: string;
   /** Je reste dans la boucle (la réponse revient par moi) */
   boucle: boolean;
+  /** Pièces jointes du message reçu cochées (ids) : seules celles-ci partent avec le maillon, jamais vers une note */
+  pieces?: string[];
   /** « 📌 Suivre à » : série (« daily-equipeagile:acmeqmob- ») et Sheet de la réunion, texte de la note (reformulé) */
   suivre?: { serie: string; espace: string; texte: string };
 }
@@ -69,7 +71,8 @@ export function planTransmettre(e: Echange, t: Transmission, o: { moi: string; n
     niveau: o.niveauDe(a) || e.niveau,
     transmis_par: moi,
     prive: '1',
-    pieces_jointes: '',
+    // Pièces jointes : seulement celles cochées (validation du 08/10), parmi celles du message reçu
+    pieces_jointes: (t.pieces ?? []).filter((id) => (e.pieces_jointes ?? '').split(';').includes(id)).join(';'),
     point: '',
     parent: t.boucle ? e.id : '',
     espace: e.espace,

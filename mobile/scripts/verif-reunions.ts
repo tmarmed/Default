@@ -392,6 +392,8 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   ok('patch' in p.recu && p.recu.patch.statut === 'transmis' && p.notes.length === 2 && p.notes[0].concretisation === 'escalade' && p.notes[0].texte === 'Accès serveur de test' && p.notes[0].reunion === 'daily-equipeagile:eq-2026-10-08', 'dans la boucle : le reçu passe « transmis » ; « Suivre à » : une note reformulée par maillon');
   const retire = planTransmettre(recu, { ...t, boucle: false, suivre: undefined }, { moi: 'hugo@x', nomDe: nomT, niveauDe: () => '', jour: '2026-10-08' });
   ok('retirer' in retire.recu && retire.nouveaux.every((x) => x.de === 'lea@x' && x.transmis_par === 'hugo@x' && !x.parent) && !retire.notes.length, 'je me retire : le maillon part au nom de l’expéditeur, la réponse lui va directement ; aucune note');
+  const avecPj = planTransmettre({ ...recu, pieces_jointes: 'pj1;pj2' } as Echange, { ...t, pieces: ['pj2', 'pjX'] }, { moi: 'hugo@x', nomDe: nomT, niveauDe: () => '', jour: '2026-10-08' });
+  ok(avecPj.nouveaux.every((x) => x.pieces_jointes === 'pj2'), 'pièces jointes : seules celles cochées (et du message reçu) partent avec le maillon');
   ok(!transmissionPrete({ ...t, texte: ' ' }) && !transmissionPrete({ ...t, suivre: { ...t.suivre, texte: '' } }) && transmissionPrete(t), 'transmettre : texte reformulé obligatoire, et texte de la note si on la suit');
   const maillon = { ...recu, id: 'm1', de: 'hugo@x', a: 'sara@x', parent: 'r1', statut: 'repondu', reponse: 'Résolu', note: 'clé changée', point: 'esp|n1' } as Echange;
   const r = planRedescendre(maillon, recu, 'Accès rétabli');

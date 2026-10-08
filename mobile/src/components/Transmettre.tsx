@@ -7,6 +7,7 @@ import { type Echange, natureDe, seLitSeulement } from '../types';
 import type { Hierarchie } from './EchangesView';
 import { ChampFiche, type GroupeChoix, LigneChoix, SaisieFiche, SectionFiche } from './Choix';
 import { FormSheet } from './FormSheet';
+import { PiecesEchange } from './Pieces';
 import { Pastilles } from './reunion/ui';
 
 /**
@@ -38,10 +39,13 @@ export function FeuilleTransmettre({
   const [texteNote, setTexteNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  // Pièces jointes du message reçu : décochées par défaut, seules les cochées partent
+  const idsPj = (e.pieces_jointes ?? '').split(';').filter(Boolean);
+  const [pieces, setPieces] = useState<string[]>([]);
   const toutes = destinataires.flatMap((g) => g.options);
   const nom = (v: string) => toutes.find((o) => o.value === v)?.label ?? v;
   const [espace, serie] = reunion.split('|');
-  const t: Transmission = { a, texte, motif, boucle, suivre: suivre && reunion ? { serie, espace, texte: texteNote } : undefined };
+  const t: Transmission = { a, texte, motif, boucle, pieces, suivre: suivre && reunion ? { serie, espace, texte: texteNote } : undefined };
   const pret = transmissionPrete(t);
   const envoyer = async () => {
     if (!pret) return;
@@ -62,8 +66,23 @@ export function FeuilleTransmettre({
         <Text style={s.texte} numberOfLines={3}>
           {e.titre || e.texte}
         </Text>
-        <Text style={s.aide}>🔒 Il reste privé : seul votre texte part, sans les pièces jointes.</Text>
+        <Text style={s.aide}>🔒 Il reste privé : seul votre texte part{idsPj.length ? ', avec les pièces jointes cochées.' : '.'}</Text>
       </SectionFiche>
+      {idsPj.length > 0 && (
+        <SectionFiche titre={`Pièces jointes transmises · ${pieces.length} sur ${idsPj.length}`}>
+          <View style={s.pad}>
+            <PiecesEchange e={e} />
+          </View>
+          {idsPj.map((id, k) => {
+            const on = pieces.includes(id);
+            return (
+              <Pressable key={id} onPress={() => setPieces((l) => (on ? l.filter((x) => x !== id) : [...l, id]))} style={s.ligne} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+                <Text style={s.nom}>{`${on ? '☑' : '☐'}  📎 Pièce jointe ${k + 1}`}</Text>
+              </Pressable>
+            );
+          })}
+        </SectionFiche>
+      )}
       <SectionFiche titre={`À · ${a.length}`} aDefinir={a.length ? 0 : 1}>
         {a.map((x) => (
           <View key={x} style={s.ligne}>
