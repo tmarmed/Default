@@ -61,7 +61,8 @@ export function FeuilleConcretiser({
   const personnesDe = (q: QuiCharge) => (q === 'moi' ? [moi] : q === 'equipe' ? equipe.filter((x) => x.email !== moi.email) : dessus);
   const changerQui = (q: QuiCharge) => {
     const l = personnesDe(q);
-    set({ qui: q, resp: l.some((x) => x.email === c.resp) ? c.resp : (l[0]?.email ?? '') });
+    // Escalader : le niveau du dessus décide, on suit seulement (re-concrétiser au retour de la réponse)
+    set({ qui: q, resp: l.some((x) => x.email === c.resp) ? c.resp : (l[0]?.email ?? ''), ...(q === 'dessus' && c.que === 'creer' ? { que: 'suivre' as QueFaire } : {}) });
   };
   const nom = (l: PersonneChoix[], v: string) => l.find((x) => x.email === v)?.nom ?? v;
   const libRatt = (() => {
@@ -70,10 +71,10 @@ export function FeuilleConcretiser({
     return y ? `${y.icone} ${y.titre}` : rattId;
   })();
 
-  const puces = <T extends string>(options: { v: T; l: string; aide?: string }[], value: T, onChange: (v: T) => void) => (
+  const puces = <T extends string>(options: { v: T; l: string; aide?: string; off?: boolean }[], value: T, onChange: (v: T) => void) => (
     <View style={s.puces}>
       {options.map((o) => (
-        <Pressable key={o.v} onPress={() => onChange(o.v)} style={[s.puce, o.v === value && s.puceOn]} accessibilityRole="radio" accessibilityState={{ selected: o.v === value }}>
+        <Pressable key={o.v} disabled={o.off} onPress={() => onChange(o.v)} style={[s.puce, o.v === value && s.puceOn, o.off && s.inactif]} accessibilityRole="radio" accessibilityState={{ selected: o.v === value, disabled: !!o.off }}>
           <Text style={[s.puceTexte, o.v === value && s.puceTexteOn]}>
             {o.l}
             {!!o.aide && <Text style={[s.aide, o.v === value && s.aideOn]}> ({o.aide})</Text>}
@@ -102,12 +103,13 @@ export function FeuilleConcretiser({
               {puces<QueFaire>(
                 [
                   { v: 'suivre', l: '📌 Suivre', aide: 'point de suivi' },
-                  { v: 'creer', l: '✓ Créer une tâche…' },
+                  { v: 'creer', l: '✓ Créer une tâche…', off: c.qui === 'dessus' },
                   { v: 'rien', l: '⊘ Rien', aide: 'clos' },
                 ],
                 c.que,
                 (v) => set({ que: v, ...(v === 'creer' && !rattMain ? { type: typeParDefaut(c.element, h) } : {}) }),
               )}
+              {c.qui === 'dessus' && <Text style={[s.aide, { paddingHorizontal: 12, paddingBottom: 8 }]}>Escaladé : le niveau du dessus décide ; vous pourrez re-concrétiser au retour de la réponse.</Text>}
               {c.que === 'creer' && (
                 <>
                   <View style={s.bord}>
