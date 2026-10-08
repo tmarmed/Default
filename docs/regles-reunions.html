@@ -68,30 +68,43 @@
     </ul></div>
 
     <div class="bloc"><h2><i>5</i>Points notés</h2><ul>
-      <li>Un seul bloc « <b>Points notés · n</b> » (participant et animateur, origine affichée « par Tom »), filtre « <b>Filtres ▾</b> » à côté du titre, fermé, « Tous » par défaut.</li>
-      <li>Types : <b>Blocage, Décision, Action</b>. Ligne « <b>Type ›</b> » (type du filtre, Blocage si « Tous ») puis « <b>Story ›</b> » (ou Feature, Epic ; « Aucune (point général) »).</li>
-      <li><b>Ajout d'un point</b> : un simple « ＋ … » sous la liste ; il ouvre <b>une seule fenêtre</b> (pas de seconde feuille). <b>Titre</b> : « Nouveau … » selon le seul type possible (« Nouveau blocage », « Nouvelle décision », « Nouvelle action »), sinon « <b>Nouveau point</b> » avec le choix du type. <b>Types de point : Blocage, Décision, Action, partout</b> ; prérempli avec le filtre ou l'étape (Blocage si « Tous »). Élément (story…) prérempli avec l'élément en cours, choisi dans la même fenêtre.</li>
-      <li><b>Hier / Aujourd'hui</b> (Daily) ne sont pas des types de point : fenêtres « Nouvelle tâche faite hier » / « Nouvelle tâche prévue aujourd'hui », sans type ; informatif, non concrétisé, absent du compte rendu. <b>Idées de la rétro</b> : « Nouvelle idée » (texte, nom ou anonyme).</li>
-      <li><b>« ＋ » dans le Suivi</b> (un oubli) : « <b>Nouveau point de suivi</b> » avec la Concrétisation dans la même fenêtre (sous-tâche, tâche à part, rien ; responsable) ; Transmettre à ou Escalader à l'étape Concrétisation.</li>
+      <li>Un seul bloc « <b>Points notés · n</b> » (participant et animateur, « Noté par Tom Faure »), filtre « <b>Filtres ▾</b> » à côté du titre, fermé, « Tous » par défaut.</li>
+      <li>Types : <b>Blocage, Décision, Action</b>. Ajout par « ＋ … » sous la liste : <b>une seule fenêtre</b> « Nouveau blocage » / « Nouvelle décision » / « Nouvelle action » (ou « Nouveau point » avec le choix du type).</li>
+      <li><b>Élément concerné ›</b> (08/10, partout, à la place de « Story › ») : <b>un seul élément</b> ou « Aucun · point général » ; prérempli avec l'élément en cours (story ou feature affichée, epic, OKR, tâche de la personne) ; la liste propose d'abord les éléments du contexte de la réunion (daily : tâches et stories du sprint ; affinage : stories à préparer ; PI Planning, ART sync : features et objectifs du PI ; portfolio : epics ; OKR : résultats clés ; Simple : tâches, rendez-vous, objectifs, domaines), puis « <b>Autre élément…</b> » (recherche dans tout).</li>
+      <li><b>Hier / Aujourd'hui</b> (Daily) ne sont pas des types de point (informatif, non concrétisé). <b>Idées de la rétro</b> : « Nouvelle idée ».</li>
     </ul></div>
 
-    <div class="bloc"><h2><i>6</i>Concrétisation (4 écrans, partout)</h2><ul>
-      <li>1) liste des points, un bouton « <b>Concrétiser ›</b> » chacun ; 2) feuille : Concrétiser (sous-tâche, tâche à part, rien) · <b>Transmettre à</b> · <b>Escalader</b> ; 3) « Responsable » (par défaut qui a noté le point) ; 4) chaque bouton affiche le choix, modifiable.</li>
-      <li>Rien n'est créé avant « <b>Envoyer le compte rendu</b> » : tâches, messages, escalades et compte rendu partent en écritures groupées.</li>
+    <div class="bloc"><h2><i>6</i>Concrétiser (une seule feuille, partout)</h2><ul>
+      <li>« <b>Concrétiser ›</b> » sur un point ouvre <b>une feuille préremplie</b>, une section par question, puis un seul bouton « <b>Concrétiser</b> » :</li>
+      <li><b>Que faire ?</b> 📌 Suivre (point de suivi) · ✓ Créer une tâche… · ⊘ Rien (clos). « Créer » : ligne <b>Type ›</b> (tous les types : tâche, rendez-vous, appel, story, bug, réunion, démarche, mission, exploration ; proposé selon l'élément concerné) et <b>Titre</b> (le texte du point).</li>
+      <li><b>Rattaché à ›</b> : ce qui est créé est <b>toujours rattaché à l'élément du dessus</b> et change avec le type — tâche, rendez-vous, appel… : sous l'élément concerné (sous son parent s'il est déjà une sous-tâche) ; story : sous la feature ; feature : sous l'epic ; réunion : liée à l'élément ; objectif : tâche liée à l'objectif ; aucun parent valide → « À choisir » (orange), concrétisation impossible tant qu'il manque.</li>
+      <li><b>Qui s'en charge ?</b> Moi (suivre) · Mon équipe (transmettre) · ⤴ Niveau du dessus (escalader) ; puis le <b>Responsable</b> (par défaut qui a noté le point).</li>
+      <li><b>Élément concerné</b> · <b>Validation</b> (par défaut l'animateur de la réunion, modifiable) · <b>Échéance</b> (par défaut la prochaine réunion, modifiable).</li>
+      <li>Tout point concrétisé (sauf « Rien ») devient un <b>point de suivi</b> ; le bouton du point affiche le résultat en toutes lettres (« Point de suivi · Responsable : Sara Martin · Validation : Nina Dupont · Échéance : 14/10 »).</li>
+      <li>Rien n'est créé avant « <b>Envoyer le compte rendu</b> » : tâches, points de suivi, messages et compte rendu partent en écritures groupées.</li>
     </ul></div>
 
-    <div class="bloc"><h2><i>7</i>Transmettre et escalader</h2><ul>
-      <li>Équipes calculées depuis l'Organisation : membre → son équipe ; SM → + SM du train ; PO → + PO du train ; RTE, PM → + portfolio.</li>
-      <li><b>Transmettre à</b> = une personne de l'une de mes équipes (message 💬 Chat, titre ↪).</li>
-      <li><b>Escalader</b> = à l'équipe du dessus : aux SM du train (RTE) ou aux PO du train (PM) ; du train au portfolio (titre ⤴). Réunion correspondante : équipe → Daily, train → ART sync, portfolio → revue du portfolio.</li>
-      <li>Points de suivi dans la réunion de chacun ; la <b>réponse est recopiée</b> en Décision dans toutes les réunions de la chaîne ; Chat affiche « 📅 Suivi dans les réunions ».</li>
+    <div class="bloc"><h2><i>7</i>Point de suivi : statuts et validation</h2><ul>
+      <li>🔵 <b>En cours</b> (à la concrétisation) → 🟢 <b>Fait</b> (le responsable, ou l'animateur pour lui ; mot facultatif) → ✅ <b>Validé</b> (le validateur).</li>
+      <li>Le validateur peut aussi : <b>✎ Re-concrétiser</b> (la même feuille, préremplie avec la réponse : nouvelle tâche, transmettre, escalader à nouveau ; le point repart En cours), <b>↩ À reprendre</b> (motif obligatoire, le point repart chez le responsable), <b>⊘ Abandonner</b> (motif obligatoire).</li>
+      <li>Tâche créée terminée → le point passe à <b>Fait</b> tout seul, puis à valider. Échéance passée et pas Fait → pastille orange « <b>en retard</b> ».</li>
+      <li>Où : le responsable dans ses suivis (pastille touchable) ; le validateur dans le Suivi de la réunion suivante (filtre « <b>À valider · n</b> ») <b>ou</b> dans le Chat — c'est le même point, répondre à un endroit met l'autre à jour. Rituels Simple : pas de validation (Fait = Validé).</li>
     </ul></div>
 
-    <div class="bloc"><h2><i>8</i>Suivi et fin de vie</h2><ul>
-      <li>« <b>Suivi · n</b> » à la Situation : points concrétisés non finis, escalades en attente, réponses à concrétiser.</li>
-      <li><b>Âge d'un point suivi</b> : rien les premiers jours ; à partir de 2 jours, pastille orange « depuis 3 j » (plus de « Hier » / « Aujourd'hui » à côté d'un blocage).</li>
-      <li><b>Fini</b> = « Rien », tâche terminée, ou réponse concrétisée (transmis, escaladé).</li>
-      <li>Points finis gardés jusqu'à la <b>rétro du niveau, sinon sa démo</b> (équipe → rétrospective, train → Inspect &amp; Adapt, portfolio → revue du portfolio), puis supprimés du Sheet au compte rendu. La démo les montre dans « Réglé pendant le sprint ».</li>
+    <div class="bloc"><h2><i>8</i>Escalade en chaîne et Chat</h2><ul>
+      <li><b>Un point de suivi par niveau</b> : l'escalade crée le point du niveau du dessus (responsable : RTE, PM, SM ou PO du train ; Epic Owner au portfolio), avec son validateur à ce niveau ; tous gardent le même identifiant d'escalade. Réunion correspondante : équipe → Daily, train → ART sync, portfolio → revue du portfolio.</li>
+      <li><b>La résolution redescend</b> : validé en haut → le point du dessous passe à « <b>Fait · réponse reçue</b> » (réponse recopiée en Décision) → son validateur valide à son niveau (ou re-concrétise) → … jusqu'à l'origine. Chacun ne reçoit sa validation qu'une fois le niveau du dessus validé.</li>
+      <li><b>Refus</b> (↩) : rouvre le point du niveau <b>juste au-dessus</b>, qui corrige ou rouvre à son tour. <b>Abandon</b> en haut : le dessous reçoit « Fait · abandonné au-dessus » et décide pour lui.</li>
+      <li><b>Chat</b> — y arrivent : point escaladé (au responsable du dessus, Lu ✓) ; « <b>Valider ?</b> » au validateur (Valider · Re-concrétiser · À reprendre · Abandonner) ; À reprendre / Abandonné au responsable (avec le motif). N'y arrivent pas : ce qui reste interne à la réunion (points confiés à un participant, En cours, votes), ni « Validé ». Questions transmises ou escaladées et compte rendu : comme avant.</li>
+      <li><b>Fin de vie</b> : validé ou abandonné = fini ; gardé jusqu'à la <b>rétro du niveau, sinon sa démo</b> (équipe → rétrospective, train → Inspect &amp; Adapt, portfolio → revue du portfolio), puis supprimé du Sheet au compte rendu. Âge d'un point : pastille « depuis 3 j » à partir de 2 jours.</li>
+      <li><b>Fiche de l'élément</b> : section « 📅 Points de réunion · n » (points ouverts liés : type, texte, réunion, date, statut).</li>
+    </ul></div>
+
+    <div class="bloc"><h2><i>11</i>Sous-tâches et éléments liés</h2><ul>
+      <li><b>Tous les types</b> peuvent avoir des sous-tâches (tâche, rendez-vous, appel, démarche, mission, story, exploration, bug), sur <b>un seul niveau</b>.</li>
+      <li>Élément répété (rendez-vous chaque semaine…) : sous-tâche rattachée à <b>une date précise</b> (« préparer le RDV du 14/10 »).</li>
+      <li>Une <b>réunion</b> a ses tâches liées (préparer, suivre), visibles dans sa fenêtre et dans Tâches.</li>
+      <li><b>Écriture</b> : libellés en toutes lettres et noms complets (« Responsable : Sara Martin · Validation : Nina Dupont », « Noté par Tom Faure », « Escaladé par Nina Dupont (👥 Mobile) »), jamais « Sara · valide Sara ».</li>
     </ul></div>
 
     <div class="bloc"><h2><i>9</i>Compte rendu et quota</h2><ul>
@@ -110,7 +123,7 @@
     </ul></div>
 
   </div>
-  <div class="pied">Détail et historique des décisions : docs/mission.html (lot 6). Mis à jour le 7/10.</div>
+  <div class="pied">Détail et historique des décisions : docs/mission.html (lot 6). Mis à jour le 8/10.</div>
 </div>
 </body>
 </html>
