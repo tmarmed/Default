@@ -4,7 +4,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { childrenOf, describeCounts, domaineOf, objectifOf } from '../hierarchy';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
-import { fmtPoints, iterationNom, piLabel, pointsOf } from '../pi';
+import { fmtPoints, iterationNom, nomSprintDe, piLabel, pointsOf } from '../pi';
 import { useSafe } from '../safe';
 import { colors } from '../theme';
 import type { Feature, FeatureInput, Item } from '../types';
@@ -124,7 +124,7 @@ export function FeatureForm({
     .map((t) => {
       const ft = h.features.get(t.feature);
       const where = ft ? `🧩 ${ft.titre}` : h.epics.get(t.epic)?.titre ?? h.objectifs.get(t.objectif)?.titre ?? h.domaines.get(t.domaine)?.nom ?? 'sans rattachement';
-      const quand = t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}` : t.iteration ? t.iteration.split('-').pop() : '';
+      const quand = t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}` : t.iteration ? nomSprintDe(t.iteration) : '';
       return { id: t.id, title: t.titre, sub: [where, quand].filter(Boolean).join(' · '), dans: !!ft };
     });
 
@@ -242,7 +242,7 @@ export function FeatureForm({
         icone="🧩"
         titre={form.titre}
         vide="Titre de la feature"
-        sous={[form.pi ? `PI ${piLabel(form.pi)}` : '', form.iteration ? form.iteration.split('-').pop() : ''].filter(Boolean).join(' · ') || undefined}
+        sous={[form.pi ? `PI ${piLabel(form.pi)}` : '', form.iteration ? nomSprintDe(form.iteration) : ''].filter(Boolean).join(' · ') || undefined}
         couleur={epic?.couleur}
       />
       <BlocLecture raison={droitsF.raison}>
@@ -393,7 +393,7 @@ export function FeatureForm({
           />
         )}
         {(!feature || onQuickAddTask) && droitsF.modifier && (
-          <Text style={styles.entree}>{`Entrée pour ajouter${form.iteration ? ` · en ${form.iteration.split('-').pop()}` : ''}`}</Text>
+          <Text style={styles.entree}>{`Entrée pour ajouter${form.iteration ? ` · en ${nomSprintDe(form.iteration)}` : ''}`}</Text>
         )}
       </SectionFiche>
       {(existantes.length > 0 || nouvelles.length > 0) && <Text style={f.hint}>Ajoutées à la feature à l'enregistrement.</Text>}

@@ -3,7 +3,7 @@ import { ChoiceSheet } from '../ChoiceSheet';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { dateCourte, LIBELLE_TYPE_POINT } from '../../daily';
 import { colors } from '../../theme';
-import type { Concretisation, Item, Statut, TypePoint } from '../../types';
+import type { Concretisation, Item, SousType, Statut, TypePoint } from '../../types';
 import { LigneChoix, SectionFiche } from '../Choix';
 import { useHierarchy } from '../../hierarchyContext';
 import { elementDe, tousLesElements } from '../../elementConcerne';
@@ -242,7 +242,7 @@ export const TITRE_TYPE: Record<string, string> = {
   aujourdhui: 'Nouvelle tâche prévue aujourd’hui',
   blocage: 'Nouveau blocage',
   decision: 'Nouvelle décision',
-  action: 'Nouvelle action',
+  action: 'Nouvelle demande d’action',
 };
 export const titreAjout = (types: TypePoint[]) => (types.length === 1 ? (TITRE_TYPE[types[0]] ?? 'Nouvelle note') : 'Nouvelle note');
 
@@ -278,7 +278,7 @@ export function SaisiePoint({
   /** Point ajouté au Suivi (un oubli) : la fenêtre contient aussi la Concrétisation et le responsable */
   concretiser?: { personnes: { value: string; label: string }[]; respDefaut: string };
   premiere?: boolean;
-  onAjouter: (type: TypePoint, texte: string, element: string, conc?: { c: Concretisation; resp: string }) => void;
+  onAjouter: (type: TypePoint, texte: string, element: string, conc?: { c: Concretisation; resp: string }, sous?: SousType) => void;
 }) {
   // Règle commune (07/10) : un simple « ＋ … » sous la liste, qui ouvre une seule fenêtre
   const [ouvert, setOuvert] = useState(false);
@@ -288,8 +288,11 @@ export function SaisiePoint({
   const [element, setElement] = useState(elementDefaut);
   const [c, setC] = useState<Concretisation>('tache');
   const [resp, setResp] = useState(concretiser?.respDefaut ?? '');
+  // Décision (validation du 08/10) : un seul type, sous-type « à prendre » (par défaut) ou « prise »
+  const [sousType, setSousType] = useState<SousType>('a_prendre');
   const ouvrir = () => {
     setType(parDefaut());
+    setSousType('a_prendre');
     setElement(elementDefaut);
     setTexte('');
     setC('tache');
@@ -300,7 +303,7 @@ export function SaisiePoint({
     const t = texte.trim();
     if (!t) return;
     const cc: Concretisation = c === 'sous_tache' && !element ? 'tache' : c;
-    onAjouter(type, t, element, concretiser ? { c: cc, resp } : undefined);
+    onAjouter(type, t, element, concretiser ? { c: cc, resp } : undefined, type === 'decision' ? sousType : '');
     setOuvert(false);
   };
   const libelle = placeholder.replace(/^＋\s*/, '');
@@ -318,23 +321,30 @@ export function SaisiePoint({
             </View>
           </SectionFiche>
         )}
+        {type === 'decision' && (
+          <SectionFiche titre="Décision">
+            <View style={st.champ}>
+              <Pastilles petit options={[{ value: 'a_prendre', label: 'À prendre' }, { value: 'prise', label: 'Prise' }]} value={sousType} onChange={(v) => setSousType(v as SousType)} />
+            </View>
+          </SectionFiche>
+        )}
         {/* Élément concerné (08/10) : un seul, ceux du contexte d'abord, puis « Autre élément… » (recherche) */}
         <SectionFiche titre="Élément concerné">
           <LigneElement value={element} onChange={setElement} contexte={[...stories.map((t) => t.id), ...contexte]} />
         </SectionFiche>
-        <SectionFiche titre="Point">
+        <SectionFiche titre="Note">
           <View style={st.champPoint}>
             <TextInput
               value={texte}
               onChangeText={setTexte}
-              placeholder="Écrivez le point…"
+              placeholder="Écrivez la note…"
               placeholderTextColor={colors.muted}
               onSubmitEditing={valider}
               submitBehavior="submit"
               returnKeyType="done"
               autoFocus
               style={st.saisie}
-              accessibilityLabel="Point"
+              accessibilityLabel="Note"
             />
           </View>
         </SectionFiche>
@@ -485,7 +495,7 @@ export const st = StyleSheet.create({
 });
 
 /**
- * « Élément concerné › » d'un point (08/10) : un seul élément ou « Aucun · point général » ; les éléments du contexte
+ * « Élément concerné › » d'un point (08/10) : un seul élément ou « Aucun · note générale » ; les éléments du contexte
  * de la réunion d'abord, puis « Autre élément… » (tous, avec recherche)
  */
 export function LigneElement({ value, onChange, contexte }: { value: string; onChange: (v: string) => void; contexte: string[] }) {
@@ -504,11 +514,11 @@ export function LigneElement({ value, onChange, contexte }: { value: string; onC
       onChange={onChange}
       groupes={[{ titre: ctx.length ? 'De la réunion' : undefined, options: ctx.map((x) => ({ value: x.id, label: `${x.icone} ${x.titre}` })) }]}
       autres={{ titre: 'Autre élément…', groupes: [{ options: autres.map((x) => ({ value: x.id, label: `${x.icone} ${x.titre}` })) }] }}
-      sans="Aucun · point général"
-      vide="Aucun · point général"
+      sans="Aucun · note générale"
+      vide="Aucun · note générale"
       libelle={(v) => {
         const x = elementDe(v, h);
-        return x ? `${x.icone} ${x.titre}` : 'Aucun · point général';
+        return x ? `${x.icone} ${x.titre}` : 'Aucun · note générale';
       }}
     />
   );

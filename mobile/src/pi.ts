@@ -86,10 +86,10 @@ export function shiftPi(pi: string, n: number): string {
 export const piLabel = (pi: string) => `${pi.split('-')[1]} ${pi.split('-')[0]}`;
 
 /** Nom affiché d'un sprint (07/10 : « Itération » devient « Sprint » partout) : « IT3 » → « S3 » ; « IP » reste */
-export const nomSprint = (code: string) => code.replace(/^IT(\d+)$/, 'S$1');
-/** « S3 » d'après une clé « 2026-T4-IT3 » */
+export const nomSprint = (code: string) => (code === 'IP' ? 'Semaine IP' : code.replace(/^IT(\d+)$/, 'Sprint $1'));
+/** « Sprint 3 » d'après une clé « 2026-T4-IT3 » */
 export const nomSprintDe = (key: string) => nomSprint(key.split('-').pop() ?? key);
-/** « S1 · T4 2026 » : nom d'un sprint, le même partout (clé interne inchangée : « 2026-T4-IT1 ») */
+/** « Sprint 1 · T4 2026 » : nom d'un sprint, le même partout (clé interne inchangée : « 2026-T4-IT1 ») */
 export const iterationNom = (key: string) => {
   const m = /^(\d{4})-(T[1-4])-(IT[1-6]|IP)$/.exec(key);
   return m ? `${nomSprint(m[3])} · ${m[2]} ${m[1]}` : key;

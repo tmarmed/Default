@@ -10,7 +10,7 @@ import { colors } from '../../theme';
 import { type Item, type ItemInput, RECURRENCE_DEFAUTS } from '../../types';
 import { SectionFiche } from '../Choix';
 import { TitreFiche } from '../FormSheet';
-import { BlocPoints, BlocSuivi, Compteurs, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, prenom, QuestionsEquipe, type R, useReunion } from './base';
+import { BlocPoints, BlocSuivi, Compteurs, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, QuestionsEquipe, type R, useReunion } from './base';
 import { Ligne, Pastilles, pastilleStatut, pluriel, st, Vide } from './ui';
 import { CARTES_POKER, type DecisionVote, VoteAnimateur, VoteParticipant, votesDe } from './Vote';
 import { AjoutElement, itemReunion } from './Ajout';
@@ -198,7 +198,7 @@ export function FenetreAffinage(p: PropsReunion) {
   const aReprendre = new Set(stories.map((t, i) => (decisions[t.id]?.choix === 'reporter' || (i < idx && !decisions[t.id]) ? i : -1)).filter((i) => i >= 0));
   const n = stories.length;
   const story = stories[Math.min(idx, Math.max(0, n - 1))];
-  const animateur = prenom(e.nomDe(p.reunion.organisateur));
+  const animateur = e.nomDe(p.reunion.organisateur);
 
   /** Une story, telle que tout le monde la lit (critères, découpage) */
   const enTete = (t: Item, k: number, nb: number) => {
@@ -541,7 +541,7 @@ export function FenetreAffinage(p: PropsReunion) {
       r={r}
       catalogue={PARCOURS_AFFINAGE}
       rendu={rendu}
-      libelleFin={(o) => (o.role === 'po' ? `Envoyer à ${prenom(e.nomDe(p.reunion.organisateur))}` : 'Envoyer mes notes')}
+      libelleFin={(o) => (o.role === 'po' ? `Envoyer à ${e.nomDe(p.reunion.organisateur)}` : 'Envoyer mes notes')}
       etapeAnim={{ cle: cleAnim, setCle: setCleAnim, element: cleAnim === 'stories' ? (story?.id ?? '') : '', detail: cleAnim === 'stories' && story ? `Story ${Math.min(idx, n - 1) + 1} sur ${n} · ${story.titre}` : '' }}
       onSuivant={(role, cle) => {
         if (role === 'sm' && cle === 'stories' && idx < n) return (setIdx(idx + 1), true);

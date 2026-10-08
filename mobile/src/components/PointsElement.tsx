@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { LIBELLE_TYPE_POINT } from '../daily';
+import { libelleNote } from '../daily';
 import { useHierarchy } from '../hierarchyContext';
 import { personneParEmail } from '../echange/hierarchieEchange';
 import { useOrg } from '../organisation';
@@ -58,7 +58,7 @@ export function SectionPointsReunion({ id, espace }: { id?: string; espace?: str
                 key={p.id}
                 premiere={i === 0}
                 texte={p.texte}
-                sous={[LIBELLE_TYPE_POINT[p.type], `Responsable : ${nomDe(p.responsable || p.personne)}`].join(' · ')}
+                sous={[libelleNote(p), `Responsable : ${nomDe(p.responsable || p.personne)}`, p.validateur ? `Validation : ${nomDe(p.validateur)}` : '', p.echeance ? `Échéance : ${jourCourt(p.echeance)}` : ''].filter(Boolean).join(' · ')}
                 pastille={{ texte: a.texte || 'En cours', ton: a.texte ? a.ton : 'bleu', avant: pastilleReunion(p) }}
               />
             );
@@ -73,7 +73,7 @@ export function SectionPointsReunion({ id, espace }: { id?: string; espace?: str
               premiere={i === 0}
               texte={p.texte}
               sous={`Notée par ${nomDe(p.personne)} · à concrétiser`}
-              pastille={{ texte: LIBELLE_TYPE_POINT[p.type], ton: tonType(p.type), avant: pastilleReunion(p) }}
+              pastille={{ texte: libelleNote(p), ton: tonType(p.type), avant: pastilleReunion(p) }}
             />
           ))}
         </SectionFiche>

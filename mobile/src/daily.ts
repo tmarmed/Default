@@ -63,12 +63,15 @@ export const LIBELLE_TYPE_POINT: Record<TypePoint, string> = {
   aujourdhui: 'Aujourd’hui',
   blocage: 'Blocage',
   decision: 'Décision',
-  action: 'Action',
+  action: 'Demande d’action',
   etat: 'État',
   vote: 'Vote',
   donnee: 'Préparation',
 };
 /** Pastille à droite d'un point : « Hier », « Aujourd'hui » (sans date, règle du 06/10), ou le type */
+/** Libellé d'une note : « Décision à prendre », « Décision prise » (sous-type, 08/10), sinon le type */
+export const libelleNote = (p: Pick<PointReunion, 'type' | 'sous_type'>) =>
+  p.type === 'decision' && p.sous_type ? `Décision ${p.sous_type === 'a_prendre' ? 'à prendre' : 'prise'}` : LIBELLE_TYPE_POINT[p.type];
 export function pastillePoint(type: TypePoint, _jour?: string): string {
   return LIBELLE_TYPE_POINT[type];
 }
@@ -94,22 +97,24 @@ export const ageAffiche = (date: string, jour: string) => {
  * Pastilles d'un point suivi (ou d'une tâche née d'une réunion) : le type, et son âge seulement s'il a 2 jours ou plus
  * (règle du 07/10 : plus de « Hier » / « Aujourd'hui » à côté d'un blocage) — [Blocage], [Action] [depuis 3 j]
  */
-export const pastilleSuivi = (p: Pick<PointReunion, 'type' | 'reunion'>, jour: string) => ({ texte: LIBELLE_TYPE_POINT[p.type], age: ageAffiche(jourPoint(p), jour) });
+export const pastilleSuivi = (p: Pick<PointReunion, 'type' | 'reunion' | 'sous_type'>, jour: string) => ({ texte: libelleNote(p), age: ageAffiche(jourPoint(p), jour) });
 
 /** Points à concrétiser : blocages, décisions, actions */
 export const aConcretiser = (p: Pick<PointReunion, 'type'>) => p.type === 'blocage' || p.type === 'decision' || p.type === 'action';
 
 /** Concrétisation proposée : sous-tâche de la story (sinon tâche à part) pour un blocage ou une action ; rien pour une décision */
-export function concretisationParDefaut(p: Pick<PointReunion, 'type' | 'element'>): Concretisation {
-  if (p.type === 'decision') return 'rien';
+export function concretisationParDefaut(p: Pick<PointReunion, 'type' | 'element' | 'sous_type'>): Concretisation {
+  if (p.type === 'decision' && p.sous_type !== 'a_prendre') return 'rien';
   return p.element ? 'sous_tache' : 'tache';
 }
+/** Sous-titre d'une ligne de suivi en toutes lettres : « 📌 Suivi · tâche à part · Responsable : Emma Roy · à faire » */
+export const sousLigneSuivi = (quoi: string, qui: string, etat: string, role = 'Responsable') => ['📌 Suivi', quoi, qui ? `${role} : ${qui}` : '', etat].filter(Boolean).join(' · ');
 export const LIBELLE_CONCRETISATION: Record<Concretisation, string> = {
   '': 'à décider',
   sous_tache: 'sous-tâche',
   tache: 'tâche à part',
   rien: 'noté seulement',
-  escalade: 'escaladé',
+  escalade: 'transmis',
   synchro: 'transmis',
   suivi: 'suivi',
 };

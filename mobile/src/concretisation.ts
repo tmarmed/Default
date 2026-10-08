@@ -82,12 +82,15 @@ export function rattachementPour(type: TypeCree, element: string, h: H): { id: s
   return { id: x.id, libelle: lib(x.id) };
 }
 
-/** Choix proposé pour un point : action → créer une tâche ; blocage, décision → suivre ; responsable = qui l'a noté */
+/**
+ * Choix proposé pour une note : demande d'action → créer une tâche ; blocage, décision à prendre → suivre ; décision
+ * prise → rien (une trace) ; responsable = qui l'a notée
+ */
 export function choixParDefaut(
-  pt: Pick<PointReunion, 'type' | 'texte' | 'element' | 'personne' | 'responsable'>,
+  pt: Pick<PointReunion, 'type' | 'texte' | 'element' | 'personne' | 'responsable' | 'sous_type'>,
   o: { animateur: string; echeance: string; h: H; moi: string },
 ): ChoixConcret {
-  const que: QueFaire = pt.type === 'action' ? 'creer' : 'suivre';
+  const que: QueFaire = pt.type === 'action' ? 'creer' : pt.type === 'decision' && pt.sous_type === 'prise' ? 'rien' : 'suivre';
   const type = typeParDefaut(pt.element, o.h);
   const resp = (pt.responsable || pt.personne).toLowerCase();
   return {

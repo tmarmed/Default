@@ -67,10 +67,10 @@ export function sousSuivi(p: PointReunion, st: StatutSuivi, nomDe: (e: string) =
   const resp = p.responsable || p.personne;
   if (st === 'valide') return `${quoiSuivi(p)} · validé par ${nomDe(p.validateur || resp)}`;
   if ((st === 'fait' && roleEscalade(p) === 'bas') || ((st === 'a_reprendre' || st === 'abandonne') && p.note)) return p.note || '';
-  return [quoiSuivi(p), `Responsable : ${nomDe(resp)}`, p.echeance ? `Échéance : ${jourCourt(p.echeance)}` : '', p.note && st === 'fait' ? p.note : ''].filter(Boolean).join(' · ');
+  return [quoiSuivi(p), `Responsable : ${nomDe(resp)}`, p.validateur ? `Validation : ${nomDe(p.validateur)}` : '', p.echeance ? `Échéance : ${jourCourt(p.echeance)}` : '', p.note && st === 'fait' ? p.note : ''].filter(Boolean).join(' · ');
 }
 const quoiSuivi = (p: PointReunion) =>
-  p.concretisation === 'escalade' ? '⤴ Escaladé' : p.concretisation === 'suivi' ? '📌 Suivi' : p.type_cree ? LIBELLE_TYPE_CREE(p.type_cree as TypeCree) : p.concretisation === 'sous_tache' ? 'Sous-tâche' : 'Tâche';
+  p.concretisation === 'escalade' ? '📌 Suivi · ↪ Transmis' : p.concretisation === 'suivi' ? '📌 Suivi' : p.type_cree ? LIBELLE_TYPE_CREE(p.type_cree as TypeCree) : p.concretisation === 'sous_tache' ? 'Sous-tâche' : 'Tâche';
 
 /** Crée l'élément d'une re-concrétisation ; renvoie son id */
 async function creerUn(a: ActionsDaily, espace: string, x: ACreer, niveau: string): Promise<string> {
@@ -98,7 +98,7 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true }: { points
     ctx.onInfo?.(
       `« ${pt.texte} » : ${action === 'valider' ? 'validé' : action === 'reprendre' ? 'à reprendre' : action === 'abandonner' ? 'abandonné' : action === 'fait' ? 'fait' : 'en cours'}` +
         (plan.envoyer.length ? ` · ${plan.envoyer.length} message${plan.envoyer.length > 1 ? 's' : ''} dans le Chat` : '') +
-        (autres ? ' · l’autre niveau de l’escalade est mis à jour' : '') +
+        (autres ? ' · l’autre maillon de la transmission est mis à jour' : '') +
         '.',
     );
   };
@@ -181,7 +181,7 @@ function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onFermer }: { p
     </View>
   );
   const origine = [
-    role === 'haut' ? 'Suivi reçu par escalade' : role === 'bas' ? 'Escaladé au niveau du dessus' : quoiSuivi(pt),
+    role === 'haut' ? 'Suivi reçu par transmission' : role === 'bas' ? 'Transmis à un autre niveau' : quoiSuivi(pt),
     `Responsable : ${ctx.nomDe(pt.responsable || pt.personne)}`,
     `Validation : ${ctx.nomDe(validateurDe(pt, ctx.animateur))}`,
     pt.echeance ? `Échéance : ${jourCourt(pt.echeance)}` : '',
@@ -197,11 +197,11 @@ function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onFermer }: { p
             <Pressable onPress={onFermer} hitSlop={8} style={s.cote} accessibilityRole="button">
               <Text style={s.annuler}>Annuler</Text>
             </Pressable>
-            <Text style={s.titre} numberOfLines={1}>
-              {pt.texte}
-            </Text>
+            <View style={{ flex: 1 }} />
             <View style={s.cote} />
           </View>
+          {/* Titre en entier, sur plusieurs lignes si besoin (validation du 08/10) */}
+          <Text style={[s.titre, { paddingHorizontal: 16, paddingTop: 6 }]}>{pt.texte}</Text>
           <Text style={s.sousTitre}>{origine}</Text>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 16 }}>
             {!!pt.note && (

@@ -1,6 +1,6 @@
 import type { AutresChoix, GroupeChoix, OptionChoix } from './components/Choix';
 import type { Domaine } from './types';
-import { fmtPoints, iterationOf, iterationsOf, piLabel, piOf, pointsOf, shiftPi } from './pi';
+import { fmtPoints, iterationOf, iterationsOf, nomSprintDe, piLabel, piOf, pointsOf, shiftPi } from './pi';
 import { toDateString } from './dates';
 import { domaineOf, epicOf, objectifOf, type Hierarchy } from './hierarchy';
 
@@ -13,7 +13,7 @@ export function metaTache(
   jours: boolean,
   sous?: { faites: number; total: number },
 ): string {
-  const quand = t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}` : t.iteration ? t.iteration.split('-').pop() : '';
+  const quand = t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}` : t.iteration ? nomSprintDe(t.iteration) : '';
   return [
     t.periodicite ? '🔁 Répétée' : '',
     quand ?? '',

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { VoteEtat } from '../../etatReunion';
 import { colors } from '../../theme';
 import { SectionFiche } from '../Choix';
-import { prenom, type R } from './base';
+import { type R } from './base';
 import { Pastilles, st as stUi, Vide } from './ui';
 
 /**
@@ -143,7 +143,7 @@ export function VoteAnimateur({
         <View style={stUi.ligne}>
           <View style={stUi.corps}>
             <Text style={stUi.texte}>{`${nb} sur ${votants.length} ont voté`}</Text>
-            <Text style={stUi.sous}>{votants.filter((m) => !prepares.has(m)).map((m) => prenom(r.e.nomDe(m))).join(', ') || 'tout le monde a voté'}</Text>
+            <Text style={stUi.sous}>{votants.filter((m) => !prepares.has(m)).map((m) => r.e.nomDe(m)).join(', ') || 'tout le monde a voté'}</Text>
           </View>
         </View>
         <View style={s.jauge}>
@@ -164,7 +164,7 @@ export function VoteAnimateur({
       <View style={stUi.ligne}>
         <View style={stUi.corps}>
           <Text style={stUi.texte}>Votes révélés · tour {tour}</Text>
-          <Text style={stUi.sous}>{[...prepares.entries()].map(([m, v]) => `${prenom(r.e.nomDe(m))} ${v}`).join(' · ') || 'aucun vote'}</Text>
+          <Text style={stUi.sous}>{[...prepares.entries()].map(([m, v]) => `${r.e.nomDe(m)} ${v}`).join(' · ') || 'aucun vote'}</Text>
         </View>
         <View style={[s.tag, lecteur.accord ? s.tagVert : s.tagOrange]}>
           <Text style={[s.tagTexte, lecteur.accord ? s.tagTexteVert : s.tagTexteOrange]}>{lecteur.texte}</Text>
@@ -209,7 +209,7 @@ export function VoteParticipant({ r, el, titre = '🃏 Votre vote', valeurs, vot
         <View style={stUi.ligne}>
           <View style={stUi.corps}>
             <Text style={stUi.texte}>Votes révélés</Text>
-            <Text style={stUi.sous}>{[...tous.entries()].map(([m, v]) => `${prenom(r.e.nomDe(m))} ${v}`).join(' · ')}</Text>
+            <Text style={stUi.sous}>{[...tous.entries()].map(([m, v]) => `${r.e.nomDe(m)} ${v}`).join(' · ')}</Text>
           </View>
         </View>
       </SectionFiche>

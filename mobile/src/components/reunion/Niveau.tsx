@@ -11,7 +11,7 @@ import { SectionFiche } from '../Choix';
 import { TitreFiche } from '../FormSheet';
 import { ListeEditable, MesTaches, Navigation } from './Affinage';
 import { AjoutElement } from './Ajout';
-import { BlocPoints, BlocSuivi, Compteurs, type Equipe, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, prenom, type R, useReunion } from './base';
+import { BlocPoints, BlocSuivi, Compteurs, type Equipe, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, type R, useReunion } from './base';
 import { Ligne, Pastilles, st, Vide } from './ui';
 import { CARTES_CONFIANCE, type DecisionVote, VoteAnimateur, VoteEtoiles, VoteParticipant, votesDe } from './Vote';
 
@@ -133,7 +133,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
   art_sync: {
     nomCourt: 'à l’ART sync',
     sm: [
-      ['situation', 'Situation', SIT('Voir l’avancement du train, lever les obstacles', 'Partie SM (obstacles, organisation), puis partie PO (contenu, priorités).', (c) => [{ valeur: String(c.features.length), libelle: 'features' }, { valeur: `${c.features.length ? Math.round(c.features.reduce((s, f) => s + avancementFeature(c, f), 0) / c.features.length) : 0} %`, libelle: 'avancement' }, { valeur: String(c.r.reportes.length), libelle: 'escalades reçues', ton: 'orange' }])],
+      ['situation', 'Situation', SIT('Voir l’avancement du train, lever les obstacles', 'Partie SM (obstacles, organisation), puis partie PO (contenu, priorités).', (c) => [{ valeur: String(c.features.length), libelle: 'features' }, { valeur: `${c.features.length ? Math.round(c.features.reduce((s, f) => s + avancementFeature(c, f), 0) / c.features.length) : 0} %`, libelle: 'avancement' }, { valeur: String(c.r.reportes.length), libelle: 'transmis reçus', ton: 'orange' }])],
       ['vue', 'Vue du train', { k: 'liste', icone: '🚆', titre: 'Vue du train', sous: 'Features du PI', lignes: featuresPI }],
       ['partie_sm', 'Partie SM', { k: 'points', icone: '🧑‍🔧', titre: 'Partie SM', sous: 'Obstacles et organisation, avec le RTE', placeholder: '＋ Obstacle, décision ou action' }],
       ['partie_po', 'Partie PO', { k: 'points', icone: '📦', titre: 'Partie PO', sous: 'Contenu, priorités, périmètre, avec le PM', placeholder: '＋ Décision, action ou blocage' }],
@@ -250,15 +250,15 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
   sync_portfolio: {
     nomCourt: 'à la synchronisation du portfolio',
     sm: [
-      ['situation', 'Situation', SIT('Synchroniser les trains du portfolio', 'Avancement des epics, escalades des trains.', (c) => [{ valeur: String(c.epics.filter((x) => x.etat === 'en_cours').length), libelle: 'epics en cours' }, { valeur: String(c.r.reportes.length), libelle: 'escalades', ton: 'orange' }, { valeur: String(c.epics.length), libelle: 'epics' }])],
+      ['situation', 'Situation', SIT('Synchroniser les trains du portfolio', 'Avancement des epics, notes transmises par les trains.', (c) => [{ valeur: String(c.epics.filter((x) => x.etat === 'en_cours').length), libelle: 'epics en cours' }, { valeur: String(c.r.reportes.length), libelle: 'transmis reçus', ton: 'orange' }, { valeur: String(c.epics.length), libelle: 'epics' }])],
       ['epics', 'Epics en cours', { k: 'liste', icone: '🗂️', titre: 'Epics en cours', sous: 'Avancement', lignes: (c) => epicsPortfolio(c).filter((x) => x.pastille === 'En cours'), points: true }],
-      ['escalades', 'Escalades des trains', { k: 'points', icone: '⤴', titre: 'Escalades des trains', sous: 'Reçues des ART sync (à concrétiser) et nouvelles', placeholder: '＋ Blocage, décision ou action' }],
+      ['escalades', 'Transmis reçus', { k: 'points', icone: '↪', titre: 'Transmis reçus', sous: 'Reçus des ART sync (à concrétiser) et nouveaux', placeholder: '＋ Blocage, décision ou demande d’action' }],
       ['concretisation', 'Concrétisation', CONC],
       ['compte_rendu', 'Compte rendu', CR],
     ],
     membre: [
       ['avancement', 'Avancement', { k: 'mes_elements', icone: '🗂️', titre: 'Epics', sous: 'Avancement', liste: epicsPortfolio }],
-      ['escalades_m', 'Nos escalades', { k: 'notes', titre: 'Nos escalades' }],
+      ['escalades_m', 'Nos transmissions', { k: 'notes', titre: 'Nos transmissions' }],
     ],
   },
   budget: {
@@ -328,7 +328,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
   const features = e.h.featureList.filter((f) => (n?.kind === 'train' ? (f.train ?? '') === n.id : true) && f.pi === pi);
   const epics = e.h.epicList.filter((x) => (n?.kind === 'portfolio' ? x.portfolio === n.id : e.portfolio ? x.portfolio === e.portfolio.id : true));
   const c: Ctx = { r, e, pi, piSuivant: shiftPi(pi, 1), features, epics, fmt };
-  const animateur = prenom(e.nomDe(p.reunion.organisateur));
+  const animateur = e.nomDe(p.reunion.organisateur);
   const [cleAnim, setCleAnim] = useState('');
   const [idx, setIdx] = useState<Record<string, number>>({});
   const [choix, setChoix] = useState<Record<string, string>>({});
@@ -517,7 +517,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
           <>
             <TitreFiche icone={et.icone} titre={`${et.titre} · ${l.length}`} vide="" sous={et.sous} />
             <SectionFiche titre={et.vote ? (revele ? 'Votes révélés' : ouvert ? '🗳️ Vote ouvert · votes cachés' : 'Reçues') : 'Reçues'}>
-              {tri.length ? tri.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`par ${prenom(e.nomDe(y.par))}`} pastille={revele ? { texte: `★ ${nbv(y.id)}`, ton: 'orange' } : undefined} />) : <Vide texte="Rien reçu pour l’instant." />}
+              {tri.length ? tri.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`par ${e.nomDe(y.par)}`} pastille={revele ? { texte: `★ ${nbv(y.id)}`, ton: 'orange' } : undefined} />) : <Vide texte="Rien reçu pour l’instant." />}
               {et.vote && !lecture && r.anime && !!l.length && (
                 <View style={{ padding: 12 }}>
                   <Pastilles
@@ -547,7 +547,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
         return (
           <>
             <TitreFiche icone="🗳️" titre="Vote" vide="" sous={`100 points par participant · ${votants} sur ${e.personnes.length} ont voté`} />
-            <SectionFiche titre="Total des points">{l.length ? l.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`par ${prenom(e.nomDe(y.par))}`} pastille={{ texte: `${y.pts} pts`, ton: i === 0 ? 'vert' : 'bleu' }} />) : <Vide texte="Aucune demande." />}</SectionFiche>
+            <SectionFiche titre="Total des points">{l.length ? l.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`par ${e.nomDe(y.par)}`} pastille={{ texte: `${y.pts} pts`, ton: i === 0 ? 'vert' : 'bleu' }} />) : <Vide texte="Aucune demande." />}</SectionFiche>
           </>
         );
       }
@@ -613,7 +613,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
         return (
           <>
             <TitreFiche icone="🗳️" titre="Voter" vide="" sous={r.live.etat?.vote?.ouvert ? `Vote ouvert par ${animateur}` : 'En attente de l’ouverture du vote'} />
-            <VoteEtoiles r={r} elements={l.map((y) => ({ id: y.id, texte: y.texte, sous: `par ${prenom(e.nomDe(y.par))}` }))} vote={r.live.etat?.vote} animateur={animateur} />
+            <VoteEtoiles r={r} elements={l.map((y) => ({ id: y.id, texte: y.texte, sous: `par ${e.nomDe(y.par)}` }))} vote={r.live.etat?.vote} animateur={animateur} />
           </>
         );
       }

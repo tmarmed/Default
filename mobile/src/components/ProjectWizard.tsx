@@ -17,7 +17,7 @@ import { fmtDate } from '../alerts';
 import { filtrerEspace, useHierarchy } from '../hierarchyContext';
 import { nomDomaine } from '../nomsEspaces';
 import { EspaceChoix } from './EspaceChoix';
-import { iterationsOf, piLabel, piOf, shiftPi } from '../pi';
+import { iterationsOf, nomSprintDe, piLabel, piOf, shiftPi } from '../pi';
 import { useSafe } from '../safe';
 import { colors } from '../theme';
 import { ETATS_EPIC } from '../types';
@@ -618,8 +618,8 @@ function metaOf(n: WNode): string {
   const parts: string[] = [];
   if (n.level === 'objectif') parts.push(f.fin ? `→ ${fmtDate(f.fin)}` : 'permanent');
   if (n.level === 'epic') parts.push(f.debut ? `${fmtDate(f.debut)} → ${f.fin ? fmtDate(f.fin) : '∞'}` : '');
-  if (n.level === 'feature' && f.pi) parts.push(`PI ${piLabel(f.pi)}${f.iteration ? ` · ${f.iteration.split('-').pop()}` : ''}`);
-  if (n.level === 'tache') parts.push(f.date ? fmtDate(f.date) : f.iteration ? f.iteration.split('-').pop()! : '');
+  if (n.level === 'feature' && f.pi) parts.push(`PI ${piLabel(f.pi)}${f.iteration ? ` · ${nomSprintDe(f.iteration)}` : ''}`);
+  if (n.level === 'tache') parts.push(f.date ? fmtDate(f.date) : f.iteration ? nomSprintDe(f.iteration) : '');
   if (f.points) parts.push(`${f.points} pt`);
   const t = parts.filter(Boolean).join(' · ');
   return t ? `  ${t}` : '';
@@ -838,7 +838,7 @@ function NodeRow({ node: n, map, draft, safeOn, parentOptions, parentValue, onPa
               )}
               {safeOn && !n.f.date && (
                 <>
-                  <Text style={s.panelLabel}>Itération (PI {piLabel(taskPi)})</Text>
+                  <Text style={s.panelLabel}>Sprint (PI {piLabel(taskPi)})</Text>
                   <Chips
                     options={[{ value: '', label: 'Aucune' }, ...iterationsOf(taskPi).map((it) => ({ value: it.key, label: it.nom }))]}
                     value={n.f.iteration}

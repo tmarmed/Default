@@ -209,7 +209,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
             <Pressable onPress={() => setFeuille(true)} disabled={busy} style={[s.ligne, s.bord]} accessibilityRole="button">
               <Text style={s.action}>↪ Faire suivre</Text>
               <Text style={s.actionMeta} numberOfLines={1}>
-                {hierarchie.escalade(e).length ? 'escalader ou transmettre ›' : 'transmettre ›'}
+                {'transmettre ›'}
               </Text>
             </Pressable>
           </SectionFiche>
@@ -223,7 +223,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
               setFeuille(false);
               if (!v) return;
               const [quoi, email] = [v.slice(0, 4), v.slice(4)];
-              void faire(() => (quoi === 'esc:' ? hierarchie.onEscalader(e, email) : hierarchie.onTransmettre(e, email)), `${quoi === 'esc:' ? 'Escaladé' : 'Transmis'} à ${nomDe(email)}`);
+              void faire(() => (quoi === 'esc:' ? hierarchie.onEscalader(e, email) : hierarchie.onTransmettre(e, email)), `Transmis à ${nomDe(email)}`);
             }}
             onFermer={() => setFeuille(false)}
           />

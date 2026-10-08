@@ -6,7 +6,8 @@ import {
   dateCourte,
   jourReunion,
   LIBELLE_CONCRETISATION,
-  LIBELLE_TYPE_POINT,
+  sousLigneSuivi,
+  LIBELLE_TYPE_POINT, libelleNote,
   pastilleSuivi,
   prefixeReunion,
   questionsEquipe,
@@ -30,7 +31,7 @@ import { libelleElement } from '../../elementConcerne';
 import { echeanceParDefaut, relierEscalades, validateurDe } from '../../pointsSuivi';
 import { type CtxSuivi, LignesSuivi, pointsDeSuivi, statutAffiche } from './Suivi';
 import { colors } from '../../theme';
-import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type TypePoint, TYPES_REUNION } from '../../types';
+import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type TypePoint, TYPES_REUNION } from '../../types';
 import { FeuilleChoix, SectionFiche } from '../Choix';
 import type { ActionsDaily } from '../Daily';
 import { estAutre, placeholderNote, reponsePrete } from '../EchangesView';
@@ -242,11 +243,11 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
       const reste = l.filter((x) => !(x.type === 'donnee' && lireDonnee<{ c?: string }>(x)?.k === k && lireDonnee<{ c?: string }>(x)?.c === cle));
       return valeur ? [...reste, nouveau('donnee', JSON.stringify({ k, c: cle, o: onglet, ...valeur }), element, onglet)] : reste;
     });
-  const ajouterPrep = (type: TypePoint, texte: string, element: string, onglet: Onglet = 'membre') => setPrep((l) => [...l, nouveau(type, texte, element, onglet)]);
+  const ajouterPrep = (type: TypePoint, texte: string, element: string, onglet: Onglet = 'membre', sous_type: SousType = '') => setPrep((l) => [...l, { ...nouveau(type, texte, element, onglet), sous_type }]);
   const retirerPrep = (id: string) => setPrep((l) => l.filter((y) => y.id !== id));
   /** Noté en séance par l'animateur, pour une personne */
-  const noter = (x: { personne: string; type: TypePoint; texte: string; element: string }) => {
-    const pt = { ...nouveau(x.type, x.texte, x.element), personne: x.personne.toLowerCase() };
+  const noter = (x: { personne: string; type: TypePoint; texte: string; element: string; sous_type?: SousType }) => {
+    const pt = { ...nouveau(x.type, x.texte, x.element), personne: x.personne.toLowerCase(), sous_type: x.sous_type ?? '' };
     setLocaux((l) => [...l, pt]);
     return pt;
   };
@@ -280,7 +281,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     onInfo?.(
       anime
         ? `Préparation enregistrée : ${pluriel(n, 'note')}, elle rejoint vos étapes d'animation.`
-        : `Envoyé${e.sm ? ` à ${prenom(e.sm.nom)} (SM)` : ''} : ${pluriel(n, 'note')}${pts.length > n ? ' et votre préparation' : ''}${icic.length ? `, ${pluriel(icic.length, 'réponse')} dans le chat` : ''}.`,
+        : `Envoyé${e.sm ? ` à ${e.sm.nom} (SM)` : ''} : ${pluriel(n, 'note')}${pts.length > n ? ' et votre préparation' : ''}${icic.length ? `, ${pluriel(icic.length, 'réponse')} dans le chat` : ''}.`,
     );
   };
 
@@ -344,7 +345,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     heure_fin: '',
     date_fin: '',
     lieu: '',
-    description: `${LIBELLE_TYPE_POINT[pt.type]} noté ${opts.nomCourt} ${e.nomNiveau} du ${dateCourte(e.jour)} (${prenom(e.nomDe(pt.personne))}).`,
+    description: `${libelleNote(pt)} noté ${opts.nomCourt} ${e.nomNiveau} du ${dateCourte(e.jour)} (${e.nomDe(pt.personne)}).`,
     priorite: pt.type === 'blocage' ? 'haute' : 'normale',
     statut: 'a_faire',
     parent: c === 'sous_tache' ? pt.element : '',
@@ -373,7 +374,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     // Concrétisation « Créer » (08/10) : tâches de tout type (un lot), features (un lot), réunions ponctuelles (un lot),
     // chacune rattachée à l'élément du dessus
     const idDe = (m: string) => personneParEmail(m, org)?.id ?? '';
-    const ctxCreer = (pt: PointReunion) => ({ espace, iteration: o.iteration, equipe: e.equipe?.id ?? '', train: e.train?.id, idDe, description: `${LIBELLE_TYPE_POINT[pt.type]} noté ${opts.nomCourt} ${e.nomNiveau} du ${dateCourte(e.jour)} (${e.nomDe(pt.personne)}).`, h: e.h, moi: mail });
+    const ctxCreer = (pt: PointReunion) => ({ espace, iteration: o.iteration, equipe: e.equipe?.id ?? '', train: e.train?.id, idDe, description: `${libelleNote(pt)} noté ${opts.nomCourt} ${e.nomNiveau} du ${dateCourte(e.jour)} (${e.nomDe(pt.personne)}).`, h: e.h, moi: mail });
     const aCreerTout = decides.filter((d) => d.que === 'creer' && d.qui !== 'dessus').map((d) => ({ d, x: elementACreer(d, d.pt, ctxCreer(d.pt)) }));
     const aCreer = aCreerTout.map((a) => a.d);
     const lots = { item: aCreerTout.filter((a) => a.x.kind === 'item'), feature: aCreerTout.filter((a) => a.x.kind === 'feature'), reunion: aCreerTout.filter((a) => a.x.kind === 'reunion') };
@@ -399,7 +400,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
       a: d.resp,
       type: 'message' as const,
       titre: `📌 Nouveau suivi · ${d.pt.texte}`.slice(0, 200),
-      texte: `${LIBELLE_TYPE_POINT[d.pt.type]} noté ${quand} par ${e.nomDe(d.pt.personne)}${story(d.element) ? ` (${story(d.element)})` : ''}. Responsable : ${e.nomDe(d.resp)} · Validation : ${e.nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}.`,
+      texte: `${libelleNote(d.pt)} noté ${quand} par ${e.nomDe(d.pt.personne)}${story(d.element) ? ` (${story(d.element)})` : ''}. Responsable : ${e.nomDe(d.resp)} · Validation : ${e.nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}.`,
       choix: '',
       reponse: '',
       note: '',
@@ -418,14 +419,14 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
       const bloc = (titre: string, x: string[]) => x.length && l.push('', `${titre} · ${x.length}`, ...x.map((y) => `• ${y}`));
       bloc('Créé', aCreer.map((d) => `${d.titre} (${resumeChoix(d, e.nomDe, e.h)})`));
       bloc('Suivis', decides.filter((d) => d.c === 'suivi').map((d) => `${d.pt.texte} (${resumeChoix(d, e.nomDe, e.h)})`));
-      bloc('Escaladé', escalades.map((d) => `${d.pt.texte} (${resumeChoix(d, e.nomDe, e.h)})`));
+      bloc('Transmis', escalades.map((d) => `${d.pt.texte} (${resumeChoix(d, e.nomDe, e.h)})`));
       bloc('Clos', decides.filter((d) => d.c === 'rien').map((d) => d.pt.texte));
       lot.push(
         ...escaladesEnvoyees.map((d) => ({
           ...base,
           a: d.a,
-          titre: titreEscalade(`${LIBELLE_TYPE_POINT[d.pt.type]} · ${d.pt.texte}`),
-          texte: `${LIBELLE_TYPE_POINT[d.pt.type]} noté ${quand} pour ${e.nomDe(d.pt.personne)}${story(d.pt.element) ? ` (story « ${story(d.pt.element)} »)` : ''} : l'équipe ne peut pas le lever seule.`,
+          titre: titreEscalade(`${libelleNote(d.pt)} · ${d.pt.texte}`),
+          texte: `${libelleNote(d.pt)} noté ${quand} pour ${e.nomDe(d.pt.personne)}${story(d.pt.element) ? ` (story « ${story(d.pt.element)} »)` : ''} : l'équipe ne peut pas le lever seule.`,
           element: d.pt.element,
         })),
         ...(e.destCR?.p.email ? [{ ...base, titre: `Compte rendu · ${TYPES_REUNION[reunion.type].libelle} ${e.nomNiveau} du ${dateCourte(e.jour)}`, texte: l.join('\n'), element: '' }] : []),
@@ -461,7 +462,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     onInfo?.(
       `Compte rendu envoyé : ${pluriel(creees.length, 'tâche')} créée${creees.length > 1 ? 's' : ''}` +
         (o.stories?.length ? `, ${pluriel(o.stories.length, 'story')} mise${o.stories.length > 1 ? 's' : ''} à jour` : '') +
-        (escalades.length ? `, ${escalades.length} escaladé${escalades.length > 1 ? 's' : ''}` : '') +
+        (escalades.length ? `, ${escalades.length} transmise${escalades.length > 1 ? 's' : ''}` : '') +
         (synchros.length ? `, ${pluriel(synchros.length, 'suivi')} transmis` : '') +
         (e.destCR?.p.email ? ` ; envoyé à ${e.destCR.p.nom} (${e.destCR.role.split(' ')[0]}).` : '.'),
     );
@@ -504,7 +505,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
       equipe: e.equipe?.id ?? '',
       train: e.train?.id,
       idDe: (m: string) => personneParEmail(m, org)?.id ?? '',
-      description: `${LIBELLE_TYPE_POINT[pt.type]} noté ${opts.nomCourt} ${e.nomNiveau} (${e.nomDe(pt.personne)}), re-concrétisé le ${dateCourte(e.jour)}.`,
+      description: `${libelleNote(pt)} noté ${opts.nomCourt} ${e.nomNiveau} (${e.nomDe(pt.personne)}), re-concrétisé le ${dateCourte(e.jour)}.`,
       h: e.h,
       moi: mail,
     }),
@@ -611,7 +612,7 @@ export function FenetreEquipe({
       cle: o.role,
       libelle: ongletParcours(o),
       etapes: o.etapes.map((x) => x.nom),
-      libelleFin: sm ? 'Envoyer le compte rendu' : anime ? 'Enregistrer mon point' : (libelleFin?.(o) ?? `Envoyer${e.sm ? ` à ${prenom(e.sm.nom)}` : ''}`),
+      libelleFin: sm ? 'Envoyer le compte rendu' : anime ? 'Enregistrer mon point' : (libelleFin?.(o) ?? `Envoyer${e.sm ? ` à ${e.sm.nom}` : ''}`),
       renduEtape: (k) => (o.etapes[k] ? (charge ? rendu(o.etapes[k], o, false) : <Vide texte="Lecture de la réunion…" />) : null),
       onEtape: (k) => {
         if (sm) etapeAnim.setCle(cleDe(k));
@@ -700,7 +701,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
           key={point.id}
           premiere={k++ === 0}
           texte={tache.titre}
-          sous={`${LIBELLE_CONCRETISATION[point.concretisation]} · 👤 ${prenom(e.nomDe(point.responsable || point.personne))} · ${tache.statut === 'en_cours' ? 'en cours' : 'à faire'}`}
+          sous={sousLigneSuivi(LIBELLE_CONCRETISATION[point.concretisation], e.nomDe(point.responsable || point.personne), tache.statut === 'en_cours' ? 'en cours' : 'à faire')}
           pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }}
         />
       ))}
@@ -709,12 +710,12 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
           key={point.id}
           premiere={k++ === 0}
           texte={point.texte}
-          sous={`${LIBELLE_CONCRETISATION[point.concretisation]} · 👤 ${prenom(e.nomDe(echange.a))} · ${echange.statut === 'repondu' ? 'répondu' : 'en attente'}`}
+          sous={sousLigneSuivi(LIBELLE_CONCRETISATION[point.concretisation], e.nomDe(echange.a), echange.statut === 'repondu' ? 'répondu' : 'en attente')}
           pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }}
         />
       ))}
       {!aValider && r.reportes.filter((x) => passe(x.type)).map((point) => (
-        <Ligne key={point.id} premiere={k++ === 0} texte={point.texte} sous={`${point.type === 'decision' ? 'réponse' : 'escalade reçue'} · à concrétiser`} pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }} />
+        <Ligne key={point.id} premiere={k++ === 0} texte={point.texte} sous={sousLigneSuivi(point.type === 'decision' ? 'réponse reçue' : 'transmis reçu', e.nomDe(point.personne), 'à concrétiser', 'De')} pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }} />
       ))}
       {!n && <Vide texte="✓ Rien en attente des réunions précédentes." />}
       {onAjouter && r.anime && !lecture && (
@@ -726,8 +727,8 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
           placeholder="＋ Suivi oublié"
           stories={e.situation.cartes}
           concretiser={{ personnes: e.personnes.map((y) => ({ value: y.email.toLowerCase(), label: y.nom })), respDefaut: r.mail }}
-          onAjouter={(type, texte, element, conc) => {
-            const pt = r.noter({ personne: r.mail, type, texte, element });
+          onAjouter={(type, texte, element, conc, sous_type) => {
+            const pt = r.noter({ personne: r.mail, type, texte, element, sous_type });
             if (conc) r.poserChoix(pt.id, { c: conc.c, resp: conc.resp });
           }}
         />
@@ -747,7 +748,7 @@ export function BlocPoints({
   lecture,
   element = '',
   stories,
-  placeholder = '＋ Blocage, décision ou action',
+  placeholder = '＋ Blocage, décision ou demande d’action',
   pourPrep,
   onglet = 'membre',
 }: {
@@ -775,7 +776,7 @@ export function BlocPoints({
       entete={ouvert && <FiltresType types={['blocage', 'decision', 'action']} value={filtre} onChange={setFiltre} />}
     >
       {vus.map((y, i) => {
-        const par = y.auteur === r.mail && !pourPrep && r.anime ? 'par le SM' : `par ${prenom(e.nomDe(y.personne))}`;
+        const par = y.auteur === r.mail && !pourPrep && r.anime ? 'par le SM' : `par ${e.nomDe(y.personne)}`;
         const s = y.element ? e.parId.get(y.element)?.titre : '';
         return (
           <Ligne
@@ -783,7 +784,7 @@ export function BlocPoints({
             premiere={i === 0}
             texte={y.texte}
             sous={[par, s ? `sur 📖 ${s}` : ''].filter(Boolean).join(' · ')}
-            pastille={{ texte: LIBELLE_TYPE_POINT[y.type], ton: tonType(y.type) }}
+            pastille={{ texte: libelleNote(y), ton: tonType(y.type) }}
             onRetirer={!lecture && y.id.startsWith('local-') ? () => r.retirerNote(y.id) : undefined}
           />
         );
@@ -801,7 +802,7 @@ export function BlocPoints({
           placeholder={placeholder}
           stories={stories ?? e.situation.cartes}
           elementDefaut={element}
-          onAjouter={(type, texte, el) => (pourPrep ? r.ajouterPrep(type, texte, el, onglet) : void r.noter({ personne: r.mail, type, texte, element: el }))}
+          onAjouter={(type, texte, el, _c, sous_type) => (pourPrep ? r.ajouterPrep(type, texte, el, onglet, sous_type) : void r.noter({ personne: r.mail, type, texte, element: el, sous_type }))}
         />
       )}
     </SectionFiche>
@@ -831,7 +832,7 @@ export function QuestionsEquipe({ r }: { r: R }) {
             <View style={st.ligneHaut}>
               <View style={st.corps}>
                 <Text style={st.texte}>{q.titre.replace(/^Blocage · /, '').replace(/^↪ /, '')}</Text>
-                <Text style={st.sous}>{[`De ${prenom(e.nomDe(q.de))}`, q.transmis_par ? `transmis par ${prenom(e.nomDe(q.transmis_par))}` : '', s ? `sur 📖 ${s}` : ''].filter(Boolean).join(' · ')}</Text>
+                <Text style={st.sous}>{[`De ${e.nomDe(q.de)}`, q.transmis_par ? `transmis par ${e.nomDe(q.transmis_par)}` : '', s ? `sur 📖 ${s}` : ''].filter(Boolean).join(' · ')}</Text>
               </View>
               <Pastille {...(repondu ? { texte: 'Répondu', ton: 'vert' as const } : { texte: 'Blocage', ton: 'rouge' as const })} />
             </View>
@@ -881,7 +882,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
                   <Text style={st.texte}>{pt.texte}</Text>
                   <Text style={st.sous}>{origine(pt)}</Text>
                 </View>
-                <Pastille texte={LIBELLE_TYPE_POINT[pt.type]} ton={tonType(pt.type)} />
+                <Pastille texte={libelleNote(pt)} ton={tonType(pt.type)} />
               </View>
               <Text style={[st.choixLecture, !pt.concretisation && st.choixADecider]}>{pt.concretisation ? resumePoint(pt, nomComplet, e.h) : 'À décider'}</Text>
             </View>
@@ -895,7 +896,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
                 <Text style={st.texte}>{pt.texte}</Text>
                 <Text style={st.sous}>{origine(pt)}</Text>
               </View>
-              <Pastille texte={LIBELLE_TYPE_POINT[pt.type]} ton={tonType(pt.type)} />
+              <Pastille texte={libelleNote(pt)} ton={tonType(pt.type)} />
             </View>
             <Pressable onPress={() => setOuvert(pt.id)} style={[st.boutonSynchro, choisi && st.boutonSynchroChoisi]} accessibilityRole="button">
               <Text style={[st.boutonSynchroTexte, choisi && st.boutonSynchroTexteChoisi]}>{choisi ? `${resumeChoix(x, nomComplet, e.h)} ›` : 'Concrétiser ›'}</Text>
@@ -910,7 +911,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
           if (!pt) return null;
           return (
             <FeuilleConcretiser
-              sous={`${LIBELLE_TYPE_POINT[pt.type]} noté par ${e.nomDe(pt.personne)} : « ${pt.texte} »`}
+              sous={`${libelleNote(pt)} noté par ${e.nomDe(pt.personne)} : « ${pt.texte} »`}
               valeur={r.choixDe(pt)}
               moi={moi}
               equipe={equipe}
@@ -933,9 +934,9 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
             typeDefaut="blocage"
             titre="Nouvelle note oubliée"
             jour={e.jour}
-            placeholder="＋ Blocage, décision ou action oublié"
+            placeholder="＋ Note oubliée"
             stories={e.situation.cartes}
-            onAjouter={(type, texte, element) => void r.noter({ personne: r.mail, type, texte, element })}
+            onAjouter={(type, texte, element, _c, sous_type) => void r.noter({ personne: r.mail, type, texte, element, sous_type })}
           />
         </SectionFiche>
       )}
@@ -979,36 +980,24 @@ export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode 
               premiere={i === 0}
               texte={d.pt.texte}
               sous={resumeD(d)}
-              pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }}
+              pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }}
             />
           ))
         ) : (
           <Vide texte="Rien à créer." />
         )}
       </SectionFiche>
-      {suivis.length > 0 && (
-        <SectionFiche titre={`Suivis · ${suivis.length}`}>
-          {suivis.map((d, i) => (
-            <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }} />
-          ))}
-        </SectionFiche>
-      )}
-      {escalades.length > 0 && (
-        <SectionFiche titre={`Escaladé · ${escalades.length}`}>
-          {escalades.map((d, i) => (
-            <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }} />
-          ))}
-        </SectionFiche>
-      )}
-      {synchros.length > 0 && (
-        <SectionFiche titre={`Transmis · ${synchros.length}`}>
-          {synchros.map((d, i) => (
-            <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`${prenom(e.nomDe(d.pt.personne))} → ${prenom(e.nomDe(d.a))} · message envoyé`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
-          ))}
-        </SectionFiche>
-      )}
+      <SectionFiche titre={`Suivis · ${suivis.length}`}>
+        {suivis.length ? suivis.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }} />) : <Vide texte="Rien à suivre." />}
+      </SectionFiche>
+      {/* Transmis (validation du 08/10) : l'ancienne escalade et la transmission, une seule section */}
+      <SectionFiche titre={`Transmis · ${escalades.length + synchros.length}`}>
+        {escalades.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }} />)}
+        {synchros.map((d, i) => <Ligne key={d.pt.id} premiere={!escalades.length && i === 0} texte={d.pt.texte} sous={`${e.nomDe(d.pt.personne)} → ${e.nomDe(d.a)} · message envoyé`} pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }} />)}
+        {!escalades.length && !synchros.length && <Vide texte="Rien de transmis." />}
+      </SectionFiche>
       <SectionFiche titre={`Clos · ${notes.length}`}>
-        {notes.length ? notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`Rien (clos) · noté par ${e.nomDe(d.pt.personne)}`} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: 'gris' }} />) : <Vide texte="Rien." />}
+        {notes.length ? notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`Rien (clos) · noté par ${e.nomDe(d.pt.personne)}`} pastille={{ texte: libelleNote(d.pt), ton: 'gris' }} />) : <Vide texte="Rien." />}
       </SectionFiche>
     </>
   );

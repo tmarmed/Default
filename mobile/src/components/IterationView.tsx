@@ -309,7 +309,7 @@ export function IterationView({
           })}
           {tasks.length === 0 && (
             <Text style={styles.hint}>
-              Aucune tâche dans cette itération. Une tâche y entre par sa date, ou en choisissant l’itération dans sa
+              Aucune tâche dans ce sprint. Une tâche y entre par sa date, ou en choisissant le sprint dans sa
               fiche (tâches sans date). Touchez + pour en ajouter une.
             </Text>
           )}

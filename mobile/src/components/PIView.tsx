@@ -189,7 +189,7 @@ export function PIView({
       {/* Pas de glissement entre PI : le tableau défile librement, on change de PI avec les flèches */}
       <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
         <Text style={styles.dates}>
-          {court(piStart(piKey))} → {court(piEnd(piKey))} · 6 itérations + semaine IP
+          {court(piStart(piKey))} → {court(piEnd(piKey))} · 6 sprints + semaine IP
         </Text>
         <AlertsCard ecran="pi" titre={`PI ${piLabel(piKey)}`} checks={checksPI(filtrerDomaine(h, dom), piKey, today, (e) => capaciteDe(safe, e), h, safe.pointsJours)} />
 

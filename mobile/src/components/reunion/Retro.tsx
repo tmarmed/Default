@@ -9,7 +9,7 @@ import { TYPES_REUNION } from '../../types';
 import { SectionFiche } from '../Choix';
 import { TitreFiche } from '../FormSheet';
 import { MesTaches } from './Affinage';
-import { BlocPoints, BlocSuivi, Compteurs, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, prenom, useReunion } from './base';
+import { BlocPoints, BlocSuivi, Compteurs, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, useReunion } from './base';
 import { Ligne, Pastilles, pastilleStatut, st, Vide } from './ui';
 import { ListeEditable } from './Affinage';
 import { type ChoixVote, VoteEtoiles, votesDe } from './Vote';
@@ -52,7 +52,7 @@ const NB_ATELIER = 2;
 export function FenetreRetro(p: PropsReunion) {
   const r = useReunion(p, PARCOURS_RETRO, { nomCourt: 'à la rétro', libelleEtape });
   const { e } = r;
-  const animateur = prenom(e.nomDe(p.reunion.organisateur));
+  const animateur = e.nomDe(p.reunion.organisateur);
   const [cleAnim, setCleAnim] = useState('');
   const [vote, setVote] = useState<VoteEtat | undefined>(undefined);
   const [choixIdee, setChoixIdee] = useState<Record<string, ChoixVote>>({});
@@ -73,7 +73,7 @@ export function FenetreRetro(p: PropsReunion) {
   const nbVotes = (id: string) => [...votesDe(r, id, tour).values()].filter(Boolean).length;
   const triees = [...ameliorer].sort((a, b) => nbVotes(b.id) - nbVotes(a.id));
   const retenues = triees.filter((x, i) => (choixIdee[x.id] ?? (i < NB_ATELIER && nbVotes(x.id) > 0 ? 'retenir' : 'reporter')) === 'retenir');
-  const sousIdee = (x: (typeof idees)[number]) => (x.anonyme ? 'anonyme' : `par ${prenom(e.nomDe(x.par))}${x.par === r.mail ? ' (vous)' : ''}`);
+  const sousIdee = (x: (typeof idees)[number]) => (x.anonyme ? 'anonyme' : `par ${e.nomDe(x.par)}${x.par === r.mail ? ' (vous)' : ''}`);
   const v = useMemo(() => velocite(e.h.items, e.dansEquipe, shiftIteration(e.it.key, 1)), [e.h.items, e.it.key]); // eslint-disable-line react-hooks/exhaustive-deps
   // Actions de la dernière rétro : points de la série concrétisés en tâches
   const actionsPrec = r.serveur.filter((x) => !r.ici(x) && (x.concretisation === 'tache' || x.concretisation === 'sous_tache') && !!x.tache);
@@ -123,7 +123,7 @@ export function FenetreRetro(p: PropsReunion) {
               {actionsPrec.length ? (
                 actionsPrec.map((y, i) => {
                   const t = e.parId.get(y.tache);
-                  return <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`👤 ${prenom(e.nomDe(y.responsable || y.personne))}`} pastille={t ? pastilleStatut(t.statut) : { texte: 'supprimée', ton: 'gris' }} tache={t} />;
+                  return <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`👤 ${e.nomDe(y.responsable || y.personne)}`} pastille={t ? pastilleStatut(t.statut) : { texte: 'supprimée', ton: 'gris' }} tache={t} />;
                 })
               ) : (
                 <Vide texte="Aucune action suivie." />

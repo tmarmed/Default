@@ -89,7 +89,7 @@ export interface Hierarchie {
 export function groupesFaireSuivre(h: Hierarchie, e: Echange): GroupeChoix[] {
   const esc = h.escalade(e);
   return [
-    ...(esc.length ? [{ titre: '⤴ Escalader · niveau au-dessus', options: esc.map((v) => ({ value: `esc:${v.email}`, label: v.libelle, meta: v.meta })) }] : []),
+    ...(esc.length ? [{ titre: '↪ Transmettre · niveau au-dessus', options: esc.map((v) => ({ value: `esc:${v.email}`, label: v.libelle, meta: v.meta })) }] : []),
     // Déjà proposé dans Escalader : pas une seconde fois dans Transmettre
     ...h
       .transmission(e)

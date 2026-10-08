@@ -11,7 +11,7 @@ import type { Item } from '../../types';
 import { FeuilleChoix, SectionFiche } from '../Choix';
 import { TitreFiche } from '../FormSheet';
 import { ListeEditable, MesTaches } from './Affinage';
-import { BlocPoints, BlocSuivi, Compteurs, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, prenom, QuestionsEquipe, useReunion } from './base';
+import { BlocPoints, BlocSuivi, Compteurs, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, QuestionsEquipe, useReunion } from './base';
 import { AjoutElement, itemReunion } from './Ajout';
 import { Ligne, Pastilles, pastilleStatut, st, Vide } from './ui';
 import { CARTES_POKER, type DecisionVote, VoteAnimateur } from './Vote';
@@ -116,7 +116,7 @@ export function FenetrePlanification(p: PropsReunion) {
         <Text style={[st.caseACocher, !!a && st.caseCochee]}>{a ? '✓' : ''}</Text>
         <View style={st.corps}>
           <Text style={st.texte}>{t.titre}</Text>
-          <Text style={st.sous}>{[pts(t) ? fmt(pts(t)) : 'sans estimation', reportees.includes(t) ? 'reportée' : '', a ? `👤 ${prenom(e.nomDe(a))}` : conflit ? `choisie par ${c.map((m) => prenom(e.nomDe(m))).join(' et ')}` : 'pas prise'].filter(Boolean).join(' · ')}</Text>
+          <Text style={st.sous}>{[pts(t) ? fmt(pts(t)) : 'sans estimation', reportees.includes(t) ? 'reportée' : '', a ? `👤 ${e.nomDe(a)}` : conflit ? `choisie par ${c.map((m) => e.nomDe(m)).join(' et ')}` : 'pas prise'].filter(Boolean).join(' · ')}</Text>
         </View>
         {conflit && <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 12 }}>⚠ {c.length} choix</Text>}
         {!lecture && <Text style={st.chevron}>›</Text>}
@@ -135,7 +135,7 @@ export function FenetrePlanification(p: PropsReunion) {
             <Compteurs l={[{ valeur: String(vp), libelle: `vélocité ${nomSprintDe(precedente)}` }, { valeur: String(v.moyenne), libelle: 'moyenne 3 sprints' }, { valeur: String(reportees.length), libelle: 'reportées', ton: reportees.length ? 'orange' : undefined }]} />
             <BlocSuivi r={r} lecture={lecture} onAjouter />
             <SectionFiche titre={`Reportées de ${nomSprintDe(precedente)} · ${reportees.length}`}>
-              {reportees.length ? reportees.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={`${fmt(pointsOf(t))}${t.responsable ? ` · 👤 ${prenom(r.org.personne.get(t.responsable)?.nom ?? '')}` : ''}`} pastille={{ texte: 'à reprendre', ton: 'orange' }} />) : <Vide texte="✓ Rien de reporté." />}
+              {reportees.length ? reportees.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={`${fmt(pointsOf(t))}${t.responsable ? ` · 👤 ${r.org.personne.get(t.responsable)?.nom ?? ''}` : ''}`} pastille={{ texte: 'à reprendre', ton: 'orange' }} />) : <Vide texte="✓ Rien de reporté." />}
             </SectionFiche>
             <SectionFiche titre="Objectifs de la réunion">
               <Ligne premiere texte="🎯 S’engager sur le sprint" sous="Fixer la capacité, valider les objectifs du PO, s’engager sur les stories." />
@@ -428,7 +428,7 @@ export function FenetrePlanification(p: PropsReunion) {
     await r.envoyerCompteRendu({
       iteration: e.it.key,
       stories,
-      lignes: [`Engagé · ${engagees.length} stories · ${pris} pts (capacité ${capaTotale}, vélocité ${v.moyenne})`, ...engagees.map((t) => `• ${t.titre} · ${prenom(e.nomDe(assigne(t)))}`), ...(objectifs.length ? [`Objectifs : ${objectifs.join(' ; ')}`] : [])],
+      lignes: [`Engagé · ${engagees.length} stories · ${pris} pts (capacité ${capaTotale}, vélocité ${v.moyenne})`, ...engagees.map((t) => `• ${t.titre} · ${e.nomDe(assigne(t))}`), ...(objectifs.length ? [`Objectifs : ${objectifs.join(' ; ')}`] : [])],
     });
   };
 
@@ -438,7 +438,7 @@ export function FenetrePlanification(p: PropsReunion) {
       r={r}
       catalogue={PARCOURS_PLANIF}
       rendu={rendu}
-      libelleFin={() => `Envoyer à ${prenom(e.nomDe(p.reunion.organisateur))}`}
+      libelleFin={() => `Envoyer à ${e.nomDe(p.reunion.organisateur)}`}
       etapeAnim={{ cle: cleAnim, setCle: setCleAnim, detail: cleAnim === 'stories' ? `${pris} pts pris sur ${capaTotale}` : '' }}
       envoyerCR={envoyerCR}
       renduCR={(rid) => <EtapeCompteRendu r={r} lecture reunionId={rid} iterationCode={e.it.nom} />}

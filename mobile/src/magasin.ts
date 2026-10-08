@@ -109,7 +109,7 @@ export const ONGLET_PIECES = { nom: 'PiecesJointes', colonnes: ['id', 'piece', '
 /** Points notés pendant les réunions (daily…) : onglet créé au premier usage, dans le Sheet de l'espace de l'équipe */
 export const ONGLET_POINTS = {
   nom: 'PointsReunion',
-  colonnes: ['id', 'reunion', 'personne', 'auteur', 'type', 'texte', 'element', 'concretisation', 'tache', 'responsable', 'cree_le', 'statut', 'validateur', 'echeance', 'note', 'type_cree', 'rattache', 'echange'],
+  colonnes: ['id', 'reunion', 'personne', 'auteur', 'type', 'texte', 'element', 'concretisation', 'tache', 'responsable', 'cree_le', 'statut', 'validateur', 'echeance', 'note', 'type_cree', 'rattache', 'echange', 'sous_type'],
 };
 /** Séries de réunions (07/10) : une ligne par série (règle + exceptions), onglet créé au premier usage */
 export const ONGLET_SERIES = { nom: 'Reunions', colonnes: [...COLONNES_SERIE] as string[] };
@@ -367,6 +367,8 @@ export function nettoyerPoint(data: Partial<PointReunion>, base?: PointReunion):
   out.note = out.note.trim().slice(0, 1000);
   if (out.rattache && !RE_ID.test(out.rattache)) throw new Error('Rattachement invalide.');
   if (out.echange && !RE_ID.test(out.echange)) throw new Error('Échange lié invalide.');
+  if (!['', 'a_prendre', 'prise'].includes(out.sous_type)) out.sous_type = '';
+  if (out.type !== 'decision') out.sous_type = '';
   out.type_cree = out.type_cree.replace(/[^a-z_-]/g, '').slice(0, 30);
   return out as unknown as PointReunion;
 }

@@ -842,6 +842,11 @@ export function TaskForm({
                 name={item.titre}
                 children={enfants.length ? `${enfants.length > 1 ? `Ses ${enfants.length} sous-tâches` : 'Sa sous-tâche'}` : ''}
                 keepText="comme tâches normales"
+                phrases={
+                  enfants.length > 1
+                    ? { conserve: `Ses ${enfants.length} sous-tâches seront conservées comme tâches normales.`, supprime: `Ses ${enfants.length} sous-tâches seront aussi supprimées.` }
+                    : { conserve: 'Sa sous-tâche sera conservée comme tâche normale.', supprime: 'Sa sous-tâche sera aussi supprimée.' }
+                }
                 disabled={busy}
                 onDelete={(cascade) => void doDelete(cascade)}
               />

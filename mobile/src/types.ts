@@ -621,7 +621,10 @@ export interface PointReunion {
    * haut le reçoit) ; la validation du haut redescend par lui
    */
   echange?: string;
+  /** Décision (validation du 08/10) : « a_prendre » (se concrétise comme un blocage) ou « prise » (trace) */
+  sous_type?: SousType;
 }
+export type SousType = '' | 'a_prendre' | 'prise';
 export const TYPES_POINT: TypePoint[] = ['hier', 'aujourdhui', 'blocage', 'decision', 'action', 'etat', 'vote', 'donnee'];
 /** Lignes techniques de PointsReunion (état, votes, préparations) : jamais affichées comme des points */
 export const estTechnique = (p: Pick<PointReunion, 'type'>) => p.type === 'etat' || p.type === 'vote' || p.type === 'donnee';

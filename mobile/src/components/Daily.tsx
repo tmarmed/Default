@@ -9,7 +9,8 @@ import {
   enRetard,
   jourReunion,
   LIBELLE_CONCRETISATION,
-  LIBELLE_TYPE_POINT,
+  sousLigneSuivi,
+  LIBELLE_TYPE_POINT, libelleNote,
   PARCOURS_DAILY,
   pastilleSuivi,
   prefixeReunion,
@@ -33,7 +34,7 @@ import { PARCOURS_DAILY as CATALOGUE } from '../daily';
 import { useSafe } from '../safe';
 import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
-import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type Statut, type TypePoint } from '../types';
+import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type Statut, type TypePoint } from '../types';
 import { etatDe, texteDirect } from '../etatReunion';
 import { useLive } from './useLive';
 import { FeuilleChoix, SectionFiche } from './Choix';
@@ -352,7 +353,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   };
   /** Concrétisation déjà décidée d'un point (réponse du PO) : « → tâche à part · 👤 Tom » */
   const concretise = (x: Pick<PointReunion, 'type' | 'concretisation' | 'responsable'>) =>
-    x.type === 'decision' && (x.concretisation === 'sous_tache' || x.concretisation === 'tache') ? `→ ${LIBELLE_CONCRETISATION[x.concretisation]} · 👤 ${prenom(nomDe(x.responsable))}` : '';
+    x.type === 'decision' && (x.concretisation === 'sous_tache' || x.concretisation === 'tache') ? `→ ${LIBELLE_CONCRETISATION[x.concretisation]} · 👤 ${nomDe(x.responsable)}` : '';
   /** Ouvrir la fiche d'un élément qui a des sous-tâches (›) */
   const ouvrir = (t: Item) => (onOpenTask && (subs.get(t.id)?.length ?? 0) > 0 ? () => onOpenTask(t) : undefined);
 
@@ -442,7 +443,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       (anime
         ? `${quoi} enregistré : ${pluriel(pts.length, 'élément')}, il rejoint vos notes`
         : pts.length
-          ? `${quoi} envoyé${sm ? ` à ${prenom(sm.nom)} (SM)` : ''} : ${pluriel(pts.length, 'élément')}`
+          ? `${quoi} envoyé${sm ? ` à ${sm.nom} (SM)` : ''} : ${pluriel(pts.length, 'élément')}`
           : 'Préparation vide envoyée : rien de noté') + (ici.length ? `, ${pluriel(ici.length, 'réponse')} envoyée${ici.length > 1 ? 's' : ''} dans le chat.` : '.'),
     );
   };
@@ -485,7 +486,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       equipe: equipe?.id ?? '',
       train: e.train?.id,
       idDe: (m: string) => personneParEmail(m, org)?.id ?? '',
-      description: `${LIBELLE_TYPE_POINT[pt.type]} noté au daily ${equipe?.nom ?? ''} (${nomDe(pt.personne)}), re-concrétisé le ${dateCourte(jour)}.`,
+      description: `${libelleNote(pt)} noté au daily ${equipe?.nom ?? ''} (${nomDe(pt.personne)}), re-concrétisé le ${dateCourte(jour)}.`,
       h,
       moi: mail,
     }),
@@ -522,7 +523,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       heure_fin: '',
       date_fin: '',
       lieu: '',
-      description: `${LIBELLE_TYPE_POINT[pt.type]} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} (${prenom(nomDe(pt.personne))}).`,
+      description: `${libelleNote(pt)} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} (${nomDe(pt.personne)}).`,
       priorite: pt.type === 'blocage' ? 'haute' : 'normale',
       statut: 'a_faire',
       parent: c === 'sous_tache' ? pt.element : '',
@@ -537,15 +538,15 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       responsable: personneParEmail(resp, org)?.id ?? '',
     };
   }
-  const ajouter = (x: { personne: string; type: TypePoint; texte: string; element: string }) =>
-    setLocaux((l) => [...l, { ...nouveau(x.type, x.texte, x.element), personne: x.personne.toLowerCase() }]);
+  const ajouter = (x: { personne: string; type: TypePoint; texte: string; element: string; sous_type?: SousType }) =>
+    setLocaux((l) => [...l, { ...nouveau(x.type, x.texte, x.element), personne: x.personne.toLowerCase(), sous_type: x.sous_type ?? '' }]);
 
   // ---- Envoi du compte rendu : tâches (un lot), échanges (un lot), points (un lot, votre préparation comprise) ----
   const envoyerCompteRendu = async () => {
     const decides = aDecider.map((pt) => ({ pt, ...choixDe(pt) }));
     // « Créer » (08/10) : tâches de tout type, features, réunions ponctuelles, rattachées à l'élément du dessus
     const idDe = (m: string) => personneParEmail(m, org)?.id ?? '';
-    const ctxCreer = (pt: PointReunion) => ({ espace, iteration: it.key, equipe: equipe?.id ?? '', train: e.train?.id, idDe, description: `${LIBELLE_TYPE_POINT[pt.type]} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} (${nomDe(pt.personne)}).`, h, moi: mail });
+    const ctxCreer = (pt: PointReunion) => ({ espace, iteration: it.key, equipe: equipe?.id ?? '', train: e.train?.id, idDe, description: `${libelleNote(pt)} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} (${nomDe(pt.personne)}).`, h, moi: mail });
     const aCreerTout = decides.filter((d) => d.que === 'creer' && d.qui !== 'dessus').map((d) => ({ d, x: elementACreer(d, d.pt, ctxCreer(d.pt)) }));
     const aCreer = aCreerTout.map((a) => a.d);
     const lotItems = aCreerTout.filter((a) => a.x.kind === 'item');
@@ -577,7 +578,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       a: d.resp,
       type: 'message' as const,
       titre: `📌 Nouveau suivi · ${d.pt.texte}`.slice(0, 200),
-      texte: `${LIBELLE_TYPE_POINT[d.pt.type]} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} par ${nomDe(d.pt.personne)}${libelleElement(d.element, h) ? ` (${libelleElement(d.element, h)})` : ''}. Responsable : ${nomDe(d.resp)} · Validation : ${nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}.`,
+      texte: `${libelleNote(d.pt)} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} par ${nomDe(d.pt.personne)}${libelleElement(d.element, h) ? ` (${libelleElement(d.element, h)})` : ''}. Responsable : ${nomDe(d.resp)} · Validation : ${nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}.`,
       choix: '',
       reponse: '',
       note: '',
@@ -598,7 +599,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         jour,
         decisions: decisions.map((d) => d.pt.texte),
         creees: aCreer.map((d) => ({ titre: d.titre, sous: resumeConcret(d, nomDe, h) })),
-        escalades: escalades.map((d) => `${d.pt.texte} (${prenom(nomDe(d.pt.personne))}${story(d.pt.element) ? `, « ${story(d.pt.element)} »` : ''})`),
+        escalades: escalades.map((d) => `${d.pt.texte} (${nomDe(d.pt.personne)}${story(d.pt.element) ? `, « ${story(d.pt.element)} »` : ''})`),
         synchros: decides.filter((d) => d.c === 'suivi').map((d) => `${d.pt.texte} (${resumeConcret(d, nomDe, h)})`),
         notes: decides.filter((d) => d.c === 'rien' && d.pt.type !== 'decision').length,
       });
@@ -647,7 +648,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     live.terminer();
     onInfo?.(
       `Compte rendu du daily : ${pluriel(creees.length, 'tâche')} créée${creees.length > 1 ? 's' : ''}` +
-        (escalades.length ? `, ${pluriel(escalades.length, 'blocage')} escaladé${escalades.length > 1 ? 's' : ''}` : '') +
+        (escalades.length ? `, ${pluriel(escalades.length, 'note')} transmise${escalades.length > 1 ? 's' : ''}` : '') +
         (synchros.length ? `, ${pluriel(synchros.length, 'suivi')} transmis` : '') +
         (rte?.email ? `, envoyé à ${nomDe(rte.email)} (RTE).` : ' ; pas de RTE : compte rendu non envoyé.'),
     );
@@ -668,11 +669,11 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** Résumé d'une concrétisation : « Sous-tâche · 👤 Tom », « Transmettre à Paul », « ⤴ Escalader au RTE », « Rien » */
   const resumeChoix = (c: Concretisation | '', resp: string, a: string) =>
     c === 'sous_tache' || c === 'tache'
-      ? `${c === 'sous_tache' ? 'Sous-tâche' : `Tâche à part (${it.nom})`} · 👤 ${prenom(nomDe(resp))}`
+      ? `${c === 'sous_tache' ? 'Sous-tâche' : `Tâche à part (${it.nom})`} · 👤 ${nomDe(resp)}`
       : c === 'synchro'
-        ? `Transmettre à ${a ? prenom(nomDe(a)) : '…'}`
+        ? `Transmettre à ${a ? nomDe(a) : '…'}`
         : c === 'escalade'
-          ? `⤴ Escalader aux ${a && a === pm?.email?.toLowerCase() ? 'PO' : 'SM'} du train`
+          ? `↪ Transmettre aux ${a && a === pm?.email?.toLowerCase() ? 'PO' : 'SM'} du train`
           : 'Rien';
   /** « Suivre » (lecture seule) : les points de ce daily tels qu'ils sont dans le Sheet, à concrétiser ou concrétisés */
   const duSheetDe = (rid: string) => serveur.filter((y) => y.reunion === rid && aConcretiser(y));
@@ -745,7 +746,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                       key={t.id}
                       premiere={i === 0}
                       texte={`📖 ${t.titre}`}
-                      sous={[resp ? `👤 ${prenom(resp.nom)}` : '', pointsOf(t) ? fmt(pointsOf(t)) : '', n ? pluriel(n, 'sous-tâche') : ''].filter(Boolean).join(' · ')}
+                      sous={[resp ? `👤 ${resp.nom}` : '', pointsOf(t) ? fmt(pointsOf(t)) : '', n ? pluriel(n, 'sous-tâche') : ''].filter(Boolean).join(' · ')}
                       coche={coche('aujourdhui', t, texte)}
                       onBasculer={() => basculer('aujourdhui', t, texte, 'po')}
                       onOuvrir={ouvrir(t)}
@@ -810,7 +811,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                     <View style={st.corps}>
                       <Text style={st.texte}>{q.titre.replace(/^Blocage · /, '')}</Text>
                       <Text style={st.sous}>
-                        {[`De ${prenom(nomDe(q.de))}`, q.transmis_par ? `transmis par ${prenom(nomDe(q.transmis_par))}` : '', surStory({ texte: '', element: q.element })].filter(Boolean).join(' · ')}
+                        {[`De ${nomDe(q.de)}`, q.transmis_par ? `transmis par ${nomDe(q.transmis_par)}` : '', surStory({ texte: '', element: q.element })].filter(Boolean).join(' · ')}
                       </Text>
                     </View>
                     <Pastille {...(repondu ? { texte: 'Répondu', ton: 'vert' as const } : { texte: 'Blocage', age: ageAffiche(q.cree_le.slice(0, 10), jour), ton: 'rouge' as const })} />
@@ -872,7 +873,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   key={point.id}
                   premiere={!nouveauxSuivis.length && i === 0}
                   texte={tache.titre}
-                  sous={`${LIBELLE_CONCRETISATION[point.concretisation]} · 👤 ${prenom(nomDe(point.responsable || point.personne))} · ${tache.statut === 'en_cours' ? 'en cours' : 'à faire'}`}
+                  sous={sousLigneSuivi(LIBELLE_CONCRETISATION[point.concretisation], nomDe(point.responsable || point.personne), tache.statut === 'en_cours' ? 'en cours' : 'à faire')}
                   pastille={{ ...pastilleSuivi(point, jour), ton: tonType(point.type) }}
                 />
               ))}
@@ -884,8 +885,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   texte={point.texte}
                   sous={
                     point.type === 'decision'
-                      ? `${LIBELLE_CONCRETISATION.synchro} · 👤 ${prenom(nomDe(echange.de))} · à prendre en compte`
-                      : `${LIBELLE_CONCRETISATION[point.concretisation]} · 👤 ${prenom(nomDe(echange.a))} · ${echange.statut === 'repondu' ? 'répondu' : 'en attente'}`
+                      ? sousLigneSuivi('réponse reçue', nomDe(echange.de), 'à accepter', 'De')
+                      : sousLigneSuivi(LIBELLE_CONCRETISATION[point.concretisation], nomDe(echange.a), echange.statut === 'repondu' ? 'répondu' : 'en attente')
                   }
                   pastille={{ ...pastilleSuivi(point, jour), ton: tonType(point.type) }}
                 />
@@ -896,7 +897,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   key={point.id}
                   premiere={!nouveauxSuivis.length && !suivisEquipe.length && !suivisEchanges.length && i === 0}
                   texte={point.texte}
-                  sous={`${point.type === 'decision' ? 'réponse' : 'escalade reçue'} · 👤 ${prenom(nomDe(point.personne))} · à concrétiser`}
+                  sous={sousLigneSuivi(point.type === 'decision' ? 'réponse reçue' : 'transmis reçu', nomDe(point.personne), 'à concrétiser', 'De')}
                   pastille={{ ...pastilleSuivi(point, jour), ton: tonType(point.type) }}
                 />
               ))}
@@ -911,8 +912,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   placeholder="＋ Suivi oublié"
                   stories={situation.cartes}
                   concretiser={{ personnes: personnes.map((y) => ({ value: y.email.toLowerCase(), label: y.nom })), respDefaut: mail }}
-                  onAjouter={(type, texte, element, conc) => {
-                    const pt = { ...nouveau(type, texte, element), personne: mail };
+                  onAjouter={(type, texte, element, conc, sousType) => {
+                    const pt = { ...nouveau(type, texte, element), personne: mail, sous_type: sousType ?? '' };
                     setLocaux((l) => [...l, pt]);
                     if (conc) setChoix((m) => ({ ...m, [pt.id]: { que: conc.c === 'rien' ? 'rien' : 'creer', resp: conc.resp } }));
                   }}
@@ -959,15 +960,15 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               {notes.filter((y) => !filtreType || y.type === filtreType).map((y, i) => {
                 const q = echangeDe(y);
                 const par =
-                  y.auteur === y.personne ? `par ${prenom(courant.nom)}` : y.auteur === sm?.email.toLowerCase() || (anime && y.auteur === mail) ? 'par le SM' : `par ${prenom(nomDe(y.auteur))}`;
+                  y.auteur === y.personne ? `par ${courant.nom}` : y.auteur === sm?.email.toLowerCase() || (anime && y.auteur === mail) ? 'par le SM' : `par ${nomDe(y.auteur)}`;
                 const story = surStory(y);
                 return (
                   <Ligne
                     key={y.id}
                     premiere={i === 0}
                     texte={y.texte}
-                    sous={[par, q ? `réponse à ${prenom(nomDe(q.de))}` : '', concretise(y), story].filter(Boolean).join(' · ')}
-                    pastille={{ texte: LIBELLE_TYPE_POINT[y.type], ton: tonType(y.type) }}
+                    sous={[par, q ? `réponse à ${nomDe(q.de)}` : '', concretise(y), story].filter(Boolean).join(' · ')}
+                    pastille={{ texte: libelleNote(y), ton: tonType(y.type) }}
                     onRetirer={!lecture && y.id.startsWith('local-') ? () => (setLocaux((l) => l.filter((z) => z.id !== y.id)), retirerPrep(y.id)) : undefined}
                   />
                 );
@@ -980,11 +981,11 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   premiere={!notes.filter((y) => !filtreType || y.type === filtreType).length}
                   types={['blocage', 'decision', 'action']}
                   typeDefaut={filtreType || 'blocage'}
-                  titre={filtreType === 'blocage' || filtreType === 'decision' || filtreType === 'action' ? TITRE_TYPE[filtreType] : `Nouveau point · ${prenom(courant.nom)}`}
+                  titre={filtreType === 'blocage' || filtreType === 'decision' || filtreType === 'action' ? TITRE_TYPE[filtreType] : `Nouvelle note · ${courant.nom}`}
                   jour={jour}
-                  placeholder={`＋ Ajouter pour ${prenom(courant.nom)}…`}
+                  placeholder={`＋ Ajouter pour ${courant.nom}…`}
                   stories={stories}
-                  onAjouter={(type, texte, element) => ajouter({ personne: m, type, texte, element })}
+                  onAjouter={(type, texte, element, _c, sous_type) => ajouter({ personne: m, type, texte, element, sous_type })}
                 />
               )}
             </SectionFiche>
@@ -1007,7 +1008,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                       <Text style={st.texte}>{pt.texte}</Text>
                       <Text style={st.sous}>{origine(pt)}</Text>
                     </View>
-                    <Pastille texte={LIBELLE_TYPE_POINT[pt.type]} ton={tonType(pt.type)} />
+                    <Pastille texte={libelleNote(pt)} ton={tonType(pt.type)} />
                   </View>
                   <Text style={[st.choixLecture, !pt.concretisation && st.choixADecider]}>{pt.concretisation ? resumePoint(pt, nomDe, h) : 'À décider'}</Text>
                 </View>
@@ -1034,7 +1035,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                       <Text style={st.texte}>{pt.texte}</Text>
                       <Text style={st.sous}>{origine(pt)}</Text>
                     </View>
-                    <Pastille texte={LIBELLE_TYPE_POINT[pt.type]} ton={tonType(pt.type)} />
+                    <Pastille texte={libelleNote(pt)} ton={tonType(pt.type)} />
                   </View>
                   {/* Un seul bouton « Concrétiser » : une feuille, une section par question (08/10) */}
                   <Pressable onPress={() => setFeuille({ id: pt.id })} style={[st.boutonSynchro, choisi && st.boutonSynchroChoisi]} accessibilityRole="button">
@@ -1050,7 +1051,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 if (!pt) return null;
                 return (
                   <FeuilleConcretiser
-                    sous={`${LIBELLE_TYPE_POINT[pt.type]} noté par ${nomDe(pt.personne)} : « ${pt.texte} »`}
+                    sous={`${libelleNote(pt)} noté par ${nomDe(pt.personne)} : « ${pt.texte} »`}
                     valeur={choixDe(pt)}
                     moi={moiP}
                     equipe={equipeP}
@@ -1066,7 +1067,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 );
               })()}
             <SectionFiche titre="Note oubliée">
-              <SaisiePoint premiere types={['blocage', 'decision', 'action']} typeDefaut="blocage" titre="Nouvelle note oubliée" jour={jour} placeholder="＋ Blocage, décision ou action oublié" stories={situation.cartes} onAjouter={(type, texte, element) => ajouter({ personne: mail, type, texte, element })} />
+              <SaisiePoint premiere types={['blocage', 'decision', 'action']} typeDefaut="blocage" titre="Nouvelle note oubliée" jour={jour} placeholder="＋ Note oubliée" stories={situation.cartes} onAjouter={(type, texte, element, _c, sous_type) => ajouter({ personne: mail, type, texte, element, sous_type })} />
             </SectionFiche>
           </>
         );
@@ -1102,7 +1103,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             {restants.length > 0 && (
               <SectionFiche titre={`À décider · ${restants.length}`}>
                 {restants.map((pt, i) => (
-                  <Ligne key={pt.id} premiere={i === 0} texte={pt.texte} sous={`par ${prenom(nomDe(pt.personne))} · à décider par le SM`} pastille={{ texte: LIBELLE_TYPE_POINT[pt.type], ton: tonType(pt.type) }} />
+                  <Ligne key={pt.id} premiere={i === 0} texte={pt.texte} sous={`par ${nomDe(pt.personne)} · à décider par le SM`} pastille={{ texte: libelleNote(pt), ton: tonType(pt.type) }} />
                 ))}
               </SectionFiche>
             )}
@@ -1114,37 +1115,25 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                     premiere={i === 0}
                     texte={d.pt.texte}
                     sous={resumeD(d)}
-                    pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }}
+                    pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }}
                   />
                 ))
               ) : (
                 <Vide texte="Rien à créer." />
               )}
             </SectionFiche>
-            {suivis.length > 0 && (
-              <SectionFiche titre={`Suivis · ${suivis.length}`}>
-                {suivis.map((d, i) => (
-                  <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }} />
-                ))}
-              </SectionFiche>
-            )}
-            {escalades.length > 0 && (
-              <SectionFiche titre={`Escaladé · ${escalades.length}`}>
-                {escalades.map((d, i) => (
-                  <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }} />
-                ))}
-              </SectionFiche>
-            )}
-            {synchros.length > 0 && (
-              <SectionFiche titre={`Transmis · ${synchros.length}`}>
-                {synchros.map((d, i) => (
-                  <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`${prenom(nomDe(d.pt.personne))} → ${prenom(nomDe(d.a))} · message envoyé`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
-                ))}
-              </SectionFiche>
-            )}
+            <SectionFiche titre={`Suivis · ${suivis.length}`}>
+              {suivis.length ? suivis.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }} />) : <Vide texte="Rien à suivre." />}
+            </SectionFiche>
+            {/* Transmis (validation du 08/10) : l'ancienne escalade et la transmission, une seule section */}
+            <SectionFiche titre={`Transmis · ${escalades.length + synchros.length}`}>
+              {escalades.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }} />)}
+              {synchros.map((d, i) => <Ligne key={d.pt.id} premiere={!escalades.length && i === 0} texte={d.pt.texte} sous={`${nomDe(d.pt.personne)} → ${nomDe(d.a)} · message envoyé`} pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }} />)}
+              {!escalades.length && !synchros.length && <Vide texte="Rien de transmis." />}
+            </SectionFiche>
             <SectionFiche titre={`Clos · ${notes.length}`}>
               {notes.length ? (
-                notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`Rien (clos) · noté par ${nomDe(d.pt.personne)}`} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: 'gris' }} />)
+                notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`Rien (clos) · noté par ${nomDe(d.pt.personne)}`} pastille={{ texte: libelleNote(d.pt), ton: 'gris' }} />)
               ) : (
                 <Vide texte="Rien." />
               )}
@@ -1178,7 +1167,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
           : 'Envoyer le compte rendu'
         : anime
           ? 'Enregistrer mon point'
-          : `Envoyer au SM${sm ? ` · ${prenom(sm.nom)}` : ''}`,
+          : `Envoyer au SM${sm ? ` · ${sm.nom}` : ''}`,
       renduEtape: (k) =>
         o.etapes[k] ? (
           <>

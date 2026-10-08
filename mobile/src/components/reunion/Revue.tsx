@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { LIBELLE_TYPE_POINT, pointsFinis } from '../../daily';
+import { LIBELLE_TYPE_POINT, libelleNote, pointsFinis } from '../../daily';
 import { fmtPoints, pointsOf, shiftIteration, nomSprintDe } from '../../pi';
 import type { CatalogueParcours, EtapeCatalogue, ParcoursRole } from '../../reunions';
 import { criteresDe, velocite } from '../../reunionsEquipe';
@@ -11,7 +11,7 @@ import type { Item, PointReunion } from '../../types';
 import { SectionFiche } from '../Choix';
 import { TitreFiche } from '../FormSheet';
 import { MesTaches, Navigation } from './Affinage';
-import { BlocPoints, BlocSuivi, Compteurs, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, prenom, QuestionsEquipe, useReunion } from './base';
+import { BlocPoints, BlocSuivi, Compteurs, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, QuestionsEquipe, useReunion } from './base';
 import { Ligne, Pastilles, st, tonType, Vide } from './ui';
 
 /**
@@ -145,7 +145,7 @@ export function FenetreRevue(p: PropsReunion) {
               <Ligne premiere texte={v.iterations.map((y) => nomSprintDe(y.key)).join(' · ')} sous={`moyenne ${v.moyenne} pts`} pastille={{ texte: v.iterations.map((y) => y.points).join(' · '), ton: 'bleu' }} />
             </SectionFiche>
             <SectionFiche titre={`✓ Réglé pendant le sprint · ${regles.length}`}>
-              {regles.length ? regles.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`${y.concretisation === 'rien' ? 'noté' : y.concretisation === 'escalade' ? 'escaladé, réglé' : 'fait'} · ${y.reunion.split('-')[0]} du ${y.reunion.slice(-2)}/${y.reunion.slice(-5, -3)}`} pastille={{ texte: LIBELLE_TYPE_POINT[y.type], ton: tonType(y.type) }} />) : <Vide texte={lecture ? 'Vu par l’animateur.' : 'Rien de réglé pour l’instant.'} />}
+              {regles.length ? regles.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`${y.concretisation === 'rien' ? 'noté' : y.concretisation === 'escalade' ? 'escaladé, réglé' : 'fait'} · ${y.reunion.split('-')[0]} du ${y.reunion.slice(-2)}/${y.reunion.slice(-5, -3)}`} pastille={{ texte: libelleNote(y), ton: tonType(y.type) }} />) : <Vide texte={lecture ? 'Vu par l’animateur.' : 'Rien de réglé pour l’instant.'} />}
             </SectionFiche>
           </>
         );
@@ -160,11 +160,11 @@ export function FenetreRevue(p: PropsReunion) {
         return (
           <>
             <Navigation n={n} cur={k} onChoisir={lecture ? undefined : setIdx} aReprendre={new Set(terminees.map((y, i) => (!decision(y) ? i : -1)).filter((i) => i >= 0 && i < k))} />
-            <TitreFiche icone="📖" titre={t.titre} vide="" sous={`Terminée${resp ? ` par ${prenom(resp.nom)}` : ''} · ${fmt(pointsOf(t))} · story ${k + 1} sur ${n}`} />
+            <TitreFiche icone="📖" titre={t.titre} vide="" sous={`Terminée${resp ? ` par ${resp.nom}` : ''} · ${fmt(pointsOf(t))} · story ${k + 1} sur ${n}`} />
             <SectionFiche titre={`Critères d’acceptation · ${crit.length}`}>{crit.length ? crit.map((c, i) => <Ligne key={i} premiere={i === 0} texte={c} />) : <Vide texte="Pas de critères écrits." />}</SectionFiche>
             {d && (
               <SectionFiche titre="Démo">
-                <Ligne premiere texte={d.d.v} sous={`par ${prenom(e.nomDe(d.p.personne))}`} />
+                <Ligne premiere texte={d.d.v} sous={`par ${e.nomDe(d.p.personne)}`} />
               </SectionFiche>
             )}
             {blocDecision(t, lecture)}
@@ -326,7 +326,7 @@ export function FenetreRevue(p: PropsReunion) {
       r={r}
       catalogue={PARCOURS_REVUE}
       rendu={rendu}
-      libelleFin={() => `Envoyer à ${prenom(e.nomDe(p.reunion.organisateur))}`}
+      libelleFin={() => `Envoyer à ${e.nomDe(p.reunion.organisateur)}`}
       etapeAnim={{ cle: cleAnim, setCle: setCleAnim, element: cleAnim === 'stories' ? (story?.id ?? '') : '', detail: cleAnim === 'stories' && story ? `Story ${Math.min(idx, n - 1) + 1} sur ${n} · ${story.titre}` : '' }}
       onSuivant={(role, cle) => {
         if (role === 'sm' && cle === 'stories' && idx < n - 1) return (setIdx(idx + 1), true);

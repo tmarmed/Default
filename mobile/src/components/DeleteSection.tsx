@@ -12,16 +12,22 @@ interface Props {
   /** Ce qui arrive aux éléments rattachés sans cascade, ex. « rattachés à l'objectif » */
   keepText?: string;
   disabled?: boolean;
+  /** Phrases accordées, à la place des « (e)s » : « Sa sous-tâche sera conservée comme tâche normale. » */
+  phrases?: { conserve: string; supprime: string };
   onDelete: (cascade: boolean) => void;
 }
 
 /** Suppression avec option « supprimer aussi tout ce qui est rattaché ». */
-export function DeleteSection({ label, name, children, keepText, disabled, onDelete }: Props) {
+export function DeleteSection({ label, name, children, keepText, disabled, phrases, onDelete }: Props) {
   const [cascade, setCascade] = useState(false);
   const [confirm, setConfirm] = useState(false);
 
   const consequence = children
-    ? cascade
+    ? phrases
+      ? cascade
+        ? phrases.supprime
+        : phrases.conserve
+      : cascade
       ? `${children} seront aussi supprimé(e)s.`
       : `${children} seront conservé(e)s${keepText ? `, ${keepText}` : ''}.`
     : '';
