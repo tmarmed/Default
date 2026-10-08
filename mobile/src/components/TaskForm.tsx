@@ -45,6 +45,7 @@ import { DeleteSection } from './DeleteSection';
 import { estIgnoree, IgnoreContext } from './AlertsCard';
 import { checkPoints, unite } from '../checks';
 import { AlerteChoix, ChampEstimation, ChampFiche, FeuilleMulti, LigneChoix, SaisieFiche, LigneEnfant, LigneFiche, SectionFiche } from './Choix';
+import { SectionPointsReunion } from './PointsElement';
 import { filTravail, listeIterations, listeTaches, metaTache } from '../choixTravail';
 import { LiaisonOrg } from './LiaisonOrg';
 import { useEspaceFil } from './EspaceChoix';
@@ -819,6 +820,8 @@ export function TaskForm({
                   ))}
               </>
             )}
+
+            <SectionPointsReunion id={item?.id} espace={item?.espace} />
 
             {/* Détails : lieu et notes (masqués vides en lecture seule) */}
             {!(droits.raison && !form.lieu && !form.description) && (

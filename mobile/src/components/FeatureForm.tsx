@@ -16,6 +16,7 @@ import { BlocLecture, ChildActions, FormSheet, TitreFiche, formStyles as f, type
 import { LiaisonOrg } from './LiaisonOrg';
 import { ChoiceSheet } from './ChoiceSheet';
 import { ChampEstimation, ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, SaisieFiche, SectionFiche } from './Choix';
+import { SectionPointsReunion } from './PointsElement';
 import { filTravail, listeEpics, listeIterations, listePI, metaTache } from '../choixTravail';
 
 interface Props {
@@ -315,6 +316,7 @@ export function FeatureForm({
         <ChampEstimation value={form.points} onChange={(v) => set('points', v)} jours={safe.pointsJours} placeholder="Facultatif (globale, ex. 8)" />
       </SectionFiche>
 
+      <SectionPointsReunion id={feature?.id} espace={(feature as { espace?: string } | undefined)?.espace} />
       <SectionFiche titre="Détails">
         <ChampFiche label="Description" colonne>
           <SaisieFiche placeholder="Résultat attendu, critères d'acceptation…" value={form.description} onChangeText={(v) => set('description', v)} multiline />

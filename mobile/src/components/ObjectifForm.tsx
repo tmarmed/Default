@@ -16,6 +16,7 @@ import { DeleteSection } from './DeleteSection';
 import { AlertList, BlocLecture, ColorPicker, TitreFiche, FormSheet, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { ChampFiche, FeuilleMulti, LigneEnfant, ListeEnfants, SaisieFiche, SectionFiche } from './Choix';
+import { SectionPointsReunion } from './PointsElement';
 import { filTravail } from '../choixTravail';
 import { useSafe } from '../safe';
 
@@ -301,6 +302,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
         )}
       </SectionFiche>}
 
+      <SectionPointsReunion id={objectif?.id} espace={(objectif as { espace?: string } | undefined)?.espace} />
       <SectionFiche titre="Détails">
         <ChampFiche label="Couleur" colonne>
           <ColorPicker value={form.couleur} onChange={(c) => set('couleur', c)} />

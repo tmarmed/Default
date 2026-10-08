@@ -77,6 +77,7 @@ import { EspacesBar, EspacesPastille } from './src/components/EspacesBar';
 import { IconeCompte } from './src/components/IconeCompte';
 import { EspacesSheet } from './src/components/EspacesSheet';
 import { ChatEchanges, type ElementChat } from './src/components/ChatEchanges';
+import { LirePointsContext } from './src/components/PointsElement';
 import { EquipeView, type PersonneConnue } from './src/components/EquipeView';
 import { idsPieces, PiecesContext } from './src/components/Pieces';
 import { type ActionsDaily } from './src/components/Daily';
@@ -1707,6 +1708,19 @@ function Main() {
       });
     },
   };
+  /** Fiche d'un élément · « Points de réunion » : une lecture par espace, gardée une minute (quota) */
+  const cachePoints = useRef(new Map<string, { t: number; p: Promise<PointReunion[]> }>());
+  const lirePointsElement = useCallback(
+    (espace: string) => {
+      const c = cachePoints.current.get(espace);
+      if (c && Date.now() - c.t < 60_000) return c.p;
+      const p = settings ? api.lirePoints(settings, espace, '') : Promise.resolve([]);
+      cachePoints.current.set(espace, { t: Date.now(), p });
+      p.catch(() => cachePoints.current.delete(espace));
+      return p;
+    },
+    [settings],
+  );
   const nomEchange = (email: string) => personneParEmail(email, orgEchanges)?.nom ?? nomDepuisEmail(email);
   /** Escalade : SM ou PO (membre), puis RTE, puis Epic Owner (voir ciblesEscalade) */
   const escaladesDe = (e: Echange) => {
@@ -2470,6 +2484,7 @@ function Main() {
   return (
     <SafeContext.Provider value={safeAffiche}>
     <HierarchyContext.Provider value={hv}>
+    <LirePointsContext.Provider value={settings ? lirePointsElement : null}>
     <DomainFilterContext.Provider value={domFilterValue}>
     <CheckActionContext.Provider value={runAction}>
     <IgnoreContext.Provider value={ignoreValue}>
@@ -3979,6 +3994,7 @@ function Main() {
     </IgnoreContext.Provider>
     </CheckActionContext.Provider>
     </DomainFilterContext.Provider>
+    </LirePointsContext.Provider>
     </HierarchyContext.Provider>
     </SafeContext.Provider>
   );

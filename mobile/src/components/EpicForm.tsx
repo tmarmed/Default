@@ -30,6 +30,7 @@ import { LiaisonOrg } from './LiaisonOrg';
 import { filTravail, metaTache } from '../choixTravail';
 import { ChoiceSheet } from './ChoiceSheet';
 import { ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, LigneMulti, ListeEnfants, SaisieFiche, SectionFiche } from './Choix';
+import { SectionPointsReunion } from './PointsElement';
 import { okrsParValueStreams } from '../strategie';
 
 interface Props {
@@ -420,6 +421,7 @@ export function EpicForm({
               )}
             </SectionFiche>
 
+            <SectionPointsReunion id={epic?.id} espace={(epic as { espace?: string } | undefined)?.espace} />
             <SectionFiche titre="Détails">
               <ChampFiche label="Couleur" colonne>
                 <View style={styles.swatches}>
