@@ -29,6 +29,9 @@ export function FeuilleConcretiser({
   moi,
   equipe,
   dessus,
+  autres = [],
+  nomEquipe = '',
+  nomDessus = '',
   validateurs,
   contexte,
   onValider,
@@ -41,8 +44,13 @@ export function FeuilleConcretiser({
   moi: PersonneChoix;
   /** Mon équipe (transmettre) */
   equipe: PersonneChoix[];
-  /** Niveau du dessus (escalader) */
+  /** Niveau du dessus (transmettre au train : ex-escalade) */
   dessus: PersonneChoix[];
+  /** Autres équipes du même train (transmettre sur le côté), par équipe */
+  autres?: { titre: string; personnes: PersonneChoix[] }[];
+  /** « Mobile » (équipe) et « Train Clients » (niveau du dessus) : titres des groupes de « Responsable › » */
+  nomEquipe?: string;
+  nomDessus?: string;
   validateurs: PersonneChoix[];
   /** Éléments du contexte de la réunion (ids), en tête de « Élément concerné » */
   contexte: string[];
@@ -58,11 +66,13 @@ export function FeuilleConcretiser({
   const rattId = rattMain ? c.ratt : (ratt?.id ?? '');
   const choix = { ...c, ratt: rattId };
   const erreur = erreurChoix(choix, h) ?? (c.que === 'creer' && (c.type === 'story' || c.type === 'feature') && !rattId ? 'Choisissez à quoi la rattacher.' : null);
-  const personnesDe = (q: QuiCharge) => (q === 'moi' ? [moi] : q === 'equipe' ? equipe.filter((x) => x.email !== moi.email) : dessus);
-  const changerQui = (q: QuiCharge) => {
-    const l = personnesDe(q);
-    // Escalader : le niveau du dessus décide, on suit seulement (re-concrétiser au retour de la réponse)
-    set({ qui: q, resp: l.some((x) => x.email === c.resp) ? c.resp : (l[0]?.email ?? ''), ...(q === 'dessus' && c.que === 'creer' ? { que: 'suivre' as QueFaire } : {}) });
+  // Responsable (validation du 08/10) : un seul champ groupé ; la façon de transmettre se déduit de la personne
+  const autresTous = autres.flatMap((g) => g.personnes);
+  const quiDe = (email: string): QuiCharge => (email === moi.email ? 'moi' : dessus.some((x) => x.email === email) && !equipe.some((x) => x.email === email) ? 'dessus' : 'equipe');
+  const changerResp = (email: string) => {
+    const q = quiDe(email);
+    // Transmis au train : le niveau du dessus décide, on suit seulement (re-concrétiser au retour de la réponse)
+    set({ resp: email, qui: q, ...(q === 'dessus' && c.que === 'creer' ? { que: 'suivre' as QueFaire } : {}) });
   };
   const nom = (l: PersonneChoix[], v: string) => l.find((x) => x.email === v)?.nom ?? v;
   const libRatt = (() => {
@@ -109,7 +119,7 @@ export function FeuilleConcretiser({
                 c.que,
                 (v) => set({ que: v, ...(v === 'creer' && !rattMain ? { type: typeParDefaut(c.element, h) } : {}) }),
               )}
-              {c.qui === 'dessus' && <Text style={[s.aide, { paddingHorizontal: 12, paddingBottom: 8 }]}>Escaladé : le niveau du dessus décide ; vous pourrez re-concrétiser au retour de la réponse.</Text>}
+              {c.qui === 'dessus' && <Text style={[s.aide, { paddingHorizontal: 12, paddingBottom: 8 }]}>Transmis à {nomDessus || 'niveau du dessus'} : il décide ; vous pourrez re-concrétiser au retour de la réponse.</Text>}
               {c.que === 'creer' && (
                 <>
                   <View style={s.bord}>
@@ -154,25 +164,20 @@ export function FeuilleConcretiser({
               <>
                 <Text style={s.section}>QUI S'EN CHARGE ?</Text>
                 <View style={s.carte}>
-                  {puces<QuiCharge>(
-                    [
-                      { v: 'moi', l: 'Moi', aide: 'suivre' },
-                      { v: 'equipe', l: 'Mon équipe', aide: 'transmettre' },
-                      ...(dessus.length ? [{ v: 'dessus' as QuiCharge, l: '⤴ Niveau du dessus', aide: 'escalader' }] : []),
-                    ],
-                    c.qui,
-                    changerQui,
-                  )}
-                  <View style={s.bord}>
-                    <LigneChoix
-                      label="Responsable"
-                      value={c.resp}
-                      onChange={(v) => v && set({ resp: v })}
-                      groupes={[{ options: personnesDe(c.qui).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) }]}
-                      libelle={(v) => nom([moi, ...equipe, ...dessus], v)}
-                      fixe
-                    />
-                  </View>
+                  <LigneChoix
+                    label="Responsable"
+                    value={c.resp}
+                    onChange={(v) => v && changerResp(v)}
+                    groupes={[
+                      { titre: 'Moi', options: [{ value: moi.email, label: moi.nom, meta: moi.meta }] },
+                      { titre: nomEquipe ? `Équipe ${nomEquipe}` : 'Mon équipe', options: equipe.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) },
+                      ...autres.map((g) => ({ titre: `${g.titre} · transmettre`, options: g.personnes.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) })),
+                      ...(dessus.length ? [{ titre: `${nomDessus || 'Niveau du dessus'} · transmettre`, options: dessus.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) }] : []),
+                    ].filter((g) => g.options.length)}
+                    libelle={(v) => nom([moi, ...equipe, ...autresTous, ...dessus], v)}
+                    fixe
+                  />
+                  {c.qui !== 'moi' && !equipe.some((x) => x.email === c.resp) && <Text style={[s.aide, { paddingHorizontal: 12, paddingBottom: 8 }]}>↪ Transmis hors de l’équipe.</Text>}
                 </View>
 
                 <Text style={s.section}>VALIDATION</Text>

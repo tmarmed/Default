@@ -27,7 +27,7 @@ import {
 import { destinatairesTransfert, lireNiveau, personneParEmail } from '../echange/hierarchieEchange';
 import { aReprendre, parEspace, pointsEscalade, titreEscalade, titreTransmis } from '../suiviEscalade';
 import { useHierarchy } from '../hierarchyContext';
-import { membresDe, type OrgValue, porteurs } from '../organisation';
+import { autresEquipesDuTrain, membresDe, type OrgValue, porteurs } from '../organisation';
 import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
 import { type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../reunions';
 import { PARCOURS_DAILY as CATALOGUE } from '../daily';
@@ -1061,8 +1061,11 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 if (!pt) return null;
                 return (
                   <FeuilleConcretiser
-                    sous={`${libelleNote(pt)} noté par ${nomDe(pt.personne)} : « ${pt.texte} »`}
+                    sous={`${libelleNote(pt)} · notée par ${nomDe(pt.personne)} : « ${pt.texte} »`}
                     valeur={choixDe(pt)}
+                    autres={equipe ? autresEquipesDuTrain(equipe.id, org) : []}
+                    nomEquipe={equipe?.nom ?? ''}
+                    nomDessus={e.train ? `Train ${e.train.nom}` : ''}
                     moi={moiP}
                     equipe={equipeP}
                     dessus={escaladesDaily}

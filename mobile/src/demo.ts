@@ -121,7 +121,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '27';
+const DEMO_DATA_VERSION = '28';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -452,6 +452,8 @@ const SEEDS_ENTREPRISE: Seeds = {
       ['Historique des commandes', 'story', SANS_DATE, { feature: 'acmf2', points: '13', equipe: 'acmeqmob' }],
       ['Notifications de livraison', 'story', SANS_DATE, { feature: 'acmf2', equipe: 'acmeqmob' }],
       ['Clarifier les règles de remboursement', 'tache', SANS_DATE, { equipe: 'acmeqmob', responsable: 'acmp6', statut: 'en_cours', iteration: iterationOf(new Date()).key }],
+      // « Ma préparation » de Vous (validation du 08/10) : une story en cours à votre nom dans le sprint
+      ['Préparer la démo du sprint', 'story', SANS_DATE, { feature: 'acmf2', points: '2', equipe: 'acmeqmob', responsable: `${ID_VOUS_DEMO}-demo-entreprise`, statut: 'en_cours', iteration: iterationOf(new Date()).key }],
     ]),
   // Daily de Mobile (onglet PointsReunion) : le point préparé par Tom pour le prochain daily, trois points concrétisés
   // aux dailies précédents dont la tâche n'est pas finie, et un blocage de Tom passé en échange 🔄 Synchro vers Paul
@@ -473,6 +475,9 @@ const SEEDS_ENTREPRISE: Seeds = {
       pt('acmpt1', { reunion: reunion(veille), type: 'blocage', texte: 'Pas d’accès à l’API de test', element: 'acm4', concretisation: 'sous_tache', tache: 'acm7', responsable: tom, cree_le: `${veille}T09:40:00.000Z` }),
       pt('acmpt2', { reunion: reunion(avant), personne: emma, auteur: nina, type: 'action', texte: 'Commander les licences de test', concretisation: 'tache', tache: 'acm8', responsable: emma, cree_le: `${avant}T09:42:00.000Z` }),
       pt('acmpt3', { type: 'hier', texte: 'Formulaire de connexion terminé', element: 'acm4' }),
+      // Note préparée par Vous pour le prochain daily ; note d'hier pas encore concrétisée (« Notes à concrétiser »)
+      pt('acmpt11', { personne: MOI_DEMO, auteur: MOI_DEMO, type: 'blocage', texte: 'Salle de démo pas encore réservée', element: 'acm13' }),
+      pt('acmpt12', { reunion: reunion(veille), personne: nina, auteur: nina, type: 'decision', sous_type: 'a_prendre', texte: 'Choisir la bibliothèque de graphiques', cree_le: `${veille}T09:44:00.000Z` }),
       pt('acmpt4', { type: 'aujourdhui', texte: 'Brancher la connexion Google', element: 'acm4' }),
       pt('acmpt5', { type: 'blocage', texte: 'Le serveur de test refuse les connexions', element: 'acm4' }),
       pt('acmpt6', { reunion: reunion(veille), type: 'blocage', texte: 'Règles du mot de passe à confirmer', element: 'acm4', concretisation: 'synchro', tache: 'acmx3', responsable: paul, auteur: nina, cree_le: `${veille}T09:41:00.000Z` }),

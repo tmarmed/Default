@@ -20,7 +20,7 @@ import {
 import { destinatairesTransfert, lireNiveau, personneParEmail } from '../../echange/hierarchieEchange';
 import { etatDe, lireDonnee, lireVote, texteDirect, type Vote } from '../../etatReunion';
 import { useHierarchy } from '../../hierarchyContext';
-import { membresDe, type OrgValue, porteurs } from '../../organisation';
+import { autresEquipesDuTrain, membresDe, type OrgValue, porteurs } from '../../organisation';
 import { iterationOf } from '../../pi';
 import { type CatalogueParcours, type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../../reunions';
 import { subtaskMap } from '../../subtasks';
@@ -921,8 +921,11 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
           if (!pt) return null;
           return (
             <FeuilleConcretiser
-              sous={`${libelleNote(pt)} noté par ${e.nomDe(pt.personne)} : « ${pt.texte} »`}
+              sous={`${libelleNote(pt)} · notée par ${e.nomDe(pt.personne)} : « ${pt.texte} »`}
               valeur={r.choixDe(pt)}
+              autres={e.equipe ? autresEquipesDuTrain(e.equipe.id, r.org) : []}
+              nomEquipe={e.nomNiveau}
+              nomDessus={e.niveauSup?.kind === 'portfolio' ? `Portfolio ${e.portfolio?.nom ?? ''}` : e.train ? `Train ${e.train.nom}` : ''}
               moi={moi}
               equipe={equipe}
               dessus={dessus}

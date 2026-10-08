@@ -114,7 +114,7 @@ const dEnt = donneesDemo('demo-entreprise').items;
 const pts = pointsDemo('demo-entreprise');
 const nina = reunionsAVenir(o, mail('acmp7'), toDateString(new Date()), true, 14);
 const prochain = nina.find((r) => r.type === 'daily' && r.niveau === 'equipeagile:acmeqmob')!;
-ok(!!prochain && prochain.organisateur === mail('acmp7') && pts.filter((x) => x.reunion === prochain.id).length === 3, 'démo : Tom a préparé 3 points pour le prochain daily de Mobile (animé par Nina)');
+ok(!!prochain && prochain.organisateur === mail('acmp7') && pts.filter((x) => x.reunion === prochain.id && x.personne === 'tom.faure@acme.example').length === 3, 'démo : Tom a préparé 3 points pour le prochain daily de Mobile (animé par Nina)');
 const s1 = suivis(pts, dEnt);
 ok(s1.length === 3 && s1.every((x) => x.tache.statut !== 'termine'), 'démo : 3 suivis (points concrétisés, tâche pas finie)');
 ok(suivis(pts, dEnt.map((t) => (t.id === 'acm7' ? { ...t, statut: 'termine' as const } : t))).length === 2, 'suivi : une tâche terminée n’est plus suivie');

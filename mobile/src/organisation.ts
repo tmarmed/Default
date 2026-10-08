@@ -115,6 +115,25 @@ export const libelleNature = (n: string | undefined) => NATURES_PERSONNE.find((x
 
 export const membresDe = (e: Pick<EquipeAgile, 'membres'>) => (e.membres ? e.membres.split(';').filter(Boolean) : []);
 
+/**
+ * Autres équipes du même train (transmettre sur le côté, validation du 08/10) : par équipe, ses personnes avec un e-mail
+ * (membres, PO, SM)
+ */
+export function autresEquipesDuTrain(equipeId: string, org: Pick<OrgValue, 'equipes' | 'equipe' | 'personne'>): { titre: string; personnes: { email: string; nom: string; meta?: string }[] }[] {
+  const ici = org.equipe.get(equipeId);
+  if (!ici?.train) return [];
+  return org.equipes
+    .filter((e) => e.train === ici.train && e.id !== ici.id)
+    .map((e) => ({
+      titre: `Équipe ${e.nom}`,
+      personnes: [...new Set([...membresDe(e), e.po, e.sm].filter(Boolean))]
+        .map((id) => org.personne.get(id))
+        .filter((p): p is NonNullable<typeof p> => !!p && !!p.email)
+        .map((p) => ({ email: p.email.toLowerCase(), nom: p.nom, meta: p.id === e.po ? 'PO' : p.id === e.sm ? 'Scrum Master' : undefined })),
+    }))
+    .filter((g) => g.personnes.length);
+}
+
 /** Libellés des éléments de l'organisation */
 export const ICONE_ORG: Record<KindOrg, string> = { personne: '👤', unite: '🏛️', portfolio: '💼', train: '🚆', equipeagile: '👥' };
 export const NOM_ORG: Record<KindOrg, string> = { personne: 'Personne', unite: 'Unité', portfolio: 'Portfolio', train: 'Train', equipeagile: 'Équipe' };
