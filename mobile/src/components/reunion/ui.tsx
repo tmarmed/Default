@@ -412,6 +412,30 @@ export function FiltresType({ types, value, onChange }: { types: TypePoint[]; va
   );
 }
 
+/** Vue de la Situation (validation du 08/10) : tout, les suivis (concrétisés) ou les notes pas encore concrétisées */
+export type VueSuivi = 'tout' | 'suivis' | 'notes';
+export function FiltresVue({ value, onChange, nSuivis, nNotes }: { value: VueSuivi; onChange: (v: VueSuivi) => void; nSuivis: number; nNotes: number }) {
+  const opts: { v: VueSuivi; l: string }[] = [
+    { v: 'tout', l: 'Tout' },
+    { v: 'suivis', l: `Suivis · ${nSuivis}` },
+    { v: 'notes', l: `Notes à concrétiser · ${nNotes}` },
+  ];
+  return (
+    <View style={st.filtresBloc}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filtreLigne}>
+        {opts.map((o) => {
+          const on = value === o.v;
+          return (
+            <Pressable key={o.v} onPress={() => onChange(o.v)} style={[st.itChip, on && st.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
+              <Text style={[st.itChipText, on && st.itChipTextOn]}>{o.l}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
 /** Entonnoir des filtres (même dessin que l'en-tête des écrans) */
 export function Entonnoir({ couleur }: { couleur: string }) {
   return (

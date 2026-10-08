@@ -125,7 +125,7 @@ ok(dateRelative('2026-10-02', '2026-10-02') === 'aujourd’hui' && dateRelative(
 {
   const a = pastilleSuivi({ type: 'action', reunion: 'daily-equipeagile:acmeqmob-2026-09-29' }, '2026-10-02');
   const b = pastilleSuivi({ type: 'blocage', reunion: 'daily-equipeagile:acmeqmob-2026-10-01' }, '2026-10-02');
-  ok(a.texte === 'Action' && a.age === 'depuis 3 j' && b.texte === 'Blocage' && b.age === '', 'suivi : âge seulement à partir de 2 jours — [Action] [depuis 3 j], [Blocage] (noté hier : rien)');
+  ok(a.texte === 'Demande d’action' && a.age === 'depuis 3 j' && b.texte === 'Blocage' && b.age === '', 'suivi : âge seulement à partir de 2 jours — [Demande d’action] [depuis 3 j], [Blocage] (noté hier : rien)');
 }
 /** « Mon point : Hier, … | PO : … | Suivre (lecture) : … » */
 const onglets = (r: Parameters<typeof etapesParcours>[0]) =>

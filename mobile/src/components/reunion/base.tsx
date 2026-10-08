@@ -28,7 +28,7 @@ import { aReprendre, parEspace, pointsEscalade, titreEscalade } from '../../suiv
 import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, patchConcretise, resumeChoix, resumePoint } from '../../concretisation';
 import { FeuilleConcretiser } from './Concretiser';
 import { libelleElement } from '../../elementConcerne';
-import { echeanceParDefaut, relierEscalades, validateurDe } from '../../pointsSuivi';
+import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../../pointsSuivi';
 import { type CtxSuivi, LignesSuivi, pointsDeSuivi, statutAffiche } from './Suivi';
 import { colors } from '../../theme';
 import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type TypePoint, TYPES_REUNION } from '../../types';
@@ -38,7 +38,7 @@ import { estAutre, placeholderNote, reponsePrete } from '../EchangesView';
 import { FenetreReunion, type OngletReunion } from '../FenetreReunion';
 import { TitreFiche } from '../FormSheet';
 import { useLive } from '../useLive';
-import { Compteur, FiltresType, Ligne, Pastille, PastilleFiltres, Pastilles, pluriel, SaisiePoint, st, TITRE_TYPE, tonType, Vide } from './ui';
+import { Compteur, FiltresType, FiltresVue, Ligne, Pastille, PastilleFiltres, Pastilles, pluriel, SaisiePoint, st, TITRE_TYPE, tonType, Vide, type VueSuivi } from './ui';
 
 /**
  * Socle commun des réunions d'équipe (07/10) : Planification, Revue, Rétrospective, Affinage (le Daily, validé le
@@ -305,8 +305,8 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
   const voter = (el: string, val: string, tour: number) => voterLot([{ el, val }], tour);
 
   // ---- Concrétisation (animateur) ----
-  const reportes = useMemo(() => (anime ? aReprendre(serveur, reunion.id).filter(aConcretiser) : []), [anime, serveur, reunion.id]);
-  const aDecider = [...[...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => ici(x) && aConcretiser(x) && !x.concretisation), ...reportes];
+  const reportes = useMemo(() => aReprendre(serveur, reunion.id).filter(aConcretiser), [serveur, reunion.id]);
+  const aDecider = [...[...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => ici(x) && aConcretiser(x) && !x.concretisation), ...(anime ? reportes : [])];
   /**
    * Concrétisation d'un point (08/10, feuille « Concrétiser ») : les choix de l'animateur sur ceux proposés
    * (action → créer une tâche, sinon suivre ; responsable = qui l'a noté ; validation = l'animateur ; échéance =
@@ -670,6 +670,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
   const [filtre, setFiltre] = useState<TypePoint | ''>('');
   const [ouvert, setOuvert] = useState(false);
   const [aValider, setAValider] = useState(false);
+  const [vue, setVue] = useState<VueSuivi>('tout');
   // Points de suivi (08/10, avec un statut) à part ; les anciens points (sans statut) gardent leur suivi d'avant
   const anciensPts = r.serveur.filter((x) => !x.statut);
   const suivisEquipe = calculerSuivis(anciensPts, e.h.items);
@@ -679,10 +680,12 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
   const nValider = nouveaux.filter((x) => statutAffiche(x, e.h.items, e.jour).s === 'fait' && validateurDe(x, r.ctxSuivi.animateur) === r.mail).length;
   const n = suivisEquipe.length + suivisEch.length + r.reportes.length + pointsDeSuivi(r.serveur, r.reunionId).length;
   const nf = suivisEquipe.filter((x) => passe(x.point.type)).length + suivisEch.filter((x) => passe(x.point.type)).length + r.reportes.filter((x) => passe(x.type)).length + nouveaux.length;
-  let k = nouveaux.length ? 1 : 0;
+  const notesVues = r.reportes.filter((x) => passe(x.type));
+  const nSuivisVus = nf - notesVues.length;
+  let k = nouveaux.length && vue !== 'notes' ? 1 : 0;
   return (
     <SectionFiche
-      titre={`📌 Suivis · ${filtre ? `${nf} sur ` : ''}${n}`}
+      titre={`📌 Suivis · ${nSuivisVus}${notesVues.length || vue === 'notes' ? ` · Notes à concrétiser · ${notesVues.length}` : ''}`}
       droite={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {nValider > 0 && (
@@ -690,13 +693,20 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
               <Text style={[st.puceValiderTexte, aValider && st.puceValiderTexteOn]}>À valider · {nValider}</Text>
             </Pressable>
           )}
-          <PastilleFiltres actif={!!filtre} ouvert={ouvert} onPress={() => setOuvert((o) => !o)} />
+          <PastilleFiltres actif={!!filtre || vue !== 'tout'} ouvert={ouvert} onPress={() => setOuvert((o) => !o)} />
         </View>
       }
-      entete={ouvert && <FiltresType types={['blocage', 'decision', 'action']} value={filtre} onChange={setFiltre} />}
+      entete={
+        ouvert && (
+          <>
+            <FiltresVue value={vue} onChange={setVue} nSuivis={n - r.reportes.length} nNotes={r.reportes.length} />
+            <FiltresType types={['blocage', 'decision', 'action']} value={filtre} onChange={setFiltre} />
+          </>
+        )
+      }
     >
-      <LignesSuivi points={nouveaux} ctx={{ ...r.ctxSuivi, lecture }} aValider={aValider && nValider > 0} />
-      {!aValider && suivisEquipe.filter((x) => passe(x.point.type)).map(({ point, tache }) => (
+      <LignesSuivi points={vue === 'notes' ? [] : nouveaux} ctx={{ ...r.ctxSuivi, lecture }} aValider={aValider && nValider > 0} />
+      {!aValider && vue !== 'notes' && suivisEquipe.filter((x) => passe(x.point.type)).map(({ point, tache }) => (
         <Ligne
           key={point.id}
           premiere={k++ === 0}
@@ -705,7 +715,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
           pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }}
         />
       ))}
-      {!aValider && suivisEch.filter((x) => passe(x.point.type)).map(({ point, echange }) => (
+      {!aValider && vue !== 'notes' && suivisEch.filter((x) => passe(x.point.type)).map(({ point, echange }) => (
         <Ligne
           key={point.id}
           premiere={k++ === 0}
@@ -714,8 +724,8 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
           pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }}
         />
       ))}
-      {!aValider && r.reportes.filter((x) => passe(x.type)).map((point) => (
-        <Ligne key={point.id} premiere={k++ === 0} texte={point.texte} sous={sousLigneSuivi(point.type === 'decision' ? 'réponse reçue' : 'transmis reçu', e.nomDe(point.personne), 'à concrétiser', 'De')} pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }} />
+      {!aValider && vue !== 'suivis' && notesVues.map((point) => (
+        <Ligne key={point.id} premiere={k++ === 0} texte={point.texte} sous={`📝 Note à concrétiser · notée le ${jourCourt(point.reunion.slice(-10))} par ${e.nomDe(point.personne)}`} pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }} />
       ))}
       {!n && <Vide texte="✓ Rien en attente des réunions précédentes." />}
       {onAjouter && r.anime && !lecture && (

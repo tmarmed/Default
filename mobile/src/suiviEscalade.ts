@@ -141,10 +141,10 @@ export function parEspace(l: PointAEcrire[]): Map<string, Omit<PointReunion, 'id
 }
 
 /**
- * Points de suivi reportés d'une réunion précédente de la série, encore à concrétiser : escalades reçues et
- * réponses recopiées (liés à un échange, pas encore concrétisés, d'un autre jour que `reunionId`).
+ * Notes à concrétiser (validation du 08/10) : toute note d'une réunion précédente de la série pas encore concrétisée
+ * (« plus tard » = ne pas concrétiser), transmis reçus compris ; elles reviennent à la Situation et à la Concrétisation.
  */
 export const aReprendre = (points: PointReunion[], reunionId: string) => {
   const serie = reunionId.slice(0, -10);
-  return points.filter((p) => p.reunion.startsWith(serie) && p.reunion !== reunionId && !!p.tache && !p.concretisation);
+  return points.filter((p) => p.reunion.startsWith(serie) && p.reunion < reunionId && !p.concretisation);
 };

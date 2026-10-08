@@ -40,13 +40,13 @@ import { useLive } from './useLive';
 import { FeuilleChoix, SectionFiche } from './Choix';
 import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, patchConcretise, resumeChoix as resumeConcret, resumePoint } from '../concretisation';
 import { libelleElement } from '../elementConcerne';
-import { echeanceParDefaut, relierEscalades, validateurDe } from '../pointsSuivi';
+import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../pointsSuivi';
 import { type CtxSuivi, LignesSuivi, pointsDeSuivi, statutAffiche } from './reunion/Suivi';
 import { FeuilleConcretiser } from './reunion/Concretiser';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
 import { TitreFiche } from './FormSheet';
-import { Compteur, pluriel, Entonnoir, FiltresType, Ligne, LigneCase, LigneStory, Pastille, PastilleFiltres, Pastilles, pastilleStatut, SaisiePoint, st, TITRE_TYPE, titreAjout, type Ton, TONS, tonType, Vide } from './reunion/ui';
+import { Compteur, pluriel, Entonnoir, FiltresType, FiltresVue, Ligne, LigneCase, LigneStory, Pastille, PastilleFiltres, Pastilles, pastilleStatut, SaisiePoint, st, TITRE_TYPE, titreAjout, type Ton, TONS, tonType, Vide, type VueSuivi } from './reunion/ui';
 
 /**
  * Daily (lot 6, validé le 01/10 ; parcours séparés le 06/10) : contenu de la fenêtre de réunion. Chaque rôle de la
@@ -202,6 +202,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** Situation : même filtre sur le suivi (fermé, « Tous » par défaut) */
   const [filtreSuivi, setFiltreSuivi] = useState<TypePoint | ''>('');
   const [filtresSuiviOuverts, setFiltresSuiviOuverts] = useState(false);
+  const [vueSuivi, setVueSuivi] = useState<VueSuivi>('tout');
   const [feuille, setFeuille] = useState<{ id: string } | null>(null);
   /** PO : ses réponses aux questions de l'équipe (par échange), envoyées avec son point */
   const [reponses, setReponses] = useState<Record<string, { c: string; note: string }>>({});
@@ -496,8 +497,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const nValider = nouveauxSuivis.filter((x) => statutAffiche(x, h.items, jour).s === 'fait' && validateurDe(x, ctxSuivi.animateur) === mail).length;
   // À concrétiser : ce qui ne l'a pas encore été (un compte rendu déjà envoyé ne recrée rien)
   // Points de suivi reportés des réunions précédentes (escalades reçues, réponses recopiées) : à concrétiser aussi
-  const reportes = useMemo(() => (anime ? aReprendre(serveur, reunion.id).filter(aConcretiser) : []), [anime, serveur, reunion.id]);
-  const aDecider = [...[...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => dela(x) && aConcretiser(x) && !x.concretisation), ...reportes];
+  const reportes = useMemo(() => aReprendre(serveur, reunion.id).filter(aConcretiser), [serveur, reunion.id]);
+  const aDecider = [...[...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => dela(x) && aConcretiser(x) && !x.concretisation), ...(anime ? reportes : [])];
   // Concrétisation (08/10, feuille « Concrétiser ») : les choix du SM sur ceux proposés ; forme d'avant (c, resp, a) en plus
   const escaladesDaily = [
     ...(rte?.email ? [{ email: rte.email.toLowerCase(), nom: rte.nom, meta: `RTE du train ${e.train?.nom ?? ''} · obstacle, organisation` }] : []),
@@ -845,6 +846,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       }
       case 'situation': {
         const s = situation;
+        const reportesVus = reportes.filter((x) => !filtreSuivi || x.type === filtreSuivi);
+        const nSuivisVus = [...suivisEquipe, ...suivisEchanges].filter((x) => !filtreSuivi || x.point.type === filtreSuivi).length + nouveauxSuivis.filter((x) => !filtreSuivi || x.type === filtreSuivi).length;
         return (
           <>
             <TitreFiche icone="☀️" titre="Situation" vide="" sous={sous(`${it.nom} · du ${dateCourte(it.start)} au ${dateCourte(it.end)} · ${equipe?.nom ?? ''}`)} />
@@ -854,7 +857,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               <Compteur valeur={String(s.retard)} libelle="en retard" ton={s.retard ? 'orange' : undefined} />
             </View>
             <SectionFiche
-              titre={`📌 Suivis · ${filtreSuivi ? `${[...suivisEquipe, ...suivisEchanges].filter((x) => x.point.type === filtreSuivi).length + reportes.filter((x) => x.type === filtreSuivi).length + nouveauxSuivis.filter((x) => x.type === filtreSuivi).length} sur ` : ''}${suivisEquipe.length + suivisEchanges.length + reportes.length + nouveauxSuivis.length}`}
+              titre={`📌 Suivis · ${nSuivisVus}${reportesVus.length || vueSuivi === 'notes' ? ` · Notes à concrétiser · ${reportesVus.length}` : ''}`}
               droite={
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   {nValider > 0 && (
@@ -862,13 +865,20 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                       <Text style={[st.puceValiderTexte, aValider && st.puceValiderTexteOn]}>À valider · {nValider}</Text>
                     </Pressable>
                   )}
-                  <PastilleFiltres actif={!!filtreSuivi} ouvert={filtresSuiviOuverts} onPress={() => setFiltresSuiviOuverts((o) => !o)} />
+                  <PastilleFiltres actif={!!filtreSuivi || vueSuivi !== 'tout'} ouvert={filtresSuiviOuverts} onPress={() => setFiltresSuiviOuverts((o) => !o)} />
                 </View>
               }
-              entete={filtresSuiviOuverts && <FiltresType types={['blocage', 'decision', 'action']} value={filtreSuivi} onChange={setFiltreSuivi} />}
+              entete={
+                filtresSuiviOuverts && (
+                  <>
+                    <FiltresVue value={vueSuivi} onChange={setVueSuivi} nSuivis={suivisEquipe.length + suivisEchanges.length + nouveauxSuivis.length} nNotes={reportes.length} />
+                    <FiltresType types={['blocage', 'decision', 'action']} value={filtreSuivi} onChange={setFiltreSuivi} />
+                  </>
+                )
+              }
             >
-              <LignesSuivi points={nouveauxSuivis.filter((x) => !filtreSuivi || x.type === filtreSuivi)} ctx={{ ...ctxSuivi, lecture }} aValider={aValider && nValider > 0} />
-              {!aValider && suivisEquipe.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).map(({ point, tache }, i) => (
+              <LignesSuivi points={vueSuivi === 'notes' ? [] : nouveauxSuivis.filter((x) => !filtreSuivi || x.type === filtreSuivi)} ctx={{ ...ctxSuivi, lecture }} aValider={aValider && nValider > 0} />
+              {!aValider && vueSuivi !== 'notes' && suivisEquipe.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).map(({ point, tache }, i) => (
                 <Ligne
                   key={point.id}
                   premiere={!nouveauxSuivis.length && i === 0}
@@ -878,7 +888,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 />
               ))}
               {/* Blocages passés en 🔄 Synchro : suivis tant que l'échange existe (sans historique) */}
-              {!aValider && suivisEchanges.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).map(({ point, echange }, i) => (
+              {!aValider && vueSuivi !== 'notes' && suivisEchanges.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).map(({ point, echange }, i) => (
                 <Ligne
                   key={point.id}
                   premiere={!nouveauxSuivis.length && !suivisEquipe.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).length && i === 0}
@@ -892,12 +902,12 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 />
               ))}
               {/* Points de suivi reportés : escalades reçues et réponses recopiées, à concrétiser (cas d'usage 1 et 2) */}
-              {!aValider && reportes.filter((x) => !filtreSuivi || x.type === filtreSuivi).map((point, i) => (
+              {!aValider && vueSuivi !== 'suivis' && reportesVus.map((point, i) => (
                 <Ligne
                   key={point.id}
                   premiere={!nouveauxSuivis.length && !suivisEquipe.length && !suivisEchanges.length && i === 0}
                   texte={point.texte}
-                  sous={sousLigneSuivi(point.type === 'decision' ? 'réponse reçue' : 'transmis reçu', nomDe(point.personne), 'à concrétiser', 'De')}
+                  sous={`📝 Note à concrétiser · notée le ${jourCourt(point.reunion.slice(-10))} par ${nomDe(point.personne)}`}
                   pastille={{ ...pastilleSuivi(point, jour), ton: tonType(point.type) }}
                 />
               ))}
