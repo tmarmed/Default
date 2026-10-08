@@ -30,6 +30,13 @@ Validation écran par écran, puis les deux blocs codés (captures vérifiées d
 - **Chantier à part (mode Simple)** : modèle des réunions du mode Simple pour une personne, une équipe, une entreprise
   (réunion mensuelle, annuelle…), qui animent ; adapter alors les suivis et le Chat (déjà branchés) à ce modèle.
 
+- Décidé (08/10, suite) : rappel « 📌 À valider » sans « Lu ✓ » (il part quand le suivi est validé, ici ou en
+  réunion) ; type de note « Information » ; Risque et Dépendance pour les réunions du train (PI Planning, ART sync) ;
+  étape « Suivis » du mode Simple sautée si vide ; « Suivi dans › » abandonné ; réunions d'un espace Équipe masqué :
+  pas dans les onglets mais rappelées par les popups, et proposées dans « Suivre à » ; participants non modifiables
+  (repris de l'Organisation) ; onglet « Compte rendu » visible de toute l'équipe, même sans avoir participé (plus
+  tard peut-être : ajouter des participants).
+
 ## Session d'après
 - **Pilotage (lot 5)** : reprendre le brainstorm (pilotage et calendrier ; voir docs/mission.html lot 5).
 
