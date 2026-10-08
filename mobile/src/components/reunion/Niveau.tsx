@@ -332,6 +332,20 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
   const [cleAnim, setCleAnim] = useState('');
   const [idx, setIdx] = useState<Record<string, number>>({});
   const [choix, setChoix] = useState<Record<string, string>>({});
+  // Revue des OKR (08/10) : « Ajuster » ajoute une note à concrétiser (Responsable, Échéance) ; une autre décision la retire
+  const [notesAjuster, setNotesAjuster] = useState<Record<string, string>>({});
+  const decider = (y: { id: string; titre: string }, z: string) => {
+    setChoix((m) => ({ ...m, [y.id]: z }));
+    if (p.reunion.type !== 'revue_okr') return;
+    const deja = notesAjuster[y.id];
+    if (z === 'Ajuster' && !deja) {
+      const pt = r.noter({ personne: r.mail, type: 'action', texte: `Ajuster l’OKR « ${y.titre} »`, element: y.id });
+      setNotesAjuster((m) => ({ ...m, [y.id]: pt.id }));
+    } else if (z !== 'Ajuster' && deja) {
+      r.retirerNote(deja);
+      setNotesAjuster(({ [y.id]: _x, ...reste }) => reste);
+    }
+  };
   const [vote, setVote] = useState<VoteEtat | undefined>(undefined);
   const [decision, setDecision] = useState<DecisionVote | undefined>(undefined);
   useEffect(() => {
@@ -491,7 +505,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
             )}
             {et.choix && (
               <SectionFiche titre="Décision">
-                <View style={{ padding: 12 }}>{lecture ? <Text style={st.texte}>{choix[y.id] || 'À décider'}</Text> : <Pastilles petit options={et.choix.map((z) => ({ value: z, label: z }))} value={choix[y.id] ?? ''} onChange={(z) => setChoix((m) => ({ ...m, [y.id]: z }))} />}</View>
+                <View style={{ padding: 12 }}>{lecture ? <Text style={st.texte}>{choix[y.id] || 'À décider'}</Text> : <Pastilles petit options={et.choix.map((z) => ({ value: z, label: z }))} value={choix[y.id] ?? ''} onChange={(z) => decider(y, z)} />}</View>
               </SectionFiche>
             )}
             {ajoutDe(et.ajout, lecture || !r.anime, y.id)}
@@ -637,6 +651,17 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
         parEsp.set(esp, [...(parEsp.get(esp) ?? []), { id, etat }]);
       }
       for (const [esp, l] of parEsp) await p.actions.modifierEntites(esp, 'epic', l);
+    }
+    // Revue des OKR : « Arrêter » clôt l'OKR (fin aujourd'hui) ; une écriture groupée par Sheet
+    if (p.reunion.type === 'revue_okr' && p.actions.modifierEntites) {
+      const jourFin = p.reunion.debut.slice(0, 10);
+      const parEsp = new Map<string, { id: string; fin: string }[]>();
+      for (const [id, v] of dec) {
+        const o = c.e.h.objectifList.find((x) => x.id === id);
+        if (!o || v !== 'Arrêter') continue;
+        parEsp.set(o.espace || 'moi', [...(parEsp.get(o.espace || 'moi') ?? []), { id, fin: jourFin }]);
+      }
+      for (const [esp, l] of parEsp) await p.actions.modifierEntites(esp, 'objectif', l);
     }
     await r.envoyerCompteRendu({
       iteration: '',

@@ -24,7 +24,7 @@ Validation écran par écran, puis les deux blocs codés (captures vérifiées d
   plusieurs destinataires : « n réponses sur m », 🔔 Relancer, ⊘ Clôturer chez tous ; message retiré par
   l'expéditeur : la note liée passe à « Clos par l'expéditeur ». (Le Responsable d'une autre équipe recevait déjà
   « 📌 Nouveau suivi » au compte rendu.)
-- Codé ensuite : rappel sans « Lu ✓ » ; notes « Information » (Rien proposé), « Risque » et « Dépendance » au train ;
+- Codé ensuite : rappel sans « Lu ✓ » ; notes « Information » (concrétisées comme les autres, Rien possible), « Risque » et « Dépendance » au train ;
   étape « Suivis » du mode Simple sautée si vide. Déjà en place : « Suivre à » propose les dailies des espaces Équipe
   (chargés même masqués) ; onglet « Compte rendu » ouvert à tous ceux qui ouvrent la réunion ; participants repris de
   l'Organisation. Reste : un « Je m'en occupe » d'avant le 08/10 ne prévient personne (sans importance).
@@ -45,7 +45,8 @@ Validation écran par écran, puis les deux blocs codés (captures vérifiées d
 - (Abandonné le 08/10 : « Suivi dans › », « Mes suivis » hors réunion, « Valider ? » d'une tâche terminée.)
 
 ## Questions ouvertes à l'utilisateur
-- Lot 5 pilotage (brainstorm sans réponse) ; écrire les décisions des epics ; plus tard : ajouter des participants.
+- Lot 5 pilotage (brainstorm sans réponse) ; plus tard : ajouter des participants. (Fait le 08/10 : revue des OKR,
+  « Arrêter » clôt l'OKR, « Ajuster » ajoute une note à concrétiser ; l'état des epics était déjà écrit.)
 
 ## Fait récemment (08/10)
 - Suivis complets (statuts, validation, Chat « Valider ? », escalade qui redescend), vocabulaire Notes / Suivis partout (plus de « point »), fiche de l'élément en deux blocs, escalader force « Suivre », fichiers .md.

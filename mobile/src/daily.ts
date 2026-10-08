@@ -110,7 +110,7 @@ export const TYPES_NOTE_TRAIN: TypePoint[] = [...TYPES_NOTE, 'risque', 'dependan
 
 /** Concrétisation proposée : sous-tâche de la story (sinon tâche à part) pour un blocage ou une action ; rien pour une décision */
 export function concretisationParDefaut(p: Pick<PointReunion, 'type' | 'element' | 'sous_type'>): Concretisation {
-  if ((p.type === 'decision' && p.sous_type !== 'a_prendre') || p.type === 'information') return 'rien';
+  if (p.type === 'decision' && p.sous_type !== 'a_prendre') return 'rien';
   return p.element ? 'sous_tache' : 'tache';
 }
 /** Sous-titre d'une ligne de suivi en toutes lettres : « 📌 Suivi · tâche à part · Responsable : Emma Roy · à faire » */

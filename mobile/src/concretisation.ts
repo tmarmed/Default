@@ -90,7 +90,7 @@ export function choixParDefaut(
   pt: Pick<PointReunion, 'type' | 'texte' | 'element' | 'personne' | 'responsable' | 'sous_type'>,
   o: { animateur: string; echeance: string; h: H; moi: string },
 ): ChoixConcret {
-  const que: QueFaire = pt.type === 'action' ? 'creer' : (pt.type === 'decision' && pt.sous_type === 'prise') || pt.type === 'information' ? 'rien' : 'suivre';
+  const que: QueFaire = pt.type === 'action' ? 'creer' : pt.type === 'decision' && pt.sous_type === 'prise' ? 'rien' : 'suivre';
   const type = typeParDefaut(pt.element, o.h);
   const resp = (pt.responsable || pt.personne).toLowerCase();
   return {
