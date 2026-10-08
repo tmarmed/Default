@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import type { Echange } from '../types';
 import { ChampFiche, FeuilleChoix, SaisieFiche, SectionFiche } from './Choix';
-import { estAutre, FilEchange, groupesFaireSuivre, type Hierarchie, type MessageApp, placeholderNote, reponsePrete } from './EchangesView';
+import { estAutre, exigeMotif, FilEchange, groupesFaireSuivre, type Hierarchie, type MessageApp, placeholderNote, reponsePrete } from './EchangesView';
 import { FormSheet, TitreFiche } from './FormSheet';
 import { idsPieces, PiecesEchange } from './Pieces';
 
@@ -187,8 +187,8 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
                 </Pressable>
               ))}
             </SectionFiche>
-            <SectionFiche titre={estAutre(choix) ? 'Précision' : 'Remarque'} aDefinir={estAutre(choix) && !note.trim() ? 1 : 0}>
-              <ChampFiche label={estAutre(choix) ? 'Pourquoi « Autre »' : 'Remarque'} colonne>
+            <SectionFiche titre={estAutre(choix) ? 'Précision' : exigeMotif(choix) ? 'Motif' : 'Remarque'} aDefinir={(estAutre(choix) || exigeMotif(choix)) && !note.trim() ? 1 : 0}>
+              <ChampFiche label={estAutre(choix) ? 'Pourquoi « Autre »' : exigeMotif(choix) ? 'Motif' : 'Remarque'} colonne>
                 <SaisieFiche placeholder={placeholderNote(choix)} value={note} onChangeText={setNote} multiline />
               </ChampFiche>
             </SectionFiche>

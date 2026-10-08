@@ -257,3 +257,5 @@ const s = StyleSheet.create({
   inactif: { opacity: 0.4 },
   boutonTexte: { color: '#fff', fontWeight: '700', fontSize: 15.5 },
 });
+/** Styles de la feuille (repris par la feuille du point de suivi) */
+export const stylesFeuille = s;

@@ -15,7 +15,7 @@ import { type Reunion, TYPES_REUNION } from '../src/types';
 import { iterationOf, iterationsOf, lireCalendrier, piOf } from '../src/pi';
 import { checkParent } from '../src/subtasks';
 import { choixParDefaut, concretisationDe, elementACreer, patchConcretise, rattachementPour } from '../src/concretisation';
-import { statutEffectif } from '../src/pointsSuivi';
+import { actionDuChoix, lireRef, planSuivi, roleEscalade, statutEffectif } from '../src/pointsSuivi';
 import { avecCriteres, capacite, criteresDe, etatPrete, feriesFrance, joursOuvres, lireNombre, nombreFr } from '../src/reunionsEquipe';
 
 let erreurs = 0;
@@ -354,6 +354,33 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const pch = patchConcretise(b, 'ech1');
   ok(pch.statut === 'en_cours' && pch.validateur === 'nina@x' && pch.echeance === '2026-10-14', 'point concrétisé : en cours, validateur, échéance');
   ok(statutEffectif({ statut: 'en_cours', concretisation: 'tache', tache: 't9' }, [it({ id: 't9', statut: 'termine' })]) === 'fait', 'tâche créée terminée : le point passe à Fait');
+}
+// Points de suivi (08/10) : Fait → « Valider ? », validation, escalade qui redescend, refus qui rouvre le haut
+{
+  const nom = (m: string) => ({ 'emma@x': 'Emma Roy', 'nina@x': 'Nina Dupont', 'sara@x': 'Sara Martin' })[m] ?? m;
+  const pt = (x: object) => ({ id: 'p1', reunion: 'daily-equipeagile:eq-2026-10-07', personne: 'emma@x', auteur: 'emma@x', type: 'action', texte: 'Revoir le panier', element: '', concretisation: 'suivi', tache: '', responsable: 'emma@x', cree_le: '', statut: 'en_cours', validateur: 'nina@x', ...x }) as never;
+  const ech = (x: object) => ({ id: 'q1', de: 'emma@x', a: 'nina@x', type: 'question', titre: '', texte: '', choix: '', reponse: '', note: '', statut: 'envoye', element: '', niveau: '', transmis_par: '', prive: '1', cree_le: '', modifie_le: '', espace: 'esp', ...x }) as never;
+  const base = { espace: 'esp', note: '', animateur: 'nina@x', nomDe: nom, echanges: [] as never[], niveau: 'equipeagile:eq' };
+  const f = planSuivi({ ...base, pt: pt({}), action: 'fait', moi: 'emma@x' });
+  ok(f.points[0].patch.statut === 'fait' && f.envoyer.length === 1 && f.envoyer[0].a === 'nina@x' && f.envoyer[0].type === 'question' && f.envoyer[0].point === 'esp|p1', 'Fait par le responsable : « Valider ? » à la validatrice, relié au point');
+  ok(planSuivi({ ...base, pt: pt({ responsable: 'nina@x' }), action: 'fait', moi: 'nina@x' }).envoyer.length === 0, 'Fait par la validatrice elle-même : pas de message');
+  const v = planSuivi({ ...base, pt: pt({ statut: 'fait' }), action: 'valider', moi: 'nina@x', echanges: [ech({ point: 'esp|p1' })] });
+  ok(v.points[0].patch.statut === 'valide' && v.echanges[0]?.patch.statut === 'pris_en_compte' && !v.envoyer.length, 'Validé en réunion : le « Valider ? » du Chat est réglé, rien n’est envoyé');
+  const r = planSuivi({ ...base, pt: pt({ statut: 'fait' }), action: 'reprendre', note: 'manque le mobile', moi: 'nina@x' });
+  ok(r.points[0].patch.statut === 'a_reprendre' && r.envoyer[0]?.a === 'emma@x' && r.envoyer[0].texte.includes('manque le mobile'), 'À reprendre : motif envoyé au responsable');
+  // Escalade : P1 (daily, bas) → P2 (ART sync, haut) ; l'échange ⤴ e1 garde la référence de P1
+  const e1 = ech({ id: 'e1', de: 'nina@x', a: 'sara@x', type: 'message', point: 'espBas|p1', espace: 'espHaut' });
+  const p2 = pt({ id: 'p2', reunion: 'art_sync-train:tr-2026-10-14', concretisation: 'suivi', tache: 'e1', echange: 'e1', responsable: 'sara@x', validateur: 'sara@x', statut: 'fait' });
+  ok(roleEscalade(p2) === 'haut' && roleEscalade(pt({ concretisation: 'escalade', tache: 'e1', echange: 'e1' })) === 'bas', 'escalade : point du bas, point du haut');
+  const h = planSuivi({ ...base, espace: 'espHaut', pt: p2, action: 'valider', note: 'accès donné le 15/10', moi: 'sara@x', animateur: 'sara@x', echanges: [e1] });
+  const bas = h.points.find((x) => x.espace === 'espBas');
+  ok(bas?.patch.id === 'p1' && bas.patch.statut === 'fait' && bas.patch.note?.includes('accès donné') === true, 'haut validé : le point du bas passe à Fait avec la réponse');
+  ok(h.envoyer[0]?.a === 'nina@x' && h.envoyer[0].point === 'espBas|p1|espHaut|p2' && h.echanges[0]?.patch.statut === 'pris_en_compte', '« Valider ? » à Nina, avec les deux points ; l’échange ⤴ est réglé');
+  const ref = lireRef(h.envoyer[0].point ?? '');
+  ok(ref?.haut?.id === 'p2' && actionDuChoix('À reprendre (motif)') === 'reprendre', 'référence lue ; choix du Chat compris');
+  const q = ech({ id: 'q2', de: 'sara@x', a: 'nina@x', point: h.envoyer[0].point });
+  const refus = planSuivi({ ...base, espace: 'espBas', pt: pt({ concretisation: 'escalade', tache: 'e1', echange: 'e1', statut: 'fait', responsable: 'sara@x' }), action: 'reprendre', note: 'toujours refusé', moi: 'nina@x', question: q });
+  ok(refus.points.find((x) => x.espace === 'espHaut')?.patch.statut === 'a_reprendre' && refus.points[0].patch.statut === 'en_cours' && refus.envoyer[0]?.a === 'sara@x', 'refus au bas : le haut est rouvert, le bas attend de nouveau, Sara est prévenue');
 }
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
 process.exit(erreurs ? 1 : 0);

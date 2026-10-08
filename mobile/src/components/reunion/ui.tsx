@@ -412,6 +412,10 @@ export function Entonnoir({ couleur }: { couleur: string }) {
 }
 
 export const st = StyleSheet.create({
+  puceValider: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 12, backgroundColor: '#E8F5EC' },
+  puceValiderOn: { backgroundColor: '#1B7F3B' },
+  puceValiderTexte: { fontSize: 12, fontWeight: '700', color: '#1B7F3B' },
+  puceValiderTexteOn: { color: '#fff' },
   filtresTete: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, marginHorizontal: 4 },
   pastilleFiltres: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 28, paddingHorizontal: 8, borderRadius: 15, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
   pastilleFiltresActive: { backgroundColor: '#EAF2FE', borderColor: '#CFE0FB' },

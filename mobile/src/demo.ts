@@ -465,6 +465,7 @@ const SEEDS_ENTREPRISE: Seeds = {
     const nina = 'nina.dupont@acme.example';
     const emma = 'emma.roy@acme.example';
     const paul = 'paul.leroy@acme.example';
+    const sara = 'sara.martin@acme.example';
     const pt = (id: string, x: Partial<PointReunion>): PointReunion => ({
       id, reunion: reunion(jour), personne: tom, auteur: tom, type: 'hier', texte: '', element: '', concretisation: '', tache: '', responsable: '', cree_le: new Date(Date.now() - 3600_000).toISOString(), ...x,
     });
@@ -476,6 +477,10 @@ const SEEDS_ENTREPRISE: Seeds = {
       pt('acmpt5', { type: 'blocage', texte: 'Le serveur de test refuse les connexions', element: 'acm4' }),
       pt('acmpt6', { reunion: reunion(veille), type: 'blocage', texte: 'Règles du mot de passe à confirmer', element: 'acm4', concretisation: 'synchro', tache: 'acmx3', responsable: paul, auteur: nina, cree_le: `${veille}T09:41:00.000Z` }),
       pt('acmpt7', { reunion: reunion(avant), personne: paul, auteur: nina, type: 'action', texte: 'Clarifier les règles de remboursement', concretisation: 'tache', tache: 'acm12', responsable: paul, cree_le: `${avant}T09:44:00.000Z` }),
+      // Points de suivi (08/10) à valider par vous : fait par Emma ; en retard ; escalade revenue avec la réponse du RTE
+      pt('acmpt8', { reunion: reunion(avant), personne: emma, auteur: MOI_DEMO, type: 'action', texte: 'Revoir les maquettes du panier', element: 'acm4', concretisation: 'suivi', responsable: emma, statut: 'fait', validateur: MOI_DEMO, echeance: veille, note: 'Maquettes revues avec le PO', cree_le: `${avant}T09:45:00.000Z` }),
+      pt('acmpt9', { reunion: reunion(avant), personne: paul, auteur: MOI_DEMO, type: 'blocage', texte: 'Relancer le service juridique', concretisation: 'suivi', responsable: paul, statut: 'en_cours', validateur: MOI_DEMO, echeance: avant, cree_le: `${avant}T09:46:00.000Z` }),
+      pt('acmpt10', { reunion: reunion(avant), type: 'blocage', texte: 'API de paiement bloquée', element: 'acm4', concretisation: 'escalade', tache: 'acmx4', echange: 'acmx4', responsable: sara, statut: 'fait', validateur: MOI_DEMO, note: 'Réponse de Sara Martin : accès donné par le prestataire (clé dans le coffre)', cree_le: `${avant}T09:47:00.000Z` }),
     ];
   },
   entities: () => {
@@ -523,6 +528,17 @@ const SEEDS_ENTREPRISE: Seeds = {
         element: 'acm4',
         transmis_par: 'nina.dupont@acme.example',
         cree_le: `${joursOuvresAvant(prochainDaily(new Date()), 1)}T09:45:00.000Z`,
+      }),
+      // « Valider ? » d'un point de suivi (08/10) : la réponse de l'escalade est redescendue, à vous de valider
+      ech('acmx5', {
+        de: 'sara.martin@acme.example',
+        a: MOI_DEMO,
+        type: 'question',
+        titre: 'Valider ? API de paiement bloquée',
+        texte: 'Réponse de Sara Martin : accès donné par le prestataire (clé dans le coffre)',
+        choix: 'Valider;Re-concrétiser;À reprendre (motif);Abandonner (motif)',
+        element: 'acm4',
+        point: 'demo-entreprise|acmpt10',
       }),
     ];
     return e;

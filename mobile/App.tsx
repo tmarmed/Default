@@ -116,6 +116,7 @@ import {
 } from './src/storage';
 import { colors } from './src/theme';
 import { expandRange, listEntries, toggleDone } from './src/recurrence';
+import { actionDuChoix, appliquerPlan, lireRef, planSuivi, refPoint } from './src/pointsSuivi';
 import {
   Domaine,
   EntityKind,
@@ -147,6 +148,7 @@ import {
   DOMAINES_DE_BASE,
   TYPES_REUNION,
   type Reunion,
+  type PointReunion,
 } from './src/types';
 
 type Filter = TypeFiltre;
@@ -1675,6 +1677,19 @@ function Main() {
       });
       return crees;
     },
+    modifierEchanges: async (l) => {
+      if (!settings || !l.length) return;
+      // Un lot par espace : questions « Valider ? » réglées, échange ⤴ relié à son point (08/10)
+      const parEsp = new Map<string, typeof l>();
+      for (const x of l) parEsp.set(x.e.espace ?? 'moi', [...(parEsp.get(x.e.espace ?? 'moi') ?? []), x]);
+      const modifies: Echange[] = [];
+      for (const [esp, ll] of parEsp) modifies.push(...(await api.ecrireLot(settings, esp, 'echange', [], ll.map((x) => ({ ...x.patch, id: x.e.id })))).modifies);
+      setHier((prev) => {
+        const next = { ...prev, echanges: (prev.echanges ?? []).map((x) => modifies.find((m) => m.id === x.id) ?? x) };
+        saveHierarchyCache(next).catch(() => {});
+        return next;
+      });
+    },
     repondreEchanges: async (reponses) => {
       if (!settings || !reponses.length) return;
       // Un lot par espace (en pratique, celui de l'équipe) : réponse normale à l'échange
@@ -1702,12 +1717,25 @@ function Main() {
   };
   /** Points de suivi des escalades (cas d'usage 1 et 2) : une écriture par Sheet concerné */
   const ecrireSuivis = async (l: PointAEcrire[]) => {
-    if (!settings) return;
-    for (const [esp, pts] of pointsParEspace(l)) await api.ecrirePoints(settings, esp, pts, [], []);
+    const out: { espace: string; point: PointReunion }[] = [];
+    if (!settings) return out;
+    for (const [esp, pts] of pointsParEspace(l)) out.push(...(await api.ecrirePoints(settings, esp, pts, [], [])).crees.map((point) => ({ espace: esp, point })));
+    return out;
   };
   /** Réponse dans Synchro : recopiée en « Décision » dans les réunions de la chaîne, si l'échange est une escalade */
   const repondreEchange = async (e: Echange, reponse: string, note: string) => {
     await saveEntity('echange', e, { reponse, note, statut: 'repondu' });
+    // « Valider ? » d'un point de suivi (08/10) : la réponse agit sur le point, comme en réunion
+    const ref = lireRef(e.point ?? '');
+    const action = actionDuChoix(reponse);
+    if (ref && action && action !== 'reconcretiser' && settings) {
+      const pt = (await api.lirePoints(settings, ref.espace, '')).find((x) => x.id === ref.id);
+      if (pt) {
+        const plan = planSuivi({ pt, espace: ref.espace, action, note, moi: moiEchange, animateur: pt.validateur || moiEchange, nomDe: nomEchange, echanges: tousHier.echanges ?? [], niveau: e.niveau, question: e });
+        await appliquerPlan(plan, actionsDaily);
+      }
+      setInfo(`Point « ${(e.titre || '').replace(/^Valider \? /, '')} » : ${reponse.replace(' (motif)', '').toLowerCase()}.`);
+    } else if (ref && action === 'reconcretiser') setInfo('Point à re-concrétiser : ouvrez-le dans le Suivi de la réunion (« À valider »).');
     await ecrireSuivis(pointsReponse(e, moiEchange, reponse, today, orgEchanges));
   };
   /** Réponse déjà donnée (pas encore prise en compte) : retirée, la question repart à la nouvelle personne */
@@ -1733,7 +1761,10 @@ function Main() {
       // Cas d'usage 2 : l'échange monte (marqué ⤴), points de suivi dans la réunion de chacun des deux
       const titre = titreEscalade(e.titre || e.texte.slice(0, 80));
       await saveEntity('echange', e, { a: x.email, niveau: ecrireNiveau(x.niveau), transmis_par: moiEchange, titre, ...repartir(e) });
-      await ecrireSuivis(pointsEscalade({ echange: { ...e, titre }, par: moiEchange, vers: x.email, avant: lireNiveau(e.niveau), apres: x.niveau, jour: today, org: orgEchanges }));
+      const ecrits = await ecrireSuivis(pointsEscalade({ echange: { ...e, titre }, par: moiEchange, vers: x.email, avant: lireNiveau(e.niveau), apres: x.niveau, jour: today, org: orgEchanges }));
+      // L'échange ⤴ garde le point du bas : la validation du niveau du dessus redescendra sur lui (08/10)
+      const bas = ecrits.find((y) => y.point.concretisation === 'escalade');
+      if (bas) await saveEntity('echange', e, { point: refPoint(bas.espace, bas.point.id) });
       setInfo(`Message « ${e.titre || e.texte.slice(0, 40)} » escaladé à ${nomEchange(x.email)} (${libelleNiveau(x.niveau, orgEchanges)}).`);
     },
     onTransmettre: async (e, email) => {

@@ -544,8 +544,10 @@ function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier, libe
 
 /** Réponse « Autre » : la personne précise laquelle (remarque obligatoire) */
 export const estAutre = (c: string) => c.trim().toLowerCase() === 'autre';
-export const placeholderNote = (c: string) => (estAutre(c) ? 'Précisez votre réponse « Autre » (obligatoire)' : 'Remarque (facultatif)');
-export const reponsePrete = (c: string, note: string) => !!c && (!estAutre(c) || !!note.trim());
+/** Choix « … (motif) » (« Valider ? » d'un point de suivi : À reprendre, Abandonner) : motif obligatoire */
+export const exigeMotif = (c: string) => /\(motif\)$/.test(c.trim());
+export const placeholderNote = (c: string) => (estAutre(c) ? 'Précisez votre réponse « Autre » (obligatoire)' : exigeMotif(c) ? 'Motif (obligatoire)' : 'Remarque (facultatif)');
+export const reponsePrete = (c: string, note: string) => !!c && ((!estAutre(c) && !exigeMotif(c)) || !!note.trim());
 
 function CarteQuestion({ e, onRepondre, pied, onOuvrir }: { e: Echange; onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>; pied?: ReactNode; onOuvrir?: () => void }) {
   const [choix, setChoix] = useState('');
@@ -568,7 +570,7 @@ function CarteQuestion({ e, onRepondre, pied, onOuvrir }: { e: Echange; onRepond
           </Pressable>
         ))}
       </View>
-      <TextInput value={note} onChangeText={setNote} placeholder={placeholderNote(choix)} placeholderTextColor={estAutre(choix) ? colors.warning : '#9AA3AF'} multiline style={[s.note, estAutre(choix) && !note.trim() && { borderColor: colors.warning }]} />
+      <TextInput value={note} onChangeText={setNote} placeholder={placeholderNote(choix)} placeholderTextColor={estAutre(choix) || exigeMotif(choix) ? colors.warning : '#9AA3AF'} multiline style={[s.note, (estAutre(choix) || exigeMotif(choix)) && !note.trim() && { borderColor: colors.warning }]} />
       <Pressable
         disabled={!reponsePrete(choix, note) || busy}
         onPress={async () => {

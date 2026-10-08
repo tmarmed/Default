@@ -103,7 +103,7 @@ export function pointsEscalade(o: {
   dejaNote?: boolean;
 }): PointAEcrire[] {
   const texte = (o.echange.titre.replace(MARQUE_ESCALADE, '').replace(MARQUE_TRANSMIS, '').replace(/^Blocage · /, '') || o.echange.texte).slice(0, 300);
-  const base = { type: 'blocage' as const, texte, element: o.echange.element, tache: o.echange.id, personne: o.par.toLowerCase(), auteur: o.par.toLowerCase() };
+  const base = { type: 'blocage' as const, texte, element: o.echange.element, tache: o.echange.id, echange: o.echange.id, personne: o.par.toLowerCase(), auteur: o.par.toLowerCase() };
   const out: PointAEcrire[] = [];
   const bas = reunionDeNiveau(o.avant, o.org);
   const recu = reunionDeNiveau(o.apres, o.org);

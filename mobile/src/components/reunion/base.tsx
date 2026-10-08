@@ -27,7 +27,8 @@ import { aReprendre, parEspace, pointsEscalade, titreEscalade } from '../../suiv
 import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, patchConcretise, resumeChoix, resumePoint } from '../../concretisation';
 import { FeuilleConcretiser } from './Concretiser';
 import { libelleElement } from '../../elementConcerne';
-import { echeanceParDefaut } from '../../pointsSuivi';
+import { echeanceParDefaut, relierEscalades, validateurDe } from '../../pointsSuivi';
+import { type CtxSuivi, LignesSuivi, pointsDeSuivi, statutAffiche } from './Suivi';
 import { colors } from '../../theme';
 import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type TypePoint, TYPES_REUNION } from '../../types';
 import { FeuilleChoix, SectionFiche } from '../Choix';
@@ -432,7 +433,10 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     }
     const envoyes = lot.length ? await actions.envoyerEchanges(espace, lot) : [];
     const echangeDuPoint = new Map(escaladesEnvoyees.map((d, i) => [d.pt.id, envoyes[synchros.length + i]?.id ?? '']));
-    const patch = (d: (typeof decides)[number]) => patchConcretise(d, tacheDe.get(d.pt.id) || echangeDuPoint.get(d.pt.id) || (d.pt.type === 'decision' && d.c === 'rien' ? d.pt.tache : '') || (d.c === 'escalade' || d.c === 'suivi' ? d.pt.tache : ''));
+    const patch = (d: (typeof decides)[number]) => ({
+      ...patchConcretise(d, tacheDe.get(d.pt.id) || echangeDuPoint.get(d.pt.id) || (d.pt.type === 'decision' && d.c === 'rien' ? d.pt.tache : '') || (d.c === 'escalade' || d.c === 'suivi' ? d.pt.tache : '')),
+      ...(echangeDuPoint.get(d.pt.id) ? { echange: echangeDuPoint.get(d.pt.id) } : {}),
+    });
     const parPoint = new Map(decides.map((d) => [d.pt.id, d]));
     const creer = [...preparation, ...locaux].map((y) => {
       const d = parPoint.get(y.id);
@@ -449,8 +453,9 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     );
     // Lignes d'état des réunions précédentes de la série : retirées (celle-ci reste jusqu'au compte rendu suivant)
     const etatsAnciens = lus.filter((x) => x.type === 'etat' && !ici(x)).map((x) => x.id);
-    await actions.ecrirePoints(espace, [...creer, ...(recus.get(espace) ?? [])], modifier, [...Object.keys(anciens), ...etatsAnciens, ...(o.retirer ?? [])]);
+    const ecrits = await actions.ecrirePoints(espace, [...creer, ...(recus.get(espace) ?? [])], modifier, [...Object.keys(anciens), ...etatsAnciens, ...(o.retirer ?? [])]);
     for (const [esp, l] of recus) if (esp !== espace) await actions.ecrirePoints(esp, l, [], []);
+    await relierEscalades(actions, espace, envoyes, escaladesEnvoyees.map((d) => d.pt.id), [...preparation, ...locaux].map((y) => y.id), ecrits.crees, echangeDuPoint);
     live.terminer();
     p.onFini?.();
     onInfo?.(
@@ -470,7 +475,43 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     return ids.sort().pop() ?? '';
   }, [lus, prefixe, e.jour]);
 
+  /** Suivi des points (08/10) : statuts, validation, re-concrétisation ; écrit tout de suite */
+  const animateurR = (reunion.organisateur || mail).toLowerCase();
+  const personnesConcret = () => {
+    const moiC = { email: mail, nom: e.nomDe(mail), meta: 'vous' };
+    const equipeC = e.personnes.map((y) => ({ email: y.email.toLowerCase(), nom: y.nom, meta: e.role(y.id) === 'Membre' ? '' : e.role(y.id) }));
+    const validateurs = [...new Map([...equipeC, moiC].map((x) => [x.email, x])).values()];
+    return { moi: moiC, equipe: equipeC, validateurs, contexte: e.situation.cartes.map((t) => t.id) };
+  };
+  const ctxSuivi: CtxSuivi = {
+    espace,
+    jour: e.jour,
+    moi: mail,
+    animateur: animateurR,
+    nomDe: e.nomDe,
+    h: e.h,
+    items: e.h.items,
+    echanges,
+    niveau: e.niveauIci ? `${e.niveauIci.kind}:${e.niveauIci.id}` : '',
+    lecture: false,
+    actions,
+    onPoints: (l) => setLus((ll) => ll.map((x) => l.find((y) => y.id === x.id) ?? x)),
+    concret: personnesConcret(),
+    echeance: echeanceParDefaut(reunion),
+    ctxCreer: (pt) => ({
+      espace,
+      iteration: e.it.key,
+      equipe: e.equipe?.id ?? '',
+      train: e.train?.id,
+      idDe: (m: string) => personneParEmail(m, org)?.id ?? '',
+      description: `${LIBELLE_TYPE_POINT[pt.type]} noté ${opts.nomCourt} ${e.nomNiveau} (${e.nomDe(pt.personne)}), re-concrétisé le ${dateCourte(e.jour)}.`,
+      h: e.h,
+      moi: mail,
+    }),
+    onInfo,
+  };
   return {
+    ctxSuivi,
     e,
     org,
     echanges,
@@ -627,19 +668,34 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
   const { e } = r;
   const [filtre, setFiltre] = useState<TypePoint | ''>('');
   const [ouvert, setOuvert] = useState(false);
-  const suivisEquipe = calculerSuivis(r.serveur, e.h.items);
-  const suivisEch = suivisSynchro(r.serveur, r.echanges);
+  const [aValider, setAValider] = useState(false);
+  // Points de suivi (08/10, avec un statut) à part ; les anciens points (sans statut) gardent leur suivi d'avant
+  const anciensPts = r.serveur.filter((x) => !x.statut);
+  const suivisEquipe = calculerSuivis(anciensPts, e.h.items);
+  const suivisEch = suivisSynchro(anciensPts, r.echanges);
   const passe = (t: TypePoint) => !filtre || t === filtre;
-  const n = suivisEquipe.length + suivisEch.length + r.reportes.length;
-  const nf = suivisEquipe.filter((x) => passe(x.point.type)).length + suivisEch.filter((x) => passe(x.point.type)).length + r.reportes.filter((x) => passe(x.type)).length;
-  let k = 0;
+  const nouveaux = pointsDeSuivi(r.serveur, r.reunionId).filter((x) => passe(x.type));
+  const nValider = nouveaux.filter((x) => statutAffiche(x, e.h.items, e.jour).s === 'fait' && validateurDe(x, r.ctxSuivi.animateur) === r.mail).length;
+  const n = suivisEquipe.length + suivisEch.length + r.reportes.length + pointsDeSuivi(r.serveur, r.reunionId).length;
+  const nf = suivisEquipe.filter((x) => passe(x.point.type)).length + suivisEch.filter((x) => passe(x.point.type)).length + r.reportes.filter((x) => passe(x.type)).length + nouveaux.length;
+  let k = nouveaux.length ? 1 : 0;
   return (
     <SectionFiche
       titre={`Suivi · ${filtre ? `${nf} sur ` : ''}${n}`}
-      droite={<PastilleFiltres actif={!!filtre} ouvert={ouvert} onPress={() => setOuvert((o) => !o)} />}
+      droite={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {nValider > 0 && (
+            <Pressable onPress={() => setAValider((v) => !v)} style={[st.puceValider, aValider && st.puceValiderOn]} accessibilityRole="button" accessibilityState={{ selected: aValider }}>
+              <Text style={[st.puceValiderTexte, aValider && st.puceValiderTexteOn]}>À valider · {nValider}</Text>
+            </Pressable>
+          )}
+          <PastilleFiltres actif={!!filtre} ouvert={ouvert} onPress={() => setOuvert((o) => !o)} />
+        </View>
+      }
       entete={ouvert && <FiltresType types={['blocage', 'decision', 'action']} value={filtre} onChange={setFiltre} />}
     >
-      {suivisEquipe.filter((x) => passe(x.point.type)).map(({ point, tache }) => (
+      <LignesSuivi points={nouveaux} ctx={{ ...r.ctxSuivi, lecture }} aValider={aValider && nValider > 0} />
+      {!aValider && suivisEquipe.filter((x) => passe(x.point.type)).map(({ point, tache }) => (
         <Ligne
           key={point.id}
           premiere={k++ === 0}
@@ -648,7 +704,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
           pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }}
         />
       ))}
-      {suivisEch.filter((x) => passe(x.point.type)).map(({ point, echange }) => (
+      {!aValider && suivisEch.filter((x) => passe(x.point.type)).map(({ point, echange }) => (
         <Ligne
           key={point.id}
           premiere={k++ === 0}
@@ -657,7 +713,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
           pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }}
         />
       ))}
-      {r.reportes.filter((x) => passe(x.type)).map((point) => (
+      {!aValider && r.reportes.filter((x) => passe(x.type)).map((point) => (
         <Ligne key={point.id} premiere={k++ === 0} texte={point.texte} sous={`${point.type === 'decision' ? 'réponse' : 'escalade reçue'} · à concrétiser`} pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }} />
       ))}
       {!n && <Vide texte="✓ Rien en attente des réunions précédentes." />}
@@ -888,8 +944,8 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
 }
 
 /**
- * Compte rendu : `entete` (le résumé propre à la réunion : engagé, acceptées, idées…), puis Créé, Escaladé, Transmis,
- * Points de suivi, Escaladé, Clos ; en lecture seule pour une réunion de la série (`reunionId`), d'après le Sheet.
+ * Compte rendu : `entete` (le résumé propre à la réunion : engagé, acceptées, idées…), puis Créé,
+ * Points de suivi, Escaladé, Transmis, Clos ; en lecture seule pour une réunion de la série (`reunionId`), d'après le Sheet.
  */
 export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode }: { r: R; lecture: boolean; reunionId?: string; entete?: React.ReactNode; iterationCode: string }) {
   const { e } = r;

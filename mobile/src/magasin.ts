@@ -109,7 +109,7 @@ export const ONGLET_PIECES = { nom: 'PiecesJointes', colonnes: ['id', 'piece', '
 /** Points notés pendant les réunions (daily…) : onglet créé au premier usage, dans le Sheet de l'espace de l'équipe */
 export const ONGLET_POINTS = {
   nom: 'PointsReunion',
-  colonnes: ['id', 'reunion', 'personne', 'auteur', 'type', 'texte', 'element', 'concretisation', 'tache', 'responsable', 'cree_le', 'statut', 'validateur', 'echeance', 'note', 'type_cree', 'rattache'],
+  colonnes: ['id', 'reunion', 'personne', 'auteur', 'type', 'texte', 'element', 'concretisation', 'tache', 'responsable', 'cree_le', 'statut', 'validateur', 'echeance', 'note', 'type_cree', 'rattache', 'echange'],
 };
 /** Séries de réunions (07/10) : une ligne par série (règle + exceptions), onglet créé au premier usage */
 export const ONGLET_SERIES = { nom: 'Reunions', colonnes: [...COLONNES_SERIE] as string[] };
@@ -234,7 +234,7 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
     out.prive = out.prive === '0' ? '0' : '1';
     // « Valider ? » d'un point de suivi : « espace|id du point »
     out.point = (out.point ?? '').trim();
-    if (out.point && !/^[0-9A-Za-z-]+\|[0-9A-Za-z-]+$/.test(out.point)) throw new Error('Point lié invalide.');
+    if (out.point && !/^[0-9A-Za-z_-]+\|[0-9A-Za-z_-]+(\|[0-9A-Za-z_-]+\|[0-9A-Za-z_-]+)?$/.test(out.point)) throw new Error('Point lié invalide.');
   } else if (kind === 'resultat') {
     if (!out.titre.trim()) throw new Error('Le titre du résultat clé est obligatoire.');
     if (!out.objectif || !RE_ID.test(out.objectif)) throw new Error('Résultat clé : OKR manquant.');
@@ -366,6 +366,7 @@ export function nettoyerPoint(data: Partial<PointReunion>, base?: PointReunion):
   if (out.echeance && !/^\d{4}-\d{2}-\d{2}$/.test(out.echeance)) out.echeance = '';
   out.note = out.note.trim().slice(0, 1000);
   if (out.rattache && !RE_ID.test(out.rattache)) throw new Error('Rattachement invalide.');
+  if (out.echange && !RE_ID.test(out.echange)) throw new Error('Échange lié invalide.');
   out.type_cree = out.type_cree.replace(/[^a-z_-]/g, '').slice(0, 30);
   return out as unknown as PointReunion;
 }

@@ -336,7 +336,10 @@ export interface Echange {
   pieces_jointes?: string;
   cree_le: string;
   modifie_le: string;
-  /** « Valider ? » d'un point de suivi (08/10) : « espace|id du point » */
+  /**
+   * « Valider ? » d'un point de suivi (08/10) : « espace|id du point » ; pour une escalade, suivi de « |espace|id » du
+   * point du niveau du dessus (« À reprendre » le rouvre). Sur l'échange ⤴ d'une escalade : le point du bas.
+   */
   point?: string;
 }
 export type EchangeInput = Omit<Echange, 'id' | 'cree_le' | 'modifie_le'>;
@@ -613,6 +616,11 @@ export interface PointReunion {
   /** Concrétisation « Créer » : type de l'élément créé et son rattachement (élément du dessus) */
   type_cree?: string;
   rattache?: string;
+  /**
+   * Escalade (08/10) : l'échange ⤴ qui relie ce point à celui de l'autre niveau (le point du bas l'a envoyé, celui du
+   * haut le reçoit) ; la validation du haut redescend par lui
+   */
+  echange?: string;
 }
 export const TYPES_POINT: TypePoint[] = ['hier', 'aujourdhui', 'blocage', 'decision', 'action', 'etat', 'vote', 'donnee'];
 /** Lignes techniques de PointsReunion (état, votes, préparations) : jamais affichées comme des points */
