@@ -79,6 +79,11 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
     par un seul lien note ↔ maillon (noms visibles, contenu non) ; points de contact : lier (message → note
     reformulée), réponse reçue (maillon → note « Fait · réponse reçue »), validation (note validée → le maillon fait
     redescendre), clôture par l'expéditeur (→ note « Clos par l'expéditeur », la note reste).
+  - Confirmé : aucune note créée automatiquement ; tout passe par un bouton ; en transmettant, « 📌 Suivre à … » est
+    précoché (décochable) et demande un texte reformulé. Reformuler est obligatoire à chaque passage Chat → réunion
+    (note, dernier mot, décision). Proposé : entre deux maillons du Chat, le texte suit tel quel (✎ Compléter possible),
+    sauf si l'expéditeur a coché « 🔒 Confidentiel » (alors reformuler pour transmettre). Code actuel à changer :
+    pointsEscalade / pointsReponse (src/suiviEscalade.ts) recopient le texte et créent les notes d'office.
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
