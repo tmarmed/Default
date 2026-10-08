@@ -6,6 +6,8 @@ import {
   dateCourte,
   jourReunion,
   LIBELLE_CONCRETISATION,
+  TYPES_NOTE,
+  TYPES_NOTE_TRAIN,
   sousLigneSuivi,
   LIBELLE_TYPE_POINT, libelleNote,
   pastilleSuivi,
@@ -663,6 +665,8 @@ export function FenetreEquipe({
 
 // ---------------------------------------------------------------------------
 // Blocs communs
+/** Types de note de la réunion : au train (PI Planning, ART sync…), aussi Risque et Dépendance (08/10) */
+const typesNote = (r: R) => (r.e.niveauIci?.kind === 'train' ? TYPES_NOTE_TRAIN : TYPES_NOTE);
 // ---------------------------------------------------------------------------
 /** « Suivi · n » de la Situation : points concrétisés non finis, échanges en attente, points reportés */
 export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAjouter?: boolean }) {
@@ -700,7 +704,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
         ouvert && (
           <>
             <FiltresVue value={vue} onChange={setVue} nSuivis={n - r.reportes.length} nNotes={r.reportes.length} />
-            <FiltresType types={['blocage', 'decision', 'action']} value={filtre} onChange={setFiltre} />
+            <FiltresType types={typesNote(r)} value={filtre} onChange={setFiltre} />
           </>
         )
       }
@@ -730,7 +734,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
       {!n && <Vide texte="✓ Rien en attente des réunions précédentes." />}
       {onAjouter && r.anime && !lecture && (
         <SaisiePoint
-          types={['blocage', 'decision', 'action']}
+          types={typesNote(r)}
           typeDefaut="action"
           titre="Nouveau suivi"
           jour={e.jour}
@@ -783,7 +787,7 @@ export function BlocPoints({
     <SectionFiche
       titre={`${titre} · ${filtre ? `${vus.length} sur ${liste.length}` : liste.length}`}
       droite={<PastilleFiltres actif={!!filtre} ouvert={ouvert} onPress={() => setOuvert((o) => !o)} />}
-      entete={ouvert && <FiltresType types={['blocage', 'decision', 'action']} value={filtre} onChange={setFiltre} />}
+      entete={ouvert && <FiltresType types={typesNote(r)} value={filtre} onChange={setFiltre} />}
     >
       {vus.map((y, i) => {
         const par = y.auteur === r.mail && !pourPrep && r.anime ? 'par le SM' : `par ${e.nomDe(y.personne)}`;
@@ -805,8 +809,8 @@ export function BlocPoints({
         <SaisiePoint
           key={filtre || 'tous'}
           premiere={!vus.length}
-          types={['blocage', 'decision', 'action']}
-          typeDefaut={filtre || 'blocage'}
+          types={typesNote(r)}
+          typeDefaut={filtre || (/Risque/.test(placeholder) && r.e.niveauIci?.kind === 'train' ? 'risque' : 'blocage')}
           titre={filtre ? TITRE_TYPE[filtre] : undefined}
           jour={e.jour}
           placeholder={placeholder}
@@ -943,7 +947,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
         <SectionFiche titre="Note oubliée">
           <SaisiePoint
             premiere
-            types={['blocage', 'decision', 'action']}
+            types={typesNote(r)}
             typeDefaut="blocage"
             titre="Nouvelle note oubliée"
             jour={e.jour}

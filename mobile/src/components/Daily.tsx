@@ -9,6 +9,7 @@ import {
   enRetard,
   jourReunion,
   LIBELLE_CONCRETISATION,
+  TYPES_NOTE,
   sousLigneSuivi,
   LIBELLE_TYPE_POINT, libelleNote,
   PARCOURS_DAILY,
@@ -872,7 +873,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 filtresSuiviOuverts && (
                   <>
                     <FiltresVue value={vueSuivi} onChange={setVueSuivi} nSuivis={suivisEquipe.length + suivisEchanges.length + nouveauxSuivis.length} nNotes={reportes.length} />
-                    <FiltresType types={['blocage', 'decision', 'action']} value={filtreSuivi} onChange={setFiltreSuivi} />
+                    <FiltresType types={TYPES_NOTE} value={filtreSuivi} onChange={setFiltreSuivi} />
                   </>
                 )
               }
@@ -915,7 +916,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               {/* Un point à suivre oublié : ajouté ici, concrétisé dans la même fenêtre (07/10) */}
               {anime && !lecture && (
                 <SaisiePoint
-                  types={['blocage', 'decision', 'action']}
+                  types={TYPES_NOTE}
                   typeDefaut="action"
                   titre="Nouveau suivi"
                   jour={jour}
@@ -989,7 +990,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 <SaisiePoint
                   key={filtreType || 'tous'}
                   premiere={!notes.filter((y) => !filtreType || y.type === filtreType).length}
-                  types={['blocage', 'decision', 'action']}
+                  types={TYPES_NOTE}
                   typeDefaut={filtreType || 'blocage'}
                   titre={filtreType === 'blocage' || filtreType === 'decision' || filtreType === 'action' ? TITRE_TYPE[filtreType] : `Nouvelle note · ${courant.nom}`}
                   jour={jour}
@@ -1080,7 +1081,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 );
               })()}
             <SectionFiche titre="Note oubliée">
-              <SaisiePoint premiere types={['blocage', 'decision', 'action']} typeDefaut="blocage" titre="Nouvelle note oubliée" jour={jour} placeholder="＋ Note oubliée" stories={situation.cartes} onAjouter={(type, texte, element, _c, sous_type) => ajouter({ personne: mail, type, texte, element, sous_type })} />
+              <SaisiePoint premiere types={TYPES_NOTE} typeDefaut="blocage" titre="Nouvelle note oubliée" jour={jour} placeholder="＋ Note oubliée" stories={situation.cartes} onAjouter={(type, texte, element, _c, sous_type) => ajouter({ personne: mail, type, texte, element, sous_type })} />
             </SectionFiche>
           </>
         );

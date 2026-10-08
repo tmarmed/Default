@@ -35,7 +35,8 @@ export interface Transmission {
 export function typeNoteDe(e: Pick<Echange, 'nature' | 'type'>): { type: TypePoint; sous_type: SousType } {
   const n = natureDe(e);
   if (n === 'decision_a_prendre' || n === 'question') return { type: 'decision', sous_type: 'a_prendre' };
-  if (n === 'decision_prise' || n === 'information') return { type: 'decision', sous_type: 'prise' };
+  if (n === 'decision_prise') return { type: 'decision', sous_type: 'prise' };
+  if (n === 'information') return { type: 'information', sous_type: '' };
   if (n === 'action') return { type: 'action', sous_type: '' };
   return { type: 'blocage', sous_type: '' };
 }

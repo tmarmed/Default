@@ -6,6 +6,8 @@ import { useOrg } from '../organisation';
 import { colors } from '../theme';
 import { TYPE_ICONS } from '../types';
 import { CHOIX_NATURE, type Echange, type EchangeInput, LIBELLE_NATURE, type NatureEchange, natureDe, seLitSeulement } from '../types';
+/** Rappel « 📌 À valider » de l'application, relié à un suivi */
+export const estRappel = (e: Pick<Echange, 'titre' | 'point'>) => e.titre.startsWith('📌 À valider ·') && !!e.point;
 /** Icône de la nature d'un message (même vocabulaire que les notes) */
 export const ICONE_NATURE_ECH: Record<Exclude<NatureEchange, ''>, string> = { information: '✉️', question: '❓', blocage: '🧱', decision_a_prendre: '⚖️', decision_prise: '✅', action: '✓' };
 import type { Transmission } from '../echange/transmettre';
@@ -470,7 +472,8 @@ function Conversation({
           e.type === 'question' ? (
             <CarteQuestion key={e.id} e={e} onRepondre={onRepondre} pied={outils(e)} onOuvrir={() => onOuvrir(e)} />
           ) : (
-            <CarteMessage key={e.id} e={e} action="Lu ✓" onAction={() => onRetirer(e)} pied={outils(e)} onOuvrir={() => onOuvrir(e)} />
+            // Rappel « 📌 À valider » : pas de « Lu ✓ », il part quand le suivi est validé (ici ou en réunion)
+            <CarteMessage key={e.id} e={e} {...(estRappel(e) ? {} : { action: 'Lu ✓', onAction: () => onRetirer(e) })} pied={outils(e)} onOuvrir={() => onOuvrir(e)} />
           ),
         )}
       </Bloc>

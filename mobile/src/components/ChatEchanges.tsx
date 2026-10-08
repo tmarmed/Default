@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import type { Echange } from '../types';
 import { ChampFiche, SaisieFiche, SectionFiche } from './Choix';
-import { estAutre, exigeMotif, FilEchange, type Hierarchie, type MessageApp, placeholderNote, reponsePrete } from './EchangesView';
+import { estAutre, estRappel, exigeMotif, FilEchange, type Hierarchie, type MessageApp, placeholderNote, reponsePrete } from './EchangesView';
 import { FormSheet, TitreFiche } from './FormSheet';
 import { idsPieces, PiecesEchange } from './Pieces';
 import { ActionsEchange } from './Transmettre';
@@ -232,7 +232,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
             onPress={() => faire(() => onRepondre(e, choix, note.trim()), `${choix}${note.trim() ? ` — ${note.trim()}` : ''}`)}
           />
         ) : (
-          recue && hierarchie ? null : <Bouton label={recue ? 'Accepter ✓' : 'Lu ✓'} busy={busy} onPress={() => faire(() => onRetirer(e), recue ? 'Accepter ✓' : 'Lu ✓')} />
+          (recue && hierarchie) || estRappel(e) ? null : <Bouton label={recue ? 'Accepter ✓' : 'Lu ✓'} busy={busy} onPress={() => faire(() => onRetirer(e), recue ? 'Accepter ✓' : 'Lu ✓')} />
         )}
       </>
     );

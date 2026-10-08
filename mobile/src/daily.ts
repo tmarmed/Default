@@ -64,6 +64,9 @@ export const LIBELLE_TYPE_POINT: Record<TypePoint, string> = {
   blocage: 'Blocage',
   decision: 'Décision',
   action: 'Demande d’action',
+  information: 'Information',
+  risque: 'Risque',
+  dependance: 'Dépendance',
   etat: 'État',
   vote: 'Vote',
   donnee: 'Préparation',
@@ -100,11 +103,14 @@ export const ageAffiche = (date: string, jour: string) => {
 export const pastilleSuivi = (p: Pick<PointReunion, 'type' | 'reunion' | 'sous_type'>, jour: string) => ({ texte: libelleNote(p), age: ageAffiche(jourPoint(p), jour) });
 
 /** Points à concrétiser : blocages, décisions, actions */
-export const aConcretiser = (p: Pick<PointReunion, 'type'>) => p.type === 'blocage' || p.type === 'decision' || p.type === 'action';
+export const aConcretiser = (p: Pick<PointReunion, 'type'>) => (TYPES_NOTE_TRAIN as string[]).includes(p.type);
+/** Types de note (validation du 08/10) ; au train (PI Planning, ART sync…), aussi Risque et Dépendance */
+export const TYPES_NOTE: TypePoint[] = ['blocage', 'decision', 'action', 'information'];
+export const TYPES_NOTE_TRAIN: TypePoint[] = [...TYPES_NOTE, 'risque', 'dependance'];
 
 /** Concrétisation proposée : sous-tâche de la story (sinon tâche à part) pour un blocage ou une action ; rien pour une décision */
 export function concretisationParDefaut(p: Pick<PointReunion, 'type' | 'element' | 'sous_type'>): Concretisation {
-  if (p.type === 'decision' && p.sous_type !== 'a_prendre') return 'rien';
+  if ((p.type === 'decision' && p.sous_type !== 'a_prendre') || p.type === 'information') return 'rien';
   return p.element ? 'sous_tache' : 'tache';
 }
 /** Sous-titre d'une ligne de suivi en toutes lettres : « 📌 Suivi · tâche à part · Responsable : Emma Roy · à faire » */

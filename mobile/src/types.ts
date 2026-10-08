@@ -604,7 +604,7 @@ export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
  * écrite par l'animateur : texte JSON, voir src/etatReunion.ts), `vote` (le vote d'une personne : texte JSON) et
  * `donnee` (une préparation propre à une réunion : absences, stories choisies, idées… : texte JSON).
  */
-export type TypePoint = 'hier' | 'aujourdhui' | 'blocage' | 'decision' | 'action' | 'etat' | 'vote' | 'donnee';
+export type TypePoint = 'hier' | 'aujourdhui' | 'blocage' | 'decision' | 'action' | 'information' | 'risque' | 'dependance' | 'etat' | 'vote' | 'donnee';
 /**
  * Concrétisation d'un blocage, d'une décision ou d'une action : sous-tâche de l'élément, tâche à part dans
  * l'itération, rien, escalade au RTE, ou (blocage) échange 🔄 Synchro adressé au PO, au SM ou à un membre de
@@ -653,6 +653,6 @@ export interface PointReunion {
   sous_type?: SousType;
 }
 export type SousType = '' | 'a_prendre' | 'prise';
-export const TYPES_POINT: TypePoint[] = ['hier', 'aujourdhui', 'blocage', 'decision', 'action', 'etat', 'vote', 'donnee'];
+export const TYPES_POINT: TypePoint[] = ['hier', 'aujourdhui', 'blocage', 'decision', 'action', 'information', 'risque', 'dependance', 'etat', 'vote', 'donnee'];
 /** Lignes techniques de PointsReunion (état, votes, préparations) : jamais affichées comme des points */
 export const estTechnique = (p: Pick<PointReunion, 'type'>) => p.type === 'etat' || p.type === 'vote' || p.type === 'donnee';
