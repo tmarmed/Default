@@ -18,7 +18,8 @@ export interface PersonneChoix {
 
 /**
  * Feuille « Concrétiser » (08/10, maquettes/escalade-retour) : une section par question, tout prérempli, un seul
- * bouton. Que faire ? · Qui s'en charge ? · Élément concerné · Validation · Échéance. « Créer une tâche… » :
+ * bouton. Que faire ? · Qui s'en charge ? · Validation · Échéance. L'élément concerné est celui du point (choisi en le
+ * notant) : il n'est plus redemandé ici ; « Rattaché à › » part de lui et peut monter plus haut (08/10). « Créer une tâche… » :
  * Type › (tous les types), Titre, Rattaché à › (l'élément du dessus, qui change avec le type).
  */
 export function FeuilleConcretiser({
@@ -170,11 +171,6 @@ export function FeuilleConcretiser({
                       fixe
                     />
                   </View>
-                </View>
-
-                <Text style={s.section}>ÉLÉMENT CONCERNÉ</Text>
-                <View style={s.carte}>
-                  <LigneElement value={c.element} onChange={(v) => set({ element: v })} contexte={contexte} />
                 </View>
 
                 <Text style={s.section}>VALIDATION</Text>
