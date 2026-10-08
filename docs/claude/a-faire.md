@@ -74,6 +74,11 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
     faire redescendre » (↩ Renvoyer à … · ✎ Compléter · ↪ Re-transmettre · ↩ À reprendre) ; à la transmission,
     « Je reste dans la boucle » (défaut) ou « Je me retire » (la réponse saute ce maillon) ; « À reprendre » va au
     voisin du dessus, celui qui m'a renvoyé la réponse (règle du voisin).
+  - Principe confirmé : deux cycles de vie, Message (Chat, privé, éphémère : disparaît une fois fini) et Note (réunion,
+    publique, durable : trace jamais supprimée, c'est là qu'on concrétise et qu'on suit). Indépendants ou liés ; liés
+    par un seul lien note ↔ maillon (noms visibles, contenu non) ; points de contact : lier (message → note
+    reformulée), réponse reçue (maillon → note « Fait · réponse reçue »), validation (note validée → le maillon fait
+    redescendre), clôture par l'expéditeur (→ note « Clos par l'expéditeur », la note reste).
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
