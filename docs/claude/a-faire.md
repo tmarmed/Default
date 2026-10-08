@@ -24,11 +24,13 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
 - [ ] Saisie d'une note : vocabulaire Note (« Nouvelle note · Tom Faure », « NOTE », « Écrivez la note… »,
       « Aucun · note générale »).
 - [ ] Escalade : libellé avec le nom du niveau (« ⤴ Train Clients (escalader) »).
-- [ ] Nouveau type de note « Décision à prendre » (en plus de Décision = décision prise).
+- [ ] Décision : un seul type avec un sous-type « à prendre » / « prise » (même parcours que Blocage / Blocage résolu) ; en discussion.
 - [ ] Situation, toutes réunions : filtre suivis concrétisés / notes pas encore concrétisées (reportées des réunions
-      précédentes). Pas de « Plus tard » : ne pas concrétiser = plus tard.
+      précédentes). Pas de « Plus tard » : ne pas concrétiser = plus tard. VALIDÉ : « 📌 Suivis · 7 · Notes à
+      concrétiser · 2 », « noté le 6/10 », filtre Tout · Suivis · Notes à concrétiser · À valider ; ces notes
+      reviennent aussi à l'étape Concrétisation.
 - En discussion : remplacer les puces Moi / Mon équipe / Niveau du dessus par un seul « Responsable › » groupé ;
-  Validation : par défaut l'animateur (Scrum Master au daily), modifiable — l'utilisateur garde « Validation ».
+  l'utilisateur demande aussi les autres équipes du train (voir « Suivi dans › » décidé) ; Validation : par défaut l'animateur (Scrum Master au daily), modifiable — l'utilisateur garde « Validation ».
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
