@@ -6,9 +6,9 @@ import type { Echange, PointReunion, TypeReunion } from './types';
  * Suivi des escalades (lot 6, deux cas d'usage fixés le 06/10). Le **point de suivi** (ligne de PointsReunion) est le
  * dossier qui reste ; l'**échange** 🔄 Synchro n'est qu'un canal, supprimé une fois pris en compte.
  * - Cas 1, l'escalade commence en réunion ; cas 2, elle commence dans Synchro (« ↪ Faire suivre › Escalader »).
- * - À chaque escalade : un point « escaladé » dans la réunion de celui qui escalade, un point « Escalade reçue » dans
- *   la réunion correspondante de celui qui reçoit.
- * - À la réponse : recopiée en « Décision » dans toutes les réunions de la chaîne.
+ * - Validation du 08/10 (docs/cycles-de-vie.html) : un seul verbe « Transmettre » (src/echange/transmettre.ts) ; une
+ *   note seulement dans la réunion de celui qui transmet et l'a choisi ; rien d'office chez celui qui reçoit ; la
+ *   réponse n'est plus recopiée en « Décision » (elle reste privée, le validateur écrit le dernier mot).
  * Tous les points d'une même escalade portent l'id de l'échange (colonne « tache ») : pas de colonne en plus.
  */
 
@@ -109,29 +109,10 @@ export function pointsEscalade(o: {
   const recu = reunionDeNiveau(o.apres, o.org);
   if (bas && !o.dejaNote && bas.serie !== recu?.serie)
     out.push({ ...base, reunion: `${bas.serie}${o.jour}`, concretisation: 'escalade', responsable: o.vers.toLowerCase(), espace: bas.espace });
-  if (recu) out.push({ ...base, reunion: `${recu.serie}${o.jour}`, concretisation: '', responsable: '', espace: recu.espace });
+  // Plus de note créée d'office chez celui qui reçoit (validation du 08/10) : il choisit « 📌 Suivre en réunion »
   return out;
 }
 
-/**
- * Réponse à un échange escaladé : recopiée en « Décision · par [qui répond] » dans toutes les réunions de la chaîne,
- * le jour `jour`, à concrétiser par chaque animateur. Rien si l'échange n'est pas une escalade.
- */
-export function pointsReponse(e: Pick<Echange, 'id' | 'de' | 'niveau' | 'transmis_par' | 'titre' | 'element'>, repondant: string, reponse: string, jour: string, org: OrgValue): PointAEcrire[] {
-  if (!estSuiviReunion(e) || !reponse.trim()) return [];
-  return chaineEscalade(e, org).map((r) => ({
-    reunion: `${r.serie}${jour}`,
-    personne: repondant.toLowerCase(),
-    auteur: repondant.toLowerCase(),
-    type: 'decision' as const,
-    texte: reponse.trim().slice(0, 300),
-    element: e.element,
-    concretisation: '' as const,
-    tache: e.id,
-    responsable: '',
-    espace: r.espace,
-  }));
-}
 
 /** Regroupe des points à écrire par Sheet : une écriture par espace */
 export function parEspace(l: PointAEcrire[]): Map<string, Omit<PointReunion, 'id' | 'cree_le'>[]> {

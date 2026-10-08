@@ -67,6 +67,11 @@ export const actionDuChoix = (c: string): ActionSuivi | null =>
   c === CHOIX_VALIDER[0] ? 'valider' : c === CHOIX_VALIDER[1] ? 'reconcretiser' : c === CHOIX_VALIDER[2] ? 'reprendre' : c === CHOIX_VALIDER[3] ? 'abandonner' : null;
 export const motifObligatoire = (a: ActionSuivi | null) => a === 'reprendre' || a === 'abandonner';
 export const TITRE_VALIDER = 'Valider ?';
+/**
+ * Rappel envoyé au validateur (validation du 08/10) : « Valider » est réservé aux réunions ; le Chat reçoit un simple
+ * message « 📌 À valider en réunion · … » (il garde la référence du point, pour le refus d'une transmission)
+ */
+export const TITRE_RAPPEL = '📌 À valider en réunion ·';
 
 /** Place d'un point dans une escalade : « bas » (il l'a envoyée, attend la réponse), « haut » (il l'a reçue) */
 export const roleEscalade = (p: Pick<PointReunion, 'echange' | 'concretisation' | 'tache'>): '' | 'bas' | 'haut' =>
@@ -138,8 +143,8 @@ export function planSuivi(o: {
     point,
     espace,
   });
-  // Questions « Valider ? » encore ouvertes sur ce point (réglées dès qu'on décide, ici ou dans le Chat)
-  const ouvertes = o.echanges.filter((e) => e.type === 'question' && e.statut === 'envoye' && !!e.point && (e.point === ref || e.point.startsWith(`${ref}|`)) && e.id !== o.question?.id);
+  // Rappels « À valider » (et anciennes questions « Valider ? ») encore ouverts sur ce point : réglés dès qu'on décide
+  const ouvertes = o.echanges.filter((e) => e.statut === 'envoye' && !!e.point && (e.point === ref || e.point.startsWith(`${ref}|`)) && e.id !== o.question?.id && (e.type === 'question' || e.titre.startsWith(TITRE_RAPPEL)));
   const question = o.question ?? ouvertes[0];
   const statut = action === 'en_cours' ? 'en_cours' : action === 'fait' ? 'fait' : action === 'valider' ? 'valide' : action === 'reprendre' ? 'a_reprendre' : action === 'abandonner' ? 'abandonne' : '';
   if (!statut) return plan;
@@ -152,7 +157,7 @@ export function planSuivi(o: {
     for (const q of ouvertes) plan.echanges.push({ e: q, patch: { statut: 'pris_en_compte', reponse: action === 'valider' ? CHOIX_VALIDER[0] : action === 'reprendre' ? CHOIX_VALIDER[2] : CHOIX_VALIDER[3], note } });
 
   if (action === 'fait' && valid && valid !== m)
-    plan.envoyer.push(msg(valid, 'question', `${TITRE_VALIDER} ${pt.texte}`, `${o.nomDe(m)} a passé le point à « Fait »${note ? ` : ${note}` : '.'}`, ref));
+    plan.envoyer.push(msg(valid, 'message', `${TITRE_RAPPEL} ${pt.texte}`, `${o.nomDe(m)} a passé le suivi à « Fait »${note ? ` : ${note}` : '.'} Validez-le dans la Situation de la réunion (« À valider »).`, ref));
   if ((action === 'reprendre' || action === 'abandonner') && resp && resp !== m && !refusEscalade)
     plan.envoyer.push(msg(resp, 'message', `${action === 'reprendre' ? '↩ À reprendre' : '⊘ Abandonné'} · ${pt.texte}`, `${o.nomDe(m)} : ${note}`));
   if (refusEscalade && haut) {
@@ -167,7 +172,7 @@ export function planSuivi(o: {
     if (ech && bas) {
       plan.points.push({ espace: bas.espace, patch: { id: bas.id, statut: 'fait', note: reponse } });
       const qui = (ech.transmis_par || ech.de).toLowerCase();
-      if (qui && qui !== m) plan.envoyer.push(msg(qui, 'question', `${TITRE_VALIDER} ${pt.texte}`, reponse, `${ech.point}|${ref}`));
+      if (qui && qui !== m) plan.envoyer.push(msg(qui, 'message', `${TITRE_RAPPEL} ${pt.texte}`, `${reponse} Validez-le dans la Situation de votre réunion (« À valider »).`, `${ech.point}|${ref}`));
       plan.echanges.push({ e: ech, patch: { statut: 'pris_en_compte', reponse: action === 'valider' ? 'Validé' : 'Abandonné', note } });
     } else if (ech && ech.statut === 'envoye') plan.echanges.push({ e: ech, patch: { statut: 'repondu', reponse: action === 'valider' ? 'Validé' : 'Abandonné', note } });
   }

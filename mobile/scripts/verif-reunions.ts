@@ -8,10 +8,11 @@ import { pointsFinis, backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY
 import { toDateString } from '../src/dates';
 import { ciblesEscalade, destinatairesTransfert, equipesDePersonne } from '../src/echange/hierarchieEchange';
 import { makeOrgValue } from '../src/organisation';
-import { aReprendre, chaineEscalade, parEspace, pointsEscalade, pointsReponse, reunionDeNiveau, titreEscalade } from '../src/suiviEscalade';
+import { maillonsDe, patchAReprendre, planRedescendre, planTransmettre, transmissionPrete, typeNoteDe } from '../src/echange/transmettre';
+import { aReprendre, chaineEscalade, parEspace, pointsEscalade, reunionDeNiveau, titreEscalade } from '../src/suiviEscalade';
 import { arreterSerie, couperSerie, datesRegle, exceptionsOrphelines, libelleRegle, lireExceptions, modifierOccurrence, modifierSerie, occurrences } from '../src/series';
 import { seriesACreer, serieParDefaut, serieVide, etapesParcours, ongletParcours, parcoursParDefaut, participantsReunion, reunionsAVenir } from '../src/reunions';
-import { type Reunion, TYPES_REUNION } from '../src/types';
+import { type Echange, type Reunion, TYPES_REUNION } from '../src/types';
 import { iterationOf, iterationsOf, lireCalendrier, piOf } from '../src/pi';
 import { checkParent } from '../src/subtasks';
 import { choixParDefaut, concretisationDe, elementACreer, patchConcretise, rattachementPour } from '../src/concretisation';
@@ -199,19 +200,16 @@ const nPf = { kind: 'portfolio' as const, id: pfM.id };
 ok(reunionDeNiveau(nEq, o)?.type === 'daily' && reunionDeNiveau(nTr, o)?.type === 'art_sync' && reunionDeNiveau(nPf, o)?.type === 'revue_portfolio', 'escalade : réunion correspondante (équipe → daily, train → ART sync, portfolio → revue du portfolio)');
 const ech = { id: 'ech1', titre: titreEscalade('Blocage · API pas prête'), texte: 'API pas prête', element: 'st1' };
 const esc1 = pointsEscalade({ echange: ech, par: nNina.email, vers: nSara.email, avant: nEq, apres: nTr, jour: '2026-10-06', org: o });
-ok(esc1.length === 2 && esc1[0].reunion.startsWith('daily-') && esc1[0].concretisation === 'escalade' && esc1[1].reunion.startsWith('art_sync-') && !esc1[1].concretisation && esc1.every((x) => x.tache === 'ech1'), 'escalade du SM : « escaladé » au daily, « Escalade reçue » à l’ART sync, même échange');
-ok(pointsEscalade({ echange: ech, par: nTom.email, vers: nNina.email, avant: nEq, apres: nEq, jour: '2026-10-06', org: o }).length === 1, 'escalade du membre au SM : un seul point, au daily de l’équipe');
-ok(pointsEscalade({ echange: ech, par: nNina.email, vers: nSara.email, avant: nEq, apres: nTr, jour: '2026-10-06', org: o, dejaNote: true }).length === 1, 'escalade décidée en réunion : le point « escaladé » existe déjà, seul « Escalade reçue » est créé');
+ok(esc1.length === 1 && esc1[0].reunion.startsWith('daily-') && esc1[0].concretisation === 'escalade' && esc1[0].tache === 'ech1', 'transmis au train : la note de celui qui transmet au daily, aucune note d’office à l’ART sync (08/10)');
+ok(pointsEscalade({ echange: ech, par: nTom.email, vers: nNina.email, avant: nEq, apres: nEq, jour: '2026-10-06', org: o }).length === 0, 'transmis dans l’équipe : aucune note d’office');
+ok(pointsEscalade({ echange: ech, par: nNina.email, vers: nSara.email, avant: nEq, apres: nTr, jour: '2026-10-06', org: o, dejaNote: true }).length === 0, 'transmis décidé en réunion : la note existe déjà, rien de plus');
 const monte = { ...ech, de: nTom.email, transmis_par: nSara.email, niveau: `portfolio:${pfM.id}` };
 ok(chaineEscalade(monte, o).map((r) => r.type).join() === 'daily,art_sync,revue_portfolio', 'escalade sur trois niveaux : chaîne daily → ART sync → revue du portfolio');
-const rep = pointsReponse(monte, mail('acmp1'), 'Budget accordé', '2026-10-08', o);
-ok(rep.length === 3 && rep.every((x) => x.type === 'decision' && x.tache === 'ech1' && x.texte === 'Budget accordé'), 'réponse : recopiée en Décision dans les trois réunions de la chaîne');
-ok(pointsReponse({ ...monte, titre: '↪ Blocage · API' }, mail('acmp1'), 'Oui', '2026-10-08', o).length > 0, 'réponse à un échange transmis depuis une réunion : recopiée aussi');
-ok(pointsReponse({ ...monte, titre: 'Question simple' }, mail('acmp1'), 'Oui', '2026-10-08', o).length === 0, 'réponse à un échange non escaladé : rien dans les réunions');
-ok([...parEspace(rep).keys()].length <= 3 && [...parEspace(rep).values()].flat().length === 3, 'points de suivi : regroupés par Sheet (une écriture par Sheet)');
-const serie = esc1[1].reunion.slice(0, -10);
-const pts2 = [{ ...esc1[1], id: 'p1', cree_le: '' }, { ...esc1[1], id: 'p2', cree_le: '', concretisation: 'rien' as const }];
-ok(aReprendre(pts2, `${serie}2026-10-08`).map((x) => x.id).join() === 'p1' && aReprendre(pts2, esc1[1].reunion).length === 0, 'reprise : une escalade reçue non concrétisée revient à la réunion suivante');
+ok([...parEspace(esc1).keys()].length === 1, 'notes de suivi : regroupées par Sheet (une écriture par Sheet)');
+// Notes à concrétiser (08/10) : toute note d'une réunion précédente de la série pas encore concrétisée revient
+const serie = esc1[0].reunion.slice(0, -10);
+const pts2 = [{ ...esc1[0], id: 'p1', cree_le: '', concretisation: '' as const }, { ...esc1[0], id: 'p2', cree_le: '', concretisation: 'rien' as const }];
+ok(aReprendre(pts2, `${serie}2026-10-08`).map((x) => x.id).join() === 'p1' && aReprendre(pts2, esc1[0].reunion).length === 0, 'notes à concrétiser : une note non concrétisée revient aux réunions suivantes, pas le jour même');
 
 // Fin de suivi (06/10) : supprimés au compte rendu suivant de la série (Rien, tâche terminée), pas les autres
 const pf = (id: string, reunion: string, concretisation: string, tache = '') => ({ id, reunion, personne: '', auteur: '', type: 'blocage' as const, texte: '', element: '', concretisation: concretisation as never, tache, responsable: '', cree_le: '' });
@@ -362,7 +360,7 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const ech = (x: object) => ({ id: 'q1', de: 'emma@x', a: 'nina@x', type: 'question', titre: '', texte: '', choix: '', reponse: '', note: '', statut: 'envoye', element: '', niveau: '', transmis_par: '', prive: '1', cree_le: '', modifie_le: '', espace: 'esp', ...x }) as never;
   const base = { espace: 'esp', note: '', animateur: 'nina@x', nomDe: nom, echanges: [] as never[], niveau: 'equipeagile:eq' };
   const f = planSuivi({ ...base, pt: pt({}), action: 'fait', moi: 'emma@x' });
-  ok(f.points[0].patch.statut === 'fait' && f.envoyer.length === 1 && f.envoyer[0].a === 'nina@x' && f.envoyer[0].type === 'question' && f.envoyer[0].point === 'esp|p1', 'Fait par le responsable : « Valider ? » à la validatrice, relié au point');
+  ok(f.points[0].patch.statut === 'fait' && f.envoyer.length === 1 && f.envoyer[0].a === 'nina@x' && f.envoyer[0].type === 'message' && f.envoyer[0].titre.startsWith('📌 À valider en réunion') && f.envoyer[0].point === 'esp|p1', 'Fait par le responsable : rappel « À valider en réunion » à la validatrice, relié au point');
   ok(planSuivi({ ...base, pt: pt({ responsable: 'nina@x' }), action: 'fait', moi: 'nina@x' }).envoyer.length === 0, 'Fait par la validatrice elle-même : pas de message');
   const v = planSuivi({ ...base, pt: pt({ statut: 'fait' }), action: 'valider', moi: 'nina@x', echanges: [ech({ point: 'esp|p1' })] });
   ok(v.points[0].patch.statut === 'valide' && v.echanges[0]?.patch.statut === 'pris_en_compte' && !v.envoyer.length, 'Validé en réunion : le « Valider ? » du Chat est réglé, rien n’est envoyé');
@@ -375,12 +373,31 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const h = planSuivi({ ...base, espace: 'espHaut', pt: p2, action: 'valider', note: 'accès donné le 15/10', moi: 'sara@x', animateur: 'sara@x', echanges: [e1] });
   const bas = h.points.find((x) => x.espace === 'espBas');
   ok(bas?.patch.id === 'p1' && bas.patch.statut === 'fait' && bas.patch.note?.includes('accès donné') === true, 'haut validé : le point du bas passe à Fait avec la réponse');
-  ok(h.envoyer[0]?.a === 'nina@x' && h.envoyer[0].point === 'espBas|p1|espHaut|p2' && h.echanges[0]?.patch.statut === 'pris_en_compte', '« Valider ? » à Nina, avec les deux points ; l’échange ⤴ est réglé');
+  ok(h.envoyer[0]?.a === 'nina@x' && h.envoyer[0].type === 'message' && h.envoyer[0].point === 'espBas|p1|espHaut|p2' && h.echanges[0]?.patch.statut === 'pris_en_compte', 'rappel « À valider en réunion » à Nina (un message, pas une validation dans le Chat), avec les deux points ; l’échange est réglé');
   const ref = lireRef(h.envoyer[0].point ?? '');
   ok(ref?.haut?.id === 'p2' && actionDuChoix('À reprendre (motif)') === 'reprendre', 'référence lue ; choix du Chat compris');
   const q = ech({ id: 'q2', de: 'sara@x', a: 'nina@x', point: h.envoyer[0].point });
   const refus = planSuivi({ ...base, espace: 'espBas', pt: pt({ concretisation: 'escalade', tache: 'e1', echange: 'e1', statut: 'fait', responsable: 'sara@x' }), action: 'reprendre', note: 'toujours refusé', moi: 'nina@x', question: q });
   ok(refus.points.find((x) => x.espace === 'espHaut')?.patch.statut === 'a_reprendre' && refus.points[0].patch.statut === 'en_cours' && refus.envoyer[0]?.a === 'sara@x', 'refus au bas : le haut est rouvert, le bas attend de nouveau, Sara est prévenue');
+}
+// ---------------------------------------------------------------------------
+// Transmettre (validation du 08/10) : maillons, reformulation, boucle, suivi en réunion, redescendre, à reprendre
+// ---------------------------------------------------------------------------
+{
+  const recu = { id: 'r1', de: 'lea@x', a: 'hugo@x', type: 'question', nature: 'blocage', titre: 'Secret : mot de passe du serveur', texte: 'détails privés', choix: 'Résolu;Pas résolu (motif)', reponse: '', note: '', statut: 'envoye', element: 'st1', niveau: 'equipeagile:eq', transmis_par: '', prive: '1', pieces_jointes: 'pj1', cree_le: '', modifie_le: '', espace: 'esp' } as never as Echange;
+  const nomT = (m: string) => ({ 'hugo@x': 'Hugo Petit' })[m] ?? m;
+  const t = { a: ['sara@x', 'paul@x'], texte: 'Accès au serveur de test refusé', motif: 'Pas le droit de répondre', boucle: true, suivre: { serie: 'daily-equipeagile:eq-', espace: 'esp', texte: 'Accès serveur de test' } };
+  const p = planTransmettre(recu, t, { moi: 'hugo@x', nomDe: nomT, niveauDe: () => 'train:tr', jour: '2026-10-08' });
+  ok(p.nouveaux.length === 2 && p.nouveaux.every((x) => x.de === 'hugo@x' && x.parent === 'r1' && x.titre === 'Accès au serveur de test refusé' && !x.titre.includes('Secret') && !x.pieces_jointes), 'transmettre : un maillon par destinataire, texte reformulé, sans le message ni les pièces jointes');
+  ok('patch' in p.recu && p.recu.patch.statut === 'transmis' && p.notes.length === 2 && p.notes[0].concretisation === 'escalade' && p.notes[0].texte === 'Accès serveur de test' && p.notes[0].reunion === 'daily-equipeagile:eq-2026-10-08', 'dans la boucle : le reçu passe « transmis » ; « Suivre à » : une note reformulée par maillon');
+  const retire = planTransmettre(recu, { ...t, boucle: false, suivre: undefined }, { moi: 'hugo@x', nomDe: nomT, niveauDe: () => '', jour: '2026-10-08' });
+  ok('retirer' in retire.recu && retire.nouveaux.every((x) => x.de === 'lea@x' && x.transmis_par === 'hugo@x' && !x.parent) && !retire.notes.length, 'je me retire : le maillon part au nom de l’expéditeur, la réponse lui va directement ; aucune note');
+  ok(!transmissionPrete({ ...t, texte: ' ' }) && !transmissionPrete({ ...t, suivre: { ...t.suivre, texte: '' } }) && transmissionPrete(t), 'transmettre : texte reformulé obligatoire, et texte de la note si on la suit');
+  const maillon = { ...recu, id: 'm1', de: 'hugo@x', a: 'sara@x', parent: 'r1', statut: 'repondu', reponse: 'Résolu', note: 'clé changée', point: 'esp|n1' } as Echange;
+  const r = planRedescendre(maillon, recu, 'Accès rétabli');
+  ok(r.parent?.patch.statut === 'repondu' && r.parent.patch.note === 'Accès rétabli' && r.point?.patch.statut === 'fait' && r.point.patch.note === 'Accès rétabli' && r.retirer.id === 'm1', 'redescendre : réponse reformulée au maillon d’en dessous, note de suivi « Fait », maillon accepté retiré');
+  ok(patchAReprendre('pas assez précis').statut === 'envoye' && maillonsDe(recu, [maillon, recu]).length === 1, 'à reprendre : le maillon repart ; maillons d’un échange');
+  ok(typeNoteDe({ nature: 'action', type: 'question' }).type === 'action' && typeNoteDe({ nature: '', type: 'question' }).sous_type === 'a_prendre', 'note de suivi : type d’après la nature du message');
 }
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
 process.exit(erreurs ? 1 : 0);

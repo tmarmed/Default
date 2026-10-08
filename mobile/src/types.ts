@@ -323,7 +323,7 @@ export interface Echange {
    * pris_en_compte : marqué par une IA qui a lu l'échange dans le Sheet (Claude ne supprime jamais) — l'application
    * supprime alors la ligne à l'ouverture suivante.
    */
-  statut: 'envoye' | 'repondu' | 'pris_en_compte';
+  statut: 'envoye' | 'repondu' | 'pris_en_compte' | 'transmis';
   /** Élément concerné (id d'une tâche, epic…), facultatif */
   element: string;
   /** Niveau de l'Organisation où vit l'échange (« equipeagile:id », « train:id », « portfolio:id », « unite:id ») */
@@ -341,7 +341,35 @@ export interface Echange {
    * point du niveau du dessus (« À reprendre » le rouvre). Sur l'échange ⤴ d'une escalade : le point du bas.
    */
   point?: string;
+  /**
+   * Transmettre (validation du 08/10) : l'échange dont celui-ci est le maillon suivant (« Je reste dans la boucle ») ;
+   * la réponse revient à ce maillon, qui l'accepte et la fait redescendre (reformulée). Vide sinon.
+   */
+  parent?: string;
+  /** Nature du message : information, question, blocage, décision à prendre ou prise, demande d'action (vide : d'après le type) */
+  nature?: NatureEchange;
 }
+export type NatureEchange = '' | 'information' | 'question' | 'blocage' | 'decision_a_prendre' | 'decision_prise' | 'action';
+export const NATURES_ECHANGE: NatureEchange[] = ['', 'information', 'question', 'blocage', 'decision_a_prendre', 'decision_prise', 'action'];
+/** Libellés (un seul vocabulaire avec les notes de réunion) */
+export const LIBELLE_NATURE: Record<Exclude<NatureEchange, ''>, string> = {
+  information: 'Information',
+  question: 'Question',
+  blocage: 'Blocage',
+  decision_a_prendre: 'Décision à prendre',
+  decision_prise: 'Décision prise',
+  action: 'Demande d’action',
+};
+/** Nature d'un échange : la sienne, sinon d'après le type (ancien échange) */
+export const natureDe = (e: Pick<Echange, 'nature' | 'type'>): Exclude<NatureEchange, ''> => e.nature || (e.type === 'question' ? 'question' : 'information');
+/** Ce qui se lit seulement (Lu ✓) : information, décision prise */
+export const seLitSeulement = (n: NatureEchange) => n === 'information' || n === 'decision_prise';
+/** Choix proposés selon la nature (question : ceux de l'auteur) */
+export const CHOIX_NATURE: Partial<Record<NatureEchange, string>> = {
+  blocage: 'Résolu;Pas résolu (motif)',
+  action: 'Fait;Pas possible (motif)',
+  decision_a_prendre: 'Décidé;Autre',
+};
 export type EchangeInput = Omit<Echange, 'id' | 'cree_le' | 'modifie_le'>;
 
 /** SAFe (lot 4) : flux de valeur d'un portfolio (opérationnel : comment la valeur arrive au client ; développement : les systèmes qui le soutiennent). */

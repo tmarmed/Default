@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import type { Echange } from '../types';
-import { ChampFiche, FeuilleChoix, SaisieFiche, SectionFiche } from './Choix';
-import { estAutre, exigeMotif, FilEchange, groupesFaireSuivre, type Hierarchie, type MessageApp, placeholderNote, reponsePrete } from './EchangesView';
+import { ChampFiche, SaisieFiche, SectionFiche } from './Choix';
+import { estAutre, exigeMotif, FilEchange, type Hierarchie, type MessageApp, placeholderNote, reponsePrete } from './EchangesView';
 import { FormSheet, TitreFiche } from './FormSheet';
 import { idsPieces, PiecesEchange } from './Pieces';
+import { ActionsEchange } from './Transmettre';
 
 /**
  * Fenêtre de traitement (à l'ouverture de l'application, ou en ouvrant une conversation) : un seul message à la
@@ -42,7 +43,6 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [feuille, setFeuille] = useState(false);
   useEffect(() => {
     if (visible) {
       setListe(elements);
@@ -194,39 +194,22 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
             </SectionFiche>
           </>
         )}
-        {/* Échange escaladé : suivi dans les réunions de la chaîne, la réponse y est recopiée */}
+        {/* Message lié à une note de réunion : la note est suivie là-bas (contenu reformulé) */}
         {!!hierarchie?.suivi?.(e) && (
-          <SectionFiche titre="Suivi dans les réunions">
-            <Text style={s.ou}>{`📅 ${hierarchie.suivi(e)} · la réponse y est recopiée en Décision, à concrétiser en réunion.`}</Text>
+          <SectionFiche titre="Suivi en réunion">
+            <Text style={s.ou}>{`📌 ${hierarchie.suivi(e)} · une note reformulée y est liée ; elle se valide en réunion.`}</Text>
           </SectionFiche>
         )}
-        {/* Reçu, à traiter, dans une entreprise : le faire monter ou le passer à quelqu'un d'autre */}
-        {!!hierarchie && e.a === moi && (e.statut === 'envoye' || modifiable) && (hierarchie.escalade(e).length > 0 || hierarchie.transmission(e).length > 0) && (
-          <SectionFiche titre="Pas pour vous ?">
+        {/* Transmettre, suivre en réunion, s'en occuper ; accepter ou faire reprendre une réponse (validation du 08/10) */}
+        {!!hierarchie && (e.a === moi && e.statut === 'envoye' ? true : recue) && (
+          <SectionFiche titre={recue ? 'La réponse' : 'Ou bien'}>
             <Text style={s.ou}>
-              {[hierarchie.libelle(e) && `📍 ${hierarchie.libelle(e)}`, e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`, modifiable ? 'Votre réponse sera retirée : la question repart à la personne choisie.' : !hierarchie.libelle(e) && !e.transmis_par && 'Faites-le suivre sans y répondre.'].filter(Boolean).join(' · ')}
+              {[hierarchie.libelle(e) && `📍 ${hierarchie.libelle(e)}`, e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`].filter(Boolean).join(' · ') || (recue ? 'Acceptez-la, ou faites-la reprendre.' : 'Transmettez-le, suivez-le en réunion ou occupez-vous-en.')}
             </Text>
-            <Pressable onPress={() => setFeuille(true)} disabled={busy} style={[s.ligne, s.bord]} accessibilityRole="button">
-              <Text style={s.action}>↪ Faire suivre</Text>
-              <Text style={s.actionMeta} numberOfLines={1}>
-                {'transmettre ›'}
-              </Text>
-            </Pressable>
+            <View style={{ paddingHorizontal: 12, paddingBottom: 10 }}>
+              <ActionsEchange e={e} moi={moi} hierarchie={hierarchie} nomDe={nomDe} onFait={(t) => (liste.length === 1 ? onFermer() : x && setFaits((l) => ({ ...l, [cle(x)]: { texte: t } })))} />
+            </View>
           </SectionFiche>
-        )}
-        {!!hierarchie && feuille && (
-          <FeuilleChoix
-            titre="Faire suivre à"
-            value=""
-            groupes={groupesFaireSuivre(hierarchie, e)}
-            onChoisir={(v) => {
-              setFeuille(false);
-              if (!v) return;
-              const [quoi, email] = [v.slice(0, 4), v.slice(4)];
-              void faire(() => (quoi === 'esc:' ? hierarchie.onEscalader(e, email) : hierarchie.onTransmettre(e, email)), `Transmis à ${nomDe(email)}`);
-            }}
-            onFermer={() => setFeuille(false)}
-          />
         )}
         {modifiable ? (
           <>
@@ -248,7 +231,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
             onPress={() => faire(() => onRepondre(e, choix, note.trim()), `${choix}${note.trim() ? ` — ${note.trim()}` : ''}`)}
           />
         ) : (
-          <Bouton label={recue ? 'Pris en compte ✓' : 'Lu ✓'} busy={busy} onPress={() => faire(() => onRetirer(e), recue ? 'Pris en compte ✓' : 'Lu ✓')} />
+          recue && hierarchie ? null : <Bouton label={recue ? 'Accepter ✓' : 'Lu ✓'} busy={busy} onPress={() => faire(() => onRetirer(e), recue ? 'Accepter ✓' : 'Lu ✓')} />
         )}
       </>
     );

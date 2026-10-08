@@ -51,7 +51,7 @@ import { TexteAjuste } from './src/components/TexteAjuste';
 import type { Injection, PileProps } from './src/components/FormSheet';
 import { type Deplacement, OrganisationView, type VueOrg } from './src/components/OrganisationView';
 import { OrgForm } from './src/components/OrgForm';
-import { calendrierPersonne, CLE_ORG, dansOrgFiltre, type EntiteOrg, ICONE_ORG, type KindOrg, libelleOrgFiltre, makeOrgValue, NOM_ORG, type Org, ORG_VIDE, OrgContext, type OrgFiltre, OrgFiltreContext } from './src/organisation';
+import { calendrierPersonne, CLE_ORG, dansOrgFiltre, type EntiteOrg, ICONE_ORG, type KindOrg, libelleOrgFiltre, makeOrgValue, membresDe, NOM_ORG, type Org, ORG_VIDE, OrgContext, type OrgFiltre, OrgFiltreContext } from './src/organisation';
 import { type ActionStockage, StockagePanneau } from './src/components/Stockage';
 import { FormSheet } from './src/components/FormSheet';
 import { aPurger, copieCsv, moisAnnee, octetsLignes, type Plan, planifier, pourcent, type Quota, quotaSimule, SEUIL_ALERTE, SEUIL_CIBLE, type TestStockage } from './src/stockage';
@@ -91,8 +91,9 @@ import { ModifierReunionContext } from './src/components/FenetreReunion';
 import { StatutTacheContext } from './src/components/reunion/ui';
 import { CarteSeries, LIBELLE_PORTEE, type PorteeSerie, SerieForm } from './src/components/SerieForm';
 import { aTraiter, EchangesView, type Hierarchie, type MessageApp, nomDepuisEmail } from './src/components/EchangesView';
-import { chaineEscalade, estSuiviReunion, type PointAEcrire, parEspace as pointsParEspace, pointsEscalade, pointsReponse, titreEscalade } from './src/suiviEscalade';
-import { ciblesEscalade, destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
+import { chaineEscalade, estSuiviReunion, type PointAEcrire, parEspace as pointsParEspace, reunionDeNiveau } from './src/suiviEscalade';
+import { liensSuivi, maillonsDe, patchAReprendre, planRedescendre, planTransmettre, typeNoteDe } from './src/echange/transmettre';
+import { destinatairesTransfert, ecrireNiveau, libelleNiveau, lireNiveau, type Niveau, niveauCommun, niveauDe, personneParEmail } from './src/echange/hierarchieEchange';
 import { StrategieView } from './src/components/StrategieView';
 import { BacklogView, type Niveau as NiveauBacklog, niveauDuRole } from './src/components/BacklogView';
 import { ValueStreamForm } from './src/components/ValueStreamForm';
@@ -1722,13 +1723,6 @@ function Main() {
     [settings],
   );
   const nomEchange = (email: string) => personneParEmail(email, orgEchanges)?.nom ?? nomDepuisEmail(email);
-  /** Escalade : SM ou PO (membre), puis RTE, puis Epic Owner (voir ciblesEscalade) */
-  const escaladesDe = (e: Echange) => {
-    const pid = personneParEmail(moiEchange, orgEchanges)?.id ?? '';
-    return ciblesEscalade(pid, lireNiveau(e.niveau), orgEchanges)
-      .map((c) => ({ ...c, email: orgEchanges.personne.get(c.pid)?.email?.toLowerCase() ?? '' }))
-      .filter((c) => c.email && c.email !== moiEchange);
-  };
   /** Points de suivi des escalades (cas d'usage 1 et 2) : une écriture par Sheet concerné */
   const ecrireSuivis = async (l: PointAEcrire[]) => {
     const out: { espace: string; point: PointReunion }[] = [];
@@ -1750,10 +1744,30 @@ function Main() {
       }
       setInfo(`Suivi « ${(e.titre || '').replace(/^Valider \? /, '')} » : ${reponse.replace(' (motif)', '').toLowerCase()}.`);
     } else if (ref && action === 'reconcretiser') setInfo('Suivi à re-concrétiser : ouvrez-le dans les Suivis de la réunion (« À valider »).');
-    await ecrireSuivis(pointsReponse(e, moiEchange, reponse, today, orgEchanges));
+    // Plus de note « Décision » recopiée dans les réunions (validation du 08/10) : la réponse reste privée
   };
   /** Réponse déjà donnée (pas encore prise en compte) : retirée, la question repart à la nouvelle personne */
   const repartir = (e: Echange) => (e.statut === 'repondu' ? { statut: 'envoye' as const, reponse: '', note: '' } : {});
+  /** Réunions où « Vous » suit des notes : celles de vos équipes, trains, portfolios (valeur « espace|série ») */
+  const reunionsSuivi = useMemo(() => {
+    const pid = personneParEmail(moiEchange, orgEchanges)?.id ?? '';
+    if (!pid) return [];
+    const o = orgEchanges;
+    const niveaux: Niveau[] = [
+      ...o.equipes.filter((e) => e.sm === pid || e.po === pid || membresDe(e).includes(pid)).map((e) => ({ kind: 'equipeagile' as const, id: e.id })),
+      ...o.trains.filter((t) => t.rte === pid || t.pm === pid).map((t) => ({ kind: 'train' as const, id: t.id })),
+      ...o.portfolios.filter((p) => p.epic_owner === pid).map((p) => ({ kind: 'portfolio' as const, id: p.id })),
+    ];
+    const vues = new Set<string>();
+    return niveaux
+      .map((n) => reunionDeNiveau(n, o))
+      .filter((r): r is NonNullable<typeof r> => !!r && !vues.has(r.serie) && !!vues.add(r.serie))
+      .map((r) => ({ value: `${r.espace}|${r.serie}`, label: `${TYPES_REUNION[r.type].libelle} ${libelleNiveau(lireNiveau(r.niveau), o)}` }));
+  }, [orgEchanges, moiEchange]);
+  /** Points d'un Sheet : créés et modifiés en une écriture */
+  const ecrireNotes = async (espace: string, creer: PointAEcrire[], modifier: (Partial<PointReunion> & { id: string })[]) =>
+    settings ? (await api.ecrirePoints(settings, espace, creer.map(({ espace: _e, ...p }) => p), modifier, [])).crees.map((p) => ({ ...p, espace })) : [];
+  const echangesTous = () => tousHier.echanges ?? [];
   const hierarchieEchanges: Hierarchie = {
     libelle: (e) => libelleNiveau(lireNiveau(e.niveau), orgEchanges),
     suivi: (e) =>
@@ -1762,30 +1776,92 @@ function Main() {
             .map((r) => `${TYPES_REUNION[r.type].libelle} ${libelleNiveau(lireNiveau(r.niveau), orgEchanges)}`)
             .join(' · ')
         : '',
-    // Règle (08/10) : on n'escalade et ne transmet que les questions ; un message se lit (Lu ✓)
-    escalade: (e) => (e.type !== 'question' ? [] : escaladesDe(e)).map((c) => ({ email: c.email, libelle: `${c.role} ${nomEchange(c.email)}`, meta: libelleNiveau(c.niveau, orgEchanges) })),
-    transmission: (e) =>
-      (e.type !== 'question' ? [] : destinatairesTransfert(moiEchange, lireNiveau(e.niveau), orgEchanges, [moiEchange, e.de]).map((g) => ({
+    // Transmettre (validation du 08/10) : toute l'organisation, vos équipes d'abord ; tout message se transmet
+    destinataires: (e) => {
+      const exclure = [moiEchange, e.de];
+      const groupes = destinatairesTransfert(moiEchange, lireNiveau(e.niveau), orgEchanges, exclure);
+      const vus = new Set([...exclure, ...groupes.flatMap((g) => g.emails)]);
+      const reste = orgEchanges.personnes
+        .filter((p) => p.email && !vus.has(p.email.toLowerCase()))
+        .map((p) => p.email.toLowerCase())
+        .filter((m, i, l) => l.indexOf(m) === i)
+        .sort((x, y) => nomEchange(x).localeCompare(nomEchange(y)));
+      return [...groupes, ...(reste.length ? [{ titre: 'Autres personnes', emails: reste }] : [])].map((g) => ({
         titre: g.titre,
-        options: g.emails.map((m) => ({ value: m, label: nomEchange(m), meta: m })),
-      }))),
-    onEscalader: async (e, email) => {
-      const x = escaladesDe(e).find((c) => c.email === email);
-      if (!x) return;
-      // Cas d'usage 2 : l'échange monte (marqué ⤴), points de suivi dans la réunion de chacun des deux
-      const titre = titreEscalade(e.titre || e.texte.slice(0, 80));
-      await saveEntity('echange', e, { a: x.email, niveau: ecrireNiveau(x.niveau), transmis_par: moiEchange, titre, ...repartir(e) });
-      const ecrits = await ecrireSuivis(pointsEscalade({ echange: { ...e, titre }, par: moiEchange, vers: x.email, avant: lireNiveau(e.niveau), apres: x.niveau, jour: today, org: orgEchanges }));
-      // L'échange ⤴ garde le point du bas : la validation du niveau du dessus redescendra sur lui (08/10)
-      const bas = ecrits.find((y) => y.point.concretisation === 'escalade');
-      if (bas) await saveEntity('echange', e, { point: refPoint(bas.espace, bas.point.id) });
-      setInfo(`Message « ${e.titre || e.texte.slice(0, 40)} » escaladé à ${nomEchange(x.email)} (${libelleNiveau(x.niveau, orgEchanges)}).`);
+        options: g.emails.map((m) => ({ value: m, label: nomEchange(m), meta: libelleNiveau(niveauDe(personneParEmail(m, orgEchanges)?.id ?? '', orgEchanges), orgEchanges) })),
+      }));
     },
-    onTransmettre: async (e, email) => {
-      const p = personneParEmail(email, orgEchanges);
-      const niveau = (p && niveauDe(p.id, orgEchanges)) || lireNiveau(e.niveau);
-      await saveEntity('echange', e, { a: email, niveau: ecrireNiveau(niveau), transmis_par: moiEchange, ...repartir(e) });
-      setInfo(`Message « ${e.titre || e.texte.slice(0, 40)} » transmis à ${nomEchange(email)}.`);
+    reunionsSuivi: () => reunionsSuivi,
+    maillons: (e) => maillonsDe(e, echangesTous()),
+    parentDe: (e) => echangesTous().find((x) => x.id === e.parent),
+    onTransmettre: async (e, t) => {
+      if (!settings) return;
+      // Re-transmettre depuis une réponse reçue (maillon) : c'est l'échange d'en dessous qui repart
+      const cible = e.de === moiEchange && e.parent ? (echangesTous().find((x) => x.id === e.parent) ?? e) : e;
+      const plan = planTransmettre(cible, t, {
+        moi: moiEchange,
+        nomDe: nomEchange,
+        niveauDe: (m) => ecrireNiveau(niveauDe(personneParEmail(m, orgEchanges)?.id ?? '', orgEchanges)),
+        jour: today,
+      });
+      const maillons = await actionsDaily.envoyerEchanges(cible.espace ?? 'moi', plan.nouveaux);
+      // Notes de suivi (« 📌 Suivre à ») : créées, puis reliées à leur maillon
+      if (plan.notes.length) {
+        const esp = plan.notes[0].espace;
+        const notes = await ecrireNotes(esp, plan.notes, []);
+        const liens = liensSuivi(maillons, notes);
+        await actionsDaily.modifierEchanges!(liens.map((l) => l.echange));
+        await ecrireNotes(esp, [], liens.map((l) => l.point.patch));
+      }
+      if ('retirer' in plan.recu) await retirerEchange(cible);
+      else await saveEntity('echange', cible, plan.recu.patch);
+      if (cible !== e) await retirerEchange(e);
+      setInfo(`« ${t.texte.slice(0, 40)} » transmis à ${t.a.map(nomEchange).join(', ')}${plan.notes.length ? ' · suivi en réunion' : ''}.`);
+    },
+    onRedescendre: async (c, texte) => {
+      const p = planRedescendre(c, echangesTous().find((x) => x.id === c.parent), texte);
+      if (p.parent) await saveEntity('echange', p.parent.e, p.parent.patch);
+      const ref = p.point && lireRef(p.point.ref);
+      if (ref && p.point) await ecrireNotes(ref.espace, [], [{ id: ref.id, ...p.point.patch }]);
+      await retirerEchange(p.retirer);
+    },
+    onAReprendre: async (c, motif) => {
+      await saveEntity('echange', c, patchAReprendre(motif));
+    },
+    onAccepter: async (c, dernierMot) => {
+      const ref = lireRef(c.point ?? '');
+      if (ref && dernierMot) await ecrireNotes(ref.espace, [], [{ id: ref.id, statut: 'fait', note: dernierMot }]);
+      await retirerEchange(c);
+    },
+    onSuivreEnReunion: async (e, reunion, texte) => {
+      const [espace, serie] = reunion.split('|');
+      const tn = typeNoteDe(e);
+      // Note reformulée, liée au message (noms visibles, contenu non) ; validée en réunion, elle répond à l'expéditeur
+      await ecrireNotes(espace, [{ reunion: `${serie}${today}`, personne: moiEchange, auteur: moiEchange, type: tn.type, sous_type: tn.sous_type, texte, element: e.element, concretisation: '', tache: e.id, echange: e.id, responsable: '', espace }], []);
+      setInfo(`Note ajoutée à la réunion ; elle y sera concrétisée.`);
+    },
+    onMOccuper: async (e) => {
+      const titre = (e.titre || e.texte).slice(0, 200);
+      const n = lireNiveau(e.niveau);
+      const [t] = await actionsDaily.creerTaches(e.espace ?? 'moi', [
+        {
+          ...RECURRENCE_DEFAUTS,
+          titre,
+          type: 'tache',
+          date: '',
+          heure: '',
+          lieu: '',
+          description: `Pris en charge depuis le Chat (de ${nomEchange(e.de)}).`,
+          priorite: 'normale',
+          statut: 'a_faire',
+          parent: e.element && items.some((x) => x.id === e.element) ? e.element : '',
+          espace: e.espace ?? 'moi',
+          iteration: iterationOf(today).key,
+          equipe: n?.kind === 'equipeagile' ? n.id : '',
+          responsable: personneParEmail(moiEchange, orgEchanges)?.id ?? '',
+        } as ItemInput,
+      ]);
+      await saveEntity('echange', e, { statut: 'repondu', reponse: 'Pris en charge', note: `Tâche « ${t?.titre ?? titre} » créée par ${nomEchange(moiEchange)}.` });
     },
   };
   /** Nouvel échange avec une personne : rangé au niveau commun le plus proche, dans le Sheet de l'entreprise */
