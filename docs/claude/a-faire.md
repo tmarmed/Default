@@ -2,9 +2,22 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
-## Prochaine session
-- **Pilotage (lot 5)** : reprendre le brainstorm (pilotage et calendrier ; questions restées sans réponse, voir
-  docs/mission.html lot 5).
+## Prochaine session : validation (avant le pilotage)
+Faire valider par l'utilisateur, écran par écran (captures de la démo + questions/réponses), ce qui a été livré le
+08/10 ; noter les remarques ici et les corriger dans cette même session :
+1. Feuille Concrétiser : Que faire, Type › et Rattaché à (le parent change avec le type), Qui s'en charge,
+   escalader force « Suivre », Validation, Échéance (plus d'« Élément concerné » dans la feuille).
+2. Note : « Élément concerné › » à la saisie ; « Notes · n », « Mes notes », « Note oubliée ».
+3. Suivis : « 📌 Suivis · n » dans la Situation, « À valider · n », « en retard », feuille du suivi (Fait, Valider,
+   Re-concrétiser, À reprendre, Abandonner), re-concrétiser.
+4. Chat : « Valider ? » (même suivi qu'en réunion), motif obligatoire ; escalade qui redescend, refus qui rouvre.
+5. Compte rendu : Créé, Suivis, Escaladé, Transmis, Clos.
+6. Fiche d'un élément : « 📌 Suivis · n » et « 📝 Notes de réunion · n » avec la pastille de la réunion ;
+   « Avancement » (fiche tâche) ; onglet « Ma préparation ».
+Démo : `?demo`, ACME, daily de l'équipe Mobile (suivis à valider prêts dans la démo).
+
+## Session d'après
+- **Pilotage (lot 5)** : reprendre le brainstorm (pilotage et calendrier ; voir docs/mission.html lot 5).
 
 ## Décidé, pas encore codé (attendre « on code »)
 - Chat → réunions : sur un message ou une carte, trois boutons « ✓ Je m'en occupe » (concrétiser seul sous mes
