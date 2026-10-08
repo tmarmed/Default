@@ -1856,6 +1856,18 @@ function Main() {
       await ecrireNotes(espace, [{ reunion: `${serie}${today}`, personne: moiEchange, auteur: moiEchange, type: tn.type, sous_type: tn.sous_type, texte, element: e.element, concretisation: '', tache: e.id, echange: e.id, responsable: '', espace }], []);
       setInfo(`Note ajoutée à la réunion ; elle y sera concrétisée.`);
     },
+    // Rappel « 📌 À valider » : valider ici, ou laisser pour la réunion ; c'est le même suivi (la réunion l'affiche validé)
+    onValiderRappel: async (e, mot) => {
+      const ref = lireRef(e.point ?? '');
+      if (!ref || !settings) return;
+      const pt = (await api.lirePoints(settings, ref.espace, '')).find((x) => x.id === ref.id);
+      if (pt) {
+        const plan = planSuivi({ pt, espace: ref.espace, action: 'valider', note: mot, moi: moiEchange, animateur: pt.validateur || moiEchange, nomDe: nomEchange, echanges: echangesTous(), niveau: e.niveau, question: e });
+        await appliquerPlan(plan, actionsDaily);
+      }
+      await retirerEchange(e);
+      setInfo(`Suivi « ${pt?.texte ?? ''} » validé.`);
+    },
     onMOccuper: async (e) => {
       const titre = (e.titre || e.texte).slice(0, 200);
       const n = lireNiveau(e.niveau);

@@ -94,6 +94,8 @@ export interface Hierarchie {
   onAccepter: (c: Echange, dernierMot: string) => Promise<void>;
   /** « 📌 Suivre en réunion » un message reçu : une note reformulée, liée ; la réponse part quand elle est validée */
   onSuivreEnReunion: (e: Echange, reunion: string, texte: string) => Promise<void>;
+  /** Rappel « 📌 À valider » : valider le suivi d'ici (le même que dans la réunion), avec un mot facultatif */
+  onValiderRappel: (e: Echange, mot: string) => Promise<void>;
   /** « ✓ Je m'en occupe » : une tâche à mon nom, l'expéditeur voit « Pris en charge » */
   onMOccuper: (e: Echange) => Promise<void>;
   /** Maillons transmis d'un échange (dans la boucle) */

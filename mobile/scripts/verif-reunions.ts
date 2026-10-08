@@ -360,7 +360,7 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const ech = (x: object) => ({ id: 'q1', de: 'emma@x', a: 'nina@x', type: 'question', titre: '', texte: '', choix: '', reponse: '', note: '', statut: 'envoye', element: '', niveau: '', transmis_par: '', prive: '1', cree_le: '', modifie_le: '', espace: 'esp', ...x }) as never;
   const base = { espace: 'esp', note: '', animateur: 'nina@x', nomDe: nom, echanges: [] as never[], niveau: 'equipeagile:eq' };
   const f = planSuivi({ ...base, pt: pt({}), action: 'fait', moi: 'emma@x' });
-  ok(f.points[0].patch.statut === 'fait' && f.envoyer.length === 1 && f.envoyer[0].a === 'nina@x' && f.envoyer[0].type === 'message' && f.envoyer[0].titre.startsWith('📌 À valider en réunion') && f.envoyer[0].point === 'esp|p1', 'Fait par le responsable : rappel « À valider en réunion » à la validatrice, relié au point');
+  ok(f.points[0].patch.statut === 'fait' && f.envoyer.length === 1 && f.envoyer[0].a === 'nina@x' && f.envoyer[0].type === 'message' && f.envoyer[0].titre.startsWith('📌 À valider ·') && f.envoyer[0].point === 'esp|p1', 'Fait par le responsable : rappel « 📌 À valider » à la validatrice (valider dans le Chat ou en réunion : le même suivi), relié au point');
   ok(planSuivi({ ...base, pt: pt({ responsable: 'nina@x' }), action: 'fait', moi: 'nina@x' }).envoyer.length === 0, 'Fait par la validatrice elle-même : pas de message');
   const v = planSuivi({ ...base, pt: pt({ statut: 'fait' }), action: 'valider', moi: 'nina@x', echanges: [ech({ point: 'esp|p1' })] });
   ok(v.points[0].patch.statut === 'valide' && v.echanges[0]?.patch.statut === 'pris_en_compte' && !v.envoyer.length, 'Validé en réunion : le « Valider ? » du Chat est réglé, rien n’est envoyé');
@@ -373,7 +373,7 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const h = planSuivi({ ...base, espace: 'espHaut', pt: p2, action: 'valider', note: 'accès donné le 15/10', moi: 'sara@x', animateur: 'sara@x', echanges: [e1] });
   const bas = h.points.find((x) => x.espace === 'espBas');
   ok(bas?.patch.id === 'p1' && bas.patch.statut === 'fait' && bas.patch.note?.includes('accès donné') === true, 'haut validé : le point du bas passe à Fait avec la réponse');
-  ok(h.envoyer[0]?.a === 'nina@x' && h.envoyer[0].type === 'message' && h.envoyer[0].point === 'espBas|p1|espHaut|p2' && h.echanges[0]?.patch.statut === 'pris_en_compte', 'rappel « À valider en réunion » à Nina (un message, pas une validation dans le Chat), avec les deux points ; l’échange est réglé');
+  ok(h.envoyer[0]?.a === 'nina@x' && h.envoyer[0].type === 'message' && h.envoyer[0].point === 'espBas|p1|espHaut|p2' && h.echanges[0]?.patch.statut === 'pris_en_compte', 'rappel « 📌 À valider » à Nina, avec les deux points ; l’échange est réglé');
   const ref = lireRef(h.envoyer[0].point ?? '');
   ok(ref?.haut?.id === 'p2' && actionDuChoix('À reprendre (motif)') === 'reprendre', 'référence lue ; choix du Chat compris');
   const q = ech({ id: 'q2', de: 'sara@x', a: 'nina@x', point: h.envoyer[0].point });

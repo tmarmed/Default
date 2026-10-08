@@ -200,12 +200,13 @@ export function FeuilleTexte({
  * - réponse reçue, à l'origine : ✓ Accepter · ↩ À reprendre. « Valider » est réservé aux réunions.
  */
 export function ActionsEchange({ e, moi, hierarchie, nomDe, onFait }: { e: Echange; moi: string; hierarchie: Hierarchie; nomDe: (id: string) => string; onFait?: (texte: string) => void }) {
-  const [feuille, setFeuille] = useState<'' | 'transmettre' | 'suivre' | 'redescendre' | 'reprendre' | 'accepter'>('');
+  const [feuille, setFeuille] = useState<'' | 'transmettre' | 'suivre' | 'redescendre' | 'reprendre' | 'accepter' | 'valider'>('');
   const [busy, setBusy] = useState(false);
-  // Un rappel de l'application (« 📌 À valider en réunion ») se lit seulement
+  // Un rappel de l'application (« 📌 À valider ») : seulement ✅ Valider (le même suivi que la réunion) ou Lu ✓
+  const rappel = e.a === moi && e.statut === 'envoye' && e.titre.startsWith(TITRE_RAPPEL) && !!e.point;
   const recu = e.a === moi && e.statut === 'envoye' && !e.titre.startsWith(TITRE_RAPPEL);
   const reponse = e.de === moi && e.statut === 'repondu';
-  if (!recu && !reponse) return null;
+  if (!recu && !reponse && !rappel) return null;
   const parent = e.parent ? hierarchie.parentDe(e) : undefined;
   const vers = parent ? nomDe(parent.de) : '';
   const reunions = hierarchie.reunionsSuivi();
@@ -225,6 +226,8 @@ export function ActionsEchange({ e, moi, hierarchie, nomDe, onFait }: { e: Echan
   );
   return (
     <View style={s.actions}>
+      {/* Rappel : valider ici, ou laisser la validation à la réunion (« Lu ✓ ») ; c'est le même suivi */}
+      {rappel && bouton('✅ Valider', () => setFeuille('valider'), true)}
       {recu && (
         <>
           {bouton('↪ Transmettre', () => setFeuille('transmettre'))}
@@ -276,6 +279,17 @@ export function ActionsEchange({ e, moi, hierarchie, nomDe, onFait }: { e: Echan
           bouton="Accepter"
           onFermer={() => setFeuille('')}
           onValider={(texte) => agir(() => hierarchie.onAccepter(e, texte), 'Réponse acceptée ; la note est à valider en réunion.')}
+        />
+      )}
+      {feuille === 'valider' && (
+        <FeuilleTexte
+          titre="Valider le suivi"
+          explication="C’est le même suivi que dans la réunion : il y apparaîtra validé. Écrivez le dernier mot (reformulé), visible de la réunion."
+          label="Dernier mot"
+          placeholder="Reformulé (obligatoire)"
+          bouton="Valider"
+          onFermer={() => setFeuille('')}
+          onValider={(texte) => agir(() => hierarchie.onValiderRappel(e, texte), 'Suivi validé.')}
         />
       )}
       {feuille === 'reprendre' && (

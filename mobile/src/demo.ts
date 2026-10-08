@@ -121,7 +121,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '29';
+const DEMO_DATA_VERSION = '30';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -539,8 +539,8 @@ const SEEDS_ENTREPRISE: Seeds = {
       ech('acmx5', {
         de: 'sara.martin@acme.example',
         a: MOI_DEMO,
-        titre: '📌 À valider en réunion · API de paiement bloquée',
-        texte: 'Réponse de Sara Martin : accès donné par le prestataire (clé dans le coffre). Validez-le dans la Situation du daily Mobile (« À valider »).',
+        titre: '📌 À valider · API de paiement bloquée',
+        texte: 'Réponse de Sara Martin : accès donné par le prestataire (clé dans le coffre). Validez-le ici (✅ Valider) ou dans la Situation du daily Mobile (« À valider »).',
         element: 'acm4',
         point: 'demo-entreprise|acmpt10',
       }),
