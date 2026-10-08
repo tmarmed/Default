@@ -1760,11 +1760,20 @@ function Main() {
       ...o.portfolios.filter((p) => ids.has(p.epic_owner)).map((p) => ({ kind: 'portfolio' as const, id: p.id })),
     ];
     const vues = new Set<string>();
-    return niveaux
+    const entreprise = niveaux
       .map((n) => reunionDeNiveau(n, o))
       .filter((r): r is NonNullable<typeof r> => !!r && !vues.has(r.serie) && !!vues.add(r.serie))
       .map((r) => ({ value: `${r.espace}|${r.serie}`, label: `${TYPES_REUNION[r.type].libelle} ${libelleNiveau(lireNiveau(r.niveau), o)}` }));
-  }, [orgEchanges, moiEchange]);
+    // Espaces Équipe : le daily de chaque équipe dont vous êtes
+    const equipes = Object.entries(equipesEsp).flatMap(([esp, x]) => {
+      const mes = new Set(x.personnes.filter((p) => p.email?.toLowerCase() === moiEchange).map((p) => p.id));
+      return x.equipes
+        .filter((e) => mes.has(e.sm) || mes.has(e.po) || membresDe(e).some((m) => mes.has(m)))
+        .map((e) => ({ value: `${esp}|daily-equipeagile:${e.id}-`, label: `${TYPES_REUNION.daily.libelle} 👥 ${e.nom}` }))
+        .filter((r) => !vues.has(r.value) && !!vues.add(r.value));
+    });
+    return [...entreprise, ...equipes];
+  }, [orgEchanges, moiEchange, equipesEsp]);
   /** Points d'un Sheet : créés et modifiés en une écriture */
   const ecrireNotes = async (espace: string, creer: PointAEcrire[], modifier: (Partial<PointReunion> & { id: string })[]) =>
     settings ? (await api.ecrirePoints(settings, espace, creer.map(({ espace: _e, ...p }) => p), modifier, [])).crees.map((p) => ({ ...p, espace })) : [];

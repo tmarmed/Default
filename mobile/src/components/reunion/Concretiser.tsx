@@ -174,7 +174,7 @@ export function FeuilleConcretiser({
                       { titre: 'Moi', options: [{ value: moi.email, label: moi.nom, meta: moi.meta }] },
                       { titre: nomEquipe ? `Équipe ${nomEquipe}` : 'Mon équipe', options: equipe.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) },
                       ...autres.map((g) => ({ titre: `${g.titre} · transmettre`, options: g.personnes.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) })),
-                      ...(dessus.length ? [{ titre: `${nomDessus || 'Niveau du dessus'} · transmettre`, options: dessus.map((x) => ({ value: `↑${x.email}`, label: x.nom, meta: x.meta })) }] : []),
+                      ...(dessus.length ? [{ titre: `${nomDessus || 'Niveau du dessus'} · transmettre`, options: [...new Map(dessus.map((x) => [x.email, x])).keys()].map((m) => ({ value: `↑${m}`, label: dessus.find((x) => x.email === m)!.nom, meta: dessus.filter((x) => x.email === m).map((x) => x.meta).filter(Boolean).join(' · ') })) }] : []),
                     ].filter((g) => g.options.length)}
                     libelle={(v) => `${nom([moi, ...equipe, ...autresTous, ...dessus], v.replace(/^↑/, ''))}${v.startsWith('↑') ? ` · ${nomDessus || 'niveau du dessus'}` : ''}`}
                     fixe
