@@ -84,7 +84,7 @@ import { FenetreDeReunion, type NiveauReunion, ReunionsView } from './src/compon
 import { BandeauxBas, hauteurBandeaux, type InfoBandeauChat, type InfoBandeauReunion } from './src/components/BandeauReunion';
 import { useReunionsLancees } from './src/components/useReunionsLancees';
 import { estLancee } from './src/etatReunion';
-import { heureReunion, peutModifierSerie, reunionsAVenir, reunionsDeSerie, seriesACreer, seriesDe, type SerieVue } from './src/reunions';
+import { heureReunion, peutModifierSerie, serieVide, reunionsAVenir, reunionsDeSerie, seriesACreer, seriesDe, type SerieVue } from './src/reunions';
 import { arreterSerie, modifierOccurrence } from './src/series';
 import { ModifierReunionContext } from './src/components/FenetreReunion';
 import { StatutTacheContext } from './src/components/reunion/ui';
@@ -1624,6 +1624,16 @@ function Main() {
         return next;
       });
       return crees as { id: string }[];
+    },
+    creerReunions: async (espace, l) => {
+      if (!settings || !l.length) return [];
+      const maintenant = new Date().toISOString();
+      const lot = l.map((x, k) =>
+        serieVide({ id: `r-${Date.now().toString(36)}${k}`, type_reunion: '', titre: x.titre, niveau: x.niveau, unite: 'jour', jours: '', debut: x.jour || today, fin: x.jour || today, heure: '10:00', duree: '30', animateur: x.animateur, participants: x.participants.join(';'), cree_le: maintenant, modifie_le: maintenant }),
+      );
+      const ecrites = await api.ecrireSeries(settings, espace, lot);
+      appliquerSeries(ecrites);
+      return ecrites.map((x) => x.id);
     },
     supprimer: async (kind, id) => {
       if (!settings) throw new Error('Non connecté.');

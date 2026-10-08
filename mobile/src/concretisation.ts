@@ -2,7 +2,7 @@ import { elementDe } from './elementConcerne';
 import type { HierarchyValue } from './hierarchyContext';
 import { jourCourt } from './pointsSuivi';
 import { PARENT_TYPES } from './subtasks';
-import { type Concretisation, type ItemType, type PointReunion, TYPE_LABELS } from './types';
+import { type Concretisation, type ItemInput, type ItemType, type PointReunion, RECURRENCE_DEFAUTS, TYPE_LABELS } from './types';
 
 /**
  * Feuille « Concrétiser » (08/10, docs/regles-reunions.html bloc 6) : une section par question.
@@ -61,12 +61,17 @@ export function rattachementPour(type: TypeCree, element: string, h: H): { id: s
     return y ? `${y.icone} ${y.titre}` : '';
   };
   if (type === 'reunion') return { id: x.id, libelle: lib(x.id) };
+  // Feature d'un élément : la sienne, ou celle de son parent (sous-tâche) ; epic : la sienne, ou celle de sa feature
+  const parentDe = x.genre === 'item' && x.item?.parent ? h.items.find((i) => i.id === x.item?.parent) : undefined;
+  const featureItem = x.genre === 'item' ? x.item?.feature || parentDe?.feature || '' : '';
   if (type === 'story') {
-    const f = x.genre === 'feature' ? x.id : x.genre === 'item' ? x.item?.feature || '' : '';
+    const f = x.genre === 'feature' ? x.id : featureItem;
     return f ? { id: f, libelle: lib(f) } : null;
   }
   if (type === 'feature') {
-    const ep = x.genre === 'epic' ? x.id : x.genre === 'feature' ? (h.featureList.find((f) => f.id === x.id)?.epic ?? '') : x.genre === 'item' ? x.item?.epic || '' : '';
+    const epicDeFeature = (f: string) => h.featureList.find((y) => y.id === f)?.epic ?? '';
+    const ep =
+      x.genre === 'epic' ? x.id : x.genre === 'feature' ? epicDeFeature(x.id) : x.genre === 'item' ? x.item?.epic || parentDe?.epic || (featureItem ? epicDeFeature(featureItem) : '') : '';
     return ep ? { id: ep, libelle: lib(ep) } : null;
   }
   // Tâche (tout type) : sous l'élément s'il peut avoir des sous-tâches ; sous son parent s'il est déjà une sous-tâche
@@ -133,4 +138,83 @@ export function resumeChoix(c: ChoixConcret, nomDe: (email: string) => string, h
             return y ? `${y.icone} ${y.titre}` : '';
           })()}` : ''}`;
   return [quoi, `Responsable : ${nomDe(c.resp)}`, `Validation : ${nomDe(c.valid)}`, c.ech ? `Échéance : ${jourCourt(c.ech)}` : ''].filter(Boolean).join(' · ');
+}
+
+/** Ce que la concrétisation crée au compte rendu : une tâche (tout type), une feature, ou une réunion ponctuelle */
+export type ACreer = { kind: 'item'; input: ItemInput } | { kind: 'feature'; input: Record<string, string> } | { kind: 'reunion'; titre: string; jour: string; animateur: string; participants: string[] };
+
+/**
+ * L'élément à créer pour un point concrétisé en « Créer » (rattaché à l'élément du dessus selon son type).
+ * `ctx` : espace et sprint de la réunion, équipe, id d'une personne d'après son e-mail, description.
+ */
+export function elementACreer(
+  c: ChoixConcret,
+  pt: Pick<PointReunion, 'type'>,
+  ctx: { espace: string; iteration: string; equipe: string; train?: string; idDe: (email: string) => string; description: string; h: H; moi: string },
+): ACreer {
+  const ratt = c.ratt;
+  const x = elementDe(ratt, ctx.h);
+  if (c.type === 'reunion') return { kind: 'reunion', titre: c.titre, jour: c.ech, animateur: c.resp, participants: [...new Set([c.resp, ctx.moi].filter(Boolean))] };
+  if (c.type === 'feature')
+    return { kind: 'feature', input: { titre: c.titre, description: ctx.description, epic: x?.genre === 'epic' ? ratt : '', pi: '', iteration: '', points: '', couleur: '', train: ctx.train ?? '', equipe: ctx.equipe, rang: '' } };
+  const sousItem = x?.genre === 'item' ? ratt : '';
+  const input: ItemInput = {
+    ...RECURRENCE_DEFAUTS,
+    espace: ctx.espace,
+    titre: c.titre,
+    type: c.type,
+    date: c.type === 'rendez-vous' || c.type === 'appel' ? c.ech : '',
+    heure: '',
+    heure_fin: '',
+    date_fin: '',
+    lieu: '',
+    description: ctx.description,
+    priorite: pt.type === 'blocage' ? 'haute' : 'normale',
+    statut: 'a_faire',
+    // Story : sous la feature ; tâche (tout type) : sous l'élément ; lien vers l'epic ou l'objectif concerné
+    parent: c.type === 'story' ? '' : sousItem,
+    feature: c.type === 'story' || x?.genre === 'feature' ? (x?.genre === 'feature' ? ratt : '') : '',
+    epic: x?.genre === 'epic' ? ratt : '',
+    objectif: x?.genre === 'objectif' ? ratt : '',
+    domaine: '',
+    points: '',
+    iteration: c.type === 'rendez-vous' || c.type === 'appel' ? '' : ctx.iteration,
+    telephone: '',
+    equipe: ctx.equipe,
+    responsable: ctx.idDe(c.resp),
+  } as ItemInput;
+  return { kind: 'item', input };
+}
+
+/** Colonnes du point après concrétisation (statut En cours, sauf « Rien ») */
+export function patchConcretise(c: ChoixConcret, lien: string): Partial<PointReunion> {
+  return {
+    concretisation: concretisationDe(c),
+    tache: lien,
+    responsable: c.que === 'rien' ? '' : c.resp,
+    element: c.element,
+    statut: c.que === 'rien' ? '' : 'en_cours',
+    validateur: c.que === 'rien' ? '' : c.valid,
+    echeance: c.que === 'rien' ? '' : c.ech,
+    type_cree: c.que === 'creer' ? c.type : '',
+    rattache: c.que === 'creer' ? c.ratt : '',
+  };
+}
+
+/** Résumé d'un point déjà concrétisé (lecture, compte rendu, suivi) */
+export function resumePoint(pt: PointReunion, nomDe: (email: string) => string, h: H): string {
+  if (pt.concretisation === 'rien') return 'Rien (clos)';
+  const c: ChoixConcret = {
+    que: pt.concretisation === 'suivi' || pt.concretisation === 'escalade' || pt.concretisation === 'synchro' ? 'suivre' : 'creer',
+    type: (pt.type_cree as TypeCree) || 'tache',
+    titre: pt.texte,
+    qui: pt.concretisation === 'escalade' ? 'dessus' : 'equipe',
+    resp: pt.responsable || pt.personne,
+    element: pt.element,
+    valid: pt.validateur ?? '',
+    ech: pt.echeance ?? '',
+    ratt: pt.rattache ?? '',
+  };
+  if (!c.valid) return resumeChoix({ ...c, valid: c.resp }, nomDe, h).replace(/ · Validation : [^·]+/, '');
+  return resumeChoix(c, nomDe, h);
 }

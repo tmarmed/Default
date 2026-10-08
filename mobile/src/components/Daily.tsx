@@ -37,6 +37,10 @@ import { type Concretisation, type Echange, type EchangeInput, estTechnique, typ
 import { etatDe, texteDirect } from '../etatReunion';
 import { useLive } from './useLive';
 import { FeuilleChoix, SectionFiche } from './Choix';
+import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, patchConcretise, resumeChoix as resumeConcret, resumePoint } from '../concretisation';
+import { libelleElement } from '../elementConcerne';
+import { echeanceParDefaut } from '../pointsSuivi';
+import { FeuilleConcretiser } from './reunion/Concretiser';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
 import { TitreFiche } from './FormSheet';
@@ -92,6 +96,8 @@ export interface ActionsDaily {
   modifierEntites?: (espace: string, kind: KindAjout, patches: { id: string; [k: string]: string }[]) => Promise<void>;
   /** ＋ Nouveau dans une réunion (08/10) : crée des objectifs, domaines, features, objectifs du PI, epics, résultats clés */
   creerEntites?: (espace: string, kind: KindAjout, inputs: Record<string, string>[]) => Promise<{ id: string }[]>;
+  /** Concrétisation en 🗓️ réunion ponctuelle (08/10) : séries d'un jour, créées en une écriture ; renvoie leurs ids */
+  creerReunions?: (espace: string, l: { titre: string; jour: string; animateur: string; participants: string[]; niveau: string }[]) => Promise<string[]>;
   /** ✕ sur un ajout de la séance : supprime l'élément créé (tâche ou autre) */
   supprimer?: (kind: KindAjout | 'item', id: string) => Promise<void>;
   /** Crée des tâches en un seul passage ; renvoie les tâches créées dans l'ordre */
@@ -184,7 +190,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const [anciens, setAnciens] = useState<Record<string, Prep>>({});
   /** Notés par l'organisateur pendant la réunion */
   const [locaux, setLocaux] = useState<Local[]>([]);
-  const [choix, setChoix] = useState<Record<string, { c?: Concretisation; resp?: string; a?: string }>>({});
+  const [choix, setChoix] = useState<Record<string, Partial<ChoixConcret>>>({});
   /** Feuille « Concrétiser » ouverte sur un point : choix de la concrétisation, puis du responsable */
   /** Tour de table : filtre des points notés par type (pastille « Filtres » à côté du titre, fermé et « Tous » par défaut) */
   const [filtreType, setFiltreType] = useState<TypePoint | ''>('');
@@ -192,7 +198,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** Situation : même filtre sur le suivi (fermé, « Tous » par défaut) */
   const [filtreSuivi, setFiltreSuivi] = useState<TypePoint | ''>('');
   const [filtresSuiviOuverts, setFiltresSuiviOuverts] = useState(false);
-  const [feuille, setFeuille] = useState<{ id: string; etape: 'quoi' | 'responsable' } | null>(null);
+  const [feuille, setFeuille] = useState<{ id: string } | null>(null);
   /** PO : ses réponses aux questions de l'équipe (par échange), envoyées avec son point */
   const [reponses, setReponses] = useState<Record<string, { c: string; note: string }>>({});
   const [membre, setMembre] = useState(0);
@@ -448,19 +454,18 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   // Points de suivi reportés des réunions précédentes (escalades reçues, réponses recopiées) : à concrétiser aussi
   const reportes = useMemo(() => (anime ? aReprendre(serveur, reunion.id).filter(aConcretiser) : []), [anime, serveur, reunion.id]);
   const aDecider = [...[...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => dela(x) && aConcretiser(x) && !x.concretisation), ...reportes];
+  // Concrétisation (08/10, feuille « Concrétiser ») : les choix du SM sur ceux proposés ; forme d'avant (c, resp, a) en plus
+  const escaladesDaily = [
+    ...(rte?.email ? [{ email: rte.email.toLowerCase(), nom: rte.nom, meta: `RTE du train ${e.train?.nom ?? ''} · obstacle, organisation` }] : []),
+    ...(pm?.email ? [{ email: pm.email.toLowerCase(), nom: pm.nom, meta: `PM du train ${e.train?.nom ?? ''} · contenu, priorité` }] : []),
+  ];
   const choixDe = (pt: PointReunion) => {
-    const c = choix[pt.id]?.c ?? concretisationParDefaut(pt);
-    // Sous-tâche impossible sans story ; escalade impossible sans RTE ni PM
-    const cc: Concretisation = (c === 'sous_tache' && !pt.element) || (c === 'escalade' && !rte?.email && !pm?.email) ? 'tache' : c;
-    // Échange 🔄 Synchro : vers le PO par défaut (sinon le SM), jamais vers la personne qui a le blocage ;
-    // escalade : aux SM du train (RTE) par défaut, sinon aux PO du train (PM)
-    const defautA =
-      cc === 'escalade'
-        ? (rte?.email || pm?.email || '').toLowerCase()
-        : ([po?.email, sm?.email].find((x) => !!x && x.toLowerCase() !== pt.personne)?.toLowerCase() ?? '');
-    // « Transmettre à » et « Escalader » posent toujours leur destinataire avec leur choix
-    const a = choix[pt.id]?.a ?? defautA;
-    return { c: cc === 'synchro' && pt.type !== 'blocage' ? 'tache' : cc, resp: choix[pt.id]?.resp ?? (pt.responsable || pt.personne), a };
+    const base = choixParDefaut(pt, { animateur: reunion.organisateur || mail, echeance: echeanceParDefaut(reunion), h, moi: mail });
+    const x = { ...base, ...choix[pt.id] };
+    const dansEq = personnes.some((y) => y.email.toLowerCase() === x.resp);
+    if (!choix[pt.id]?.resp && x.qui !== 'dessus' && !dansEq) x.resp = po?.email.toLowerCase() ?? mail;
+    if (x.qui === 'dessus' && !escaladesDaily.some((y) => y.email === x.resp)) x.resp = escaladesDaily[0]?.email ?? x.resp;
+    return { ...x, c: concretisationDe(x), a: x.resp };
   };
   /** Tâche née d'un point : sous-tâche de sa story ou tâche à part dans l'itération, avec son responsable */
   function entreeTache(pt: Pick<PointReunion, 'texte' | 'type' | 'personne' | 'element'>, c: 'sous_tache' | 'tache', resp: string): ItemInput {
@@ -495,32 +500,48 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   // ---- Envoi du compte rendu : tâches (un lot), échanges (un lot), points (un lot, votre préparation comprise) ----
   const envoyerCompteRendu = async () => {
     const decides = aDecider.map((pt) => ({ pt, ...choixDe(pt) }));
-    const aCreer = decides.filter((d) => d.c === 'sous_tache' || d.c === 'tache');
-    const creees = await actions.creerTaches(espace, aCreer.map(({ pt, c, resp }) => entreeTache(pt, c as 'sous_tache' | 'tache', resp)));
-    const tacheDe = new Map(aCreer.map((d, i) => [d.pt.id, creees[i]?.id ?? '']));
+    // « Créer » (08/10) : tâches de tout type, features, réunions ponctuelles, rattachées à l'élément du dessus
+    const idDe = (m: string) => personneParEmail(m, org)?.id ?? '';
+    const ctxCreer = (pt: PointReunion) => ({ espace, iteration: it.key, equipe: equipe?.id ?? '', train: e.train?.id, idDe, description: `${LIBELLE_TYPE_POINT[pt.type]} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} (${nomDe(pt.personne)}).`, h, moi: mail });
+    const aCreerTout = decides.filter((d) => d.que === 'creer' && d.qui !== 'dessus').map((d) => ({ d, x: elementACreer(d, d.pt, ctxCreer(d.pt)) }));
+    const aCreer = aCreerTout.map((a) => a.d);
+    const lotItems = aCreerTout.filter((a) => a.x.kind === 'item');
+    const creees = await actions.creerTaches(espace, lotItems.map((a) => (a.x as { input: ItemInput }).input));
+    const tacheDe = new Map(lotItems.map((a, i) => [a.d.pt.id, creees[i]?.id ?? '']));
+    const lotFeatures = aCreerTout.filter((a) => a.x.kind === 'feature');
+    if (lotFeatures.length && actions.creerEntites) {
+      const fs = await actions.creerEntites(espace, 'feature', lotFeatures.map((a) => (a.x as { input: Record<string, string> }).input));
+      lotFeatures.forEach((a, i) => tacheDe.set(a.d.pt.id, fs[i]?.id ?? ''));
+    }
+    const lotReunions = aCreerTout.filter((a) => a.x.kind === 'reunion');
+    if (lotReunions.length && actions.creerReunions) {
+      const ids = await actions.creerReunions(espace, lotReunions.map((a) => ({ ...(a.x as Extract<typeof a.x, { kind: 'reunion' }>), niveau: reunion.niveau })));
+      lotReunions.forEach((a, i) => tacheDe.set(a.d.pt.id, ids[i] ?? ''));
+    }
     // Vous êtes aussi le PO : vos réponses données ici partent dans leurs échanges (un lot)
     const ici = reponsesPO.filter((r) => r.ici);
     if (ici.length) await actions.repondreEchanges(ici.map((r) => ({ e: r.q, reponse: r.q.reponse, note: r.q.note })));
 
     const escalades = decides.filter((d) => d.c === 'escalade');
-    const synchros = decides.filter((d) => d.c === 'synchro' && !!d.a);
+    // Point de suivi confié à quelqu'un qui n'est pas du daily : prévenu dans le Chat (08/10)
+    const synchros = decides.filter((d) => d.que !== 'rien' && d.qui !== 'dessus' && !!d.resp && d.resp !== mail && !personnes.some((y) => y.email.toLowerCase() === d.resp));
     const decisions = decides.filter((d) => d.pt.type === 'decision');
     const story = (id: string) => (id ? parId.get(id)?.titre : undefined);
     // Échanges en un seul lot : blocages passés en 🔄 Synchro (de la personne qui a le blocage, transmis par vous),
     // puis, s'il y a un RTE, escalades et compte rendu
     const lot: EchangeInput[] = synchros.map((d) => ({
-      de: d.pt.personne,
-      a: d.a,
-      type: 'question' as const,
-      titre: titreTransmis(`Blocage · ${d.pt.texte}`),
-      texte: `Blocage noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} pour ${nomDe(d.pt.personne)}${story(d.pt.element) ? ` (story « ${story(d.pt.element)} »)` : ''} : peux-tu le lever ?`,
-      choix: 'Je m’en occupe;On en parle après le daily;Autre',
+      de: mail,
+      a: d.resp,
+      type: 'message' as const,
+      titre: `📌 Nouveau point de suivi · ${d.pt.texte}`.slice(0, 200),
+      texte: `${LIBELLE_TYPE_POINT[d.pt.type]} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} par ${nomDe(d.pt.personne)}${libelleElement(d.element, h) ? ` (${libelleElement(d.element, h)})` : ''}. Responsable : ${nomDe(d.resp)} · Validation : ${nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}.`,
+      choix: '',
       reponse: '',
       note: '',
       statut: 'envoye' as const,
-      element: d.pt.element,
+      element: d.element,
       niveau: equipe ? `equipeagile:${equipe.id}` : '',
-      transmis_par: d.pt.personne === mail ? '' : mail,
+      transmis_par: '',
       prive: '1',
       pieces_jointes: '',
       espace,
@@ -533,9 +554,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         equipe: equipe?.nom ?? '',
         jour,
         decisions: decisions.map((d) => d.pt.texte),
-        creees: aCreer.map((d) => ({ titre: d.pt.texte, sous: `${d.c === 'sous_tache' ? `sous-tâche de « ${story(d.pt.element) ?? 'la story'} »` : `tâche à part, ${it.nom}`} · ${prenom(nomDe(d.resp))}` })),
+        creees: aCreer.map((d) => ({ titre: d.titre, sous: resumeConcret(d, nomDe, h) })),
         escalades: escalades.map((d) => `${d.pt.texte} (${prenom(nomDe(d.pt.personne))}${story(d.pt.element) ? `, « ${story(d.pt.element)} »` : ''})`),
-        synchros: synchros.map((d) => `${d.pt.texte} (${prenom(nomDe(d.pt.personne))} → ${prenom(nomDe(d.a))})`),
+        synchros: decides.filter((d) => d.c === 'suivi').map((d) => `${d.pt.texte} (${resumeConcret(d, nomDe, h)})`),
         notes: decides.filter((d) => d.c === 'rien' && d.pt.type !== 'decision').length,
       });
       lot.push(
@@ -551,15 +572,10 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     }
     const envoyes = lot.length ? await actions.envoyerEchanges(espace, lot) : [];
     // Le point garde l'échange créé (Synchro, escalade) pour le suivi
-    const echangeDuPoint = new Map([...synchros, ...escaladesEnvoyees].map((d, i) => [d.pt.id, envoyes[i]?.id ?? '']));
+    const echangeDuPoint = new Map(escaladesEnvoyees.map((d, i) => [d.pt.id, envoyes[synchros.length + i]?.id ?? '']));
 
     // Une réponse du PO (décision) garde le lien vers sa question, sauf si elle devient une tâche
-    const patch = (d: (typeof decides)[number]) => ({
-      concretisation: d.c,
-      tache: tacheDe.get(d.pt.id) || echangeDuPoint.get(d.pt.id) || (d.pt.type === 'decision' && d.c === 'rien' ? d.pt.tache : ''),
-      // Escalade et Transmettre à : le destinataire (RTE ou PM ; personne de l'équipe)
-      responsable: d.c === 'escalade' || d.c === 'synchro' ? d.a : d.resp,
-    });
+    const patch = (d: (typeof decides)[number]) => patchConcretise(d, tacheDe.get(d.pt.id) || echangeDuPoint.get(d.pt.id) || (d.pt.type === 'decision' && d.c === 'rien' ? d.pt.tache : '') || (d.c === 'escalade' || d.c === 'suivi' ? d.pt.tache : ''));
     const parPoint = new Map(decides.map((d) => [d.pt.id, d]));
     const creer = [...preparation, ...locaux].map((y) => {
       const d = parPoint.get(y.id);
@@ -585,7 +601,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     onInfo?.(
       `Compte rendu du daily : ${pluriel(creees.length, 'tâche')} créée${creees.length > 1 ? 's' : ''}` +
         (escalades.length ? `, ${pluriel(escalades.length, 'blocage')} escaladé${escalades.length > 1 ? 's' : ''}` : '') +
-        (synchros.length ? `, ${pluriel(synchros.length, 'point')} transmis` : '') +
+        (synchros.length ? `, ${pluriel(synchros.length, 'point')} de suivi transmis` : '') +
         (rte?.email ? `, envoyé à ${nomDe(rte.email)} (RTE).` : ' ; pas de RTE : compte rendu non envoyé.'),
     );
   };
@@ -841,7 +857,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   onAjouter={(type, texte, element, conc) => {
                     const pt = { ...nouveau(type, texte, element), personne: mail };
                     setLocaux((l) => [...l, pt]);
-                    if (conc) setChoix((m) => ({ ...m, [pt.id]: { c: conc.c, resp: conc.resp } }));
+                    if (conc) setChoix((m) => ({ ...m, [pt.id]: { que: conc.c === 'rien' ? 'rien' : 'creer', resp: conc.resp } }));
                   }}
                 />
               )}
@@ -918,7 +934,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
           </>
         );
       }
-      case 'concretisation':
+      case 'concretisation': {
+        const origine = (pt: PointReunion) => [`Noté par ${nomDe(pt.personne)}`, libelleElement(pt.element, h)].filter(Boolean).join(' · ');
         if (lecture) {
           // Lecture seule : le choix déjà fait par le SM (compte rendu envoyé), sinon « à décider »
           const faits = duSheet.filter((pt) => !!pt.concretisation).length;
@@ -926,128 +943,66 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             <>
               <TitreFiche icone="🧩" titre="Concrétisation" vide="" sous={`${pluriel(duSheet.length, 'point')} : ${faits} concrétisé${faits > 1 ? 's' : ''}, ${duSheet.length - faits} à décider par le SM`} />
               {!duSheet.length && <Vide texte="Aucun blocage, décision ou action noté." />}
-              {duSheet.map((pt) => {
-                const story = pt.element ? parId.get(pt.element) : undefined;
-                return (
-                  <View key={pt.id} style={st.carteConcret}>
-                    <View style={st.ligneHaut}>
-                      <View style={st.corps}>
-                        <Text style={st.texte}>{pt.texte}</Text>
-                        <Text style={st.sous}>
-                          {prenom(nomDe(pt.personne))}
-                          {story ? ` · sur 📖 ${story.titre}` : ''}
-                        </Text>
-                      </View>
-                      <Pastille texte={LIBELLE_TYPE_POINT[pt.type]} ton={tonType(pt.type)} />
+              {duSheet.map((pt) => (
+                <View key={pt.id} style={st.carteConcret}>
+                  <View style={st.ligneHaut}>
+                    <View style={st.corps}>
+                      <Text style={st.texte}>{pt.texte}</Text>
+                      <Text style={st.sous}>{origine(pt)}</Text>
                     </View>
-                    <Text style={[st.choixLecture, !pt.concretisation && st.choixADecider]} numberOfLines={1}>
-                      {pt.concretisation ? `→ ${resumeChoix(pt.concretisation, pt.responsable || pt.personne, pt.responsable)}` : 'À décider'}
-                    </Text>
+                    <Pastille texte={LIBELLE_TYPE_POINT[pt.type]} ton={tonType(pt.type)} />
                   </View>
-                );
-              })}
+                  <Text style={[st.choixLecture, !pt.concretisation && st.choixADecider]}>{pt.concretisation ? resumePoint(pt, nomDe, h) : 'À décider'}</Text>
+                </View>
+              ))}
             </>
           );
         }
+        const moiP = { email: mail, nom: nomDe(mail), meta: 'vous' };
+        const equipeP = personnes.map((y) => ({ email: y.email.toLowerCase(), nom: y.nom, meta: libelleRole(y.email) }));
+        const animateur = (reunion.organisateur || mail).toLowerCase();
+        const validateurs = [...new Map([...equipeP, ...escaladesDaily, moiP].map((y) => [y.email, y.email === animateur ? { ...y, meta: 'anime le daily' } : y])).values()];
         return (
           <>
             <TitreFiche icone="🧩" titre="Concrétisation" vide="" sous={sous(`${pluriel(aDecider.length, 'point')} : blocages, décisions, actions`)} />
             {!aDecider.length && <Vide texte="Aucun blocage, décision ou action noté." />}
             {aDecider.map((pt) => {
-              const { c, resp, a } = choixDe(pt);
-              const story = pt.element ? parId.get(pt.element) : undefined;
-              const choisi = !!choix[pt.id]?.c;
-              const resume = resumeChoix(c, resp, a);
+              const x = choixDe(pt);
+              const choisi = !!choix[pt.id];
+              const resume = resumeConcret(x, nomDe, h);
               return (
                 <View key={pt.id} style={st.carteConcret}>
                   <View style={st.ligneHaut}>
                     <View style={st.corps}>
                       <Text style={st.texte}>{pt.texte}</Text>
-                      <Text style={st.sous}>
-                        {prenom(nomDe(pt.personne))}
-                        {story ? ` · sur 📖 ${story.titre}` : ''}
-                      </Text>
+                      <Text style={st.sous}>{origine(pt)}</Text>
                     </View>
                     <Pastille texte={LIBELLE_TYPE_POINT[pt.type]} ton={tonType(pt.type)} />
                   </View>
-                  {/* Un seul bouton « Concrétiser » : toutes les possibilités s'ouvrent dans une feuille (règle du 06/10) */}
-                  <Pressable onPress={() => setFeuille({ id: pt.id, etape: 'quoi' })} style={[st.boutonSynchro, choisi && st.boutonSynchroChoisi]} accessibilityRole="button">
-                    <Text style={[st.boutonSynchroTexte, choisi && st.boutonSynchroTexteChoisi]} numberOfLines={1}>
-                      {choisi ? `${resume} ›` : 'Concrétiser ›'}
-                    </Text>
+                  {/* Un seul bouton « Concrétiser » : une feuille, une section par question (08/10) */}
+                  <Pressable onPress={() => setFeuille({ id: pt.id })} style={[st.boutonSynchro, choisi && st.boutonSynchroChoisi]} accessibilityRole="button">
+                    <Text style={[st.boutonSynchroTexte, choisi && st.boutonSynchroTexteChoisi]}>{choisi ? `${resume} ›` : 'Concrétiser ›'}</Text>
                   </Pressable>
-                  {!choisi && <Text style={st.sous}>Par défaut : {resume.charAt(0).toLowerCase() + resume.slice(1)}</Text>}
+                  {!choisi && <Text style={st.sous}>Proposé : {resume}</Text>}
                 </View>
               );
             })}
             {feuille &&
               (() => {
-                const pt = aDecider.find((x) => x.id === feuille.id);
+                const pt = aDecider.find((y) => y.id === feuille.id);
                 if (!pt) return null;
-                const { c, resp, a } = choixDe(pt);
-                const poser = (y: { c?: Concretisation; resp?: string; a?: string }) => setChoix((mm) => ({ ...mm, [pt.id]: { ...mm[pt.id], ...y } }));
-                if (feuille.etape === 'responsable')
-                  return (
-                    <FeuilleChoix
-                      titre="Responsable"
-                      value={resp}
-                      groupes={[{ options: personnes.map((y) => ({ value: y.email.toLowerCase(), label: y.nom })) }]}
-                      onChoisir={(v) => {
-                        if (v) poser({ resp: v });
-                        setFeuille(null);
-                      }}
-                      onFermer={() => setFeuille(null)}
-                    />
-                  );
-                const valeur = c === 'synchro' ? `t:${a}` : c === 'escalade' ? `e:${a}` : `c:${c}`;
                 return (
-                  <FeuilleChoix
-                    titre="Concrétiser"
-                    value={valeur}
-                    groupes={[
-                      {
-                        titre: 'Concrétiser',
-                        options: [
-                          ...(pt.element ? [{ value: 'c:sous_tache', label: 'Sous-tâche de la story', meta: parId.get(pt.element)?.titre }] : []),
-                          { value: 'c:tache', label: `Tâche à part (${it.nom})` },
-                          { value: 'c:rien', label: 'Rien', meta: 'noté seulement' },
-                        ],
-                      },
-                      ...(pt.type === 'blocage'
-                        ? [
-                            // Transmettre à : une personne de l'une de vos équipes (votre équipe ; SM du train si vous êtes SM)
-                            ...destinatairesTransfert(mail, null, org, [mail, pt.personne]).map((g) => ({
-                              titre: `Transmettre à · ${g.titre}`,
-                              options: g.emails.map((x) => ({ value: `t:${x}`, label: nomDe(x), meta: libelleRole(x) })),
-                            })),
-                            // Escalader : à l'équipe du dessus, par l'une des deux voies du train
-                            ...(rte?.email || pm?.email
-                              ? [
-                                  {
-                                    titre: 'Escalader',
-                                    options: [
-                                      ...(rte?.email ? [{ value: `e:${rte.email.toLowerCase()}`, label: '⤴ Aux SM du train', meta: `obstacle, organisation · ${rte.nom} (RTE)` }] : []),
-                                      ...(pm?.email ? [{ value: `e:${pm.email.toLowerCase()}`, label: '⤴ Aux PO du train', meta: `contenu, priorité · ${pm.nom} (PM)` }] : []),
-                                    ],
-                                  },
-                                ]
-                              : []),
-                          ]
-                        : []),
-                    ]}
-                    onChoisir={(v) => {
-                      if (!v) return setFeuille(null);
-                      if (v.startsWith('t:')) {
-                        poser({ c: 'synchro', a: v.slice(2) });
-                        return setFeuille(null);
-                      }
-                      if (v.startsWith('e:')) {
-                        poser({ c: 'escalade', a: v.slice(2) });
-                        return setFeuille(null);
-                      }
-                      const cc = v.slice(2) as Concretisation;
-                      poser({ c: cc });
-                      setFeuille(cc === 'sous_tache' || cc === 'tache' ? { id: pt.id, etape: 'responsable' } : null);
+                  <FeuilleConcretiser
+                    sous={`${LIBELLE_TYPE_POINT[pt.type]} noté par ${nomDe(pt.personne)} : « ${pt.texte} »`}
+                    valeur={choixDe(pt)}
+                    moi={moiP}
+                    equipe={equipeP}
+                    dessus={escaladesDaily}
+                    validateurs={validateurs}
+                    contexte={situation.cartes.map((t) => t.id)}
+                    onValider={(c) => {
+                      setChoix((mm) => ({ ...mm, [pt.id]: c }));
+                      setFeuille(null);
                     }}
                     onFermer={() => setFeuille(null)}
                   />
@@ -1058,6 +1013,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             </SectionFiche>
           </>
         );
+      }
       default: {
         // Compte rendu ; en lecture seule (bandeau En direct, onglet « Compte rendu · date »), ce que le SM a déjà
         // concrétisé (dans le Sheet) et ce qui reste à décider

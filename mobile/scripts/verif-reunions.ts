@@ -14,6 +14,8 @@ import { seriesACreer, serieParDefaut, serieVide, etapesParcours, ongletParcours
 import { type Reunion, TYPES_REUNION } from '../src/types';
 import { iterationOf, iterationsOf, lireCalendrier, piOf } from '../src/pi';
 import { checkParent } from '../src/subtasks';
+import { choixParDefaut, concretisationDe, elementACreer, patchConcretise, rattachementPour } from '../src/concretisation';
+import { statutEffectif } from '../src/pointsSuivi';
 import { avecCriteres, capacite, criteresDe, etatPrete, feriesFrance, joursOuvres, lireNombre, nombreFr } from '../src/reunionsEquipe';
 
 let erreurs = 0;
@@ -326,6 +328,32 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   ok(!err(() => checkParent({ titre: 'Préparer', parent: 'rdv', type: 'tache' }, [rdv])), 'sous-tâche sous un rendez-vous');
   ok(!!err(() => checkParent({ titre: 'Trop loin', parent: 'sous', type: 'tache' }, [rdv, sous])), 'un seul niveau de sous-tâches');
   ok(!!err(() => checkParent({ titre: 'Préparer', parent: 'rdvr', type: 'tache' }, [rdvRep])) && !err(() => checkParent({ titre: 'Préparer', parent: 'rdvr', type: 'tache', date: '2026-10-14' }, [rdvRep])), 'élément répété : sous-tâche avec la date de l’occurrence');
+}
+// Concrétisation (08/10) : rattachement selon le type, choix proposé, colonnes du point
+{
+  const it = (x: object) => ({ titre: 'x', type: 'tache', parent: '', feature: '', epic: '', objectif: '', domaine: '', statut: 'a_faire', periodicite: '', ...x }) as never;
+  const h = {
+    items: [it({ id: 'st1', type: 'story', titre: 'Panier', feature: 'f1' }), it({ id: 'sub', titre: 'Sous', parent: 'st1' }), it({ id: 'rdv', type: 'rendez-vous', titre: 'Atelier' })],
+    featureList: [{ id: 'f1', titre: 'Commande', epic: 'ep1' }],
+    epicList: [{ id: 'ep1', titre: 'Vente en ligne' }],
+    objectifList: [{ id: 'o1', titre: 'Fidéliser' }],
+    objectifsPI: [],
+    resultats: [],
+  } as never;
+  ok(rattachementPour('tache', 'st1', h)?.id === 'st1' && rattachementPour('rendez-vous', 'st1', h)?.id === 'st1', 'tâche ou rendez-vous : sous la story concernée');
+  ok(rattachementPour('tache', 'sub', h)?.id === 'st1', 'élément déjà sous-tâche : rattaché à son parent');
+  ok(rattachementPour('story', 'st1', h)?.id === 'f1' && rattachementPour('story', 'f1', h)?.id === 'f1', 'story : sous la feature');
+  ok(rattachementPour('feature', 'st1', h)?.id === 'ep1' && rattachementPour('story', 'rdv', h) === null, 'feature : sous l’epic ; story sans feature : à choisir');
+  ok(rattachementPour('reunion', 'o1', h)?.id === 'o1' && rattachementPour('tache', 'o1', h)?.id === 'o1', 'réunion et tâche liées à l’objectif');
+  const c = choixParDefaut({ type: 'action', texte: 'Revoir les maquettes', element: 'st1', personne: 'emma@x', responsable: '' }, { animateur: 'nina@x', echeance: '2026-10-08', h, moi: 'nina@x' });
+  ok(c.que === 'creer' && c.type === 'tache' && c.ratt === 'st1' && c.resp === 'emma@x' && c.valid === 'nina@x' && concretisationDe(c) === 'sous_tache', 'action : créer une tâche sous la story, responsable qui l’a notée, validation l’animatrice');
+  const b = choixParDefaut({ type: 'blocage', texte: 'API bloquée', element: 'st1', personne: 'tom@x', responsable: '' }, { animateur: 'nina@x', echeance: '2026-10-14', h, moi: 'nina@x' });
+  ok(b.que === 'suivre' && concretisationDe(b) === 'suivi' && concretisationDe({ ...b, qui: 'dessus' }) === 'escalade', 'blocage : point de suivi ; niveau du dessus : escalade');
+  const x = elementACreer({ ...c, type: 'rendez-vous', ech: '2026-10-09' }, { type: 'action' }, { espace: 'e', iteration: '2026-T4-IT1', equipe: 'eq', idDe: () => 'p1', description: 'd', h, moi: 'nina@x' });
+  ok(x.kind === 'item' && x.input.type === 'rendez-vous' && x.input.parent === 'st1' && x.input.date === '2026-10-09', 'rendez-vous créé sous la story, à la date d’échéance');
+  const pch = patchConcretise(b, 'ech1');
+  ok(pch.statut === 'en_cours' && pch.validateur === 'nina@x' && pch.echeance === '2026-10-14', 'point concrétisé : en cours, validateur, échéance');
+  ok(statutEffectif({ statut: 'en_cours', concretisation: 'tache', tache: 't9' }, [it({ id: 't9', statut: 'termine' })]) === 'fait', 'tâche créée terminée : le point passe à Fait');
 }
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
 process.exit(erreurs ? 1 : 0);
