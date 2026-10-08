@@ -398,7 +398,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
       de: mail,
       a: d.resp,
       type: 'message' as const,
-      titre: `📌 Nouveau point de suivi · ${d.pt.texte}`.slice(0, 200),
+      titre: `📌 Nouveau suivi · ${d.pt.texte}`.slice(0, 200),
       texte: `${LIBELLE_TYPE_POINT[d.pt.type]} noté ${quand} par ${e.nomDe(d.pt.personne)}${story(d.element) ? ` (${story(d.element)})` : ''}. Responsable : ${e.nomDe(d.resp)} · Validation : ${e.nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}.`,
       choix: '',
       reponse: '',
@@ -417,7 +417,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
       const l: string[] = [`${TYPES_REUNION[reunion.type].libelle} ${e.nomNiveau} du ${dateCourte(e.jour)}.`, '', ...o.lignes];
       const bloc = (titre: string, x: string[]) => x.length && l.push('', `${titre} · ${x.length}`, ...x.map((y) => `• ${y}`));
       bloc('Créé', aCreer.map((d) => `${d.titre} (${resumeChoix(d, e.nomDe, e.h)})`));
-      bloc('Points de suivi', decides.filter((d) => d.c === 'suivi').map((d) => `${d.pt.texte} (${resumeChoix(d, e.nomDe, e.h)})`));
+      bloc('Suivis', decides.filter((d) => d.c === 'suivi').map((d) => `${d.pt.texte} (${resumeChoix(d, e.nomDe, e.h)})`));
       bloc('Escaladé', escalades.map((d) => `${d.pt.texte} (${resumeChoix(d, e.nomDe, e.h)})`));
       bloc('Clos', decides.filter((d) => d.c === 'rien').map((d) => d.pt.texte));
       lot.push(
@@ -462,7 +462,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
       `Compte rendu envoyé : ${pluriel(creees.length, 'tâche')} créée${creees.length > 1 ? 's' : ''}` +
         (o.stories?.length ? `, ${pluriel(o.stories.length, 'story')} mise${o.stories.length > 1 ? 's' : ''} à jour` : '') +
         (escalades.length ? `, ${escalades.length} escaladé${escalades.length > 1 ? 's' : ''}` : '') +
-        (synchros.length ? `, ${synchros.length} point${synchros.length > 1 ? 's' : ''} de suivi transmis` : '') +
+        (synchros.length ? `, ${pluriel(synchros.length, 'suivi')} transmis` : '') +
         (e.destCR?.p.email ? ` ; envoyé à ${e.destCR.p.nom} (${e.destCR.role.split(' ')[0]}).` : '.'),
     );
   };
@@ -681,7 +681,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
   let k = nouveaux.length ? 1 : 0;
   return (
     <SectionFiche
-      titre={`📌 Points de suivi · ${filtre ? `${nf} sur ` : ''}${n}`}
+      titre={`📌 Suivis · ${filtre ? `${nf} sur ` : ''}${n}`}
       droite={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {nValider > 0 && (
@@ -721,9 +721,9 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
         <SaisiePoint
           types={['blocage', 'decision', 'action']}
           typeDefaut="action"
-          titre="Nouveau point de suivi"
+          titre="Nouveau suivi"
           jour={e.jour}
-          placeholder="＋ Point de suivi oublié"
+          placeholder="＋ Suivi oublié"
           stories={e.situation.cartes}
           concretiser={{ personnes: e.personnes.map((y) => ({ value: y.email.toLowerCase(), label: y.nom })), respDefaut: r.mail }}
           onAjouter={(type, texte, element, conc) => {
@@ -987,7 +987,7 @@ export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode 
         )}
       </SectionFiche>
       {suivis.length > 0 && (
-        <SectionFiche titre={`Points de suivi · ${suivis.length}`}>
+        <SectionFiche titre={`Suivis · ${suivis.length}`}>
           {suivis.map((d, i) => (
             <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }} />
           ))}

@@ -102,7 +102,7 @@ export function FeuilleConcretiser({
             <View style={s.carte}>
               {puces<QueFaire>(
                 [
-                  { v: 'suivre', l: '📌 Suivre', aide: 'point de suivi' },
+                  { v: 'suivre', l: '📌 Suivre', aide: 'jusqu’à validation' },
                   { v: 'creer', l: '✓ Créer une tâche…', off: c.qui === 'dessus' },
                   { v: 'rien', l: '⊘ Rien', aide: 'clos' },
                 ],

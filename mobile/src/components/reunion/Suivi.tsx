@@ -70,7 +70,7 @@ export function sousSuivi(p: PointReunion, st: StatutSuivi, nomDe: (e: string) =
   return [quoiSuivi(p), `Responsable : ${nomDe(resp)}`, p.echeance ? `Échéance : ${jourCourt(p.echeance)}` : '', p.note && st === 'fait' ? p.note : ''].filter(Boolean).join(' · ');
 }
 const quoiSuivi = (p: PointReunion) =>
-  p.concretisation === 'escalade' ? '⤴ Escaladé' : p.concretisation === 'suivi' ? '📌 Point de suivi' : p.type_cree ? LIBELLE_TYPE_CREE(p.type_cree as TypeCree) : p.concretisation === 'sous_tache' ? 'Sous-tâche' : 'Tâche';
+  p.concretisation === 'escalade' ? '⤴ Escaladé' : p.concretisation === 'suivi' ? '📌 Suivi' : p.type_cree ? LIBELLE_TYPE_CREE(p.type_cree as TypeCree) : p.concretisation === 'sous_tache' ? 'Sous-tâche' : 'Tâche';
 
 /** Crée l'élément d'une re-concrétisation ; renvoie son id */
 async function creerUn(a: ActionsDaily, espace: string, x: ACreer, niveau: string): Promise<string> {
@@ -181,7 +181,7 @@ function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onFermer }: { p
     </View>
   );
   const origine = [
-    role === 'haut' ? 'Point de suivi reçu par escalade' : role === 'bas' ? 'Escaladé au niveau du dessus' : quoiSuivi(pt),
+    role === 'haut' ? 'Suivi reçu par escalade' : role === 'bas' ? 'Escaladé au niveau du dessus' : quoiSuivi(pt),
     `Responsable : ${ctx.nomDe(pt.responsable || pt.personne)}`,
     `Validation : ${ctx.nomDe(validateurDe(pt, ctx.animateur))}`,
     pt.echeance ? `Échéance : ${jourCourt(pt.echeance)}` : '',

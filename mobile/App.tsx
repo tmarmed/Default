@@ -1748,8 +1748,8 @@ function Main() {
         const plan = planSuivi({ pt, espace: ref.espace, action, note, moi: moiEchange, animateur: pt.validateur || moiEchange, nomDe: nomEchange, echanges: tousHier.echanges ?? [], niveau: e.niveau, question: e });
         await appliquerPlan(plan, actionsDaily);
       }
-      setInfo(`Point « ${(e.titre || '').replace(/^Valider \? /, '')} » : ${reponse.replace(' (motif)', '').toLowerCase()}.`);
-    } else if (ref && action === 'reconcretiser') setInfo('Point à re-concrétiser : ouvrez-le dans le Suivi de la réunion (« À valider »).');
+      setInfo(`Suivi « ${(e.titre || '').replace(/^Valider \? /, '')} » : ${reponse.replace(' (motif)', '').toLowerCase()}.`);
+    } else if (ref && action === 'reconcretiser') setInfo('Suivi à re-concrétiser : ouvrez-le dans les Suivis de la réunion (« À valider »).');
     await ecrireSuivis(pointsReponse(e, moiEchange, reponse, today, orgEchanges));
   };
   /** Réponse déjà donnée (pas encore prise en compte) : retirée, la question repart à la nouvelle personne */

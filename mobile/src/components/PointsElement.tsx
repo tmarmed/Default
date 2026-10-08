@@ -50,7 +50,7 @@ export function SectionPointsReunion({ id, espace }: { id?: string; espace?: str
   return (
     <>
       {suivis.length > 0 && (
-        <SectionFiche titre={`📌 Points de suivi · ${suivis.length}`}>
+        <SectionFiche titre={`📌 Suivis · ${suivis.length}`}>
           {suivis.map((p, i) => {
             const a = statutAffiche(p, h.items, jour);
             return (

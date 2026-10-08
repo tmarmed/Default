@@ -111,7 +111,7 @@ export const LIBELLE_CONCRETISATION: Record<Concretisation, string> = {
   rien: 'noté seulement',
   escalade: 'escaladé',
   synchro: 'transmis',
-  suivi: 'point de suivi',
+  suivi: 'suivi',
 };
 
 /**

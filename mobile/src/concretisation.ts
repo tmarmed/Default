@@ -132,7 +132,7 @@ export function resumeChoix(c: ChoixConcret, nomDe: (email: string) => string, h
     c.qui === 'dessus'
       ? '⤴ Escaladé'
       : c.que === 'suivre'
-        ? '📌 Point de suivi'
+        ? '📌 Suivi'
         : `✓ ${LIBELLE_TYPE_CREE(c.type)}${c.ratt ? ` · ${c.type === 'reunion' ? 'liée à' : 'sous'} ${(() => {
             const y = elementDe(c.ratt, h);
             return y ? `${y.icone} ${y.titre}` : '';

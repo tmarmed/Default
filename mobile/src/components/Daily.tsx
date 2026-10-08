@@ -576,7 +576,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       de: mail,
       a: d.resp,
       type: 'message' as const,
-      titre: `📌 Nouveau point de suivi · ${d.pt.texte}`.slice(0, 200),
+      titre: `📌 Nouveau suivi · ${d.pt.texte}`.slice(0, 200),
       texte: `${LIBELLE_TYPE_POINT[d.pt.type]} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} par ${nomDe(d.pt.personne)}${libelleElement(d.element, h) ? ` (${libelleElement(d.element, h)})` : ''}. Responsable : ${nomDe(d.resp)} · Validation : ${nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}.`,
       choix: '',
       reponse: '',
@@ -648,7 +648,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     onInfo?.(
       `Compte rendu du daily : ${pluriel(creees.length, 'tâche')} créée${creees.length > 1 ? 's' : ''}` +
         (escalades.length ? `, ${pluriel(escalades.length, 'blocage')} escaladé${escalades.length > 1 ? 's' : ''}` : '') +
-        (synchros.length ? `, ${pluriel(synchros.length, 'point')} de suivi transmis` : '') +
+        (synchros.length ? `, ${pluriel(synchros.length, 'suivi')} transmis` : '') +
         (rte?.email ? `, envoyé à ${nomDe(rte.email)} (RTE).` : ' ; pas de RTE : compte rendu non envoyé.'),
     );
   };
@@ -853,7 +853,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               <Compteur valeur={String(s.retard)} libelle="en retard" ton={s.retard ? 'orange' : undefined} />
             </View>
             <SectionFiche
-              titre={`📌 Points de suivi · ${filtreSuivi ? `${[...suivisEquipe, ...suivisEchanges].filter((x) => x.point.type === filtreSuivi).length + reportes.filter((x) => x.type === filtreSuivi).length + nouveauxSuivis.filter((x) => x.type === filtreSuivi).length} sur ` : ''}${suivisEquipe.length + suivisEchanges.length + reportes.length + nouveauxSuivis.length}`}
+              titre={`📌 Suivis · ${filtreSuivi ? `${[...suivisEquipe, ...suivisEchanges].filter((x) => x.point.type === filtreSuivi).length + reportes.filter((x) => x.type === filtreSuivi).length + nouveauxSuivis.filter((x) => x.type === filtreSuivi).length} sur ` : ''}${suivisEquipe.length + suivisEchanges.length + reportes.length + nouveauxSuivis.length}`}
               droite={
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   {nValider > 0 && (
@@ -906,9 +906,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 <SaisiePoint
                   types={['blocage', 'decision', 'action']}
                   typeDefaut="action"
-                  titre="Nouveau point de suivi"
+                  titre="Nouveau suivi"
                   jour={jour}
-                  placeholder="＋ Point de suivi oublié"
+                  placeholder="＋ Suivi oublié"
                   stories={situation.cartes}
                   concretiser={{ personnes: personnes.map((y) => ({ value: y.email.toLowerCase(), label: y.nom })), respDefaut: mail }}
                   onAjouter={(type, texte, element, conc) => {
@@ -1122,7 +1122,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               )}
             </SectionFiche>
             {suivis.length > 0 && (
-              <SectionFiche titre={`Points de suivi · ${suivis.length}`}>
+              <SectionFiche titre={`Suivis · ${suivis.length}`}>
                 {suivis.map((d, i) => (
                   <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }} />
                 ))}

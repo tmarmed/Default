@@ -21,5 +21,4 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
   rendu pour un non-participant ; écrire les décisions des epics.
 
 ## Fait récemment (08/10)
-- Points de suivi complets (statuts, validation, Chat « Valider ? », escalade qui redescend), vocabulaire Notes /
-  Points de suivi partout, fiche de l'élément en deux blocs, escalader force « Suivre », fichiers .md.
+- Suivis complets (statuts, validation, Chat « Valider ? », escalade qui redescend), vocabulaire Notes / Suivis partout (plus de « point »), fiche de l'élément en deux blocs, escalader force « Suivre », fichiers .md.
