@@ -889,7 +889,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
 
 /**
  * Compte rendu : `entete` (le résumé propre à la réunion : engagé, acceptées, idées…), puis Créé, Escaladé, Transmis,
- * Noté seulement ; en lecture seule pour une réunion de la série (`reunionId`), d'après le Sheet.
+ * Points de suivi, Escaladé, Clos ; en lecture seule pour une réunion de la série (`reunionId`), d'après le Sheet.
  */
 export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode }: { r: R; lecture: boolean; reunionId?: string; entete?: React.ReactNode; iterationCode: string }) {
   const { e } = r;
@@ -903,6 +903,8 @@ export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode 
   const escalades = decides.filter((d) => d.c === 'escalade');
   const synchros = decides.filter((d) => d.c === 'synchro');
   const notes = decides.filter((d) => d.c === 'rien');
+  const suivis = decides.filter((d) => d.c === 'suivi');
+  const resumeD = (d: { pt: PointReunion } & Partial<ChoixConcret>) => (lecture || !d.que ? resumePoint(d.pt, e.nomDe, e.h) : resumeChoix(d as ChoixConcret, e.nomDe, e.h));
   const dest = e.destCR ? `${e.destCR.p.nom} (${e.destCR.role})` : '';
   return (
     <>
@@ -920,18 +922,25 @@ export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode 
               key={d.pt.id}
               premiere={i === 0}
               texte={d.pt.texte}
-              sous={`${d.c === 'sous_tache' ? `Sous-tâche de 📖 ${e.parId.get(d.pt.element)?.titre ?? 'la story'}` : `Tâche à part · ${iterationCode}`} · 👤 ${prenom(e.nomDe(d.resp))}`}
+              sous={resumeD(d)}
               pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }}
             />
           ))
         ) : (
-          <Vide texte="Aucune tâche à créer." />
+          <Vide texte="Rien à créer." />
         )}
       </SectionFiche>
+      {suivis.length > 0 && (
+        <SectionFiche titre={`Points de suivi · ${suivis.length}`}>
+          {suivis.map((d, i) => (
+            <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }} />
+          ))}
+        </SectionFiche>
+      )}
       {escalades.length > 0 && (
         <SectionFiche titre={`Escaladé · ${escalades.length}`}>
           {escalades.map((d, i) => (
-            <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`⤴ ${e.escalades.find((x) => x.email === d.a)?.court ?? 'niveau du dessus'}`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
+            <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }} />
           ))}
         </SectionFiche>
       )}
@@ -942,8 +951,8 @@ export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode 
           ))}
         </SectionFiche>
       )}
-      <SectionFiche titre={`Noté seulement · ${notes.length}`}>
-        {notes.length ? notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`par ${prenom(e.nomDe(d.pt.personne))}`} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: 'gris' }} />) : <Vide texte="Rien." />}
+      <SectionFiche titre={`Clos · ${notes.length}`}>
+        {notes.length ? notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`Rien (clos) · noté par ${e.nomDe(d.pt.personne)}`} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: 'gris' }} />) : <Vide texte="Rien." />}
       </SectionFiche>
     </>
   );

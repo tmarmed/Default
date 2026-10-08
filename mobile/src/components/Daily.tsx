@@ -1026,6 +1026,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         const escalades = decides.filter((d) => d.c === 'escalade');
         const synchros = decides.filter((d) => d.c === 'synchro');
         const notes = decides.filter((d) => d.c === 'rien');
+        const suivis = decides.filter((d) => d.c === 'suivi');
+        const resumeD = (d: { pt: PointReunion } & Partial<ChoixConcret>) => (lecture || !d.que ? resumePoint(d.pt, nomDe, h) : resumeConcret(d as ChoixConcret, nomDe, h));
         return (
           <>
             <TitreFiche
@@ -1054,18 +1056,25 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                     key={d.pt.id}
                     premiere={i === 0}
                     texte={d.pt.texte}
-                    sous={`${d.c === 'sous_tache' ? `Sous-tâche de 📖 ${parId.get(d.pt.element)?.titre ?? 'la story'}` : `Tâche à part · ${it.nom}`} · 👤 ${prenom(nomDe(d.resp))}`}
+                    sous={resumeD(d)}
                     pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }}
                   />
                 ))
               ) : (
-                <Vide texte="Aucune tâche à créer." />
+                <Vide texte="Rien à créer." />
               )}
             </SectionFiche>
+            {suivis.length > 0 && (
+              <SectionFiche titre={`Points de suivi · ${suivis.length}`}>
+                {suivis.map((d, i) => (
+                  <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }} />
+                ))}
+              </SectionFiche>
+            )}
             {escalades.length > 0 && (
               <SectionFiche titre={`Escaladé · ${escalades.length}`}>
                 {escalades.map((d, i) => (
-                  <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`👤 ${prenom(nomDe(d.pt.personne))} · ⤴ ${d.a && d.a === pm?.email?.toLowerCase() ? `PO du train · ${pm?.nom}` : `SM du train · ${rte?.nom ?? 'RTE'}`}`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
+                  <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: tonType(d.pt.type) }} />
                 ))}
               </SectionFiche>
             )}
@@ -1076,9 +1085,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 ))}
               </SectionFiche>
             )}
-            <SectionFiche titre={`Noté seulement · ${notes.length}`}>
+            <SectionFiche titre={`Clos · ${notes.length}`}>
               {notes.length ? (
-                notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`par ${prenom(nomDe(d.pt.personne))}`} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: 'gris' }} />)
+                notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`Rien (clos) · noté par ${nomDe(d.pt.personne)}`} pastille={{ texte: LIBELLE_TYPE_POINT[d.pt.type], ton: 'gris' }} />)
               ) : (
                 <Vide texte="Rien." />
               )}
