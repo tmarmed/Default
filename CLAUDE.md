@@ -11,6 +11,9 @@ CLAUDE.md s'y charge). Branche de travail : `claude/version-safe` ; toujours com
   l'explication s'il l'a manquée.
 - Garder à jour : `docs/regles-reunions.html`, `docs/mission.html`, `docs/bilan-reunions.html`.
 
+## Relais entre sessions
+Une session par fonctionnalité. Lire d'abord `docs/claude/a-faire.md` ; le mettre à jour avant de finir.
+
 ## Fiches à lire seulement quand le sujet arrive (ne pas les charger d'avance)
 | Sujet | Fiche |
 |---|---|
