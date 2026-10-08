@@ -84,6 +84,11 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
     (note, dernier mot, décision). Proposé : entre deux maillons du Chat, le texte suit tel quel (✎ Compléter possible),
     sauf si l'expéditeur a coché « 🔒 Confidentiel » (alors reformuler pour transmettre). Code actuel à changer :
     pointsEscalade / pointsReponse (src/suiviEscalade.ts) recopient le texte et créent les notes d'office.
+  - Décidé : même parcours pour transmettre et concrétiser : case « 📌 Suivre à <réunion> » précochée, modifiable,
+    décochable (plus de « Où le suivre ? »). Reformuler obligatoire dans les 3 passages du Chat : lier à la réunion,
+    transmettre (monter ou sur le côté), faire redescendre. Cas ajoutés par Claude : pièces jointes (ne suivent jamais
+    d'office), réunion → Chat et réunion → réunion (texte déjà public, pas de reformulation), « Valider ? » dans le Chat
+    (dernier mot reformulé). « 🔒 Confidentiel » devient inutile.
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
