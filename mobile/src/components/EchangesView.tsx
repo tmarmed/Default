@@ -249,7 +249,8 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
     const r = l.filter((e) => e.a === moi && e.statut === 'envoye').length;
     const p = l.filter((e) => e.de === moi && e.statut === 'repondu').length;
     const w = l.filter((e) => (e.de === moi && e.statut === 'envoye') || (e.a === moi && e.statut === 'repondu')).length;
-    return [r && `${r} à traiter`, p && `${p} réponse${p > 1 ? 's' : ''} reçue${p > 1 ? 's' : ''}`, w && `${w} en attente de l'autre`].filter(Boolean).join(' · ') || 'Rien en cours';
+    const t = l.filter((e) => (e.a === moi || e.de === moi) && e.statut === 'transmis').length;
+    return [r && `${r} à traiter`, p && `${p} réponse${p > 1 ? 's' : ''} reçue${p > 1 ? 's' : ''}`, w && `${w} en attente de l'autre`, t && `${t} transmis`].filter(Boolean).join(' · ') || 'Rien en cours';
   };
   // Seules les conversations où il y a quelque chose à faire (répondre, lire, prendre en compte) sont affichées ;
   // les autres restent accessibles par « Afficher aussi … »

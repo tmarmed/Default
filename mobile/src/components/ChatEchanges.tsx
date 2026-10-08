@@ -7,6 +7,7 @@ import { estAutre, exigeMotif, FilEchange, type Hierarchie, type MessageApp, pla
 import { FormSheet, TitreFiche } from './FormSheet';
 import { idsPieces, PiecesEchange } from './Pieces';
 import { ActionsEchange } from './Transmettre';
+import { TITRE_RAPPEL } from '../pointsSuivi';
 
 /**
  * Fenêtre de traitement (à l'ouverture de l'application, ou en ouvrant une conversation) : un seul message à la
@@ -201,7 +202,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
           </SectionFiche>
         )}
         {/* Transmettre, suivre en réunion, s'en occuper ; accepter ou faire reprendre une réponse (validation du 08/10) */}
-        {!!hierarchie && (e.a === moi && e.statut === 'envoye' ? true : recue) && (
+        {!!hierarchie && (e.a === moi && e.statut === 'envoye' ? !e.titre.startsWith(TITRE_RAPPEL) : recue) && (
           <SectionFiche titre={recue ? 'La réponse' : 'Ou bien'}>
             <Text style={s.ou}>
               {[hierarchie.libelle(e) && `📍 ${hierarchie.libelle(e)}`, e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`].filter(Boolean).join(' · ') || (recue ? 'Acceptez-la, ou faites-la reprendre.' : 'Transmettez-le, suivez-le en réunion ou occupez-vous-en.')}

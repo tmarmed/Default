@@ -1750,13 +1750,14 @@ function Main() {
   const repartir = (e: Echange) => (e.statut === 'repondu' ? { statut: 'envoye' as const, reponse: '', note: '' } : {});
   /** Réunions où « Vous » suit des notes : celles de vos équipes, trains, portfolios (valeur « espace|série ») */
   const reunionsSuivi = useMemo(() => {
-    const pid = personneParEmail(moiEchange, orgEchanges)?.id ?? '';
-    if (!pid) return [];
+    // Une même personne peut avoir une fiche par espace (même e-mail) : toutes comptent
     const o = orgEchanges;
+    const ids = new Set(o.personnes.filter((p) => p.email?.toLowerCase() === moiEchange).map((p) => p.id));
+    if (!ids.size) return [];
     const niveaux: Niveau[] = [
-      ...o.equipes.filter((e) => e.sm === pid || e.po === pid || membresDe(e).includes(pid)).map((e) => ({ kind: 'equipeagile' as const, id: e.id })),
-      ...o.trains.filter((t) => t.rte === pid || t.pm === pid).map((t) => ({ kind: 'train' as const, id: t.id })),
-      ...o.portfolios.filter((p) => p.epic_owner === pid).map((p) => ({ kind: 'portfolio' as const, id: p.id })),
+      ...o.equipes.filter((e) => ids.has(e.sm) || ids.has(e.po) || membresDe(e).some((m) => ids.has(m))).map((e) => ({ kind: 'equipeagile' as const, id: e.id })),
+      ...o.trains.filter((t) => ids.has(t.rte) || ids.has(t.pm)).map((t) => ({ kind: 'train' as const, id: t.id })),
+      ...o.portfolios.filter((p) => ids.has(p.epic_owner)).map((p) => ({ kind: 'portfolio' as const, id: p.id })),
     ];
     const vues = new Set<string>();
     return niveaux

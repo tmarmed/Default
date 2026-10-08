@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { TITRE_RAPPEL } from '../pointsSuivi';
 import { MOTIFS_TRANSMISSION, type Transmission, transmissionPrete } from '../echange/transmettre';
 import { colors } from '../theme';
 import { type Echange, natureDe, seLitSeulement } from '../types';
@@ -201,7 +202,8 @@ export function FeuilleTexte({
 export function ActionsEchange({ e, moi, hierarchie, nomDe, onFait }: { e: Echange; moi: string; hierarchie: Hierarchie; nomDe: (id: string) => string; onFait?: (texte: string) => void }) {
   const [feuille, setFeuille] = useState<'' | 'transmettre' | 'suivre' | 'redescendre' | 'reprendre' | 'accepter'>('');
   const [busy, setBusy] = useState(false);
-  const recu = e.a === moi && e.statut === 'envoye';
+  // Un rappel de l'application (« 📌 À valider en réunion ») se lit seulement
+  const recu = e.a === moi && e.statut === 'envoye' && !e.titre.startsWith(TITRE_RAPPEL);
   const reponse = e.de === moi && e.statut === 'repondu';
   if (!recu && !reponse) return null;
   const parent = e.parent ? hierarchie.parentDe(e) : undefined;
@@ -257,7 +259,7 @@ export function ActionsEchange({ e, moi, hierarchie, nomDe, onFait }: { e: Echan
       {feuille === 'redescendre' && (
         <FeuilleTexte
           titre={`Renvoyer à ${vers}`}
-          explication={`Réponse de ${nomDe(e.a)} : ${e.reponse}${e.note ? ` — ${e.note}` : ''}. Reformulez ce que vous renvoyez à ${vers}.`}
+          explication={`Réponse de ${nomDe(e.a)} : ${e.reponse}${e.note ? ` — ${e.note.replace(/\.$/, '')}` : ''}. Reformulez ce que vous renvoyez à ${vers}.`}
           label="Réponse renvoyée"
           placeholder="Reformulée (obligatoire)"
           bouton="Renvoyer"
