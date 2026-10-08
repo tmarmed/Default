@@ -22,6 +22,9 @@ Validation écran par écran, puis les deux blocs codés (captures vérifiées d
   Clôturer chez tous) ; « Clos par l'expéditeur » sur la note liée ; supprimer un rappel « À valider » perd le lien
   du refus (À reprendre au-dessus) ; Responsable d'une autre équipe en réunion : envoyer un message à son Chat ;
   Information (type de note) en réunion ; dailies des espaces Équipe non affichés : pas proposés dans « Suivre à ».
+- Demandé le 08/10 : pièces jointes à cocher quand on transmet (« Pièces jointes transmises » : chaque pièce du
+  message reçu cochable, décochée par défaut ; seules les cochées partent avec le maillon ; jamais vers une note de
+  réunion).
 
 ## Session d'après
 - **Pilotage (lot 5)** : reprendre le brainstorm (pilotage et calendrier ; voir docs/mission.html lot 5).
