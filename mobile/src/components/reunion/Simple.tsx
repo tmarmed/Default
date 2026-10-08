@@ -2,11 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { addDays, toDateString } from '../../dates';
-import { aConcretiser, dateCourte } from '../../daily';
+import { dateCourte } from '../../daily';
 import { useHierarchy } from '../../hierarchyContext';
 import { colors } from '../../theme';
-import { estFini } from '../../pointsSuivi';
-import { type Echange, estTechnique, type Item, RECURRENCE_DEFAUTS, type Reunion } from '../../types';
+import { type Echange, type Item, RECURRENCE_DEFAUTS, type Reunion } from '../../types';
 import { SaisieFiche, SectionFiche } from '../Choix';
 import type { ActionsDaily } from '../Daily';
 import { FenetreReunion } from '../FenetreReunion';
@@ -169,15 +168,8 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
   };
   const joursSemaine = Array.from({ length: 7 }, (_, k) => toDateString(addDays(new Date(`${jour}T12:00`), k)));
 
-  // Étape « Suivis » (08/10) : sautée quand il n'y a ni suivi en cours ni note à concrétiser
-  const [aSuivis, setASuivis] = useState(true);
-  useEffect(() => {
-    actions
-      .lirePoints(reunion.espace || 'moi', reunion.id.slice(0, -10))
-      .then((l) => setASuivis(l.some((p) => !estTechnique(p) && ((!!p.statut && !estFini(p.statut)) || (aConcretiser(p) && !p.concretisation)))))
-      .catch(() => {});
-  }, [actions, reunion.espace, reunion.id]);
-  const etapes = (TYPES_ETAPES[reunion.type] ?? []).filter((x) => aSuivis || x.cle !== 'suivis');
+  // Étape « Suivis » toujours affichée (08/10) : les notes venues du Chat y arrivent, et on peut en ajouter
+  const etapes = TYPES_ETAPES[reunion.type] ?? [];
   const rendu = (k: number) => {
     const cle = etapes[k]?.cle;
     switch (cle) {

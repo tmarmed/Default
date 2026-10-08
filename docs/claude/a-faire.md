@@ -25,16 +25,16 @@ Validation écran par écran, puis les deux blocs codés (captures vérifiées d
   l'expéditeur : la note liée passe à « Clos par l'expéditeur ». (Le Responsable d'une autre équipe recevait déjà
   « 📌 Nouveau suivi » au compte rendu.)
 - Codé ensuite : rappel sans « Lu ✓ » ; notes « Information » (concrétisées comme les autres, Rien possible), « Risque » et « Dépendance » au train ;
-  étape « Suivis » du mode Simple sautée si vide. Déjà en place : « Suivre à » propose les dailies des espaces Équipe
-  (chargés même masqués) ; onglet « Compte rendu » ouvert à tous ceux qui ouvrent la réunion ; participants repris de
+  étape « Suivis » du mode Simple toujours affichée (les notes du Chat y arrivent) ; « Suivre à » ne propose que les
+  réunions des espaces affichés (un espace masqué : ni ses messages ni ses réunions) ; onglet « Compte rendu » ouvert à tous ceux qui ouvrent la réunion ; participants repris de
   l'Organisation. Reste : un « Je m'en occupe » d'avant le 08/10 ne prévient personne (sans importance).
 - **Chantier à part (mode Simple)** : modèle des réunions du mode Simple pour une personne, une équipe, une entreprise
   (réunion mensuelle, annuelle…), qui animent ; adapter alors les suivis et le Chat (déjà branchés) à ce modèle.
 
 - Décidé (08/10, suite) : rappel « 📌 À valider » sans « Lu ✓ » (il part quand le suivi est validé, ici ou en
   réunion) ; type de note « Information » ; Risque et Dépendance pour les réunions du train (PI Planning, ART sync) ;
-  étape « Suivis » du mode Simple sautée si vide ; « Suivi dans › » abandonné ; réunions d'un espace Équipe masqué :
-  pas dans les onglets mais rappelées par les popups, et proposées dans « Suivre à » ; participants non modifiables
+  étape « Suivis » du mode Simple toujours affichée ; « Suivi dans › » abandonné ; réunions d'un espace Équipe masqué :
+  pas dans les onglets, rappelées par les popups, pas proposées dans « Suivre à » ; participants non modifiables
   (repris de l'Organisation) ; onglet « Compte rendu » visible de toute l'équipe, même sans avoir participé (plus
   tard peut-être : ajouter des participants).
 
