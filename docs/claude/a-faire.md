@@ -54,8 +54,9 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
 - [ ] Types (option A validée, 08/10) : un seul vocabulaire pour les messages du Chat et les notes de réunion :
       Information (lire), Question (répondre), Blocage (en cours / résolu), Décision (à prendre / prise), Action (à faire /
       faite ; dans le Chat = demande d'action, réponse « Fait »). Défaut à l'envoi : Question. « Valider ? » reste une
-      question à choix de l'application. Libellé de l'Action (« Action » partout ou « Demande d'action » dans le Chat) :
-      question refusée, à reposer.
+      question à choix de l'application. Libellé : « Demande d'action » (choisi).
+- Principe (08/10) : Chat = privé, jamais suivi ; Note = devant tout le monde, suivie en réunion. Concrétiser existe des
+  deux côtés. Plus de bandes de questions (AskUserQuestion) : poser les questions dans le texte.
 - [ ] Écran 7 (Chat « Valider ? ») : avis en attente (« Faire suivre » → « ↪ Transmettre › »).
 - [ ] Écran 8 (Ma préparation) : remplir la démo (une story en cours et une note préparée pour « Vous »), puis remontrer.
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
