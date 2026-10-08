@@ -2,6 +2,10 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
+## Prochaine session
+- **Pilotage (lot 5)** : reprendre le brainstorm (pilotage et calendrier ; questions restées sans réponse, voir
+  docs/mission.html lot 5).
+
 ## Décidé, pas encore codé (attendre « on code »)
 - Chat → réunions : sur un message ou une carte, trois boutons « ✓ Je m'en occupe » (concrétiser seul sous mes
   tâches), « 📌 Au prochain … » (comme une note de « Ma préparation » ; réunion par défaut selon le rôle,
