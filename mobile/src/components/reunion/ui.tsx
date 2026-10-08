@@ -4,7 +4,9 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { dateCourte, LIBELLE_TYPE_POINT } from '../../daily';
 import { colors } from '../../theme';
 import type { Concretisation, Item, Statut, TypePoint } from '../../types';
-import { SectionFiche } from '../Choix';
+import { LigneChoix, SectionFiche } from '../Choix';
+import { useHierarchy } from '../../hierarchyContext';
+import { elementDe, tousLesElements } from '../../elementConcerne';
 import { FormSheet } from '../FormSheet';
 
 /**
@@ -255,7 +257,10 @@ export function SaisiePoint({
   premiere,
   aide,
   onAjouter,
+  contexte = [],
 }: {
+  /** Éléments du contexte de la réunion (ids), proposés en premier dans « Élément concerné » */
+  contexte?: string[];
   /** Ligne d'aide sous le lien */
   aide?: string;
   /** Types possibles : un seul → pas de choix ; Hier / Aujourd'hui ne se mélangent pas aux points */
@@ -312,14 +317,10 @@ export function SaisiePoint({
             </View>
           </SectionFiche>
         )}
-        {/* Une seule fenêtre : la story se choisit ici, sans seconde feuille */}
-        {stories.length > 0 && (
-          <SectionFiche titre="Story">
-            <View style={st.champ}>
-              <Pastilles petit options={[{ value: '', label: 'Aucune' }, ...stories.map((t) => ({ value: t.id, label: `📖 ${t.titre}` }))]} value={element} onChange={setElement} />
-            </View>
-          </SectionFiche>
-        )}
+        {/* Élément concerné (08/10) : un seul, ceux du contexte d'abord, puis « Autre élément… » (recherche) */}
+        <SectionFiche titre="Élément concerné">
+          <LigneElement value={element} onChange={setElement} contexte={[...stories.map((t) => t.id), ...contexte]} />
+        </SectionFiche>
         <SectionFiche titre="Point">
           <View style={st.champPoint}>
             <TextInput
@@ -477,3 +478,33 @@ export const st = StyleSheet.create({
   caseACocher: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#A0A6B1', textAlign: 'center', lineHeight: 19, fontSize: 14, color: '#fff', overflow: 'hidden' },
   caseCochee: { backgroundColor: colors.primary, borderColor: colors.primary },
 });
+
+/**
+ * « Élément concerné › » d'un point (08/10) : un seul élément ou « Aucun · point général » ; les éléments du contexte
+ * de la réunion d'abord, puis « Autre élément… » (tous, avec recherche)
+ */
+export function LigneElement({ value, onChange, contexte }: { value: string; onChange: (v: string) => void; contexte: string[] }) {
+  const h = useHierarchy();
+  const vus = new Set<string>();
+  const ctx = contexte
+    .filter((id) => !vus.has(id) && vus.add(id))
+    .map((id) => elementDe(id, h))
+    .filter((x): x is NonNullable<typeof x> => !!x);
+  const ids = new Set(ctx.map((x) => x.id));
+  const autres = tousLesElements(h).filter((x) => !ids.has(x.id));
+  return (
+    <LigneChoix
+      label="Concerne"
+      value={value}
+      onChange={onChange}
+      groupes={[{ titre: ctx.length ? 'De la réunion' : undefined, options: ctx.map((x) => ({ value: x.id, label: `${x.icone} ${x.titre}` })) }]}
+      autres={{ titre: 'Autre élément…', groupes: [{ options: autres.map((x) => ({ value: x.id, label: `${x.icone} ${x.titre}` })) }] }}
+      sans="Aucun · point général"
+      vide="Aucun · point général"
+      libelle={(v) => {
+        const x = elementDe(v, h);
+        return x ? `${x.icone} ${x.titre}` : 'Aucun · point général';
+      }}
+    />
+  );
+}

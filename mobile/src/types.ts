@@ -336,6 +336,8 @@ export interface Echange {
   pieces_jointes?: string;
   cree_le: string;
   modifie_le: string;
+  /** « Valider ? » d'un point de suivi (08/10) : « espace|id du point » */
+  point?: string;
 }
 export type EchangeInput = Omit<Echange, 'id' | 'cree_le' | 'modifie_le'>;
 
@@ -577,7 +579,9 @@ export type TypePoint = 'hier' | 'aujourdhui' | 'blocage' | 'decision' | 'action
  * l'itération, rien, escalade au RTE, ou (blocage) échange 🔄 Synchro adressé au PO, au SM ou à un membre de
  * l'équipe ; vide = pas encore décidé
  */
-export type Concretisation = '' | 'sous_tache' | 'tache' | 'rien' | 'escalade' | 'synchro';
+export type Concretisation = '' | 'sous_tache' | 'tache' | 'rien' | 'escalade' | 'synchro' | 'suivi';
+/** Statut d'un point de suivi (08/10) ; vide = pas encore concrétisé (ou ancien point) */
+export type StatutSuivi = '' | 'en_cours' | 'fait' | 'valide' | 'a_reprendre' | 'abandonne';
 export interface PointReunion {
   /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
   espace?: string;
@@ -601,6 +605,14 @@ export interface PointReunion {
   /** Responsable de la suite (e-mail) */
   responsable: string;
   cree_le: string;
+  /** Point de suivi (08/10) : statut, validateur (e-mail), échéance (AAAA-MM-JJ), mot du responsable ou motif */
+  statut?: StatutSuivi;
+  validateur?: string;
+  echeance?: string;
+  note?: string;
+  /** Concrétisation « Créer » : type de l'élément créé et son rattachement (élément du dessus) */
+  type_cree?: string;
+  rattache?: string;
 }
 export const TYPES_POINT: TypePoint[] = ['hier', 'aujourdhui', 'blocage', 'decision', 'action', 'etat', 'vote', 'donnee'];
 /** Lignes techniques de PointsReunion (état, votes, préparations) : jamais affichées comme des points */

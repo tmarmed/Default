@@ -111,6 +111,7 @@ export const LIBELLE_CONCRETISATION: Record<Concretisation, string> = {
   rien: 'noté seulement',
   escalade: 'escaladé',
   synchro: 'transmis',
+  suivi: 'point de suivi',
 };
 
 /**
@@ -147,12 +148,15 @@ export function pointsFinis(points: PointReunion[], reunionId: string, items: It
   const repondus = new Set([...points.filter((p) => p.reunion.startsWith(serie) && p.type === 'decision' && !!p.tache && !!p.concretisation).map((p) => p.tache), ...concretisesIci]);
   return points
     .filter((p) => p.reunion.startsWith(serie) && p.reunion !== reunionId && !p.id.startsWith('local-'))
-    .filter(
-      (p) =>
+    .filter((p) => {
+      // Point de suivi (08/10) : fini quand il est validé ou abandonné (son statut fait foi)
+      if (p.statut) return p.statut === 'valide' || p.statut === 'abandonne';
+      return (
         p.concretisation === 'rien' ||
         ((p.concretisation === 'sous_tache' || p.concretisation === 'tache') && (!parId.get(p.tache) || parId.get(p.tache)?.statut === 'termine')) ||
-        ((p.concretisation === 'synchro' || p.concretisation === 'escalade') && repondus.has(p.tache)),
-    )
+        ((p.concretisation === 'synchro' || p.concretisation === 'escalade') && repondus.has(p.tache))
+      );
+    })
     .map((p) => p.id);
 }
 

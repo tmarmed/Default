@@ -90,7 +90,7 @@ export const ONGLETS: Record<TableBase, { nom: string; colonnes: string[] }> = {
   ignoree: { nom: 'Ignorees', colonnes: ['id', 'cle', 'signature', 'cree_le', 'modifie_le'] },
   valuestream: { nom: 'ValueStreams', colonnes: ['id', 'nom', 'type', 'description', 'portfolio', 'trains', 'okrs', 'cree_le', 'modifie_le'] },
   resultat: { nom: 'ResultatsCles', colonnes: ['id', 'objectif', 'titre', 'actuel', 'cible', 'unite', 'cree_le', 'modifie_le'] },
-  echange: { nom: 'Echanges', colonnes: ['id', 'de', 'a', 'type', 'titre', 'texte', 'choix', 'reponse', 'note', 'statut', 'element', 'cree_le', 'modifie_le', 'niveau', 'transmis_par', 'prive', 'pieces_jointes'] },
+  echange: { nom: 'Echanges', colonnes: ['id', 'de', 'a', 'type', 'titre', 'texte', 'choix', 'reponse', 'note', 'statut', 'element', 'cree_le', 'modifie_le', 'niveau', 'transmis_par', 'prive', 'pieces_jointes', 'point'] },
 };
 export const TABLES = Object.keys(ONGLETS) as TableBase[];
 
@@ -109,7 +109,7 @@ export const ONGLET_PIECES = { nom: 'PiecesJointes', colonnes: ['id', 'piece', '
 /** Points notés pendant les réunions (daily…) : onglet créé au premier usage, dans le Sheet de l'espace de l'équipe */
 export const ONGLET_POINTS = {
   nom: 'PointsReunion',
-  colonnes: ['id', 'reunion', 'personne', 'auteur', 'type', 'texte', 'element', 'concretisation', 'tache', 'responsable', 'cree_le'],
+  colonnes: ['id', 'reunion', 'personne', 'auteur', 'type', 'texte', 'element', 'concretisation', 'tache', 'responsable', 'cree_le', 'statut', 'validateur', 'echeance', 'note', 'type_cree', 'rattache'],
 };
 /** Séries de réunions (07/10) : une ligne par série (règle + exceptions), onglet créé au premier usage */
 export const ONGLET_SERIES = { nom: 'Reunions', colonnes: [...COLONNES_SERIE] as string[] };
@@ -232,6 +232,9 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
     if (out.niveau && !/^(equipeagile|train|portfolio|unite):[0-9A-Za-z-]+$/.test(out.niveau)) throw new Error('Niveau du message invalide.');
     out.transmis_par = (out.transmis_par ?? '').trim().toLowerCase();
     out.prive = out.prive === '0' ? '0' : '1';
+    // « Valider ? » d'un point de suivi : « espace|id du point »
+    out.point = (out.point ?? '').trim();
+    if (out.point && !/^[0-9A-Za-z-]+\|[0-9A-Za-z-]+$/.test(out.point)) throw new Error('Point lié invalide.');
   } else if (kind === 'resultat') {
     if (!out.titre.trim()) throw new Error('Le titre du résultat clé est obligatoire.');
     if (!out.objectif || !RE_ID.test(out.objectif)) throw new Error('Résultat clé : OKR manquant.');
@@ -344,7 +347,7 @@ export function nettoyerSerie(data: Partial<SerieReunion>, base?: SerieReunion):
   return out as unknown as SerieReunion;
 }
 
-const CONCRETISATIONS: Concretisation[] = ['', 'sous_tache', 'tache', 'rien', 'escalade', 'synchro'];
+const CONCRETISATIONS: Concretisation[] = ['', 'sous_tache', 'tache', 'rien', 'escalade', 'synchro', 'suivi'];
 /** Point de réunion enregistré : champs connus et vérifiés (type, texte, e-mails, liens) */
 export function nettoyerPoint(data: Partial<PointReunion>, base?: PointReunion): PointReunion {
   const out = {} as Record<string, string>;
@@ -357,6 +360,13 @@ export function nettoyerPoint(data: Partial<PointReunion>, base?: PointReunion):
   if (!out.personne || !out.auteur) throw new Error('Point : personne et auteur obligatoires.');
   for (const k of ['element', 'tache']) if (!RE_ID.test(out[k])) throw new Error(`Lien « ${k} » invalide.`);
   if (!(CONCRETISATIONS as string[]).includes(out.concretisation)) out.concretisation = '';
+  // Point de suivi (08/10) : statut, validateur, échéance, mot ou motif ; type créé et rattachement
+  if (!['', 'en_cours', 'fait', 'valide', 'a_reprendre', 'abandonne'].includes(out.statut)) out.statut = '';
+  out.validateur = out.validateur.trim().toLowerCase();
+  if (out.echeance && !/^\d{4}-\d{2}-\d{2}$/.test(out.echeance)) out.echeance = '';
+  out.note = out.note.trim().slice(0, 1000);
+  if (out.rattache && !RE_ID.test(out.rattache)) throw new Error('Rattachement invalide.');
+  out.type_cree = out.type_cree.replace(/[^a-z_-]/g, '').slice(0, 30);
   return out as unknown as PointReunion;
 }
 
