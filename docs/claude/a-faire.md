@@ -37,6 +37,12 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
       fusionnée dans Transmis : notion déjà fusionnée par l'utilisateur), Clos ; noms entiers (« Tom Faure → Paul Leroy »).
 - [ ] Fiche d'un élément : suivis au format de la Situation (Responsable, Validation, Échéance) ; corriger « Sa sous-tâche
       seront conservé(e)s » ; « Sprint » partout au lieu de « IT1 » / « itération » (toute l'application).
+- [ ] Fusion Escalader → « Transmettre » (demande de l'utilisateur, 08/10) : un seul mot et un seul ensemble de règles,
+      réunions ET Chat ; garde la logique multi-niveaux de l'escalade (suivi chez celui qui transmet, réponse qui
+      redescend) ; vertical et horizontal (autres équipes), plusieurs chaînes en parallèle. Incohérences relevées dans le
+      code, à faire trancher : transmettre (Chat) ne crée ni suivi ni retour de réponse ; destinataires limités à « vos
+      équipes » ; seules les questions se transmettent ; un seul destinataire ; valeur `escalade` dans le Sheet (garder en
+      interne, changer les libellés).
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
