@@ -51,6 +51,13 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
   tout message se transmet (question ou information) ; dans le Chat, transmettre ne crée JAMAIS de suivi (relais, la
   réponse va à l'expéditeur) : le suivi vient de la réunion (concrétisation, ou « 📌 Au prochain … » du Chat) ;
   plusieurs destinataires en parallèle, fait quand tous ont répondu.
+- [ ] Types (option A validée, 08/10) : un seul vocabulaire pour les messages du Chat et les notes de réunion :
+      Information (lire), Question (répondre), Blocage (en cours / résolu), Décision (à prendre / prise), Action (à faire /
+      faite ; dans le Chat = demande d'action, réponse « Fait »). Défaut à l'envoi : Question. « Valider ? » reste une
+      question à choix de l'application. Libellé de l'Action (« Action » partout ou « Demande d'action » dans le Chat) :
+      question refusée, à reposer.
+- [ ] Écran 7 (Chat « Valider ? ») : avis en attente (« Faire suivre » → « ↪ Transmettre › »).
+- [ ] Écran 8 (Ma préparation) : remplir la démo (une story en cours et une note préparée pour « Vous »), puis remontrer.
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
