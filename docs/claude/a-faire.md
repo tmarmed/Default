@@ -43,6 +43,12 @@ Validé : feuille Concrétiser (sauf ci-dessous). À corriger :
       code, à faire trancher : transmettre (Chat) ne crée ni suivi ni retour de réponse ; destinataires limités à « vos
       équipes » ; seules les questions se transmettent ; un seul destinataire ; valeur `escalade` dans le Sheet (garder en
       interne, changer les libellés).
+  Proposition faite (à valider) : un seul verbe « ↪ Transmettre » ; chaque transmission = un maillon de chaîne (suivi
+  chez celui qui transmet, réponse qui redescend) ; haut / côté / parallèle. Cas 1 : mon message hors équipe (« À › »
+  groupé, suivi + « Valider ? » au retour si question). Cas 2 : message reçu → « ↪ Transmettre › » + motif rapide (Pas
+  mon périmètre, Pas le droit de répondre, Absent, Autre), l'expéditeur voit « Transmis par … à … ». Règles : toute
+  l'organisation, un maillon par destinataire, pas de boucle, valeur `escalade` gardée en interne. Questions ouvertes :
+  suivi selon le motif ? parallèle « tous » ou « le premier » ? transmettre aussi les simples messages ?
 Reste à montrer : Chat « Valider ? », Compte rendu, fiche d'un élément, onglet « Ma préparation ».
 
 ## Session d'après
