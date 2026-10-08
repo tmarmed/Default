@@ -68,9 +68,11 @@ export function FeuilleConcretiser({
   const erreur = erreurChoix(choix, h) ?? (c.que === 'creer' && (c.type === 'story' || c.type === 'feature') && !rattId ? 'Choisissez à quoi la rattacher.' : null);
   // Responsable (validation du 08/10) : un seul champ groupé ; la façon de transmettre se déduit de la personne
   const autresTous = autres.flatMap((g) => g.personnes);
-  const quiDe = (email: string): QuiCharge => (email === moi.email ? 'moi' : dessus.some((x) => x.email === email) && !equipe.some((x) => x.email === email) ? 'dessus' : 'equipe');
-  const changerResp = (email: string) => {
-    const q = quiDe(email);
+  const quiDe = (email: string): QuiCharge => (email === moi.email ? 'moi' : 'equipe');
+  // Une personne du niveau du dessus est choisie « ↑e-mail » : la même personne peut aussi être de l'équipe (ou vous)
+  const changerResp = (v: string) => {
+    const email = v.replace(/^↑/, '');
+    const q = v.startsWith('↑') ? 'dessus' : quiDe(email);
     // Transmis au train : le niveau du dessus décide, on suit seulement (re-concrétiser au retour de la réponse)
     set({ resp: email, qui: q, ...(q === 'dessus' && c.que === 'creer' ? { que: 'suivre' as QueFaire } : {}) });
   };
@@ -166,18 +168,18 @@ export function FeuilleConcretiser({
                 <View style={s.carte}>
                   <LigneChoix
                     label="Responsable"
-                    value={c.resp}
+                    value={c.qui === 'dessus' ? `↑${c.resp}` : c.resp}
                     onChange={(v) => v && changerResp(v)}
                     groupes={[
                       { titre: 'Moi', options: [{ value: moi.email, label: moi.nom, meta: moi.meta }] },
                       { titre: nomEquipe ? `Équipe ${nomEquipe}` : 'Mon équipe', options: equipe.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) },
                       ...autres.map((g) => ({ titre: `${g.titre} · transmettre`, options: g.personnes.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) })),
-                      ...(dessus.length ? [{ titre: `${nomDessus || 'Niveau du dessus'} · transmettre`, options: dessus.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) }] : []),
+                      ...(dessus.length ? [{ titre: `${nomDessus || 'Niveau du dessus'} · transmettre`, options: dessus.map((x) => ({ value: `↑${x.email}`, label: x.nom, meta: x.meta })) }] : []),
                     ].filter((g) => g.options.length)}
-                    libelle={(v) => nom([moi, ...equipe, ...autresTous, ...dessus], v)}
+                    libelle={(v) => `${nom([moi, ...equipe, ...autresTous, ...dessus], v.replace(/^↑/, ''))}${v.startsWith('↑') ? ` · ${nomDessus || 'niveau du dessus'}` : ''}`}
                     fixe
                   />
-                  {c.qui !== 'moi' && !equipe.some((x) => x.email === c.resp) && <Text style={[s.aide, { paddingHorizontal: 12, paddingBottom: 8 }]}>↪ Transmis hors de l’équipe.</Text>}
+                  {c.qui !== 'moi' && c.qui !== 'dessus' && !equipe.some((x) => x.email === c.resp) && <Text style={[s.aide, { paddingHorizontal: 12, paddingBottom: 8 }]}>↪ Transmis hors de l’équipe.</Text>}
                 </View>
 
                 <Text style={s.section}>VALIDATION</Text>

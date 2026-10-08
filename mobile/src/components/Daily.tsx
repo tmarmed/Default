@@ -1003,14 +1003,14 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         );
       }
       case 'concretisation': {
-        const origine = (pt: PointReunion) => [`Noté par ${nomDe(pt.personne)}`, libelleElement(pt.element, h)].filter(Boolean).join(' · ');
+        const origine = (pt: PointReunion) => [`Notée par ${nomDe(pt.personne)}${pt.reunion.slice(-10) < jour ? ` le ${jourCourt(pt.reunion.slice(-10))}` : ''}`, libelleElement(pt.element, h)].filter(Boolean).join(' · ');
         if (lecture) {
           // Lecture seule : le choix déjà fait par le SM (compte rendu envoyé), sinon « à décider »
           const faits = duSheet.filter((pt) => !!pt.concretisation).length;
           return (
             <>
               <TitreFiche icone="🧩" titre="Concrétisation" vide="" sous={`${pluriel(duSheet.length, 'note')} : ${faits} concrétisée${faits > 1 ? 's' : ''}, ${duSheet.length - faits} à décider par le SM`} />
-              {!duSheet.length && <Vide texte="Aucun blocage, décision ou action noté." />}
+              {!duSheet.length && <Vide texte="Aucune note à concrétiser." />}
               {duSheet.map((pt) => (
                 <View key={pt.id} style={st.carteConcret}>
                   <View style={st.ligneHaut}>
@@ -1032,8 +1032,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         const validateurs = [...new Map([...equipeP, ...escaladesDaily, moiP].map((y) => [y.email, y.email === animateur ? { ...y, meta: 'anime le daily' } : y])).values()];
         return (
           <>
-            <TitreFiche icone="🧩" titre="Concrétisation" vide="" sous={sous(`${pluriel(aDecider.length, 'note')} : blocages, décisions, actions`)} />
-            {!aDecider.length && <Vide texte="Aucun blocage, décision ou action noté." />}
+            <TitreFiche icone="🧩" titre="Concrétisation" vide="" sous={sous(`${pluriel(aDecider.length, 'note')} : blocages, décisions, demandes d’action`)} />
+            {!aDecider.length && <Vide texte="Aucune note à concrétiser." />}
             {aDecider.map((pt) => {
               const x = choixDe(pt);
               const choisi = !!choix[pt.id];

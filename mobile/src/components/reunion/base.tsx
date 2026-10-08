@@ -871,7 +871,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
   const [ouvert, setOuvert] = useState<string | null>(null);
   const liste = lecture ? r.serveur.filter((y) => r.ici(y) && aConcretiser(y)) : r.aDecider;
   const nomComplet = (m: string) => e.nomDe(m);
-  const origine = (pt: PointReunion) => [`Noté par ${e.nomDe(pt.personne)}`, libelleElement(pt.element, e.h)].filter(Boolean).join(' · ');
+  const origine = (pt: PointReunion) => [`Notée par ${e.nomDe(pt.personne)}${pt.reunion.slice(-10) < e.jour ? ` le ${jourCourt(pt.reunion.slice(-10))}` : ''}`, libelleElement(pt.element, e.h)].filter(Boolean).join(' · ');
   // Personnes proposées dans la feuille : vous, votre équipe (transmettre), le niveau du dessus (escalader), les validateurs
   const moi = { email: r.mail, nom: e.nomDe(r.mail), meta: 'vous' };
   const equipe = e.personnes.map((y) => ({ email: y.email.toLowerCase(), nom: y.nom, meta: e.role(y.id) === 'Membre' ? '' : e.role(y.id) }));
@@ -882,7 +882,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
   return (
     <>
       <TitreFiche icone="🛠️" titre="Concrétisation" vide="" sous={lecture ? 'Choix de l’animateur' : `${pluriel(liste.length, 'note')} · touchez « Concrétiser › »`} />
-      {!liste.length && <Vide texte="Aucun blocage, décision ou action noté." />}
+      {!liste.length && <Vide texte="Aucune note à concrétiser." />}
       {liste.map((pt) => {
         if (lecture)
           return (
