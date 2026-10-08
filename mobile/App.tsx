@@ -1750,8 +1750,9 @@ function Main() {
   const repartir = (e: Echange) => (e.statut === 'repondu' ? { statut: 'envoye' as const, reponse: '', note: '' } : {});
   /** Réunions où « Vous » suit des notes : celles de vos équipes, trains, portfolios (valeur « espace|série ») */
   const reunionsSuivi = useMemo(() => {
-    // Une même personne peut avoir une fiche par espace (même e-mail) : toutes comptent
-    const o = orgEchanges;
+    // L'organisation des réunions (vos rôles, espaces Équipe affichés compris) ; une même personne peut avoir une fiche
+    // par espace (même e-mail) : toutes comptent
+    const o = orgReunions;
     const ids = new Set(o.personnes.filter((p) => p.email?.toLowerCase() === moiEchange).map((p) => p.id));
     if (!ids.size) return [];
     const niveaux: Niveau[] = [
@@ -1773,7 +1774,7 @@ function Main() {
         .filter((r) => !vues.has(r.value) && !!vues.add(r.value));
     });
     return [...entreprise, ...equipes];
-  }, [orgEchanges, moiEchange, equipesEsp]);
+  }, [orgReunions, moiEchange, equipesEsp]);
   /** Points d'un Sheet : créés et modifiés en une écriture */
   const ecrireNotes = async (espace: string, creer: PointAEcrire[], modifier: (Partial<PointReunion> & { id: string })[]) =>
     settings ? (await api.ecrirePoints(settings, espace, creer.map(({ espace: _e, ...p }) => p), modifier, [])).crees.map((p) => ({ ...p, espace })) : [];

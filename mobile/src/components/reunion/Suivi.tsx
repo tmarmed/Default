@@ -50,8 +50,11 @@ export interface CtxSuivi {
   onInfo?: (t: string) => void;
 }
 
-/** Points de suivi (08/10) : concrétisés avec un statut, d'une réunion précédente de la série */
-export const pointsDeSuivi = (points: PointReunion[], reunionId: string) => points.filter((p) => !!p.statut && p.reunion !== reunionId);
+/**
+ * Points de suivi (08/10) : concrétisés avec un statut, d'une réunion précédente de la série, ou du jour (note suivie
+ * depuis le Chat, « 📌 Suivre à », ou concrétisée à un compte rendu déjà envoyé)
+ */
+export const pointsDeSuivi = (points: PointReunion[], reunionId: string) => points.filter((p) => !!p.statut && p.reunion <= reunionId);
 
 /** Statut affiché : celui du point (Fait si sa tâche est terminée) ; « Fait · réponse reçue » d'une escalade */
 export function statutAffiche(p: PointReunion, items: Item[], jour: string): { s: StatutSuivi; texte: string; ton: Ton } {
