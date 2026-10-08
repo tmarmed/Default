@@ -102,7 +102,7 @@ export function FenetreRevue(p: PropsReunion) {
   }, [equipePts, e.h.items, e.jour, p.reunion.niveau]);
 
   const pointsDe = (t: Item, lecture: boolean, prep = false) => (
-    <BlocPoints r={r} titre={prep ? 'Mes points' : 'Points notés'} points={(prep ? r.prep : r.tous).filter((x) => r.ici(x) && (!t || x.element === t.id))} lecture={lecture} element={t?.id ?? ''} pourPrep={prep} />
+    <BlocPoints r={r} titre={prep ? 'Mes notes' : 'Notes'} points={(prep ? r.prep : r.tous).filter((x) => r.ici(x) && (!t || x.element === t.id))} lecture={lecture} element={t?.id ?? ''} pourPrep={prep} />
   );
   const blocDecision = (t: Item, lecture: boolean, po = false) => {
     const val = po ? accPO(t) : decision(t);
@@ -231,7 +231,7 @@ export function FenetreRevue(p: PropsReunion) {
                 <Vide texte="Aucune story terminée à votre nom." />
               </SectionFiche>
             )}
-            <BlocPoints r={r} titre="Mes points" points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={e.situation.cartes} />
+            <BlocPoints r={r} titre="Mes notes" points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={e.situation.cartes} />
           </>
         );
       }
@@ -269,7 +269,7 @@ export function FenetreRevue(p: PropsReunion) {
             <TitreFiche icone="✅" titre={t.titre} vide="" sous={`Story ${k + 1} sur ${n} · ${crit.length} critère${crit.length > 1 ? 's' : ''}`} />
             <SectionFiche titre={`Critères d’acceptation · ${crit.length}`}>{crit.length ? crit.map((c, i) => <Ligne key={i} premiere={i === 0} texte={c} />) : <Vide texte="Pas de critères écrits." />}</SectionFiche>
             {blocDecision(t, false, true)}
-            <BlocPoints r={r} titre="Mes points" points={r.prep.filter((y) => y.type !== 'donnee' && y.element === t.id)} pourPrep onglet="po" element={t.id} stories={terminees} />
+            <BlocPoints r={r} titre="Mes notes" points={r.prep.filter((y) => y.type !== 'donnee' && y.element === t.id)} pourPrep onglet="po" element={t.id} stories={terminees} />
           </>
         );
       }

@@ -132,23 +132,23 @@ const onglets = (r: Parameters<typeof etapesParcours>[0]) =>
   etapesParcours(r, PARCOURS_DAILY)
     .map((o) => `${ongletParcours(o)}${o.lecture ? ' (lecture)' : ''} : ${o.etapes.map((x) => x.nom).join(', ')}`)
     .join(' | ');
-const MEMBRE = 'Mon point : Hier, Aujourd’hui, Blocages';
+const MEMBRE = 'Ma préparation : Hier, Aujourd’hui, Blocages';
 const PO = 'PO : Stories à accepter, Backlog à préparer, Questions de l’équipe';
 const SM = 'Situation, Tour de table, Concrétisation, Compte rendu';
 ok(onglets({ membre: true }) === MEMBRE, 'parcours séparés : membre seul → un seul parcours (pas d’onglets) : Hier, Aujourd’hui, Blocages (plus d’étape « Prêt »)');
 ok(onglets({}) === onglets({ membre: true }), 'parcours séparés : sans rôle connu → celui du membre');
-ok(onglets({ membre: true, po: true }) === `${MEMBRE} | ${PO}`, 'parcours séparés : PO membre → Mon point, PO (plus d’onglet « Suivre » : bandeau En direct)');
+ok(onglets({ membre: true, po: true }) === `${MEMBRE} | ${PO}`, 'parcours séparés : PO membre → Ma préparation, PO (plus d’onglet « Suivre » : bandeau En direct)');
 ok(onglets({ po: true }) === `PO : Hier, Aujourd’hui, Stories à accepter, Backlog à préparer, Questions de l’équipe`, 'parcours séparés : PO hors équipe → PO (avec Hier et Aujourd’hui pour ses tâches)');
-ok(onglets({ membre: true, sm: true }) === `${MEMBRE} | Animer : ${SM}`, 'parcours séparés : SM membre → Mon point, Animer');
+ok(onglets({ membre: true, sm: true }) === `${MEMBRE} | Animer : ${SM}`, 'parcours séparés : SM membre → Ma préparation, Animer');
 ok(onglets({ sm: true }) === `Animer : ${SM}`, 'parcours séparés : SM seul → Animer, sans onglets');
-ok(onglets({ membre: true, po: true, sm: true }) === `${MEMBRE} | ${PO} | Animer : ${SM}`, 'parcours séparés : membre, PO et organisateur → Mon point, PO, Animer');
+ok(onglets({ membre: true, po: true, sm: true }) === `${MEMBRE} | ${PO} | Animer : ${SM}`, 'parcours séparés : membre, PO et organisateur → Ma préparation, PO, Animer');
 ok(
   !etapesParcours({ membre: true, po: true, sm: true }, PARCOURS_DAILY).some((o) => o.etapes.some((x) => x.nom.includes('('))),
   'parcours séparés : plus de rôle entre parenthèses dans les étapes',
 );
 ok(
   parcoursParDefaut(etapesParcours({ membre: true, sm: true }, PARCOURS_DAILY)) === 1 && parcoursParDefaut(etapesParcours({ membre: true, po: true }, PARCOURS_DAILY)) === 0,
-  'parcours séparés : onglet ouvert par défaut « Animer » pour le SM, sinon le premier (Mon point)',
+  'parcours séparés : onglet ouvert par défaut « Animer » pour le SM, sinon le premier (Ma préparation)',
 );
 // Démo : un blocage de Tom passé en 🔄 Synchro vers Paul (PO de Mobile), en attente : 1 question de l'équipe pour Paul
 const echDemo = donneesDemo('demo-entreprise').entities.echange;

@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { LIBELLE_TYPE_POINT } from '../daily';
 import { useHierarchy } from '../hierarchyContext';
+import { personneParEmail } from '../echange/hierarchieEchange';
+import { useOrg } from '../organisation';
 import { jourCourt } from '../pointsSuivi';
 import { type PointReunion, TYPES_REUNION } from '../types';
 import { SectionFiche } from './Choix';
@@ -18,12 +20,15 @@ function reunionDuPoint(id: string): string {
 }
 
 /**
- * « 📅 Points de réunion · n » de la fiche d'un élément (08/10) : les blocages, décisions et actions notés sur lui en
- * réunion, avec leur statut de suivi. Une lecture du Sheet de l'espace à l'ouverture de la fiche ; rien si aucun.
+ * Fiche d'un élément (08/10) : « 📌 Points de suivi · n » (notes concrétisées, avec leur statut) et « 📝 Notes de
+ * réunion · n » (encore à concrétiser), chaque ligne avec la pastille de sa réunion. Une lecture du Sheet de l'espace
+ * à l'ouverture de la fiche ; rien si aucun.
  */
 export function SectionPointsReunion({ id, espace }: { id?: string; espace?: string }) {
   const lire = useContext(LirePointsContext);
   const h = useHierarchy();
+  const org = useOrg();
+  const nomDe = (m: string) => personneParEmail(m, org)?.nom ?? m.split('@')[0];
   const [points, setPoints] = useState<PointReunion[]>([]);
   useEffect(() => {
     let vivant = true;
@@ -37,21 +42,42 @@ export function SectionPointsReunion({ id, espace }: { id?: string; espace?: str
   }, [lire, id, espace]);
   if (!points.length) return null;
   const jour = new Date().toISOString().slice(0, 10);
-  const tries = [...points].sort((a, b) => b.reunion.slice(-10).localeCompare(a.reunion.slice(-10)));
+  const recents = [...points].sort((a, b) => b.reunion.slice(-10).localeCompare(a.reunion.slice(-10)));
+  // Points de suivi : notes concrétisées (sauf « Rien ») ; notes de réunion : pas encore concrétisées
+  const suivis = recents.filter((p) => !!p.statut || (!!p.concretisation && p.concretisation !== 'rien'));
+  const notes = recents.filter((p) => !p.concretisation);
+  const pastilleReunion = (p: PointReunion) => ({ texte: reunionDuPoint(p.reunion), ton: 'gris' as const });
   return (
-    <SectionFiche titre={`📅 Points de réunion · ${points.length}`}>
-      {tries.map((p, i) => {
-        const a = statutAffiche(p, h.items, jour);
-        return (
-          <Ligne
-            key={p.id}
-            premiere={i === 0}
-            texte={p.texte}
-            sous={`${LIBELLE_TYPE_POINT[p.type]} · ${reunionDuPoint(p.reunion)}${p.statut ? '' : p.concretisation ? '' : ' · à concrétiser'}`}
-            pastille={a.texte ? { texte: a.texte, ton: a.ton } : { texte: LIBELLE_TYPE_POINT[p.type], ton: tonType(p.type) }}
-          />
-        );
-      })}
-    </SectionFiche>
+    <>
+      {suivis.length > 0 && (
+        <SectionFiche titre={`📌 Points de suivi · ${suivis.length}`}>
+          {suivis.map((p, i) => {
+            const a = statutAffiche(p, h.items, jour);
+            return (
+              <Ligne
+                key={p.id}
+                premiere={i === 0}
+                texte={p.texte}
+                sous={[LIBELLE_TYPE_POINT[p.type], `Responsable : ${nomDe(p.responsable || p.personne)}`].join(' · ')}
+                pastille={{ texte: a.texte || 'En cours', ton: a.texte ? a.ton : 'bleu', avant: pastilleReunion(p) }}
+              />
+            );
+          })}
+        </SectionFiche>
+      )}
+      {notes.length > 0 && (
+        <SectionFiche titre={`📝 Notes de réunion · ${notes.length}`}>
+          {notes.map((p, i) => (
+            <Ligne
+              key={p.id}
+              premiere={i === 0}
+              texte={p.texte}
+              sous={`Notée par ${nomDe(p.personne)} · à concrétiser`}
+              pastille={{ texte: LIBELLE_TYPE_POINT[p.type], ton: tonType(p.type), avant: pastilleReunion(p) }}
+            />
+          ))}
+        </SectionFiche>
+      )}
+    </>
   );
 }

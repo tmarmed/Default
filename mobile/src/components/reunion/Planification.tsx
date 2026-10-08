@@ -365,7 +365,7 @@ export function FenetrePlanification(p: PropsReunion) {
                 <Vide texte="Aucune story prête : voir l’affinage." />
               )}
             </SectionFiche>
-            <BlocPoints r={r} titre="Mes points" points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={candidates} />
+            <BlocPoints r={r} titre="Mes notes" points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={candidates} />
           </>
         );
       // ---- PO ----

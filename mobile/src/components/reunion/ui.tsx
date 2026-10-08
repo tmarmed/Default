@@ -61,8 +61,8 @@ export const pastilleStatut = (s: Statut): { texte: string; ton: Ton } =>
 /** Couleur de la pastille d'un point selon son type */
 export const tonType = (t: TypePoint): Ton => (t === 'blocage' ? 'rouge' : t === 'decision' || t === 'action' ? 'orange' : 'bleu');
 
-/** Pastille ; `age` : une seconde pastille orange à côté, à partir de 2 jours (« depuis 3 j », règle du 07/10) */
-export function Pastille({ texte, ton, age: date }: { texte: string; ton: Ton; age?: string }) {
+/** Pastille ; `age` : une seconde pastille orange à côté, à partir de 2 jours (« depuis 3 j », règle du 07/10) ; `avant` : une pastille devant (la réunion d'un point de suivi) */
+export function Pastille({ texte, ton, age: date, avant }: { texte: string; ton: Ton; age?: string; avant?: { texte: string; ton: Ton } }) {
   const une = (t: string, tn: Ton) => (
     <View style={[st.pastille, { backgroundColor: TONS[tn].fond }]}>
       <Text style={[st.pastilleTexte, { color: TONS[tn].texte }]} numberOfLines={1}>
@@ -70,11 +70,12 @@ export function Pastille({ texte, ton, age: date }: { texte: string; ton: Ton; a
       </Text>
     </View>
   );
-  if (!date) return une(texte, ton);
+  if (!date && !avant) return une(texte, ton);
   return (
-    <View style={{ flexDirection: 'row', gap: 4 }}>
+    <View style={{ flexDirection: 'row', gap: 4, flexShrink: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+      {avant && une(avant.texte, avant.ton)}
       {une(texte, ton)}
-      {une(date, 'orange')}
+      {!!date && une(date, 'orange')}
     </View>
   );
 }
@@ -105,7 +106,7 @@ export function Ligne({
 }: {
   texte: string;
   sous?: string;
-  pastille?: { texte: string; ton: Ton; age?: string };
+  pastille?: { texte: string; ton: Ton; age?: string; avant?: { texte: string; ton: Ton } };
   premiere?: boolean;
   onRetirer?: () => void;
   onOuvrir?: () => void;
@@ -243,7 +244,7 @@ export const TITRE_TYPE: Record<string, string> = {
   decision: 'Nouvelle décision',
   action: 'Nouvelle action',
 };
-export const titreAjout = (types: TypePoint[]) => (types.length === 1 ? (TITRE_TYPE[types[0]] ?? 'Nouveau point') : 'Nouveau point');
+export const titreAjout = (types: TypePoint[]) => (types.length === 1 ? (TITRE_TYPE[types[0]] ?? 'Nouvelle note') : 'Nouvelle note');
 
 export function SaisiePoint({
   types,

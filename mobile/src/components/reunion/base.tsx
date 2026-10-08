@@ -279,8 +279,8 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     const n = pts.filter((x) => !estTechnique(x)).length;
     onInfo?.(
       anime
-        ? `Point enregistré : ${pluriel(n, 'point')}, il rejoint vos étapes d'animation.`
-        : `Envoyé${e.sm ? ` à ${prenom(e.sm.nom)} (SM)` : ''} : ${pluriel(n, 'point')}${pts.length > n ? ' et votre préparation' : ''}${icic.length ? `, ${pluriel(icic.length, 'réponse')} dans le chat` : ''}.`,
+        ? `Préparation enregistrée : ${pluriel(n, 'note')}, elle rejoint vos étapes d'animation.`
+        : `Envoyé${e.sm ? ` à ${prenom(e.sm.nom)} (SM)` : ''} : ${pluriel(n, 'note')}${pts.length > n ? ' et votre préparation' : ''}${icic.length ? `, ${pluriel(icic.length, 'réponse')} dans le chat` : ''}.`,
     );
   };
 
@@ -681,7 +681,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
   let k = nouveaux.length ? 1 : 0;
   return (
     <SectionFiche
-      titre={`Suivi · ${filtre ? `${nf} sur ` : ''}${n}`}
+      titre={`📌 Points de suivi · ${filtre ? `${nf} sur ` : ''}${n}`}
       droite={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {nValider > 0 && (
@@ -742,7 +742,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
  */
 export function BlocPoints({
   r,
-  titre = 'Points notés',
+  titre = 'Notes',
   points,
   lecture,
   element = '',
@@ -870,7 +870,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
   const contexte = e.situation.cartes.map((t) => t.id);
   return (
     <>
-      <TitreFiche icone="🛠️" titre="Concrétisation" vide="" sous={lecture ? 'Choix de l’animateur' : `${pluriel(liste.length, 'point')} · touchez « Concrétiser › »`} />
+      <TitreFiche icone="🛠️" titre="Concrétisation" vide="" sous={lecture ? 'Choix de l’animateur' : `${pluriel(liste.length, 'note')} · touchez « Concrétiser › »`} />
       {!liste.length && <Vide texte="Aucun blocage, décision ou action noté." />}
       {liste.map((pt) => {
         if (lecture)
@@ -926,12 +926,12 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
           );
         })()}
       {!lecture && (
-        <SectionFiche titre="Point oublié">
+        <SectionFiche titre="Note oubliée">
           <SaisiePoint
             premiere
             types={['blocage', 'decision', 'action']}
             typeDefaut="blocage"
-            titre="Nouveau point oublié"
+            titre="Nouvelle note oubliée"
             jour={e.jour}
             placeholder="＋ Blocage, décision ou action oublié"
             stories={e.situation.cartes}

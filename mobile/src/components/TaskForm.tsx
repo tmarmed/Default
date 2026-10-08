@@ -790,7 +790,7 @@ export function TaskForm({
             )}
 
             {/* Suivi : priorité et statut (3 choix : pastilles) */}
-            <SectionFiche titre="Suivi">
+            <SectionFiche titre="Avancement">
               <ChampFiche label="Priorité">
                 <Chips options={PRIORITES} value={form.priorite} onChange={(v) => set('priorite', v)} compact />
               </ChampFiche>

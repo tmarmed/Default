@@ -440,7 +440,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     const quoi = o === 'po' ? 'Point PO' : 'Point';
     onInfo?.(
       (anime
-        ? `${quoi} enregistré : ${pluriel(pts.length, 'élément')}, il rejoint vos points notés`
+        ? `${quoi} enregistré : ${pluriel(pts.length, 'élément')}, il rejoint vos notes`
         : pts.length
           ? `${quoi} envoyé${sm ? ` à ${prenom(sm.nom)} (SM)` : ''} : ${pluriel(pts.length, 'élément')}`
           : 'Préparation vide envoyée : rien de noté') + (ici.length ? `, ${pluriel(ici.length, 'réponse')} envoyée${ici.length > 1 ? 's' : ''} dans le chat.` : '.'),
@@ -853,7 +853,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               <Compteur valeur={String(s.retard)} libelle="en retard" ton={s.retard ? 'orange' : undefined} />
             </View>
             <SectionFiche
-              titre={`Suivi · ${filtreSuivi ? `${[...suivisEquipe, ...suivisEchanges].filter((x) => x.point.type === filtreSuivi).length + reportes.filter((x) => x.type === filtreSuivi).length + nouveauxSuivis.filter((x) => x.type === filtreSuivi).length} sur ` : ''}${suivisEquipe.length + suivisEchanges.length + reportes.length + nouveauxSuivis.length}`}
+              titre={`📌 Points de suivi · ${filtreSuivi ? `${[...suivisEquipe, ...suivisEchanges].filter((x) => x.point.type === filtreSuivi).length + reportes.filter((x) => x.type === filtreSuivi).length + nouveauxSuivis.filter((x) => x.type === filtreSuivi).length} sur ` : ''}${suivisEquipe.length + suivisEchanges.length + reportes.length + nouveauxSuivis.length}`}
               droite={
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   {nValider > 0 && (
@@ -952,7 +952,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               )}
             </SectionFiche>
             <SectionFiche
-              titre={`Points notés · ${filtreType ? `${notes.filter((y) => y.type === filtreType).length} sur ${notes.length}` : notes.length}`}
+              titre={`Notes · ${filtreType ? `${notes.filter((y) => y.type === filtreType).length} sur ${notes.length}` : notes.length}`}
               droite={<PastilleFiltres actif={!!filtreType} ouvert={filtresOuverts} onPress={() => setFiltresOuverts((o) => !o)} />}
               entete={filtresOuverts && <FiltresType types={['hier', 'aujourdhui', 'blocage', 'decision', 'action']} value={filtreType} onChange={setFiltreType} />}
             >
@@ -998,7 +998,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
           const faits = duSheet.filter((pt) => !!pt.concretisation).length;
           return (
             <>
-              <TitreFiche icone="🧩" titre="Concrétisation" vide="" sous={`${pluriel(duSheet.length, 'point')} : ${faits} concrétisé${faits > 1 ? 's' : ''}, ${duSheet.length - faits} à décider par le SM`} />
+              <TitreFiche icone="🧩" titre="Concrétisation" vide="" sous={`${pluriel(duSheet.length, 'note')} : ${faits} concrétisée${faits > 1 ? 's' : ''}, ${duSheet.length - faits} à décider par le SM`} />
               {!duSheet.length && <Vide texte="Aucun blocage, décision ou action noté." />}
               {duSheet.map((pt) => (
                 <View key={pt.id} style={st.carteConcret}>
@@ -1021,7 +1021,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         const validateurs = [...new Map([...equipeP, ...escaladesDaily, moiP].map((y) => [y.email, y.email === animateur ? { ...y, meta: 'anime le daily' } : y])).values()];
         return (
           <>
-            <TitreFiche icone="🧩" titre="Concrétisation" vide="" sous={sous(`${pluriel(aDecider.length, 'point')} : blocages, décisions, actions`)} />
+            <TitreFiche icone="🧩" titre="Concrétisation" vide="" sous={sous(`${pluriel(aDecider.length, 'note')} : blocages, décisions, actions`)} />
             {!aDecider.length && <Vide texte="Aucun blocage, décision ou action noté." />}
             {aDecider.map((pt) => {
               const x = choixDe(pt);
@@ -1065,8 +1065,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   />
                 );
               })()}
-            <SectionFiche titre="Point oublié">
-              <SaisiePoint premiere types={['blocage', 'decision', 'action']} typeDefaut="blocage" titre="Nouveau point oublié" jour={jour} placeholder="＋ Blocage, décision ou action oublié" stories={situation.cartes} onAjouter={(type, texte, element) => ajouter({ personne: mail, type, texte, element })} />
+            <SectionFiche titre="Note oubliée">
+              <SaisiePoint premiere types={['blocage', 'decision', 'action']} typeDefaut="blocage" titre="Nouvelle note oubliée" jour={jour} placeholder="＋ Blocage, décision ou action oublié" stories={situation.cartes} onAjouter={(type, texte, element) => ajouter({ personne: mail, type, texte, element })} />
             </SectionFiche>
           </>
         );

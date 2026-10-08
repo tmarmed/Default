@@ -232,13 +232,13 @@ export function FenetreAffinage(p: PropsReunion) {
   const pointsStory = (t: Item, lecture: boolean, prep = false) => (
     <BlocPoints
       r={r}
-      titre={prep ? 'Mes points' : 'Points notés'}
+      titre={prep ? 'Mes notes' : 'Notes'}
       points={(prep ? r.prep : r.tous).filter((x) => r.ici(x) && x.element === t.id)}
       lecture={lecture}
       element={t.id}
       stories={stories}
       pourPrep={prep}
-      placeholder={prep ? '＋ Question, blocage…' : '＋ Ajouter un point'}
+      placeholder={prep ? '＋ Question, blocage…' : '＋ Ajouter une note'}
     />
   );
 
@@ -411,8 +411,8 @@ export function FenetreAffinage(p: PropsReunion) {
                 <Vide texte={`Aucun vote ouvert : ${animateur} ouvre le vote de chaque story après sa présentation (↻ Actualiser).`} />
               </SectionFiche>
             )}
-            <SectionFiche titre="Mes points">
-              <Vide texte={`${pluriel(r.prep.filter((y) => y.type !== 'donnee').length, 'point')} à envoyer avec « Envoyer mes points ».`} />
+            <SectionFiche titre="Mes notes">
+              <Vide texte={`${pluriel(r.prep.filter((y) => y.type !== 'donnee').length, 'note')} à envoyer avec « Envoyer mes notes ».`} />
             </SectionFiche>
           </>
         );
@@ -541,7 +541,7 @@ export function FenetreAffinage(p: PropsReunion) {
       r={r}
       catalogue={PARCOURS_AFFINAGE}
       rendu={rendu}
-      libelleFin={(o) => (o.role === 'po' ? `Envoyer à ${prenom(e.nomDe(p.reunion.organisateur))}` : 'Envoyer mes points')}
+      libelleFin={(o) => (o.role === 'po' ? `Envoyer à ${prenom(e.nomDe(p.reunion.organisateur))}` : 'Envoyer mes notes')}
       etapeAnim={{ cle: cleAnim, setCle: setCleAnim, element: cleAnim === 'stories' ? (story?.id ?? '') : '', detail: cleAnim === 'stories' && story ? `Story ${Math.min(idx, n - 1) + 1} sur ${n} · ${story.titre}` : '' }}
       onSuivant={(role, cle) => {
         if (role === 'sm' && cle === 'stories' && idx < n) return (setIdx(idx + 1), true);

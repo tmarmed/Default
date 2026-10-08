@@ -94,7 +94,7 @@ interface Props {
 }
 
 /** Étapes de préparation d'un participant, en attendant celles de chaque réunion (en cours de validation) */
-export const ETAPES_PARTICIPANT = ['Mon point', 'Mes blocages', 'Envoi'];
+export const ETAPES_PARTICIPANT = ['Ma préparation', 'Mes blocages', 'Envoi'];
 /** Délai minimal entre deux actualisations (quota Google Sheets) */
 export const DELAI_ACTUALISER_MS = 5000;
 /** « 9:42 » */
@@ -201,6 +201,7 @@ export function FenetreReunion(p: Props) {
   const barreOnglets = liste.length > 1 && (
     <View style={s.onglets}>
       <Segmented
+        compact={liste.length > 3}
         options={liste.map((o) => ({ value: o.cle, label: finis.includes(o.cle) ? `${o.libelle} ✓` : o.libelle }))}
         value={courant.cle}
         onChange={(v) => !busy && setActif(Math.max(0, liste.findIndex((o) => o.cle === v)))}

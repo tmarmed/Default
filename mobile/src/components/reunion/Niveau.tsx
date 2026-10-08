@@ -148,7 +148,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
     ],
     po: [
       ['features_po', 'Mes features', { k: 'mes_elements', icone: '🧩', titre: 'Features du PI', sous: 'Contenu et priorités', liste: featuresPI }],
-      ['notes_po', 'Mes points', { k: 'notes', titre: 'Mes points' }],
+      ['notes_po', 'Mes notes', { k: 'notes', titre: 'Mes notes' }],
     ],
   },
   system_demo: {
@@ -212,7 +212,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
     membre: [
       ['taches', 'Mes tâches', TACHES],
       ['valeurs', 'Valeurs', { k: 'mes_elements', icone: '🎯', titre: 'OKR', sous: 'Résultats clés actuels', liste: okrs }],
-      ['notes', 'Mes points', { k: 'notes' }],
+      ['notes', 'Mes notes', { k: 'notes' }],
     ],
   },
   affinage_train: {
@@ -226,7 +226,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
     ],
     membre: [
       ['nos_features', 'Nos features', { k: 'mes_elements', icone: '🧩', titre: 'Features à préparer', sous: 'Questions de l’équipe', liste: featuresPrep }],
-      ['notes', 'Mes points', { k: 'notes' }],
+      ['notes', 'Mes notes', { k: 'notes' }],
     ],
   },
   prepa_pi: {
@@ -243,7 +243,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
     ],
     membre: [
       ['capacite_m', 'Capacité', { k: 'saisie', icone: '👥', titre: 'Capacité de mon équipe', sous: 'Par sprint, absences connues', cle: 'capacite', placeholder: 'S1 : 30 pts' }],
-      ['notes', 'Mes points', { k: 'notes' }],
+      ['notes', 'Mes notes', { k: 'notes' }],
     ],
     po: [['vision_po', 'Vision', { k: 'saisie', icone: '🧭', titre: 'Vision du PI', sous: 'Message de vision', cle: 'vision', placeholder: 'Message de vision' }]],
   },
@@ -301,7 +301,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
       ['concretisation', 'Concrétisation', CONC],
       ['compte_rendu', 'Compte rendu', CR],
     ],
-    membre: [['notes', 'Mes points', { k: 'notes', titre: 'Mes points pour la réunion' }]],
+    membre: [['notes', 'Mes notes', { k: 'notes', titre: 'Mes notes pour la réunion' }]],
   },
 };
 export const estReunionNiveau = (t: TypeReunion) => !!CONFIGS[t];
@@ -471,7 +471,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
             <SectionFiche titre={et.titre}>{l.length ? l.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.titre} sous={y.sous} pastille={y.pastille ? { texte: y.pastille, ton: 'bleu' } : undefined} />) : <Vide texte="Rien pour l’instant." />}</SectionFiche>
             {et.k === 'liste' && ajoutDe(et.ajout, lecture || !r.anime)}
             {et.k === 'liste' && et.points && <BlocPoints r={r} points={r.tous.filter((y) => r.ici(y))} lecture={lecture} stories={[]} />}
-            {et.k === 'mes_elements' && <BlocPoints r={r} titre="Mes points" points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={[]} />}
+            {et.k === 'mes_elements' && <BlocPoints r={r} titre="Mes notes" points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={[]} />}
           </>
         );
       }
@@ -579,8 +579,8 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
       case 'notes':
         return (
           <>
-            <TitreFiche icone="📝" titre={et.titre ?? 'Mes points'} vide="" sous="Blocages, décisions, actions : ils arrivent chez l’animateur" />
-            <BlocPoints r={r} titre={et.titre ?? 'Mes points'} points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={[]} />
+            <TitreFiche icone="📝" titre={et.titre ?? 'Mes notes'} vide="" sous="Blocages, décisions, actions : ils arrivent chez l’animateur" />
+            <BlocPoints r={r} titre={et.titre ?? 'Mes notes'} points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={[]} />
           </>
         );
       case 'saisie': {

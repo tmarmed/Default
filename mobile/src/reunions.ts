@@ -378,7 +378,7 @@ export interface ParcoursRole {
 }
 export const LIBELLE_ROLE_REUNION: Record<RoleReunion, string> = { membre: 'membre', po: 'PO', sm: 'SM' };
 /** Libellé de l'onglet d'un parcours : « Mon point », « PO », « Animer », « Suivre » */
-export const ongletParcours = (p: Pick<ParcoursRole, 'role' | 'lecture'>) => (p.role === 'membre' ? 'Mon point' : p.role === 'po' ? 'PO' : p.lecture ? 'Suivre' : 'Animer');
+export const ongletParcours = (p: Pick<ParcoursRole, 'role' | 'lecture'>) => (p.role === 'membre' ? 'Ma préparation' : p.role === 'po' ? 'PO' : p.lecture ? 'Suivre' : 'Animer');
 
 /**
  * Parcours séparés (06/10) : chaque rôle de la personne a son propre parcours, dans son onglet, avec sa barre
