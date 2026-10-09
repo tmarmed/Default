@@ -15,6 +15,7 @@ import { FenetreRevue } from './reunion/Revue';
 import { FenetrePlanification } from './reunion/Planification';
 import { estReunionNiveau, FenetreNiveau } from './reunion/Niveau';
 import { estRituelSimple, FenetreSimple } from './reunion/Simple';
+import { MesSuivis } from './reunion/MesSuivis';
 
 /**
  * 📅 Réunions (lot 6) : vos réunions, construites comme la liste de la Synchro (« Par conversation ») : sections
@@ -74,6 +75,8 @@ function dansDelivery(r: Reunion, f: OrgFiltre, org: OrgValue): boolean {
 
 export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre, onInfo, daily, onOpenTask, echanges, onOuvrir, onModifier }: Props) {
   const [ouverteIci, setOuverte] = useState<Reunion | null>(null);
+  const [suivisOuverts, setSuivisOuverts] = useState(false);
+  const espacesReunions = useMemo(() => [...new Set(reunions.map((r) => r.espace || 'moi'))].sort(), [reunions]);
   const ouvrir = (r: Reunion) => (onOuvrir ? onOuvrir(r) : setOuverte(r));
   const ouverte = onOuvrir ? null : ouverteIci;
   const mots = filtre.recherche.toLowerCase().split(/\s+/).filter(Boolean);
@@ -149,6 +152,17 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
     <>
       <ScrollView contentContainerStyle={s.scroll}>
         {filtreActif && <Text style={s.aide}>Filtres actifs : seules les réunions correspondantes sont affichées.</Text>}
+        {/* 📌 Mes suivis (lot 5) : toutes mes notes ouvertes et fermées, dans toutes mes réunions */}
+        {!!daily && reunions.length > 0 && (
+          <Pressable onPress={() => setSuivisOuverts(true)} style={[s.carte, s.ligne, { marginTop: 16 }]} accessibilityRole="button">
+            <Text style={s.avatar}>📌</Text>
+            <View style={s.corps}>
+              <Text style={s.titre}>Mes suivis</Text>
+              <Text style={s.meta}>Ouvertes et fermées · toutes vos réunions</Text>
+            </View>
+            <Text style={s.chev}>›</Text>
+          </Pressable>
+        )}
         {!reunions.length ? (
           <Text style={[s.videTexte, s.videSeul]}>
             {safeActif
@@ -168,6 +182,17 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
           </>
         )}
       </ScrollView>
+      {suivisOuverts && daily && (
+        <MesSuivis
+          visible
+          espaces={espacesReunions}
+          moi={moi}
+          aujourdhui={aujourdhui}
+          nomDe={(m) => org.personnes.find((p) => p.email?.toLowerCase() === m.toLowerCase())?.nom ?? m.split('@')[0]}
+          lirePoints={daily.lirePoints}
+          onFermer={() => setSuivisOuverts(false)}
+        />
+      )}
       {ouverte && (
         <FenetreDeReunion reunion={ouverte} org={org} moi={moi} aujourdhui={aujourdhui} daily={daily} onFermer={() => setOuverte(null)} onInfo={onInfo} onOpenTask={onOpenTask} echanges={echanges} />
       )}

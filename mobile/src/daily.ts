@@ -2,7 +2,7 @@ import { addDays, toDateString } from './dates';
 import { iterationOf, iterationOfItem, pointsOf } from './pi';
 import { chargeOf, subtaskMap } from './subtasks';
 import type { CatalogueParcours } from './reunions';
-import { type Concretisation, type Echange, type Item, type PointReunion, type Reunion, type TypePoint, TYPES_REUNION } from './types';
+import { type Concretisation, type Echange, estTechnique, type Item, type PointReunion, type Reunion, type TypePoint, type TypeReunion, TYPES_REUNION } from './types';
 
 /**
  * Daily (lot 6, validé le 01/10) : calculs sans affichage, communs à l'organisateur (Scrum Master) et au
@@ -299,3 +299,29 @@ export function texteCompteRendu(o: {
   if (o.notes) l.push('', `${o.notes} autre${o.notes > 1 ? 's' : ''} point${o.notes > 1 ? 's' : ''} noté${o.notes > 1 ? 's' : ''} seulement.`);
   return l.join('\n');
 }
+
+// ---------------------------------------------------------------------------
+// 📌 Mes suivis (lot 5, 09/10) : écran de l'onglet Réunions (src/components/reunion/MesSuivis.tsx)
+// ---------------------------------------------------------------------------
+/** Ouverte : note à concrétiser, ou suivi pas encore validé / abandonné */
+export const estOuverte = (p: PointReunion) => (p.statut ? p.statut !== 'valide' && p.statut !== 'abandonne' : aConcretiser(p) && !p.concretisation);
+export const estFermee = (p: PointReunion) => p.statut === 'valide' || p.statut === 'abandonne';
+
+/** Mes notes : responsable, valideur, ou noté par / pour moi (pas encore concrétisé) */
+export function mesSuivis(points: PointReunion[], moi: string): { ouvertes: PointReunion[]; fermees: PointReunion[] } {
+  const m = moi.toLowerCase();
+  const miens = points.filter((p) => !estTechnique(p) && (p.statut || aConcretiser(p)) && [p.responsable, p.validateur, p.statut ? '' : p.personne, p.statut ? '' : p.auteur].some((x) => (x ?? '').toLowerCase() === m));
+  const vus = new Set<string>();
+  const uniques = miens.filter((p) => !vus.has(p.id) && vus.add(p.id));
+  const tri = (a: PointReunion, b: PointReunion) => (a.echeance || a.reunion.slice(-10)).localeCompare(b.echeance || b.reunion.slice(-10));
+  return { ouvertes: uniques.filter(estOuverte).sort(tri), fermees: uniques.filter(estFermee).sort(tri).reverse() };
+}
+
+/** « Daily du 2/10 » d'après l'id de la réunion (type-niveau-AAAA-MM-JJ) */
+export function reunionDeNote(p: PointReunion): string {
+  const type = (Object.keys(TYPES_REUNION) as TypeReunion[]).filter((k) => p.reunion.startsWith(`${k}-`)).sort((a, b) => b.length - a.length)[0];
+  const jour = p.reunion.slice(-10);
+  const lib = type ? TYPES_REUNION[type].libelle : 'Réunion';
+  return /^\d{4}-\d{2}-\d{2}$/.test(jour) ? `${lib} du ${`${Number(jour.slice(8, 10))}/${jour.slice(5, 7)}`}` : lib;
+}
+

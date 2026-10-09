@@ -122,7 +122,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '36';
+const DEMO_DATA_VERSION = '37';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -502,6 +502,9 @@ const SEEDS_ENTREPRISE: Seeds = {
       pt('acmpt8', { reunion: reunion(avant), personne: emma, auteur: MOI_DEMO, type: 'action', texte: 'Revoir les maquettes du panier', element: 'acm4', concretisation: 'suivi', responsable: emma, statut: 'fait', validateur: MOI_DEMO, echeance: veille, note: 'Maquettes revues avec le PO', cree_le: `${avant}T09:45:00.000Z` }),
       pt('acmpt9', { reunion: reunion(avant), personne: paul, auteur: MOI_DEMO, type: 'blocage', texte: 'Relancer le service juridique', concretisation: 'suivi', responsable: paul, statut: 'en_cours', validateur: MOI_DEMO, echeance: avant, cree_le: `${avant}T09:46:00.000Z` }),
       pt('acmpt10', { reunion: reunion(avant), type: 'blocage', texte: 'API de paiement bloquée', element: 'acm4', concretisation: 'escalade', tache: 'acmx4', echange: 'acmx4', responsable: sara, statut: 'fait', validateur: MOI_DEMO, note: 'Réponse de Sara Martin : accès donné par le prestataire (clé dans le coffre)', cree_le: `${avant}T09:47:00.000Z` }),
+      // 📌 Mes suivis (lot 5) : fermés, gardés jusqu'à leur suppression (validé ; abandonné avec son motif)
+      pt('acmpt13', { reunion: reunion(avant), personne: nina, auteur: MOI_DEMO, type: 'action', texte: 'Mettre à jour la liste des testeurs', concretisation: 'suivi', responsable: nina, statut: 'valide', validateur: MOI_DEMO, note: 'Liste à jour', cree_le: `${avant}T09:48:00.000Z` }),
+      pt('acmpt14', { reunion: reunion(avant), personne: MOI_DEMO, auteur: MOI_DEMO, type: 'action', texte: 'Réserver la salle de démo du vendredi', concretisation: 'suivi', responsable: MOI_DEMO, statut: 'abandonne', validateur: nina, note: 'Démo faite à distance', cree_le: `${avant}T09:49:00.000Z` }),
     ];
   },
   entities: () => {

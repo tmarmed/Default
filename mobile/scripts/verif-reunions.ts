@@ -8,7 +8,8 @@ import { absentsLe, joursAbsence, joursPrevus, jppConstate } from '../src/conges
 import { avecDossiers, gerantsBudget, libelleDecisionDossier, libelleStatutDemande, manquesDossier, niveauDessus, reunionDuNiveau } from '../src/budget';
 import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '../src/budget';
 import { creerMagasin, nettoyerDepense } from '../src/magasin';
-import type { Conge, Depense } from '../src/types';
+import { mesSuivis, reunionDeNote } from '../src/daily';
+import type { Conge, Depense, PointReunion } from '../src/types';
 import { consommeReel } from '../src/consomme';
 import { capaciteEquipePI, coutJour, joursOuvresAnnee, niveauxDeRoles, piloteEquipe, pilotePortfolio, piloteTrain, suivisDuNiveau } from '../src/pilotage';
 import { pointsFinis, backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteCompteRendu, texteReponse, veilleOuvree } from '../src/daily';
@@ -515,6 +516,11 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
     const d = await mag.ecrireDossier({ id: 'e1', budget_mvp: '400', decision: 'lancer' });
     ok(refus === 2 && d.hypothese === 'H' && d.budget_mvp === '400' && d.decision === 'lancer' && (mem.dossier ?? []).length === 1, 'dossier : une ligne par epic, complété champ par champ, MVP ≤ budget prévu');
   })());
+  // 📌 Mes suivis (lot 5) : ouvertes (à concrétiser, en cours, fait, à reprendre) et fermées (validé, abandonné)
+  const pS = (x: Partial<PointReunion>) => ({ id: 'x', reunion: 'daily-equipeagile:e-2026-10-02', personne: 'a@x', auteur: 'a@x', type: 'action', texte: 't', element: '', concretisation: '', tache: '', responsable: '', cree_le: '', ...x }) as PointReunion;
+  const ms = mesSuivis([pS({ id: '1', statut: 'en_cours', responsable: 'Moi@x' }), pS({ id: '2', statut: 'valide', validateur: 'moi@x' }), pS({ id: '3', personne: 'moi@x' }), pS({ id: '4', statut: 'en_cours', responsable: 'b@x' }), pS({ id: '5', type: 'etat', personne: 'moi@x' })], 'moi@x');
+  ok(ms.ouvertes.map((p) => p.id).sort().join() === '1,3' && ms.fermees.map((p) => p.id).join() === '2', 'Mes suivis : responsable, valideur ou auteur ; fermées = validées ou abandonnées');
+  ok(reunionDeNote(pS({ reunion: 'retro-equipeagile:e-2026-10-14' })) === 'Rétrospective du 14/10', 'Mes suivis : réunion d’origine lisible');
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
   reglerConversion(true, new Map([['acmeqmob', 0.5]]));
   ok(pointsOf({ points: '4', equipe: 'acmeqmob' }) === 2 && pointsOf({ points: '4', equipe: 'autre' }) === 4 && versPoints('3', 0.5) === '6' && depuisPoints('6', 0.5) === '3', 'conversion : 4 pts = 2 j avec 1 point = ½ j ; saisie 3 j → 6 pts');
