@@ -31,11 +31,13 @@ Ajuster ajoute une note à concrétiser) ; participants repris de l'Organisation
 5. **Chantier à part (mode Simple)** : modèle des réunions du mode Simple pour une personne, une équipe, une
    entreprise (réunion mensuelle, annuelle…), qui animent ; adapter alors les suivis et le Chat (déjà branchés).
 6. Rôle transverse ou droits transverses (demandé le 09/10, à concevoir).
-8. Congés déclarés par chacun dans l'application (demandé le 09/10) : capacité de l'équipe calculée d'avance
-   (Planification, PI Planning, Préparation du PI, Pilotage), affinée à chaque sprint et validée en Rétrospective.
 7. « Ne plus suivre » un point de suivi, depuis la réunion correspondante, possible dans toutes les réunions
    (demandé le 09/10).
 
+8. Congés déclarés par chacun dans l'application (demandé le 09/10) : capacité de l'équipe calculée d'avance
+   (Planification, PI Planning, Préparation du PI, Pilotage), affinée à chaque sprint et validée en Rétrospective.
+9. Renforcer la confidentialité du Chat : « prive » n'est qu'à l'affichage, l'onglet Echanges reste lisible par qui
+   ouvre le Sheet de l'espace (sujet à part, 09/10).
 ## Fait (09/10) : Pilotage (lot 5)
 Onglet 📊 Pilotage, lecture seule, niveaux selon les rôles (équipes, train, portfolio ; 🔒 Moi en mode Simple) :
 Avancement (sprint, burndown ; features et objectifs du PI, risques et dépendances ; epics par état, OKR), Charge
@@ -84,10 +86,9 @@ Budget affiné : conception validée le 09/10 (coder après « je valide » du p
   prévenu de la décision).
   Revu le 09/10 : demande de budget née seulement en réunion ; soumise par l'animateur ; arrive dans la réunion de
   suivi du dessus (ART sync, Synchronisation du portfolio, Comité budgétaire) ; décision Accorder / À reprendre /
-  Refuser / Soumettre plus haut. En conception : message « ℹ️ Pour information » (disparaît à la lecture, sans
-  montant, « À traiter à : <réunion> ») ; Sheet « 💶 Budget » séparé, partagé seulement avec le droit « Gérer le
-  budget » (coûts annuels, allocations, dépenses, demandes). Constat : la confidentialité du Chat (« prive ») n'est
-  qu'à l'affichage, l'onglet Echanges reste lisible par qui ouvre le Sheet de l'espace.
+  Refuser / Soumettre plus haut. Validé : message « ℹ️ Pour information » (disparaît à la lecture, montant et
+  décision possibles, toujours « À traiter à : <réunion> ») ; Sheet « 💶 Budget » séparé, partagé seulement avec le droit « Gérer le
+  budget » (coûts annuels, allocations, dépenses, demandes). Validé aussi.
 Reste (pilotage) : coûts annuels visibles de ceux qui lisent l'Organisation (à revoir avec les droits transverses).
 
 ## Questions ouvertes à l'utilisateur
