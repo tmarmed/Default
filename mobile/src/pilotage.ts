@@ -139,15 +139,15 @@ export function pilotePortfolio(portfolioId: string, org: OrgValue, h: H, today:
   return { epics, budget, idee: parEtat('idee'), analysePret: parEtat('analyse') + parEtat('pret'), enCours: parEtat('en_cours'), termine: parEtat('termine'), okrs };
 }
 
-/** Jours travaillés par an : coût d'une journée = salaire annuel chargé ÷ 218 */
+/** Jours travaillés par an : coût d'une journée = coût annuel ÷ 218 */
 export const JOURS_PAR_AN = 218;
 const nombre = (v?: string) => Number(String(v ?? '').replace(/\s/g, '').replace(',', '.')) || 0;
-export const coutJour = (salaire?: string) => Math.round(nombre(salaire) / JOURS_PAR_AN);
+export const coutJour = (coutAnnuel?: string) => Math.round(nombre(coutAnnuel) / JOURS_PAR_AN);
 
 /**
  * Consommé d'une epic (09/10), calculé : pour chaque tâche ou story terminée de l'epic (directement ou par sa
- * feature), points × jours par point de l'équipe × coût d'une journée du responsable (son salaire ÷ 218).
- * `sansCout` : jours terminés dont le responsable n'a pas de salaire (non comptés).
+ * feature), points × jours par point de l'équipe × coût d'une journée du responsable (son coût annuel ÷ 218).
+ * `sansCout` : jours terminés dont le responsable n'a pas de coût annuel (non comptés).
  */
 export function consommeCalcule(epicId: string, org: OrgValue, h: Pick<H, 'items' | 'featureList'>) {
   const fs = new Map(h.featureList.filter((f) => f.epic === epicId).map((f) => [f.id, f]));
@@ -158,7 +158,7 @@ export function consommeCalcule(epicId: string, org: OrgValue, h: Pick<H, 'items
     if (t.parent || t.statut !== 'termine' || !(t.epic === epicId || fs.has(t.feature))) continue;
     const equipe = t.equipe || fs.get(t.feature)?.equipe || '';
     const j = pointsBruts(t) * (equipe ? (calendrierEquipe(equipe, org).jpp ?? 1) : 1);
-    const cout = coutJour(org.personne.get(t.responsable ?? '')?.salaire);
+    const cout = coutJour(org.personne.get(t.responsable ?? '')?.cout_annuel);
     jours += j;
     if (cout) euros += j * cout;
     else sansCout += j;

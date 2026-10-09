@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { libelleNote } from '../daily';
 import { useHierarchy } from '../hierarchyContext';
 import type { OrgValue } from '../organisation';
@@ -19,7 +19,7 @@ import {
 import { jourCourt } from '../pointsSuivi';
 import { colors } from '../theme';
 import type { Echange, PointReunion } from '../types';
-import { LigneChoix, SectionFiche } from './Choix';
+import { SectionFiche } from './Choix';
 import { TitreFiche } from './FormSheet';
 import { Compteur, Ligne, st, Vide } from './reunion/ui';
 
@@ -29,7 +29,6 @@ import { Compteur, Ligne, st, Vide } from './reunion/ui';
  * avancement, charge, prévisibilité, suivis de toutes les réunions du niveau, décisions prises, alertes.
  */
 const LIBELLE_NIVEAU = { equipeagile: 'Équipe agile', train: 'Train', portfolio: 'Portfolio', perso: 'Mode Simple' } as const;
-const LIBELLE_GROUPE = { equipeagile: 'Mes équipes', train: 'Mes trains', portfolio: 'Mes portfolios' } as const;
 
 export function PilotageView({
   org,
@@ -215,11 +214,11 @@ export function PilotageView({
           </View>
           {x.budget.epics.map((y, i) => {
             const b = y.budget;
-            const detail = b.manuel ? 'saisi à la main' : `calculé : ${b.calcule.jours} j terminés${b.calcule.sansCout ? ` · ${b.calcule.sansCout} j sans salaire renseigné` : ''}`;
+            const detail = b.manuel ? 'saisi à la main' : `calculé : ${b.calcule.jours} j terminés${b.calcule.sansCout ? ` · ${b.calcule.sansCout} j sans coût annuel renseigné` : ''}`;
             return ligneJauge(`b${y.e.id}`, `🗂️ ${y.e.titre}`, `${euros(b.consomme)} sur ${b.prevu ? euros(b.prevu) : 'budget non renseigné'} · ${detail}`, b.prevu ? (100 * b.consomme) / b.prevu : 0, b.depasse ? 'rouge' : undefined, i === 0, b.depasse ? { texte: `+${euros(b.consomme - b.prevu)}`, ton: 'rouge' } : undefined);
           })}
           {!x.budget.epics.length && <Vide texte="Aucun budget renseigné (fiche de l’epic)." />}
-          <Text style={s.aide}>Consommé calculé : points terminés × jours par point de l’équipe × coût d’une journée du responsable (salaire annuel chargé ÷ 218 jours, fiche Personne). Modifiable à la main dans la fiche de l’epic.</Text>
+          <Text style={s.aide}>Consommé calculé : points terminés × jours par point de l’équipe × coût d’une journée du responsable (coût annuel ÷ 218 jours, fiche Personne). Modifiable à la main dans la fiche de l’epic.</Text>
         </SectionFiche>
         <SectionFiche titre="OKR · résultats clés">
           {x.okrs.map((y, i) => ligneJauge(y.o.id, `🎯 ${y.o.titre}`, `${y.nbKr} résultat${y.nbKr > 1 ? 's' : ''} clé${y.nbKr > 1 ? 's' : ''} · ${y.pct} %${y.clos ? ' · clos' : ''}`, y.pct, y.pct >= 60 ? 'vert' : undefined, i === 0, y.clos ? { texte: 'Clos', ton: 'gris' } : undefined))}
@@ -253,22 +252,20 @@ export function PilotageView({
 
   return (
     <ScrollView contentContainerStyle={s.page}>
-      <TitreFiche icone="📊" titre={`Pilotage · ${n.nom.replace(/^\S+\s/, '')}`} vide="" sous={`${LIBELLE_NIVEAU[n.kind]} · lecture seule`} />
-      {/* Plusieurs casquettes (09/10) : le niveau se choisit en haut ; un seul niveau : pas de choix */}
+      {/* Plusieurs casquettes (09/10) : tous les niveaux en haut, un appui suffit ; un seul niveau : pas de choix */}
       {niveaux.length > 1 && (
-        <SectionFiche titre="Niveau de pilotage">
-          <LigneChoix
-            fixe
-            label="Piloter"
-            value={`${n.kind}:${n.id}`}
-            groupes={(['equipeagile', 'train', 'portfolio'] as const)
-              .map((k) => ({ titre: LIBELLE_GROUPE[k], options: niveaux.filter((x) => x.kind === k).map((x) => ({ value: `${x.kind}:${x.id}`, label: x.nom })) }))
-              .filter((g) => g.options.length)}
-            titreFeuille="Niveau de pilotage"
-            onChange={setChoisi}
-          />
-        </SectionFiche>
+        <View style={s.niveaux}>
+          {niveaux.map((x) => {
+            const on = x === n;
+            return (
+              <Pressable key={`${x.kind}:${x.id}`} onPress={() => setChoisi(`${x.kind}:${x.id}`)} style={[s.puce, on && s.puceOn]} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={`${LIBELLE_NIVEAU[x.kind]} ${x.nom}`}>
+                <Text style={[s.puceTexte, on && s.puceTexteOn]}>{x.nom}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       )}
+      <TitreFiche icone="📊" titre={`Pilotage · ${n.nom.replace(/^\S+\s/, '')}`} vide="" sous={`${LIBELLE_NIVEAU[n.kind]} · lecture seule`} />
       {contenu}
       {blocSuivis}
       {n.kind !== 'perso' && blocDecisions}
@@ -279,6 +276,11 @@ export function PilotageView({
 
 const s = StyleSheet.create({
   page: { paddingBottom: 40 },
+  niveaux: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingTop: 10 },
+  puce: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#fff' },
+  puceOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  puceTexte: { fontSize: 14, color: colors.text },
+  puceTexteOn: { color: '#fff', fontWeight: '600' },
   aide: { fontSize: 12, color: colors.muted, lineHeight: 17, paddingHorizontal: 10, paddingBottom: 10 },
   pad: { padding: 10 },
   burndown: { flexDirection: 'row', alignItems: 'flex-end', height: 80, gap: 2, marginTop: 6 },

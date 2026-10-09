@@ -28,7 +28,7 @@ const SUPPRIMER: Record<string, string> = {
 export type RangerOrg = { kind: KindOrg; champ: string; ids: string[] };
 
 const VIDES: Record<KindOrg, Donnees> = {
-  personne: { nom: '', email: '', unite: '', manager: '', capacite: '', metier: '', nature: 'humain', salaire: '' },
+  personne: { nom: '', email: '', unite: '', manager: '', capacite: '', metier: '', nature: 'humain', cout_annuel: '' },
   unite: { nom: '', type: 'service', parent: '', responsable: '' },
   portfolio: { nom: '', epic_owner: '' },
   train: { nom: '', portfolio: '', rte: '', pm: '', calendrier: '' },
@@ -468,8 +468,8 @@ export function OrgForm({
             <ChampFiche label="Capacité" sous={safe.pointsJours ? 'Jours par sprint.' : 'Jours par sprint (convertis en points avec « 1 point = … j » du calendrier de l’équipe).'}>
               <SaisieFiche placeholder="Facultatif (ex. 8)" value={form.capacite} onChangeText={set('capacite')} keyboardType="decimal-pad" />
             </ChampFiche>
-            <ChampFiche label="Salaire" sous={`Annuel chargé, en euros. Coût d’une journée : salaire ÷ 218 jours${(form as { salaire?: string }).salaire ? ` = ${euros(coutJour((form as { salaire?: string }).salaire))}` : ''} ; sert au budget consommé des epics. Visible de ceux qui lisent l’Organisation.`}>
-              <SaisieFiche placeholder="Facultatif (ex. 55000)" value={(form as { salaire?: string }).salaire ?? ''} onChangeText={(v) => set('salaire' as never)(v.replace(/[^0-9.,]/g, '') as never)} keyboardType="decimal-pad" />
+            <ChampFiche label="Coût annuel" sous={`En euros (salaire chargé…). Coût d’une journée : coût annuel ÷ 218 jours${form.cout_annuel ? ` = ${euros(coutJour(form.cout_annuel))}` : ''} ; sert au budget consommé des epics. Visible de ceux qui lisent l’Organisation.`}>
+              <SaisieFiche placeholder="Facultatif (ex. 75000)" value={form.cout_annuel ?? ''} onChangeText={(v) => set('cout_annuel')(v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
             </ChampFiche>
           </SectionFiche>
         </>

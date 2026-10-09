@@ -421,13 +421,13 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const tr = piloteTrain('acmtr1', oT, hP, [], jourP);
   ok(tr.equipes.length === 2, 'pilotage train : charge de ses deux équipes');
   ok(pilotePortfolio('acmpf1', oT, hP, jourP).epics.length > 0, 'pilotage portfolio : ses epics');
-  // Budget (09/10) : consommé = points terminés × jours par point × salaire ÷ 218 ; saisi à la main, il l'emporte
+  // Budget (09/10) : consommé = points terminés × jours par point × coût annuel ÷ 218 ; saisi à la main, il l'emporte
   const pf = pilotePortfolio('acmpf1', oT, hP, jourP);
   ok(pf.budget.prevu === 200000 && pf.budget.epics.length === 2, 'budget : prévu des epics du portfolio');
   const st = { parent: '', feature: '', id: 'bx1', type: 'story', statut: 'termine', epic: 'acme2', points: '4', equipe: 'acmeqmob', responsable: 'acmp6' } as never;
   const st2 = { parent: '', feature: '', id: 'bx2', type: 'story', statut: 'termine', epic: 'acme2', points: '2', equipe: 'acmeqmob', responsable: 'acmp1' } as never;
   const c = consommeCalcule('acme2', oT, { items: [st, st2], featureList: [] });
-  ok(coutJour('58000') === 266 && c.euros === 4 * 266 && c.jours === 6 && c.sansCout === 2, 'budget : consommé calculé (4 j × 266 €), jours sans salaire signalés');
+  ok(coutJour('58000') === 266 && c.euros === 4 * 266 && c.jours === 6 && c.sansCout === 2, 'budget : consommé calculé (4 j × 266 €), jours sans coût annuel signalés');
   const ep = (d.entities.epic ?? []).find((e) => e.id === 'acme2')!;
   const bm = budgetEpic({ ...ep, consomme: '150000' }, oT, { items: [st], featureList: [] });
   ok(bm.manuel && bm.consomme === 150000 && bm.depasse, 'budget : consommé saisi à la main, dépassement signalé');

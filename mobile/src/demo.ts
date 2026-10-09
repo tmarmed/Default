@@ -596,7 +596,7 @@ const SEEDS_ENTREPRISE: Seeds = {
         p('acmp9', 'Emma Roy', 'acmu3', 'acmp2', '6', 'testeur'),
         p('acmp10', 'Léa Roux', 'acmu3', 'acmp2', '8', 'designer'),
         p('acmp11', 'Hugo Blanc', 'acmu3', 'acmp2', '8', 'dev'),
-      ].map((x) => ({ ...x, salaire: ({ acmp6: '58000', acmp7: '61000', acmp8: '54000', acmp9: '50000', acmp10: '52000', acmp11: '56000' } as Record<string, string>)[x.id] ?? '' })),
+      ].map((x) => ({ ...x, cout_annuel: ({ acmp6: '58000', acmp7: '61000', acmp8: '54000', acmp9: '50000', acmp10: '52000', acmp11: '56000' } as Record<string, string>)[x.id] ?? '' })),
       unites: [
         { id: 'acmu1', nom: 'Direction générale', type: 'direction' as const, parent: '', responsable: 'acmp1', ...base },
         { id: 'acmu2', nom: 'Direction technique', type: 'direction' as const, parent: 'acmu1', responsable: 'acmp2', ...base },

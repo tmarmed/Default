@@ -426,7 +426,7 @@ export function EpicForm({
               )}
             </SectionFiche>
 
-            {/* Budget (09/10) : prévu ; consommé calculé d'après les salaires (fiche Personne), modifiable à la main */}
+            {/* Budget (09/10) : prévu ; consommé calculé d'après les coûts annuels (fiche Personne), modifiable à la main */}
             {safe.actif && (
               <SectionFiche titre="Budget">
                 <ChampFiche label="Prévu" sous="En euros.">
@@ -437,7 +437,7 @@ export function EpicForm({
                   return (
                     <ChampFiche
                       label="Consommé"
-                      sous={`Vide : calculé${c ? ` (${euros(c.euros)}, ${c.jours} j terminés${c.sansCout ? `, dont ${c.sansCout} j sans salaire renseigné` : ''})` : ''} : points terminés × jours par point × coût d’une journée du responsable (salaire ÷ 218 jours).`}
+                      sous={`Vide : calculé${c ? ` (${euros(c.euros)}, ${c.jours} j terminés${c.sansCout ? `, dont ${c.sansCout} j sans coût annuel renseigné` : ''})` : ''} : points terminés × jours par point × coût d’une journée du responsable (coût annuel ÷ 218 jours).`}
                     >
                       <SaisieFiche placeholder={c ? `Calculé : ${euros(c.euros)}` : 'Calculé'} value={form.consomme ?? ''} onChangeText={(v) => set('consomme', v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
                     </ChampFiche>

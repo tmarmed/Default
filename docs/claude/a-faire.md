@@ -42,14 +42,16 @@ tenu, « 1 point = … j »), Suivis (en retard, à valider, notes à concrétis
 (lien vers l'écran). Réglage « 1 point = » (½, 1, 1½, 2, 3 j) dans le calendrier agile, 1 par défaut, valeur calculée
 proposée. Code : src/pilotage.ts, src/components/PilotageView.tsx ; tests dans verif:reunions. Maquette :
 docs/maquette-pilotage.html.
-Fait aussi (09/10) : budget du portfolio (fiche de l'epic : Prévu, Consommé vide = calculé ; salaire annuel chargé
-dans la fiche Personne, coût d'une journée = salaire ÷ 218 ; consommé = points terminés × jours par point × coût
+Fait aussi (09/10) : budget du portfolio (fiche de l'epic : Prévu, Consommé vide = calculé ; coût annuel
+dans la fiche Personne, coût d'une journée = coût annuel ÷ 218 ; consommé = points terminés × jours par point × coût
 d'une journée du responsable ; bloc Budget du Pilotage portfolio, dépassement en rouge) ; conversion des estimations
 (le Sheet garde des points ; en mode Simple, jours = points × « 1 point = … j » de l'équipe, saisie en jours
 reconvertie ; src/pi.ts reglerConversion / pointsOf). Capacité d'une personne : en jours partout.
-Niveau choisi en haut (« Niveau de pilotage › Piloter », groupé Mes équipes · Mes trains · Mes portfolios) quand on a
-plusieurs casquettes ; un seul niveau : pas de choix, titre « Pilotage · Mobile ».
-Reste (pilotage) : salaires visibles de ceux qui lisent l'Organisation (à revoir avec les droits transverses).
+Niveaux affichés en haut en puces (un appui, sans fenêtre) quand on a plusieurs casquettes ; un seul niveau : pas de
+choix, titre « Pilotage · Mobile ». « Salaire » renommé « Coût annuel » (colonne cout_annuel).
+En conception (09/10, attendre « je valide ») : budget affiné : coûts de management (SM, PO, RTE, PM, Epic Owner,
+managers) répartis sur les epics, coûts fixes ponctuels ou périodiques (mois, an), autres types de coûts.
+Reste (pilotage) : coûts annuels visibles de ceux qui lisent l'Organisation (à revoir avec les droits transverses).
 
 ## Questions ouvertes à l'utilisateur
 - Pilotage : faire valider les captures (équipe, train, portfolio, Simple).

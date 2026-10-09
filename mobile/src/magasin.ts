@@ -96,7 +96,7 @@ export const TABLES = Object.keys(ONGLETS) as TableBase[];
 
 /** Onglets de l'Organisation d'une entreprise (vue Entreprise et vue Delivery SAFe) */
 export const ONGLETS_ORG: Record<KindOrg, { nom: string; colonnes: string[] }> = {
-  personne: { nom: 'Personnes', colonnes: ['id', 'nom', 'email', 'unite', 'manager', 'capacite', 'metier', 'cree_le', 'modifie_le', 'nature', 'salaire'] },
+  personne: { nom: 'Personnes', colonnes: ['id', 'nom', 'email', 'unite', 'manager', 'capacite', 'metier', 'cree_le', 'modifie_le', 'nature', 'cout_annuel'] },
   unite: { nom: 'Unites', colonnes: ['id', 'nom', 'type', 'parent', 'responsable', 'cree_le', 'modifie_le'] },
   portfolio: { nom: 'Portfolios', colonnes: ['id', 'nom', 'epic_owner', 'cree_le', 'modifie_le'] },
   train: { nom: 'Trains', colonnes: ['id', 'nom', 'portfolio', 'rte', 'pm', 'cree_le', 'modifie_le', 'calendrier'] },
@@ -300,8 +300,8 @@ export function nettoyerOrg<K extends KindOrg>(kind: K, data: Partial<EntiteOrg<
     if (!['ia_chat', 'agent_ia'].includes(out.nature ?? '')) out.nature = 'humain';
     out.capacite = out.capacite.replace(',', '.');
     if (out.capacite && !RE_NOMBRE.test(out.capacite)) throw new Error('Capacité : nombre de jours attendu.');
-    out.salaire = (out.salaire ?? '').replace(/\s/g, '').replace(',', '.');
-    if (out.salaire && !RE_NOMBRE.test(out.salaire)) throw new Error('Salaire : montant en euros attendu.');
+    out.cout_annuel = (out.cout_annuel ?? '').replace(/\s/g, '').replace(',', '.');
+    if (out.cout_annuel && !RE_NOMBRE.test(out.cout_annuel)) throw new Error('Coût annuel : montant en euros attendu.');
   } else if (kind === 'unite') {
     if (out.type !== 'direction') out.type = 'service';
     // Pas de boucle : une unité ne peut pas être placée sous elle-même ou sous une de ses sous-unités
