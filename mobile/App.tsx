@@ -119,7 +119,8 @@ import {
   saveHierarchyCache,
 } from './src/storage';
 import { colors } from './src/theme';
-import { BudgetContext, type BudgetEspace, valeurBudget } from './src/budget';
+import { BudgetContext, type BudgetEspace, CHOIX_DEMANDE, estDemandeBudget, gerantsBudget, libellePeriode, libelleStatutDemande, niveauDessus, reunionDuNiveau, TITRE_DEMANDE, TITRE_INFO, valeurBudget } from './src/budget';
+import { euros as eurosBudget } from './src/pilotage';
 import { CongesContext, type CongesValue } from './src/conges';
 import { FeuilleMesConges } from './src/components/Conges';
 import type { Conge, JoursReels } from './src/types';
@@ -1501,36 +1502,6 @@ function Main() {
    * 📅 Réunions (lot 6) : calculées d'après vos rôles dans l'Organisation des espaces affichés, avec les équipes des
    * espaces Équipe (rien n'est enregistré)
    */
-  const titreBudget = useCallback((espace: string) => `${NOM_APP} | Budget | ${espaces.find((e) => e.id === espace)?.nom ?? espace}`, [espaces]);
-  const budgetValue = useMemo(
-    () =>
-      valeurBudget(
-        Object.fromEntries(Object.entries(budgets).filter(([e]) => visibles.includes(e))),
-        {
-          ecrireDepense: async (espace, d) => {
-            const o = await api.ecrireDepense(espace, titreBudget(espace), d);
-            setBudgets((b) => {
-              const x = b[espace] ?? { depenses: [], couts: [], accessible: true };
-              return { ...b, [espace]: { ...x, accessible: true, depenses: x.depenses.some((y) => y.id === o.id) ? x.depenses.map((y) => (y.id === o.id ? o : y)) : [...x.depenses, o] } };
-            });
-            return o;
-          },
-          supprimerDepense: async (espace, id) => {
-            await api.supprimerDepense(espace, id);
-            setBudgets((b) => (b[espace] ? { ...b, [espace]: { ...b[espace], depenses: b[espace].depenses.filter((y) => y.id !== id) } } : b));
-          },
-          ecrireCout: async (espace, personne, cout) => {
-            const o = await api.ecrireCout(espace, titreBudget(espace), personne, cout);
-            setBudgets((b) => {
-              const x = b[espace] ?? { depenses: [], couts: [], accessible: true };
-              const couts = x.couts.filter((c) => c.id !== personne);
-              return { ...b, [espace]: { ...x, accessible: x.accessible || !!o, couts: o ? [...couts, { ...o, espace }] : couts } };
-            });
-          },
-        },
-      ),
-    [budgets, visibles, titreBudget],
-  );
   const congesValue = useMemo<CongesValue>(() => {
     const vis = Object.entries(congesEsp).filter(([e]) => visibles.includes(e));
     const maj = (espace: string, f: (x: { conges: Conge[]; joursReels: JoursReels[] }) => { conges: Conge[]; joursReels: JoursReels[] }) =>
@@ -1578,6 +1549,88 @@ function Main() {
   }, [orgValue, equipesEsp, visibles, moiDemo]);
   // Conversion des estimations (09/10) : en mode Simple, points × « 1 point = … j » de l'équipe (calendrier agile)
   reglerConversion(!safe.actif, new Map(orgReunions.equipes.map((e) => [e.id, calendrierPilotage(e.id, orgReunions).jpp ?? 1] as [string, number]).filter(([, j]) => j !== 1)));
+  const retirerEchangeRef = useRef<(e: Echange) => Promise<void>>(async () => {});
+  const titreBudget = useCallback((espace: string) => `${NOM_APP} | Budget | ${espaces.find((e) => e.id === espace)?.nom ?? espace}`, [espaces]);
+  const budgetValue = useMemo(
+    () =>
+      valeurBudget(
+        Object.fromEntries(Object.entries(budgets).filter(([e]) => visibles.includes(e))),
+        {
+          ecrireDepense: async (espace, d) => {
+            const o = await api.ecrireDepense(espace, titreBudget(espace), d);
+            setBudgets((b) => {
+              const x = b[espace] ?? { depenses: [], couts: [], accessible: true };
+              return { ...b, [espace]: { ...x, accessible: true, depenses: x.depenses.some((y) => y.id === o.id) ? x.depenses.map((y) => (y.id === o.id ? o : y)) : [...x.depenses, o] } };
+            });
+            return o;
+          },
+          supprimerDepense: async (espace, id) => {
+            await api.supprimerDepense(espace, id);
+            setBudgets((b) => (b[espace] ? { ...b, [espace]: { ...b[espace], depenses: b[espace].depenses.filter((y) => y.id !== id) } } : b));
+          },
+          soumettreDemande: async (espace, d) => {
+            const destination = d.destination || niveauDessus(d.demandeur, orgReunions) || '';
+            if (!destination) throw new Error('Pas de niveau au-dessus pour décider (rattachez l’équipe à un train, le train à un portfolio).');
+            const o = await api.ecrireDemande(espace, titreBudget(espace), { ...d, destination, statut: 'soumise' });
+            setBudgets((b) => ({ ...b, [espace]: { ...(b[espace] ?? { depenses: [], couts: [], accessible: true }), demandes: [...(b[espace]?.demandes ?? []), o] } }));
+            // « À décider » dans le Chat des personnes qui décident (mêmes choix qu'en séance)
+            const a = gerantsBudget(destination, orgReunions).filter((m) => m !== moiEchange);
+            const reunionCible = reunionDuNiveau(destination);
+            await actionsDaily.envoyerEchanges(
+              espace,
+              a.map((m) => ({
+                de: moiEchange, a: m, type: 'question', nature: 'decision_a_prendre', titre: `${TITRE_DEMANDE} ${o.motif}`.slice(0, 200),
+                texte: `${eurosBudget(Number(o.montant))} · ${libellePeriode(o.periode).toLowerCase()} · demandée à ${o.origine}${reunionCible ? `\nÀ traiter à : ${reunionCible}` : ''}\nAccorder : précisez le montant accordé dans la remarque (vide = tout).`,
+                choix: CHOIX_DEMANDE.join(';'), reponse: '', note: '', statut: 'envoye', element: '', niveau: destination, transmis_par: '', prive: '1', pieces_jointes: '', point: o.id, parent: '', espace,
+              })),
+            );
+            setInfo(`Demande « ${o.motif} » soumise${reunionCible ? ` : à traiter à l’${reunionCible}` : ''}.`);
+          },
+          deciderDemande: async (d, decision, reunion) => {
+            const espace = d.espace || 'moi';
+            if (decision.choix === 'plus_haut') {
+              const dessus = niveauDessus(d.destination, orgReunions);
+              if (!dessus) throw new Error('Pas de niveau au-dessus.');
+              const o = await api.ecrireDemande(espace, titreBudget(espace), { id: d.id, destination: dessus });
+              setBudgets((b) => ({ ...b, [espace]: { ...b[espace], demandes: (b[espace]?.demandes ?? []).map((x) => (x.id === o.id ? o : x)) } }));
+              const a = gerantsBudget(dessus, orgReunions).filter((m) => m !== moiEchange);
+              await actionsDaily.envoyerEchanges(espace, a.map((m) => ({ de: moiEchange, a: m, type: 'question', nature: 'decision_a_prendre', titre: `${TITRE_DEMANDE} ${o.motif}`.slice(0, 200), texte: `${eurosBudget(Number(o.montant))} · soumise plus haut par ${nomEchange(moiEchange)}\nÀ traiter à : ${reunionDuNiveau(dessus)}`, choix: CHOIX_DEMANDE.join(';'), reponse: '', note: '', statut: 'envoye', element: '', niveau: dessus, transmis_par: moiEchange, prive: '1', pieces_jointes: '', point: o.id, parent: '', espace })));
+            } else {
+              const patch =
+                decision.choix === 'accorder'
+                  ? { statut: 'accordee' as const, montant_accorde: String(Math.min(decision.montant || Number(d.montant), Number(d.montant))), motif_decision: '' }
+                  : { statut: decision.choix === 'refuser' ? ('refusee' as const) : ('a_reprendre' as const), motif_decision: decision.motif };
+              const o = await api.ecrireDemande(espace, titreBudget(espace), { id: d.id, ...patch, decide_par: moiEchange, decide_le: new Date().toISOString(), hors_reunion: reunion ? '' : '1' });
+              setBudgets((b) => ({ ...b, [espace]: { ...b[espace], demandes: (b[espace]?.demandes ?? []).map((x) => (x.id === o.id ? o : x)) } }));
+              // Accordée : la dépense est créée sur l'élément concerné (elle compte dans le consommé et l'estimation)
+              if (o.statut === 'accordee')
+                await budgetActions.current.ecrireDepense(espace, { motif: o.motif, categorie: 'autre', montant: o.montant_accorde, periode: o.periode, du: o.du, au: o.au, porteur: o.pour, cle: '', parts: '' });
+              // Information du demandeur (disparaît à la lecture)
+              if (o.soumis_par && o.soumis_par !== moiEchange)
+                await actionsDaily.envoyerEchanges(espace, [{ de: moiEchange, a: o.soumis_par, type: 'message', nature: 'information', titre: `${TITRE_INFO} 💶 Budget`, texte: `Votre demande « ${o.motif} » : ${libelleStatutDemande(o)}${o.motif_decision ? ` — ${o.motif_decision}` : ''}.\nDécidée ${reunion ? `à : ${reunion}` : 'hors réunion (revue à la réunion suivante)'}.`, choix: '', reponse: '', note: '', statut: 'envoye', element: '', niveau: d.demandeur, transmis_par: '', prive: '1', pieces_jointes: '', point: '', parent: '', espace }]);
+            }
+            // Le message « À décider » disparaît une fois la demande traitée (séance ou Chat)
+            for (const e of (tousHier.echanges ?? []).filter((x) => x.point === d.id && estDemandeBudget(x))) await retirerEchangeRef.current(e).catch(() => {});
+          },
+          confirmerDemande: async (d) => {
+            const espace = d.espace || 'moi';
+            const o = await api.ecrireDemande(espace, titreBudget(espace), { id: d.id, hors_reunion: '2' });
+            setBudgets((b) => ({ ...b, [espace]: { ...b[espace], demandes: (b[espace]?.demandes ?? []).map((x) => (x.id === o.id ? o : x)) } }));
+          },
+          ecrireCout: async (espace, personne, cout) => {
+            const o = await api.ecrireCout(espace, titreBudget(espace), personne, cout);
+            setBudgets((b) => {
+              const x = b[espace] ?? { depenses: [], couts: [], accessible: true };
+              const couts = x.couts.filter((c) => c.id !== personne);
+              return { ...b, [espace]: { ...x, accessible: x.accessible || !!o, couts: o ? [...couts, { ...o, espace }] : couts } };
+            });
+          },
+        },
+      ),
+    [budgets, visibles, titreBudget, orgReunions, moiEchange, tousHier.echanges], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const budgetActions = useRef(budgetValue);
+  budgetActions.current = budgetValue;
   // Calendrier agile (07/10) : celui de votre équipe (ou de son train), partout dans l'application
   const monCalendrier = calendrierPersonne(orgReunions, moiEchange);
   definirCalendrier(monCalendrier);
@@ -1820,6 +1873,15 @@ function Main() {
   };
   /** Réponse dans Synchro : recopiée en « Décision » dans les réunions de la chaîne, si l'échange est une escalade */
   const repondreEchange = async (e: Echange, reponse: string, note: string) => {
+    // 💶 Demande de budget décidée depuis le Chat (lot 4) : mêmes choix qu'en séance, « décidé hors réunion »
+    if (estDemandeBudget(e)) {
+      const d = budgetActions.current.demandes.find((x) => x.id === e.point);
+      if (!d) throw new Error('Demande introuvable (Sheet « Budget » non partagé avec vous ?).');
+      const montant = Number(note.replace(/[^0-9,.]/g, '').replace(',', '.')) || Number(d.montant);
+      await budgetActions.current.deciderDemande(d, reponse.startsWith('💶') ? { choix: 'accorder', montant } : { choix: reponse.startsWith('✖') ? 'refuser' : 'a_reprendre', motif: note }, '');
+      setInfo(`Demande « ${d.motif} » : ${reponse.startsWith('💶') ? 'accordée' : reponse.startsWith('✖') ? 'refusée' : 'à reprendre'} (hors réunion, revue à la réunion suivante).`);
+      return;
+    }
     await saveEntity('echange', e, { reponse, note, statut: 'repondu' });
     // « Valider ? » d'un point de suivi (08/10) : la réponse agit sur le point, comme en réunion
     const ref = lireRef(e.point ?? '');
@@ -2111,6 +2173,7 @@ function Main() {
       return next;
     });
   };
+  retirerEchangeRef.current = (e: Echange) => retirerEchange(e);
 
   /** Bouton d'une alerte : applique les dates proposées. */
   const fixEntity = async (kind: 'epic' | 'objectif', x: { id: string; titre: string }, patch: { debut?: string; fin?: string }) => {

@@ -5,8 +5,9 @@
  */
 import { budgetDemoEntreprise, donneesDemo, orgDemo, orgTousLesRoles, pointsDemo } from '../src/demo';
 import { absentsLe, joursAbsence, joursPrevus, jppConstate } from '../src/conges';
+import { gerantsBudget, libelleStatutDemande, niveauDessus, reunionDuNiveau } from '../src/budget';
 import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '../src/budget';
-import { nettoyerDepense } from '../src/magasin';
+import { creerMagasin, nettoyerDepense } from '../src/magasin';
 import type { Conge, Depense } from '../src/types';
 import { consommeReel } from '../src/consomme';
 import { capaciteEquipePI, coutJour, joursOuvresAnnee, niveauxDeRoles, piloteEquipe, pilotePortfolio, piloteTrain, suivisDuNiveau } from '../src/pilotage';
@@ -26,6 +27,8 @@ import { actionDuChoix, lireRef, planSuivi, roleEscalade, statutEffectif } from 
 import { avecCriteres, capacite, criteresDe, etatPrete, feriesFrance, joursOuvres, lireNombre, nombreFr } from '../src/reunionsEquipe';
 
 let erreurs = 0;
+/** Vérifications asynchrones (magasin) : attendues avant le bilan */
+const testsAsync: Promise<void>[] = [];
 const ok = (cond: boolean, msg: string) => {
   if (!cond) {
     erreurs++;
@@ -481,6 +484,21 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   ok(joursAbsence(cgs, 'Paul@x', '2026-10-12', '2026-10-30').length === 6 && joursPrevus(cgs, 'paul@x', '2026-10-12', '2026-10-30') === 15 - 6 && joursPrevus(cgs, 'nina@x', '2026-10-12', '2026-10-30') === 15 - 4, 'congés : jours ouvrés seulement, fermetures pour tous, chevauchement compté une fois');
   ok(absentsLe(cgs, '2026-10-20').personnes.join() === 'paul@x,nina@x' && absentsLe(cgs, '2026-10-26').fermeture, 'Absents aujourd’hui : personnes en congé, fermeture pour tous');
   ok(jppConstate(42, 30) === 1.5 && jppConstate(40, 40) === 1 && jppConstate(10, 0) === null, 'point ↔ jour constaté : jours réels ÷ points réalisés, au quart de jour');
+  // 💶 Demandes de budget (lot 4) : maillons équipe → train → portfolio → entreprise, qui décide, où
+  const oD = makeOrgValue(orgTousLesRoles(orgDemo('demo-entreprise')));
+  ok(niveauDessus('equipeagile:acmeqmob', oD) === 'train:acmtr1' && niveauDessus('train:acmtr1', oD) === 'portfolio:acmpf1' && niveauDessus('portfolio:acmpf1', oD)!.startsWith('entreprise:') && niveauDessus('entreprise:x', oD) === null, 'demande de budget : équipe → train → portfolio → entreprise');
+  ok(reunionDuNiveau('train:x') === 'ART sync' && reunionDuNiveau('portfolio:x') === 'Synchronisation du portfolio' && reunionDuNiveau('entreprise:x') === 'Comité budgétaire', 'réunions qui reçoivent les demandes');
+  ok(gerantsBudget('train:acmtr1', oD).includes('vous@demo') && gerantsBudget('equipeagile:acmeqmob', oD).length === 1, 'droit « Gérer le budget » : RTE et PM du train, Scrum Master de l’équipe');
+  testsAsync.push((async () => {
+    const mem: Record<string, unknown[]> = {};
+    const mag = creerMagasin({ lire: async (t) => [...((mem[t] ?? []) as never[])], ecrire: async (t, rows) => void (mem[t] = rows) });
+    const base = { motif: 'Licence', montant: '1200', periode: 'an' as const, du: '2026-10-20', au: '', pour: 'epic:acme2', demandeur: 'equipeagile:acmeqmob', destination: 'train:acmtr1', soumis_par: 'nina@x', origine: 'Rétro' };
+    const dm = await mag.ecrireDemande(base);
+    let refus = 0;
+    for (const x of [{ montant_accorde: '1500' }, { statut: 'refusee' as const, motif_decision: '' }, { motif: '' }]) await mag.ecrireDemande({ id: dm.id, ...x }).catch(() => refus++);
+    const acc = await mag.ecrireDemande({ id: dm.id, statut: 'accordee', montant_accorde: '1000' });
+    ok(dm.statut === 'soumise' && refus === 3 && acc.montant_accorde === '1000' && libelleStatutDemande(acc) === 'accordée 1 000 € sur 1 200 €', 'demande : accord partiel au plus le montant demandé, motif obligatoire pour refuser');
+  })());
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
   reglerConversion(true, new Map([['acmeqmob', 0.5]]));
   ok(pointsOf({ points: '4', equipe: 'acmeqmob' }) === 2 && pointsOf({ points: '4', equipe: 'autre' }) === 4 && versPoints('3', 0.5) === '6' && depuisPoints('6', 0.5) === '3', 'conversion : 4 pts = 2 j avec 1 point = ½ j ; saisie 3 j → 6 pts');
@@ -488,5 +506,7 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   ok(pointsOf({ points: '4', equipe: 'acmeqmob' }) === 4, 'conversion : en SAFe, les points restent des points');
   reglerConversion(false, new Map());
 }
-console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
-process.exit(erreurs ? 1 : 0);
+Promise.all(testsAsync).then(() => {
+  console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
+  process.exit(erreurs ? 1 : 0);
+});

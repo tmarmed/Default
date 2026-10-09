@@ -4,7 +4,7 @@ import { COLONNES_SERIE, type SerieReunion } from './series';
 import { cleanLinks, type Data, type DeletionCounts, planDeletion } from './hierarchy';
 import { aPurger } from './stockage';
 import { cascadeLinks, checkParent } from './subtasks';
-import { CATEGORIES_DEPENSE, type Conge, type JoursReels, NATURES_CONGE, type CoutPersonne, type Depense, PERIODES_DEPENSE, type Concretisation, type Domaine, type Echange, type Epic, type Feature, type Ignoree, type Item, type ItemInput, NATURES_ECHANGE, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, TYPES_POINT, type ValueStream } from './types';
+import { CATEGORIES_DEPENSE, type DemandeBudget, type Conge, type JoursReels, NATURES_CONGE, type CoutPersonne, type Depense, PERIODES_DEPENSE, type Concretisation, type Domaine, type Echange, type Epic, type Feature, type Ignoree, type Item, type ItemInput, NATURES_ECHANGE, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, TYPES_POINT, type ValueStream } from './types';
 import { CLE_ORG, type EntiteOrg, type EquipeAgile, type KindOrg, membresDe, type Org, type Personne } from './organisation';
 
 /**
@@ -19,7 +19,7 @@ export type TableBase = 'items' | Kind;
 /** Tables de l'Organisation (seulement dans le Google Sheet d'une entreprise, onglets créés au premier usage) */
 export type Table = TableBase | KindOrg | 'piecejointe' | 'pointreunion' | 'serie' | TableBudget | TableConges;
 /** Tables du Google Sheet « Budget » d'une entreprise (src/budget.ts) */
-export type TableBudget = 'depense' | 'cout';
+export type TableBudget = 'depense' | 'cout' | 'demande';
 /** Congés et jours réels (lot 2, 09/10) : dans le Sheet de l'espace */
 export type TableConges = 'conge' | 'joursreels';
 export type EntityOf<K extends Kind> = K extends 'epic'
@@ -39,7 +39,7 @@ export type EntityOf<K extends Kind> = K extends 'epic'
               : K extends 'echange'
                 ? Echange
                 : Ignoree;
-type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : T extends 'piecejointe' ? LignePiece : T extends 'pointreunion' ? PointReunion : T extends 'serie' ? SerieReunion : T extends 'depense' ? Depense : T extends 'cout' ? CoutPersonne : T extends 'conge' ? Conge : T extends 'joursreels' ? JoursReels : never;
+type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : T extends 'piecejointe' ? LignePiece : T extends 'pointreunion' ? PointReunion : T extends 'serie' ? SerieReunion : T extends 'depense' ? Depense : T extends 'cout' ? CoutPersonne : T extends 'demande' ? DemandeBudget : T extends 'conge' ? Conge : T extends 'joursreels' ? JoursReels : never;
 /** Morceau d'une pièce jointe (onglet PiecesJointes) : une cellule contient au plus 50 000 caractères */
 export interface LignePiece {
   id: string;
@@ -121,6 +121,7 @@ export const ONGLET_SERIES = { nom: 'Reunions', colonnes: [...COLONNES_SERIE] as
 export const ONGLETS_BUDGET: Record<TableBudget, { nom: string; colonnes: string[] }> = {
   depense: { nom: 'Depenses', colonnes: ['id', 'motif', 'categorie', 'montant', 'periode', 'du', 'au', 'porteur', 'cle', 'parts', 'cree_le', 'modifie_le'] },
   cout: { nom: 'CoutsAnnuels', colonnes: ['id', 'cout_annuel', 'cree_le', 'modifie_le'] },
+  demande: { nom: 'DemandesBudget', colonnes: ['id', 'motif', 'montant', 'periode', 'du', 'au', 'pour', 'demandeur', 'destination', 'soumis_par', 'origine', 'statut', 'montant_accorde', 'motif_decision', 'decide_par', 'decide_le', 'hors_reunion', 'cree_le', 'modifie_le'] },
 };
 /** 📅 Congés et jours réels (lot 2, 09/10) : onglets du Sheet de l'espace, créés au premier usage */
 export const ONGLETS_CONGES: Record<TableConges, { nom: string; colonnes: string[] }> = {
@@ -844,9 +845,41 @@ export function creerMagasin(p: Persistance) {
       return out;
     },
     /** 💶 Budget : dépenses et coûts annuels (Google Sheet « Budget » de l'entreprise) */
-    async lireBudget(): Promise<{ depenses: Depense[]; couts: CoutPersonne[] }> {
-      const [depenses, couts] = await Promise.all([p.lire('depense'), p.lire('cout')]);
-      return { depenses, couts };
+    async lireBudget(): Promise<{ depenses: Depense[]; couts: CoutPersonne[]; demandes: DemandeBudget[] }> {
+      const [depenses, couts, demandes] = await Promise.all([p.lire('depense'), p.lire('cout'), p.lire('demande')]);
+      return { depenses, couts, demandes };
+    },
+    /** Crée (sans id) ou modifie (avec id) une demande de budget */
+    async ecrireDemande(d: Partial<DemandeBudget> & { id?: string }): Promise<DemandeBudget> {
+      const liste = await p.lire('demande');
+      const base = d.id ? liste.find((x) => x.id === d.id) : undefined;
+      if (d.id && !base) throw new Error('Demande introuvable (peut-être supprimée).');
+      const x = { ...base, ...d } as Partial<DemandeBudget>;
+      const motif = String(x.motif ?? '').trim();
+      const m = String(x.montant ?? '').replace(/\s/g, '').replace(',', '.');
+      const acc = String(x.montant_accorde ?? '').replace(/\s/g, '').replace(',', '.');
+      if (!motif) throw new Error('Le motif est obligatoire.');
+      if (!RE_NOMBRE.test(m)) throw new Error('Montant : nombre en euros attendu.');
+      if (acc && (!RE_NOMBRE.test(acc) || Number(acc) > Number(m))) throw new Error('Montant accordé : au plus le montant demandé.');
+      if (!RE_DATE.test(String(x.du))) throw new Error('Date de début attendue.');
+      if (!RE_PORTEUR.test(String(x.pour)) || !RE_PORTEUR.test(String(x.demandeur)) || !RE_PORTEUR.test(String(x.destination))) throw new Error('Niveau de la demande invalide.');
+      if ((x.statut === 'a_reprendre' || x.statut === 'refusee') && !String(x.motif_decision ?? '').trim()) throw new Error('Motif obligatoire.');
+      const now = new Date().toISOString();
+      const o = {
+        ...(base ?? {}),
+        ...x,
+        motif,
+        montant: m,
+        montant_accorde: acc,
+        periode: (PERIODES_DEPENSE.some((q) => q.value === x.periode) && x.periode !== 'pct' ? x.periode : 'ponctuel') as DemandeBudget['periode'],
+        statut: (['soumise', 'accordee', 'a_reprendre', 'refusee'].includes(String(x.statut)) ? x.statut : 'soumise') as DemandeBudget['statut'],
+        id: base?.id ?? nouvelId(),
+        cree_le: base?.cree_le ?? now,
+        modifie_le: now,
+      } as DemandeBudget;
+      delete (o as { espace?: string }).espace;
+      await p.ecrire('demande', base ? liste.map((y) => (y.id === o.id ? o : y)) : [...liste, o]);
+      return o;
     },
     /** Crée (sans id) ou modifie (avec id) une dépense */
     async ecrireDepense(d: Partial<Depense> & { id?: string }): Promise<Depense> {

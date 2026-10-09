@@ -33,6 +33,8 @@ import { libelleElement } from '../../elementConcerne';
 import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../../pointsSuivi';
 import { type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, statutAffiche } from './Suivi';
 import { colors } from '../../theme';
+import { enfantsRepartition, gerantsBudget, niveauDessus } from '../../budget';
+import { BlocDemandesBudget } from '../Budget';
 import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type TypePoint, TYPES_REUNION } from '../../types';
 import { FeuilleChoix, SectionFiche } from '../Choix';
 import type { ActionsDaily } from '../Daily';
@@ -919,6 +921,25 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
           </View>
         );
       })}
+      {/* 💶 Demandes de budget (lot 4) : nées en réunion, reçues par la réunion de suivi du dessus */}
+      {e.niveauIci &&
+        (() => {
+          const niveau = `${e.niveauIci.kind}:${e.niveauIci.id}`;
+          return (
+            <BlocDemandesBudget
+              niveau={niveau}
+              espace={r.reunion.espace || 'moi'}
+              reunion={`${TYPES_REUNION[r.reunion.type].libelle} du ${jourCourt(e.jour)}`}
+              moi={r.mail}
+              anime={r.anime}
+              lecture={lecture}
+              gerants={gerantsBudget(niveau, r.org)}
+              gerantsDessus={!!niveauDessus(niveau, r.org)}
+              nomDe={e.nomDe}
+              epics={enfantsRepartition(niveau, r.org, e.h).filter((x) => x.cle.startsWith('epic:')).map((x) => ({ id: x.cle.slice(5), titre: x.nom.replace(/^🗂️ /, '') }))}
+            />
+          );
+        })()}
       {ouvert &&
         (() => {
           const pt = r.aDecider.find((y) => y.id === ouvert);

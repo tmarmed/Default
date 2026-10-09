@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import { addDays, toDateString } from './dates';
 import { estOuvre } from './series';
-import { CATEGORIES_DEPENSE, type CoutPersonne, type Depense, PERIODES_DEPENSE } from './types';
+import { CATEGORIES_DEPENSE, type CoutPersonne, type DemandeBudget, type Depense, PERIODES_DEPENSE } from './types';
 
 /**
  * 💶 Budget (lot 1, conception validée le 09/10, docs/maquette-budget.html).
@@ -15,6 +15,7 @@ import { CATEGORIES_DEPENSE, type CoutPersonne, type Depense, PERIODES_DEPENSE }
 export interface BudgetEspace {
   depenses: Depense[];
   couts: CoutPersonne[];
+  demandes?: DemandeBudget[];
   /** Le Sheet Budget existe et vous est accessible */
   accessible: boolean;
 }
@@ -24,6 +25,13 @@ export interface BudgetValue {
   /** Coût annuel de chaque personne (toutes entreprises) */
   couts: Map<string, string>;
   depenses: Depense[];
+  demandes: DemandeBudget[];
+  /** Lot 4 : soumet une demande née en réunion (message « À décider » aux personnes qui décident) */
+  soumettreDemande: (espace: string, d: Omit<DemandeBudget, 'id' | 'cree_le' | 'modifie_le' | 'statut' | 'montant_accorde' | 'motif_decision' | 'decide_par' | 'decide_le' | 'hors_reunion' | 'destination'> & { destination?: string }) => Promise<void>;
+  /** Décision : en séance (reunion = titre) ou hors réunion (reunion vide) */
+  deciderDemande: (d: DemandeBudget, decision: Decision, reunion: string) => Promise<void>;
+  /** Confirmer en séance une décision prise hors réunion */
+  confirmerDemande: (d: DemandeBudget) => Promise<void>;
   ecrireDepense: (espace: string, d: Partial<Depense> & { id?: string }) => Promise<Depense>;
   supprimerDepense: (espace: string, id: string) => Promise<void>;
   ecrireCout: (espace: string, personne: string, cout: string) => Promise<void>;
@@ -32,6 +40,10 @@ export const BUDGET_VIDE: BudgetValue = {
   parEspace: {},
   couts: new Map(),
   depenses: [],
+  demandes: [],
+  soumettreDemande: async () => {},
+  deciderDemande: async () => {},
+  confirmerDemande: async () => {},
   ecrireDepense: async () => {
     throw new Error('Budget indisponible.');
   },
@@ -42,10 +54,55 @@ export const BudgetContext = createContext<BudgetValue>(BUDGET_VIDE);
 export const useBudget = () => useContext(BudgetContext);
 
 /** Assemble le contexte à partir des budgets chargés */
-export function valeurBudget(parEspace: Record<string, BudgetEspace>, actions: Pick<BudgetValue, 'ecrireDepense' | 'supprimerDepense' | 'ecrireCout'>): BudgetValue {
+export function valeurBudget(parEspace: Record<string, BudgetEspace>, actions: Pick<BudgetValue, 'ecrireDepense' | 'supprimerDepense' | 'ecrireCout' | 'soumettreDemande' | 'deciderDemande' | 'confirmerDemande'>): BudgetValue {
   const all = Object.values(parEspace);
-  return { parEspace, couts: new Map(all.flatMap((b) => b.couts.map((c) => [c.id, c.cout_annuel] as [string, string]))), depenses: all.flatMap((b) => b.depenses), ...actions };
+  return {
+    parEspace,
+    couts: new Map(all.flatMap((b) => b.couts.map((c) => [c.id, c.cout_annuel] as [string, string]))),
+    depenses: all.flatMap((b) => b.depenses),
+    demandes: all.flatMap((b) => b.demandes ?? []),
+    ...actions,
+  };
 }
+
+// ---------------------------------------------------------------------------
+// 💶 Demandes de budget (lot 4, 09/10) : le circuit par les maillons
+// ---------------------------------------------------------------------------
+export type Decision = { choix: 'accorder'; montant: number } | { choix: 'a_reprendre' | 'refuser'; motif: string } | { choix: 'plus_haut' };
+/** Titre du message « À décider » (Chat) et de l'information « Pour information » */
+export const TITRE_DEMANDE = '💶 Demande de budget ·';
+export const TITRE_INFO = 'ℹ️ Pour information ·';
+export const CHOIX_DEMANDE = ['💶 Accorder', '↩ À reprendre (motif)', '✖ Refuser (motif)'];
+export const estDemandeBudget = (e: { titre: string; point?: string }) => e.titre.startsWith(TITRE_DEMANDE) && !!e.point;
+export const estInformation = (e: { titre: string }) => e.titre.startsWith(TITRE_INFO);
+
+type OrgDemande = {
+  equipe: Map<string, { train: string; sm: string }>;
+  train: Map<string, { portfolio: string; rte: string; pm: string; espace?: string }>;
+  portfolio: Map<string, { epic_owner: string; espace?: string }>;
+  personne: Map<string, { email: string }>;
+};
+/** Niveau qui décide : équipe → son train ; train → son portfolio ; portfolio → l'entreprise ; entreprise → personne */
+export function niveauDessus(niveau: string, org: OrgDemande): string | null {
+  const [k, id] = [niveau.slice(0, niveau.indexOf(':')), niveau.slice(niveau.indexOf(':') + 1)];
+  if (k === 'equipeagile') return org.equipe.get(id)?.train ? `train:${org.equipe.get(id)!.train}` : null;
+  if (k === 'train') return org.train.get(id)?.portfolio ? `portfolio:${org.train.get(id)!.portfolio}` : null;
+  if (k === 'portfolio') return `entreprise:${org.portfolio.get(id)?.espace || 'moi'}`;
+  return null;
+}
+/** Réunion de suivi qui reçoit les demandes de ce niveau */
+export function reunionDuNiveau(niveau: string): string {
+  return niveau.startsWith('train:') ? 'ART sync' : niveau.startsWith('portfolio:') ? 'Synchronisation du portfolio' : niveau.startsWith('entreprise:') ? 'Comité budgétaire' : '';
+}
+/** Personnes qui ont le droit « 💶 Gérer le budget » d'un niveau (par défaut : SM ; RTE et PM ; Epic Owner) */
+export function gerantsBudget(niveau: string, org: OrgDemande): string[] {
+  const [k, id] = [niveau.slice(0, niveau.indexOf(':')), niveau.slice(niveau.indexOf(':') + 1)];
+  const mail = (pid?: string) => (pid ? (org.personne.get(pid)?.email ?? '').toLowerCase() : '');
+  const ids = k === 'equipeagile' ? [org.equipe.get(id)?.sm] : k === 'train' ? [org.train.get(id)?.rte, org.train.get(id)?.pm] : k === 'portfolio' ? [org.portfolio.get(id)?.epic_owner] : [];
+  return [...new Set(ids.map(mail).filter(Boolean))];
+}
+export const libelleStatutDemande = (d: DemandeBudget) =>
+  d.statut === 'accordee' ? `accordée ${eurosTxt(nombre(d.montant_accorde || d.montant))}${nombre(d.montant_accorde) && nombre(d.montant_accorde) < nombre(d.montant) ? ` sur ${eurosTxt(nombre(d.montant))}` : ''}` : d.statut === 'a_reprendre' ? 'À reprendre' : d.statut === 'refusee' ? 'refusée' : 'soumise';
 
 /** Dépenses portées par un élément (« epic:<id> »…) */
 export const depensesDe = (depenses: Depense[], porteur: string) => depenses.filter((d) => d.porteur === porteur);

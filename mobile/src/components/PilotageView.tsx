@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { libelleNote } from '../daily';
-import { useBudget } from '../budget';
+import { libelleStatutDemande, reunionDuNiveau, useBudget } from '../budget';
 import { consommeReel } from '../consomme';
 import { useHierarchy } from '../hierarchyContext';
 import type { OrgValue } from '../organisation';
@@ -116,6 +116,24 @@ export function PilotageView({
         <Ligne key={p.id} premiere={i === 0} texte={p.texte} sous={`${reunionDe(p)} du ${jourCourt(p.reunion.slice(-10))} · ${nom(p.personne)}`} pastille={{ texte: libelleNote(p), ton: 'gris' }} />
       ))}
       {!decisions.length && <Vide texte="Aucune décision prise notée." />}
+    </SectionFiche>
+  );
+  // 💶 Demandes de budget du niveau (lot 4) : les nôtres et celles reçues
+  const cleNiv = `${n.kind}:${n.id}`;
+  const demandesNiv = budget.demandes.filter((d) => d.demandeur === cleNiv || d.destination === cleNiv);
+  const blocDemandes = n.kind !== 'perso' && demandesNiv.length > 0 && (
+    <SectionFiche titre={`💶 Demandes de budget · ${demandesNiv.length}`}>
+      {demandesNiv.map((d, i) =>
+        ligneJauge(
+          d.id,
+          `${d.demandeur === cleNiv ? 'Notre demande' : 'Reçue'} · ${d.motif}`,
+          `${euros(Number(d.montant) || 0)} · ${d.origine}${d.statut === 'soumise' ? ` → ${reunionDuNiveau(d.destination)}` : ''}${d.motif_decision ? ` — ${d.motif_decision}` : ''}`,
+          d.statut === 'accordee' ? 100 : 0,
+          d.statut === 'refusee' ? 'rouge' : d.statut === 'accordee' ? 'vert' : undefined,
+          i === 0,
+          { texte: libelleStatutDemande(d), ton: d.statut === 'accordee' ? 'vert' : d.statut === 'refusee' ? 'rouge' : d.statut === 'a_reprendre' ? 'orange' : 'bleu' },
+        ),
+      )}
     </SectionFiche>
   );
   const blocAlertes = alertes.some((a) => a.n > 0) && (
@@ -296,6 +314,7 @@ export function PilotageView({
       {contenu}
       {blocSuivis}
       {n.kind !== 'perso' && blocDecisions}
+      {blocDemandes}
       {blocAlertes}
     </ScrollView>
   );

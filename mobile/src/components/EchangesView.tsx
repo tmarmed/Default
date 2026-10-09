@@ -527,7 +527,7 @@ function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier, libe
       {!!e.element && <FilEchange id={e.element} />}
       <Text style={s.type}>{`${ICONE_NATURE_ECH[natureDe(e)]} ${LIBELLE_NATURE[natureDe(e)]}`}{onOuvrir ? '  ·  Ouvrir ›' : ''}</Text>
       {!!e.titre && <Text style={s.titre}>{e.titre}</Text>}
-      {!!e.texte && <Text style={s.texte}>{e.texte}</Text>}
+      {!!e.texte && <Text style={s.texte}>{e.titre.startsWith('ℹ️ Pour information ·') ? 'Appuyer pour lire' : e.texte}</Text>}
       <PiecesEchange e={e} />
       {e.type === 'question' && !reponse && <Text style={s.meta}>Choix : {e.choix.split(';').filter(Boolean).join(' · ')}</Text>}
       {reponse && !!e.reponse && (
@@ -559,7 +559,7 @@ function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier, libe
 export const estAutre = (c: string) => c.trim().toLowerCase() === 'autre';
 /** Choix « … (motif) » (« Valider ? » d'un point de suivi : À reprendre, Abandonner) : motif obligatoire */
 export const exigeMotif = (c: string) => /\(motif\)$/.test(c.trim());
-export const placeholderNote = (c: string) => (estAutre(c) ? 'Précisez votre réponse « Autre » (obligatoire)' : exigeMotif(c) ? 'Motif (obligatoire)' : 'Remarque (facultatif)');
+export const placeholderNote = (c: string) => (estAutre(c) ? 'Précisez votre réponse « Autre » (obligatoire)' : exigeMotif(c) ? 'Motif (obligatoire)' : c.startsWith('💶 Accorder') ? 'Montant accordé en euros (vide = le montant demandé)' : 'Remarque (facultatif)');
 export const reponsePrete = (c: string, note: string) => !!c && ((!estAutre(c) && !exigeMotif(c)) || !!note.trim());
 
 function CarteQuestion({ e, onRepondre, pied, onOuvrir }: { e: Echange; onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>; pied?: ReactNode; onOuvrir?: () => void }) {

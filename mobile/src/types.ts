@@ -752,3 +752,37 @@ export interface JoursReels {
   valide_par: string;
   valide_le: string;
 }
+
+/**
+ * 💶 Demande de budget (lot 4, 09/10) : née seulement en réunion, soumise par l'animateur qui a le droit « Gérer le
+ * budget », reçue par la réunion de suivi du niveau du dessus (ART sync, Synchronisation du portfolio, Comité
+ * budgétaire) ; décidée en séance ou depuis le Chat (« décidé hors réunion », mis en avant à la réunion suivante).
+ * Dans le Sheet « Budget » de l'entreprise.
+ */
+export type StatutDemande = 'soumise' | 'accordee' | 'a_reprendre' | 'refusee';
+export interface DemandeBudget {
+  espace?: string;
+  id: string;
+  motif: string;
+  montant: string;
+  periode: PeriodeDepense;
+  du: string;
+  au: string;
+  /** Élément concerné (« epic:<id> », « equipeagile:<id> »…) : porteur de la dépense si elle est accordée */
+  pour: string;
+  /** Niveau qui demande (« equipeagile:<id> », « train:<id> », « portfolio:<id> ») et niveau qui décide */
+  demandeur: string;
+  destination: string;
+  soumis_par: string;
+  /** Réunion où la demande est née (titre et date) */
+  origine: string;
+  statut: StatutDemande;
+  montant_accorde: string;
+  motif_decision: string;
+  decide_par: string;
+  decide_le: string;
+  /** Décidée depuis le Chat (« 1 ») : mise en avant à la réunion suivante, jusqu'à « Confirmé » (« 2 ») */
+  hors_reunion: string;
+  cree_le: string;
+  modifie_le: string;
+}

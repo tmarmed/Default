@@ -63,6 +63,14 @@ autres → portfolios) + dépenses (au prorata, réparties, seulement pendant la
 estimation) ; dépenses à venir ; Estimation à la fin. Pilotage portfolio (Budget prévu · Consommé réel · Estimation
 à la fin, écart, Hors epics, d'où vient le consommé) et fiche de l'epic. Sans accès au Sheet Budget : pas de bloc.
 À revoir : « Hors epics » (sprints sans point réalisé, dépenses avant les epics) peut être gros.
+Lot 4 codé (09/10) : demandes de budget (onglet DemandesBudget du Sheet Budget). Bloc « 💶 Demandes de budget »
+à l'étape Concrétisation de toutes les réunions du socle (équipe, train, portfolio) : ＋ Nouvelle demande (seulement
+le droit « Gérer le budget » : SM, RTE/PM, Epic Owner) → soumise au niveau du dessus ; « À décider » dans le Chat
+des personnes qui décident (mêmes choix : Accorder en totalité ou en partie, À reprendre, Refuser) ; en séance :
+Accorder (montant), À reprendre / Refuser (motif), Soumettre plus haut ; décidé hors réunion → « Confirmer » à la
+réunion suivante ; accordée → dépense créée sur l'élément ; « ℹ️ Pour information » au demandeur (contenu caché
+dans la liste) ; « 💶 Demandes de budget » dans le Pilotage. Reste : Daily sans ce bloc ; Comité budgétaire
+(réunion entreprise) à créer ; enveloppes Engagé / Disponible ; message « Pour information » lu en un appui.
 Suite : coder en 5 lots (1 Sheet Budget + dépenses ; 2 congés + jours réels ; 3 calculs + Pilotage ;
 4 demandes de budget en réunion + messages ; 5 dossier d'investissement + mode Simple + Mes suivis).
 10. Sécurité du Sheet « 💶 Budget » (demandé le 09/10) : aujourd'hui partagé à la main dans Google Drive ; à

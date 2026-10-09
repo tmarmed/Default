@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { cleDe, depensesDe, iconeCategorie, resumeDepense, useBudget } from '../budget';
+import { cleDe, type Decision, depensesDe, iconeCategorie, libellePeriode, libelleStatutDemande, resumeDepense, useBudget } from '../budget';
 import { coutJour, euros, joursOuvresAnnee } from '../pilotage';
 import { colors } from '../theme';
-import { CATEGORIES_DEPENSE, type CleRepartition, type Depense, PERIODES_DEPENSE, type PeriodeDepense } from '../types';
+import { CATEGORIES_DEPENSE, type CleRepartition, type DemandeBudget, type Depense, PERIODES_DEPENSE, type PeriodeDepense } from '../types';
 import { ChampFiche, SaisieFiche, SectionFiche } from './Choix';
 import { DateField } from './DateField';
 
@@ -207,3 +207,166 @@ const s = StyleSheet.create({
   btn2: { borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 7, backgroundColor: '#fff' },
   btn2Texte: { color: colors.primary, fontWeight: '600', fontSize: 14 },
 });
+
+/**
+ * 💶 Demandes de budget dans une réunion (lot 4, 09/10), à l'étape Concrétisation : décidé hors réunion (Confirmer),
+ * à décider (Accorder en totalité ou en partie, À reprendre, Refuser, Soumettre plus haut), nos demandes, et
+ * « ＋ Nouvelle demande de budget » (seulement pour qui a le droit « Gérer le budget » de ce niveau).
+ */
+export function BlocDemandesBudget({ niveau, espace, reunion, moi, anime, lecture, gerants, gerantsDessus, epics, nomDe = (m: string) => m }: { niveau: string; espace: string; reunion: string; moi: string; anime: boolean; lecture: boolean; gerants: string[]; gerantsDessus: boolean; epics: { id: string; titre: string }[]; nomDe?: (m: string) => string }) {
+  const b = useBudget();
+  const droit = gerants.includes(moi.toLowerCase());
+  const recues = b.demandes.filter((d) => d.destination === niveau && d.statut === 'soumise');
+  const horsReunion = b.demandes.filter((d) => d.destination === niveau && d.hors_reunion === '1');
+  const nos = b.demandes.filter((d) => d.demandeur === niveau);
+  const [nouvelle, setNouvelle] = useState(false);
+  const [err, setErr] = useState('');
+  const peutDecider = droit && anime && !lecture;
+  if (!droit && !recues.length && !nos.length && !horsReunion.length) return null;
+  const agir = (p: Promise<void>) => p.then(() => setErr('')).catch((e: Error) => setErr(e.message));
+  return (
+    <SectionFiche titre={`💶 Demandes de budget · ${recues.length} à décider`}>
+      {horsReunion.map((d, i) => (
+        <View key={`h${d.id}`} style={[s.ligne, i > 0 && s.bord, { flexWrap: 'wrap' }]}>
+          <View style={{ flex: 1, minWidth: 200 }}>
+            <Text style={s.texte}>{d.motif} · {libelleStatutDemande(d)}</Text>
+            <Text style={s.sous}>Décidé hors réunion par {nomDe(d.decide_par)} · à revoir ensemble</Text>
+          </View>
+          {peutDecider && (
+            <Pressable onPress={() => agir(b.confirmerDemande(d))} style={s.btn} accessibilityRole="button">
+              <Text style={s.btnTexte}>✓ Confirmer</Text>
+            </Pressable>
+          )}
+        </View>
+      ))}
+      {recues.map((d, i) => (
+        <DecisionDemande key={d.id} d={d} nomDe={nomDe} premiere={!horsReunion.length && i === 0} peutDecider={peutDecider} plusHaut={gerantsDessus} onDecider={(x) => agir(b.deciderDemande(d, x, reunion))} />
+      ))}
+      {nos.map((d) => (
+        <View key={`n${d.id}`} style={[s.ligne, s.bord]}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.texte}>{d.motif}</Text>
+            <Text style={s.sous}>
+              Notre demande · {eurosTxtC(d.montant)} · {libelleStatutDemande(d)}
+              {d.motif_decision ? ` — ${d.motif_decision}` : ''}
+            </Text>
+          </View>
+        </View>
+      ))}
+      {droit && anime && !lecture && !nouvelle && (
+        <Pressable onPress={() => setNouvelle(true)} style={[s.ligne, s.bord]} accessibilityRole="button">
+          <Text style={s.ajout}>＋ Nouvelle demande de budget</Text>
+        </Pressable>
+      )}
+      {nouvelle && (
+        <NouvelleDemande
+          epics={epics}
+          niveau={niveau}
+          onAnnuler={() => setNouvelle(false)}
+          onSoumettre={(x) =>
+            b
+              .soumettreDemande(espace, { ...x, demandeur: niveau, soumis_par: moi.toLowerCase(), origine: reunion })
+              .then(() => setNouvelle(false))
+              .catch((e: Error) => setErr(e.message))
+          }
+        />
+      )}
+      {!!err && <Text style={s.err}>{err}</Text>}
+    </SectionFiche>
+  );
+}
+const eurosTxtC = (m: string) => euros(Number(m) || 0);
+
+function DecisionDemande({ d, premiere, peutDecider, plusHaut, onDecider, nomDe }: { d: DemandeBudget; premiere: boolean; peutDecider: boolean; plusHaut: boolean; onDecider: (x: Decision) => void; nomDe: (m: string) => string }) {
+  const [montant, setMontant] = useState(d.montant);
+  const [motif, setMotif] = useState('');
+  return (
+    <View style={[!premiere && s.bord, { paddingBottom: 8 }]}>
+      <View style={s.ligne}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.texte}>
+            {d.motif} · {eurosTxtC(d.montant)}
+          </Text>
+          <Text style={s.sous}>
+            {libellePeriode(d.periode)} · soumise par {nomDe(d.soumis_par)} · {d.origine}
+          </Text>
+        </View>
+      </View>
+      {peutDecider && (
+        <>
+          <View style={[s.actions, { flexWrap: 'wrap', alignItems: 'center' }]}>
+            <SaisieFiche style={s.pctSaisie} value={montant} onChangeText={(v) => setMontant(v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" accessibilityLabel="Montant accordé" />
+            <Pressable onPress={() => onDecider({ choix: 'accorder', montant: Number(montant.replace(',', '.')) || Number(d.montant) })} style={s.btn} accessibilityRole="button">
+              <Text style={s.btnTexte}>💶 Accorder</Text>
+            </Pressable>
+            {plusHaut && (
+              <Pressable onPress={() => onDecider({ choix: 'plus_haut' })} style={s.btn2} accessibilityRole="button">
+                <Text style={s.btn2Texte}>⬆ Soumettre plus haut</Text>
+              </Pressable>
+            )}
+          </View>
+          <View style={[s.actions, { flexWrap: 'wrap', alignItems: 'center' }]}>
+            <SaisieFiche style={{ flex: 1, minWidth: 140 }} placeholder="Motif (À reprendre, Refuser)" value={motif} onChangeText={setMotif} />
+            <Pressable disabled={!motif.trim()} onPress={() => onDecider({ choix: 'a_reprendre', motif: motif.trim() })} style={[s.btn2, !motif.trim() && { opacity: 0.4 }]} accessibilityRole="button">
+              <Text style={s.btn2Texte}>↩ À reprendre</Text>
+            </Pressable>
+            <Pressable disabled={!motif.trim()} onPress={() => onDecider({ choix: 'refuser', motif: motif.trim() })} style={[s.btn2, !motif.trim() && { opacity: 0.4 }]} accessibilityRole="button">
+              <Text style={[s.btn2Texte, { color: '#B3261E' }]}>✖ Refuser</Text>
+            </Pressable>
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
+function NouvelleDemande({ epics, niveau, onAnnuler, onSoumettre }: { epics: { id: string; titre: string }[]; niveau: string; onAnnuler: () => void; onSoumettre: (x: Pick<DemandeBudget, 'motif' | 'montant' | 'periode' | 'du' | 'au' | 'pour'>) => void }) {
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const [f, setF] = useState({ motif: '', montant: '', periode: 'ponctuel' as PeriodeDepense, du: aujourdhui, au: '', pour: epics[0] ? `epic:${epics[0].id}` : niveau });
+  const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }));
+  return (
+    <View style={s.fiche}>
+      <Text style={s.titreFiche}>💶 Nouvelle demande de budget</Text>
+      <ChampFiche label="Motif">
+        <SaisieFiche placeholder="Ex. Licence de l’outil de test" value={f.motif} onChangeText={(v) => set('motif', v)} />
+      </ChampFiche>
+      <ChampFiche label="Montant" sous="En euros.">
+        <SaisieFiche placeholder="Ex. 1200" value={f.montant} onChangeText={(v) => set('montant', v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
+      </ChampFiche>
+      <ChampFiche label="Période" colonne>
+        <View style={s.seg}>
+          {PERIODES_DEPENSE.filter((p) => p.value !== 'pct').map((p) => (
+            <Pressable key={p.value} onPress={() => set('periode', p.value)} style={[s.puce, f.periode === p.value && s.puceOn]} accessibilityRole="button">
+              <Text style={[s.puceTexte, f.periode === p.value && s.puceTexteOn]}>{p.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </ChampFiche>
+      <ChampFiche label={f.periode === 'ponctuel' ? 'Date' : 'Du'}>
+        <DateField nu mode="date" value={f.du} onChange={(v) => set('du', v)} placeholder="Date" />
+      </ChampFiche>
+      {f.periode !== 'ponctuel' && (
+        <ChampFiche label="Au" sous="Vide : sans fin.">
+          <DateField nu mode="date" value={f.au} onChange={(v) => set('au', v)} placeholder="Sans fin" />
+        </ChampFiche>
+      )}
+      <ChampFiche label="Pour" colonne sous="La dépense accordée sera portée par cet élément.">
+        <View style={s.seg}>
+          {[...epics.map((e) => ({ v: `epic:${e.id}`, l: `🗂️ ${e.titre}` })), { v: niveau, l: 'Le niveau (sans epic)' }].map((o) => (
+            <Pressable key={o.v} onPress={() => set('pour', o.v)} style={[s.puce, f.pour === o.v && s.puceOn]} accessibilityRole="button">
+              <Text style={[s.puceTexte, f.pour === o.v && s.puceTexteOn]}>{o.l}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </ChampFiche>
+      <View style={s.actions}>
+        <Pressable onPress={() => onSoumettre(f)} style={s.btn} accessibilityRole="button">
+          <Text style={s.btnTexte}>⬆ Soumettre</Text>
+        </Pressable>
+        <Pressable onPress={onAnnuler} style={s.btn2} accessibilityRole="button">
+          <Text style={s.btn2Texte}>Annuler</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}

@@ -1,4 +1,4 @@
-import type { Conge, CoutPersonne, Depense } from './types';
+import type { Conge, CoutPersonne, DemandeBudget, Depense } from './types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
 import { iterationOf, piOf, piStart, shiftPi } from './pi';
@@ -122,7 +122,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '33';
+const DEMO_DATA_VERSION = '34';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -321,7 +321,7 @@ function sampleEntities(): {
   };
 }
 
-type Seeds = { items: () => Item[]; entities: () => ReturnType<typeof sampleEntities>; org?: () => Org; points?: () => PointReunion[]; budget?: () => { depense: Depense[]; cout: CoutPersonne[] }; conges?: () => Conge[] };
+type Seeds = { items: () => Item[]; entities: () => ReturnType<typeof sampleEntities>; org?: () => Org; points?: () => PointReunion[]; budget?: () => { depense: Depense[]; cout: CoutPersonne[]; demande: DemandeBudget[] }; conges?: () => Conge[] };
 
 /**
  * Stockage d'un espace de la démo (« moi » : clés historiques ; autres : « mes-taches:demo@<espace> »), avec
@@ -340,7 +340,7 @@ function creerStore(espace: string, seeds: Seeds) {
       for (const t of Object.keys(memoire) as Table[]) if (ev.key === null || ev.key === cle(t) || ev.key.endsWith(`~${cle(t)}`)) delete memoire[t];
     });
   const exemples = (t: Table): unknown[] =>
-    t === 'depense' || t === 'cout' ? (seeds.budget?.()[t] ?? []) : t === 'conge' ? (seeds.conges?.() ?? []) : t === 'joursreels' ? [] : t === 'items' ? seeds.items() : t === 'pointreunion' ? (seeds.points?.() ?? []) : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : (seeds.entities()[t as Kind] ?? []);
+    t === 'depense' || t === 'cout' || t === 'demande' ? (seeds.budget?.()[t] ?? []) : t === 'conge' ? (seeds.conges?.() ?? []) : t === 'joursreels' ? [] : t === 'items' ? seeds.items() : t === 'pointreunion' ? (seeds.points?.() ?? []) : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : (seeds.entities()[t as Kind] ?? []);
 
   const persistance: Persistance = {
     async lire(t) {
@@ -589,6 +589,26 @@ const SEEDS_ENTREPRISE: Seeds = {
         niveau: 'train:acmtr1',
         element: 'acm4',
       }),
+      // 💶 Lot 4 : une demande de budget à décider (Chat) et une information reçue (disparaît à la lecture)
+      ech('acmx8', {
+        de: 'nina.dupont@acme.example',
+        a: MOI_DEMO,
+        type: 'question',
+        nature: 'decision_a_prendre',
+        titre: '💶 Demande de budget · Licence de l’outil de test',
+        texte: '1 200 € · par an · demandée à Rétrospective du 9/10\nÀ traiter à : ART sync\nAccorder : précisez le montant accordé dans la remarque (vide = tout).',
+        choix: '💶 Accorder;↩ À reprendre (motif);✖ Refuser (motif)',
+        point: 'acmdb1',
+        niveau: 'train:acmtr1',
+      }),
+      ech('acmx9', {
+        de: 'sara.martin@acme.example',
+        a: MOI_DEMO,
+        nature: 'information',
+        titre: 'ℹ️ Pour information · 💶 Budget',
+        texte: 'Votre demande « Écrans de test » : accordée 900 €.\nDécidée à : ART sync du 2/10.',
+        niveau: 'equipeagile:acmeqweb',
+      }),
     ];
     return e;
   },
@@ -657,14 +677,21 @@ function joursOuvresAvant(jour: string, n: number): string {
  * 💶 Google Sheet « Budget » d'ACME (démo, 09/10) : coûts annuels des membres des équipes, et des dépenses de
  * chaque sorte (loyer de l'entreprise réparti par effectif, licence d'une epic, prestataire par jour, audit d'une feature)
  */
-export function budgetDemoEntreprise(): { depense: Depense[]; cout: CoutPersonne[] } {
+export function budgetDemoEntreprise(): { depense: Depense[]; cout: CoutPersonne[]; demande: DemandeBudget[] } {
   const stamp = new Date().toISOString();
   const debutAnnee = `${new Date().getFullYear()}-01-01`;
   const dans = (j: number) => toDateString(addDays(new Date(), j));
   const dep = (id: string, x: Partial<Depense>): Depense => ({ id, motif: '', categorie: 'autre', montant: '0', periode: 'ponctuel', du: debutAnnee, au: '', porteur: '', cle: '', parts: '', cree_le: stamp, modifie_le: stamp, ...x });
+  const dem = (id: string, x: Partial<DemandeBudget>): DemandeBudget => ({ id, motif: '', montant: '0', periode: 'ponctuel', du: debutAnnee, au: '', pour: '', demandeur: '', destination: 'train:acmtr1', soumis_par: '', origine: '', statut: 'soumise', montant_accorde: '', motif_decision: '', decide_par: '', decide_le: '', hors_reunion: '', cree_le: stamp, modifie_le: stamp, ...x });
   const couts: [string, string][] = [['acmp6', '58000'], ['acmp7', '61000'], ['acmp8', '54000'], ['acmp9', '50000'], ['acmp10', '52000'], ['acmp11', '56000']];
   return {
     cout: couts.map(([id, cout_annuel]) => ({ id, cout_annuel, cree_le: stamp, modifie_le: stamp })),
+    // 💶 Lot 4 : demandes de budget (une à décider à l'ART sync, une accordée, une décidée hors réunion à revoir)
+    demande: [
+      dem('acmdb1', { motif: 'Licence de l’outil de test', montant: '1200', periode: 'an', du: dans(20), pour: 'epic:acme2', demandeur: 'equipeagile:acmeqmob', soumis_par: 'nina.dupont@acme.example', origine: 'Rétrospective du 9/10' }),
+      dem('acmdb2', { motif: 'Écrans de test', montant: '900', periode: 'ponctuel', du: dans(-7), pour: 'epic:acme2', demandeur: 'equipeagile:acmeqweb', soumis_par: MOI_DEMO, origine: 'Planification de sprint du 1/10', statut: 'accordee', montant_accorde: '900', decide_par: 'sara.martin@acme.example', decide_le: stamp }),
+      dem('acmdb3', { motif: 'Formation à l’accessibilité', montant: '2400', periode: 'ponctuel', du: dans(30), pour: 'equipeagile:acmeqmob', demandeur: 'equipeagile:acmeqmob', soumis_par: 'nina.dupont@acme.example', origine: 'Rétrospective du 25/09', statut: 'accordee', montant_accorde: '2000', decide_par: 'marc.petit@acme.example', decide_le: stamp, hors_reunion: '1' }),
+    ],
     depense: [
       dep('acmd1', { motif: 'Loyer du bâtiment', categorie: 'frais_generaux', montant: '8000', periode: 'mois', porteur: 'entreprise:demo-entreprise', cle: 'effectif' }),
       dep('acmd2', { motif: 'Licence de cartographie', categorie: 'licence', montant: '300', periode: 'mois', du: dans(-40), au: dans(260), porteur: 'epic:acme2' }),
