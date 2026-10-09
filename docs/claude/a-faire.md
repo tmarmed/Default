@@ -66,7 +66,9 @@ Budget affiné : conception validée le 09/10 (coder après « je valide » du p
   autres dépenses à parts égales (ou %) ; budget portfolio / train par semestre (Budget participatif), epic sur sa
   vie ; epic : Estimation en points, Budget prévu = coût estimé du dossier d'investissement ; reste à faire :
   epic > features > stories, alerte si dépassé ; droit « Gérer le budget » ; mode Simple : budget par domaine →
-  objectifs → epics, dépenses simples. En suspens : budget du MVP (proposé), maquette.
+  objectifs → epics, dépenses simples. Toute répartition modifiable à la main en %. Budget du MVP validé (alerte → décision Continuer / Changer de
+  direction / Arrêter à la Revue du portfolio). En suspens : dossier d'investissement dans la préparation de la Revue
+  du portfolio (proposé), puis maquette.
 Reste (pilotage) : coûts annuels visibles de ceux qui lisent l'Organisation (à revoir avec les droits transverses).
 
 ## Questions ouvertes à l'utilisateur
