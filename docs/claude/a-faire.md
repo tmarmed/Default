@@ -82,6 +82,12 @@ Budget affiné : conception validée le 09/10 (coder après « je valide » du p
   nouveau ou imprévu ; décision Accorder (crée une allocation) / À reprendre / Refuser, en réunion ou depuis la fiche
   (droit « Gérer le budget »), jamais depuis le Chat ; Chat relié (proposé : naître d'un message, discuter, être
   prévenu de la décision).
+  Revu le 09/10 : demande de budget née seulement en réunion ; soumise par l'animateur ; arrive dans la réunion de
+  suivi du dessus (ART sync, Synchronisation du portfolio, Comité budgétaire) ; décision Accorder / À reprendre /
+  Refuser / Soumettre plus haut. En conception : message « ℹ️ Pour information » (disparaît à la lecture, sans
+  montant, « À traiter à : <réunion> ») ; Sheet « 💶 Budget » séparé, partagé seulement avec le droit « Gérer le
+  budget » (coûts annuels, allocations, dépenses, demandes). Constat : la confidentialité du Chat (« prive ») n'est
+  qu'à l'affichage, l'onglet Echanges reste lisible par qui ouvre le Sheet de l'espace.
 Reste (pilotage) : coûts annuels visibles de ceux qui lisent l'Organisation (à revoir avec les droits transverses).
 
 ## Questions ouvertes à l'utilisateur
