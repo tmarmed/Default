@@ -30,6 +30,9 @@ Ajuster ajoute une note à concrétiser) ; participants repris de l'Organisation
 4. Plus tard : ajouter des participants à une réunion (aujourd'hui repris de l'Organisation).
 5. **Chantier à part (mode Simple)** : modèle des réunions du mode Simple pour une personne, une équipe, une
    entreprise (réunion mensuelle, annuelle…), qui animent ; adapter alors les suivis et le Chat (déjà branchés).
+6. Rôle transverse ou droits transverses (demandé le 09/10, à concevoir).
+7. « Ne plus suivre » un point de suivi, depuis la réunion correspondante, possible dans toutes les réunions
+   (demandé le 09/10).
 
 ## Fait (09/10) : Pilotage (lot 5)
 Onglet 📊 Pilotage, lecture seule, niveaux selon les rôles (équipes, train, portfolio ; 🔒 Moi en mode Simple) :
@@ -39,7 +42,8 @@ tenu, « 1 point = … j »), Suivis (en retard, à valider, notes à concrétis
 (lien vers l'écran). Réglage « 1 point = » (½, 1, 1½, 2, 3 j) dans le calendrier agile, 1 par défaut, valeur calculée
 proposée. Code : src/pilotage.ts, src/components/PilotageView.tsx ; tests dans verif:reunions. Maquette :
 docs/maquette-pilotage.html.
-Reste (pilotage) : budget du portfolio ; conversion des estimations au changement de mode Simple ↔ SAFe.
+Reste (pilotage) : budget du portfolio ; conversion des estimations au changement de mode Simple ↔ SAFe (accordés
+le 09/10, conception à valider avant de coder).
 
 ## Questions ouvertes à l'utilisateur
 - Pilotage : faire valider les captures (équipe, train, portfolio, Simple).
