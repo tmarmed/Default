@@ -76,6 +76,8 @@ Suite : coder en 5 lots (1 Sheet Budget + dépenses ; 2 congés + jours réels ;
    (capacité doublée) et coût partagé à parts égales. Proposé : lignes « Affectation » dans la fiche Personne
    (équipe ou « hors équipes / client », jours de la semaine ou %, à partir du), historique gardé ; capacité de chaque
    sprint = jours affectés à l'équipe ; coût réparti selon l'affectation (le client : « Hors epics » ou un porteur).
+   Validé (09/10) : affectation obligatoire, en jours de la semaine (demi-journées possibles), pas en %.
+   « Hors epics » : gardé tel quel (c'est la réalité du sprint).
 9. Renforcer la confidentialité du Chat : « prive » n'est qu'à l'affichage, l'onglet Echanges reste lisible par qui
    ouvre le Sheet de l'espace (sujet à part, 09/10).
 ## Fait (09/10) : Pilotage (lot 5)
