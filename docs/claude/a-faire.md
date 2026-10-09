@@ -60,6 +60,13 @@ Budget affiné : conception validée le 09/10 (coder après « je valide » du p
 - Trois montants : Budget prévu (objectif, proposé d'après les points) · Consommé réel (par période) ·
   Estimation à la fin = consommé réel + Reste à faire estimé (points restants × coût réel d'un point). Écart rouge.
 - Pas de correction des stories : à la clôture, « 1 point a pris 1,4 j réel (réglé à 1 j) », proposition d'ajuster.
+- Précisions (09/10) : changement de coût = recalcul des projets ouverts, projets clôturés figés (on compense) ;
+  dépense rattachable à epic, feature, story ou tâche (remonte au-dessus) ; coût des personnes d'une équipe réparti
+  en % des points réalisés par epic (modifiable à la main) ; frais généraux par effectif (ou parts égales, ou %) ;
+  autres dépenses à parts égales (ou %) ; budget portfolio / train par semestre (Budget participatif), epic sur sa
+  vie ; epic : Estimation en points, Budget prévu = coût estimé du dossier d'investissement ; reste à faire :
+  epic > features > stories, alerte si dépassé ; droit « Gérer le budget » ; mode Simple : budget par domaine →
+  objectifs → epics, dépenses simples. En suspens : budget du MVP (proposé), maquette.
 Reste (pilotage) : coûts annuels visibles de ceux qui lisent l'Organisation (à revoir avec les droits transverses).
 
 ## Questions ouvertes à l'utilisateur
