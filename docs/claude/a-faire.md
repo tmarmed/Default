@@ -31,6 +31,8 @@ Ajuster ajoute une note à concrétiser) ; participants repris de l'Organisation
 5. **Chantier à part (mode Simple)** : modèle des réunions du mode Simple pour une personne, une équipe, une
    entreprise (réunion mensuelle, annuelle…), qui animent ; adapter alors les suivis et le Chat (déjà branchés).
 6. Rôle transverse ou droits transverses (demandé le 09/10, à concevoir).
+8. Congés déclarés par chacun dans l'application (demandé le 09/10) : capacité de l'équipe calculée d'avance
+   (Planification, PI Planning, Préparation du PI, Pilotage), affinée à chaque sprint et validée en Rétrospective.
 7. « Ne plus suivre » un point de suivi, depuis la réunion correspondante, possible dans toutes les réunions
    (demandé le 09/10).
 
@@ -75,6 +77,11 @@ Budget affiné : conception validée le 09/10 (coder après « je valide » du p
   transmise à la main) ; tout passe par le portfolio pour l'instant ; nouvelle réunion « Comité budgétaire »
   (entreprise) ; carte des réunions budget par niveau à valider. Reste à faire : exceptions « sans passer par le
   portfolio » (seuils), à étudier plus tard. Bouton « Ajuster à 1 point = … j » à la Rétrospective (Scrum Master).
+  Validé aussi : Comité budgétaire annuel + révision à mi-année ; Budget participatif semestriel ; calculé
+  automatiquement (coût des personnes, dépenses engagées, besoin prévu) vs « Demande de budget » réservée à l'argent
+  nouveau ou imprévu ; décision Accorder (crée une allocation) / À reprendre / Refuser, en réunion ou depuis la fiche
+  (droit « Gérer le budget »), jamais depuis le Chat ; Chat relié (proposé : naître d'un message, discuter, être
+  prévenu de la décision).
 Reste (pilotage) : coûts annuels visibles de ceux qui lisent l'Organisation (à revoir avec les droits transverses).
 
 ## Questions ouvertes à l'utilisateur
