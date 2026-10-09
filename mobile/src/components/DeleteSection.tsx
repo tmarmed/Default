@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
+import { vocab } from '../vocabulaire';
 
 interface Props {
   /** « Supprimer l'epic » */
@@ -39,7 +40,7 @@ export function DeleteSection({ label, name, children, keepText, disabled, phras
       else setConfirm(true);
       return;
     }
-    Alert.alert(`${label} ?`, `« ${name} » sera supprimé(e) du Google Sheet. ${consequence}`, [
+    Alert.alert(vocab(`${label} ?`), vocab(`« ${name} » sera supprimé(e) du Google Sheet. ${consequence}`), [
       { text: 'Annuler', style: 'cancel' },
       { text: 'Supprimer', style: 'destructive', onPress: () => onDelete(cascade) },
     ]);
@@ -58,15 +59,15 @@ export function DeleteSection({ label, name, children, keepText, disabled, phras
           accessibilityState={{ checked: cascade }}
         >
           <View style={[styles.check, cascade && styles.checkOn]}>{cascade && <Text style={styles.checkMark}>✓</Text>}</View>
-          <Text style={styles.checkText}>Supprimer aussi tout ce qui est rattaché ({children})</Text>
+          <Text style={styles.checkText}>{vocab(`Supprimer aussi tout ce qui est rattaché (${children})`)}</Text>
         </Pressable>
       )}
       <Pressable style={[styles.btn, cascade && styles.btnStrong]} onPress={press} disabled={disabled}>
         <Text style={[styles.btnText, cascade && styles.btnTextStrong]}>
-          {confirm ? 'Toucher encore pour confirmer' : cascade ? `${label} et tout son contenu` : label}
+          {confirm ? 'Toucher encore pour confirmer' : vocab(cascade ? `${label} et tout son contenu` : label)}
         </Text>
       </Pressable>
-      {!!consequence && <Text style={[styles.note, cascade && { color: colors.danger }]}>{consequence}</Text>}
+      {!!consequence && <Text style={[styles.note, cascade && { color: colors.danger }]}>{vocab(consequence)}</Text>}
     </View>
   );
 }

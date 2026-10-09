@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { type Action, type Check, situationDe } from '../checks';
 import type { Ignoree } from '../types';
 import { colors } from '../theme';
+import { vocab } from '../vocabulaire';
 
 /** Exécution des actions des alertes (fournie par l'application). */
 export const CheckActionContext = createContext<(a: Action) => void>(() => {});
@@ -126,7 +127,7 @@ function Carte({ checks, ignorees, cle, titre, jaune = false }: { checks: Check[
                 onPress={c.ouvrir ? () => run(c.ouvrir!) : undefined}
                 accessibilityRole={c.ouvrir ? 'link' : undefined}
               >
-                {c.icone} {c.message}
+                {c.icone} {vocab(c.message)}
               </Text>
               {c.actions.length > 0 && (
                 <View style={s.btns}>
@@ -137,7 +138,7 @@ function Carte({ checks, ignorees, cle, titre, jaune = false }: { checks: Check[
                       onPress={() => (a.action.kind === 'ignorer' ? ignorer(c) : run(a.action))}
                       accessibilityRole="button"
                     >
-                      <Text style={[s.btnText, !a.principal && s.btnTextSec, j && (a.principal ? s.btnTextJaune : s.btnTextSecJaune)]}>{a.label}</Text>
+                      <Text style={[s.btnText, !a.principal && s.btnTextSec, j && (a.principal ? s.btnTextJaune : s.btnTextSecJaune)]}>{vocab(a.label)}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -171,7 +172,7 @@ function Carte({ checks, ignorees, cle, titre, jaune = false }: { checks: Check[
             ignorees.map((c) => (
               <View key={c.key} style={[s.item, s.itemIgnore]}>
                 <Text style={s.msgIgnore}>
-                  {c.icone} {c.message}
+                  {c.icone} {vocab(c.message)}
                 </Text>
                 <Pressable onPress={() => retablir(c)} hitSlop={6} style={s.ignorer} accessibilityRole="button" accessibilityLabel={`Ne plus ignorer : ${c.message}`}>
                   <Text style={s.retablirText}>Ne plus ignorer</Text>

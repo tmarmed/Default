@@ -9,6 +9,7 @@ import { avecDossiers, gerantsBudget, libelleDecisionDossier, libelleStatutDeman
 import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '../src/budget';
 import { creerMagasin, nettoyerDepense } from '../src/magasin';
 import { mesSuivis, reunionDeNote } from '../src/daily';
+import { reglerVocabulaire, vocab } from '../src/vocabulaire';
 import type { Conge, Depense, PointReunion } from '../src/types';
 import { consommeReel } from '../src/consomme';
 import { capaciteEquipePI, coutJour, joursOuvresAnnee, niveauxDeRoles, piloteEquipe, pilotePortfolio, piloteTrain, suivisDuNiveau } from '../src/pilotage';
@@ -531,6 +532,11 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const ms = mesSuivis([pS({ id: '1', statut: 'en_cours', responsable: 'Moi@x' }), pS({ id: '2', statut: 'valide', validateur: 'moi@x' }), pS({ id: '3', personne: 'moi@x' }), pS({ id: '4', statut: 'en_cours', responsable: 'b@x' }), pS({ id: '5', type: 'etat', personne: 'moi@x' })], 'moi@x');
   ok(ms.ouvertes.map((p) => p.id).sort().join() === '1,3' && ms.fermees.map((p) => p.id).join() === '2', 'Mes suivis : responsable, valideur ou auteur ; fermées = validées ou abandonnées');
   ok(reunionDeNote(pS({ reunion: 'retro-equipeagile:e-2026-10-14' })) === 'Rétrospective du 14/10', 'Mes suivis : réunion d’origine lisible');
+  // Vocabulaire (09/10) : en mode Simple, pas de mot du SAFe (epic → projet, accords compris) ; SAFe inchangé
+  reglerVocabulaire(true);
+  ok(vocab("L'epic « A » finit avant l’epic « B »") === 'Le projet « A » finit avant le projet « B »' && vocab('3 epics ajoutées') === '3 projets ajoutés' && vocab('1 epic liée') === '1 projet lié' && vocab('Nouvelle epic') === 'Nouveau projet' && vocab('Sans epic') === 'Sans projet' && vocab('Epics · 2') === 'Projets · 2', 'vocabulaire Simple : epic → projet (articles et accords)');
+  reglerVocabulaire(false);
+  ok(vocab("L'epic « A »") === "L'epic « A »", 'vocabulaire SAFe : inchangé');
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
   reglerConversion(true, new Map([['acmeqmob', 0.5]]));
   ok(pointsOf({ points: '4', equipe: 'acmeqmob' }) === 2 && pointsOf({ points: '4', equipe: 'autre' }) === 4 && versPoints('3', 0.5) === '6' && depuisPoints('6', 0.5) === '3', 'conversion : 4 pts = 2 j avec 1 point = ½ j ; saisie 3 j → 6 pts');

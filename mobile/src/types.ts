@@ -1,3 +1,4 @@
+import { vocabulaireSimple } from './vocabulaire';
 /** Mêmes types en mode Simple et en mode SAFe (v7 : appel, démarche, story, exploration, bug). */
 export type ItemType = 'tache' | 'rendez-vous' | 'appel' | 'demarche' | 'mission' | 'story' | 'exploration' | 'bug';
 /** Types apparus avec la version 7 du script */
@@ -451,7 +452,10 @@ export const TYPE_LABELS: Record<ItemType, string> = {
   appel: 'Appel',
   demarche: 'Démarche',
   mission: 'Mission',
-  story: 'Story',
+  // Mode Simple : une story se lit comme une tâche (src/vocabulaire.ts)
+  get story() {
+    return vocabulaireSimple() ? 'Tâche' : 'Story';
+  },
   exploration: 'Exploration',
   bug: 'Bug',
 };

@@ -8,6 +8,7 @@ import { LigneChoix, SectionFiche } from '../Choix';
 import { useHierarchy } from '../../hierarchyContext';
 import { elementDe, tousLesElements } from '../../elementConcerne';
 import { FormSheet } from '../FormSheet';
+import { vocab } from '../../vocabulaire';
 
 /**
  * Éléments d'affichage communs des réunions (sortis du Daily le 07/10) : pastilles, lignes, compteurs, saisie d'un
@@ -116,8 +117,8 @@ export function Ligne({
   const contenu = (
     <>
       <View style={st.corps}>
-        <Text style={st.texte}>{texte}</Text>
-        {!!sous && <Text style={st.sous}>{sous}</Text>}
+        <Text style={st.texte}>{vocab(texte)}</Text>
+        {!!sous && <Text style={st.sous}>{vocab(sous)}</Text>}
       </View>
       {tache ? <PastilleStatut t={tache} affiche={pastille} /> : pastille && <Pastille {...pastille} />}
       {onRetirer && (
@@ -209,7 +210,7 @@ export function LigneStory({
 }
 
 export function Vide({ texte }: { texte: string }) {
-  return <Text style={st.vide}>{texte}</Text>;
+  return <Text style={st.vide}>{vocab(texte)}</Text>;
 }
 
 /** Choix en pastilles (un seul) ; une option `off` est grisée */

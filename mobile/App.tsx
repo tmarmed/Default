@@ -119,6 +119,7 @@ import {
   saveHierarchyCache,
 } from './src/storage';
 import { colors } from './src/theme';
+import { reglerVocabulaire } from './src/vocabulaire';
 import { BudgetContext, type BudgetEspace, CHOIX_DEMANDE, estDemandeBudget, gerantsBudget, libellePeriode, libelleStatutDemande, niveauDessus, reunionDuNiveau, TITRE_DEMANDE, TITRE_INFO, valeurBudget } from './src/budget';
 import { euros as eurosBudget } from './src/pilotage';
 import { CongesContext, type CongesValue } from './src/conges';
@@ -1550,6 +1551,7 @@ function Main() {
     return eq.length ? makeOrgValue(base) : orgValue;
   }, [orgValue, equipesEsp, visibles, moiDemo]);
   // Conversion des estimations (09/10) : en mode Simple, points × « 1 point = … j » de l'équipe (calendrier agile)
+  reglerVocabulaire(!safe.actif);
   reglerConversion(!safe.actif, new Map(orgReunions.equipes.map((e) => [e.id, calendrierPilotage(e.id, orgReunions).jpp ?? 1] as [string, number]).filter(([, j]) => j !== 1)));
   const retirerEchangeRef = useRef<(e: Echange) => Promise<void>>(async () => {});
   const titreBudget = useCallback((espace: string) => `${NOM_APP} | Budget | ${espaces.find((e) => e.id === espace)?.nom ?? espace}`, [espaces]);

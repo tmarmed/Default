@@ -7,7 +7,7 @@ import type { CatalogueParcours, EtapeCatalogue, ParcoursRole } from '../../reun
 import { avecCriteres, criteresDe, etatPrete, MAX_POINTS_PRETE, storiesAAffiner, storiesPretes, velocite } from '../../reunionsEquipe';
 import { useSafe } from '../../safe';
 import { colors } from '../../theme';
-import { type Item, type ItemInput, RECURRENCE_DEFAUTS } from '../../types';
+import { type Item, type ItemInput, RECURRENCE_DEFAUTS, TYPES_REUNION } from '../../types';
 import { SectionFiche } from '../Choix';
 import { TitreFiche } from '../FormSheet';
 import { BlocPoints, BlocSuivi, Compteurs, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, QuestionsEquipe, type R, useReunion } from './base';
@@ -150,12 +150,18 @@ export function BlocPrete({ ok, manque, motif, lecture, onForcer }: { ok: boolea
 export function MesTaches({ r }: { r: R }) {
   const { e } = r;
   const moiP = e.personnes.find((x) => x.email.toLowerCase() === r.mail);
-  const miens = moiP ? e.situation.elements.filter((t) => t.responsable === moiP.id) : [];
+  // Mode Simple : pas de sprint ni de story ; mes tâches ouvertes de l'équipe (ou de l'entreprise)
+  const simple = TYPES_REUNION[r.reunion.type]?.mode === 'simple';
+  const miens = !moiP ? [] : simple ? e.h.items.filter((t) => !t.parent && t.statut !== 'termine' && t.responsable === moiP.id && e.dansEquipe(t)) : e.situation.elements.filter((t) => t.responsable === moiP.id);
   return (
     <>
-      <TitreFiche icone="📋" titre="Mes tâches" vide="" sous={`${moiP?.nom ?? ''} · ${e.it.nom}, tâches des réunions comprises`} />
-      <SectionFiche titre={`Mes stories et tâches · ${miens.length}`}>
-        {miens.length ? miens.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} sous={t.type === 'story' ? 'story' : 'tâche'} pastille={pastilleStatut(t.statut)} tache={t} />) : <Vide texte="Rien à votre nom dans le sprint." />}
+      <TitreFiche icone="📋" titre="Mes tâches" vide="" sous={simple ? `${moiP?.nom ?? ''} · tâches ouvertes, celles des réunions comprises` : `${moiP?.nom ?? ''} · ${e.it.nom}, tâches des réunions comprises`} />
+      <SectionFiche titre={simple ? `Mes tâches · ${miens.length}` : `Mes stories et tâches · ${miens.length}`}>
+        {miens.length ? (
+          miens.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' && !simple ? '📖 ' : ''}${t.titre}`} sous={t.type === 'story' && !simple ? 'story' : 'tâche'} pastille={pastilleStatut(t.statut)} tache={t} />)
+        ) : (
+          <Vide texte={simple ? 'Rien à votre nom.' : 'Rien à votre nom dans le sprint.'} />
+        )}
       </SectionFiche>
     </>
   );

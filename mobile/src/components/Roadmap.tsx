@@ -18,6 +18,7 @@ import { PeriodHeader } from './PeriodHeader';
 import { Segmented } from './Segmented';
 import { Swipe } from './Swipe';
 import { useFiltreOrg } from '../organisation';
+import { vocab } from '../vocabulaire';
 
 interface Props {
   epics: Epic[];
@@ -246,7 +247,7 @@ export function Roadmap({
                         </Text>
                         <Text style={styles.groupCount}>
                           {g.objs.length ? `${g.objs.length} obj. · ` : ''}
-                          {nbEpics} epic{nbEpics > 1 ? 's' : ''}
+                          {vocab(`${nbEpics} epic${nbEpics > 1 ? 's' : ''}`)}
                         </Text>
                         {warn > 0 && <Text style={styles.warn}> ⚠ {warn}</Text>}
                       </Pressable>
@@ -472,7 +473,7 @@ function BarRow({
       <Text style={styles.rowDates} numberOfLines={1}>
         {fin ? formatEpicDates({ debut, fin }) : `${formatEpicDates({ debut, fin }).split(' → ')[0]} → ${big ? 'permanent' : 'sans fin'}`}
         {late ? ' · en retard' : ''}
-        {toggle && !toggle.open ? ` · ${toggle.count} epic${toggle.count > 1 ? 's' : ''} repliée${toggle.count > 1 ? 's' : ''}` : ''}
+        {toggle && !toggle.open ? vocab(` · ${toggle.count} epic${toggle.count > 1 ? 's' : ''} repliée${toggle.count > 1 ? 's' : ''}`) : ''}
       </Text>
       {!!note && (
         <Text style={styles.note} numberOfLines={2}>
@@ -481,14 +482,14 @@ function BarRow({
       )}
       {alertes.slice(0, 2).map((a) => (
         <View key={a.key} style={styles.alert}>
-          <Text style={styles.alertText}>⚠ {a.message}</Text>
+          <Text style={styles.alertText}>⚠ {vocab(a.message)}</Text>
           <View style={styles.alertBtns}>
             <Pressable style={styles.alertBtn} onPress={() => onFix(a.patch)} accessibilityRole="button" hitSlop={6}>
-              <Text style={styles.alertBtnText}>{a.bouton}</Text>
+              <Text style={styles.alertBtnText}>{vocab(a.bouton)}</Text>
             </Pressable>
             {a.aligner && (
               <Pressable style={[styles.alertBtn, styles.alertBtn2]} onPress={() => onAlign(a.aligner!)} accessibilityRole="button" hitSlop={6}>
-                <Text style={[styles.alertBtnText, styles.alertBtnText2]}>{a.aligner.bouton}</Text>
+                <Text style={[styles.alertBtnText, styles.alertBtnText2]}>{vocab(a.aligner.bouton)}</Text>
               </Pressable>
             )}
           </View>

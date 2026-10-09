@@ -3,6 +3,7 @@ import type { Domaine } from './types';
 import { fmtPoints, iterationOf, iterationsOf, nomSprintDe, piLabel, piOf, pointsOf, shiftPi } from './pi';
 import { toDateString } from './dates';
 import { domaineOf, epicOf, objectifOf, type Hierarchy } from './hierarchy';
+import { vocab, vocabulaireSimple } from './vocabulaire';
 
 /**
  * Détail gris d'une tâche dans une liste d'enfants (feature, epic, sous-tâches) : quand (date, sinon itération),
@@ -13,7 +14,7 @@ export function metaTache(
   jours: boolean,
   sous?: { faites: number; total: number },
 ): string {
-  const quand = t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}` : t.iteration ? nomSprintDe(t.iteration) : '';
+  const quand = t.date ? `${t.date.slice(8)}/${t.date.slice(5, 7)}` : t.iteration && !vocabulaireSimple() ? nomSprintDe(t.iteration) : '';
   return [
     t.periodicite ? '🔁 Répétée' : '',
     quand ?? '',
@@ -101,10 +102,10 @@ export function listeFeatures(h: H, ref?: string, epicPrefere?: string): Listes 
   return grouper(
     h.featureList,
     (f) => f.epic || '',
-    (k) => (k ? `🗂️ ${h.epics.get(k)?.titre ?? '?'}` : 'Sans epic'),
+    (k) => (k ? `🗂️ ${h.epics.get(k)?.titre ?? '?'}` : vocab('Sans epic')),
     (f) => ({ value: f.id, label: `🧩 ${f.titre}` }),
     e || undefined,
-    'Autres epics',
+    vocab('Autres epics'),
   );
 }
 
@@ -158,7 +159,7 @@ export function listeTaches(
       meta: x.date ? `${x.date.slice(8)}/${x.date.slice(5, 7)}` : x.iteration ? x.iteration.split('-').pop() : undefined,
     }),
     ref ? cle(ref) : undefined,
-    'Dans une autre feature ou epic',
+    vocab('Dans une autre feature ou epic'),
   );
 }
 

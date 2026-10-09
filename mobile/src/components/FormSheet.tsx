@@ -21,6 +21,7 @@ import { TexteAjuste } from './TexteAjuste';
 import { AutoContext, LectureContext } from './EnregistrementAuto';
 import { BoutonRemarque } from './RemarquesDemo';
 import { ouvrirCouche } from '../remarquesDemo';
+import { vocab } from '../vocabulaire';
 
 const nomRetour = (r: string | string[]) => (Array.isArray(r) ? r[0] : r);
 
@@ -181,7 +182,7 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
         {haut}
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" onTouchStart={onToucher} onScrollBeginDrag={onToucher}>
-            {error && <Text style={styles.error}>{error}</Text>}
+            {error && <Text style={styles.error}>{vocab(error)}</Text>}
             <AutoContext.Provider value={!!auto}>{children}</AutoContext.Provider>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -199,7 +200,7 @@ export function TitreBarre({ texte, avecFil }: { texte: string; couleur?: string
   return (
     // Avec le fil d'Ariane, la barre a moins de marge en bas : le titre reste aligné sur Annuler / Enregistrer
     <View pointerEvents="none" style={[styles.titreBarre, avecFil && { top: 6 }]}>
-      <TexteAjuste variantes={[texte]} taille={17} min={12} dispo={Math.min(Dimensions.get('window').width, 480) - 200} style={styles.headerTitle} />
+      <TexteAjuste variantes={[vocab(texte)]} taille={17} min={12} dispo={Math.min(Dimensions.get('window').width, 480) - 200} style={styles.headerTitle} />
     </View>
   );
 }
@@ -213,9 +214,9 @@ export function TitreFiche({ icone, titre, vide, sous, couleur = colors.primary 
     <View style={styles.titreFiche}>
       <Text style={[styles.titreFicheTexte, !titre && styles.titreFicheVide]}>
         <Text style={{ color: assombrir(couleur) }}>{icone} </Text>
-        {titre || vide}
+        {vocab(titre || vide)}
       </Text>
-      {!!sous && <Text style={styles.titreFicheSous}>{sous}</Text>}
+      {!!sous && <Text style={styles.titreFicheSous}>{vocab(sous)}</Text>}
     </View>
   );
 }

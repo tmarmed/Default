@@ -115,7 +115,7 @@ const objectifsSimple = (c: Ctx): Elem[] =>
     .map((o) => {
       const krs = c.e.h.resultats.filter((k) => k.objectif === o.id);
       const val = o.cible ? `${o.actuel || 0}/${o.cible} ${o.unite ?? ''}`.trim() : '';
-      return { id: o.id, titre: `🎯 ${o.titre}`, sous: [val, ...krs.map((k) => `${k.titre} : ${k.actuel || 0}/${k.cible || '?'} ${k.unite}`)].filter(Boolean).join(' · '), pastille: krs.length ? `${krs.length} RC` : 'Objectif (OKR)' };
+      return { id: o.id, titre: `🎯 ${o.titre}`, sous: [val, ...krs.map((k) => `${k.titre} : ${k.actuel || 0}/${k.cible || '?'} ${k.unite}`)].filter(Boolean).join(' · '), pastille: krs.length ? `${krs.length} résultat${krs.length > 1 ? 's' : ''}` : 'Objectif' };
     });
 const previsibilite = (c: Ctx) => {
   const l = c.e.h.objectifsPI.filter((o) => o.pi === c.pi && o.type === 'engage');
@@ -133,12 +133,13 @@ const NOTES_SIMPLE: [string, string, Etape][] = [
   ['taches', 'Mes tâches', TACHES],
   ['notes', 'Mes notes', { k: 'notes' }],
 ];
-const OBJ_SIMPLE: Etape = { k: 'elements', icone: '🎯', mot: 'Objectif (OKR)', liste: objectifsSimple, choix: ['Garder', 'Ajuster', 'Arrêter'], ajout: 'resultat' };
+// Mode Simple : pas de jargon SAFe (ni OKR, ni epic, ni PI) — les mêmes éléments, avec les mots du Simple
+const OBJ_SIMPLE: Etape = { k: 'elements', icone: '🎯', mot: 'Objectif', liste: objectifsSimple, choix: ['Garder', 'Ajuster', 'Arrêter'] };
 const SIT_SIMPLE = (objectif: string, sous: string): Etape =>
   SIT(objectif, sous, (c) => [
     { valeur: String(tachesOuvertes(c).length), libelle: 'tâches ouvertes' },
     { valeur: String(tachesEnRetard(c).length), libelle: 'en retard', ton: tachesEnRetard(c).length ? 'orange' : undefined },
-    { valeur: String(objectifsSimple(c).length), libelle: 'objectifs (OKR)' },
+    { valeur: String(objectifsSimple(c).length), libelle: 'objectifs' },
   ]);
 export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
   // ---- Mode Simple à plusieurs (09/10) : mêmes étapes que le SAFe (notes, suivis, Concrétisation, compte rendu) ----
@@ -166,7 +167,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
   revue_mois: {
     nomCourt: 'à la revue du mois',
     sm: [
-      ['situation', 'Situation', SIT_SIMPLE('Revoir les objectifs et le budget du mois', 'Objectifs (OKR) : garder, ajuster, arrêter ; budget : prévu, dépensé, reste ; demandes de budget.')],
+      ['situation', 'Situation', SIT_SIMPLE('Revoir les objectifs et le budget du mois', 'Objectifs : garder, ajuster, arrêter ; budget : prévu, dépensé, reste ; demandes de budget.')],
       ['objectifs', 'Objectifs', OBJ_SIMPLE],
       ['budget', 'Budget', { k: 'budget_simple', mode: 'suivi' }],
       ['concretisation', 'Concrétisation', CONC],
@@ -177,7 +178,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
   trimestre_simple: {
     nomCourt: 'à la revue du trimestre',
     sm: [
-      ['situation', 'Situation', SIT_SIMPLE('Revoir le trimestre', 'Objectifs (OKR) du trimestre ; révision du budget (budget prévu des projets).')],
+      ['situation', 'Situation', SIT_SIMPLE('Revoir le trimestre', 'Objectifs du trimestre ; révision du budget (budget prévu des projets).')],
       ['objectifs', 'Objectifs', OBJ_SIMPLE],
       ['budget', 'Budget', { k: 'budget_simple', mode: 'revision' }],
       ['concretisation', 'Concrétisation', CONC],
@@ -188,7 +189,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
   bilan_annuel: {
     nomCourt: 'au bilan annuel',
     sm: [
-      ['situation', 'Situation', SIT_SIMPLE('Faire le bilan de l’année', 'Garder, arrêter, commencer ; objectifs (OKR) de l’année ; budget de l’année.')],
+      ['situation', 'Situation', SIT_SIMPLE('Faire le bilan de l’année', 'Garder, arrêter, commencer ; objectifs de l’année ; budget de l’année.')],
       ['gac', 'Garder · arrêter · commencer', { k: 'points', icone: '🔁', titre: 'Garder · arrêter · commencer', sous: 'Une note par idée', placeholder: '＋ Garder, arrêter ou commencer…' }],
       ['objectifs', 'Objectifs', OBJ_SIMPLE],
       ['budget', 'Budget', { k: 'budget_simple', mode: 'annee' }],
@@ -200,7 +201,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
   annuel_entreprise: {
     nomCourt: 'au point annuel',
     sm: [
-      ['situation', 'Situation', SIT_SIMPLE('Faire le point de l’année de l’entreprise', 'Garder, arrêter, commencer ; objectifs (OKR) ; budget de l’année par projet.')],
+      ['situation', 'Situation', SIT_SIMPLE('Faire le point de l’année de l’entreprise', 'Garder, arrêter, commencer ; objectifs ; budget de l’année par projet.')],
       ['gac', 'Garder · arrêter · commencer', { k: 'points', icone: '🔁', titre: 'Garder · arrêter · commencer', sous: 'Une note par idée', placeholder: '＋ Garder, arrêter ou commencer…' }],
       ['objectifs', 'Objectifs', OBJ_SIMPLE],
       ['budget', 'Budget de l’année', { k: 'budget_simple', mode: 'annee' }],
@@ -581,7 +582,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
       case 'situation':
         return (
           <>
-            <TitreFiche icone="📊" titre="Situation" vide="" sous={`${TYPES_REUNION[p.reunion.type].libelle} · ${e.nomNiveau} · PI ${pi}`} />
+            <TitreFiche icone="📊" titre="Situation" vide="" sous={`${TYPES_REUNION[p.reunion.type].libelle} · ${e.nomNiveau}${simple ? '' : ` · PI ${pi}`}`} />
             <Compteurs l={et.compteurs(c)} />
             <BlocSuivi r={r} lecture={lecture} onAjouter />
             <SectionFiche titre="Objectifs de la réunion">
@@ -718,7 +719,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
       case 'budget_simple':
         return (
           <>
-            <TitreFiche icone="💶" titre="Budget" vide="" sous={`${e.nomNiveau} · Prévu · Dépensé · Reste · Estimation à la fin`} />
+            <TitreFiche icone="💶" titre="Budget" vide="" sous={`${e.nomNiveau} · Prévu · Dépensé · Reste · Estimation à la fin, par projet`} />
             <BlocBudgetSimple epics={epics} h={e.h} org={r.org} espace={p.reunion.espace || 'moi'} mode={et.mode} peutModifier={r.anime && !lecture} />
           </>
         );

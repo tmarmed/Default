@@ -4,6 +4,7 @@ import { depuisPoints, versPoints } from '../pi';
 import { colors } from '../theme';
 import { ChoiceSheet } from './ChoiceSheet';
 import { AutoContext, LectureContext } from './EnregistrementAuto';
+import { vocab } from '../vocabulaire';
 
 /**
  * Choix d'une affectation dans une fiche (feature, équipe, responsable, itération, train…) : une ligne de réglage
@@ -76,7 +77,7 @@ export function SectionFiche({
   return (
     <View style={lectureSection && vide && s.masque}>
       <View style={s.titreSec}>
-        <Text style={s.titreSecTexte}>{titre}</Text>
+        <Text style={s.titreSecTexte}>{vocab(titre)}</Text>
         {droite}
         {aDefinir > 0 && <Text style={s.aDefinir}>{aDefinir} à définir{auChoix ? ' (au choix)' : ''}</Text>}
         {onAjouter && !lectureSection && (
@@ -122,10 +123,10 @@ export function ChampFiche({ label, children, sous, colonne }: { label: string; 
   return (
     <View style={s.ligneBloc}>
       <View style={[s.ligne, colonne && s.champColonne]}>
-        <Text style={[s.cle, colonne && s.cleColonne]}>{label}</Text>
+        <Text style={[s.cle, colonne && s.cleColonne]}>{vocab(label)}</Text>
         <View style={s.champ}>{children}</View>
       </View>
-      {!!sous && <Text style={s.sous}>{sous}</Text>}
+      {!!sous && <Text style={s.sous}>{vocab(sous)}</Text>}
     </View>
   );
 }
@@ -134,9 +135,9 @@ export function ChampFiche({ label, children, sous, colonne }: { label: string; 
 export function SaisieFiche(props: TextInputProps) {
   return (
     <TextInput
-      placeholder="Facultatif"
       placeholderTextColor={colors.muted}
       {...props}
+      placeholder={vocab(props.placeholder ?? 'Facultatif')}
       style={[s.saisie, !props.value && s.saisieVide, props.multiline && s.saisieMulti, props.style]}
     />
   );
@@ -732,8 +733,8 @@ export function LigneEnfant({
           </Pressable>
         )}
         <View style={s.enfantCorps}>
-          <Text style={[s.enfantTexte, coche?.fait && s.enfantFait]}>{texte}</Text>
-          {!!meta && <Text style={s.optMeta}>{meta}</Text>}
+          <Text style={[s.enfantTexte, coche?.fait && s.enfantFait]}>{vocab(texte)}</Text>
+          {!!meta && <Text style={s.optMeta}>{vocab(meta)}</Text>}
         </View>
         {ajoute && !avant && <Text style={[s.badge, s.badgeVert]}>ajoutée</Text>}
         {ajoute && !!avant && <Pastille texte="déplacée" ouvert={ch.ouvert} onPress={ch.basculer} />}

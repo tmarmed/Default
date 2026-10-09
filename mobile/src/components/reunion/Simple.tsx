@@ -341,7 +341,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
           <>
             <Navigation n={objectifs.length} cur={i} onChoisir={setIdxObj} />
             <TitreFiche icone="🎯" titre={o.titre} vide="" sous={`objectif ${i + 1} sur ${objectifs.length}${o.fin ? ` · échéance ${dateCourte(o.fin)}` : ''}`} />
-            <Compteurs l={[{ valeur: `${pct} %`, libelle: 'avancement' }, { valeur: String(h.epicList.filter((x) => x.objectif === o.id).length), libelle: 'epics' }, { valeur: String(h.items.filter((t) => t.objectif === o.id && t.statut !== 'termine').length), libelle: 'tâches ouvertes' }]} />
+            <Compteurs l={[{ valeur: `${pct} %`, libelle: 'avancement' }, { valeur: String(h.epicList.filter((x) => x.objectif === o.id).length), libelle: 'projets' }, { valeur: String(h.items.filter((t) => t.objectif === o.id && t.statut !== 'termine').length), libelle: 'tâches ouvertes' }]} />
             <SectionFiche titre="Objectif">
               <View style={{ padding: 12 }}>
                 <Pastilles petit options={['Garder', REPOUSSER, 'Abandonner'].map((x) => ({ value: x, label: x }))} value={decObj[o.id] ?? 'Garder'} onChange={(x) => setDecObj((m) => ({ ...m, [o.id]: x }))} />
@@ -379,7 +379,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
       case 'budget':
         return (
           <>
-            <TitreFiche icone="💶" titre={reunion.type === 'point_annuel' ? 'Budget de l’année' : 'Budget'} vide="" sous="Prévu · Dépensé · Reste · Estimation à la fin, par projet (epic)" />
+            <TitreFiche icone="💶" titre={reunion.type === 'point_annuel' ? 'Budget de l’année' : 'Budget'} vide="" sous="Prévu · Dépensé · Reste · Estimation à la fin, par projet" />
             <BlocBudgetSimple epics={h.epicList.filter((x) => (x.espace || 'moi') === 'moi')} h={h} org={org} espace="moi" mode={reunion.type === 'point_annuel' ? 'annee' : 'suivi'} peutModifier />
           </>
         );

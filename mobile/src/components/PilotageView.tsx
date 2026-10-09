@@ -161,7 +161,7 @@ export function PilotageView({
           <View style={[st.compteurs, s.pad]}>
             <Compteur valeur={String(ouvertes.length)} libelle="ouvertes" />
             <Compteur valeur={String(retard.length)} libelle="en retard" ton={retard.length ? 'rouge' : undefined} />
-            <Compteur valeur={String(epicsIci.length)} libelle="projets (epics)" />
+            <Compteur valeur={String(epicsIci.length)} libelle="projets" />
           </View>
         </SectionFiche>
         <BlocBudgetSimple epics={epicsIci} h={h} org={org} espace={n.espace} mode="suivi" peutModifier={false} />

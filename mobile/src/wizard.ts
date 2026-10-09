@@ -3,6 +3,7 @@ import { addMonths, toDateString } from './dates';
 import { childrenOf, type Data } from './hierarchy';
 import { iterationOf, piEnd, piOf, piStart, shiftPi } from './pi';
 import { EPIC_COULEURS, RECURRENCE_DEFAUTS, type ItemInput } from './types';
+import { vocabulaireSimple } from './vocabulaire';
 
 /**
  * Assistant projet : brouillon de domaines, objectifs, epics, features et tâches, modifié librement
@@ -13,14 +14,19 @@ export const LEVELS: Level[] = ['domaine', 'objectif', 'epic', 'feature', 'tache
 export const LEVEL_LABEL: Record<Level, string> = {
   domaine: 'Domaine',
   objectif: 'Objectif',
-  epic: 'Epic',
+  // Mode Simple : « Projet » (src/vocabulaire.ts)
+  get epic() {
+    return vocabulaireSimple() ? 'Projet' : 'Epic';
+  },
   feature: 'Feature',
   tache: 'Tâche',
 };
 export const LEVEL_PLURAL: Record<Level, string> = {
   domaine: 'Domaines',
   objectif: 'Objectifs',
-  epic: 'Epics',
+  get epic() {
+    return vocabulaireSimple() ? 'Projets' : 'Epics';
+  },
   feature: 'Features',
   tache: 'Tâches',
 };
@@ -237,7 +243,7 @@ export function draftAlerts(draft: WNode[]): string[] {
     if (!b) continue;
     const titre = n.titre.trim() || LEVEL_LABEL[n.level];
     // On nomme toujours le type de l'élément et du parent : « La tâche « X » … l'epic « Y » »
-    const MOTS: Record<Level, string> = { domaine: 'le domaine', objectif: "l'objectif", epic: "l'epic", feature: 'la feature', tache: 'la tâche' };
+    const MOTS: Record<Level, string> = { domaine: 'le domaine', objectif: "l'objectif", epic: vocabulaireSimple() ? 'le projet' : "l'epic", feature: 'la feature', tache: 'la tâche' };
     const E = `${MOTS[n.level].charAt(0).toUpperCase()}${MOTS[n.level].slice(1)} « ${titre} »`;
     const P = `${MOTS[p.level]} « ${p.titre} »`;
     if (n.level === 'feature') {

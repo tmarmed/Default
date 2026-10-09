@@ -542,6 +542,7 @@ export function BlocDossiers({ epics, h, org, espace, reunion, moi, peutDecider,
  * annuel. Revue du mois : suivi ; trimestre : révision du budget prévu ; année : budget de l'année.
  */
 export function BlocBudgetSimple({ epics, h, org, espace, mode, peutModifier }: { epics: Epic[]; h: CtxConsomme['h']; org: OrgValue; espace: string; mode: 'suivi' | 'revision' | 'annee'; peutModifier: boolean }) {
+  const simpleB = !useSafe().actif;
   const b = useBudget();
   const [err, setErr] = useState('');
   const [saisies, setSaisies] = useState<Record<string, string>>({});
@@ -589,7 +590,7 @@ export function BlocBudgetSimple({ epics, h, org, espace, mode, peutModifier }: 
         </View>
       </SectionFiche>
       {lignes.map(({ e, d, dos, prevu, fin, calculable, manuelle }) => (
-        <SectionFiche key={e.id} titre={`🗂️ Projet (epic) · ${e.titre}`}>
+        <SectionFiche key={e.id} titre={`🗂️ ${simpleB ? 'Projet' : 'Epic'} · ${e.titre}`}>
           <View style={s.pad}>
             <Text style={[s.texte, prevu && d.consomme > prevu ? { color: '#B3261E' } : null]}>
               Prévu {prevu ? euros(prevu) : 'non renseigné'} · Dépensé {euros(d.consomme)} · Reste {prevu ? euros(prevu - d.consomme) : '—'}

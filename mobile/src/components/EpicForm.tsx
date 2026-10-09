@@ -296,7 +296,7 @@ export function EpicForm({
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={[styles.header, (!!pile?.chemin || !!fil || !!espaceFil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
           <BoutonRetour pile={pile} onPress={epic ? fermer : onClose} disabled={busy} style={styles.headerBtn} fermer={!!epic} />
-          <TitreBarre texte={safe.actif ? (epic ? 'Epic' : 'Nouvelle epic') : epic ? 'Projet (epic)' : 'Nouveau projet (epic)'} couleur={form.couleur} avecFil={!!pile?.chemin || !!fil || !!espaceFil} />
+          <TitreBarre texte={safe.actif ? (epic ? 'Epic' : 'Nouvelle epic') : epic ? 'Projet' : 'Nouveau projet'} couleur={form.couleur} avecFil={!!pile?.chemin || !!fil || !!espaceFil} />
           {/* Nouvelle epic : « Enregistrer » ; epic existante : enregistrée au fil de l'eau */}
           {epic ? (
             <View style={{ width: 60 }} />
