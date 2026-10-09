@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { libelleNote } from '../daily';
 import { useHierarchy } from '../hierarchyContext';
 import type { OrgValue } from '../organisation';
@@ -19,7 +19,7 @@ import {
 import { jourCourt } from '../pointsSuivi';
 import { colors } from '../theme';
 import type { Echange, PointReunion } from '../types';
-import { SectionFiche } from './Choix';
+import { LigneChoix, SectionFiche } from './Choix';
 import { TitreFiche } from './FormSheet';
 import { Compteur, Ligne, st, Vide } from './reunion/ui';
 
@@ -28,6 +28,9 @@ import { Compteur, Ligne, st, Vide } from './reunion/ui';
  * rôles (équipe ; RTE ou PM : train et ses équipes ; Epic Owner : portfolio ; mode Simple : 🔒 Moi). Lecture seule :
  * avancement, charge, prévisibilité, suivis de toutes les réunions du niveau, décisions prises, alertes.
  */
+const LIBELLE_NIVEAU = { equipeagile: 'Équipe agile', train: 'Train', portfolio: 'Portfolio', perso: 'Mode Simple' } as const;
+const LIBELLE_GROUPE = { equipeagile: 'Mes équipes', train: 'Mes trains', portfolio: 'Mes portfolios' } as const;
+
 export function PilotageView({
   org,
   moi,
@@ -250,18 +253,21 @@ export function PilotageView({
 
   return (
     <ScrollView contentContainerStyle={s.page}>
-      <TitreFiche icone="📊" titre="Pilotage" vide="" sous="Selon vos rôles · lecture seule" />
+      <TitreFiche icone="📊" titre={`Pilotage · ${n.nom.replace(/^\S+\s/, '')}`} vide="" sous={`${LIBELLE_NIVEAU[n.kind]} · lecture seule`} />
+      {/* Plusieurs casquettes (09/10) : le niveau se choisit en haut ; un seul niveau : pas de choix */}
       {niveaux.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.puces}>
-          {niveaux.map((x) => {
-            const on = x === n;
-            return (
-              <Pressable key={`${x.kind}:${x.id}`} onPress={() => setChoisi(`${x.kind}:${x.id}`)} style={[s.puce, on && s.puceOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                <Text style={[s.puceTexte, on && s.puceTexteOn]}>{x.nom}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        <SectionFiche titre="Niveau de pilotage">
+          <LigneChoix
+            fixe
+            label="Piloter"
+            value={`${n.kind}:${n.id}`}
+            groupes={(['equipeagile', 'train', 'portfolio'] as const)
+              .map((k) => ({ titre: LIBELLE_GROUPE[k], options: niveaux.filter((x) => x.kind === k).map((x) => ({ value: `${x.kind}:${x.id}`, label: x.nom })) }))
+              .filter((g) => g.options.length)}
+            titreFeuille="Niveau de pilotage"
+            onChange={setChoisi}
+          />
+        </SectionFiche>
       )}
       {contenu}
       {blocSuivis}
@@ -275,11 +281,6 @@ const s = StyleSheet.create({
   page: { paddingBottom: 40 },
   aide: { fontSize: 12, color: colors.muted, lineHeight: 17, paddingHorizontal: 10, paddingBottom: 10 },
   pad: { padding: 10 },
-  puces: { gap: 8, paddingHorizontal: 16, paddingVertical: 8 },
-  puce: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#fff' },
-  puceOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  puceTexte: { fontSize: 13.5, color: colors.text },
-  puceTexteOn: { color: '#fff', fontWeight: '600' },
   burndown: { flexDirection: 'row', alignItems: 'flex-end', height: 80, gap: 2, marginTop: 6 },
   colonne: { flex: 1, height: '100%', justifyContent: 'flex-end' },
   barre: { backgroundColor: colors.primary, borderTopLeftRadius: 2, borderTopRightRadius: 2 },

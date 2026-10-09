@@ -47,6 +47,8 @@ dans la fiche Personne, coût d'une journée = salaire ÷ 218 ; consommé = poin
 d'une journée du responsable ; bloc Budget du Pilotage portfolio, dépassement en rouge) ; conversion des estimations
 (le Sheet garde des points ; en mode Simple, jours = points × « 1 point = … j » de l'équipe, saisie en jours
 reconvertie ; src/pi.ts reglerConversion / pointsOf). Capacité d'une personne : en jours partout.
+Niveau choisi en haut (« Niveau de pilotage › Piloter », groupé Mes équipes · Mes trains · Mes portfolios) quand on a
+plusieurs casquettes ; un seul niveau : pas de choix, titre « Pilotage · Mobile ».
 Reste (pilotage) : salaires visibles de ceux qui lisent l'Organisation (à revoir avec les droits transverses).
 
 ## Questions ouvertes à l'utilisateur
