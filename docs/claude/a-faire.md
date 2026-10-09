@@ -49,8 +49,13 @@ d'une journée du responsable ; bloc Budget du Pilotage portfolio, dépassement 
 reconvertie ; src/pi.ts reglerConversion / pointsOf). Capacité d'une personne : en jours partout.
 Niveaux affichés en haut en puces (un appui, sans fenêtre) quand on a plusieurs casquettes ; un seul niveau : pas de
 choix, titre « Pilotage · Mobile ». « Salaire » renommé « Coût annuel » (colonne cout_annuel).
-En conception (09/10, attendre « je valide ») : budget affiné : coûts de management (SM, PO, RTE, PM, Epic Owner,
-managers) répartis sur les epics, coûts fixes ponctuels ou périodiques (mois, an), autres types de coûts.
+En conception (09/10, attendre « je valide ») : budget affiné, modèle générique « Dépense » (motif, catégorie,
+montant, période : ponctuel / par jour / par mois / par an / en %, du … au, rattachement epic · équipe · train ·
+portfolio · entreprise, répartition à parts égales par défaut, modifiable en %). Personnes = dépense par an (managers
+SAFe et hiérarchiques compris, parts égales par défaut) ; prestataire = par jour. Jours réels : congés déclarés à la
+Planification, validés par le Scrum Master à la clôture du sprint (pour tous) ; plus de règle des 218 jours. Points
+gardés pour la prévision : budget prévu (objectif) / consommé réel / estimation à la fin, écart surveillé.
+Questions posées : où saisir les frais d'entreprise (loyer…), étape de validation des jours réels, coût d'un salarié.
 Reste (pilotage) : coûts annuels visibles de ceux qui lisent l'Organisation (à revoir avec les droits transverses).
 
 ## Questions ouvertes à l'utilisateur
