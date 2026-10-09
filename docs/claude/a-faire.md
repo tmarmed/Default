@@ -55,12 +55,21 @@ Lot 2 codé (09/10) : congés déclarés (menu du compte « 📅 Mes congés »,
 l'espace), fermetures de l'entreprise (vue Entreprise), Planification les compte dans les disponibilités, Daily
 « Absents aujourd'hui », Rétrospective 1re étape « Jours réels » (prévus = ouvrés − fermetures − congés, corrigés,
 « ✅ Valider » → onglet JoursReels) puis « Ajuster à … j / Garder » (calendrier de l'équipe). src/conges.ts.
-Reste lot 2 : capacité par sprint du PI Planning et de la Préparation du PI (avec les congés).
+Capacité par sprint du PI (PI Planning, Préparation du PI : étape Capacité, calculée avec les congés) : faite.
+Lot 3 codé (09/10) : src/consomme.ts — Consommé réel par période (depuis le 1/01) = personnes (coût annuel ÷ jours
+ouvrés × jours ; équipe : sprint par sprint en % des points réalisés ; RTE/PM → train, Epic Owner → portfolio,
+autres → portfolios) + dépenses (au prorata, réparties, seulement pendant la vie de l'epic) + frais généraux (dont
+« en % » du coût des personnes) ; coût réel d'un point ; reste à faire (features > stories, stories sans
+estimation) ; dépenses à venir ; Estimation à la fin. Pilotage portfolio (Budget prévu · Consommé réel · Estimation
+à la fin, écart, Hors epics, d'où vient le consommé) et fiche de l'epic. Sans accès au Sheet Budget : pas de bloc.
+À revoir : « Hors epics » (sprints sans point réalisé, dépenses avant les epics) peut être gros.
 Suite : coder en 5 lots (1 Sheet Budget + dépenses ; 2 congés + jours réels ; 3 calculs + Pilotage ;
 4 demandes de budget en réunion + messages ; 5 dossier d'investissement + mode Simple + Mes suivis).
 10. Sécurité du Sheet « 💶 Budget » (demandé le 09/10) : aujourd'hui partagé à la main dans Google Drive ; à
    concevoir : partage automatique avec les seules personnes qui ont le droit « Gérer le budget » (retrait quand le
    droit disparaît), sans lien public ni autorisation plus large ; lié aux droits transverses (point 6).
+11. Revoir les « Fermetures de l'entreprise » (demandé le 09/10) : d'où vient ce point, qui les saisit, à quoi elles
+   servent (aujourd'hui : section de la vue Entreprise, déduites des jours de chacun) ; à reprendre en brainstorm.
 9. Renforcer la confidentialité du Chat : « prive » n'est qu'à l'affichage, l'onglet Echanges reste lisible par qui
    ouvre le Sheet de l'espace (sujet à part, 09/10).
 ## Fait (09/10) : Pilotage (lot 5)

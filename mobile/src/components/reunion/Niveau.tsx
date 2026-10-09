@@ -5,6 +5,8 @@ import { fmtPoints, piOf, shiftPi, nomSprintDe } from '../../pi';
 import type { CatalogueParcours, EtapeCatalogue, ParcoursRole } from '../../reunions';
 import { lireNombre } from '../../reunionsEquipe';
 import { useSafe } from '../../safe';
+import { useConges } from '../../conges';
+import { capaciteEquipePI } from '../../pilotage';
 import { colors } from '../../theme';
 import { type Epic, ETATS_EPIC, type Feature, type TypeReunion, TYPES_REUNION } from '../../types';
 import { SectionFiche } from '../Choix';
@@ -44,7 +46,7 @@ type Etape =
   | { k: 'liste'; icone: string; titre: string; sous: string; lignes: (c: Ctx) => Elem[]; points?: boolean; ajout?: Ajout }
   | { k: 'elements'; icone: string; mot: string; liste: (c: Ctx) => Elem[]; choix?: string[]; ajout?: Ajout }
   | { k: 'points'; icone: string; titre: string; sous: string; placeholder: string }
-  | { k: 'saisies'; icone: string; titre: string; sous: string; cle: string; vote?: 'etoiles'; ajout?: Ajout }
+  | { k: 'saisies'; icone: string; titre: string; sous: string; cle: string; vote?: 'etoiles'; ajout?: Ajout; capacitePI?: boolean }
   | { k: 'confiance' }
   | { k: 'budget'; cle: string }
   | { k: 'concretisation' }
@@ -110,7 +112,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
     sm: [
       ['situation', 'Situation', SIT('Un plan par équipe, des objectifs du PI, les risques traités', 'Plans d’équipe, objectifs du PI avec leur valeur, risques (ROAM), un vote de confiance d’au moins 3.', (c) => [{ valeur: String(c.features.length), libelle: 'features du PI' }, { valeur: String(objectifsPI(c).length), libelle: 'objectifs du PI' }, { valeur: String(c.r.donneesDe('risque').length), libelle: 'risques', ton: 'orange' }])],
       ['contexte', 'Contexte', { k: 'saisies', icone: '🧭', titre: 'Contexte', sous: 'Vision du PM, features priorisées', cle: 'vision' }],
-      ['capacite', 'Capacité', { k: 'saisies', icone: '👥', titre: 'Capacité par équipe', sous: 'Déclarée par les SM', cle: 'capacite' }],
+      ['capacite', 'Capacité', { k: 'saisies', icone: '👥', titre: 'Capacité par équipe', sous: 'Calculée avec les congés déclarés · précisions des SM', cle: 'capacite', capacitePI: true }],
       ['plans', 'Plans d’équipe', { k: 'liste', icone: '🗓️', titre: 'Plans d’équipe', sous: 'Features du PI par équipe et sprint', lignes: featuresPI, points: true, ajout: 'feature_pi' }],
       ['objectifs', 'Objectifs du PI', { k: 'liste', icone: '🏁', titre: 'Objectifs du PI', sous: 'Préparés par les PO · valeur par les Business Owners', lignes: objectifsPI, points: true, ajout: 'objectifpi' }],
       ['risques', 'Risques', { k: 'points', icone: '⚠', titre: 'Risques · ROAM', sous: 'Résolu, Owned, Accepté, Mitigé : à la concrétisation', placeholder: '＋ Risque' }],
@@ -235,7 +237,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
       ['situation', 'Situation', SIT('Préparer le PI Planning', 'Vision, features, capacité, dépendances et organisation des deux jours.', (c) => [{ valeur: String(featuresPrep(c).length), libelle: 'features candidates' }, { valeur: String(c.r.donneesDe('capacite').length), libelle: 'capacités reçues' }, { valeur: String(c.r.tous.filter((x) => c.r.ici(x)).length), libelle: 'points' }])],
       ['vision', 'Vision', { k: 'saisies', icone: '🧭', titre: 'Vision', sous: 'Du PM', cle: 'vision' }],
       ['features', 'Features du PI', { k: 'liste', icone: '🧩', titre: 'Features du PI', sous: 'Candidates, ordre du PM', lignes: featuresPrep, ajout: 'feature_prochain' }],
-      ['capacite', 'Capacité', { k: 'saisies', icone: '👥', titre: 'Capacité des équipes', sous: 'Déclarée par les SM', cle: 'capacite' }],
+      ['capacite', 'Capacité', { k: 'saisies', icone: '👥', titre: 'Capacité des équipes', sous: 'Calculée avec les congés déclarés · précisions des SM', cle: 'capacite', capacitePI: true }],
       ['dependances', 'Dépendances', { k: 'points', icone: '🔗', titre: 'Dépendances', sous: 'Entre équipes et avec l’extérieur', placeholder: '＋ Dépendance (blocage) ou action' }],
       ['organisation', 'Organisation', { k: 'points', icone: '🗓️', titre: 'Organisation', sous: 'Salles, horaires, invités', placeholder: '＋ Action ou décision' }],
       ['concretisation', 'Concrétisation', CONC],
@@ -328,6 +330,9 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
   const features = e.h.featureList.filter((f) => (n?.kind === 'train' ? (f.train ?? '') === n.id : true) && f.pi === pi);
   const epics = e.h.epicList.filter((x) => (n?.kind === 'portfolio' ? x.portfolio === n.id : e.portfolio ? x.portfolio === e.portfolio.id : true));
   const c: Ctx = { r, e, pi, piSuivant: shiftPi(pi, 1), features, epics, fmt };
+  // Capacité par sprint du PI (lot 2, 09/10) : équipes du train, avec les congés déclarés
+  const congesCtx = useConges();
+  const equipesCapa = n?.kind === 'train' ? r.org.equipes.filter((x) => x.train === n.id) : e.equipe ? [e.equipe] : [];
   const animateur = e.nomDe(p.reunion.organisateur);
   const [cleAnim, setCleAnim] = useState('');
   const [idx, setIdx] = useState<Record<string, number>>({});
@@ -530,6 +535,23 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
         return (
           <>
             <TitreFiche icone={et.icone} titre={`${et.titre} · ${l.length}`} vide="" sous={et.sous} />
+            {et.capacitePI &&
+              equipesCapa.map((eq) => {
+                const l2 = capaciteEquipePI(eq.id, r.org, congesCtx.conges, pi);
+                return (
+                  <SectionFiche key={eq.id} titre={`👥 ${eq.nom} · ${fmt(l2.filter((y) => !y.ip).reduce((x, y) => x + y.points, 0))} sur le PI`}>
+                    {l2.map((y, i) => (
+                      <Ligne
+                        key={y.sprint}
+                        premiere={i === 0}
+                        texte={`${y.ip ? 'Semaine IP' : y.nom} · ${y.start.slice(8, 10)}/${y.start.slice(5, 7)} → ${y.end.slice(8, 10)}/${y.end.slice(5, 7)}`}
+                        sous={`${y.jours} j prévus = ${y.personnes} personne${y.personnes > 1 ? 's' : ''} × ${y.ouvres} jours ouvrés${y.absences ? ` − ${y.absences} j de congés ou fermeture` : ''} · 1 point = ${String(y.jpp).replace('.', ',')} j`}
+                        pastille={{ texte: y.ip ? `${y.jours} j` : fmt(y.points), ton: y.absences ? 'orange' : 'bleu' }}
+                      />
+                    ))}
+                  </SectionFiche>
+                );
+              })}
             <SectionFiche titre={et.vote ? (revele ? 'Votes révélés' : ouvert ? '🗳️ Vote ouvert · votes cachés' : 'Reçues') : 'Reçues'}>
               {tri.length ? tri.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`par ${e.nomDe(y.par)}`} pastille={revele ? { texte: `★ ${nbv(y.id)}`, ton: 'orange' } : undefined} />) : <Vide texte="Rien reçu pour l’instant." />}
               {et.vote && !lecture && r.anime && !!l.length && (

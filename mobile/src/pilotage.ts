@@ -1,12 +1,14 @@
 import { addDays, toDateString } from './dates';
 import { joursOuvres } from './budget';
+import { joursPrevus } from './conges';
 import { aConcretiser, storiesBloquees } from './daily';
 import type { HierarchyValue } from './hierarchyContext';
 import { membresDe, type OrgValue } from './organisation';
-import { iterationOf, iterationOfItem, lireCalendrier, piOf, pointsBruts, pointsOf } from './pi';
+import { iterationOf, iterationOfItem, iterationsOf, lireCalendrier, piOf, pointsOf } from './pi';
 import { enRetardSuivi, estFini, statutEffectif } from './pointsSuivi';
 import { pointsFaits, velocite } from './reunionsEquipe';
-import type { Echange, Epic, Item, PointReunion } from './types';
+import type { Conge, Echange, Epic, Item, PointReunion } from './types';
+import type { DetailEpic } from './consomme';
 
 /**
  * 📊 Pilotage (lot 5, maquette validée le 09/10, docs/maquette-pilotage.html) : calculs purs, sans écriture.
@@ -117,12 +119,16 @@ export function piloteTrain(trainId: string, org: OrgValue, h: H, points: PointR
 }
 
 /** Portfolio : epics par état et leur avancement, OKR et leurs résultats clés */
-export function pilotePortfolio(portfolioId: string, org: OrgValue, h: H, today: string, couts: Map<string, string> = new Map()) {
+/**
+ * Pilotage du portfolio. `detail` (src/consomme.ts, lot 3) : Consommé réel, coût d'un point, estimation à la fin de
+ * chaque epic ; sans lui (pas d'accès au Sheet Budget), pas de bloc Budget.
+ */
+export function pilotePortfolio(portfolioId: string, org: OrgValue, h: H, today: string, detail?: (e: Epic) => DetailEpic) {
   const pf = org.portfolio.get(portfolioId);
   const epics = h.epicList.filter((e) => e.portfolio === portfolioId).map((e) => {
     const fs = h.featureList.filter((f) => f.epic === e.id);
     const st = h.items.filter((t) => t.type === 'story' && fs.some((f) => f.id === t.feature));
-    return { e, pct: st.length ? Math.round((100 * st.filter((t) => t.statut === 'termine').length) / st.length) : 0, budget: budgetEpic(e, org, h, couts) };
+    return { e, pct: st.length ? Math.round((100 * st.filter((t) => t.statut === 'termine').length) / st.length) : 0, prevu: nombre(e.budget), d: detail?.(e) };
   });
   const parEtat = (v: string) => epics.filter((x) => (x.e.etat || 'idee') === v).length;
   const okrs = h.objectifList
@@ -135,8 +141,18 @@ export function pilotePortfolio(portfolioId: string, org: OrgValue, h: H, today:
       });
       return { o, nbKr: krs.length, pct: pcts.length ? Math.round(pcts.reduce((s, x) => s + x, 0) / pcts.length) : 0, clos: !!o.fin && o.fin < today };
     });
-  const avecBudget = epics.filter((x) => x.budget.prevu || x.budget.consomme);
-  const budget = { prevu: avecBudget.reduce((s, x) => s + x.budget.prevu, 0), consomme: avecBudget.reduce((s, x) => s + x.budget.consomme, 0), epics: avecBudget };
+  const avec = epics.filter((x) => x.prevu || (x.d && x.d.consomme));
+  const budget = detail
+    ? {
+        prevu: avec.reduce((s, x) => s + x.prevu, 0),
+        consomme: avec.reduce((s, x) => s + (x.d?.consomme ?? 0), 0),
+        estimationFin: avec.reduce((s, x) => s + (x.d?.estimationFin ?? 0), 0),
+        personnes: avec.reduce((s, x) => s + (x.d?.personnes ?? 0), 0),
+        depenses: avec.reduce((s, x) => s + (x.d?.depenses ?? 0), 0),
+        frais: avec.reduce((s, x) => s + (x.d?.frais ?? 0), 0),
+        epics: avec,
+      }
+    : null;
   return { epics, budget, idee: parEtat('idee'), analysePret: parEtat('analyse') + parEtat('pret'), enCours: parEtat('en_cours'), termine: parEtat('termine'), okrs };
 }
 
@@ -148,37 +164,6 @@ export function joursOuvresAnnee(annee: number): number {
 }
 const nombre = (v?: string) => Number(String(v ?? '').replace(/\s/g, '').replace(',', '.')) || 0;
 export const coutJour = (coutAnnuel?: string, annee = new Date().getFullYear()) => Math.round(nombre(coutAnnuel) / joursOuvresAnnee(annee));
-
-/**
- * Consommé d'une epic (09/10), calculé : pour chaque tâche ou story terminée de l'epic (directement ou par sa
- * feature), points × jours par point de l'équipe × coût d'une journée du responsable (son coût annuel ÷ 218).
- * `sansCout` : jours terminés dont le responsable n'a pas de coût annuel (non comptés).
- */
-export function consommeCalcule(epicId: string, org: OrgValue, h: Pick<H, 'items' | 'featureList'>, couts: Map<string, string> = new Map()) {
-  const fs = new Map(h.featureList.filter((f) => f.epic === epicId).map((f) => [f.id, f]));
-  let euros = 0;
-  let jours = 0;
-  let sansCout = 0;
-  for (const t of h.items) {
-    if (t.parent || t.statut !== 'termine' || !(t.epic === epicId || fs.has(t.feature))) continue;
-    const equipe = t.equipe || fs.get(t.feature)?.equipe || '';
-    const j = pointsBruts(t) * (equipe ? (calendrierEquipe(equipe, org).jpp ?? 1) : 1);
-    const cout = coutJour(couts.get(t.responsable ?? ''));
-    jours += j;
-    if (cout) euros += j * cout;
-    else sansCout += j;
-  }
-  return { euros: Math.round(euros), jours: Math.round(jours * 10) / 10, sansCout: Math.round(sansCout * 10) / 10 };
-}
-
-/** Budget d'une epic : prévu, consommé (saisi à la main, sinon calculé), reste */
-export function budgetEpic(e: Epic, org: OrgValue, h: Pick<H, 'items' | 'featureList'>, couts: Map<string, string> = new Map()) {
-  const calc = consommeCalcule(e.id, org, h, couts);
-  const manuel = (e.consomme ?? '') !== '';
-  const consomme = manuel ? nombre(e.consomme) : calc.euros;
-  const prevu = nombre(e.budget);
-  return { prevu, consomme, manuel, calcule: calc, depasse: prevu > 0 && consomme > prevu };
-}
 
 /** « 12 300 € » */
 export const euros = (n: number) => `${Math.round(n).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ')} €`;
@@ -238,3 +223,20 @@ export const decisionsDuNiveau = (points: PointReunion[], n: Pick<NiveauPilotage
   points
     .filter((p) => p.reunion.includes(cleNiveau(n)) && p.type === 'decision' && (p.sous_type === 'prise' || (!p.sous_type && p.concretisation === 'rien')))
     .sort((a, b) => b.reunion.slice(-10).localeCompare(a.reunion.slice(-10)));
+
+/**
+ * Capacité d'une équipe pour chaque sprint d'un PI (lot 2, 09/10) : jours prévus de ses membres (jours ouvrés −
+ * fermetures − congés déclarés), convertis en points avec « 1 point = … j » de l'équipe. Pour le PI Planning et la
+ * Préparation du PI. Semaine IP comprise (signalée).
+ */
+export function capaciteEquipePI(equipeId: string, org: OrgValue, conges: Conge[], pi: string) {
+  const e = org.equipe.get(equipeId);
+  const cal = calendrierEquipe(equipeId, org);
+  const jpp = cal.jpp ?? 1;
+  const emails = e ? [...new Set([...membresDe(e), e.po, e.sm].filter(Boolean))].map((id) => org.personne.get(id)?.email?.toLowerCase() ?? '').filter(Boolean) : [];
+  return iterationsOf(pi, cal).map((it) => {
+    const ouvres = joursOuvres(it.start, it.end);
+    const jours = emails.reduce((s, m) => s + joursPrevus(conges, m, it.start, it.end), 0);
+    return { sprint: it.key, nom: it.nom, ip: it.code === 'IP', start: it.start, end: it.end, jours, ouvres, personnes: emails.length, absences: emails.length * ouvres - jours, points: Math.round((jours / jpp) * 10) / 10, jpp };
+  });
+}

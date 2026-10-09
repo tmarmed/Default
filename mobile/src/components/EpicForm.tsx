@@ -33,7 +33,8 @@ import { ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, LigneMulti, ListeEnf
 import { SectionPointsReunion } from './PointsElement';
 import { okrsParValueStreams } from '../strategie';
 import { useOrg } from '../organisation';
-import { consommeCalcule, euros } from '../pilotage';
+import { euros } from '../pilotage';
+import { consommeReel } from '../consomme';
 import { useBudget } from '../budget';
 import { SectionDepenses } from './Budget';
 
@@ -436,14 +437,21 @@ export function EpicForm({
                   <SaisieFiche placeholder="Facultatif (ex. 120000)" value={form.budget ?? ''} onChangeText={(v) => set('budget', v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
                 </ChampFiche>
                 {(() => {
-                  const c = epic ? consommeCalcule(epic.id, org, { items, featureList: h.featureList }, budget.couts) : null;
+                  // Lot 3 : consommé réel par période (personnes + dépenses + frais généraux), estimation à la fin
+                  const d = epic ? consommeReel({ org, h: { items, featureList: h.featureList, epicList: h.epicList }, couts: budget.couts, depenses: budget.depenses, today: toDateString(new Date()) }).detail({ ...epic, consomme: '' }) : null;
                   return (
-                    <ChampFiche
-                      label="Consommé"
-                      sous={`Vide : calculé${c ? ` (${euros(c.euros)}, ${c.jours} j terminés${c.sansCout ? `, dont ${c.sansCout} j sans coût annuel renseigné` : ''})` : ''} : points terminés × jours par point × coût d’une journée du responsable (coût annuel ÷ jours ouvrés de l’année).`}
-                    >
-                      <SaisieFiche placeholder={c ? `Calculé : ${euros(c.euros)}` : 'Calculé'} value={form.consomme ?? ''} onChangeText={(v) => set('consomme', v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
-                    </ChampFiche>
+                    <>
+                      <ChampFiche label="Consommé réel" sous={`Vide : calculé${d ? ` (${euros(d.consomme)} : personnes ${euros(d.personnes)}, dépenses ${euros(d.depenses)}, frais généraux ${euros(d.frais)})` : ''}. Modifiable à la main.`}>
+                        <SaisieFiche placeholder={d ? `Calculé : ${euros(d.consomme)}` : 'Calculé'} value={form.consomme ?? ''} onChangeText={(v) => set('consomme', v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
+                      </ChampFiche>
+                      {d && (
+                        <>
+                          <LigneEnfant texte="Reste à faire estimé" meta={`${Math.round(d.restePts * 10) / 10} pts × ${euros(d.coutPoint)} = ${euros(d.restePts * d.coutPoint)}${d.sansEstimation ? ` · dont ${d.sansEstimation} stor${d.sansEstimation > 1 ? 'ies' : 'y'} sans estimation` : ''}`} />
+                          <LigneEnfant texte="Dépenses à venir" meta={euros(d.fixesAVenir)} />
+                          <LigneEnfant texte="Estimation à la fin" meta={`${euros((form.consomme ? Number(String(form.consomme).replace(',', '.')) || 0 : d.consomme) + d.restePts * d.coutPoint + d.fixesAVenir)}${form.budget ? ` · budget prévu ${euros(Number(String(form.budget).replace(',', '.')) || 0)}` : ''}`} />
+                        </>
+                      )}
+                    </>
                   );
                 })()}
               </SectionFiche>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { libelleNote } from '../daily';
 import { useBudget } from '../budget';
+import { consommeReel } from '../consomme';
 import { useHierarchy } from '../hierarchyContext';
 import type { OrgValue } from '../organisation';
 import { nomSprintDe, piLabel } from '../pi';
@@ -196,7 +197,9 @@ export function PilotageView({
       </>
     );
   } else if (n.kind === 'portfolio') {
-    const x = pilotePortfolio(n.id, org, h, today, budget.couts);
+    const conso = consommeReel({ org, h, couts: budget.couts, depenses: budget.depenses, today });
+    const accesBudget = Object.values(budget.parEspace).some((b) => b.accessible);
+    const x = pilotePortfolio(n.id, org, h, today, accesBudget ? conso.detail : undefined);
     contenu = (
       <>
         <SectionFiche titre="Epics par état">
@@ -208,20 +211,42 @@ export function PilotageView({
           {x.epics.map((y, i) => ligneJauge(y.e.id, `🗂️ ${y.e.titre}`, `${y.e.etat || 'idée'} · ${y.pct} %`.replace('en_cours', 'en cours').replace('termine', 'terminé').replace(/^pret/, 'prêt'), y.pct, undefined, i === 0))}
           {!x.epics.length && <Vide texte="Aucun epic dans ce portfolio." />}
         </SectionFiche>
-        <SectionFiche titre="Budget · prévu / consommé">
-          <View style={[st.compteurs, s.pad]}>
-            <Compteur valeur={eurosCourt(x.budget.prevu)} libelle="prévu" />
-            <Compteur valeur={eurosCourt(x.budget.consomme)} libelle="consommé" ton={x.budget.prevu && x.budget.consomme > x.budget.prevu ? 'rouge' : undefined} />
-            <Compteur valeur={eurosCourt(Math.max(0, x.budget.prevu - x.budget.consomme))} libelle="reste" />
-          </View>
-          {x.budget.epics.map((y, i) => {
-            const b = y.budget;
-            const detail = b.manuel ? 'saisi à la main' : `calculé : ${b.calcule.jours} j terminés${b.calcule.sansCout ? ` · ${b.calcule.sansCout} j sans coût annuel renseigné` : ''}`;
-            return ligneJauge(`b${y.e.id}`, `🗂️ ${y.e.titre}`, `${euros(b.consomme)} sur ${b.prevu ? euros(b.prevu) : 'budget non renseigné'} · ${detail}`, b.prevu ? (100 * b.consomme) / b.prevu : 0, b.depasse ? 'rouge' : undefined, i === 0, b.depasse ? { texte: `+${euros(b.consomme - b.prevu)}`, ton: 'rouge' } : undefined);
-          })}
-          {!x.budget.epics.length && <Vide texte="Aucun budget renseigné (fiche de l’epic)." />}
-          <Text style={s.aide}>Consommé calculé : points terminés × jours par point de l’équipe × coût d’une journée du responsable (coût annuel ÷ jours ouvrés de l’année, fiche Personne). Modifiable à la main dans la fiche de l’epic.</Text>
-        </SectionFiche>
+        {x.budget ? (
+          <SectionFiche titre={`Budget · depuis le ${jourCourt(conso.debut)}`}>
+            <View style={[st.compteurs, s.pad]}>
+              <Compteur valeur={eurosCourt(x.budget.prevu)} libelle="Budget prévu" />
+              <Compteur valeur={eurosCourt(x.budget.consomme)} libelle="Consommé réel" />
+              <Compteur valeur={eurosCourt(x.budget.estimationFin)} libelle="Estimation à la fin" ton={x.budget.prevu && x.budget.estimationFin > x.budget.prevu ? 'rouge' : undefined} />
+            </View>
+            {x.budget.epics.map((y, i) => {
+              const d = y.d!;
+              const ecart = y.prevu ? d.estimationFin - y.prevu : 0;
+              const alertes = [d.sansEstimation ? `dont ${d.sansEstimation} stor${d.sansEstimation > 1 ? 'ies' : 'y'} sans estimation` : '', d.estimationDepassee ? 'estimation des features dépassée' : ''].filter(Boolean).join(' · ');
+              return ligneJauge(
+                `b${y.e.id}`,
+                `🗂️ ${y.e.titre}`,
+                `Prévu ${y.prevu ? euros(y.prevu) : 'non renseigné'} · Consommé réel ${euros(d.consomme)} · Estimation à la fin ${euros(d.estimationFin)}${alertes ? ` · ⚠ ${alertes}` : ''}`,
+                y.prevu ? (100 * d.consomme) / y.prevu : 0,
+                ecart > 0 ? 'rouge' : undefined,
+                i === 0,
+                y.prevu ? (ecart > 0 ? { texte: `+${euros(ecart)}`, ton: 'rouge' } : { texte: 'dans le budget', ton: 'vert' }) : undefined,
+              );
+            })}
+            {conso.hors.personnes + conso.hors.depenses + conso.hors.frais > 0 &&
+              ligneJauge('hors', '📦 Hors epics', `Sans point réalisé sur une epic, ou porté par un élément sans epic · ${euros(conso.hors.personnes + conso.hors.depenses + conso.hors.frais)}`, 0)}
+            {!x.budget.epics.length && <Vide texte="Aucun budget renseigné (fiche de l’epic)." />}
+          </SectionFiche>
+        ) : null}
+        {x.budget && (
+          <SectionFiche titre="D’où vient le consommé">
+            {ligneJauge('cp', '👥 Personnes (jours ouvrés × coût annuel)', euros(x.budget.personnes), x.budget.consomme ? (100 * x.budget.personnes) / x.budget.consomme : 0, undefined, true)}
+            {ligneJauge('cd', '🔁 Dépenses', euros(x.budget.depenses), x.budget.consomme ? (100 * x.budget.depenses) / x.budget.consomme : 0)}
+            {ligneJauge('cf', '🏢 Frais généraux', euros(x.budget.frais), x.budget.consomme ? (100 * x.budget.frais) / x.budget.consomme : 0)}
+            <Text style={s.aide}>
+              Coût réel d’un point : {euros(conso.coutPointMoyen)} en moyenne. Estimation à la fin = consommé réel + points restants × coût réel d’un point + dépenses à venir.
+            </Text>
+          </SectionFiche>
+        )}
         <SectionFiche titre="OKR · résultats clés">
           {x.okrs.map((y, i) => ligneJauge(y.o.id, `🎯 ${y.o.titre}`, `${y.nbKr} résultat${y.nbKr > 1 ? 's' : ''} clé${y.nbKr > 1 ? 's' : ''} · ${y.pct} %${y.clos ? ' · clos' : ''}`, y.pct, y.pct >= 60 ? 'vert' : undefined, i === 0, y.clos ? { texte: 'Clos', ton: 'gris' } : undefined))}
           {!x.okrs.length && <Vide texte="Aucun OKR avec des résultats clés." />}

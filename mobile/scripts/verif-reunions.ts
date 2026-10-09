@@ -8,7 +8,8 @@ import { absentsLe, joursAbsence, joursPrevus, jppConstate } from '../src/conges
 import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '../src/budget';
 import { nettoyerDepense } from '../src/magasin';
 import type { Conge, Depense } from '../src/types';
-import { budgetEpic, consommeCalcule, coutJour, joursOuvresAnnee, niveauxDeRoles, piloteEquipe, pilotePortfolio, piloteTrain, suivisDuNiveau } from '../src/pilotage';
+import { consommeReel } from '../src/consomme';
+import { capaciteEquipePI, coutJour, joursOuvresAnnee, niveauxDeRoles, piloteEquipe, pilotePortfolio, piloteTrain, suivisDuNiveau } from '../src/pilotage';
 import { pointsFinis, backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteCompteRendu, texteReponse, veilleOuvree } from '../src/daily';
 import { toDateString } from '../src/dates';
 import { ciblesEscalade, destinatairesTransfert, equipesDePersonne } from '../src/echange/hierarchieEchange';
@@ -425,18 +426,36 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const tr = piloteTrain('acmtr1', oT, hP, [], jourP);
   ok(tr.equipes.length === 2, 'pilotage train : charge de ses deux équipes');
   ok(pilotePortfolio('acmpf1', oT, hP, jourP).epics.length > 0, 'pilotage portfolio : ses epics');
-  // Budget (09/10) : consommé = points terminés × jours par point × coût annuel ÷ 218 ; saisi à la main, il l'emporte
-  const pf = pilotePortfolio('acmpf1', oT, hP, jourP);
-  ok(pf.budget.prevu === 200000 && pf.budget.epics.length === 2, 'budget : prévu des epics du portfolio');
-  const st = { parent: '', feature: '', id: 'bx1', type: 'story', statut: 'termine', epic: 'acme2', points: '4', equipe: 'acmeqmob', responsable: 'acmp6' } as never;
-  const st2 = { parent: '', feature: '', id: 'bx2', type: 'story', statut: 'termine', epic: 'acme2', points: '2', equipe: 'acmeqmob', responsable: 'acmp1' } as never;
-  const couts = new Map(budgetDemoEntreprise().cout.map((x) => [x.id, x.cout_annuel] as [string, string]));
-  const c = consommeCalcule('acme2', oT, { items: [st, st2], featureList: [] }, couts);
-  const cj = coutJour('58000');
-  ok(joursOuvresAnnee(2026) === 252 && coutJour('58000', 2026) === Math.round(58000 / 252) && c.euros === 4 * cj && c.jours === 6 && c.sansCout === 2, 'budget : coût d’un jour ouvré = coût annuel ÷ jours ouvrés réels de l’année ; consommé calculé, jours sans coût annuel signalés');
-  const ep = (d.entities.epic ?? []).find((e) => e.id === 'acme2')!;
-  const bm = budgetEpic({ ...ep, consomme: '150000' }, oT, { items: [st], featureList: [] });
-  ok(bm.manuel && bm.consomme === 150000 && bm.depasse, 'budget : consommé saisi à la main, dépassement signalé');
+  // Budget lot 3 (09/10) : consommé réel par période = personnes (en % des points réalisés) + dépenses + frais généraux
+  ok(joursOuvresAnnee(2026) === 252 && coutJour('58000', 2026) === Math.round(58000 / 252), 'coût d’un jour ouvré = coût annuel ÷ jours ouvrés réels de l’année');
+  const orgB = makeOrgValue({
+    personnes: [{ id: 'p1', nom: 'P', email: 'p1@x', espace: 'e' }],
+    unites: [],
+    portfolios: [{ id: 'pf', nom: 'PF', epic_owner: '', espace: 'e' }],
+    trains: [{ id: 'tr', nom: 'T', portfolio: 'pf', rte: '', pm: '' }],
+    equipes: [{ id: 'eq', nom: 'Eq', train: 'tr', po: '', sm: '', membres: 'p1', calendrier: '' }],
+  } as never);
+  // Capacité par sprint du PI (lot 2) : jours prévus des membres avec congés, en points (1 point = … j)
+  const capPI = capaciteEquipePI('eq', orgB, [{ id: 'x', personne: 'p1@x', du: '2026-10-05', au: '2026-10-09', nature: 'conge', cree_le: '', modifie_le: '' }], '2026-T4');
+  ok(capPI[0].jours === 5 && capPI[0].absences === 5 && capPI[0].points === 5 && capPI.length >= 6, 'capacité du PI : sprint 1 = 10 j − 5 j de congés = 5 pts');
+  const itB = (id: string, epic: string, points: string, statut: string, termine_le = '') => ({ id, parent: '', feature: '', type: 'story', statut, epic, equipe: 'eq', points, termine_le, modifie_le: '' }) as never;
+  const epB = (id: string) => ({ id, titre: id, portfolio: 'pf', fin: '2026-12-31', consomme: '', budget: '' }) as never;
+  const hB = { items: [itB('a', 'A', '3', 'termine', '2026-10-05'), itB('b', 'B', '1', 'termine', '2026-10-10'), itB('c', 'A', '5', 'a_faire'), itB('d', 'A', '', 'a_faire')], featureList: [], epicList: [epB('A'), epB('B')] };
+  const depB = [
+    { id: 'l', motif: 'Licence', categorie: 'licence', montant: '300', periode: 'mois', du: '2026-10-01', au: '', porteur: 'epic:A', cle: '', parts: '', cree_le: '', modifie_le: '' },
+    { id: 'f', motif: 'Frais', categorie: 'frais_generaux', montant: '10', periode: 'pct', du: '2026-01-01', au: '', porteur: 'entreprise:e', cle: '', parts: '', cree_le: '', modifie_le: '' },
+  ] as Depense[];
+  const cB = consommeReel({ org: orgB, h: hB as never, couts: new Map([['p1', String(200 * 252)]]), depenses: depB, today: '2026-10-14', debut: '2026-10-01' });
+  const dA = cB.detail(epB('A'));
+  const dB = cB.detail(epB('B'));
+  const lic = (300 * 12 * 14) / 365;
+  ok(Math.round(dA.personnes) === 1500 && Math.round(dB.personnes) === 500, 'personnes : 10 j × 200 € réparti en % des points réalisés (3 et 1)');
+  ok(Math.round(dA.depenses) === Math.round(lic) && Math.round(dA.frais) === 150 && Math.round(dB.frais) === 50, 'dépense de l’epic au prorata ; frais généraux 10 % du coût des personnes');
+  ok(dA.coutPoint === 500 && dA.restePts === 5 && dA.sansEstimation === 1, 'coût réel d’un point (1 500 € ÷ 3) ; reste à faire 5 pts, 1 story sans estimation');
+  ok(Math.round(dA.estimationFin) === Math.round(1500 + lic + 150 + 2500 + dA.fixesAVenir) && dA.fixesAVenir > 700, 'estimation à la fin = consommé + reste × coût d’un point + dépenses à venir');
+  ok(cB.detail({ ...(epB('A') as object), consomme: '9999' } as never).consomme === 9999, 'consommé saisi à la main : il l’emporte');
+  const pfB = pilotePortfolio('pf', orgB, { ...hB, objectifList: [], objectifsPI: [], resultats: [], domaineList: [] } as never, '2026-10-14', cB.detail);
+  ok(!!pfB.budget && pilotePortfolio('pf', orgB, { ...hB, objectifList: [], objectifsPI: [], resultats: [], domaineList: [] } as never, '2026-10-14').budget === null, 'pilotage portfolio : bloc budget seulement avec accès au Sheet Budget');
   // Dépenses (lot 1) : un seul modèle, montant sur une période, répartition, vérifications
   const dep = (x: Partial<Depense>) => ({ id: 'x', motif: 'm', categorie: 'autre', montant: '0', periode: 'ponctuel', du: '2026-10-01', au: '', porteur: 'epic:acme2', cle: '', parts: '', cree_le: '', modifie_le: '', ...x }) as Depense;
   ok(montantSurPeriode(dep({ periode: 'ponctuel', montant: '4000', du: '2026-10-15' }), '2026-10-01', '2026-10-31') === 4000 && montantSurPeriode(dep({ periode: 'ponctuel', montant: '4000', du: '2026-11-15' }), '2026-10-01', '2026-10-31') === 0, 'dépense ponctuelle : comptée seulement si sa date tombe dans la période');
