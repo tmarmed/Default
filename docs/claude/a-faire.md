@@ -36,6 +36,9 @@ Ajuster ajoute une note à concrétiser) ; participants repris de l'Organisation
 
 8. Congés déclarés par chacun dans l'application (demandé le 09/10) : capacité de l'équipe calculée d'avance
    (Planification, PI Planning, Préparation du PI, Pilotage), affinée à chaque sprint et validée en Rétrospective.
+Retours maquette budget (09/10) : congés modifiables ; Accorder en partie (montant ≤ demandé) ; « Réparti / Non
+réparti » à renommer plus clair ; message « Pour information » sans aperçu du contenu avant l'appui ; seule une
+personne qui a le droit « Gérer le budget » crée une Demande de budget.
 9. Renforcer la confidentialité du Chat : « prive » n'est qu'à l'affichage, l'onglet Echanges reste lisible par qui
    ouvre le Sheet de l'espace (sujet à part, 09/10).
 ## Fait (09/10) : Pilotage (lot 5)
