@@ -18,6 +18,8 @@ import { FormSheet, TitreFiche } from './FormSheet';
 import { Segmented } from './Segmented';
 import { ListePieces, PiecesEchange } from './Pieces';
 import type { PieceEntree } from '../api';
+import { estDemandeBudget, montantAccordeValide, montantDemandeDe, useBudget } from '../budget';
+import { euros } from '../pilotage';
 import { choisirFichiers, ecouterCollage, FICHIERS_DISPONIBLES, preparer } from '../fichiers';
 
 /**
@@ -66,7 +68,7 @@ interface Props {
   };
   /** Nouvel échange, avec ses pièces jointes (images réduites, fichiers de 1 Mo au plus) */
   onEnvoyer: (e: EchangeInput, pieces: PieceEntree[]) => Promise<void>;
-  onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>;
+  onRepondre: (e: Echange, reponse: string, note: string, montant?: string) => Promise<void>;
   /** Changer sa réponse à une question tant que l'autre ne l'a pas prise en compte */
   onChangerReponse: (e: Echange, reponse: string, note: string) => Promise<void>;
   /** Modifier un échange envoyé : sur place s'il n'est pas lu, sinon en nouvel échange */
@@ -421,7 +423,7 @@ function Conversation({
   onModifier: (e: Echange) => void;
   /** Ouvre un échange dans la fenêtre (consultation, ou pour y répondre) */
   onOuvrir: (e: Echange) => void;
-  onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>;
+  onRepondre: (e: Echange, reponse: string, note: string, montant?: string) => Promise<void>;
   onRetirer: (e: Echange) => Promise<void>;
 }) {
   const aRepondre = echanges.filter((e) => e.a === moi && e.statut === 'envoye');
@@ -559,14 +561,20 @@ function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier, libe
 export const estAutre = (c: string) => c.trim().toLowerCase() === 'autre';
 /** Choix « … (motif) » (« Valider ? » d'un point de suivi : À reprendre, Abandonner) : motif obligatoire */
 export const exigeMotif = (c: string) => /\(motif\)$/.test(c.trim());
-export const placeholderNote = (c: string) => (estAutre(c) ? 'Précisez votre réponse « Autre » (obligatoire)' : exigeMotif(c) ? 'Motif (obligatoire)' : c.startsWith('💶 Accorder') ? 'Montant accordé en euros (vide = le montant demandé)' : 'Remarque (facultatif)');
+export const placeholderNote = (c: string) => (estAutre(c) ? 'Précisez votre réponse « Autre » (obligatoire)' : exigeMotif(c) ? 'Motif (obligatoire)' : 'Remarque (facultatif)');
 export const reponsePrete = (c: string, note: string) => !!c && ((!estAutre(c) && !exigeMotif(c)) || !!note.trim());
 
-function CarteQuestion({ e, onRepondre, pied, onOuvrir }: { e: Echange; onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>; pied?: ReactNode; onOuvrir?: () => void }) {
+function CarteQuestion({ e, onRepondre, pied, onOuvrir }: { e: Echange; onRepondre: (e: Echange, reponse: string, note: string, montant?: string) => Promise<void>; pied?: ReactNode; onOuvrir?: () => void }) {
   const [choix, setChoix] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const options = e.choix.split(';').map((c) => c.trim()).filter(Boolean);
+  // 💶 Demande de budget : « Accorder » a son propre champ « Montant accordé » (pré-rempli, modifiable)
+  const { demandes } = useBudget();
+  const demande = estDemandeBudget(e) ? montantDemandeDe(e, demandes) : 0;
+  const [montant, setMontant] = useState(demande ? String(demande) : '');
+  const accord = estDemandeBudget(e) && choix.startsWith('💶');
+  const pret = reponsePrete(choix, note) && (!accord || montantAccordeValide(montant, demande));
   return (
     <View style={[s.carte, s.carteEchange]}>
       {!!e.element && <FilEchange id={e.element} />}
@@ -583,21 +591,28 @@ function CarteQuestion({ e, onRepondre, pied, onOuvrir }: { e: Echange; onRepond
           </Pressable>
         ))}
       </View>
+      {accord && (
+        <View style={s.montantLigne}>
+          <Text style={s.montantLabel}>Montant accordé (€)</Text>
+          <TextInput value={montant} onChangeText={(v) => setMontant(v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" accessibilityLabel="Montant accordé" style={[s.note, s.montantSaisie, !montantAccordeValide(montant, demande) && { borderColor: colors.warning }]} />
+          {!!demande && <Text style={s.montantLabel}>sur {euros(demande)}</Text>}
+        </View>
+      )}
       <TextInput value={note} onChangeText={setNote} placeholder={placeholderNote(choix)} placeholderTextColor={estAutre(choix) || exigeMotif(choix) ? colors.warning : '#9AA3AF'} multiline style={[s.note, (estAutre(choix) || exigeMotif(choix)) && !note.trim() && { borderColor: colors.warning }]} />
       <Pressable
-        disabled={!reponsePrete(choix, note) || busy}
+        disabled={!pret || busy}
         onPress={async () => {
           setBusy(true);
           try {
-            await onRepondre(e, choix, note.trim());
+            await onRepondre(e, choix, note.trim(), accord ? montant : undefined);
           } finally {
             setBusy(false);
           }
         }}
-        style={[s.action, s.actionPrincipale, (!reponsePrete(choix, note) || busy) && s.inactif]}
+        style={[s.action, s.actionPrincipale, (!pret || busy) && s.inactif]}
         accessibilityRole="button"
       >
-        <Text style={[s.actionTexte, s.actionTexteBlanc]}>{busy ? 'Envoi…' : 'Répondre'}</Text>
+        <Text style={[s.actionTexte, s.actionTexteBlanc]}>{busy ? 'Envoi…' : accord ? `Accorder ${euros(Number(montant.replace(',', '.')) || 0)}` : 'Répondre'}</Text>
       </Pressable>
       {pied}
     </View>
@@ -915,6 +930,9 @@ function NouvelEchange({
 }
 
 const s = StyleSheet.create({
+  montantLigne: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  montantLabel: { fontSize: 13, color: colors.muted },
+  montantSaisie: { flex: 0, width: 110, marginTop: 0, minHeight: 0 },
   ecran: { flex: 1 },
   scroll: { paddingBottom: 130 },
   entete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 16, marginBottom: 8 },

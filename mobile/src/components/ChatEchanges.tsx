@@ -8,7 +8,8 @@ import { FormSheet, TitreFiche } from './FormSheet';
 import { idsPieces, PiecesEchange } from './Pieces';
 import { ActionsEchange } from './Transmettre';
 import { TITRE_RAPPEL } from '../pointsSuivi';
-import { estDemandeBudget } from '../budget';
+import { estDemandeBudget, montantAccordeValide, montantDemandeDe, useBudget } from '../budget';
+import { euros } from '../pilotage';
 
 /**
  * Fenêtre de traitement (à l'ouverture de l'application, ou en ouvrant une conversation) : un seul message à la
@@ -24,7 +25,7 @@ interface Props {
   moi: string;
   elements: ElementChat[];
   onFermer: () => void;
-  onRepondre: (e: Echange, reponse: string, note: string) => Promise<void>;
+  onRepondre: (e: Echange, reponse: string, note: string, montant?: string) => Promise<void>;
   /** Changer sa réponse tant que l'autre ne l'a pas prise en compte */
   onChangerReponse?: (e: Echange, reponse: string, note: string) => Promise<void>;
   onRetirer: (e: Echange) => Promise<void>;
@@ -43,6 +44,8 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
   const [faits, setFaits] = useState<Record<string, { texte: string; passe?: boolean }>>({});
   const [choix, setChoix] = useState('');
   const [note, setNote] = useState('');
+  const [montant, setMontant] = useState('');
+  const { demandes } = useBudget();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -59,6 +62,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
     const deja = x?.kind === 'echange' && x.e.a === moi && x.e.statut === 'repondu' ? x.e : null;
     setChoix(deja?.reponse ?? '');
     setNote(deja?.note ?? '');
+    setMontant(x?.kind === 'echange' && estDemandeBudget(x.e) ? String(montantDemandeDe(x.e, demandes) || '') : '');
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [i, liste]);
@@ -120,6 +124,10 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
     // Votre réponse attend sa prise en compte : elle peut encore être changée
     const modifiable = !!onChangerReponse && e.a === moi && e.statut === 'repondu' && e.type === 'question';
     const question = (!recue && !attente && e.type === 'question') || modifiable;
+    // 💶 Demande de budget : « Accorder » a son propre champ « Montant accordé » (pré-rempli, modifiable)
+    const accord = estDemandeBudget(e) && choix.startsWith('💶');
+    const demande = estDemandeBudget(e) ? montantDemandeDe(e, demandes) : 0;
+    const pret = reponsePrete(choix, note) && (!accord || montantAccordeValide(montant, demande));
     const change = choix !== e.reponse || note.trim() !== (e.note ?? '');
     const options = e.choix.split(';').map((c) => c.trim()).filter(Boolean);
     contenu = (
@@ -189,6 +197,18 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
                 </Pressable>
               ))}
             </SectionFiche>
+            {accord && (
+              <SectionFiche titre="Montant" aDefinir={montantAccordeValide(montant, demande) ? 0 : 1}>
+                <ChampFiche label="Montant accordé (€)">
+                  <SaisieFiche value={montant} onChangeText={(v) => setMontant(v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" accessibilityLabel="Montant accordé" />
+                </ChampFiche>
+                {!!demande && (
+                  <Text style={[s.aide, !montantAccordeValide(montant, demande) && { color: colors.warning }]}>
+                    {Number(montant.replace(',', '.')) > demande ? `Au plus le montant demandé : ${euros(demande)}.` : Number(montant.replace(',', '.')) < demande && Number(montant.replace(',', '.')) > 0 ? `Accord partiel, sur ${euros(demande)} demandés.` : `Montant demandé : ${euros(demande)}.`}
+                  </Text>
+                )}
+              </SectionFiche>
+            )}
             <SectionFiche titre={estAutre(choix) ? 'Précision' : exigeMotif(choix) ? 'Motif' : 'Remarque'} aDefinir={(estAutre(choix) || exigeMotif(choix)) && !note.trim() ? 1 : 0}>
               <ChampFiche label={estAutre(choix) ? 'Pourquoi « Autre »' : exigeMotif(choix) ? 'Motif' : 'Remarque'} colonne>
                 <SaisieFiche placeholder={placeholderNote(choix)} value={note} onChangeText={setNote} multiline />
@@ -227,10 +247,10 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
           <Bouton label={reste > 0 ? 'Suivant ›' : 'Fermer'} busy={false} onPress={() => (reste > 0 ? passer() : onFermer())} />
         ) : question ? (
           <Bouton
-            label={'Répondre'}
+            label={accord ? `Accorder ${euros(Number(montant.replace(',', '.')) || 0)}` : 'Répondre'}
             busy={busy}
-            disabled={!reponsePrete(choix, note)}
-            onPress={() => faire(() => onRepondre(e, choix, note.trim()), `${choix}${note.trim() ? ` — ${note.trim()}` : ''}`)}
+            disabled={!pret}
+            onPress={() => faire(() => onRepondre(e, choix, note.trim(), accord ? montant : undefined), `${accord ? `Accordé ${euros(Number(montant.replace(',', '.')) || 0)}` : choix}${note.trim() ? ` — ${note.trim()}` : ''}`)}
           />
         ) : (
           (recue && hierarchie) || estRappel(e) ? null : <Bouton label={recue ? 'Accepter ✓' : 'Lu ✓'} busy={busy} onPress={() => faire(() => onRetirer(e), recue ? 'Accepter ✓' : 'Lu ✓')} />

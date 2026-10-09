@@ -122,7 +122,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '34';
+const DEMO_DATA_VERSION = '35';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -596,7 +596,7 @@ const SEEDS_ENTREPRISE: Seeds = {
         type: 'question',
         nature: 'decision_a_prendre',
         titre: '💶 Demande de budget · Licence de l’outil de test',
-        texte: '1 200 € · par an · demandée à Rétrospective du 9/10\nÀ traiter à : ART sync\nAccorder : précisez le montant accordé dans la remarque (vide = tout).',
+        texte: '1 200 € · par an · demandée à Rétrospective du 9/10\nÀ traiter à : ART sync',
         choix: '💶 Accorder;↩ À reprendre (motif);✖ Refuser (motif)',
         point: 'acmdb1',
         niveau: 'train:acmtr1',

@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import { addDays, toDateString } from './dates';
 import { estOuvre } from './series';
-import { CATEGORIES_DEPENSE, type CoutPersonne, type DemandeBudget, type Depense, PERIODES_DEPENSE } from './types';
+import { CATEGORIES_DEPENSE, type CoutPersonne, type DemandeBudget, type Depense, type Echange, PERIODES_DEPENSE } from './types';
 
 /**
  * 💶 Budget (lot 1, conception validée le 09/10, docs/maquette-budget.html).
@@ -68,7 +68,7 @@ export function valeurBudget(parEspace: Record<string, BudgetEspace>, actions: P
 // ---------------------------------------------------------------------------
 // 💶 Demandes de budget (lot 4, 09/10) : le circuit par les maillons
 // ---------------------------------------------------------------------------
-export type Decision = { choix: 'accorder'; montant: number } | { choix: 'a_reprendre' | 'refuser'; motif: string } | { choix: 'plus_haut' };
+export type Decision = { choix: 'accorder'; montant: number; note?: string } | { choix: 'a_reprendre' | 'refuser'; motif: string } | { choix: 'plus_haut' };
 /** Titre du message « À décider » (Chat) et de l'information « Pour information » */
 export const TITRE_DEMANDE = '💶 Demande de budget ·';
 export const TITRE_INFO = 'ℹ️ Pour information ·';
@@ -200,3 +200,16 @@ export function enfantsRepartition(
   }
   return [];
 }
+
+/** Montant demandé d'une demande de budget reçue dans le Chat (pré-remplit « Montant accordé », modifiable) */
+export function montantDemandeDe(e: Echange, demandes: DemandeBudget[]): number {
+  const d = demandes.find((x) => x.id === e.point);
+  if (d) return Number(d.montant) || 0;
+  const m = /^([\d  .,]+)\s*€/.exec(e.texte ?? '');
+  return m ? Number(m[1].replace(/[\s  .]/g, '').replace(',', '.')) || 0 : 0;
+}
+/** Accord : montant positif, au plus le montant demandé */
+export const montantAccordeValide = (m: string, demande: number) => {
+  const n = Number(m.replace(',', '.'));
+  return n > 0 && (!demande || n <= demande);
+};

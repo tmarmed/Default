@@ -1580,7 +1580,7 @@ function Main() {
               espace,
               a.map((m) => ({
                 de: moiEchange, a: m, type: 'question', nature: 'decision_a_prendre', titre: `${TITRE_DEMANDE} ${o.motif}`.slice(0, 200),
-                texte: `${eurosBudget(Number(o.montant))} · ${libellePeriode(o.periode).toLowerCase()} · demandée à ${o.origine}${reunionCible ? `\nÀ traiter à : ${reunionCible}` : ''}\nAccorder : précisez le montant accordé dans la remarque (vide = tout).`,
+                texte: `${eurosBudget(Number(o.montant))} · ${libellePeriode(o.periode).toLowerCase()} · demandée à ${o.origine}${reunionCible ? `\nÀ traiter à : ${reunionCible}` : ''}`,
                 choix: CHOIX_DEMANDE.join(';'), reponse: '', note: '', statut: 'envoye', element: '', niveau: destination, transmis_par: '', prive: '1', pieces_jointes: '', point: o.id, parent: '', espace,
               })),
             );
@@ -1598,7 +1598,7 @@ function Main() {
             } else {
               const patch =
                 decision.choix === 'accorder'
-                  ? { statut: 'accordee' as const, montant_accorde: String(Math.min(decision.montant || Number(d.montant), Number(d.montant))), motif_decision: '' }
+                  ? { statut: 'accordee' as const, montant_accorde: String(Math.min(decision.montant || Number(d.montant), Number(d.montant))), motif_decision: decision.note ?? '' }
                   : { statut: decision.choix === 'refuser' ? ('refusee' as const) : ('a_reprendre' as const), motif_decision: decision.motif };
               const o = await api.ecrireDemande(espace, titreBudget(espace), { id: d.id, ...patch, decide_par: moiEchange, decide_le: new Date().toISOString(), hors_reunion: reunion ? '' : '1' });
               setBudgets((b) => ({ ...b, [espace]: { ...b[espace], demandes: (b[espace]?.demandes ?? []).map((x) => (x.id === o.id ? o : x)) } }));
@@ -1872,13 +1872,13 @@ function Main() {
     return out;
   };
   /** Réponse dans Synchro : recopiée en « Décision » dans les réunions de la chaîne, si l'échange est une escalade */
-  const repondreEchange = async (e: Echange, reponse: string, note: string) => {
+  const repondreEchange = async (e: Echange, reponse: string, note: string, montantAccorde?: string) => {
     // 💶 Demande de budget décidée depuis le Chat (lot 4) : mêmes choix qu'en séance, « décidé hors réunion »
     if (estDemandeBudget(e)) {
       const d = budgetActions.current.demandes.find((x) => x.id === e.point);
       if (!d) throw new Error('Demande introuvable (Sheet « Budget » non partagé avec vous ?).');
-      const montant = Number(note.replace(/[^0-9,.]/g, '').replace(',', '.')) || Number(d.montant);
-      await budgetActions.current.deciderDemande(d, reponse.startsWith('💶') ? { choix: 'accorder', montant } : { choix: reponse.startsWith('✖') ? 'refuser' : 'a_reprendre', motif: note }, '');
+      const montant = Number((montantAccorde ?? '').replace(/[^0-9,.]/g, '').replace(',', '.')) || Number(d.montant);
+      await budgetActions.current.deciderDemande(d, reponse.startsWith('💶') ? { choix: 'accorder', montant, note } : { choix: reponse.startsWith('✖') ? 'refuser' : 'a_reprendre', motif: note }, '');
       setInfo(`Demande « ${d.motif} » : ${reponse.startsWith('💶') ? 'accordée' : reponse.startsWith('✖') ? 'refusée' : 'à reprendre'} (hors réunion, revue à la réunion suivante).`);
       return;
     }
