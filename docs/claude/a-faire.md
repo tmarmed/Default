@@ -83,6 +83,18 @@ reprendre) / Fermées (validées, abandonnées avec motif, gardées jusqu'à leu
 dans la réunion ou le Chat). Reste du lot 5 : « Ma préparation » de l'Epic Owner (dossiers à compléter), filtre
 « Fermées » dans les réunions, marque « validé hors réunion » des suivis, Mode Simple budget (à préciser : pas de
 Sheet Budget dans 🔒 Moi).
+Mode Simple (validé le 09/10, maquette à faire avant de coder) : trois cadres Seul / Équipe / Entreprise, mêmes
+réunions simplifiées (notes, suivis, Chat), même moteur que le SAFe avec des réglages fixés et affichés (« Réglé par
+le mode Simple »), mêmes données dans les mêmes Sheets (basculer ne perd rien). Projet (Simple) = epic (SAFe) ;
+Objectif (Simple) = OKR (SAFe), même élément et mêmes champs (résultats clés). Entreprise → objectifs → projets ;
+équipes d'un projet = celles qui ont des tâches dessus ; pas de portfolio ni de train (en SAFe : portfolio « Principal »).
+Budget simplifié : Sheet Budget par cadre (aussi 🔒 Moi) ; Prévu · Dépensé · Reste ; coût des personnes compté si
+un coût annuel est saisi (jours des tâches terminées × coût d'un jour) ; dépenses ponctuelles ou par mois sur un seul
+élément ; Estimation à la fin calculée si tout le reste est estimé en jours, sinon saisie à la main (facultative) ;
+demandes : équipe → Revue du mois de l'entreprise, décidées par le responsable. Réunions Simple : Équipe = Point
+d'équipe (chaque jour), Revue de la semaine, Revue du mois (💶 Budget), Revue du trimestre, Bilan annuel ;
+Entreprise = Revue du mois (💶 Budget, demandes), Revue du trimestre (révision du budget, pas de réunion semestrielle),
+Point annuel (budget de l'année) ; Moi : étape 💶 Budget à la Revue des objectifs et au Point annuel.
 Suite : coder en 5 lots (1 Sheet Budget + dépenses ; 2 congés + jours réels ; 3 calculs + Pilotage ;
 4 demandes de budget en réunion + messages ; 5 dossier d'investissement + mode Simple + Mes suivis).
 10. Sécurité du Sheet « 💶 Budget » (demandé le 09/10) : aujourd'hui partagé à la main dans Google Drive ; à
