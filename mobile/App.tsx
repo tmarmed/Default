@@ -101,6 +101,7 @@ import { ResultatForm } from './src/components/ResultatForm';
 import { MoiContext } from './src/droits';
 import { GererEspacesSheet } from './src/components/GererEspacesSheet';
 import { EcranAVenir } from './src/components/EcranAVenir';
+import { PilotageView } from './src/components/PilotageView';
 import { ChoiceSheet } from './src/components/ChoiceSheet';
 import { DomaineForm } from './src/components/DomaineForm';
 import { ObjectifForm } from './src/components/ObjectifForm';
@@ -216,7 +217,7 @@ const TAB_LABELS: Record<Tab, string> = { ...TAB_TITLES, taches: 'Tâches', echa
 /** Messages de l'application gardés sur l'appareil jusqu'à « Lu ✓ » */
 const MESSAGES_APP_KEY = 'president:messages-app';
 /** Écrans prévus, encore vides (règles de gestion à définir) */
-const A_VENIR: Tab[] = ['pilotage'];
+const A_VENIR: Tab[] = [];
 /** Nom de l'application : début du nom des fichiers des espaces */
 /** Nom de l'application (début du nom des Google Sheets : « President | Moi ») ; anciens noms : fichiers renommés */
 const NOM_APP = 'President';
@@ -3215,6 +3216,19 @@ function Main() {
       )}
 
       {A_VENIR.includes(tab) && <EcranAVenir ecran={tab} />}
+      {/* 📊 Pilotage (lot 5) : selon vos rôles, lecture seule */}
+      {tab === 'pilotage' && (
+        <PilotageView
+          org={orgReunions}
+          moi={moiEchange}
+          simple={!safe.actif}
+          echanges={tousHier.echanges ?? []}
+          today={today}
+          lirePoints={lirePointsElement}
+          alertes={(Object.keys(badges) as Tab[]).filter((t) => t !== 'pilotage' && t !== 'echange').map((t) => ({ ecran: t, titre: `${TAB_ICONS[t]} ${TAB_TITLES[t]}`, n: badges[t].rouge + badges[t].jaune }))}
+          onOuvrirEcran={(e) => setTab(e as Tab)}
+        />
+      )}
 
       {tab === 'equipe' && (
         <EquipeView
@@ -3395,7 +3409,7 @@ function Main() {
         <BandeauAnnuler bandeau={bandeauApp.bandeau} fermer={bandeauApp.fermer} />
       </View>
 
-      {!A_VENIR.includes(tab) && tab !== 'strategie' && tab !== 'backlog' && tab !== 'echange' && tab !== 'equipe' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
+      {!A_VENIR.includes(tab) && tab !== 'pilotage' && tab !== 'strategie' && tab !== 'backlog' && tab !== 'echange' && tab !== 'equipe' && !(tab === 'organisation' && !entreprisesAffichees.length) && <Pressable
         style={[styles.fab, { bottom: TAB_BAR + insets.bottom + 8 + 12 + hautBandeaux }]}
         onPress={() =>
           tab === 'organisation'

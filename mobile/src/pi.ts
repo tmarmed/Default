@@ -20,6 +20,8 @@ export interface Calendrier {
   decalage: number;
   /** Exceptions occasionnelles : ce PI commence un autre jour (AAAA-MM-JJ) */
   exceptions?: { pi: string; debut: string }[];
+  /** Pilotage (lot 5, 09/10) : 1 point = `jpp` jour(s), réglé à la main (1 par défaut) */
+  jpp?: number;
 }
 export const CALENDRIER_DEFAUT: Calendrier = { semaines: 2, sprints: 6, ip: true, decalage: 0 };
 /** Calendrier lu depuis sa colonne (JSON), valeurs bornées ; vide ou invalide → par défaut */
@@ -37,10 +39,11 @@ export function lireCalendrier(x: string | Partial<Calendrier> | null | undefine
     ip: c.ip === undefined ? true : !!c.ip,
     decalage: borne(c.decalage, 0, 60, 0),
     exceptions: Array.isArray(c.exceptions) ? c.exceptions.filter((e) => /^\d{4}-T[1-4]$/.test(e?.pi ?? '') && /^\d{4}-\d{2}-\d{2}$/.test(e?.debut ?? '')) : [],
+    jpp: Number.isFinite(Number(c.jpp)) && Number(c.jpp) > 0 ? Math.min(5, Math.max(0.25, Math.round(Number(c.jpp) * 4) / 4)) : 1,
   };
 }
 /** Calendrier par défaut ? (rien à enregistrer) */
-export const estDefaut = (c: Calendrier) => c.semaines === 2 && c.sprints === 6 && c.ip && !c.decalage && !c.exceptions?.length;
+export const estDefaut = (c: Calendrier) => c.semaines === 2 && c.sprints === 6 && c.ip && !c.decalage && !c.exceptions?.length && (c.jpp ?? 1) === 1;
 let courant: Calendrier = CALENDRIER_DEFAUT;
 /** Calendrier courant (celui de votre équipe) : utilisé partout où l'on ne précise pas de calendrier */
 export const definirCalendrier = (c?: Partial<Calendrier> | string | null) => void (courant = lireCalendrier(c ?? null));

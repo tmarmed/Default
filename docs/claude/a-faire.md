@@ -31,19 +31,18 @@ Ajuster ajoute une note à concrétiser) ; participants repris de l'Organisation
 5. **Chantier à part (mode Simple)** : modèle des réunions du mode Simple pour une personne, une équipe, une
    entreprise (réunion mensuelle, annuelle…), qui animent ; adapter alors les suivis et le Chat (déjà branchés).
 
-## En cours : Pilotage (lot 5), maquette à valider avant de coder
-Décidé (09/10) : onglet 📊 Pilotage par niveau (suit le filtre d'organisation) ; blocs Avancement (équipe : sprint,
-burndown ; train : features du PI, objectifs du PI ; portfolio : epics par état, OKR), Charge (capacité / engagé par
-sprint, équipe et personne, surcharge en rouge), Prévisibilité (vélocité 3 sprints, engagé / fait), Suivis (en
-retard, à valider, notes à concrétiser de toutes les réunions du niveau), Alertes (par écran, lien), Gouvernance
-(Décisions prises des réunions du niveau) ; mode Simple : pilotage perso (heures planifiées / disponibles de la
-semaine, tâches en retard, objectifs, suivis) ; point ↔ jour : réglage par équipe dans le calendrier agile
-(« 1 point = … j », 1 par défaut) avec une valeur calculée proposée (points faits ÷ jours disponibles) ; capacité
-d'équipe = somme des capacités des membres (fiche Personne). Commencer par Avancement, Charge, Suivis.
-Maquette : docs/maquette-pilotage.html.
+## Fait (09/10) : Pilotage (lot 5)
+Onglet 📊 Pilotage, lecture seule, niveaux selon les rôles (équipes, train, portfolio ; 🔒 Moi en mode Simple) :
+Avancement (sprint, burndown ; features et objectifs du PI, risques et dépendances ; epics par état, OKR), Charge
+(capacité = somme des membres, engagé par personne, surcharge en rouge), Prévisibilité (vélocité 3 sprints, engagé
+tenu, « 1 point = … j »), Suivis (en retard, à valider, notes à concrétiser), Gouvernance (décisions prises), Alertes
+(lien vers l'écran). Réglage « 1 point = » (½, 1, 1½, 2, 3 j) dans le calendrier agile, 1 par défaut, valeur calculée
+proposée. Code : src/pilotage.ts, src/components/PilotageView.tsx ; tests dans verif:reunions. Maquette :
+docs/maquette-pilotage.html.
+Reste (pilotage) : budget du portfolio ; conversion des estimations au changement de mode Simple ↔ SAFe.
 
 ## Questions ouvertes à l'utilisateur
-- Lot 5 pilotage (brainstorm sans réponse).
+- Pilotage : faire valider les captures (équipe, train, portfolio, Simple).
 - Abandonné le 08/10 : « Suivi dans › », « Mes suivis » hors réunion, « Valider ? » d'une tâche terminée.
 
 ## Fait récemment (08/10)

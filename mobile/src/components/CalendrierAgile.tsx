@@ -48,6 +48,10 @@ export function SectionCalendrier({ value, onChange, herite, nomHerite }: { valu
         <ChampFiche label="Début du PI" sous="Jours après le 1er jour du trimestre">
           <Pas valeur={cal.decalage} min={0} max={60} onChange={(n) => poser({ decalage: n })} suffixe=" j" />
         </ChampFiche>
+        {/* Pilotage (lot 5) : la correspondance point ↔ jour, réglée à la main (1 par défaut) */}
+        <ChampFiche label="1 point =" sous="Jours de travail par point (capacité, charge du Pilotage)">
+          <Puces options={[0.5, 1, 1.5, 2, 3].map((n) => ({ v: String(n), l: `${String(n).replace('.', ',')} j` }))} value={String(cal.jpp ?? 1)} onChange={(v) => poser({ jpp: Number(v) })} />
+        </ChampFiche>
         {exceptions.map((e) => (
           <ChampFiche key={e.pi} label={piLabel(e.pi)}>
             <View style={s.rang}>

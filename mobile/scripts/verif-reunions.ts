@@ -3,7 +3,8 @@
  * (portfolio Digital › train Clients › équipes Mobile et Web) : qui voit quelle réunion, quand, et qui l'anime.
  * Lancer : npm run verif:reunions
  */
-import { donneesDemo, orgDemo, pointsDemo } from '../src/demo';
+import { donneesDemo, orgDemo, orgTousLesRoles, pointsDemo } from '../src/demo';
+import { niveauxDeRoles, piloteEquipe, pilotePortfolio, piloteTrain, suivisDuNiveau } from '../src/pilotage';
 import { pointsFinis, backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteCompteRendu, texteReponse, veilleOuvree } from '../src/daily';
 import { toDateString } from '../src/dates';
 import { ciblesEscalade, destinatairesTransfert, equipesDePersonne } from '../src/echange/hierarchieEchange';
@@ -400,6 +401,26 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   ok(r.parent?.patch.statut === 'repondu' && r.parent.patch.note === 'Accès rétabli' && r.point?.patch.statut === 'fait' && r.point.patch.note === 'Accès rétabli' && r.retirer.id === 'm1', 'redescendre : réponse reformulée au maillon d’en dessous, note de suivi « Fait », maillon accepté retiré');
   ok(patchAReprendre('pas assez précis').statut === 'envoye' && maillonsDe(recu, [maillon, recu]).length === 1, 'à reprendre : le maillon repart ; maillons d’un échange');
   ok(typeNoteDe({ nature: 'action', type: 'question' }).type === 'action' && typeNoteDe({ nature: '', type: 'question' }).sous_type === 'a_prendre', 'note de suivi : type d’après la nature du message');
+}
+// ---------------------------------------------------------------------------
+// Pilotage (lot 5, 09/10) : niveaux selon les rôles, équipe, train, portfolio, suivis, point ↔ jour
+// ---------------------------------------------------------------------------
+{
+  const oT = makeOrgValue(orgTousLesRoles(orgDemo('demo-entreprise')));
+  const niv = niveauxDeRoles(oT, 'vous@demo', false);
+  ok(niv.some((x) => x.kind === 'equipeagile') && niv.some((x) => x.kind === 'train') && niv.some((x) => x.kind === 'portfolio') && niv[0].kind === 'equipeagile', 'pilotage : niveaux selon les rôles (équipes d’abord, puis train, portfolio)');
+  ok(niveauxDeRoles(oT, 'vous@demo', true).map((x) => x.kind).join() === 'perso', 'pilotage : mode Simple → 🔒 Moi');
+  const d = donneesDemo('demo-entreprise');
+  const hP = { items: d.items, featureList: d.entities.feature ?? [], epicList: d.entities.epic ?? [], objectifList: d.entities.objectif ?? [], objectifsPI: d.entities.objectifpi ?? [], resultats: d.entities.resultat ?? [], domaineList: d.entities.domaine ?? [] } as never;
+  const jourP = toDateString(new Date());
+  const eq = piloteEquipe('acmeqmob', oT, hP, pointsDemo('demo-entreprise'), [], jourP);
+  ok(eq.prevus > 0 && eq.jours.length >= 7 && eq.charge.jpp === 1 && eq.charge.personnes.length >= 4, 'pilotage équipe : sprint, burndown, charge par personne, 1 point = 1 j par défaut');
+  const sv = suivisDuNiveau(pointsDemo('demo-entreprise'), { kind: 'equipeagile', id: 'acmeqmob' }, d.items, jourP);
+  ok(sv.aValider.some((p) => p.texte === 'Revoir les maquettes du panier') && sv.notes.some((p) => p.texte === 'Choisir la bibliothèque de graphiques'), 'pilotage : suivis à valider et notes à concrétiser des réunions de l’équipe');
+  ok(lireCalendrier({ jpp: 0.6 }).jpp === 0.5 && lireCalendrier({}).jpp === 1 && lireCalendrier({ jpp: 9 }).jpp === 5, 'point ↔ jour : 1 par défaut, au quart de jour, borné');
+  const tr = piloteTrain('acmtr1', oT, hP, [], jourP);
+  ok(tr.equipes.length === 2, 'pilotage train : charge de ses deux équipes');
+  ok(pilotePortfolio('acmpf1', oT, hP, jourP).epics.length > 0, 'pilotage portfolio : ses epics');
 }
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
 process.exit(erreurs ? 1 : 0);
