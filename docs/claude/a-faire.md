@@ -38,7 +38,10 @@ Ajuster ajoute une note à concrétiser) ; participants repris de l'Organisation
    (Planification, PI Planning, Préparation du PI, Pilotage), affinée à chaque sprint et validée en Rétrospective.
 Retours maquette budget (09/10) : congés modifiables ; Accorder en partie (montant ≤ demandé) ; « Réparti / Non
 réparti » à renommer plus clair ; message « Pour information » sans aperçu du contenu avant l'appui ; seule une
-personne qui a le droit « Gérer le budget » crée une Demande de budget.
+personne qui a le droit « Gérer le budget » crée une Demande de budget. Validé : écran « Mes suivis » (rouvert
+le 09/10) et trace des notes fermées (validées / abandonnées) jusqu'à leur suppression (Rétrospective, Inspect &
+Adapt, Revue du portfolio), dans les réunions (filtre « Fermés ») et dans « Mes suivis ». Libellés de l'enveloppe :
+en discussion (« Reste à attribuer » gardé ; « consommé » déjà pris par le Consommé réel).
 9. Renforcer la confidentialité du Chat : « prive » n'est qu'à l'affichage, l'onglet Echanges reste lisible par qui
    ouvre le Sheet de l'espace (sujet à part, 09/10).
 ## Fait (09/10) : Pilotage (lot 5)
@@ -96,7 +99,7 @@ Reste (pilotage) : coûts annuels visibles de ceux qui lisent l'Organisation (à
 
 ## Questions ouvertes à l'utilisateur
 - Pilotage : faire valider les captures (équipe, train, portfolio, Simple).
-- Abandonné le 08/10 : « Suivi dans › », « Mes suivis » hors réunion, « Valider ? » d'une tâche terminée.
+- Abandonné le 08/10 : « Suivi dans › » (« Mes suivis » rouvert le 09/10), « Valider ? » d'une tâche terminée.
 
 ## Fait récemment (08/10)
 - Suivis complets (statuts, validation, Chat « Valider ? », escalade qui redescend), vocabulaire Notes / Suivis partout (plus de « point »), fiche de l'élément en deux blocs, escalader force « Suivre », fichiers .md.
