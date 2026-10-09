@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maquette Pilotage</title>
+<style>
+:root{--fond:#eef1f6;--carte:#fff;--texte:#1d2330;--doux:#6b7486;--bleu:#1a73e8;--bleu-c:#e8f0fe;--vert:#137333;--vert-c:#e6f4ea;--rouge:#b3261e;--rouge-c:#fce8e6;--orange:#b45309;--orange-c:#fef3e2;--bord:#e1e6ee}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--texte);font:14px/1.45 -apple-system,system-ui,Segoe UI,Roboto,sans-serif}
+main{max-width:1640px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:22px;margin:0 0 4px}.sous{color:var(--doux);margin:0 0 18px}
+.ecrans{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+.tel{width:360px;max-width:100%;background:#f6f7f9;border-radius:26px;border:8px solid #1d2330;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.12)}
+.legende{width:360px;max-width:100%;font-size:13px;color:var(--doux);margin:6px 2px 0}
+.barre{background:#fff;padding:12px 14px 8px;border-bottom:1px solid var(--bord)}
+.barre .t{font-weight:700;font-size:17px}.puces{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.puce{border:1px solid var(--bord);border-radius:14px;padding:3px 10px;font-size:12.5px;background:#fff}
+.puce.on{background:var(--bleu);color:#fff;border-color:var(--bleu)}
+.corps{padding:10px 12px 14px}
+.sec{font-size:11.5px;font-weight:700;color:var(--doux);letter-spacing:.04em;margin:14px 4px 6px;text-transform:uppercase}
+.carte{background:var(--carte);border-radius:12px;overflow:hidden}
+.tuiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tuile{background:#fff;border-radius:12px;padding:10px 8px;text-align:center}
+.tuile b{display:block;font-size:19px}.tuile span{font-size:11.5px;color:var(--doux)}
+.r{color:var(--rouge)}.o{color:var(--orange)}.v{color:var(--vert)}
+.ligne{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--bord)}
+.ligne:first-child{border-top:none}
+.l1{flex:1;min-width:0}.l1 .s{font-size:12px;color:var(--doux)}
+.past{font-size:11.5px;font-weight:600;border-radius:10px;padding:2px 8px;white-space:nowrap}
+.p-r{background:var(--rouge-c);color:var(--rouge)}.p-o{background:var(--orange-c);color:var(--orange)}.p-v{background:var(--vert-c);color:var(--vert)}.p-b{background:var(--bleu-c);color:var(--bleu)}
+.jauge{height:8px;background:#eef1f6;border-radius:4px;overflow:hidden;margin-top:5px}
+.jauge i{display:block;height:100%;background:var(--bleu)}.jauge i.rouge{background:var(--rouge)}.jauge i.vert{background:var(--vert)}
+.chev{color:#b0b7c3}
+svg{display:block;width:100%;height:auto}
+.note{font-size:12px;color:var(--doux);padding:8px 12px}
+.btn{display:inline-block;background:var(--bleu);color:#fff;border-radius:16px;padding:5px 12px;font-size:12.5px;font-weight:600}
+.btn2{display:inline-block;border:1px solid var(--bord);color:var(--bleu);border-radius:16px;padding:5px 12px;font-size:12.5px;font-weight:600;background:#fff}
+</style>
+</head>
+<body><main>
+<h1>Maquette · 📊 Pilotage (lot 5)</h1>
+<p class="sous">Données de la démo ACME. Un écran par niveau, qui suit le filtre d'organisation ; mode Simple et réglage point ↔ jour. À valider avant de coder.</p>
+<div class="ecrans">
+
+<!-- 1. Équipe -->
+<div>
+<div class="tel">
+  <div class="barre"><div class="t">📊 Pilotage</div>
+    <div class="puces"><span class="puce on">👥 Mobile</span><span class="puce">Sprint 1 · 1/10 → 14/10</span></div></div>
+  <div class="corps">
+    <div class="sec">Avancement du sprint</div>
+    <div class="tuiles"><div class="tuile"><b>2 / 15</b><span>pts faits / prévus</span></div><div class="tuile"><b class="r">2</b><span>stories bloquées</span></div><div class="tuile"><b class="o">1</b><span>en retard</span></div></div>
+    <div class="carte" style="margin-top:8px;padding:8px 10px">
+      <div style="font-size:12px;color:var(--doux)">Burndown (pts restants)</div>
+      <svg viewBox="0 0 300 90"><line x1="10" y1="10" x2="290" y2="80" stroke="#c4cad6" stroke-dasharray="4 4"/><polyline points="10,10 45,10 80,14 115,22 150,22 185,26" fill="none" stroke="#1a73e8" stroke-width="2.5"/><circle cx="185" cy="26" r="3.5" fill="#1a73e8"/><text x="190" y="22" font-size="10" fill="#b45309">en retard sur l'idéal</text></svg>
+    </div>
+    <div class="sec">Charge · capacité / engagé</div>
+    <div class="carte">
+      <div class="ligne"><div class="l1">Équipe Mobile<div class="jauge"><i style="width:63%"></i></div><div class="s">15 pts engagés sur 24 de capacité (somme des membres)</div></div></div>
+      <div class="ligne"><div class="l1">Tom Faure<div class="jauge"><i class="rouge" style="width:100%"></i></div><div class="s">9 pts sur 8 · surcharge</div></div><span class="past p-r">+1</span></div>
+      <div class="ligne"><div class="l1">Emma Roy<div class="jauge"><i style="width:83%"></i></div><div class="s">5 pts sur 6</div></div></div>
+      <div class="ligne"><div class="l1">Vous (tous les rôles)<div class="jauge"><i style="width:25%"></i></div><div class="s">2 pts sur 8</div></div></div>
+    </div>
+    <div class="sec">Prévisibilité</div>
+    <div class="tuiles"><div class="tuile"><b>12</b><span>vélocité (3 sprints)</span></div><div class="tuile"><b class="v">86 %</b><span>engagé tenu</span></div><div class="tuile"><b>1 pt = 1 j</b><span>calculé : 0,8 j</span></div></div>
+    <div class="sec">Suivis · toutes les réunions</div>
+    <div class="carte">
+      <div class="ligne"><div class="l1">Relancer le service juridique<div class="s">Daily · Responsable : Paul Leroy · Échéance : 6/10</div></div><span class="past p-o">en retard</span></div>
+      <div class="ligne"><div class="l1">Revoir les maquettes du panier<div class="s">Daily · Responsable : Emma Roy</div></div><span class="past p-v">À valider</span></div>
+      <div class="ligne"><div class="l1">Choisir la bibliothèque de graphiques<div class="s">Daily · notée le 7/10 par Nina Dupont</div></div><span class="past p-b">À concrétiser</span></div>
+    </div>
+    <div class="sec">Gouvernance · décisions prises</div>
+    <div class="carte"><div class="ligne"><div class="l1">Livrer la v2 en deux fois<div class="s">Planification de sprint du 1/10 · Paul Leroy</div></div><span class="chev">›</span></div></div>
+    <div class="sec">Alertes</div>
+    <div class="carte"><div class="ligne"><div class="l1">Sprint · 3 alertes<div class="s">dates, estimation manquante</div></div><span class="chev">›</span></div><div class="ligne"><div class="l1">PI · 4 alertes</div><span class="chev">›</span></div></div>
+  </div>
+</div>
+<p class="legende">1 · Équipe : avancement du sprint, charge par personne (surcharge en rouge), vélocité, suivis de toutes ses réunions, décisions, alertes.</p>
+</div>
+
+<!-- 2. Train -->
+<div>
+<div class="tel">
+  <div class="barre"><div class="t">📊 Pilotage</div>
+    <div class="puces"><span class="puce on">🚆 Clients</span><span class="puce">PI T4 2026</span></div></div>
+  <div class="corps">
+    <div class="sec">Avancement du PI</div>
+    <div class="tuiles"><div class="tuile"><b>38 %</b><span>features du PI</span></div><div class="tuile"><b>2 / 3</b><span>objectifs engagés en cours</span></div><div class="tuile"><b class="o">2</b><span>transmis reçus</span></div></div>
+    <div class="carte" style="margin-top:8px">
+      <div class="ligne"><div class="l1">🧩 Compte client mobile<div class="jauge"><i style="width:45%"></i></div><div class="s">Mobile · 45 %</div></div></div>
+      <div class="ligne"><div class="l1">🧩 Reprise des données<div class="jauge"><i style="width:20%"></i></div><div class="s">Mobile · 20 %</div></div></div>
+      <div class="ligne"><div class="l1">🧩 Nouveau site vitrine<div class="jauge"><i class="vert" style="width:60%"></i></div><div class="s">Web · 60 %</div></div></div>
+    </div>
+    <div class="sec">Charge par équipe · sprint 1</div>
+    <div class="carte">
+      <div class="ligne"><div class="l1">Équipe Mobile<div class="jauge"><i style="width:63%"></i></div><div class="s">15 / 24 pts</div></div></div>
+      <div class="ligne"><div class="l1">Équipe Web<div class="jauge"><i class="rouge" style="width:100%"></i></div><div class="s">18 / 16 pts · surcharge</div></div><span class="past p-r">+2</span></div>
+    </div>
+    <div class="sec">Prévisibilité du train</div>
+    <div class="tuiles"><div class="tuile"><b>21</b><span>vélocité du train</span></div><div class="tuile"><b class="v">82 %</b><span>valeur obtenue / prévue</span></div><div class="tuile"><b class="r">3</b><span>risques ouverts</span></div></div>
+    <div class="sec">Suivis · ART sync, PI Planning…</div>
+    <div class="carte">
+      <div class="ligne"><div class="l1">Serveur de test hors service<div class="s">ART sync · 🔒 Échange privé · Tom Faure → Vous</div></div><span class="past p-b">En cours</span></div>
+      <div class="ligne"><div class="l1">API de paiement bloquée<div class="s">ART sync · Responsable : Sara Martin</div></div><span class="past p-v">À valider</span></div>
+    </div>
+  </div>
+</div>
+<p class="legende">2 · Train : features et objectifs du PI, charge par équipe, valeur obtenue, risques, suivis des réunions du train.</p>
+</div>
+
+<!-- 3. Portfolio -->
+<div>
+<div class="tel">
+  <div class="barre"><div class="t">📊 Pilotage</div>
+    <div class="puces"><span class="puce on">💼 Digital</span><span class="puce">T4 2026</span></div></div>
+  <div class="corps">
+    <div class="sec">Epics par état</div>
+    <div class="tuiles"><div class="tuile"><b>1</b><span>idée</span></div><div class="tuile"><b>0</b><span>analyse · prêt</span></div><div class="tuile"><b class="v">2</b><span>en cours</span></div></div>
+    <div class="carte" style="margin-top:8px">
+      <div class="ligne"><div class="l1">🗂️ Nouveau CRM<div class="jauge"><i style="width:30%"></i></div><div class="s">En cours · 30 %</div></div></div>
+      <div class="ligne"><div class="l1">🗂️ Parcours client en ligne<div class="jauge"><i style="width:48%"></i></div><div class="s">En cours · 48 %</div></div></div>
+    </div>
+    <div class="sec">OKR · résultats clés</div>
+    <div class="carte">
+      <div class="ligne"><div class="l1">🎯 Fidéliser les clients<div class="jauge"><i class="vert" style="width:70%"></i></div><div class="s">2 résultats clés · 70 %</div></div><span class="past p-v">Garder</span></div>
+      <div class="ligne"><div class="l1">🎯 Réduire le délai de livraison<div class="jauge"><i style="width:25%"></i></div><div class="s">1 résultat clé · 25 %</div></div><span class="past p-o">Ajuster</span></div>
+    </div>
+    <div class="sec">Gouvernance · décisions prises</div>
+    <div class="carte"><div class="ligne"><div class="l1">Arrêter l'epic « Ancien site »<div class="s">Revue du portfolio du 6/10 · Julie Morel</div></div><span class="chev">›</span></div></div>
+    <div class="sec">Suivis · revue du portfolio</div>
+    <div class="carte"><div class="ligne"><div class="l1">Budget des licences de test<div class="s">transmis par le train Clients · Responsable : Julie Morel</div></div><span class="past p-b">En cours</span></div></div>
+  </div>
+</div>
+<p class="legende">3 · Portfolio : epics par état et avancement, OKR (dernière décision de la revue), décisions, suivis.</p>
+</div>
+
+<!-- 4. Simple -->
+<div>
+<div class="tel">
+  <div class="barre"><div class="t">📊 Pilotage</div>
+    <div class="puces"><span class="puce on">🔒 Moi · Simple</span><span class="puce">Semaine du 5/10</span></div></div>
+  <div class="corps">
+    <div class="sec">Ma semaine</div>
+    <div class="tuiles"><div class="tuile"><b>18 h</b><span>planifiées</span></div><div class="tuile"><b>35 h</b><span>disponibles</span></div><div class="tuile"><b class="r">3</b><span>tâches en retard</span></div></div>
+    <div class="carte" style="margin-top:8px"><div class="ligne"><div class="l1">Charge de la semaine<div class="jauge"><i style="width:51%"></i></div><div class="s">51 % · lundi 6 h, mardi 4 h, mercredi 8 h…</div></div></div></div>
+    <div class="sec">Objectifs</div>
+    <div class="carte">
+      <div class="ligne"><div class="l1">🎯 Courir un semi-marathon<div class="jauge"><i class="vert" style="width:60%"></i></div><div class="s">fin le 31/12 · 6 tâches faites sur 10</div></div></div>
+      <div class="ligne"><div class="l1">🌱 Domaine délaissé : Maison<div class="s">rien fait depuis 30 jours</div></div><span class="past p-o">à revoir</span></div>
+    </div>
+    <div class="sec">Suivis · rituels et Chat</div>
+    <div class="carte">
+      <div class="ligne"><div class="l1">Rappeler le garage pour la révision<div class="s">Point perso · Responsable : Vous</div></div><span class="past p-b">En cours</span></div>
+      <div class="ligne"><div class="l1">Réponse de Lea Martin sur la v2<div class="s">Point perso · 🔒 Échange privé · Lea Martin → Vous</div></div><span class="past p-v">À valider</span></div>
+    </div>
+  </div>
+</div>
+<p class="legende">4 · Mode Simple : heures planifiées / disponibles, tâches en retard, objectifs et domaines délaissés, suivis des rituels et du Chat.</p>
+</div>
+
+<!-- 5. Réglage point / jour -->
+<div>
+<div class="tel">
+  <div class="barre"><div class="t">Calendrier agile · 👥 Mobile</div>
+    <div class="puces"><span class="puce">Sprints de 2 semaines</span><span class="puce">6 sprints + IP</span></div></div>
+  <div class="corps">
+    <div class="sec">Point et jour</div>
+    <div class="carte">
+      <div class="ligne"><div class="l1">1 point =<div class="s">réglé à la main pour l'équipe</div></div><b style="font-size:16px">1 j</b><span class="chev">›</span></div>
+      <div class="ligne"><div class="l1">Calculé d'après l'historique<div class="s">36 pts faits ÷ 29 jours disponibles (3 sprints)</div></div><b style="font-size:16px">0,8 j</b></div>
+      <div class="note"><span class="btn">Utiliser 0,8 j</span> &nbsp;<span class="btn2">Garder 1 j</span></div>
+    </div>
+    <div class="sec">Capacité de l'équipe</div>
+    <div class="carte">
+      <div class="ligne"><div class="l1">Somme des membres<div class="s">capacité de chaque fiche Personne, par sprint</div></div><b style="font-size:16px">24 pts</b></div>
+      <div class="ligne"><div class="l1">Tom Faure<div class="s">8 pts par sprint</div></div><span class="chev">›</span></div>
+      <div class="ligne"><div class="l1">Emma Roy<div class="s">6 pts par sprint</div></div><span class="chev">›</span></div>
+      <div class="ligne"><div class="l1">Paul Leroy · Nina Dupont<div class="s">8 + 2 pts (rôles PO et SM)</div></div><span class="chev">›</span></div>
+    </div>
+    <div class="note">La valeur calculée est proposée, jamais imposée. Changer la correspondance ne modifie pas les estimations déjà saisies.</div>
+  </div>
+</div>
+<p class="legende">5 · Réglage par équipe : « 1 point = … j » (1 par défaut), valeur calculée proposée ; capacité = somme des membres.</p>
+</div>
+
+</div>
+</main></body></html>
