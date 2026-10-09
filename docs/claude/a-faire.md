@@ -70,6 +70,12 @@ Suite : coder en 5 lots (1 Sheet Budget + dépenses ; 2 congés + jours réels ;
    droit disparaît), sans lien public ni autorisation plus large ; lié aux droits transverses (point 6).
 11. Revoir les « Fermetures de l'entreprise » (demandé le 09/10) : d'où vient ce point, qui les saisit, à quoi elles
    servent (aujourd'hui : section de la vue Entreprise, déduites des jours de chacun) ; à reprendre en brainstorm.
+12. Affectations d'une personne (demandé le 09/10, à concevoir puis coder) : une personne partagée entre plusieurs
+   équipes et un client (ex. lundi-mardi-mercredi chez un client, jeudi-vendredi équipe A, jeudi-vendredi équipe B),
+   modifiable « à partir du … » (passe à 100 % dans une équipe). Aujourd'hui : comptée en entier dans chaque équipe
+   (capacité doublée) et coût partagé à parts égales. Proposé : lignes « Affectation » dans la fiche Personne
+   (équipe ou « hors équipes / client », jours de la semaine ou %, à partir du), historique gardé ; capacité de chaque
+   sprint = jours affectés à l'équipe ; coût réparti selon l'affectation (le client : « Hors epics » ou un porteur).
 9. Renforcer la confidentialité du Chat : « prive » n'est qu'à l'affichage, l'onglet Echanges reste lisible par qui
    ouvre le Sheet de l'espace (sujet à part, 09/10).
 ## Fait (09/10) : Pilotage (lot 5)
