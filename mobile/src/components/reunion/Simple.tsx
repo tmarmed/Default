@@ -4,6 +4,8 @@ import { Pressable, Text, View } from 'react-native';
 import { addDays, toDateString } from '../../dates';
 import { dateCourte } from '../../daily';
 import { useHierarchy } from '../../hierarchyContext';
+import { useOrg } from '../../organisation';
+import { BlocBudgetSimple } from '../Budget';
 import { colors } from '../../theme';
 import { type Echange, type Item, RECURRENCE_DEFAUTS, type Reunion } from '../../types';
 import { SaisieFiche, SectionFiche } from '../Choix';
@@ -47,6 +49,7 @@ const LIB: Record<Choix, string> = { auj: 'Refaire aujourd’hui', demain: 'Dema
 
 export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil, moi = '', echanges = [] }: { reunion: Reunion; actions: ActionsDaily; onFermer: () => void; onFini?: () => void; onInfo?: (t: string) => void; fil?: string; moi?: string; echanges?: Echange[] }) {
   const h = useHierarchy();
+  const org = useOrg();
   const jour = reunion.debut.slice(0, 10);
   const demain = toDateString(addDays(new Date(`${jour}T12:00`), 1));
   const dansSemaine = toDateString(addDays(new Date(`${jour}T12:00`), 7));
@@ -372,6 +375,14 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
             {annuel && <AjoutElement mot="domaine" aide="Un nouveau domaine de votre vie ou de votre travail (🌱, modifiable ensuite)" {...ajoutDomaine} />}
           </>
         );
+      // 💶 Budget simplifié (09/10) : Sheet Budget personnel ; projets (epics) de 🔒 Moi
+      case 'budget':
+        return (
+          <>
+            <TitreFiche icone="💶" titre={reunion.type === 'point_annuel' ? 'Budget de l’année' : 'Budget'} vide="" sous="Prévu · Dépensé · Reste · Estimation à la fin, par projet (epic)" />
+            <BlocBudgetSimple epics={h.epicList.filter((x) => (x.espace || 'moi') === 'moi')} h={h} org={org} espace="moi" mode={reunion.type === 'point_annuel' ? 'annee' : 'suivi'} peutModifier />
+          </>
+        );
       case 'fin':
         return (
           <>
@@ -483,6 +494,7 @@ const TYPES_ETAPES: Partial<Record<Reunion['type'], { cle: string; nom: string }
     SUIVIS,
     { cle: 'objectifs', nom: 'Objectifs' },
     { cle: 'domaines', nom: 'Domaines délaissés' },
+    { cle: 'budget', nom: 'Budget' },
     { cle: 'fin', nom: 'Fin' },
   ],
   // Revue du trimestre et point annuel (07/10) : le bilan de la période, puis la revue des objectifs
@@ -499,6 +511,7 @@ const TYPES_ETAPES: Partial<Record<Reunion['type'], { cle: string; nom: string }
     { cle: 'gac', nom: 'Garder · arrêter · commencer' },
     { cle: 'objectifs', nom: "Objectifs de l'année" },
     { cle: 'domaines', nom: 'Domaines' },
+    { cle: 'budget', nom: "Budget de l'année" },
     { cle: 'fin', nom: 'Fin' },
   ],
 };

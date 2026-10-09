@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { libelleNote } from '../daily';
+import { BlocBudgetSimple } from './Budget';
 import { avecDossiers, libelleStatutDemande, reunionDuNiveau, useBudget } from '../budget';
 import { consommeReel } from '../consomme';
 import { useHierarchy } from '../hierarchyContext';
@@ -30,7 +31,7 @@ import { Compteur, Ligne, st, Vide } from './reunion/ui';
  * rôles (équipe ; RTE ou PM : train et ses équipes ; Epic Owner : portfolio ; mode Simple : 🔒 Moi). Lecture seule :
  * avancement, charge, prévisibilité, suivis de toutes les réunions du niveau, décisions prises, alertes.
  */
-const LIBELLE_NIVEAU = { equipeagile: 'Équipe agile', train: 'Train', portfolio: 'Portfolio', perso: 'Mode Simple' } as const;
+const LIBELLE_NIVEAU = { equipeagile: 'Équipe agile', train: 'Train', portfolio: 'Portfolio', perso: 'Mode Simple', unite: 'Entreprise' } as const;
 
 export function PilotageView({
   org,
@@ -127,7 +128,7 @@ export function PilotageView({
         ligneJauge(
           d.id,
           `${d.demandeur === cleNiv ? 'Notre demande' : 'Reçue'} · ${d.motif}`,
-          `${euros(Number(d.montant) || 0)} · ${d.origine}${d.statut === 'soumise' ? ` → ${reunionDuNiveau(d.destination)}` : ''}${d.motif_decision ? ` — ${d.motif_decision}` : ''}`,
+          `${euros(Number(d.montant) || 0)} · ${d.origine}${d.statut === 'soumise' ? ` → ${reunionDuNiveau(d.destination, simple)}` : ''}${d.motif_decision ? ` — ${d.motif_decision}` : ''}`,
           d.statut === 'accordee' ? 100 : 0,
           d.statut === 'refusee' ? 'rouge' : d.statut === 'accordee' ? 'vert' : undefined,
           i === 0,
@@ -147,7 +148,26 @@ export function PilotageView({
   );
 
   let contenu = null;
-  if (n.kind === 'equipeagile') {
+  // Mode Simple (09/10) : équipe et entreprise : tâches et budget simplifié (Prévu · Dépensé · Reste · Estimation à la fin)
+  if (simple && (n.kind === 'equipeagile' || n.kind === 'unite')) {
+    const deLaPortee = (t: { equipe?: string; espace?: string }) => (n.kind === 'equipeagile' ? t.equipe === n.id : (t.espace || 'moi') === n.espace);
+    const ouvertes = h.items.filter((t) => !t.parent && t.statut !== 'termine' && deLaPortee(t));
+    const retard = ouvertes.filter((t) => (t.echeance || t.date_fin || t.date || '9999') < today);
+    const projets = new Set(h.items.filter(deLaPortee).map((t) => t.epic || h.featureList.find((f) => f.id === t.feature)?.epic || '').filter(Boolean));
+    const epicsIci = h.epicList.filter((x) => (n.kind === 'equipeagile' ? projets.has(x.id) : (x.espace || 'moi') === n.espace));
+    contenu = (
+      <>
+        <SectionFiche titre="Tâches">
+          <View style={[st.compteurs, s.pad]}>
+            <Compteur valeur={String(ouvertes.length)} libelle="ouvertes" />
+            <Compteur valeur={String(retard.length)} libelle="en retard" ton={retard.length ? 'rouge' : undefined} />
+            <Compteur valeur={String(epicsIci.length)} libelle="projets (epics)" />
+          </View>
+        </SectionFiche>
+        <BlocBudgetSimple epics={epicsIci} h={h} org={org} espace={n.espace} mode="suivi" peutModifier={false} />
+      </>
+    );
+  } else if (n.kind === 'equipeagile') {
     const x = piloteEquipe(n.id, org, h, points, echanges, today);
     const max = Math.max(1, x.prevus);
     contenu = (
@@ -293,6 +313,7 @@ export function PilotageView({
           ))}
           {!x.objectifs.length && !x.delaisses.length && <Vide texte="Aucun objectif en cours." />}
         </SectionFiche>
+        {h.epicList.some((e) => (e.espace || 'moi') === 'moi') && <BlocBudgetSimple epics={h.epicList.filter((e) => (e.espace || 'moi') === 'moi')} h={h} org={org} espace="moi" mode="suivi" peutModifier={false} />}
       </>
     );
   }

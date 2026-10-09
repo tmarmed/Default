@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { avecDossiers, cleDe, type Decision, libelleDecisionDossier, manquesDossier, depensesDe, iconeCategorie, libellePeriode, libelleStatutDemande, resumeDepense, useBudget } from '../budget';
 import { coutJour, euros, joursOuvresAnnee } from '../pilotage';
 import { colors } from '../theme';
+import { useSafe } from '../safe';
 import { CATEGORIES_DEPENSE, type CleRepartition, type DemandeBudget, type Depense, DECISIONS_DOSSIER, type DecisionDossier, type DossierInvestissement, type Epic, PERIODES_DEPENSE, type PeriodeDepense } from '../types';
 import { ChampFiche, SaisieFiche, SectionFiche } from './Choix';
 import { DateField } from './DateField';
@@ -45,10 +46,10 @@ export function ChampCoutAnnuel({ espace, personne }: { espace: string; personne
  * Préparé par l'Epic Owner, décidé à la Revue du portfolio. Rangé dans le Sheet « Budget » ; enregistré à la sortie
  * de chaque champ.
  */
-export function SectionDossier({ espace, epic, lecture }: { espace: string; epic: Epic; lecture?: boolean }) {
+export function SectionDossier({ espace, epic, lecture, simple }: { espace: string; epic: Epic; lecture?: boolean; simple?: boolean }) {
   const b = useBudget();
   const d = b.dossiers.get(epic.id);
-  const depart = { hypothese: d?.hypothese ?? '', estimation: d?.estimation ?? '', budget_prevu: d?.budget_prevu || epic.budget || '', budget_mvp: d?.budget_mvp ?? '' };
+  const depart = { hypothese: d?.hypothese ?? '', estimation: d?.estimation ?? '', budget_prevu: d?.budget_prevu || epic.budget || '', budget_mvp: d?.budget_mvp ?? '', estimation_fin: d?.estimation_fin ?? '' };
   const [f, setF] = useState(depart);
   const [err, setErr] = useState('');
   const cle = JSON.stringify(depart);
@@ -73,6 +74,20 @@ export function SectionDossier({ espace, epic, lecture }: { espace: string; epic
     />
   );
   const manques = manquesDossier({ ...d, ...f }, epic);
+  // Mode Simple (09/10) : budget prévu seulement, et l'estimation à la fin saisie à la main si besoin
+  if (simple)
+    return (
+      <SectionFiche titre="💶 Budget du projet">
+        <ChampFiche label="Budget prévu (€)">{champ('budget_prevu', 'Ex. 20000')}</ChampFiche>
+        <ChampFiche label="Estimation à la fin (€)" sous="Facultative : calculée si tout le reste est estimé en jours, sinon à saisir ici (saisie, elle compte).">
+          {champ('estimation_fin', 'Facultatif')}
+        </ChampFiche>
+        <View style={s.pad}>
+          <Text style={s.sous}>Réglé par le mode Simple : pas de dossier d’investissement (hypothèse, MVP) ; il revient en SAFe, sans rien perdre.</Text>
+          {!!err && <Text style={s.err}>{err}</Text>}
+        </View>
+      </SectionFiche>
+    );
   return (
     <SectionFiche titre="💼 Dossier d'investissement" aDefinir={manques.length}>
       <ChampFiche label="Hypothèse" colonne>
@@ -128,6 +143,8 @@ export function SectionDepenses({ espace, porteur, enfants = [], titre = 'Dépen
 
 /** Fiche d'une dépense (dans la section, dépliée) : motif, catégorie, montant, période, dates, répartition */
 export function FicheDepense({ espace, porteur, enfants, depense, onFermer }: { espace: string; porteur: string; enfants: EnfantRepartition[]; depense: Depense | null; onFermer: () => void }) {
+  // Mode Simple (09/10) : dépenses ponctuelles ou par mois, sans répartition (réglé, pas modifiable)
+  const simple = !useSafe().actif;
   const b = useBudget();
   const aujourdhui = new Date().toISOString().slice(0, 10);
   const [f, setF] = useState<Partial<Depense>>(depense ?? { motif: '', categorie: 'autre', montant: '', periode: 'ponctuel', du: aujourdhui, au: '', porteur, cle: '', parts: '' });
@@ -173,8 +190,8 @@ export function FicheDepense({ espace, porteur, enfants, depense, onFermer }: { 
           (v) => set('categorie', v),
         )}
       </ChampFiche>
-      <ChampFiche label="Période" colonne>
-        {choix(PERIODES_DEPENSE, f.periode ?? 'ponctuel', (v: PeriodeDepense) => set('periode', v))}
+      <ChampFiche label="Période" colonne sous={simple ? 'Réglé par le mode Simple : ponctuelle ou par mois, sur cet élément seulement (sans répartition).' : undefined}>
+        {choix(simple ? PERIODES_DEPENSE.filter((x) => x.value === 'ponctuel' || x.value === 'mois') : PERIODES_DEPENSE, f.periode ?? 'ponctuel', (v: PeriodeDepense) => set('periode', v))}
       </ChampFiche>
       <ChampFiche label={f.periode === 'pct' ? 'Pourcentage' : 'Montant'} sous={f.periode === 'pct' ? 'En % (ex. frais généraux : 15).' : 'En euros.'}>
         <SaisieFiche placeholder={f.periode === 'pct' ? 'Ex. 15' : 'Ex. 8000'} value={f.montant ?? ''} onChangeText={(v) => set('montant', v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
@@ -187,7 +204,7 @@ export function FicheDepense({ espace, porteur, enfants, depense, onFermer }: { 
           <DateField nu mode="date" value={f.au ?? ''} onChange={(v) => set('au', v)} placeholder="Sans fin" />
         </ChampFiche>
       )}
-      {!!enfants.length && (
+      {!!enfants.length && !simple && (
         <ChampFiche label="Répartition" colonne sous="Toujours modifiable à la main en %.">
           {choix<CleRepartition>(
             [
@@ -374,6 +391,7 @@ function DecisionDemande({ d, premiere, peutDecider, plusHaut, onDecider, nomDe 
 }
 
 function NouvelleDemande({ epics, niveau, onAnnuler, onSoumettre }: { epics: { id: string; titre: string }[]; niveau: string; onAnnuler: () => void; onSoumettre: (x: Pick<DemandeBudget, 'motif' | 'montant' | 'periode' | 'du' | 'au' | 'pour'>) => void }) {
+  const simpleD = !useSafe().actif;
   const aujourdhui = new Date().toISOString().slice(0, 10);
   const [f, setF] = useState({ motif: '', montant: '', periode: 'ponctuel' as PeriodeDepense, du: aujourdhui, au: '', pour: epics[0] ? `epic:${epics[0].id}` : niveau });
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }));
@@ -388,7 +406,7 @@ function NouvelleDemande({ epics, niveau, onAnnuler, onSoumettre }: { epics: { i
       </ChampFiche>
       <ChampFiche label="Période" colonne>
         <View style={s.seg}>
-          {PERIODES_DEPENSE.filter((p) => p.value !== 'pct').map((p) => (
+          {PERIODES_DEPENSE.filter((p) => p.value !== 'pct' && (!simpleD || p.value === 'ponctuel' || p.value === 'mois')).map((p) => (
             <Pressable key={p.value} onPress={() => set('periode', p.value)} style={[s.puce, f.periode === p.value && s.puceOn]} accessibilityRole="button">
               <Text style={[s.puceTexte, f.periode === p.value && s.puceTexteOn]}>{p.label}</Text>
             </Pressable>
@@ -405,7 +423,7 @@ function NouvelleDemande({ epics, niveau, onAnnuler, onSoumettre }: { epics: { i
       )}
       <ChampFiche label="Pour" colonne sous="La dépense accordée sera portée par cet élément.">
         <View style={s.seg}>
-          {[...epics.map((e) => ({ v: `epic:${e.id}`, l: `🗂️ ${e.titre}` })), { v: niveau, l: 'Le niveau (sans epic)' }].map((o) => (
+          {[...epics.map((e) => ({ v: `epic:${e.id}`, l: `🗂️ ${e.titre}` })), { v: niveau, l: simpleD ? 'L’équipe (sans projet)' : 'Le niveau (sans epic)' }].map((o) => (
             <Pressable key={o.v} onPress={() => set('pour', o.v)} style={[s.puce, f.pour === o.v && s.puceOn]} accessibilityRole="button">
               <Text style={[s.puceTexte, f.pour === o.v && s.puceTexteOn]}>{o.l}</Text>
             </Pressable>
@@ -512,6 +530,83 @@ export function BlocDossiers({ epics, h, org, espace, reunion, moi, peutDecider,
           ))}
         </SectionFiche>
       )}
+      {!!err && <Text style={s.err}>{err}</Text>}
+    </>
+  );
+}
+
+/**
+ * 💶 Budget simplifié (mode Simple, validé le 09/10) : par projet (epic), Prévu · Dépensé · Reste, et l'Estimation
+ * à la fin — calculée si tout le reste à faire est estimé (dépensé + reste × coût + dépenses à venir), sinon saisie à
+ * la main (facultative ; saisie, elle passe avant le calcul). Dépensé = dépenses + coût des personnes s'il y a un coût
+ * annuel. Revue du mois : suivi ; trimestre : révision du budget prévu ; année : budget de l'année.
+ */
+export function BlocBudgetSimple({ epics, h, org, espace, mode, peutModifier }: { epics: Epic[]; h: CtxConsomme['h']; org: OrgValue; espace: string; mode: 'suivi' | 'revision' | 'annee'; peutModifier: boolean }) {
+  const b = useBudget();
+  const [err, setErr] = useState('');
+  const [saisies, setSaisies] = useState<Record<string, string>>({});
+  const today = new Date().toISOString().slice(0, 10);
+  const ed = avecDossiers(epics, b.dossiers);
+  const conso = consommeReel({ org, h: { ...h, epicList: avecDossiers(h.epicList, b.dossiers) }, couts: b.couts, depenses: b.depenses, today });
+  const lignes = ed.map((e) => {
+    const d = conso.detail(e);
+    const dos = b.dossiers.get(e.id);
+    const prevu = Number(e.budget) || 0;
+    const calculable = d.sansEstimation === 0;
+    const manuelle = Number(dos?.estimation_fin) || 0;
+    const fin = manuelle || (calculable ? d.consomme + d.restePts * d.coutPoint + d.fixesAVenir : 0);
+    return { e, d, dos, prevu, fin, calculable, manuelle };
+  });
+  const tot = (f: (x: (typeof lignes)[number]) => number) => lignes.reduce((x, y) => x + f(y), 0);
+  const ecrire = (id: string, k: 'budget_prevu' | 'estimation_fin') => {
+    const v = saisies[`${k}:${id}`];
+    if (v === undefined) return;
+    setErr('');
+    b.ecrireDossier(espace, { id, [k]: v } as Partial<DossierInvestissement> & { id: string }).catch((x: Error) => setErr(`Non enregistré : ${x.message}`));
+  };
+  const champ = (id: string, k: 'budget_prevu' | 'estimation_fin', actuel: string, label: string) => (
+    <ChampFiche label={label}>
+      <SaisieFiche
+        placeholder="Ex. 20000"
+        value={saisies[`${k}:${id}`] ?? actuel}
+        onChangeText={(v) => setSaisies((m) => ({ ...m, [`${k}:${id}`]: v.replace(/[^0-9.,]/g, '') }))}
+        onBlur={() => ecrire(id, k)}
+        onEndEditing={() => ecrire(id, k)}
+        keyboardType="decimal-pad"
+        accessibilityLabel={`${label} · ${id}`}
+      />
+    </ChampFiche>
+  );
+  if (b.parEspace[espace]?.accessible === false && !lignes.some((x) => x.prevu)) return <Text style={[s.sous, s.pad]}>Pas d’accès au Sheet « Budget » de cet espace : aucun montant n’est montré.</Text>;
+  return (
+    <>
+      <SectionFiche titre={`💶 Budget · ${mode === 'annee' ? 'budget de l’année' : mode === 'revision' ? 'révision du trimestre' : 'suivi du mois'}`}>
+        <View style={s.pad}>
+          <Text style={s.texte}>
+            Prévu {euros(tot((x) => x.prevu))} · Dépensé {euros(tot((x) => x.d.consomme))} · Reste {euros(tot((x) => x.prevu - x.d.consomme))}
+          </Text>
+          {lignes.length > 0 && (lignes.every((x) => x.fin) ? <Text style={s.sous}>Estimation à la fin : {euros(tot((x) => x.fin))}</Text> : <Text style={s.sous}>Estimation à la fin : {lignes.filter((x) => !x.fin).length} projet{lignes.filter((x) => !x.fin).length > 1 ? 's' : ''} sans estimation</Text>)}
+        </View>
+      </SectionFiche>
+      {lignes.map(({ e, d, dos, prevu, fin, calculable, manuelle }) => (
+        <SectionFiche key={e.id} titre={`🗂️ Projet (epic) · ${e.titre}`}>
+          <View style={s.pad}>
+            <Text style={[s.texte, prevu && d.consomme > prevu ? { color: '#B3261E' } : null]}>
+              Prévu {prevu ? euros(prevu) : 'non renseigné'} · Dépensé {euros(d.consomme)} · Reste {prevu ? euros(prevu - d.consomme) : '—'}
+            </Text>
+            <Text style={s.sous}>
+              Dépenses {euros(d.depenses + d.frais)}
+              {d.personnes ? ` · personnes ${euros(d.personnes)} (coût annuel saisi)` : ''}
+              {fin ? ` · Estimation à la fin ${euros(fin)}${manuelle ? ' (saisie)' : ' (calculée)'}` : ''}
+            </Text>
+            {!!fin && fin > prevu && !!prevu && <Text style={[s.sous, { color: colors.warning }]}>⚠ Estimation à la fin au-dessus du prévu (+{euros(fin - prevu)})</Text>}
+          </View>
+          {peutModifier && mode !== 'suivi' && champ(e.id, 'budget_prevu', dos?.budget_prevu || e.budget || '', mode === 'annee' ? 'Budget de l’année (€)' : 'Budget prévu révisé (€)')}
+          {peutModifier && (!calculable || !!manuelle) && champ(e.id, 'estimation_fin', dos?.estimation_fin ?? '', calculable ? 'Estimation à la fin saisie (€)' : 'Estimation à la fin (€) · à saisir, le reste n’est pas estimé')}
+        </SectionFiche>
+      ))}
+      {!lignes.length && <Text style={[s.sous, s.pad]}>Aucun projet ici.</Text>}
+      <Text style={[s.sous, s.pad]}>Réglé par le mode Simple : dépenses ponctuelles ou par mois, sur un seul élément, sans répartition ; coût des personnes compté seulement si un coût annuel est saisi.</Text>
       {!!err && <Text style={s.err}>{err}</Text>}
     </>
   );

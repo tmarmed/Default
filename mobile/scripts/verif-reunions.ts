@@ -19,7 +19,7 @@ import { makeOrgValue } from '../src/organisation';
 import { maillonsDe, patchAReprendre, planRedescendre, planTransmettre, transmissionPrete, typeNoteDe } from '../src/echange/transmettre';
 import { aReprendre, chaineEscalade, parEspace, pointsEscalade, reunionDeNiveau, titreEscalade } from '../src/suiviEscalade';
 import { arreterSerie, couperSerie, datesRegle, exceptionsOrphelines, libelleRegle, lireExceptions, modifierOccurrence, modifierSerie, occurrences } from '../src/series';
-import { seriesACreer, serieParDefaut, serieVide, etapesParcours, ongletParcours, parcoursParDefaut, participantsReunion, reunionsAVenir } from '../src/reunions';
+import { seriesACreer, serieParDefaut, serieVide, etapesParcours, ongletParcours, parcoursParDefaut, participantsReunion, reunionsAVenir, seriesDe } from '../src/reunions';
 import { type Echange, type Reunion, TYPES_REUNION } from '../src/types';
 import { depuisPoints, iterationOf, iterationsOf, lireCalendrier, piOf, pointsOf, reglerConversion, versPoints } from '../src/pi';
 import { checkParent } from '../src/subtasks';
@@ -50,7 +50,8 @@ ok(
     .every(([k, t]) => t.etapes[t.etapes.length - 1] === (k === 'planification' ? 'Engagement' : 'Compte rendu')),
   'catalogue : les réunions SAFe finissent par le compte rendu (planification : l’engagement)',
 );
-ok(Object.values(TYPES_REUNION).filter((t) => t.mode === 'simple').every((t) => !t.etapes.includes('Compte rendu')), 'catalogue : pas de compte rendu en mode Simple');
+ok(Object.values(TYPES_REUNION).filter((t) => t.mode === 'simple' && t.niveau === 'perso').every((t) => !t.etapes.includes('Compte rendu')), 'catalogue : pas de compte rendu dans les rituels personnels (Simple, seul)');
+ok(Object.values(TYPES_REUNION).filter((t) => t.mode === 'simple' && t.niveau !== 'perso').every((t) => t.etapes[t.etapes.length - 1] === 'Compte rendu' && t.etapes.includes('Concrétisation')), 'catalogue : réunions Simple à plusieurs : Concrétisation et compte rendu, comme en SAFe');
 
 // Mardi 13 oct. 2026 : IT1 du T4 (1er oct. → 14 oct.), jour ouvré ordinaire
 const paul = reunionsAVenir(o, mail('acmp6'), '2026-10-01', true, 92); // PO de Mobile
@@ -418,7 +419,16 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const oT = makeOrgValue(orgTousLesRoles(orgDemo('demo-entreprise')));
   const niv = niveauxDeRoles(oT, 'vous@demo', false);
   ok(niv.some((x) => x.kind === 'equipeagile') && niv.some((x) => x.kind === 'train') && niv.some((x) => x.kind === 'portfolio') && niv[0].kind === 'equipeagile', 'pilotage : niveaux selon les rôles (équipes d’abord, puis train, portfolio)');
-  ok(niveauxDeRoles(oT, 'vous@demo', true).map((x) => x.kind).join() === 'perso', 'pilotage : mode Simple → 🔒 Moi');
+  const nivS = niveauxDeRoles(oT, 'vous@demo', true);
+  ok(nivS[0].kind === 'perso' && nivS.some((x) => x.kind === 'equipeagile') && nivS.some((x) => x.kind === 'unite') && !nivS.some((x) => x.kind === 'train' || x.kind === 'portfolio'), 'pilotage : mode Simple → 🔒 Moi, vos équipes, votre entreprise (ni train ni portfolio)');
+  // Mode Simple à plusieurs (09/10) : réunions d'équipe et d'entreprise, demandes équipe → entreprise
+  const oE = makeOrgValue({ ...orgTousLesRoles(orgDemo('demo-entreprise')), equipes: oT.equipes.map((e) => ({ ...e, espace: 'demo-entreprise' })), unites: oT.unites.map((u) => ({ ...u, espace: 'demo-entreprise' })) });
+  const sS = seriesDe(oE, 'vous@demo', false).map((v) => `${v.type}|${v.serie.niveau}`);
+  ok(['point_equipe|equipeagile:acmeqmob', 'revue_mois|equipeagile:acmeqmob', 'bilan_annuel|equipeagile:acmeqmob', 'revue_mois|unite:acmu1', 'annuel_entreprise|unite:acmu1', 'point_perso|'].every((x) => sS.includes(x)) && !sS.some((x) => x.startsWith('daily|') || x.startsWith('pi_planning|')), 'Simple : réunions de l’équipe (Point d’équipe… Bilan annuel) et de l’entreprise (Revue du mois, Point annuel), sans réunions SAFe');
+  const partU = participantsReunion({ type: 'revue_mois', niveau: 'unite:acmu1' }, oE);
+  ok(partU.includes('acmp1') && oE.equipes.filter((e) => (e.espace || 'moi') === 'demo-entreprise').every((e) => !e.sm || partU.includes(e.sm)), 'Simple : revue de l’entreprise = son responsable et les responsables des équipes');
+  ok(niveauDessus('equipeagile:acmeqmob', oE, true) === 'entreprise:demo-entreprise' && niveauDessus('entreprise:demo-entreprise', oE, true) === null && reunionDuNiveau('entreprise:x', true) === 'Revue du mois', 'Simple : demande de l’équipe → entreprise, à la Revue du mois, rien au-dessus');
+  ok(gerantsBudget('entreprise:demo-entreprise', oE, true).length === 1 && gerantsBudget('equipeagile:acmeqmob', oE, true).length === 1, 'Simple : décide le responsable de l’entreprise ; demande le responsable de l’équipe');
   const d = donneesDemo('demo-entreprise');
   const hP = { items: d.items, featureList: d.entities.feature ?? [], epicList: d.entities.epic ?? [], objectifList: d.entities.objectif ?? [], objectifsPI: d.entities.objectifpi ?? [], resultats: d.entities.resultat ?? [], domaineList: d.entities.domaine ?? [] } as never;
   const jourP = toDateString(new Date());

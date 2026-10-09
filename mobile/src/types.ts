@@ -516,6 +516,14 @@ export type TypeReunion =
   | 'revue_objectifs'
   | 'revue_trimestre'
   | 'point_annuel'
+  // Mode Simple à plusieurs (validé le 09/10) : équipe (Point d'équipe… Bilan annuel) et entreprise (Revue du mois,
+  // Revue du trimestre, Point annuel), sur le socle des réunions SAFe (notes, suivis, Concrétisation, Chat)
+  | 'point_equipe'
+  | 'semaine_equipe'
+  | 'revue_mois'
+  | 'trimestre_simple'
+  | 'bilan_annuel'
+  | 'annuel_entreprise'
   | 'reunion';
 
 /** Répétition d'une réunion, vide = une seule fois */
@@ -567,7 +575,7 @@ export interface TypeReunionInfo {
   libelle: string;
   /** Mode où la réunion existe */
   mode: 'safe' | 'simple';
-  niveau: 'equipe' | 'train' | 'portfolio' | 'perso';
+  niveau: 'equipe' | 'train' | 'portfolio' | 'perso' | 'entreprise';
   /** Rôle qui l'anime */
   role: RoleOrganisateur;
   /** Durée par défaut, en minutes */
@@ -597,9 +605,15 @@ export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
   point_perso: { icone: '🌅', libelle: 'Point perso', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Hier', "Aujourd'hui", 'Plan figé'] },
   bilan_soir: { icone: '🌙', libelle: 'Bilan du soir', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Prévu / fait', 'Pas fini'] },
   revue_semaine: { icone: '📆', libelle: 'Revue de la semaine', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Semaine écoulée', 'En retard', 'Priorités'] },
-  revue_objectifs: { icone: '🧭', libelle: 'Revue des objectifs', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Objectifs', 'Domaines délaissés', 'Fin'] },
+  revue_objectifs: { icone: '🧭', libelle: 'Revue des objectifs', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Objectifs', 'Domaines délaissés', 'Budget', 'Fin'] },
   revue_trimestre: { icone: '🗂️', libelle: 'Revue du trimestre', mode: 'simple', niveau: 'perso', role: 'moi', duree: 45, etapes: ['Trimestre écoulé', 'Objectifs du trimestre', 'Domaines', 'Fin'] },
-  point_annuel: { icone: '🎆', libelle: 'Point annuel', mode: 'simple', niveau: 'perso', role: 'moi', duree: 60, etapes: ["Bilan de l'année", 'Garder · arrêter · commencer', "Objectifs de l'année", 'Domaines', 'Fin'] },
+  point_annuel: { icone: '🎆', libelle: 'Point annuel', mode: 'simple', niveau: 'perso', role: 'moi', duree: 60, etapes: ["Bilan de l'année", 'Garder · arrêter · commencer', "Objectifs de l'année", 'Domaines', "Budget de l'année", 'Fin'] },
+  point_equipe: { icone: '☀️', libelle: 'Point d’équipe', mode: 'simple', niveau: 'equipe', role: 'sm', duree: 15, etapes: ['Situation', 'Tâches', 'Concrétisation', 'Compte rendu'] },
+  semaine_equipe: { icone: '📆', libelle: 'Revue de la semaine', mode: 'simple', niveau: 'equipe', role: 'sm', duree: 30, etapes: ['Situation', 'En retard', 'Priorités', 'Concrétisation', 'Compte rendu'] },
+  revue_mois: { icone: '🧭', libelle: 'Revue du mois', mode: 'simple', niveau: 'equipe', role: 'sm', duree: 45, etapes: ['Situation', 'Objectifs', 'Budget', 'Concrétisation', 'Compte rendu'] },
+  trimestre_simple: { icone: '🗂️', libelle: 'Revue du trimestre', mode: 'simple', niveau: 'equipe', role: 'sm', duree: 60, etapes: ['Situation', 'Objectifs', 'Budget', 'Concrétisation', 'Compte rendu'] },
+  bilan_annuel: { icone: '🎆', libelle: 'Bilan annuel', mode: 'simple', niveau: 'equipe', role: 'sm', duree: 90, etapes: ['Situation', 'Garder · arrêter · commencer', 'Objectifs', 'Budget', 'Concrétisation', 'Compte rendu'] },
+  annuel_entreprise: { icone: '🎆', libelle: 'Point annuel', mode: 'simple', niveau: 'entreprise', role: 'sm', duree: 120, etapes: ['Situation', 'Garder · arrêter · commencer', 'Objectifs', 'Budget de l’année', 'Concrétisation', 'Compte rendu'] },
   reunion: { icone: '📅', libelle: 'Réunion', mode: 'safe', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Points', 'Décisions', 'Compte rendu'] },
 };
 
@@ -785,6 +799,8 @@ export interface DossierInvestissement {
   /** Euros */
   budget_prevu: string;
   budget_mvp: string;
+  /** Mode Simple : estimation à la fin saisie à la main (quand elle ne peut pas être calculée), en euros */
+  estimation_fin?: string;
   decision: DecisionDossier;
   decide_le: string;
   decide_par: string;

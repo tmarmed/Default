@@ -296,7 +296,7 @@ export function EpicForm({
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={[styles.header, (!!pile?.chemin || !!fil || !!espaceFil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
           <BoutonRetour pile={pile} onPress={epic ? fermer : onClose} disabled={busy} style={styles.headerBtn} fermer={!!epic} />
-          <TitreBarre texte={epic ? 'Epic' : 'Nouvelle epic'} couleur={form.couleur} avecFil={!!pile?.chemin || !!fil || !!espaceFil} />
+          <TitreBarre texte={safe.actif ? (epic ? 'Epic' : 'Nouvelle epic') : epic ? 'Projet (epic)' : 'Nouveau projet (epic)'} couleur={form.couleur} avecFil={!!pile?.chemin || !!fil || !!espaceFil} />
           {/* Nouvelle epic : « Enregistrer » ; epic existante : enregistrée au fil de l'eau */}
           {epic ? (
             <View style={{ width: 60 }} />
@@ -432,7 +432,7 @@ export function EpicForm({
 
             {/* Budget (09/10) : prévu ; consommé calculé d'après les coûts annuels (fiche Personne), modifiable à la main */}
             {/* Lot 5 : dossier d'investissement (hypothèse, estimation, budget prévu, budget du MVP) dans le Sheet Budget */}
-            {safe.actif && epic && <SectionDossier espace={espace || 'moi'} epic={epic} />}
+            {epic && <SectionDossier espace={espace || 'moi'} epic={epic} simple={!safe.actif} />}
             {safe.actif && (
               <SectionFiche titre="Budget">
                 {(() => {
@@ -457,7 +457,7 @@ export function EpicForm({
                 })()}
               </SectionFiche>
             )}
-            {safe.actif && epic && <SectionDepenses espace={espace || 'moi'} porteur={`epic:${epic.id}`} />}
+            {epic && <SectionDepenses espace={espace || 'moi'} porteur={`epic:${epic.id}`} />}
 
             <SectionPointsReunion id={epic?.id} espace={(epic as { espace?: string } | undefined)?.espace} />
             <SectionFiche titre="Détails">

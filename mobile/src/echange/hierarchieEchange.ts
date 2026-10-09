@@ -83,7 +83,8 @@ export function libelleNiveau(n: Niveau | null, org: OrgValue): string {
   if (!n) return '';
   const nom =
     n.kind === 'equipeagile' ? org.equipe.get(n.id)?.nom : n.kind === 'train' ? org.train.get(n.id)?.nom : n.kind === 'portfolio' ? org.portfolio.get(n.id)?.nom : org.unite.get(n.id)?.nom;
-  return nom ? `${ICONE_ORG[n.kind]} ${nom}` : '';
+  // Direction de premier niveau : l'entreprise (🏢)
+  return nom ? `${n.kind === 'unite' && !org.unite.get(n.id)?.parent ? '🏢' : ICONE_ORG[n.kind]} ${nom}` : '';
 }
 
 /** Niveau d'une personne pour un échange transmis (son équipe, sinon son train, sinon son unité) */

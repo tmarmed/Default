@@ -74,6 +74,11 @@ export function useEquipe(reunion: Reunion, org: OrgValue, aujourdhui: string, p
   // Niveau de la réunion : équipe, train ou portfolio (07/10 : le même socle pour toutes les réunions)
   const trainIci = n?.kind === 'train' ? org.train.get(n.id) : undefined;
   const portfolioIci = n?.kind === 'portfolio' ? org.portfolio.get(n.id) : trainIci?.portfolio ? org.portfolio.get(trainIci.portfolio) : undefined;
+  // Mode Simple à plusieurs (09/10) : l'entreprise est la direction de premier niveau ; une équipe remonte vers elle
+  const simple = TYPES_REUNION[reunion.type]?.mode === 'simple';
+  const uniteIci = n?.kind === 'unite' ? org.unite.get(n.id) : undefined;
+  const direction = uniteIci ?? (simple && equipe ? org.unites.find((u) => !u.parent && (u.espace || 'moi') === (equipe.espace || 'moi')) : undefined);
+  const resp = direction?.responsable ? org.personne.get(direction.responsable) : undefined;
   const jour = jourReunion(reunion);
   const it = iterationOf(jour);
   const seuleEquipe = org.equipes.filter((e) => (e.espace || 'moi') === (reunion.espace || 'moi')).length === 1;
@@ -81,6 +86,7 @@ export function useEquipe(reunion: Reunion, org: OrgValue, aujourdhui: string, p
     const pt = porteurs(t, h, org);
     if (n?.kind === 'train') return pt.train === n.id;
     if (n?.kind === 'portfolio') return pt.portfolio === n.id;
+    if (n?.kind === 'unite') return (t.espace || 'moi') === (uniteIci?.espace || 'moi');
     const e = pt.equipe;
     return e ? e === equipe?.id : seuleEquipe && (t.espace || 'moi') === (reunion.espace || 'moi');
   };
@@ -93,23 +99,31 @@ export function useEquipe(reunion: Reunion, org: OrgValue, aujourdhui: string, p
   const personnes = participantsReunion(reunion, org)
     .map((id) => org.personne.get(id))
     .filter((x): x is NonNullable<typeof x> => !!x && !!x.email);
-  const role = (id: string) => (id === equipe?.sm ? 'Scrum Master' : id === equipe?.po ? 'Product Owner' : id && id === trainIci?.rte ? 'RTE' : id && id === trainIci?.pm ? 'PM' : id && id === portfolioIci?.epic_owner ? 'Epic Owner' : 'Membre');
+  const role = (id: string) => (simple && id && (id === equipe?.sm || id === equipe?.po) ? 'Responsable de l’équipe' : simple && id && id === direction?.responsable ? 'Responsable de l’entreprise' : id === equipe?.sm ? 'Scrum Master' : id === equipe?.po ? 'Product Owner' : id && id === trainIci?.rte ? 'RTE' : id && id === trainIci?.pm ? 'PM' : id && id === portfolioIci?.epic_owner ? 'Epic Owner' : 'Membre');
   const nomDe = (email: string) => personneParEmail(email, org)?.nom ?? email.split('@')[0];
   const train = trainIci ?? (equipe?.train ? org.train.get(equipe.train) : undefined);
   const rte = train?.rte ? org.personne.get(train.rte) : undefined;
   const pm = train?.pm ? org.personne.get(train.pm) : undefined;
   const eo = portfolioIci?.epic_owner ? org.personne.get(portfolioIci.epic_owner) : undefined;
   // Animateur et « PO » du niveau : équipe (SM, PO), train (RTE, PM), portfolio (Epic Owner)
-  const sm = n?.kind === 'train' ? rte : n?.kind === 'portfolio' ? eo : equipe?.sm ? org.personne.get(equipe.sm) : undefined;
+  const sm = n?.kind === 'unite' ? resp : n?.kind === 'train' ? rte : n?.kind === 'portfolio' ? eo : equipe?.sm ? org.personne.get(equipe.sm) : undefined;
   const po = n?.kind === 'train' ? pm : n?.kind === 'portfolio' ? undefined : equipe?.po ? org.personne.get(equipe.po) : undefined;
   /** Nom du niveau : « Mobile », « Clients », « Digital » */
-  const nomNiveau = equipe?.nom ?? trainIci?.nom ?? portfolioIci?.nom ?? '';
+  const nomNiveau = equipe?.nom ?? trainIci?.nom ?? portfolioIci?.nom ?? uniteIci?.nom ?? '';
   /** Destinataire du compte rendu : équipe → RTE du train ; train → Epic Owner ; portfolio → personne (unité : bientôt) */
   const destCR =
-    n?.kind === 'equipeagile' ? (rte ? { p: rte, role: `RTE du train ${train?.nom ?? ''}` } : undefined) : n?.kind === 'train' ? (eo ? { p: eo, role: `Epic Owner ${portfolioIci?.nom ?? ''}` } : undefined) : undefined;
+    simple && n?.kind === 'equipeagile'
+      ? resp && resp.id !== equipe?.sm && resp.id !== equipe?.po
+        ? { p: resp, role: `Responsable de ${direction?.nom ?? 'l’entreprise'}` }
+        : undefined
+      : n?.kind === 'equipeagile' ? (rte ? { p: rte, role: `RTE du train ${train?.nom ?? ''}` } : undefined) : n?.kind === 'train' ? (eo ? { p: eo, role: `Epic Owner ${portfolioIci?.nom ?? ''}` } : undefined) : undefined;
   /** Escalader : à l'équipe du dessus (équipe → SM ou PO du train ; train → portfolio) */
   const escalades: { email: string; label: string; meta: string; court: string }[] =
-    n?.kind === 'equipeagile'
+    simple
+      ? n?.kind === 'equipeagile' && resp?.email
+        ? [{ email: resp.email.toLowerCase(), label: '⤴ À l’entreprise', meta: `${resp.nom} · responsable de ${direction?.nom ?? 'l’entreprise'}`, court: `entreprise · ${resp.nom}` }]
+        : []
+      : n?.kind === 'equipeagile'
       ? [
           ...(rte?.email ? [{ email: rte.email.toLowerCase(), label: '⤴ Aux SM du train', meta: `obstacle, organisation · ${rte.nom} (RTE)`, court: `SM du train · ${rte.nom}` }] : []),
           ...(pm?.email ? [{ email: pm.email.toLowerCase(), label: '⤴ Aux PO du train', meta: `contenu, priorité · ${pm.nom} (PM)`, court: `PO du train · ${pm.nom}` }] : []),
@@ -119,7 +133,7 @@ export function useEquipe(reunion: Reunion, org: OrgValue, aujourdhui: string, p
         : [];
   /** Niveau de la réunion et niveau du dessus (points de suivi des escalades) */
   const niveauIci = n ? { kind: n.kind, id: n.id } : null;
-  const niveauSup = n?.kind === 'equipeagile' && train ? { kind: 'train' as const, id: train.id } : n?.kind === 'train' && portfolioIci ? { kind: 'portfolio' as const, id: portfolioIci.id } : null;
+  const niveauSup = simple ? (n?.kind === 'equipeagile' && direction ? { kind: 'unite' as const, id: direction.id } : null) : n?.kind === 'equipeagile' && train ? { kind: 'train' as const, id: train.id } : n?.kind === 'train' && portfolioIci ? { kind: 'portfolio' as const, id: portfolioIci.id } : null;
   const parId = new Map(h.items.map((t) => [t.id, t]));
   const subs = useMemo(() => subtaskMap(h.items), [h.items]);
   return { h, equipe, jour, it, situation, bloquees, personnes, role, nomDe, train, rte, pm, sm, po, eo, portfolio: portfolioIci, nomNiveau, destCR, escalades, niveauIci, niveauSup, parId, subs, dansEquipe };
@@ -924,7 +938,9 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
       {/* 💶 Demandes de budget (lot 4) : nées en réunion, reçues par la réunion de suivi du dessus */}
       {e.niveauIci &&
         (() => {
-          const niveau = `${e.niveauIci.kind}:${e.niveauIci.id}`;
+          // Mode Simple : l'entreprise (direction de premier niveau) reçoit les demandes des équipes à la Revue du mois
+          const simpleR = TYPES_REUNION[r.reunion.type]?.mode === 'simple';
+          const niveau = simpleR && e.niveauIci.kind === 'unite' ? `entreprise:${r.org.unite.get(e.niveauIci.id)?.espace || 'moi'}` : `${e.niveauIci.kind}:${e.niveauIci.id}`;
           return (
             <BlocDemandesBudget
               niveau={niveau}
@@ -933,10 +949,14 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
               moi={r.mail}
               anime={r.anime}
               lecture={lecture}
-              gerants={gerantsBudget(niveau, r.org)}
-              gerantsDessus={!!niveauDessus(niveau, r.org)}
+              gerants={gerantsBudget(niveau, r.org, simpleR)}
+              gerantsDessus={!!niveauDessus(niveau, r.org, simpleR)}
               nomDe={e.nomDe}
-              epics={enfantsRepartition(niveau, r.org, e.h).filter((x) => x.cle.startsWith('epic:')).map((x) => ({ id: x.cle.slice(5), titre: x.nom.replace(/^🗂️ /, '') }))}
+              epics={
+                simpleR
+                  ? e.h.epicList.filter((x) => (x.espace || 'moi') === (r.reunion.espace || 'moi')).map((x) => ({ id: x.id, titre: x.titre }))
+                  : enfantsRepartition(niveau, r.org, e.h).filter((x) => x.cle.startsWith('epic:')).map((x) => ({ id: x.cle.slice(5), titre: x.nom.replace(/^🗂️ /, '') }))
+              }
             />
           );
         })()}

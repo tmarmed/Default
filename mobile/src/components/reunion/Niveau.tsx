@@ -8,9 +8,9 @@ import { useSafe } from '../../safe';
 import { useConges } from '../../conges';
 import { capaciteEquipePI } from '../../pilotage';
 import { colors } from '../../theme';
-import { type Epic, ETATS_EPIC, type Feature, type TypeReunion, TYPES_REUNION } from '../../types';
+import { type Epic, ETATS_EPIC, type Feature, type Item, STATUT_LABELS, type TypeReunion, TYPES_REUNION } from '../../types';
 import { SectionFiche } from '../Choix';
-import { BlocDossiers } from '../Budget';
+import { BlocBudgetSimple, BlocDossiers } from '../Budget';
 import { TitreFiche } from '../FormSheet';
 import { ListeEditable, MesTaches, Navigation } from './Affinage';
 import { AjoutElement } from './Ajout';
@@ -52,6 +52,7 @@ type Etape =
   | { k: 'budget'; cle: string }
   | { k: 'concretisation' }
   | { k: 'dossiers' }
+  | { k: 'budget_simple'; mode: 'suivi' | 'revision' | 'annee' }
   | { k: 'compte_rendu' }
   // Participants
   | { k: 'taches' }
@@ -96,6 +97,26 @@ const okrs = (c: Ctx): Elem[] =>
       const krs = c.e.h.resultats.filter((k) => k.objectif === o.id);
       return { id: o.id, titre: `🎯 ${o.titre}`, sous: krs.map((k) => `${k.titre} : ${k.actuel || 0}/${k.cible || '?'} ${k.unite}`).join(' · '), pastille: `${krs.length} RC` };
     });
+// ---- Mode Simple à plusieurs (09/10) : tâches de l'équipe, en retard, objectifs (OKR) de l'espace ----
+const jourTache = (t: Item) => t.echeance || t.date_fin || t.date || '';
+const tachesOuvertes = (c: Ctx) => c.e.h.items.filter((t) => !t.parent && t.statut !== 'termine' && c.e.dansEquipe(t));
+const tachesDuJour = (c: Ctx): Elem[] =>
+  tachesOuvertes(c)
+    .filter((t) => t.statut === 'en_cours' || (!!jourTache(t) && jourTache(t) <= c.e.jour))
+    .map((t) => ({ id: t.id, titre: t.titre, sous: [t.responsable ? (c.r.org.personne.get(t.responsable)?.nom ?? '') : '', jourTache(t) ? `pour le ${jourTache(t).slice(8, 10)}/${jourTache(t).slice(5, 7)}` : ''].filter(Boolean).join(' · '), pastille: STATUT_LABELS[t.statut] }));
+const tachesEnRetard = (c: Ctx): Elem[] =>
+  tachesOuvertes(c)
+    .filter((t) => !!jourTache(t) && jourTache(t) < c.e.jour)
+    .map((t) => ({ id: t.id, titre: t.titre, sous: [t.responsable ? (c.r.org.personne.get(t.responsable)?.nom ?? '') : '', `prévue le ${jourTache(t).slice(8, 10)}/${jourTache(t).slice(5, 7)}`].filter(Boolean).join(' · '), pastille: 'en retard' }));
+/** Objectifs (OKR) : le même élément qu'en SAFe, avec ses résultats clés */
+const objectifsSimple = (c: Ctx): Elem[] =>
+  c.e.h.objectifList
+    .filter((o) => (o.espace || 'moi') === (c.r.reunion.espace || 'moi') && (!o.fin || o.fin >= c.e.jour))
+    .map((o) => {
+      const krs = c.e.h.resultats.filter((k) => k.objectif === o.id);
+      const val = o.cible ? `${o.actuel || 0}/${o.cible} ${o.unite ?? ''}`.trim() : '';
+      return { id: o.id, titre: `🎯 ${o.titre}`, sous: [val, ...krs.map((k) => `${k.titre} : ${k.actuel || 0}/${k.cible || '?'} ${k.unite}`)].filter(Boolean).join(' · '), pastille: krs.length ? `${krs.length} RC` : 'Objectif (OKR)' };
+    });
 const previsibilite = (c: Ctx) => {
   const l = c.e.h.objectifsPI.filter((o) => o.pi === c.pi && o.type === 'engage');
   const prevu = l.reduce((s, o) => s + (Number(o.valeur_prevue) || 0), 0);
@@ -108,7 +129,86 @@ const SIT = (objectif: string, sousObjectif: string, compteurs: (c: Ctx) => { va
 const CONC: Etape = { k: 'concretisation' };
 const CR: Etape = { k: 'compte_rendu' };
 const TACHES: Etape = { k: 'taches' };
+const NOTES_SIMPLE: [string, string, Etape][] = [
+  ['taches', 'Mes tâches', TACHES],
+  ['notes', 'Mes notes', { k: 'notes' }],
+];
+const OBJ_SIMPLE: Etape = { k: 'elements', icone: '🎯', mot: 'Objectif (OKR)', liste: objectifsSimple, choix: ['Garder', 'Ajuster', 'Arrêter'], ajout: 'resultat' };
+const SIT_SIMPLE = (objectif: string, sous: string): Etape =>
+  SIT(objectif, sous, (c) => [
+    { valeur: String(tachesOuvertes(c).length), libelle: 'tâches ouvertes' },
+    { valeur: String(tachesEnRetard(c).length), libelle: 'en retard', ton: tachesEnRetard(c).length ? 'orange' : undefined },
+    { valeur: String(objectifsSimple(c).length), libelle: 'objectifs (OKR)' },
+  ]);
 export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
+  // ---- Mode Simple à plusieurs (09/10) : mêmes étapes que le SAFe (notes, suivis, Concrétisation, compte rendu) ----
+  point_equipe: {
+    nomCourt: 'au point d’équipe',
+    sm: [
+      ['situation', 'Situation', SIT_SIMPLE('Se coordonner en 15 minutes', 'Qui fait quoi aujourd’hui, ce qui bloque.')],
+      ['taches', 'Tâches', { k: 'liste', icone: '✅', titre: 'Tâches du jour', sous: 'En cours ou prévues jusqu’à aujourd’hui', lignes: tachesDuJour, points: true }],
+      ['concretisation', 'Concrétisation', CONC],
+      ['compte_rendu', 'Compte rendu', CR],
+    ],
+    membre: NOTES_SIMPLE,
+  },
+  semaine_equipe: {
+    nomCourt: 'à la revue de la semaine',
+    sm: [
+      ['situation', 'Situation', SIT_SIMPLE('Faire le point de la semaine', 'Ce qui est en retard, les priorités de la semaine à venir.')],
+      ['retard', 'En retard', { k: 'liste', icone: '⏰', titre: 'En retard', sous: 'Tâches de l’équipe après leur date', lignes: tachesEnRetard, points: true }],
+      ['priorites', 'Priorités', { k: 'points', icone: '⭐', titre: 'Priorités de la semaine', sous: 'Trois au plus : décisions et actions', placeholder: '＋ Priorité, décision ou action' }],
+      ['concretisation', 'Concrétisation', CONC],
+      ['compte_rendu', 'Compte rendu', CR],
+    ],
+    membre: NOTES_SIMPLE,
+  },
+  revue_mois: {
+    nomCourt: 'à la revue du mois',
+    sm: [
+      ['situation', 'Situation', SIT_SIMPLE('Revoir les objectifs et le budget du mois', 'Objectifs (OKR) : garder, ajuster, arrêter ; budget : prévu, dépensé, reste ; demandes de budget.')],
+      ['objectifs', 'Objectifs', OBJ_SIMPLE],
+      ['budget', 'Budget', { k: 'budget_simple', mode: 'suivi' }],
+      ['concretisation', 'Concrétisation', CONC],
+      ['compte_rendu', 'Compte rendu', CR],
+    ],
+    membre: NOTES_SIMPLE,
+  },
+  trimestre_simple: {
+    nomCourt: 'à la revue du trimestre',
+    sm: [
+      ['situation', 'Situation', SIT_SIMPLE('Revoir le trimestre', 'Objectifs (OKR) du trimestre ; révision du budget (budget prévu des projets).')],
+      ['objectifs', 'Objectifs', OBJ_SIMPLE],
+      ['budget', 'Budget', { k: 'budget_simple', mode: 'revision' }],
+      ['concretisation', 'Concrétisation', CONC],
+      ['compte_rendu', 'Compte rendu', CR],
+    ],
+    membre: NOTES_SIMPLE,
+  },
+  bilan_annuel: {
+    nomCourt: 'au bilan annuel',
+    sm: [
+      ['situation', 'Situation', SIT_SIMPLE('Faire le bilan de l’année', 'Garder, arrêter, commencer ; objectifs (OKR) de l’année ; budget de l’année.')],
+      ['gac', 'Garder · arrêter · commencer', { k: 'points', icone: '🔁', titre: 'Garder · arrêter · commencer', sous: 'Une note par idée', placeholder: '＋ Garder, arrêter ou commencer…' }],
+      ['objectifs', 'Objectifs', OBJ_SIMPLE],
+      ['budget', 'Budget', { k: 'budget_simple', mode: 'annee' }],
+      ['concretisation', 'Concrétisation', CONC],
+      ['compte_rendu', 'Compte rendu', CR],
+    ],
+    membre: NOTES_SIMPLE,
+  },
+  annuel_entreprise: {
+    nomCourt: 'au point annuel',
+    sm: [
+      ['situation', 'Situation', SIT_SIMPLE('Faire le point de l’année de l’entreprise', 'Garder, arrêter, commencer ; objectifs (OKR) ; budget de l’année par projet.')],
+      ['gac', 'Garder · arrêter · commencer', { k: 'points', icone: '🔁', titre: 'Garder · arrêter · commencer', sous: 'Une note par idée', placeholder: '＋ Garder, arrêter ou commencer…' }],
+      ['objectifs', 'Objectifs', OBJ_SIMPLE],
+      ['budget', 'Budget de l’année', { k: 'budget_simple', mode: 'annee' }],
+      ['concretisation', 'Concrétisation', CONC],
+      ['compte_rendu', 'Compte rendu', CR],
+    ],
+    membre: NOTES_SIMPLE,
+  },
   pi_planning: {
     nomCourt: 'au PI Planning',
     sm: [
@@ -331,7 +431,12 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
   const pi = piOf(e.jour);
   const n = e.niveauIci;
   const features = e.h.featureList.filter((f) => (n?.kind === 'train' ? (f.train ?? '') === n.id : true) && f.pi === pi);
-  const epics = e.h.epicList.filter((x) => (n?.kind === 'portfolio' ? x.portfolio === n.id : e.portfolio ? x.portfolio === e.portfolio.id : true));
+  // Mode Simple : projets de l'équipe (ceux où elle a des tâches) ou de l'entreprise (son espace)
+  const simple = TYPES_REUNION[p.reunion.type]?.mode === 'simple';
+  const epicsEquipe = new Set(e.h.items.filter((t) => e.dansEquipe(t)).map((t) => t.epic || e.h.featureList.find((f) => f.id === t.feature)?.epic || '').filter(Boolean));
+  const epics = simple
+    ? e.h.epicList.filter((x) => (n?.kind === 'equipeagile' ? epicsEquipe.has(x.id) : (x.espace || 'moi') === (p.reunion.espace || 'moi')))
+    : e.h.epicList.filter((x) => (n?.kind === 'portfolio' ? x.portfolio === n.id : e.portfolio ? x.portfolio === e.portfolio.id : true));
   const c: Ctx = { r, e, pi, piSuivant: shiftPi(pi, 1), features, epics, fmt };
   // Capacité par sprint du PI (lot 2, 09/10) : équipes du train, avec les congés déclarés
   const congesCtx = useConges();
@@ -610,6 +715,13 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
           </>
         );
       }
+      case 'budget_simple':
+        return (
+          <>
+            <TitreFiche icone="💶" titre="Budget" vide="" sous={`${e.nomNiveau} · Prévu · Dépensé · Reste · Estimation à la fin`} />
+            <BlocBudgetSimple epics={epics} h={e.h} org={r.org} espace={p.reunion.espace || 'moi'} mode={et.mode} peutModifier={r.anime && !lecture} />
+          </>
+        );
       case 'concretisation':
         return <EtapeConcretisation r={r} lecture={lecture} iterationCode={`PI ${pi}`} />;
       case 'compte_rendu': {

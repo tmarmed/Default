@@ -216,7 +216,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
     <HierarchyContext.Provider value={h}>
     <FormSheet
       visible={visible}
-      title={objectif ? (okrSafe ? 'OKR' : 'Objectif') : okrSafe ? 'Nouvel OKR' : 'Nouvel objectif'}
+      title={objectif ? (okrSafe ? 'OKR' : 'Objectif (OKR)') : okrSafe ? 'Nouvel OKR' : 'Nouvel objectif (OKR)'}
       couleurTitre={form.couleur}
       busy={busy}
       error={error ?? auto.erreur ?? (objectif ? erreurForm : null)}

@@ -17,7 +17,7 @@ import type { DetailEpic } from './consomme';
  * la capacité (en jours par sprint) de ses membres, convertie en points.
  */
 
-export type KindPilotage = 'equipeagile' | 'train' | 'portfolio' | 'perso';
+export type KindPilotage = 'equipeagile' | 'train' | 'portfolio' | 'perso' | 'unite';
 export interface NiveauPilotage {
   kind: KindPilotage;
   id: string;
@@ -28,8 +28,16 @@ type H = Pick<HierarchyValue, 'items' | 'featureList' | 'epicList' | 'objectifLi
 
 /** Niveaux proposés selon vos rôles : vos équipes ; RTE ou PM : le train et ses équipes ; Epic Owner : le portfolio */
 export function niveauxDeRoles(org: OrgValue, moi: string, simple: boolean): NiveauPilotage[] {
-  if (simple) return [{ kind: 'perso', id: 'moi', nom: '🔒 Moi', espace: 'moi' }];
   const ids = new Set(org.personnes.filter((p) => p.email?.toLowerCase() === moi.toLowerCase()).map((p) => p.id));
+  // Mode Simple (09/10) : 🔒 Moi, vos équipes et vos entreprises (direction de premier niveau)
+  if (simple) {
+    const l: NiveauPilotage[] = [{ kind: 'perso', id: 'moi', nom: '🔒 Moi', espace: 'moi' }];
+    const miennes = org.equipes.filter((x) => ids.has(x.sm) || ids.has(x.po) || membresDe(x).some((m) => ids.has(m)));
+    for (const e of miennes) l.push({ kind: 'equipeagile', id: e.id, nom: `👥 ${e.nom}`, espace: e.espace || 'moi' });
+    for (const u of org.unites.filter((x) => !x.parent && (ids.has(x.responsable) || miennes.some((e) => (e.espace || 'moi') === (x.espace || 'moi') && (ids.has(e.sm) || ids.has(e.po))))))
+      l.push({ kind: 'unite', id: u.id, nom: `🏢 ${u.nom}`, espace: u.espace || 'moi' });
+    return l;
+  }
   const out: NiveauPilotage[] = [];
   const vus = new Set<string>();
   const ajouter = (n: NiveauPilotage) => !vus.has(`${n.kind}:${n.id}`) && (vus.add(`${n.kind}:${n.id}`), out.push(n));
@@ -40,7 +48,7 @@ export function niveauxDeRoles(org: OrgValue, moi: string, simple: boolean): Niv
   }
   for (const e of org.equipes.filter((x) => ids.has(x.sm) || ids.has(x.po) || membresDe(x).some((m) => ids.has(m)))) ajouter({ kind: 'equipeagile', id: e.id, nom: `👥 ${e.nom}`, espace: e.espace || 'moi' });
   // Ordre : équipes d'abord (le plus proche), puis train, puis portfolio
-  const rang = { equipeagile: 0, train: 1, portfolio: 2, perso: 3 };
+  const rang = { equipeagile: 0, train: 1, portfolio: 2, unite: 3, perso: 4 };
   return out.sort((a, b) => rang[a.kind] - rang[b.kind]);
 }
 

@@ -818,9 +818,11 @@ function Main() {
         Promise.allSettled(espCong.map((e) => api.lireConges(s, e.id))).then((rc) =>
           setCongesEsp((avant) => Object.fromEntries(espCong.map((e, k) => [e.id, rc[k].status === 'fulfilled' ? (rc[k] as PromiseFulfilledResult<{ conges: Conge[]; joursReels: JoursReels[] }>).value : (avant[e.id] ?? { conges: [], joursReels: [] })]))),
         );
-        // 💶 Budget des entreprises (Sheet à part) : sans accès, il reste vide
-        Promise.allSettled(entreprises.map((e) => api.lireBudget(e.id))).then((rb) =>
-          setBudgets((avant) => Object.fromEntries(entreprises.map((e, k) => [e.id, rb[k].status === 'fulfilled' ? (rb[k] as PromiseFulfilledResult<BudgetEspace>).value : (avant[e.id] ?? { depenses: [], couts: [], accessible: false })]))),
+        // 💶 Budget de chaque cadre (Sheet à part) : entreprises, espaces Équipe et 🔒 Moi (mode Simple, 09/10) ;
+        // sans accès, il reste vide
+        const cadres = liste;
+        Promise.allSettled(cadres.map((e) => api.lireBudget(e.id))).then((rb) =>
+          setBudgets((avant) => Object.fromEntries(cadres.map((e, k) => [e.id, rb[k].status === 'fulfilled' ? (rb[k] as PromiseFulfilledResult<BudgetEspace>).value : (avant[e.id] ?? { depenses: [], couts: [], accessible: false })]))),
         );
         // Membres des espaces Équipe (une lecture par espace) ; un espace injoignable garde sa dernière copie
         const espEq = liste.filter((e) => e.type === 'equipe');
@@ -1577,13 +1579,13 @@ function Main() {
             setBudgets((b) => (b[espace] ? { ...b, [espace]: { ...b[espace], depenses: b[espace].depenses.filter((y) => y.id !== id) } } : b));
           },
           soumettreDemande: async (espace, d) => {
-            const destination = d.destination || niveauDessus(d.demandeur, orgReunions) || '';
+            const destination = d.destination || niveauDessus(d.demandeur, orgReunions, !safe.actif) || '';
             if (!destination) throw new Error('Pas de niveau au-dessus pour décider (rattachez l’équipe à un train, le train à un portfolio).');
             const o = await api.ecrireDemande(espace, titreBudget(espace), { ...d, destination, statut: 'soumise' });
             setBudgets((b) => ({ ...b, [espace]: { ...(b[espace] ?? { depenses: [], couts: [], accessible: true }), demandes: [...(b[espace]?.demandes ?? []), o] } }));
             // « À décider » dans le Chat des personnes qui décident (mêmes choix qu'en séance)
-            const a = gerantsBudget(destination, orgReunions).filter((m) => m !== moiEchange);
-            const reunionCible = reunionDuNiveau(destination);
+            const a = gerantsBudget(destination, orgReunions, !safe.actif).filter((m) => m !== moiEchange);
+            const reunionCible = reunionDuNiveau(destination, !safe.actif);
             await actionsDaily.envoyerEchanges(
               espace,
               a.map((m) => ({
@@ -1597,12 +1599,12 @@ function Main() {
           deciderDemande: async (d, decision, reunion) => {
             const espace = d.espace || 'moi';
             if (decision.choix === 'plus_haut') {
-              const dessus = niveauDessus(d.destination, orgReunions);
+              const dessus = niveauDessus(d.destination, orgReunions, !safe.actif);
               if (!dessus) throw new Error('Pas de niveau au-dessus.');
               const o = await api.ecrireDemande(espace, titreBudget(espace), { id: d.id, destination: dessus });
               setBudgets((b) => ({ ...b, [espace]: { ...b[espace], demandes: (b[espace]?.demandes ?? []).map((x) => (x.id === o.id ? o : x)) } }));
-              const a = gerantsBudget(dessus, orgReunions).filter((m) => m !== moiEchange);
-              await actionsDaily.envoyerEchanges(espace, a.map((m) => ({ de: moiEchange, a: m, type: 'question', nature: 'decision_a_prendre', titre: `${TITRE_DEMANDE} ${o.motif}`.slice(0, 200), texte: `${eurosBudget(Number(o.montant))} · soumise plus haut par ${nomEchange(moiEchange)}\nÀ traiter à : ${reunionDuNiveau(dessus)}`, choix: CHOIX_DEMANDE.join(';'), reponse: '', note: '', statut: 'envoye', element: '', niveau: dessus, transmis_par: moiEchange, prive: '1', pieces_jointes: '', point: o.id, parent: '', espace })));
+              const a = gerantsBudget(dessus, orgReunions, !safe.actif).filter((m) => m !== moiEchange);
+              await actionsDaily.envoyerEchanges(espace, a.map((m) => ({ de: moiEchange, a: m, type: 'question', nature: 'decision_a_prendre', titre: `${TITRE_DEMANDE} ${o.motif}`.slice(0, 200), texte: `${eurosBudget(Number(o.montant))} · soumise plus haut par ${nomEchange(moiEchange)}\nÀ traiter à : ${reunionDuNiveau(dessus, !safe.actif)}`, choix: CHOIX_DEMANDE.join(';'), reponse: '', note: '', statut: 'envoye', element: '', niveau: dessus, transmis_par: moiEchange, prive: '1', pieces_jointes: '', point: o.id, parent: '', espace })));
             } else {
               const patch =
                 decision.choix === 'accorder'

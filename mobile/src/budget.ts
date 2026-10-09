@@ -87,28 +87,44 @@ export const estDemandeBudget = (e: { titre: string; point?: string }) => e.titr
 export const estInformation = (e: { titre: string }) => e.titre.startsWith(TITRE_INFO);
 
 type OrgDemande = {
-  equipe: Map<string, { train: string; sm: string }>;
+  equipe: Map<string, { train: string; sm: string; po?: string; espace?: string }>;
+  unites?: { parent: string; responsable: string; espace?: string }[];
   train: Map<string, { portfolio: string; rte: string; pm: string; espace?: string }>;
   portfolio: Map<string, { epic_owner: string; espace?: string }>;
   personne: Map<string, { email: string }>;
 };
-/** Niveau qui décide : équipe → son train ; train → son portfolio ; portfolio → l'entreprise ; entreprise → personne */
-export function niveauDessus(niveau: string, org: OrgDemande): string | null {
+/**
+ * Niveau qui décide : équipe → son train ; train → son portfolio ; portfolio → l'entreprise ; entreprise → personne.
+ * Mode Simple (09/10) : équipe → son entreprise (décidé à la Revue du mois par le responsable de l'entreprise).
+ */
+export function niveauDessus(niveau: string, org: OrgDemande, simple = false): string | null {
   const [k, id] = [niveau.slice(0, niveau.indexOf(':')), niveau.slice(niveau.indexOf(':') + 1)];
+  if (simple) return k === 'equipeagile' && org.equipe.has(id) ? `entreprise:${org.equipe.get(id)!.espace || 'moi'}` : null;
   if (k === 'equipeagile') return org.equipe.get(id)?.train ? `train:${org.equipe.get(id)!.train}` : null;
   if (k === 'train') return org.train.get(id)?.portfolio ? `portfolio:${org.train.get(id)!.portfolio}` : null;
   if (k === 'portfolio') return `entreprise:${org.portfolio.get(id)?.espace || 'moi'}`;
   return null;
 }
 /** Réunion de suivi qui reçoit les demandes de ce niveau */
-export function reunionDuNiveau(niveau: string): string {
+export function reunionDuNiveau(niveau: string, simple = false): string {
+  if (simple) return niveau.startsWith('entreprise:') ? 'Revue du mois' : '';
   return niveau.startsWith('train:') ? 'ART sync' : niveau.startsWith('portfolio:') ? 'Synchronisation du portfolio' : niveau.startsWith('entreprise:') ? 'Comité budgétaire' : '';
 }
-/** Personnes qui ont le droit « 💶 Gérer le budget » d'un niveau (par défaut : SM ; RTE et PM ; Epic Owner) */
-export function gerantsBudget(niveau: string, org: OrgDemande): string[] {
+/**
+ * Personnes qui ont le droit « 💶 Gérer le budget » d'un niveau (par défaut : SM ; RTE et PM ; Epic Owner).
+ * Mode Simple : responsable de l'équipe (Scrum Master, sinon Product Owner) ; entreprise : responsable de la direction
+ * de premier niveau.
+ */
+export function gerantsBudget(niveau: string, org: OrgDemande, simple = false): string[] {
   const [k, id] = [niveau.slice(0, niveau.indexOf(':')), niveau.slice(niveau.indexOf(':') + 1)];
   const mail = (pid?: string) => (pid ? (org.personne.get(pid)?.email ?? '').toLowerCase() : '');
-  const ids = k === 'equipeagile' ? [org.equipe.get(id)?.sm] : k === 'train' ? [org.train.get(id)?.rte, org.train.get(id)?.pm] : k === 'portfolio' ? [org.portfolio.get(id)?.epic_owner] : [];
+  const ids = simple
+    ? k === 'equipeagile'
+      ? [org.equipe.get(id)?.sm || org.equipe.get(id)?.po]
+      : k === 'entreprise'
+        ? (org.unites ?? []).filter((u) => !u.parent && (u.espace || 'moi') === id).map((u) => u.responsable)
+        : []
+    : k === 'equipeagile' ? [org.equipe.get(id)?.sm] : k === 'train' ? [org.train.get(id)?.rte, org.train.get(id)?.pm] : k === 'portfolio' ? [org.portfolio.get(id)?.epic_owner] : [];
   return [...new Set(ids.map(mail).filter(Boolean))];
 }
 export const libelleStatutDemande = (d: DemandeBudget) =>

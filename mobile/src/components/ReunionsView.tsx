@@ -177,7 +177,7 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
             <Text style={s.aide}>
               {safeActif
                 ? 'Calculées d’après vos rôles et la cadence SAFe (sprints de 2 semaines, PI au trimestre). Après aujourd’hui, le daily n’apparaît qu’une fois ; « Plus tard » : la prochaine des autres réunions.'
-                : 'Vos rituels personnels, sans compte rendu. Après aujourd’hui, chaque rituel n’apparaît qu’une fois (le prochain).'}
+                : 'Vos rituels personnels (sans compte rendu), et les réunions de vos équipes et de votre entreprise (notes, suivis, compte rendu, comme en SAFe). Après aujourd’hui, chaque réunion n’apparaît qu’une fois (la prochaine).'}
             </Text>
           </>
         )}

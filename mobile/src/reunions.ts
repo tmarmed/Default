@@ -64,6 +64,12 @@ const CADENCE: Record<TypeReunion, { heure: string; repetition: RepetitionReunio
   revue_objectifs: { heure: '09:00', repetition: 'mensuelle' },
   revue_trimestre: { heure: '09:30', repetition: 'trimestrielle' },
   point_annuel: { heure: '10:00', repetition: 'annuelle' },
+  point_equipe: { heure: '09:30', repetition: 'quotidienne' },
+  semaine_equipe: { heure: '09:00', repetition: 'hebdomadaire' },
+  revue_mois: { heure: '10:00', repetition: 'mensuelle' },
+  trimestre_simple: { heure: '10:00', repetition: 'trimestrielle' },
+  bilan_annuel: { heure: '10:00', repetition: 'annuelle' },
+  annuel_entreprise: { heure: '14:00', repetition: 'annuelle' },
   reunion: { heure: '10:00', repetition: 'hebdomadaire' },
 };
 
@@ -92,6 +98,12 @@ export const REGLES: Record<TypeReunion, Pick<SerieReunion, 'unite'> & Partial<S
   revue_objectifs: { unite: 'mois', ancre: 'debut', sauf: 'trimestre' },
   revue_trimestre: { unite: 'trimestre', ancre: 'debut', sauf: 'annee' },
   point_annuel: { unite: 'annee', ancre: 'debut' },
+  point_equipe: { unite: 'jour', jours: 'ouvres' },
+  semaine_equipe: { unite: 'semaine', jours: '1' },
+  revue_mois: { unite: 'mois', ancre: 'debut', sauf: 'trimestre' },
+  trimestre_simple: { unite: 'trimestre', ancre: 'debut', sauf: 'annee' },
+  bilan_annuel: { unite: 'annee', ancre: 'debut' },
+  annuel_entreprise: { unite: 'annee', ancre: 'debut' },
   reunion: { unite: 'semaine', jours: '1' },
 };
 const REPETITION: Record<UniteSerie, RepetitionReunion> = { jour: 'quotidienne', semaine: 'hebdomadaire', mois: 'mensuelle', trimestre: 'trimestrielle', annee: 'annuelle', sprint: 'iteration', pi: 'pi' };
@@ -146,13 +158,26 @@ export function seriesDe(org: OrgValue, moi: string, safeActif: boolean, stockee
     defauts.push({ serie: serieParDefaut(type, niveau, sauf, espace), type, orgaDefaut: orga, cal, defaut: true });
   const niveaux = new Set<string>();
 
+  // Vous : toutes vos fiches de personne (une par entreprise ou espace Équipe), d'après votre e-mail
+  const moiIds = new Set(org.personnes.filter((p) => !!mail && p.email?.toLowerCase() === mail).map((p) => p.id));
+  const est = (id: string) => !!id && moiIds.has(id);
   if (!safeActif) {
     for (const t of ['point_perso', 'revue_semaine', 'revue_objectifs', 'revue_trimestre', 'point_annuel', 'bilan_soir'] as TypeReunion[]) ajouter(t, '', mail, 'moi', calendrierCourant());
     niveaux.add('');
+    // Mode Simple à plusieurs (09/10) : vos équipes (responsable : Scrum Master, sinon Product Owner) et vos
+    // entreprises (direction de premier niveau : son responsable anime, les responsables des équipes participent)
+    const equipes = org.equipes.filter((e) => est(e.sm) || est(e.po) || membresDe(e).some(est));
+    for (const e of equipes) {
+      const niveau = `equipeagile:${e.id}`;
+      niveaux.add(niveau);
+      for (const t of ['point_equipe', 'semaine_equipe', 'revue_mois', 'trimestre_simple', 'bilan_annuel'] as TypeReunion[]) ajouter(t, niveau, emailDe(e.sm || e.po), e.espace, calendrierCourant());
+    }
+    for (const u of org.unites.filter((x) => !x.parent && (est(x.responsable) || org.equipes.some((e) => (e.espace || 'moi') === (x.espace || 'moi') && (est(e.sm) || est(e.po)))))) {
+      const niveau = `unite:${u.id}`;
+      niveaux.add(niveau);
+      for (const t of ['revue_mois', 'trimestre_simple', 'annuel_entreprise'] as TypeReunion[]) ajouter(t, niveau, emailDe(u.responsable), u.espace, calendrierCourant());
+    }
   } else {
-    // Vous : toutes vos fiches de personne (une par entreprise ou espace Équipe), d'après votre e-mail
-    const moiIds = new Set(org.personnes.filter((p) => !!mail && p.email?.toLowerCase() === mail).map((p) => p.id));
-    const est = (id: string) => !!id && moiIds.has(id);
     // Vos équipes (membre, SM ou PO), vos trains, vos portfolios
     const equipes = org.equipes.filter((e) => est(e.sm) || est(e.po) || membresDe(e).some(est));
     const pilote = (t: { id: string; rte: string; pm: string }) => est(t.rte) || est(t.pm);
@@ -305,6 +330,10 @@ export function participantsReunion(r: Pick<Reunion, 'type' | 'niveau'> & { part
   } else if (n.kind === 'portfolio') {
     const p = org.portfolio.get(n.id);
     if (p) ids.push(p.epic_owner, ...org.trains.filter((t) => t.portfolio === p.id).flatMap((t) => [t.rte, t.pm]));
+  } else if (n.kind === 'unite') {
+    // Mode Simple, entreprise : le responsable de la direction et les responsables des équipes de l'entreprise
+    const u = org.unite.get(n.id);
+    if (u) ids.push(u.responsable, ...org.equipes.filter((e) => (e.espace || 'moi') === (u.espace || 'moi')).flatMap((e) => [e.sm, e.po]));
   }
   return [...new Set(ids.filter(Boolean))];
 }
