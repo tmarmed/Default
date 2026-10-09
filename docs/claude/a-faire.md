@@ -49,13 +49,17 @@ d'une journée du responsable ; bloc Budget du Pilotage portfolio, dépassement 
 reconvertie ; src/pi.ts reglerConversion / pointsOf). Capacité d'une personne : en jours partout.
 Niveaux affichés en haut en puces (un appui, sans fenêtre) quand on a plusieurs casquettes ; un seul niveau : pas de
 choix, titre « Pilotage · Mobile ». « Salaire » renommé « Coût annuel » (colonne cout_annuel).
-En conception (09/10, attendre « je valide ») : budget affiné, modèle générique « Dépense » (motif, catégorie,
-montant, période : ponctuel / par jour / par mois / par an / en %, du … au, rattachement epic · équipe · train ·
-portfolio · entreprise, répartition à parts égales par défaut, modifiable en %). Personnes = dépense par an (managers
-SAFe et hiérarchiques compris, parts égales par défaut) ; prestataire = par jour. Jours réels : congés déclarés à la
-Planification, validés par le Scrum Master à la clôture du sprint (pour tous) ; plus de règle des 218 jours. Points
-gardés pour la prévision : budget prévu (objectif) / consommé réel / estimation à la fin, écart surveillé.
-Questions posées : où saisir les frais d'entreprise (loyer…), étape de validation des jours réels, coût d'un salarié.
+Budget affiné : conception validée le 09/10 (coder après « je valide » du plan de lots) :
+- « 💶 Dépenses » à chaque niveau (entreprise, portfolio, train, équipe, epic), modèle générique : motif, catégorie,
+  montant, période (ponctuel / par jour / par mois / par an / en %), du … au ; répartition à parts égales par
+  défaut, modifiable en % ; entreprise → portfolios → epics ; équipe / train / portfolio → leurs epics.
+- Personnes = dépense par an (managers SAFe et hiérarchiques compris, parts égales entre leurs rattachements) ;
+  prestataire = par jour. Coût d'un salarié sur un sprint = coût annuel × jours ouvrés du sprint ÷ jours ouvrés de
+  l'année (feriesFrance, plus de 218). Jours réels = jours ouvrés − fermetures de l'entreprise − congés (déclarés à
+  la Planification, validés par le Scrum Master à la clôture : 1re étape de la Rétrospective).
+- Trois montants : Budget prévu (objectif, proposé d'après les points) · Consommé réel (par période) ·
+  Estimation à la fin = consommé réel + Reste à faire estimé (points restants × coût réel d'un point). Écart rouge.
+- Pas de correction des stories : à la clôture, « 1 point a pris 1,4 j réel (réglé à 1 j) », proposition d'ajuster.
 Reste (pilotage) : coûts annuels visibles de ceux qui lisent l'Organisation (à revoir avec les droits transverses).
 
 ## Questions ouvertes à l'utilisateur
