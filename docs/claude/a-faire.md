@@ -70,6 +70,11 @@ Budget affiné : conception validée le 09/10 (coder après « je valide » du p
   direction / Arrêter à la Revue du portfolio). Dossier d'investissement (hypothèse, estimation, budget prévu, budget du MVP)
   préparé par l'Epic Owner, décidé à la Revue du portfolio (Lancer / Pas maintenant / Abandonner). Maquette :
   docs/maquette-budget.html (à valider).
+- Validation des budgets (09/10, en conception) : mêmes notes, suivis, maillons « Transmettre » et Chat que les
+  réunions (note « 💶 Demande de budget ») ; aucune escalade automatique (reportée à la réunion suivante du niveau,
+  transmise à la main) ; tout passe par le portfolio pour l'instant ; nouvelle réunion « Comité budgétaire »
+  (entreprise) ; carte des réunions budget par niveau à valider. Reste à faire : exceptions « sans passer par le
+  portfolio » (seuils), à étudier plus tard. Bouton « Ajuster à 1 point = … j » à la Rétrospective (Scrum Master).
 Reste (pilotage) : coûts annuels visibles de ceux qui lisent l'Organisation (à revoir avec les droits transverses).
 
 ## Questions ouvertes à l'utilisateur
