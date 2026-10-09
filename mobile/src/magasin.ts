@@ -4,7 +4,7 @@ import { COLONNES_SERIE, type SerieReunion } from './series';
 import { cleanLinks, type Data, type DeletionCounts, planDeletion } from './hierarchy';
 import { aPurger } from './stockage';
 import { cascadeLinks, checkParent } from './subtasks';
-import { CATEGORIES_DEPENSE, type CoutPersonne, type Depense, PERIODES_DEPENSE, type Concretisation, type Domaine, type Echange, type Epic, type Feature, type Ignoree, type Item, type ItemInput, NATURES_ECHANGE, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, TYPES_POINT, type ValueStream } from './types';
+import { CATEGORIES_DEPENSE, type Conge, type JoursReels, NATURES_CONGE, type CoutPersonne, type Depense, PERIODES_DEPENSE, type Concretisation, type Domaine, type Echange, type Epic, type Feature, type Ignoree, type Item, type ItemInput, NATURES_ECHANGE, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, TYPES_POINT, type ValueStream } from './types';
 import { CLE_ORG, type EntiteOrg, type EquipeAgile, type KindOrg, membresDe, type Org, type Personne } from './organisation';
 
 /**
@@ -17,9 +17,11 @@ export type Kind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 
 /** Tables de base (tous les espaces) */
 export type TableBase = 'items' | Kind;
 /** Tables de l'Organisation (seulement dans le Google Sheet d'une entreprise, onglets créés au premier usage) */
-export type Table = TableBase | KindOrg | 'piecejointe' | 'pointreunion' | 'serie' | TableBudget;
+export type Table = TableBase | KindOrg | 'piecejointe' | 'pointreunion' | 'serie' | TableBudget | TableConges;
 /** Tables du Google Sheet « Budget » d'une entreprise (src/budget.ts) */
 export type TableBudget = 'depense' | 'cout';
+/** Congés et jours réels (lot 2, 09/10) : dans le Sheet de l'espace */
+export type TableConges = 'conge' | 'joursreels';
 export type EntityOf<K extends Kind> = K extends 'epic'
   ? Epic
   : K extends 'objectif'
@@ -37,7 +39,7 @@ export type EntityOf<K extends Kind> = K extends 'epic'
               : K extends 'echange'
                 ? Echange
                 : Ignoree;
-type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : T extends 'piecejointe' ? LignePiece : T extends 'pointreunion' ? PointReunion : T extends 'serie' ? SerieReunion : T extends 'depense' ? Depense : T extends 'cout' ? CoutPersonne : never;
+type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : T extends 'piecejointe' ? LignePiece : T extends 'pointreunion' ? PointReunion : T extends 'serie' ? SerieReunion : T extends 'depense' ? Depense : T extends 'cout' ? CoutPersonne : T extends 'conge' ? Conge : T extends 'joursreels' ? JoursReels : never;
 /** Morceau d'une pièce jointe (onglet PiecesJointes) : une cellule contient au plus 50 000 caractères */
 export interface LignePiece {
   id: string;
@@ -120,7 +122,12 @@ export const ONGLETS_BUDGET: Record<TableBudget, { nom: string; colonnes: string
   depense: { nom: 'Depenses', colonnes: ['id', 'motif', 'categorie', 'montant', 'periode', 'du', 'au', 'porteur', 'cle', 'parts', 'cree_le', 'modifie_le'] },
   cout: { nom: 'CoutsAnnuels', colonnes: ['id', 'cout_annuel', 'cree_le', 'modifie_le'] },
 };
-export const ONGLETS_TOUS: Record<Table, { nom: string; colonnes: string[] }> = { ...ONGLETS, ...ONGLETS_ORG, piecejointe: ONGLET_PIECES, pointreunion: ONGLET_POINTS, serie: ONGLET_SERIES, ...ONGLETS_BUDGET };
+/** 📅 Congés et jours réels (lot 2, 09/10) : onglets du Sheet de l'espace, créés au premier usage */
+export const ONGLETS_CONGES: Record<TableConges, { nom: string; colonnes: string[] }> = {
+  conge: { nom: 'Conges', colonnes: ['id', 'personne', 'du', 'au', 'nature', 'cree_le', 'modifie_le'] },
+  joursreels: { nom: 'JoursReels', colonnes: ['id', 'equipe', 'sprint', 'personne', 'jours', 'valide_par', 'valide_le'] },
+};
+export const ONGLETS_TOUS: Record<Table, { nom: string; colonnes: string[] }> = { ...ONGLETS, ...ONGLETS_ORG, piecejointe: ONGLET_PIECES, pointreunion: ONGLET_POINTS, serie: ONGLET_SERIES, ...ONGLETS_BUDGET, ...ONGLETS_CONGES };
 
 const RE_PORTEUR = /^(entreprise|portfolio|train|equipeagile|epic|feature|item):[0-9A-Za-z_.@-]+$/;
 const montant = (v: unknown) => String(v ?? '').replace(/\s/g, '').replace(',', '.');
@@ -798,6 +805,43 @@ export function creerMagasin(p: Persistance) {
         await ecrireSiChange('feature', features, vide(features, ['equipe']));
         await ecrireSiChange('items', items, vide(items, ['equipe']));
       }
+    },
+    /** 📅 Congés et jours réels de l'espace (une lecture groupée) */
+    async lireConges(): Promise<{ conges: Conge[]; joursReels: JoursReels[] }> {
+      const [conges, joursReels] = await Promise.all([p.lire('conge'), p.lire('joursreels')]);
+      return { conges, joursReels };
+    },
+    /** Crée (sans id) ou modifie (avec id) un congé ou une fermeture */
+    async ecrireConge(c: Partial<Conge> & { id?: string }): Promise<Conge> {
+      const liste = await p.lire('conge');
+      const base = c.id ? liste.find((x) => x.id === c.id) : undefined;
+      if (c.id && !base) throw new Error('Congé introuvable (peut-être supprimé).');
+      const x = { ...base, ...c };
+      const nature = (NATURES_CONGE.some((n) => n.value === x.nature) ? x.nature : 'conge') as Conge['nature'];
+      const personne = nature === 'fermeture' ? '' : String(x.personne ?? '').trim().toLowerCase();
+      if (nature !== 'fermeture' && !personne) throw new Error('Personne manquante.');
+      if (!RE_DATE.test(String(x.du)) || !RE_DATE.test(String(x.au))) throw new Error('Dates attendues (AAAA-MM-JJ).');
+      if (String(x.au) < String(x.du)) throw new Error('La fin est avant le début.');
+      const now = new Date().toISOString();
+      const o: Conge = { id: base?.id ?? nouvelId(), personne, du: String(x.du), au: String(x.au), nature, cree_le: base?.cree_le ?? now, modifie_le: now };
+      await p.ecrire('conge', base ? liste.map((y) => (y.id === o.id ? o : y)) : [...liste, o]);
+      return o;
+    },
+    async supprimerConge(id: string): Promise<void> {
+      const liste = await p.lire('conge');
+      await p.ecrire('conge', liste.filter((x) => x.id !== id));
+    },
+    /** Jours réels d'un sprint validés en Rétrospective : toutes les personnes en une écriture */
+    async validerJoursReels(lignes: Omit<JoursReels, 'id' | 'espace'>[]): Promise<JoursReels[]> {
+      const liste = await p.lire('joursreels');
+      const out = lignes.map((l) => {
+        const jours = String(l.jours).replace(',', '.');
+        if (!RE_NOMBRE.test(jours)) throw new Error('Jours : nombre attendu.');
+        return { ...l, jours, personne: l.personne.toLowerCase(), id: `${l.equipe}|${l.sprint}|${l.personne.toLowerCase()}` } as JoursReels;
+      });
+      const ids = new Set(out.map((x) => x.id));
+      await p.ecrire('joursreels', [...liste.filter((x) => !ids.has(x.id)), ...out]);
+      return out;
     },
     /** 💶 Budget : dépenses et coûts annuels (Google Sheet « Budget » de l'entreprise) */
     async lireBudget(): Promise<{ depenses: Depense[]; couts: CoutPersonne[] }> {

@@ -9,6 +9,7 @@ import { colors } from '../theme';
 import { enfantsRepartition } from '../budget';
 import { useHierarchy } from '../hierarchyContext';
 import { ChampCoutAnnuel, SectionDepenses } from './Budget';
+import { SectionConges } from './Conges';
 import { METIERS, roleDansEquipe } from '../droits';
 import { ChampFiche, LigneChoix, LigneEnfant, LigneMulti, ListeEnfants, SaisieFiche, SectionFiche, type AutresChoix, type GroupeChoix } from './Choix';
 import { DeleteSection } from './DeleteSection';
@@ -473,6 +474,7 @@ export function OrgForm({
             </ChampFiche>
             {safe.actif && entite && <ChampCoutAnnuel espace={(entite as { espace?: string }).espace || 'moi'} personne={entite.id} />}
           </SectionFiche>
+          {entite && !!(entite as { email?: string }).email && <SectionConges espace={(entite as { espace?: string }).espace || 'moi'} personne={(entite as { email?: string }).email ?? ''} />}
         </>
       )}
 

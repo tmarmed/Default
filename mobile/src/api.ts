@@ -2,7 +2,7 @@ import type { SerieReunion } from './series';
 import { DEMO, demoApiFor } from './demo';
 import type { EntiteOrg, KindOrg, Org } from './organisation';
 import { adopterFichier, corbeille, creerFichierEspace, effacerFichier, fichierBudget, fichiersCorbeille, fichiersEspaces, magasinSheets, poidsFichiers, quotaDrive, renommerFichier } from './gsheets';
-import type { CoutPersonne, Depense } from './types';
+import type { Conge, CoutPersonne, Depense, JoursReels } from './types';
 import type { Data, DeletionCounts } from './hierarchy';
 import type { EquipeEspace, Magasin, PieceEntree, PieceJointe } from './magasin';
 export type { PieceEntree, PieceJointe } from './magasin';
@@ -330,4 +330,22 @@ export async function supprimerDepense(espace: string, id: string): Promise<void
 export async function ecrireCout(espace: string, titre: string, personne: string, cout: string): Promise<CoutPersonne | null> {
   const m = await routeBudget(espace, titre, !!cout);
   return m ? m.ecrireCout(personne, cout) : null;
+}
+
+// 📅 Congés et jours réels (lot 2, 09/10) : dans le Google Sheet de l'espace
+export async function lireConges(settings: Settings, espace: string): Promise<{ conges: Conge[]; joursReels: JoursReels[] }> {
+  const { e, m } = route(settings, espace);
+  const r = await m.lireConges();
+  return { conges: r.conges.map((x) => ({ ...x, espace: e })), joursReels: r.joursReels.map((x) => ({ ...x, espace: e })) };
+}
+export async function ecrireConge(settings: Settings, espace: string, c: Partial<Conge> & { id?: string }): Promise<Conge> {
+  const { e, m } = route(settings, espace);
+  return { ...(await m.ecrireConge(c)), espace: e };
+}
+export async function supprimerConge(settings: Settings, espace: string, id: string): Promise<void> {
+  await route(settings, espace).m.supprimerConge(id);
+}
+export async function validerJoursReels(settings: Settings, espace: string, lignes: Omit<JoursReels, 'id' | 'espace'>[]): Promise<JoursReels[]> {
+  const { e, m } = route(settings, espace);
+  return (await m.validerJoursReels(lignes)).map((x) => ({ ...x, espace: e }));
 }

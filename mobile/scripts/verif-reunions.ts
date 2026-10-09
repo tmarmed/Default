@@ -4,9 +4,10 @@
  * Lancer : npm run verif:reunions
  */
 import { budgetDemoEntreprise, donneesDemo, orgDemo, orgTousLesRoles, pointsDemo } from '../src/demo';
+import { absentsLe, joursAbsence, joursPrevus, jppConstate } from '../src/conges';
 import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '../src/budget';
 import { nettoyerDepense } from '../src/magasin';
-import type { Depense } from '../src/types';
+import type { Conge, Depense } from '../src/types';
 import { budgetEpic, consommeCalcule, coutJour, joursOuvresAnnee, niveauxDeRoles, piloteEquipe, pilotePortfolio, piloteTrain, suivisDuNiveau } from '../src/pilotage';
 import { pointsFinis, backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteCompteRendu, texteReponse, veilleOuvree } from '../src/daily';
 import { toDateString } from '../src/dates';
@@ -455,6 +456,12 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const eRep = enfantsRepartition('entreprise:demo-entreprise', { ...oT, portfolios: oT.portfolios.map((p) => ({ ...p, espace: 'demo-entreprise' })) }, hP);
   ok(eRep.length === 1 && eRep[0].effectif > 5 && enfantsRepartition('portfolio:acmpf1', oT, hP).length === 2, 'répartition : entreprise → portfolios (effectif), portfolio → ses epics');
   ok(budgetDemoEntreprise().depense.length === 4 && resumeDepense(dep({ periode: 'mois', montant: '300', du: '2026-09-01', au: '2027-06-30' })) === '300 € par mois · 1/09/2026 → 30/06/2027', 'démo : 4 dépenses ; résumé lisible');
+  // 📅 Congés et jours réels (lot 2) : jours prévus = ouvrés − congés − fermetures, sans compter deux fois
+  const cg = (x: Partial<Conge>) => ({ id: 'c', personne: 'paul@x', du: '2026-10-19', au: '2026-10-23', nature: 'conge', cree_le: '', modifie_le: '', ...x }) as Conge;
+  const cgs = [cg({}), cg({ id: 'f', personne: '', du: '2026-10-22', au: '2026-10-26', nature: 'fermeture' }), cg({ id: 'n', personne: 'nina@x', du: '2026-10-20', au: '2026-10-20' })];
+  ok(joursAbsence(cgs, 'Paul@x', '2026-10-12', '2026-10-30').length === 6 && joursPrevus(cgs, 'paul@x', '2026-10-12', '2026-10-30') === 15 - 6 && joursPrevus(cgs, 'nina@x', '2026-10-12', '2026-10-30') === 15 - 4, 'congés : jours ouvrés seulement, fermetures pour tous, chevauchement compté une fois');
+  ok(absentsLe(cgs, '2026-10-20').personnes.join() === 'paul@x,nina@x' && absentsLe(cgs, '2026-10-26').fermeture, 'Absents aujourd’hui : personnes en congé, fermeture pour tous');
+  ok(jppConstate(42, 30) === 1.5 && jppConstate(40, 40) === 1 && jppConstate(10, 0) === null, 'point ↔ jour constaté : jours réels ÷ points réalisés, au quart de jour');
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
   reglerConversion(true, new Map([['acmeqmob', 0.5]]));
   ok(pointsOf({ points: '4', equipe: 'acmeqmob' }) === 2 && pointsOf({ points: '4', equipe: 'autre' }) === 4 && versPoints('3', 0.5) === '6' && depuisPoints('6', 0.5) === '3', 'conversion : 4 pts = 2 j avec 1 point = ½ j ; saisie 3 j → 6 pts');

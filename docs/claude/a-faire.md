@@ -51,8 +51,16 @@ démo « budget@demo-entreprise »), coût annuel sorti de l'Organisation (fiche
 l'année), « 💶 Dépenses » dans les fiches entreprise (vue Entreprise), portfolio, train, équipe, epic, feature, avec
 répartition (effectif / parts égales / % à la main). Reste : le Budget prévu de l'epic est encore dans le Sheet de
 l'entreprise (à déplacer au lot 5, dossier d'investissement).
+Lot 2 codé (09/10) : congés déclarés (menu du compte « 📅 Mes congés », fiche Personne ; onglet Conges du Sheet de
+l'espace), fermetures de l'entreprise (vue Entreprise), Planification les compte dans les disponibilités, Daily
+« Absents aujourd'hui », Rétrospective 1re étape « Jours réels » (prévus = ouvrés − fermetures − congés, corrigés,
+« ✅ Valider » → onglet JoursReels) puis « Ajuster à … j / Garder » (calendrier de l'équipe). src/conges.ts.
+Reste lot 2 : capacité par sprint du PI Planning et de la Préparation du PI (avec les congés).
 Suite : coder en 5 lots (1 Sheet Budget + dépenses ; 2 congés + jours réels ; 3 calculs + Pilotage ;
 4 demandes de budget en réunion + messages ; 5 dossier d'investissement + mode Simple + Mes suivis).
+10. Sécurité du Sheet « 💶 Budget » (demandé le 09/10) : aujourd'hui partagé à la main dans Google Drive ; à
+   concevoir : partage automatique avec les seules personnes qui ont le droit « Gérer le budget » (retrait quand le
+   droit disparaît), sans lien public ni autorisation plus large ; lié aux droits transverses (point 6).
 9. Renforcer la confidentialité du Chat : « prive » n'est qu'à l'affichage, l'onglet Echanges reste lisible par qui
    ouvre le Sheet de l'espace (sujet à part, 09/10).
 ## Fait (09/10) : Pilotage (lot 5)

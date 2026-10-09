@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
+import { joursOuvres } from '../../budget';
+import { joursAbsence, joursPrevus, joursReelsDe, jppConstate, useConges } from '../../conges';
+import { calendrierEquipe } from '../../pilotage';
 import { pointsFinis } from '../../daily';
 import type { VoteEtat } from '../../etatReunion';
 import { shiftIteration, nomSprintDe } from '../../pi';
 import type { CatalogueParcours, EtapeCatalogue, ParcoursRole } from '../../reunions';
-import { velocite } from '../../reunionsEquipe';
+import { lireNombre, nombreFr, velocite } from '../../reunionsEquipe';
 import { TYPES_REUNION } from '../../types';
 import { SectionFiche } from '../Choix';
 import { TitreFiche } from '../FormSheet';
@@ -31,6 +34,7 @@ export const PARCOURS_RETRO: CatalogueParcours = {
   ],
   po: [],
   sm: [
+    { cle: 'jours', nom: 'Jours réels' },
     { cle: 'situation', nom: 'Situation' },
     { cle: 'indicateurs', nom: 'Indicateurs' },
     { cle: 'va', nom: 'Ce qui va' },
@@ -96,9 +100,90 @@ export function FenetreRetro(p: PropsReunion) {
     );
   };
 
+  // 📅 Jours réels (lot 2 du budget, 09/10) : prévus = jours ouvrés − fermetures − congés déclarés ; le Scrum Master
+  // corrige (maladie…) et valide ; puis « 1 point a pris … j » propose d'ajuster le réglage de l'équipe
+  const congesCtx = useConges();
+  const [joursSaisis, setJoursSaisis] = useState<Record<string, string>>({});
+  const [msgJours, setMsgJours] = useState('');
+  const equipeId = e.equipe?.id ?? '';
+  const prevusDe = (m: string) => joursPrevus(congesCtx.conges, m, e.it.start, e.it.end);
+  const valideDe = (m: string) => joursReelsDe(congesCtx.joursReels, equipeId, e.it.key, m);
+  const joursDe = (m: string) => {
+    const n = lireNombre(joursSaisis[m] ?? '');
+    return Number.isFinite(n) ? n : Number(valideDe(m)?.jours ?? prevusDe(m));
+  };
+  const totalJours = e.personnes.reduce((x, y) => x + joursDe(y.email.toLowerCase()), 0);
+  const jppActuel = equipeId ? (calendrierEquipe(equipeId, p.org).jpp ?? 1) : 1;
+  const jppVu = jppConstate(totalJours, e.situation.faits);
+  const etapeJours = (lecture: boolean) => {
+    const valides = e.personnes.filter((y) => valideDe(y.email.toLowerCase())).length;
+    return (
+      <>
+        <TitreFiche icone="📅" titre="Jours réels" vide="" sous={`${e.it.nom} · ${joursOuvres(e.it.start, e.it.end)} jours ouvrés · ${valides ? `validés pour ${valides} sur ${e.personnes.length}` : 'à valider'}`} />
+        <SectionFiche titre={`Par personne · ${nombreFr(totalJours)} j`}>
+          {e.personnes.map((y, i) => {
+            const m = y.email.toLowerCase();
+            const abs = joursAbsence(congesCtx.conges, m, e.it.start, e.it.end).length;
+            const v = valideDe(m);
+            return (
+              <View key={y.id} style={[st.ligne, i > 0 && st.bord]}>
+                <View style={st.corps}>
+                  <Text style={st.texte}>{y.nom}</Text>
+                  <Text style={st.sous}>{[abs ? `congés déclarés : ${abs} j` : 'aucun congé déclaré', v ? `validé par ${e.nomDe(v.valide_par)}` : ''].filter(Boolean).join(' · ')}</Text>
+                </View>
+                {lecture || !r.anime ? (
+                  <Text style={[st.texte, { fontWeight: '700' }]}>{nombreFr(joursDe(m))} j</Text>
+                ) : (
+                  <TextInput value={joursSaisis[m] ?? nombreFr(joursDe(m))} onChangeText={(t) => setJoursSaisis((x) => ({ ...x, [m]: t }))} keyboardType="decimal-pad" style={[st.note, { width: 60, textAlign: 'center' }]} accessibilityLabel={`Jours réels de ${y.nom}`} />
+                )}
+              </View>
+            );
+          })}
+        </SectionFiche>
+        <Text style={[st.sous, { marginHorizontal: 16, marginTop: 6 }]}>Par défaut : jours ouvrés − fermetures de l’entreprise − congés déclarés. Corrigez les imprévus (maladie…), puis validez.</Text>
+        {r.anime && !lecture && (
+          <Pressable
+            style={[st.ajouter, { alignSelf: 'center', marginTop: 10 }]}
+            accessibilityRole="button"
+            onPress={() =>
+              congesCtx
+                .validerJoursReels(
+                  p.reunion.espace || 'moi',
+                  e.personnes.map((y) => ({ equipe: equipeId, sprint: e.it.key, personne: y.email.toLowerCase(), jours: String(joursDe(y.email.toLowerCase())), valide_par: r.mail, valide_le: new Date().toISOString() })),
+                )
+                .then(() => setMsgJours('✓ Jours réels validés.'))
+                .catch((er: Error) => setMsgJours(er.message))
+            }
+          >
+            <Text style={st.ajouterTexte}>✅ Valider les jours réels</Text>
+          </Pressable>
+        )}
+        {!!msgJours && <Text style={[st.sous, { textAlign: 'center', marginTop: 6 }]}>{msgJours}</Text>}
+        {/* Proposition seulement une fois les jours réels validés (fin de sprint) */}
+        {valides === e.personnes.length && e.personnes.length > 0 && jppVu !== null && jppVu !== jppActuel && (
+          <SectionFiche titre="Point ↔ jour">
+            <Ligne premiere texte={`Ce sprint : 1 point a pris ${nombreFr(jppVu)} jour${jppVu > 1 ? 's' : ''} réel${jppVu > 1 ? 's' : ''} (réglé à ${nombreFr(jppActuel)} j)`} sous={`${nombreFr(totalJours)} jours réels pour ${nombreFr(e.situation.faits)} points réalisés. Les stories ne changent pas.`} pastille={{ texte: `${nombreFr(jppVu)} j`, ton: 'orange' }} />
+            {r.anime && !lecture && (
+              <View style={[st.ligne, st.bord, { gap: 8 }]}>
+                <Pressable style={st.ajouter} accessibilityRole="button" onPress={() => congesCtx.ajusterJpp(p.reunion.espace || 'moi', equipeId, jppVu).then(() => setMsgJours(`✓ Réglé à 1 point = ${nombreFr(jppVu)} j pour les sprints suivants.`))}>
+                  <Text style={st.ajouterTexte}>Ajuster à {nombreFr(jppVu)} j</Text>
+                </Pressable>
+                <Pressable style={st.ajouter} accessibilityRole="button" onPress={() => setMsgJours(`Réglage gardé : 1 point = ${nombreFr(jppActuel)} j.`)}>
+                  <Text style={st.ajouterTexte}>Garder {nombreFr(jppActuel)} j</Text>
+                </Pressable>
+              </View>
+            )}
+          </SectionFiche>
+        )}
+      </>
+    );
+  };
+
   const rendu = (x: EtapeCatalogue, _o: ParcoursRole, lecture: boolean) => {
     const voteVu = lecture || !r.anime ? r.live.etat?.vote : vote;
     switch (x.cle) {
+      case 'jours':
+        return etapeJours(lecture);
       case 'situation':
         return (
           <>

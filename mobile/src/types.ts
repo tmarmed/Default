@@ -716,3 +716,39 @@ export interface CoutPersonne {
   cree_le: string;
   modifie_le: string;
 }
+
+// ---------------------------------------------------------------------------
+// 📅 Congés et jours réels (lot 2 du budget, 09/10) : dans le Google Sheet de l'espace (pas sensible)
+// ---------------------------------------------------------------------------
+/** Congé, maladie, formation (une personne) ou fermeture de l'entreprise (personne vide) */
+export type NatureConge = 'conge' | 'maladie' | 'formation' | 'fermeture';
+export const NATURES_CONGE: { value: NatureConge; label: string; icone: string }[] = [
+  { value: 'conge', label: 'Congés', icone: '🏖️' },
+  { value: 'maladie', label: 'Maladie', icone: '🤒' },
+  { value: 'formation', label: 'Formation', icone: '🎓' },
+  { value: 'fermeture', label: 'Fermeture de l’entreprise', icone: '🏢' },
+];
+export interface Conge {
+  espace?: string;
+  id: string;
+  /** E-mail de la personne ; vide = fermeture de toute l'entreprise */
+  personne: string;
+  /** AAAA-MM-JJ, inclus */
+  du: string;
+  au: string;
+  nature: NatureConge;
+  cree_le: string;
+  modifie_le: string;
+}
+/** Jours réels d'une personne sur un sprint, validés par le Scrum Master en Rétrospective (une ligne par personne) */
+export interface JoursReels {
+  espace?: string;
+  /** « <équipe>|<sprint>|<e-mail> » */
+  id: string;
+  equipe: string;
+  sprint: string;
+  personne: string;
+  jours: string;
+  valide_par: string;
+  valide_le: string;
+}

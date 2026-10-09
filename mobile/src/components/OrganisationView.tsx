@@ -7,6 +7,7 @@ import { colors } from '../theme';
 import { useSafe } from '../safe';
 import { enfantsRepartition } from '../budget';
 import { SectionDepenses } from './Budget';
+import { SectionConges } from './Conges';
 import { ChoiceSheet } from './ChoiceSheet';
 import { libelleMoi } from '../droits';
 import { type AutresChoix, FeuilleMulti, type GroupeChoix, LigneChoix } from './Choix';
@@ -400,6 +401,9 @@ function VueEntreprise({ o, espace, replies, basculer, onOuvrir, onAjouter, onPl
       {sansService.map((p) => (
         <Personne key={p.id} niveau={0} p={p} o={o} onPress={() => onOuvrir('personne', p)} />
       ))}
+      <View style={{ marginTop: 14 }}>
+        <SectionConges espace={espace} personne="" />
+      </View>
       {safeE.actif && (
         <View style={{ marginTop: 14 }}>
           <SectionDepenses espace={espace} porteur={`entreprise:${espace}`} enfants={enfantsRepartition(`entreprise:${espace}`, o, hE)} titre="Dépenses de l’entreprise" />

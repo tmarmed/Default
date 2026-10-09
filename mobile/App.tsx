@@ -39,7 +39,7 @@ import { type Action, type Check, checksDatesDomaine, checksParEcran, signatures
 import { AlertsCard, CheckActionContext, IgnoreContext, nbAlertes } from './src/components/AlertsCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
-import { definirCalendrier, iterationNom, iterationOf, iterationOfItem, piLabel, piOf, reglerConversion } from './src/pi';
+import { definirCalendrier, lireCalendrier, iterationNom, iterationOf, iterationOfItem, piLabel, piOf, reglerConversion } from './src/pi';
 import { calendrierEquipe as calendrierPilotage } from './src/pilotage';
 import { Roadmap } from './src/components/Roadmap';
 import { LoginScreen } from './src/components/LoginScreen';
@@ -120,6 +120,9 @@ import {
 } from './src/storage';
 import { colors } from './src/theme';
 import { BudgetContext, type BudgetEspace, valeurBudget } from './src/budget';
+import { CongesContext, type CongesValue } from './src/conges';
+import { FeuilleMesConges } from './src/components/Conges';
+import type { Conge, JoursReels } from './src/types';
 import { expandRange, listEntries, toggleDone } from './src/recurrence';
 import { actionDuChoix, appliquerPlan, lireRef, planSuivi, refPoint } from './src/pointsSuivi';
 import {
@@ -365,6 +368,8 @@ function Main() {
   const [equipesEsp, setEquipesEsp] = useState<Record<string, api.EquipeEspace>>({});
   /** 💶 Budget de chaque entreprise (Google Sheet « Budget » à part ; vide sans accès) */
   const [budgets, setBudgets] = useState<Record<string, BudgetEspace>>({});
+  /** 📅 Congés et jours réels de chaque espace (lot 2) */
+  const [congesEsp, setCongesEsp] = useState<Record<string, { conges: Conge[]; joursReels: JoursReels[] }>>({});
   const orgTousRef = useRef(orgTous);
   orgTousRef.current = orgTous;
   const orgDe = useCallback(
@@ -807,6 +812,11 @@ function Main() {
         const org: Org = { personnes: catOrg('personnes'), unites: catOrg('unites'), portfolios: catOrg('portfolios'), trains: catOrg('trains'), equipes: catOrg('equipes') };
         setOrgTous(org);
         AsyncStorage.setItem(ORG_CACHE_KEY, JSON.stringify(org)).catch(() => {});
+        // 📅 Congés et jours réels des entreprises et des équipes (une lecture par espace)
+        const espCong = liste.filter((e) => e.type !== 'moi');
+        Promise.allSettled(espCong.map((e) => api.lireConges(s, e.id))).then((rc) =>
+          setCongesEsp((avant) => Object.fromEntries(espCong.map((e, k) => [e.id, rc[k].status === 'fulfilled' ? (rc[k] as PromiseFulfilledResult<{ conges: Conge[]; joursReels: JoursReels[] }>).value : (avant[e.id] ?? { conges: [], joursReels: [] })]))),
+        );
         // 💶 Budget des entreprises (Sheet à part) : sans accès, il reste vide
         Promise.allSettled(entreprises.map((e) => api.lireBudget(e.id))).then((rb) =>
           setBudgets((avant) => Object.fromEntries(entreprises.map((e, k) => [e.id, rb[k].status === 'fulfilled' ? (rb[k] as PromiseFulfilledResult<BudgetEspace>).value : (avant[e.id] ?? { depenses: [], couts: [], accessible: false })]))),
@@ -1521,6 +1531,36 @@ function Main() {
       ),
     [budgets, visibles, titreBudget],
   );
+  const congesValue = useMemo<CongesValue>(() => {
+    const vis = Object.entries(congesEsp).filter(([e]) => visibles.includes(e));
+    const maj = (espace: string, f: (x: { conges: Conge[]; joursReels: JoursReels[] }) => { conges: Conge[]; joursReels: JoursReels[] }) =>
+      setCongesEsp((c) => ({ ...c, [espace]: f(c[espace] ?? { conges: [], joursReels: [] }) }));
+    return {
+      conges: vis.flatMap(([, x]) => x.conges),
+      joursReels: vis.flatMap(([, x]) => x.joursReels),
+      ecrireConge: async (espace, c) => {
+        const o = await api.ecrireConge(settings!, espace, c);
+        maj(espace, (x) => ({ ...x, conges: x.conges.some((y) => y.id === o.id) ? x.conges.map((y) => (y.id === o.id ? o : y)) : [...x.conges, o] }));
+      },
+      supprimerConge: async (espace, id) => {
+        await api.supprimerConge(settings!, espace, id);
+        maj(espace, (x) => ({ ...x, conges: x.conges.filter((y) => y.id !== id) }));
+      },
+      validerJoursReels: async (espace, lignes) => {
+        const l = await api.validerJoursReels(settings!, espace, lignes);
+        const ids = new Set(l.map((y) => y.id));
+        maj(espace, (x) => ({ ...x, joursReels: [...x.joursReels.filter((y) => !ids.has(y.id)), ...l] }));
+      },
+      ajusterJpp: async (espace, equipe, jpp) => {
+        const e = orgTousRef.current.equipes.find((x) => x.id === equipe && (x.espace || 'moi') === espace);
+        if (!e) return;
+        const t = e.train ? orgTousRef.current.trains.find((x) => x.id === e.train) : undefined;
+        const cal = lireCalendrier(e.calendrier || t?.calendrier || '');
+        await api.saveOrg(settings!, espace, 'equipeagile', { ...e, calendrier: JSON.stringify({ ...cal, jpp }) } as never);
+        await rechargerOrg(settings!, espace);
+      },
+    };
+  }, [congesEsp, visibles, settings]); // eslint-disable-line react-hooks/exhaustive-deps
   const orgReunions = useMemo(() => {
     const eq = Object.entries(equipesEsp).filter(([id]) => visibles.includes(id));
     const base: Org = !eq.length
@@ -2367,6 +2407,7 @@ function Main() {
     verifierStockage(settings).catch(() => {});
   }, [settings, booting, stockagePret, verifierStockage]);
   /** Fiche « Stockage Google Drive » (menu du compte) : mesure à jour, même sous 85 % */
+  const [mesConges, setMesConges] = useState(false);
   const ouvrirStockage = () => {
     setStockageOpen(true);
     if (settings) verifierStockage(settings, true).catch((e) => setNotice(`Stockage non vérifié : ${(e as Error).message}`));
@@ -2672,6 +2713,7 @@ function Main() {
     <PiecesContext.Provider value={chargerPieces}>
     <OrgContext.Provider value={orgValue}>
     <BudgetContext.Provider value={budgetValue}>
+    <CongesContext.Provider value={congesValue}>
     <MoiContext.Provider value={moi}>
     <OrgFiltreContext.Provider value={safe.actif ? orgFiltre : null}>
     <View style={styles.flex}>
@@ -3699,6 +3741,7 @@ function Main() {
         choices={
           DEMO
             ? [
+                { label: '📅 Mes congés', onPress: () => setMesConges(true) },
                 { label: '☁️ Stockage Google Drive', onPress: ouvrirStockage },
                 ...(DEMO_BASCULABLE ? [{ label: 'Quitter la démo (vos vraies données)', onPress: () => changerModeDemo(false) }] : []),
                 {
@@ -3711,6 +3754,7 @@ function Main() {
                 },
               ]
             : [
+                { label: '📅 Mes congés', onPress: () => setMesConges(true) },
                 { label: '☁️ Stockage Google Drive', onPress: ouvrirStockage },
                 ...(DEMO_BASCULABLE ? [{ label: '🧪 Essayer la démo', onPress: () => changerModeDemo(true) }] : []),
                 { label: 'Se déconnecter', onPress: logout },
@@ -4180,6 +4224,13 @@ function Main() {
     </View>
     </OrgFiltreContext.Provider>
     </MoiContext.Provider>
+      <FeuilleMesConges
+        visible={mesConges}
+        onClose={() => setMesConges(false)}
+        moi={moiEchange}
+        espaces={espaces.filter((e) => e.type !== 'moi' && visibles.includes(e.id) && (orgReunions.personnes.some((p) => (p.espace || 'moi') === e.id && p.email?.toLowerCase() === moiEchange) || (equipesEsp[e.id]?.personnes ?? []).some((p) => p.email?.toLowerCase() === moiEchange))).map((e) => ({ id: e.id, nom: e.nom }))}
+      />
+    </CongesContext.Provider>
     </BudgetContext.Provider>
     </OrgContext.Provider>
     </PiecesContext.Provider>

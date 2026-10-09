@@ -1,4 +1,4 @@
-import type { CoutPersonne, Depense } from './types';
+import type { Conge, CoutPersonne, Depense } from './types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
 import { iterationOf, piOf, piStart, shiftPi } from './pi';
@@ -122,7 +122,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '32';
+const DEMO_DATA_VERSION = '33';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -321,7 +321,7 @@ function sampleEntities(): {
   };
 }
 
-type Seeds = { items: () => Item[]; entities: () => ReturnType<typeof sampleEntities>; org?: () => Org; points?: () => PointReunion[]; budget?: () => { depense: Depense[]; cout: CoutPersonne[] } };
+type Seeds = { items: () => Item[]; entities: () => ReturnType<typeof sampleEntities>; org?: () => Org; points?: () => PointReunion[]; budget?: () => { depense: Depense[]; cout: CoutPersonne[] }; conges?: () => Conge[] };
 
 /**
  * Stockage d'un espace de la démo (« moi » : clés historiques ; autres : « mes-taches:demo@<espace> »), avec
@@ -340,7 +340,7 @@ function creerStore(espace: string, seeds: Seeds) {
       for (const t of Object.keys(memoire) as Table[]) if (ev.key === null || ev.key === cle(t) || ev.key.endsWith(`~${cle(t)}`)) delete memoire[t];
     });
   const exemples = (t: Table): unknown[] =>
-    t === 'depense' || t === 'cout' ? (seeds.budget?.()[t] ?? []) : t === 'items' ? seeds.items() : t === 'pointreunion' ? (seeds.points?.() ?? []) : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : (seeds.entities()[t as Kind] ?? []);
+    t === 'depense' || t === 'cout' ? (seeds.budget?.()[t] ?? []) : t === 'conge' ? (seeds.conges?.() ?? []) : t === 'joursreels' ? [] : t === 'items' ? seeds.items() : t === 'pointreunion' ? (seeds.points?.() ?? []) : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : (seeds.entities()[t as Kind] ?? []);
 
   const persistance: Persistance = {
     async lire(t) {
@@ -436,6 +436,21 @@ const SEEDS_EQUIPE: Seeds = {
   },
 };
 const SEEDS_ENTREPRISE: Seeds = {
+  // 📅 Congés (lot 2) : Paul en congés le sprint suivant, Tom malade aujourd'hui, vous en formation, fermeture de fin d'année
+  conges: () => {
+    const stamp = new Date().toISOString();
+    const it = iterationOf(new Date());
+    const j = (base: string, n: number) => toDateString(addDays(new Date(`${base}T12:00`), n));
+    const suivant = j(it.end, 1);
+    const an = new Date().getFullYear();
+    const c = (id: string, personne: string, du: string, au: string, nature: Conge['nature']): Conge => ({ id, personne, du, au, nature, cree_le: stamp, modifie_le: stamp });
+    return [
+      c('acmc1', 'paul.leroy@acme.example', j(suivant, 5), j(suivant, 9), 'conge'),
+      c('acmc2', 'tom.faure@acme.example', toDateString(new Date()), toDateString(new Date()), 'maladie'),
+      c('acmc3', MOI_DEMO, j(suivant, 6), j(suivant, 6), 'formation'),
+      c('acmc4', '', `${an}-12-24`, `${an}-12-31`, 'fermeture'),
+    ];
+  },
   items: () =>
     exemple('acm', [
       ['Choisir le prestataire du nouveau CRM', 'tache', 5, { epic: 'acme1', points: '2' }],

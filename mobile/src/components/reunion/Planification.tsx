@@ -6,6 +6,8 @@ import { fmtPoints, iterationOfItem, pointsOf, shiftIteration, nomSprintDe } fro
 import type { CatalogueParcours, EtapeCatalogue, ParcoursRole } from '../../reunions';
 import { capacite, joursTravailles, lireNombre, nombreFr, PTS_JOUR_DEFAUT, storiesPretes, velocite } from '../../reunionsEquipe';
 import { useSafe } from '../../safe';
+import { congesDe, joursAbsence, useConges } from '../../conges';
+import { NATURES_CONGE } from '../../types';
 import { colors } from '../../theme';
 import type { Item } from '../../types';
 import { FeuilleChoix, SectionFiche } from '../Choix';
@@ -100,7 +102,10 @@ export function FenetrePlanification(p: PropsReunion) {
     const n = lireNombre(ptsJour[m] ?? '');
     return Number.isFinite(n) && n > 0 ? n : PTS_JOUR_DEFAUT;
   };
-  const dispo = (m: string) => joursTravailles(e.it.key, absencesDe(m).map((x) => Number(x.d.jours) || 0));
+  // 📅 Congés déclarés (lot 2, 09/10) : comptés d'office dans les disponibilités (fermetures de l'entreprise comprises)
+  const congesCtx = useConges();
+  const congesSprint = (m: string) => joursAbsence(congesCtx.conges, m, e.it.start, e.it.end).length;
+  const dispo = (m: string) => joursTravailles(e.it.key, [...absencesDe(m).map((x) => Number(x.d.jours) || 0), congesSprint(m)]);
   const capa = (m: string) => capacite(dispo(m).jours, ptsJourDe(m));
   const charge = (m: string) => engagees.filter((t) => assigne(t) === m).reduce((s, t) => s + pts(t), 0);
   const capaTotale = e.personnes.reduce((s, x) => s + capa(x.email.toLowerCase()), 0);
@@ -156,7 +161,7 @@ export function FenetrePlanification(p: PropsReunion) {
                   <View key={y.id} style={[st.ligne, i > 0 && st.bord]}>
                     <View style={st.corps}>
                       <Text style={st.texte}>{y.nom}</Text>
-                      <Text style={st.sous}>{[`${nombreFr(d.jours)} j`, ...abs.map((a) => `${a.d.desc} (${nombreFr(Number(a.d.jours) || 0)} j)`), d.feries.length ? `${d.feries.length} férié${d.feries.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ')}</Text>
+                      <Text style={st.sous}>{[`${nombreFr(d.jours)} j`, congesSprint(m) ? `congés déclarés (${congesSprint(m)} j)` : '', ...abs.map((a) => `${a.d.desc} (${nombreFr(Number(a.d.jours) || 0)} j)`), d.feries.length ? `${d.feries.length} férié${d.feries.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ')}</Text>
                     </View>
                     {!lecture && (
                       <TextInput value={ptsJour[m] ?? nombreFr(PTS_JOUR_DEFAUT)} onChangeText={(t) => setPtsJour((mm) => ({ ...mm, [m]: t }))} keyboardType="decimal-pad" style={[st.note, { width: 56, textAlign: 'center' }]} accessibilityLabel={`Points par jour de ${y.nom}`} />
@@ -169,7 +174,7 @@ export function FenetrePlanification(p: PropsReunion) {
             <SectionFiche titre="Repère">
               <Ligne premiere texte="Vélocité moyenne (3 sprints)" pastille={{ texte: `${v.moyenne} pts`, ton: 'bleu' }} />
             </SectionFiche>
-            <Text style={[st.sous, { marginHorizontal: 16, marginTop: 8 }]}>Les absences viennent du point de chacun, jours fériés compris. Les points par jour se saisissent (ex. 1,1). Engagement conseillé : {Math.min(capaTotale, v.moyenne || capaTotale)} pts au plus.</Text>
+            <Text style={[st.sous, { marginHorizontal: 16, marginTop: 8 }]}>Les absences viennent des congés déclarés et du point de chacun, jours fériés et fermetures compris. Les points par jour se saisissent (ex. 1,1). Engagement conseillé : {Math.min(capaTotale, v.moyenne || capaTotale)} pts au plus.</Text>
           </>
         );
       case 'objectifs':
@@ -325,6 +330,9 @@ export function FenetrePlanification(p: PropsReunion) {
             <TitreFiche icone="📅" titre="Mes disponibilités" vide="" sous={`${e.it.nom} du ${dateCourte(e.it.start)} au ${dateCourte(e.it.end)}`} />
             <SectionFiche titre="Mes absences · description et jours">
               <Ligne premiere texte="Jours fériés" sous={d.feries.length ? d.feries.map((f) => dateCourte(f)).join(', ') : 'aucun pendant le sprint'} pastille={{ texte: 'Auto', ton: 'bleu' }} />
+              {congesDe(congesCtx.conges, r.mail, e.it.start, e.it.end).map((c) => (
+                <Ligne key={c.id} texte={`${NATURES_CONGE.find((n) => n.value === c.nature)?.icone ?? '📅'} ${NATURES_CONGE.find((n) => n.value === c.nature)?.label ?? ''} du ${dateCourte(c.du)} au ${dateCourte(c.au)}`} sous="Déclaré dans « Mes congés »" pastille={{ texte: `${joursAbsence([c], r.mail, e.it.start, e.it.end).length} j`, ton: 'orange' }} />
+              ))}
               {mes.map((a) => (
                 <Ligne key={a.p.id} texte={a.d.desc} pastille={{ texte: `${nombreFr(Number(a.d.jours) || 0)} j`, ton: 'orange' }} onRetirer={() => r.poserDonnee('absence', a.d.c ?? '', null)} />
               ))}

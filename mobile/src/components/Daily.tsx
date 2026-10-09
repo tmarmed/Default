@@ -42,6 +42,7 @@ import { FeuilleChoix, SectionFiche } from './Choix';
 import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, patchConcretise, resumeChoix as resumeConcret, resumePoint } from '../concretisation';
 import { libelleElement } from '../elementConcerne';
 import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../pointsSuivi';
+import { absentsLe, useConges } from '../conges';
 import { type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, statutAffiche } from './reunion/Suivi';
 import { FeuilleConcretiser } from './reunion/Concretiser';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
@@ -217,6 +218,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const tous = useMemo(() => [...serveur.filter((x) => !(x.id in anciens)), ...prep, ...locaux] as PointReunion[], [serveur, anciens, prep, locaux]);
   const e = useEquipeDaily(reunion, org, aujourdhui, tous, echanges);
   const { h, equipe, jour, it, situation, personnes, nomDe, rte, pm, parId, subs } = e;
+  const congesCtx = useConges();
   const veille = veilleOuvree(jour);
   const dela = (pt: PointReunion) => pt.reunion === reunion.id;
   const moiP = personneParEmail(mail, org);
@@ -857,6 +859,12 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               <Compteur valeur={String(s.bloquees)} libelle={s.bloquees > 1 ? 'stories bloquées' : 'story bloquée'} ton={s.bloquees ? 'rouge' : undefined} />
               <Compteur valeur={String(s.retard)} libelle="en retard" ton={s.retard ? 'orange' : undefined} />
             </View>
+            {(() => {
+              // 📅 Absents aujourd'hui (congés déclarés, lot 2) : le Daily n'attend pas une personne absente
+              const ab = absentsLe(congesCtx.conges, jour);
+              const noms = personnes.filter((y) => ab.fermeture || ab.personnes.includes(y.email.toLowerCase())).map((y) => y.nom);
+              return noms.length ? <Text style={[st.sous, { marginHorizontal: 16, marginTop: 6 }]}>📅 Absents aujourd’hui : {noms.join(', ')}</Text> : null;
+            })()}
             <SectionFiche
               titre={`📌 Suivis · ${nSuivisVus}${reportesVus.length || vueSuivi === 'notes' ? ` · Notes à concrétiser · ${reportesVus.length}` : ''}`}
               droite={
