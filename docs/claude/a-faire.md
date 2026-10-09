@@ -44,7 +44,7 @@ Adapt, Revue du portfolio), dans les réunions (filtre « Fermés ») et dans «
 « Enveloppe · Engagé · Disponible » (validé 09/10). Validation : on garde « ✅ Valider » hors réunion (Chat) ; ce
 qui est décidé hors réunion porte la marque « décidé hors réunion » et est mis en avant à la réunion suivante ;
 valideur par défaut = animateur. Même règle pour le budget (validé 09/10) : décision depuis le Chat par la personne qui a le droit
-(message « À décider »), ou en séance (le message disparaît alors) ; décidé hors réunion = mis en avant à la réunion
+(message « À décider », mêmes choix qu'en séance : Accorder en totalité ou en partie, À reprendre, Refuser), ou en séance (le message disparaît alors) ; décidé hors réunion = mis en avant à la réunion
 suivante (Confirmer / Corriger par ligne d'ajustement). Maquette à jour (13 écrans) : docs/maquette-budget.html.
 Lot 1 codé (09/10) : Sheet « Budget » à part par entreprise (src/budget.ts, api lireBudget / ecrireDepense / ecrireCout ;
 démo « budget@demo-entreprise »), coût annuel sorti de l'Organisation (fiche Personne, ÷ jours ouvrés réels de
