@@ -5,7 +5,7 @@
  */
 import { budgetDemoEntreprise, donneesDemo, orgDemo, orgTousLesRoles, pointsDemo } from '../src/demo';
 import { absentsLe, joursAbsence, joursPrevus, jppConstate } from '../src/conges';
-import { gerantsBudget, libelleStatutDemande, niveauDessus, reunionDuNiveau } from '../src/budget';
+import { avecDossiers, gerantsBudget, libelleDecisionDossier, libelleStatutDemande, manquesDossier, niveauDessus, reunionDuNiveau } from '../src/budget';
 import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '../src/budget';
 import { creerMagasin, nettoyerDepense } from '../src/magasin';
 import type { Conge, Depense } from '../src/types';
@@ -498,6 +498,22 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
     for (const x of [{ montant_accorde: '1500' }, { statut: 'refusee' as const, motif_decision: '' }, { motif: '' }]) await mag.ecrireDemande({ id: dm.id, ...x }).catch(() => refus++);
     const acc = await mag.ecrireDemande({ id: dm.id, statut: 'accordee', montant_accorde: '1000' });
     ok(dm.statut === 'soumise' && refus === 3 && acc.montant_accorde === '1000' && libelleStatutDemande(acc) === 'accordée 1 000 € sur 1 200 €', 'demande : accord partiel au plus le montant demandé, motif obligatoire pour refuser');
+  })());
+  // 💼 Dossier d'investissement (lot 5) : 4 éléments pour lancer ; budget prévu du dossier ; MVP ≤ budget prévu
+  const dosD = new Map(budgetDemoEntreprise().dossier.map((d) => [d.id, d]));
+  const epD = donneesDemo('demo-entreprise').entities.epic;
+  ok(manquesDossier(dosD.get('acme3')).join() === 'budget du MVP' && manquesDossier(dosD.get('acme2')).length === 0 && manquesDossier(undefined).length === 4, 'dossier : complet = hypothèse, estimation, budget prévu, budget du MVP');
+  ok(avecDossiers(epD, dosD).find((e) => e.id === 'acme3')?.budget === '60000' && avecDossiers(epD, dosD).find((e) => e.id === 'acme2')?.estimation === '90', 'dossier : budget prévu et estimation posés sur l’epic');
+  ok(libelleDecisionDossier({ ...dosD.get('acme2')!, decide_le: '2026-09-01' }) === '✅ Lancée le 1/09 · Revue du portfolio', 'dossier : décision lisible');
+  testsAsync.push((async () => {
+    const mem: Record<string, unknown[]> = {};
+    const mag = creerMagasin({ lire: async (t) => [...((mem[t] ?? []) as never[])], ecrire: async (t, rows) => void (mem[t] = rows) });
+    await mag.ecrireDossier({ id: 'e1', hypothese: 'H', budget_prevu: '1000' });
+    let refus = 0;
+    await mag.ecrireDossier({ id: 'e1', budget_mvp: '2000' }).catch(() => refus++);
+    await mag.ecrireDossier({ id: 'e1', estimation: 'dix' }).catch(() => refus++);
+    const d = await mag.ecrireDossier({ id: 'e1', budget_mvp: '400', decision: 'lancer' });
+    ok(refus === 2 && d.hypothese === 'H' && d.budget_mvp === '400' && d.decision === 'lancer' && (mem.dossier ?? []).length === 1, 'dossier : une ligne par epic, complété champ par champ, MVP ≤ budget prévu');
   })());
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
   reglerConversion(true, new Map([['acmeqmob', 0.5]]));

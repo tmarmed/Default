@@ -1564,6 +1564,14 @@ function Main() {
             });
             return o;
           },
+          ecrireDossier: async (espace, d) => {
+            const o = await api.ecrireDossier(espace, titreBudget(espace), d);
+            setBudgets((b) => {
+              const x = b[espace] ?? { depenses: [], couts: [], accessible: true };
+              const l = x.dossiers ?? [];
+              return { ...b, [espace]: { ...x, accessible: true, dossiers: l.some((y) => y.id === o.id) ? l.map((y) => (y.id === o.id ? o : y)) : [...l, o] } };
+            });
+          },
           supprimerDepense: async (espace, id) => {
             await api.supprimerDepense(espace, id);
             setBudgets((b) => (b[espace] ? { ...b, [espace]: { ...b[espace], depenses: b[espace].depenses.filter((y) => y.id !== id) } } : b));

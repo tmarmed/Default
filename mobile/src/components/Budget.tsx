@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { cleDe, type Decision, depensesDe, iconeCategorie, libellePeriode, libelleStatutDemande, resumeDepense, useBudget } from '../budget';
+import { avecDossiers, cleDe, type Decision, libelleDecisionDossier, manquesDossier, depensesDe, iconeCategorie, libellePeriode, libelleStatutDemande, resumeDepense, useBudget } from '../budget';
 import { coutJour, euros, joursOuvresAnnee } from '../pilotage';
 import { colors } from '../theme';
-import { CATEGORIES_DEPENSE, type CleRepartition, type DemandeBudget, type Depense, PERIODES_DEPENSE, type PeriodeDepense } from '../types';
+import { CATEGORIES_DEPENSE, type CleRepartition, type DemandeBudget, type Depense, DECISIONS_DOSSIER, type DecisionDossier, type DossierInvestissement, type Epic, PERIODES_DEPENSE, type PeriodeDepense } from '../types';
 import { ChampFiche, SaisieFiche, SectionFiche } from './Choix';
 import { DateField } from './DateField';
+import { consommeReel, type CtxConsomme } from '../consomme';
+import type { OrgValue } from '../organisation';
 
 /**
  * 💶 Budget (lot 1, 09/10) : coût annuel d'une personne, dépenses d'un porteur (entreprise, portfolio, train,
@@ -35,6 +37,57 @@ export function ChampCoutAnnuel({ espace, personne }: { espace: string; personne
     >
       <SaisieFiche placeholder="Facultatif (ex. 75000)" value={v} onChangeText={(x) => setV(x.replace(/[^0-9.,]/g, ''))} onEndEditing={enregistrer} onBlur={enregistrer} keyboardType="decimal-pad" />
     </ChampFiche>
+  );
+}
+
+/**
+ * 💼 Dossier d'investissement d'une epic (lot 5, 09/10) : hypothèse, estimation, budget prévu, budget du MVP.
+ * Préparé par l'Epic Owner, décidé à la Revue du portfolio. Rangé dans le Sheet « Budget » ; enregistré à la sortie
+ * de chaque champ.
+ */
+export function SectionDossier({ espace, epic, lecture }: { espace: string; epic: Epic; lecture?: boolean }) {
+  const b = useBudget();
+  const d = b.dossiers.get(epic.id);
+  const depart = { hypothese: d?.hypothese ?? '', estimation: d?.estimation ?? '', budget_prevu: d?.budget_prevu || epic.budget || '', budget_mvp: d?.budget_mvp ?? '' };
+  const [f, setF] = useState(depart);
+  const [err, setErr] = useState('');
+  const cle = JSON.stringify(depart);
+  useEffect(() => setF(JSON.parse(cle)), [cle]);
+  if (b.parEspace[espace]?.accessible === false && !d) return null;
+  const enregistrer = (k: keyof typeof f) => {
+    if (f[k] === depart[k]) return;
+    setErr('');
+    b.ecrireDossier(espace, { id: epic.id, [k]: f[k] } as Partial<DossierInvestissement> & { id: string }).catch((e: Error) => setErr(e.message));
+  };
+  const champ = (k: keyof typeof f, placeholder: string, nombre = true) => (
+    <SaisieFiche
+      placeholder={placeholder}
+      value={f[k]}
+      editable={!lecture}
+      multiline={!nombre}
+      onChangeText={(v) => setF((x) => ({ ...x, [k]: nombre ? v.replace(/[^0-9.,]/g, '') : v }))}
+      onBlur={() => enregistrer(k)}
+      onEndEditing={() => enregistrer(k)}
+      keyboardType={nombre ? 'decimal-pad' : 'default'}
+      accessibilityLabel={placeholder}
+    />
+  );
+  const manques = manquesDossier({ ...d, ...f }, epic);
+  return (
+    <SectionFiche titre="💼 Dossier d'investissement" aDefinir={manques.length}>
+      <ChampFiche label="Hypothèse" colonne>
+        {champ('hypothese', 'Ex. Les clients commandent plus depuis l’application', false)}
+      </ChampFiche>
+      <ChampFiche label="Estimation (pts)">{champ('estimation', 'Ex. 90')}</ChampFiche>
+      <ChampFiche label="Budget prévu (€)">{champ('budget_prevu', 'Ex. 120000')}</ChampFiche>
+      <ChampFiche label="Budget du MVP (€)">{champ('budget_mvp', 'Ex. 30000')}</ChampFiche>
+      <View style={s.pad}>
+        <Text style={[s.sous, manques.length ? { color: colors.warning } : null]}>
+          {d?.decision ? `Décision : ${libelleDecisionDossier(d)}` : manques.length ? `À compléter : ${manques.join(', ')}. Une epic sans dossier complet ne peut pas être lancée.` : 'Dossier complet : à décider à la Revue du portfolio (Lancer, Pas maintenant, Abandonner).'}
+        </Text>
+        {!!err && <Text style={s.err}>{err}</Text>}
+      </View>
+    </SectionFiche>
   );
 }
 
@@ -368,5 +421,98 @@ function NouvelleDemande({ epics, niveau, onAnnuler, onSoumettre }: { epics: { i
         </Pressable>
       </View>
     </View>
+  );
+}
+
+/**
+ * 💼 Revue du portfolio (lot 5, 09/10) : décision sur les dossiers d'investissement. Epics à décider : ✅ Lancer
+ * (dossier complet seulement), ⏸ Pas maintenant, ✖ Abandonner. Budget du MVP atteint (consommé réel ≥ budget du
+ * MVP) : ▶ Continuer, ↪ Changer de direction, ⏹ Arrêter. Décision écrite tout de suite dans le Sheet Budget.
+ */
+export function BlocDossiers({ epics, h, org, espace, reunion, moi, peutDecider, nomDe = (m: string) => m, onEtat }: { epics: Epic[]; h: CtxConsomme['h']; org: OrgValue; espace: string; reunion: string; moi: string; peutDecider: boolean; nomDe?: (m: string) => string; onEtat?: (e: Epic, etat: Epic['etat']) => Promise<void> }) {
+  const b = useBudget();
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState('');
+  const today = new Date().toISOString().slice(0, 10);
+  const ed = avecDossiers(epics, b.dossiers);
+  const conso = consommeReel({ org, h: { ...h, epicList: avecDossiers(h.epicList, b.dossiers) }, couts: b.couts, depenses: b.depenses, today });
+  const lance = (d?: DossierInvestissement) => d?.decision === 'lancer' || d?.decision === 'changer';
+  const aDecider = ed.filter((e) => e.etat !== 'termine' && (!b.dossiers.get(e.id)?.decision || b.dossiers.get(e.id)?.decision === 'pas_maintenant'));
+  const mvp = ed.filter((e) => {
+    const d = b.dossiers.get(e.id);
+    return lance(d) && Number(d?.budget_mvp) > 0 && conso.detail(e).consomme >= Number(d!.budget_mvp);
+  });
+  const decides = ed.filter((e) => b.dossiers.get(e.id)?.decision && !aDecider.includes(e) && !mvp.includes(e));
+  const decider = async (e: Epic, decision: DecisionDossier) => {
+    setErr('');
+    setBusy(e.id);
+    try {
+      await b.ecrireDossier(espace, { id: e.id, decision, decide_le: today, decide_par: moi, decide_a: reunion });
+      if (decision === 'lancer' && (e.etat === 'idee' || e.etat === 'analyse' || !e.etat)) await onEtat?.(e, 'pret');
+      if (decision === 'arreter') await onEtat?.(e, 'termine');
+    } catch (x) {
+      setErr(`Non enregistré : ${(x as Error).message}`);
+    } finally {
+      setBusy('');
+    }
+  };
+  const boutons = (e: Epic, mvpAtteint: boolean, manques: string[]) =>
+    peutDecider && (
+      <View style={[s.actions, { flexWrap: 'wrap', paddingHorizontal: 0 }]}>
+        {DECISIONS_DOSSIER.filter((q) => !!q.mvp === mvpAtteint).map((q, k) => {
+          const bloque = q.value === 'lancer' && manques.length > 0;
+          return (
+            <Pressable key={q.value} disabled={bloque || !!busy} onPress={() => decider(e, q.value)} style={[k === 0 ? s.btn : s.btn2, (bloque || busy === e.id) && { opacity: 0.45 }]} accessibilityRole="button">
+              <Text style={k === 0 ? s.btnTexte : s.btn2Texte}>{q.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  const chiffres = (e: Epic) => {
+    const d = b.dossiers.get(e.id);
+    return [d?.estimation ? `${d.estimation} pts` : '', Number(e.budget) ? `Budget prévu ${euros(Number(e.budget))}` : '', Number(d?.budget_mvp) ? `MVP ${euros(Number(d!.budget_mvp))}` : ''].filter(Boolean).join(' · ');
+  };
+  return (
+    <>
+      <SectionFiche titre={`💼 Dossiers d'investissement · ${aDecider.length} à décider`}>
+        {aDecider.map((e, i) => {
+          const d = b.dossiers.get(e.id);
+          const manques = manquesDossier(d, e);
+          return (
+            <View key={e.id} style={[s.pad, i > 0 && s.bord]}>
+              <Text style={s.texte}>🗂️ {e.titre}{d?.decision === 'pas_maintenant' ? ' · ⏸ remise à plus tard' : ''}</Text>
+              {!!d?.hypothese && <Text style={s.sous}>Hypothèse : {d.hypothese}</Text>}
+              {!!chiffres(e) && <Text style={s.sous}>{chiffres(e)}</Text>}
+              <Text style={[s.sous, manques.length ? { color: colors.warning } : null]}>{manques.length ? `Dossier : ${4 - manques.length} sur 4 renseignés · à compléter : ${manques.join(', ')} (ne peut pas être lancée)` : 'Dossier complet'}</Text>
+              {boutons(e, false, manques)}
+            </View>
+          );
+        })}
+        {!aDecider.length && <Text style={[s.sous, s.pad]}>Aucune epic à décider.</Text>}
+      </SectionFiche>
+      {mvp.length > 0 && (
+        <SectionFiche titre={`🎯 Budget du MVP atteint · ${mvp.length}`}>
+          {mvp.map((e, i) => (
+            <View key={e.id} style={[s.pad, i > 0 && s.bord]}>
+              <Text style={s.texte}>🗂️ {e.titre} · MVP atteint</Text>
+              <Text style={s.sous}>{euros(conso.detail(e).consomme)} consommés sur {euros(Number(b.dossiers.get(e.id)!.budget_mvp))} de MVP · l'hypothèse est-elle vérifiée ?</Text>
+              {boutons(e, true, [])}
+            </View>
+          ))}
+        </SectionFiche>
+      )}
+      {decides.length > 0 && (
+        <SectionFiche titre={`Décidés · ${decides.length}`}>
+          {decides.map((e, i) => (
+            <View key={e.id} style={[s.pad, i > 0 && s.bord]}>
+              <Text style={s.texte}>🗂️ {e.titre}</Text>
+              <Text style={s.sous}>{libelleDecisionDossier(b.dossiers.get(e.id))}{b.dossiers.get(e.id)?.decide_par ? ` · par ${nomDe(b.dossiers.get(e.id)!.decide_par)}` : ''}</Text>
+            </View>
+          ))}
+        </SectionFiche>
+      )}
+      {!!err && <Text style={s.err}>{err}</Text>}
+    </>
   );
 }

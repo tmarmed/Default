@@ -35,8 +35,8 @@ import { okrsParValueStreams } from '../strategie';
 import { useOrg } from '../organisation';
 import { euros } from '../pilotage';
 import { consommeReel } from '../consomme';
-import { useBudget } from '../budget';
-import { SectionDepenses } from './Budget';
+import { avecDossiers, useBudget } from '../budget';
+import { SectionDepenses, SectionDossier } from './Budget';
 
 interface Props {
   visible: boolean;
@@ -431,14 +431,15 @@ export function EpicForm({
             </SectionFiche>
 
             {/* Budget (09/10) : prévu ; consommé calculé d'après les coûts annuels (fiche Personne), modifiable à la main */}
+            {/* Lot 5 : dossier d'investissement (hypothèse, estimation, budget prévu, budget du MVP) dans le Sheet Budget */}
+            {safe.actif && epic && <SectionDossier espace={espace || 'moi'} epic={epic} />}
             {safe.actif && (
               <SectionFiche titre="Budget">
-                <ChampFiche label="Prévu" sous="En euros.">
-                  <SaisieFiche placeholder="Facultatif (ex. 120000)" value={form.budget ?? ''} onChangeText={(v) => set('budget', v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
-                </ChampFiche>
                 {(() => {
                   // Lot 3 : consommé réel par période (personnes + dépenses + frais généraux), estimation à la fin
-                  const d = epic ? consommeReel({ org, h: { items, featureList: h.featureList, epicList: h.epicList }, couts: budget.couts, depenses: budget.depenses, today: toDateString(new Date()) }).detail({ ...epic, consomme: '' }) : null;
+                  const ed = epic ? avecDossiers([epic], budget.dossiers)[0] : undefined;
+                  const d = ed ? consommeReel({ org, h: { items, featureList: h.featureList, epicList: avecDossiers(h.epicList, budget.dossiers) }, couts: budget.couts, depenses: budget.depenses, today: toDateString(new Date()) }).detail({ ...ed, consomme: '' }) : null;
+                  const prevu = Number(String(ed?.budget ?? '').replace(',', '.')) || 0;
                   return (
                     <>
                       <ChampFiche label="Consommé réel" sous={`Vide : calculé${d ? ` (${euros(d.consomme)} : personnes ${euros(d.personnes)}, dépenses ${euros(d.depenses)}, frais généraux ${euros(d.frais)})` : ''}. Modifiable à la main.`}>
@@ -448,7 +449,7 @@ export function EpicForm({
                         <>
                           <LigneEnfant texte="Reste à faire estimé" meta={`${Math.round(d.restePts * 10) / 10} pts × ${euros(d.coutPoint)} = ${euros(d.restePts * d.coutPoint)}${d.sansEstimation ? ` · dont ${d.sansEstimation} stor${d.sansEstimation > 1 ? 'ies' : 'y'} sans estimation` : ''}`} />
                           <LigneEnfant texte="Dépenses à venir" meta={euros(d.fixesAVenir)} />
-                          <LigneEnfant texte="Estimation à la fin" meta={`${euros((form.consomme ? Number(String(form.consomme).replace(',', '.')) || 0 : d.consomme) + d.restePts * d.coutPoint + d.fixesAVenir)}${form.budget ? ` · budget prévu ${euros(Number(String(form.budget).replace(',', '.')) || 0)}` : ''}`} />
+                          <LigneEnfant texte="Estimation à la fin" meta={`${euros((form.consomme ? Number(String(form.consomme).replace(',', '.')) || 0 : d.consomme) + d.restePts * d.coutPoint + d.fixesAVenir)}${prevu ? ` · budget prévu ${euros(prevu)}` : ''}`} />
                         </>
                       )}
                     </>

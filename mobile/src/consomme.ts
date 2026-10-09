@@ -190,7 +190,9 @@ export function consommeReel(c: CtxConsomme) {
     const resteStories = restantes.reduce((s, t) => s + pointsBruts(t), 0);
     const faitsF = (fid: string) => faits.filter((t) => t.feature === fid).reduce((s, t) => s + pointsBruts(t), 0);
     const resteFeatures = fs.reduce((s, f) => s + Math.max(0, nb(f.points) - faitsF(f.id)), 0);
-    const restePts = Math.max(resteFeatures, resteStories);
+    // Reste à faire : epic (estimation du dossier − réalisé) > features > stories
+    const resteEpic = e.estimation ? Math.max(0, nb(e.estimation) - (h.items.filter((t) => !t.parent && t.statut === 'termine' && epicDeItem(t, items, featEpic) === e.id).reduce((s, t) => s + pointsBruts(t), 0))) : 0;
+    const restePts = Math.max(resteEpic, resteFeatures, resteStories);
     const fin = e.fin && e.fin > c.today ? e.fin : toDateString(addDays(new Date(`${c.today}T12:00`), 365));
     let fixesAVenir = 0;
     for (const d of c.depenses) {

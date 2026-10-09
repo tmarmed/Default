@@ -71,6 +71,13 @@ Accorder (montant), À reprendre / Refuser (motif), Soumettre plus haut ; décid
 réunion suivante ; accordée → dépense créée sur l'élément ; « ℹ️ Pour information » au demandeur (contenu caché
 dans la liste) ; « 💶 Demandes de budget » dans le Pilotage. Reste : Daily sans ce bloc ; Comité budgétaire
 (réunion entreprise) à créer ; enveloppes Engagé / Disponible ; message « Pour information » lu en un appui.
+Lot 5 (09/10), partie 1 codée : 💼 Dossier d'investissement (onglet Dossiers du Sheet Budget, une ligne par epic :
+hypothèse, estimation en points, budget prévu, budget du MVP ≤ prévu, décision) dans la fiche de l'epic (enregistré
+à la sortie de chaque champ ; l'ancien « Budget prévu » de l'epic sert de repli) ; étape « Dossiers » de la Revue du
+portfolio : à décider (✅ Lancer seulement si complet → état Prêt, ⏸ Pas maintenant, ✖ Abandonner), budget du MVP
+atteint (consommé réel ≥ MVP : ▶ Continuer, ↪ Changer de direction, ⏹ Arrêter → Terminé), décidés. Reste à faire
+estimé = max(epic, features, stories). Une epic en Idée / Analyse ne reçoit pas de dépenses réparties. Pilotage :
+« MVP … atteint ». Reste du lot 5 : « Ma préparation » de l'Epic Owner (dossiers à compléter), Mes suivis, Mode Simple.
 Suite : coder en 5 lots (1 Sheet Budget + dépenses ; 2 congés + jours réels ; 3 calculs + Pilotage ;
 4 demandes de budget en réunion + messages ; 5 dossier d'investissement + mode Simple + Mes suivis).
 10. Sécurité du Sheet « 💶 Budget » (demandé le 09/10) : aujourd'hui partagé à la main dans Google Drive ; à

@@ -4,7 +4,7 @@ import { COLONNES_SERIE, type SerieReunion } from './series';
 import { cleanLinks, type Data, type DeletionCounts, planDeletion } from './hierarchy';
 import { aPurger } from './stockage';
 import { cascadeLinks, checkParent } from './subtasks';
-import { CATEGORIES_DEPENSE, type DemandeBudget, type Conge, type JoursReels, NATURES_CONGE, type CoutPersonne, type Depense, PERIODES_DEPENSE, type Concretisation, type Domaine, type Echange, type Epic, type Feature, type Ignoree, type Item, type ItemInput, NATURES_ECHANGE, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, TYPES_POINT, type ValueStream } from './types';
+import { CATEGORIES_DEPENSE, type DemandeBudget, type DossierInvestissement, DECISIONS_DOSSIER, type Conge, type JoursReels, NATURES_CONGE, type CoutPersonne, type Depense, PERIODES_DEPENSE, type Concretisation, type Domaine, type Echange, type Epic, type Feature, type Ignoree, type Item, type ItemInput, NATURES_ECHANGE, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, TYPES_POINT, type ValueStream } from './types';
 import { CLE_ORG, type EntiteOrg, type EquipeAgile, type KindOrg, membresDe, type Org, type Personne } from './organisation';
 
 /**
@@ -19,7 +19,7 @@ export type TableBase = 'items' | Kind;
 /** Tables de l'Organisation (seulement dans le Google Sheet d'une entreprise, onglets créés au premier usage) */
 export type Table = TableBase | KindOrg | 'piecejointe' | 'pointreunion' | 'serie' | TableBudget | TableConges;
 /** Tables du Google Sheet « Budget » d'une entreprise (src/budget.ts) */
-export type TableBudget = 'depense' | 'cout' | 'demande';
+export type TableBudget = 'depense' | 'cout' | 'demande' | 'dossier';
 /** Congés et jours réels (lot 2, 09/10) : dans le Sheet de l'espace */
 export type TableConges = 'conge' | 'joursreels';
 export type EntityOf<K extends Kind> = K extends 'epic'
@@ -39,7 +39,7 @@ export type EntityOf<K extends Kind> = K extends 'epic'
               : K extends 'echange'
                 ? Echange
                 : Ignoree;
-type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : T extends 'piecejointe' ? LignePiece : T extends 'pointreunion' ? PointReunion : T extends 'serie' ? SerieReunion : T extends 'depense' ? Depense : T extends 'cout' ? CoutPersonne : T extends 'demande' ? DemandeBudget : T extends 'conge' ? Conge : T extends 'joursreels' ? JoursReels : never;
+type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : T extends 'piecejointe' ? LignePiece : T extends 'pointreunion' ? PointReunion : T extends 'serie' ? SerieReunion : T extends 'depense' ? Depense : T extends 'cout' ? CoutPersonne : T extends 'demande' ? DemandeBudget : T extends 'dossier' ? DossierInvestissement : T extends 'conge' ? Conge : T extends 'joursreels' ? JoursReels : never;
 /** Morceau d'une pièce jointe (onglet PiecesJointes) : une cellule contient au plus 50 000 caractères */
 export interface LignePiece {
   id: string;
@@ -122,6 +122,7 @@ export const ONGLETS_BUDGET: Record<TableBudget, { nom: string; colonnes: string
   depense: { nom: 'Depenses', colonnes: ['id', 'motif', 'categorie', 'montant', 'periode', 'du', 'au', 'porteur', 'cle', 'parts', 'cree_le', 'modifie_le'] },
   cout: { nom: 'CoutsAnnuels', colonnes: ['id', 'cout_annuel', 'cree_le', 'modifie_le'] },
   demande: { nom: 'DemandesBudget', colonnes: ['id', 'motif', 'montant', 'periode', 'du', 'au', 'pour', 'demandeur', 'destination', 'soumis_par', 'origine', 'statut', 'montant_accorde', 'motif_decision', 'decide_par', 'decide_le', 'hors_reunion', 'cree_le', 'modifie_le'] },
+  dossier: { nom: 'Dossiers', colonnes: ['id', 'hypothese', 'estimation', 'budget_prevu', 'budget_mvp', 'decision', 'decide_le', 'decide_par', 'decide_a', 'modifie_le'] },
 };
 /** 📅 Congés et jours réels (lot 2, 09/10) : onglets du Sheet de l'espace, créés au premier usage */
 export const ONGLETS_CONGES: Record<TableConges, { nom: string; colonnes: string[] }> = {
@@ -845,9 +846,35 @@ export function creerMagasin(p: Persistance) {
       return out;
     },
     /** 💶 Budget : dépenses et coûts annuels (Google Sheet « Budget » de l'entreprise) */
-    async lireBudget(): Promise<{ depenses: Depense[]; couts: CoutPersonne[]; demandes: DemandeBudget[] }> {
-      const [depenses, couts, demandes] = await Promise.all([p.lire('depense'), p.lire('cout'), p.lire('demande')]);
-      return { depenses, couts, demandes };
+    async lireBudget(): Promise<{ depenses: Depense[]; couts: CoutPersonne[]; demandes: DemandeBudget[]; dossiers: DossierInvestissement[] }> {
+      const [depenses, couts, demandes, dossiers] = await Promise.all([p.lire('depense'), p.lire('cout'), p.lire('demande'), p.lire('dossier')]);
+      return { depenses, couts, demandes, dossiers };
+    },
+    /** Dossier d'investissement d'une epic (créé ou complété ; id = id de l'epic) */
+    async ecrireDossier(d: Partial<DossierInvestissement> & { id: string }): Promise<DossierInvestissement> {
+      const liste = await p.lire('dossier');
+      const base = liste.find((x) => x.id === d.id);
+      const x = { ...base, ...d } as Partial<DossierInvestissement>;
+      const num = (v: unknown, nom: string) => {
+        const s = String(v ?? '').replace(/\s/g, '').replace(',', '.');
+        if (s && !RE_NOMBRE.test(s)) throw new Error(`${nom} : nombre attendu.`);
+        return s;
+      };
+      const o: DossierInvestissement = {
+        id: d.id,
+        hypothese: String(x.hypothese ?? '').trim().slice(0, 2000),
+        estimation: num(x.estimation, 'Estimation'),
+        budget_prevu: num(x.budget_prevu, 'Budget prévu'),
+        budget_mvp: num(x.budget_mvp, 'Budget du MVP'),
+        decision: (DECISIONS_DOSSIER.some((q) => q.value === x.decision) ? x.decision : '') as DossierInvestissement['decision'],
+        decide_le: String(x.decide_le ?? ''),
+        decide_par: String(x.decide_par ?? ''),
+        decide_a: String(x.decide_a ?? ''),
+        modifie_le: new Date().toISOString(),
+      };
+      if (o.budget_mvp && o.budget_prevu && Number(o.budget_mvp) > Number(o.budget_prevu)) throw new Error('Budget du MVP : au plus le budget prévu.');
+      await p.ecrire('dossier', base ? liste.map((y) => (y.id === o.id ? o : y)) : [...liste, o]);
+      return o;
     },
     /** Crée (sans id) ou modifie (avec id) une demande de budget */
     async ecrireDemande(d: Partial<DemandeBudget> & { id?: string }): Promise<DemandeBudget> {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { libelleNote } from '../daily';
-import { libelleStatutDemande, reunionDuNiveau, useBudget } from '../budget';
+import { avecDossiers, libelleStatutDemande, reunionDuNiveau, useBudget } from '../budget';
 import { consommeReel } from '../consomme';
 import { useHierarchy } from '../hierarchyContext';
 import type { OrgValue } from '../organisation';
@@ -215,9 +215,11 @@ export function PilotageView({
       </>
     );
   } else if (n.kind === 'portfolio') {
-    const conso = consommeReel({ org, h, couts: budget.couts, depenses: budget.depenses, today });
+    // Lot 5 : budget prévu et estimation viennent du dossier d'investissement (Sheet Budget)
+    const hd = { ...h, epicList: avecDossiers(h.epicList, budget.dossiers) };
+    const conso = consommeReel({ org, h: hd, couts: budget.couts, depenses: budget.depenses, today });
     const accesBudget = Object.values(budget.parEspace).some((b) => b.accessible);
-    const x = pilotePortfolio(n.id, org, h, today, accesBudget ? conso.detail : undefined);
+    const x = pilotePortfolio(n.id, org, hd, today, accesBudget ? conso.detail : undefined);
     contenu = (
       <>
         <SectionFiche titre="Epics par état">
@@ -243,7 +245,7 @@ export function PilotageView({
               return ligneJauge(
                 `b${y.e.id}`,
                 `🗂️ ${y.e.titre}`,
-                `Prévu ${y.prevu ? euros(y.prevu) : 'non renseigné'} · Consommé réel ${euros(d.consomme)} · Estimation à la fin ${euros(d.estimationFin)}${alertes ? ` · ⚠ ${alertes}` : ''}`,
+                `Prévu ${y.prevu ? euros(y.prevu) : 'non renseigné'}${Number(budget.dossiers.get(y.e.id)?.budget_mvp) ? ` · MVP ${euros(Number(budget.dossiers.get(y.e.id)!.budget_mvp))}${d.consomme >= Number(budget.dossiers.get(y.e.id)!.budget_mvp) ? ' atteint' : ''}` : ''} · Consommé réel ${euros(d.consomme)} · Estimation à la fin ${euros(d.estimationFin)}${alertes ? ` · ⚠ ${alertes}` : ''}`,
                 y.prevu ? (100 * d.consomme) / y.prevu : 0,
                 ecart > 0 ? 'rouge' : undefined,
                 i === 0,

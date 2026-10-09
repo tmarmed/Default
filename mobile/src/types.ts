@@ -176,6 +176,8 @@ export interface Epic {
   /** Pilotage (09/10) : budget prévu en euros ; consommé saisi à la main (vide = calculé d'après les coûts annuels) */
   budget?: string;
   consomme?: string;
+  /** Dossier d'investissement (lot 5) : estimation de l'epic en points, posée au chargement depuis le Sheet Budget, jamais enregistrée ici */
+  estimation?: string;
 }
 
 export type EtatEpic = 'idee' | 'analyse' | 'pret' | 'en_cours' | 'termine';
@@ -760,6 +762,37 @@ export interface JoursReels {
  * Dans le Sheet « Budget » de l'entreprise.
  */
 export type StatutDemande = 'soumise' | 'accordee' | 'a_reprendre' | 'refusee';
+/**
+ * 💼 Dossier d'investissement d'une epic (lot 5, 09/10) : préparé par l'Epic Owner, décidé à la Revue du portfolio.
+ * Rangé dans le Sheet « Budget » de l'entreprise (onglet Dossiers), une ligne par epic (id = id de l'epic).
+ */
+export type DecisionDossier = '' | 'lancer' | 'pas_maintenant' | 'abandonner' | 'continuer' | 'changer' | 'arreter';
+export const DECISIONS_DOSSIER: { value: Exclude<DecisionDossier, ''>; label: string; fait: string; mvp?: boolean }[] = [
+  { value: 'lancer', label: '✅ Lancer', fait: '✅ Lancée' },
+  { value: 'pas_maintenant', label: '⏸ Pas maintenant', fait: '⏸ Remise à plus tard' },
+  { value: 'abandonner', label: '✖ Abandonner', fait: '✖ Abandonnée' },
+  { value: 'continuer', label: '▶ Continuer', fait: '▶ Continuée après le MVP', mvp: true },
+  { value: 'changer', label: '↪ Changer de direction', fait: '↪ Direction changée après le MVP', mvp: true },
+  { value: 'arreter', label: '⏹ Arrêter', fait: '⏹ Arrêtée après le MVP', mvp: true },
+];
+export interface DossierInvestissement {
+  espace?: string;
+  /** Id de l'epic */
+  id: string;
+  hypothese: string;
+  /** Points */
+  estimation: string;
+  /** Euros */
+  budget_prevu: string;
+  budget_mvp: string;
+  decision: DecisionDossier;
+  decide_le: string;
+  decide_par: string;
+  /** Réunion où la décision a été prise */
+  decide_a: string;
+  modifie_le: string;
+}
+
 export interface DemandeBudget {
   espace?: string;
   id: string;

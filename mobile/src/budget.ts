@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import { addDays, toDateString } from './dates';
 import { estOuvre } from './series';
-import { CATEGORIES_DEPENSE, type CoutPersonne, type DemandeBudget, type Depense, type Echange, PERIODES_DEPENSE } from './types';
+import { CATEGORIES_DEPENSE, type CoutPersonne, type DemandeBudget, DECISIONS_DOSSIER, type Depense, type DossierInvestissement, type Echange, type Epic, PERIODES_DEPENSE } from './types';
 
 /**
  * 💶 Budget (lot 1, conception validée le 09/10, docs/maquette-budget.html).
@@ -16,6 +16,7 @@ export interface BudgetEspace {
   depenses: Depense[];
   couts: CoutPersonne[];
   demandes?: DemandeBudget[];
+  dossiers?: DossierInvestissement[];
   /** Le Sheet Budget existe et vous est accessible */
   accessible: boolean;
 }
@@ -26,6 +27,10 @@ export interface BudgetValue {
   couts: Map<string, string>;
   depenses: Depense[];
   demandes: DemandeBudget[];
+  /** Lot 5 : dossiers d'investissement des epics (clé : id de l'epic) */
+  dossiers: Map<string, DossierInvestissement>;
+  /** Crée ou complète le dossier d'une epic (Sheet Budget de l'entreprise) */
+  ecrireDossier: (espace: string, d: Partial<DossierInvestissement> & { id: string }) => Promise<void>;
   /** Lot 4 : soumet une demande née en réunion (message « À décider » aux personnes qui décident) */
   soumettreDemande: (espace: string, d: Omit<DemandeBudget, 'id' | 'cree_le' | 'modifie_le' | 'statut' | 'montant_accorde' | 'motif_decision' | 'decide_par' | 'decide_le' | 'hors_reunion' | 'destination'> & { destination?: string }) => Promise<void>;
   /** Décision : en séance (reunion = titre) ou hors réunion (reunion vide) */
@@ -41,6 +46,10 @@ export const BUDGET_VIDE: BudgetValue = {
   couts: new Map(),
   depenses: [],
   demandes: [],
+  dossiers: new Map(),
+  ecrireDossier: async () => {
+    throw new Error('Budget indisponible.');
+  },
   soumettreDemande: async () => {},
   deciderDemande: async () => {},
   confirmerDemande: async () => {},
@@ -54,13 +63,14 @@ export const BudgetContext = createContext<BudgetValue>(BUDGET_VIDE);
 export const useBudget = () => useContext(BudgetContext);
 
 /** Assemble le contexte à partir des budgets chargés */
-export function valeurBudget(parEspace: Record<string, BudgetEspace>, actions: Pick<BudgetValue, 'ecrireDepense' | 'supprimerDepense' | 'ecrireCout' | 'soumettreDemande' | 'deciderDemande' | 'confirmerDemande'>): BudgetValue {
+export function valeurBudget(parEspace: Record<string, BudgetEspace>, actions: Pick<BudgetValue, 'ecrireDepense' | 'supprimerDepense' | 'ecrireCout' | 'soumettreDemande' | 'deciderDemande' | 'confirmerDemande' | 'ecrireDossier'>): BudgetValue {
   const all = Object.values(parEspace);
   return {
     parEspace,
     couts: new Map(all.flatMap((b) => b.couts.map((c) => [c.id, c.cout_annuel] as [string, string]))),
     depenses: all.flatMap((b) => b.depenses),
     demandes: all.flatMap((b) => b.demandes ?? []),
+    dossiers: new Map(all.flatMap((b) => (b.dossiers ?? []).map((d) => [d.id, d] as [string, DossierInvestissement]))),
     ...actions,
   };
 }
@@ -180,10 +190,11 @@ export function partsDe(d: Pick<Depense, 'cle' | 'categorie' | 'parts'>, enfants
 export function enfantsRepartition(
   porteur: string,
   org: { portfolios: { id: string; nom: string; espace?: string; epic_owner: string }[]; trains: { id: string; portfolio: string; rte: string; pm: string }[]; equipes: { id: string; train: string; po: string; sm: string; membres: string }[] },
-  h: { epicList: { id: string; titre: string; portfolio?: string }[]; featureList: { id: string; epic: string; train?: string; equipe?: string }[]; items: { epic: string; feature: string; equipe?: string }[] },
+  h: { epicList: { id: string; titre: string; portfolio?: string; etat?: string }[]; featureList: { id: string; epic: string; train?: string; equipe?: string }[]; items: { epic: string; feature: string; equipe?: string }[] },
 ): { cle: string; nom: string; effectif: number }[] {
   const [kind, id] = [porteur.slice(0, porteur.indexOf(':')), porteur.slice(porteur.indexOf(':') + 1)];
-  const epics = (ids: Set<string>) => h.epicList.filter((e) => ids.has(e.id)).map((e) => ({ cle: `epic:${e.id}`, nom: `🗂️ ${e.titre}`, effectif: 0 }));
+  // Une epic pas encore lancée (Idée, Analyse) ne reçoit pas de dépenses réparties (lot 5)
+  const epics = (ids: Set<string>) => h.epicList.filter((e) => ids.has(e.id) && e.etat !== 'idee' && e.etat !== 'analyse').map((e) => ({ cle: `epic:${e.id}`, nom: `🗂️ ${e.titre}`, effectif: 0 }));
   if (kind === 'entreprise')
     return org.portfolios
       .filter((p) => (p.espace || 'moi') === id)
@@ -213,3 +224,34 @@ export const montantAccordeValide = (m: string, demande: number) => {
   const n = Number(m.replace(',', '.'));
   return n > 0 && (!demande || n <= demande);
 };
+
+// ---------------------------------------------------------------------------
+// 💼 Dossier d'investissement (lot 5, 09/10) : hypothèse, estimation, budget prévu, budget du MVP ; décidé à la
+// Revue du portfolio (Lancer / Pas maintenant / Abandonner ; budget du MVP atteint : Continuer / Changer de
+// direction / Arrêter). Le budget prévu vient du dossier (Sheet Budget) ; l'ancien champ de l'epic sert de repli.
+// ---------------------------------------------------------------------------
+
+/** Epics avec le budget prévu et l'estimation de leur dossier (pour le Pilotage et le consommé) */
+export const avecDossiers = (epics: Epic[], dossiers: Map<string, DossierInvestissement>): Epic[] =>
+  epics.map((e) => {
+    const d = dossiers.get(e.id);
+    return d ? { ...e, budget: d.budget_prevu || e.budget, estimation: d.estimation } : e;
+  });
+
+/** Ce qui manque au dossier pour pouvoir lancer l'epic (4 éléments) */
+export function manquesDossier(d: Partial<DossierInvestissement> | undefined, epic?: Epic): string[] {
+  return [
+    !String(d?.hypothese ?? '').trim() && 'hypothèse',
+    !Number(d?.estimation) && 'estimation',
+    !Number(d?.budget_prevu || epic?.budget) && 'budget prévu',
+    !Number(d?.budget_mvp) && 'budget du MVP',
+  ].filter(Boolean) as string[];
+}
+
+/** « ✅ Lancer · le 1/09 · Revue du portfolio » ; vide sans décision */
+export function libelleDecisionDossier(d?: DossierInvestissement): string {
+  if (!d?.decision) return '';
+  const q = DECISIONS_DOSSIER.find((x) => x.value === d.decision);
+  const le = d.decide_le ? ` le ${Number(d.decide_le.slice(8, 10))}/${d.decide_le.slice(5, 7)}` : '';
+  return `${q?.fait ?? d.decision}${le}${d.decide_a ? ` · ${d.decide_a}` : ''}`;
+}

@@ -10,6 +10,7 @@ import { capaciteEquipePI } from '../../pilotage';
 import { colors } from '../../theme';
 import { type Epic, ETATS_EPIC, type Feature, type TypeReunion, TYPES_REUNION } from '../../types';
 import { SectionFiche } from '../Choix';
+import { BlocDossiers } from '../Budget';
 import { TitreFiche } from '../FormSheet';
 import { ListeEditable, MesTaches, Navigation } from './Affinage';
 import { AjoutElement } from './Ajout';
@@ -50,6 +51,7 @@ type Etape =
   | { k: 'confiance' }
   | { k: 'budget'; cle: string }
   | { k: 'concretisation' }
+  | { k: 'dossiers' }
   | { k: 'compte_rendu' }
   // Participants
   | { k: 'taches' }
@@ -193,6 +195,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
       ['kanban', 'Kanban', { k: 'liste', icone: '🗂️', titre: 'Kanban des epics', sous: 'Idée → Analyse → Prêt → En cours → Terminé', lignes: epicsPortfolio }],
       ['epics', 'Epics', { k: 'elements', icone: '🗂️', mot: 'Epic', liste: epicsPortfolio, choix: ETATS_EPIC.map((s) => s.label) }],
       ['idees', 'Idées', { k: 'saisies', icone: '💡', titre: 'Nouvelles idées', sous: 'Proposées par les trains', cle: 'idee_pf', ajout: 'epic' }],
+      ['dossiers', 'Dossiers', { k: 'dossiers' }],
       ['concretisation', 'Concrétisation', CONC],
       ['compte_rendu', 'Compte rendu', CR],
     ],
@@ -584,6 +587,26 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
           <>
             <TitreFiche icone="🗳️" titre="Vote" vide="" sous={`100 points par participant · ${votants} sur ${e.personnes.length} ont voté`} />
             <SectionFiche titre="Total des points">{l.length ? l.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`par ${e.nomDe(y.par)}`} pastille={{ texte: `${y.pts} pts`, ton: i === 0 ? 'vert' : 'bleu' }} />) : <Vide texte="Aucune demande." />}</SectionFiche>
+          </>
+        );
+      }
+      case 'dossiers': {
+        // Lot 5 : dossiers d'investissement à décider, budget du MVP atteint
+        const esp = p.reunion.espace || 'moi';
+        return (
+          <>
+            <TitreFiche icone="💼" titre="Dossiers d'investissement" vide="" sous="Lancer, Pas maintenant, Abandonner · budget du MVP atteint : Continuer, Changer de direction, Arrêter" />
+            <BlocDossiers
+              epics={epics}
+              h={e.h}
+              org={r.org}
+              espace={esp}
+              reunion={`${TYPES_REUNION[p.reunion.type].libelle} du ${Number(e.jour.slice(8, 10))}/${e.jour.slice(5, 7)}`}
+              moi={r.mail}
+              peutDecider={r.anime && !lecture}
+              nomDe={e.nomDe}
+              onEtat={p.actions.modifierEntites ? (ep, etat) => p.actions.modifierEntites!(ep.espace || esp, 'epic', [{ id: ep.id, etat }]) : undefined}
+            />
           </>
         );
       }
