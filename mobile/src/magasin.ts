@@ -4,7 +4,7 @@ import { COLONNES_SERIE, type SerieReunion } from './series';
 import { cleanLinks, type Data, type DeletionCounts, planDeletion } from './hierarchy';
 import { aPurger } from './stockage';
 import { cascadeLinks, checkParent } from './subtasks';
-import { type Concretisation, type Domaine, type Echange, type Epic, type Feature, type Ignoree, type Item, type ItemInput, NATURES_ECHANGE, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, TYPES_POINT, type ValueStream } from './types';
+import { CATEGORIES_DEPENSE, type CoutPersonne, type Depense, PERIODES_DEPENSE, type Concretisation, type Domaine, type Echange, type Epic, type Feature, type Ignoree, type Item, type ItemInput, NATURES_ECHANGE, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, TYPES_POINT, type ValueStream } from './types';
 import { CLE_ORG, type EntiteOrg, type EquipeAgile, type KindOrg, membresDe, type Org, type Personne } from './organisation';
 
 /**
@@ -17,7 +17,9 @@ export type Kind = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 
 /** Tables de base (tous les espaces) */
 export type TableBase = 'items' | Kind;
 /** Tables de l'Organisation (seulement dans le Google Sheet d'une entreprise, onglets créés au premier usage) */
-export type Table = TableBase | KindOrg | 'piecejointe' | 'pointreunion' | 'serie';
+export type Table = TableBase | KindOrg | 'piecejointe' | 'pointreunion' | 'serie' | TableBudget;
+/** Tables du Google Sheet « Budget » d'une entreprise (src/budget.ts) */
+export type TableBudget = 'depense' | 'cout';
 export type EntityOf<K extends Kind> = K extends 'epic'
   ? Epic
   : K extends 'objectif'
@@ -35,7 +37,7 @@ export type EntityOf<K extends Kind> = K extends 'epic'
               : K extends 'echange'
                 ? Echange
                 : Ignoree;
-type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : T extends 'piecejointe' ? LignePiece : T extends 'pointreunion' ? PointReunion : T extends 'serie' ? SerieReunion : never;
+type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : T extends 'piecejointe' ? LignePiece : T extends 'pointreunion' ? PointReunion : T extends 'serie' ? SerieReunion : T extends 'depense' ? Depense : T extends 'cout' ? CoutPersonne : never;
 /** Morceau d'une pièce jointe (onglet PiecesJointes) : une cellule contient au plus 50 000 caractères */
 export interface LignePiece {
   id: string;
@@ -96,7 +98,7 @@ export const TABLES = Object.keys(ONGLETS) as TableBase[];
 
 /** Onglets de l'Organisation d'une entreprise (vue Entreprise et vue Delivery SAFe) */
 export const ONGLETS_ORG: Record<KindOrg, { nom: string; colonnes: string[] }> = {
-  personne: { nom: 'Personnes', colonnes: ['id', 'nom', 'email', 'unite', 'manager', 'capacite', 'metier', 'cree_le', 'modifie_le', 'nature', 'cout_annuel'] },
+  personne: { nom: 'Personnes', colonnes: ['id', 'nom', 'email', 'unite', 'manager', 'capacite', 'metier', 'cree_le', 'modifie_le', 'nature'] },
   unite: { nom: 'Unites', colonnes: ['id', 'nom', 'type', 'parent', 'responsable', 'cree_le', 'modifie_le'] },
   portfolio: { nom: 'Portfolios', colonnes: ['id', 'nom', 'epic_owner', 'cree_le', 'modifie_le'] },
   train: { nom: 'Trains', colonnes: ['id', 'nom', 'portfolio', 'rte', 'pm', 'cree_le', 'modifie_le', 'calendrier'] },
@@ -113,7 +115,48 @@ export const ONGLET_POINTS = {
 };
 /** Séries de réunions (07/10) : une ligne par série (règle + exceptions), onglet créé au premier usage */
 export const ONGLET_SERIES = { nom: 'Reunions', colonnes: [...COLONNES_SERIE] as string[] };
-export const ONGLETS_TOUS: Record<Table, { nom: string; colonnes: string[] }> = { ...ONGLETS, ...ONGLETS_ORG, piecejointe: ONGLET_PIECES, pointreunion: ONGLET_POINTS, serie: ONGLET_SERIES };
+/** 💶 Budget (09/10) : onglets du Google Sheet « Budget » de l'entreprise, créés au premier usage */
+export const ONGLETS_BUDGET: Record<TableBudget, { nom: string; colonnes: string[] }> = {
+  depense: { nom: 'Depenses', colonnes: ['id', 'motif', 'categorie', 'montant', 'periode', 'du', 'au', 'porteur', 'cle', 'parts', 'cree_le', 'modifie_le'] },
+  cout: { nom: 'CoutsAnnuels', colonnes: ['id', 'cout_annuel', 'cree_le', 'modifie_le'] },
+};
+export const ONGLETS_TOUS: Record<Table, { nom: string; colonnes: string[] }> = { ...ONGLETS, ...ONGLETS_ORG, piecejointe: ONGLET_PIECES, pointreunion: ONGLET_POINTS, serie: ONGLET_SERIES, ...ONGLETS_BUDGET };
+
+const RE_PORTEUR = /^(entreprise|portfolio|train|equipeagile|epic|feature|item):[0-9A-Za-z_.@-]+$/;
+const montant = (v: unknown) => String(v ?? '').replace(/\s/g, '').replace(',', '.');
+/** Vérifie une dépense (motif, montant, période, dates, porteur, parts) */
+export function nettoyerDepense(d: Partial<Depense>, base?: Depense): Omit<Depense, 'id' | 'cree_le' | 'modifie_le'> {
+  const x = { ...base, ...d };
+  const out = {
+    motif: String(x.motif ?? '').trim(),
+    categorie: (CATEGORIES_DEPENSE.some((c) => c.value === x.categorie) ? x.categorie : 'autre') as Depense['categorie'],
+    montant: montant(x.montant),
+    periode: (PERIODES_DEPENSE.some((p) => p.value === x.periode) ? x.periode : 'ponctuel') as Depense['periode'],
+    du: String(x.du ?? ''),
+    au: String(x.au ?? ''),
+    porteur: String(x.porteur ?? ''),
+    cle: (['effectif', 'egal', 'pct'].includes(String(x.cle)) ? x.cle : '') as Depense['cle'],
+    parts: String(x.parts ?? ''),
+  };
+  if (!out.motif) throw new Error('Le motif est obligatoire.');
+  if (!RE_NOMBRE.test(out.montant)) throw new Error(out.periode === 'pct' ? 'Pourcentage attendu.' : 'Montant : nombre en euros attendu.');
+  if (out.periode === 'pct' && Number(out.montant) > 100) throw new Error('Pourcentage : 100 au plus.');
+  if (!RE_DATE.test(out.du)) throw new Error('Date de début attendue (AAAA-MM-JJ).');
+  if (out.au && (!RE_DATE.test(out.au) || out.au < out.du)) throw new Error('Date de fin invalide.');
+  if (!RE_PORTEUR.test(out.porteur)) throw new Error('Porteur de la dépense invalide.');
+  if (out.parts) {
+    let p: unknown;
+    try {
+      p = JSON.parse(out.parts);
+    } catch {
+      throw new Error('Répartition invalide.');
+    }
+    if (!p || typeof p !== 'object' || Object.values(p as object).some((v) => typeof v !== 'number' || v < 0)) throw new Error('Répartition invalide.');
+    const total = Object.values(p as Record<string, number>).reduce((a, b) => a + b, 0);
+    if (out.cle === 'pct' && Math.abs(total - 100) > 0.5) throw new Error(`Répartition : le total fait ${Math.round(total)} %, il faut 100 %.`);
+  }
+  return out;
+}
 
 /** Lecture et écriture d'une table : sur l'appareil (démo) ou dans un Google Sheet */
 export interface Persistance {
@@ -300,8 +343,6 @@ export function nettoyerOrg<K extends KindOrg>(kind: K, data: Partial<EntiteOrg<
     if (!['ia_chat', 'agent_ia'].includes(out.nature ?? '')) out.nature = 'humain';
     out.capacite = out.capacite.replace(',', '.');
     if (out.capacite && !RE_NOMBRE.test(out.capacite)) throw new Error('Capacité : nombre de jours attendu.');
-    out.cout_annuel = (out.cout_annuel ?? '').replace(/\s/g, '').replace(',', '.');
-    if (out.cout_annuel && !RE_NOMBRE.test(out.cout_annuel)) throw new Error('Coût annuel : montant en euros attendu.');
   } else if (kind === 'unite') {
     if (out.type !== 'direction') out.type = 'service';
     // Pas de boucle : une unité ne peut pas être placée sous elle-même ou sous une de ses sous-unités
@@ -757,6 +798,40 @@ export function creerMagasin(p: Persistance) {
         await ecrireSiChange('feature', features, vide(features, ['equipe']));
         await ecrireSiChange('items', items, vide(items, ['equipe']));
       }
+    },
+    /** 💶 Budget : dépenses et coûts annuels (Google Sheet « Budget » de l'entreprise) */
+    async lireBudget(): Promise<{ depenses: Depense[]; couts: CoutPersonne[] }> {
+      const [depenses, couts] = await Promise.all([p.lire('depense'), p.lire('cout')]);
+      return { depenses, couts };
+    },
+    /** Crée (sans id) ou modifie (avec id) une dépense */
+    async ecrireDepense(d: Partial<Depense> & { id?: string }): Promise<Depense> {
+      const liste = await p.lire('depense');
+      const base = d.id ? liste.find((x) => x.id === d.id) : undefined;
+      if (d.id && !base) throw new Error('Dépense introuvable (peut-être supprimée).');
+      const now = new Date().toISOString();
+      const o: Depense = { ...nettoyerDepense(d, base), id: base?.id ?? nouvelId(), cree_le: base?.cree_le ?? now, modifie_le: now };
+      await p.ecrire('depense', base ? liste.map((x) => (x.id === o.id ? o : x)) : [...liste, o]);
+      return o;
+    },
+    async supprimerDepense(id: string): Promise<void> {
+      const liste = await p.lire('depense');
+      await p.ecrire('depense', liste.filter((x) => x.id !== id));
+    },
+    /** Coût annuel d'une personne (vide = retiré) */
+    async ecrireCout(personne: string, cout: string): Promise<CoutPersonne | null> {
+      const v = montant(cout);
+      if (v && !RE_NOMBRE.test(v)) throw new Error('Coût annuel : montant en euros attendu.');
+      const liste = await p.lire('cout');
+      const base = liste.find((x) => x.id === personne);
+      const now = new Date().toISOString();
+      if (!v) {
+        if (base) await p.ecrire('cout', liste.filter((x) => x.id !== personne));
+        return null;
+      }
+      const o: CoutPersonne = { id: personne, cout_annuel: v, cree_le: base?.cree_le ?? now, modifie_le: now };
+      await p.ecrire('cout', base ? liste.map((x) => (x.id === personne ? o : x)) : [...liste, o]);
+      return o;
     },
     async deleteEntity(kind: Kind, id: string, cascade: boolean): Promise<DeletionCounts> {
       const [items, all] = await Promise.all([p.lire('items'), this.listAll()]);

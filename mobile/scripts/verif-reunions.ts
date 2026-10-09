@@ -3,8 +3,11 @@
  * (portfolio Digital › train Clients › équipes Mobile et Web) : qui voit quelle réunion, quand, et qui l'anime.
  * Lancer : npm run verif:reunions
  */
-import { donneesDemo, orgDemo, orgTousLesRoles, pointsDemo } from '../src/demo';
-import { budgetEpic, consommeCalcule, coutJour, niveauxDeRoles, piloteEquipe, pilotePortfolio, piloteTrain, suivisDuNiveau } from '../src/pilotage';
+import { budgetDemoEntreprise, donneesDemo, orgDemo, orgTousLesRoles, pointsDemo } from '../src/demo';
+import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '../src/budget';
+import { nettoyerDepense } from '../src/magasin';
+import type { Depense } from '../src/types';
+import { budgetEpic, consommeCalcule, coutJour, joursOuvresAnnee, niveauxDeRoles, piloteEquipe, pilotePortfolio, piloteTrain, suivisDuNiveau } from '../src/pilotage';
 import { pointsFinis, backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteCompteRendu, texteReponse, veilleOuvree } from '../src/daily';
 import { toDateString } from '../src/dates';
 import { ciblesEscalade, destinatairesTransfert, equipesDePersonne } from '../src/echange/hierarchieEchange';
@@ -426,11 +429,32 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   ok(pf.budget.prevu === 200000 && pf.budget.epics.length === 2, 'budget : prévu des epics du portfolio');
   const st = { parent: '', feature: '', id: 'bx1', type: 'story', statut: 'termine', epic: 'acme2', points: '4', equipe: 'acmeqmob', responsable: 'acmp6' } as never;
   const st2 = { parent: '', feature: '', id: 'bx2', type: 'story', statut: 'termine', epic: 'acme2', points: '2', equipe: 'acmeqmob', responsable: 'acmp1' } as never;
-  const c = consommeCalcule('acme2', oT, { items: [st, st2], featureList: [] });
-  ok(coutJour('58000') === 266 && c.euros === 4 * 266 && c.jours === 6 && c.sansCout === 2, 'budget : consommé calculé (4 j × 266 €), jours sans coût annuel signalés');
+  const couts = new Map(budgetDemoEntreprise().cout.map((x) => [x.id, x.cout_annuel] as [string, string]));
+  const c = consommeCalcule('acme2', oT, { items: [st, st2], featureList: [] }, couts);
+  const cj = coutJour('58000');
+  ok(joursOuvresAnnee(2026) === 252 && coutJour('58000', 2026) === Math.round(58000 / 252) && c.euros === 4 * cj && c.jours === 6 && c.sansCout === 2, 'budget : coût d’un jour ouvré = coût annuel ÷ jours ouvrés réels de l’année ; consommé calculé, jours sans coût annuel signalés');
   const ep = (d.entities.epic ?? []).find((e) => e.id === 'acme2')!;
   const bm = budgetEpic({ ...ep, consomme: '150000' }, oT, { items: [st], featureList: [] });
   ok(bm.manuel && bm.consomme === 150000 && bm.depasse, 'budget : consommé saisi à la main, dépassement signalé');
+  // Dépenses (lot 1) : un seul modèle, montant sur une période, répartition, vérifications
+  const dep = (x: Partial<Depense>) => ({ id: 'x', motif: 'm', categorie: 'autre', montant: '0', periode: 'ponctuel', du: '2026-10-01', au: '', porteur: 'epic:acme2', cle: '', parts: '', cree_le: '', modifie_le: '', ...x }) as Depense;
+  ok(montantSurPeriode(dep({ periode: 'ponctuel', montant: '4000', du: '2026-10-15' }), '2026-10-01', '2026-10-31') === 4000 && montantSurPeriode(dep({ periode: 'ponctuel', montant: '4000', du: '2026-11-15' }), '2026-10-01', '2026-10-31') === 0, 'dépense ponctuelle : comptée seulement si sa date tombe dans la période');
+  ok(montantSurPeriode(dep({ periode: 'jour', montant: '550', du: '2026-10-05', au: '2026-10-16' }), '2026-10-01', '2026-10-31') === 550 * 10, 'prestataire par jour : jours ouvrés communs (10 du 5 au 16/10)');
+  ok(Math.round(montantSurPeriode(dep({ periode: 'mois', montant: '300', du: '2026-01-01' }), '2026-01-01', '2026-12-31')) === 3600 && Math.round(montantSurPeriode(dep({ periode: 'an', montant: '3650', du: '2026-01-01' }), '2026-10-01', '2026-10-10')) === 100, 'par mois et par an : au prorata des jours');
+  const enf = [{ cle: 'portfolio:a', effectif: 9 }, { cle: 'portfolio:b', effectif: 3 }];
+  ok(partsDe({ cle: '', categorie: 'frais_generaux', parts: '' }, enf).get('portfolio:a') === 0.75 && partsDe({ cle: '', categorie: 'licence', parts: '' }, enf).get('portfolio:a') === 0.5 && partsDe({ cle: 'pct', categorie: 'licence', parts: '{"portfolio:a":85,"portfolio:b":15}' }, enf).get('portfolio:b') === 0.15, 'répartition : frais généraux par effectif, sinon parts égales, ou % à la main');
+  let refus = 0;
+  for (const x of [{ motif: '' }, { montant: 'abc' }, { periode: 'pct' as const, montant: '150' }, { du: '' }, { porteur: 'rien' }, { cle: 'pct' as const, parts: '{"a":50}' }]) {
+    try {
+      nettoyerDepense({ ...dep({ montant: '10' }), ...x });
+    } catch {
+      refus++;
+    }
+  }
+  ok(refus === 6, 'dépense : motif, montant, %, date, porteur et total des % vérifiés');
+  const eRep = enfantsRepartition('entreprise:demo-entreprise', { ...oT, portfolios: oT.portfolios.map((p) => ({ ...p, espace: 'demo-entreprise' })) }, hP);
+  ok(eRep.length === 1 && eRep[0].effectif > 5 && enfantsRepartition('portfolio:acmpf1', oT, hP).length === 2, 'répartition : entreprise → portfolios (effectif), portfolio → ses epics');
+  ok(budgetDemoEntreprise().depense.length === 4 && resumeDepense(dep({ periode: 'mois', montant: '300', du: '2026-09-01', au: '2027-06-30' })) === '300 € par mois · 1/09/2026 → 30/06/2027', 'démo : 4 dépenses ; résumé lisible');
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
   reglerConversion(true, new Map([['acmeqmob', 0.5]]));
   ok(pointsOf({ points: '4', equipe: 'acmeqmob' }) === 2 && pointsOf({ points: '4', equipe: 'autre' }) === 4 && versPoints('3', 0.5) === '6' && depuisPoints('6', 0.5) === '3', 'conversion : 4 pts = 2 j avec 1 point = ½ j ; saisie 3 j → 6 pts');

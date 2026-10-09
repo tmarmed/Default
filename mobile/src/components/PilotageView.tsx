@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { libelleNote } from '../daily';
+import { useBudget } from '../budget';
 import { useHierarchy } from '../hierarchyContext';
 import type { OrgValue } from '../organisation';
 import { nomSprintDe, piLabel } from '../pi';
@@ -52,6 +53,7 @@ export function PilotageView({
   onOuvrirEcran: (ecran: string) => void;
 }) {
   const h = useHierarchy();
+  const budget = useBudget();
   const niveaux = useMemo(() => niveauxDeRoles(org, moi, simple), [org, moi, simple]);
   const [choisi, setChoisi] = useState('');
   const n: NiveauPilotage | undefined = niveaux.find((x) => `${x.kind}:${x.id}` === choisi) ?? niveaux[0];
@@ -194,7 +196,7 @@ export function PilotageView({
       </>
     );
   } else if (n.kind === 'portfolio') {
-    const x = pilotePortfolio(n.id, org, h, today);
+    const x = pilotePortfolio(n.id, org, h, today, budget.couts);
     contenu = (
       <>
         <SectionFiche titre="Epics par état">
@@ -218,7 +220,7 @@ export function PilotageView({
             return ligneJauge(`b${y.e.id}`, `🗂️ ${y.e.titre}`, `${euros(b.consomme)} sur ${b.prevu ? euros(b.prevu) : 'budget non renseigné'} · ${detail}`, b.prevu ? (100 * b.consomme) / b.prevu : 0, b.depasse ? 'rouge' : undefined, i === 0, b.depasse ? { texte: `+${euros(b.consomme - b.prevu)}`, ton: 'rouge' } : undefined);
           })}
           {!x.budget.epics.length && <Vide texte="Aucun budget renseigné (fiche de l’epic)." />}
-          <Text style={s.aide}>Consommé calculé : points terminés × jours par point de l’équipe × coût d’une journée du responsable (coût annuel ÷ 218 jours, fiche Personne). Modifiable à la main dans la fiche de l’epic.</Text>
+          <Text style={s.aide}>Consommé calculé : points terminés × jours par point de l’équipe × coût d’une journée du responsable (coût annuel ÷ jours ouvrés de l’année, fiche Personne). Modifiable à la main dans la fiche de l’epic.</Text>
         </SectionFiche>
         <SectionFiche titre="OKR · résultats clés">
           {x.okrs.map((y, i) => ligneJauge(y.o.id, `🎯 ${y.o.titre}`, `${y.nbKr} résultat${y.nbKr > 1 ? 's' : ''} clé${y.nbKr > 1 ? 's' : ''} · ${y.pct} %${y.clos ? ' · clos' : ''}`, y.pct, y.pct >= 60 ? 'vert' : undefined, i === 0, y.clos ? { texte: 'Clos', ton: 'gris' } : undefined))}

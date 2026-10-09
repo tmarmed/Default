@@ -34,6 +34,8 @@ import { SectionPointsReunion } from './PointsElement';
 import { okrsParValueStreams } from '../strategie';
 import { useOrg } from '../organisation';
 import { consommeCalcule, euros } from '../pilotage';
+import { useBudget } from '../budget';
+import { SectionDepenses } from './Budget';
 
 interface Props {
   visible: boolean;
@@ -118,6 +120,7 @@ export function EpicForm({
   const espaceFil = useEspaceFil(espace);
   const safe = useSafe();
   const org = useOrg();
+  const budget = useBudget();
   const features = epic ? h.featureList.filter((f) => f.epic === epic.id) : [];
 
   useEffect(() => {
@@ -433,11 +436,11 @@ export function EpicForm({
                   <SaisieFiche placeholder="Facultatif (ex. 120000)" value={form.budget ?? ''} onChangeText={(v) => set('budget', v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
                 </ChampFiche>
                 {(() => {
-                  const c = epic ? consommeCalcule(epic.id, org, { items, featureList: h.featureList }) : null;
+                  const c = epic ? consommeCalcule(epic.id, org, { items, featureList: h.featureList }, budget.couts) : null;
                   return (
                     <ChampFiche
                       label="Consommé"
-                      sous={`Vide : calculé${c ? ` (${euros(c.euros)}, ${c.jours} j terminés${c.sansCout ? `, dont ${c.sansCout} j sans coût annuel renseigné` : ''})` : ''} : points terminés × jours par point × coût d’une journée du responsable (coût annuel ÷ 218 jours).`}
+                      sous={`Vide : calculé${c ? ` (${euros(c.euros)}, ${c.jours} j terminés${c.sansCout ? `, dont ${c.sansCout} j sans coût annuel renseigné` : ''})` : ''} : points terminés × jours par point × coût d’une journée du responsable (coût annuel ÷ jours ouvrés de l’année).`}
                     >
                       <SaisieFiche placeholder={c ? `Calculé : ${euros(c.euros)}` : 'Calculé'} value={form.consomme ?? ''} onChangeText={(v) => set('consomme', v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
                     </ChampFiche>
@@ -445,6 +448,7 @@ export function EpicForm({
                 })()}
               </SectionFiche>
             )}
+            {safe.actif && epic && <SectionDepenses espace={espace || 'moi'} porteur={`epic:${epic.id}`} />}
 
             <SectionPointsReunion id={epic?.id} espace={(epic as { espace?: string } | undefined)?.espace} />
             <SectionFiche titre="Détails">

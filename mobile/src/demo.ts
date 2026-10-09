@@ -1,3 +1,4 @@
+import type { CoutPersonne, Depense } from './types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
 import { iterationOf, piOf, piStart, shiftPi } from './pi';
@@ -121,7 +122,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '31';
+const DEMO_DATA_VERSION = '32';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -320,7 +321,7 @@ function sampleEntities(): {
   };
 }
 
-type Seeds = { items: () => Item[]; entities: () => ReturnType<typeof sampleEntities>; org?: () => Org; points?: () => PointReunion[] };
+type Seeds = { items: () => Item[]; entities: () => ReturnType<typeof sampleEntities>; org?: () => Org; points?: () => PointReunion[]; budget?: () => { depense: Depense[]; cout: CoutPersonne[] } };
 
 /**
  * Stockage d'un espace de la démo (« moi » : clés historiques ; autres : « mes-taches:demo@<espace> »), avec
@@ -339,7 +340,7 @@ function creerStore(espace: string, seeds: Seeds) {
       for (const t of Object.keys(memoire) as Table[]) if (ev.key === null || ev.key === cle(t) || ev.key.endsWith(`~${cle(t)}`)) delete memoire[t];
     });
   const exemples = (t: Table): unknown[] =>
-    t === 'items' ? seeds.items() : t === 'pointreunion' ? (seeds.points?.() ?? []) : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : (seeds.entities()[t as Kind] ?? []);
+    t === 'depense' || t === 'cout' ? (seeds.budget?.()[t] ?? []) : t === 'items' ? seeds.items() : t === 'pointreunion' ? (seeds.points?.() ?? []) : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : (seeds.entities()[t as Kind] ?? []);
 
   const persistance: Persistance = {
     async lire(t) {
@@ -596,7 +597,7 @@ const SEEDS_ENTREPRISE: Seeds = {
         p('acmp9', 'Emma Roy', 'acmu3', 'acmp2', '6', 'testeur'),
         p('acmp10', 'Léa Roux', 'acmu3', 'acmp2', '8', 'designer'),
         p('acmp11', 'Hugo Blanc', 'acmu3', 'acmp2', '8', 'dev'),
-      ].map((x) => ({ ...x, cout_annuel: ({ acmp6: '58000', acmp7: '61000', acmp8: '54000', acmp9: '50000', acmp10: '52000', acmp11: '56000' } as Record<string, string>)[x.id] ?? '' })),
+      ],
       unites: [
         { id: 'acmu1', nom: 'Direction générale', type: 'direction' as const, parent: '', responsable: 'acmp1', ...base },
         { id: 'acmu2', nom: 'Direction technique', type: 'direction' as const, parent: 'acmu1', responsable: 'acmp2', ...base },
@@ -637,6 +638,27 @@ function joursOuvresAvant(jour: string, n: number): string {
 }
 
 /** Espaces proposés dans la démo, en plus de « Moi » */
+/**
+ * 💶 Google Sheet « Budget » d'ACME (démo, 09/10) : coûts annuels des membres des équipes, et des dépenses de
+ * chaque sorte (loyer de l'entreprise réparti par effectif, licence d'une epic, prestataire par jour, audit d'une feature)
+ */
+export function budgetDemoEntreprise(): { depense: Depense[]; cout: CoutPersonne[] } {
+  const stamp = new Date().toISOString();
+  const debutAnnee = `${new Date().getFullYear()}-01-01`;
+  const dans = (j: number) => toDateString(addDays(new Date(), j));
+  const dep = (id: string, x: Partial<Depense>): Depense => ({ id, motif: '', categorie: 'autre', montant: '0', periode: 'ponctuel', du: debutAnnee, au: '', porteur: '', cle: '', parts: '', cree_le: stamp, modifie_le: stamp, ...x });
+  const couts: [string, string][] = [['acmp6', '58000'], ['acmp7', '61000'], ['acmp8', '54000'], ['acmp9', '50000'], ['acmp10', '52000'], ['acmp11', '56000']];
+  return {
+    cout: couts.map(([id, cout_annuel]) => ({ id, cout_annuel, cree_le: stamp, modifie_le: stamp })),
+    depense: [
+      dep('acmd1', { motif: 'Loyer du bâtiment', categorie: 'frais_generaux', montant: '8000', periode: 'mois', porteur: 'entreprise:demo-entreprise', cle: 'effectif' }),
+      dep('acmd2', { motif: 'Licence de cartographie', categorie: 'licence', montant: '300', periode: 'mois', du: dans(-40), au: dans(260), porteur: 'epic:acme2' }),
+      dep('acmd3', { motif: 'Prestataire Alex Moreau', categorie: 'prestataire', montant: '550', periode: 'jour', du: dans(-20), au: dans(70), porteur: 'epic:acme2' }),
+      dep('acmd4', { motif: 'Audit de sécurité des données', categorie: 'autre', montant: '4000', periode: 'ponctuel', du: dans(35), porteur: 'feature:acmf1' }),
+    ],
+  };
+}
+
 export const ESPACES_DEMO = [
   { id: 'demo-equipe', type: 'equipe' as const, nom: 'Mobile' },
   { id: 'demo-entreprise', type: 'entreprise' as const, nom: 'ACME' },
@@ -654,7 +676,9 @@ export function demoApiFor(espace = 'moi') {
           ? SEEDS_EQUIPE
           : espace === 'demo-entreprise'
             ? SEEDS_ENTREPRISE
-            : { items: () => [], entities: vide };
+            : espace.startsWith('budget@')
+              ? { items: () => [], entities: vide, budget: espace === 'budget@demo-entreprise' ? budgetDemoEntreprise : undefined }
+              : { items: () => [], entities: vide };
     st = creerStore(espace, seeds);
     stores.set(espace, st);
   }

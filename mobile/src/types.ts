@@ -659,3 +659,60 @@ export type SousType = '' | 'a_prendre' | 'prise';
 export const TYPES_POINT: TypePoint[] = ['hier', 'aujourdhui', 'blocage', 'decision', 'action', 'information', 'risque', 'dependance', 'etat', 'vote', 'donnee'];
 /** Lignes techniques de PointsReunion (état, votes, préparations) : jamais affichées comme des points */
 export const estTechnique = (p: Pick<PointReunion, 'type'>) => p.type === 'etat' || p.type === 'vote' || p.type === 'donnee';
+
+// ---------------------------------------------------------------------------
+// 💶 Budget (lot 1, conception validée le 09/10, docs/maquette-budget.html) : tables du Google Sheet « Budget » de
+// l'entreprise, séparé et partagé seulement avec le droit « Gérer le budget » (voir src/budget.ts)
+// ---------------------------------------------------------------------------
+/** Période d'une dépense : ponctuelle (à la date « du »), par jour, par mois, par an, ou en % (frais généraux) */
+export type PeriodeDepense = 'ponctuel' | 'jour' | 'mois' | 'an' | 'pct';
+/** Répartition d'une dépense portée par un niveau sur ses enfants : par effectif, à parts égales, ou en % à la main */
+export type CleRepartition = 'effectif' | 'egal' | 'pct';
+export type CategorieDepense = 'frais_generaux' | 'licence' | 'prestataire' | 'materiel' | 'hebergement' | 'formation' | 'deplacement' | 'autre';
+export const CATEGORIES_DEPENSE: { value: CategorieDepense; label: string; icone: string }[] = [
+  { value: 'frais_generaux', label: 'Frais généraux', icone: '🏢' },
+  { value: 'licence', label: 'Licence', icone: '🔑' },
+  { value: 'prestataire', label: 'Prestataire', icone: '🧑‍💻' },
+  { value: 'materiel', label: 'Matériel', icone: '🖥️' },
+  { value: 'hebergement', label: 'Hébergement', icone: '☁️' },
+  { value: 'formation', label: 'Formation', icone: '🎓' },
+  { value: 'deplacement', label: 'Déplacement', icone: '🚆' },
+  { value: 'autre', label: 'Autre', icone: '📦' },
+];
+export const PERIODES_DEPENSE: { value: PeriodeDepense; label: string }[] = [
+  { value: 'ponctuel', label: 'Ponctuel' },
+  { value: 'jour', label: 'Par jour' },
+  { value: 'mois', label: 'Par mois' },
+  { value: 'an', label: 'Par an' },
+  { value: 'pct', label: 'En %' },
+];
+/** Une dépense : un seul modèle pour tout (loyer, licence, prestataire…) */
+export interface Depense {
+  espace?: string;
+  id: string;
+  motif: string;
+  categorie: CategorieDepense;
+  /** Euros (ou % si période « pct ») */
+  montant: string;
+  periode: PeriodeDepense;
+  /** AAAA-MM-JJ ; « au » vide = sans fin */
+  du: string;
+  au: string;
+  /** Porteur : « entreprise:<espace> », « portfolio:<id> », « train:<id> », « equipeagile:<id> », « epic:<id> », « feature:<id> », « item:<id> » */
+  porteur: string;
+  /** Répartition sur les enfants du porteur (vide = clé par défaut : effectif pour les frais généraux, sinon parts égales) */
+  cle: CleRepartition | '';
+  /** Parts à la main (JSON { « portfolio:<id> »: 85, … }), pour la clé « pct » */
+  parts: string;
+  cree_le: string;
+  modifie_le: string;
+}
+/** Coût annuel d'une personne (sorti de l'Organisation : il vit dans le Sheet Budget) */
+export interface CoutPersonne {
+  espace?: string;
+  /** Identifiant de la personne (Organisation) */
+  id: string;
+  cout_annuel: string;
+  cree_le: string;
+  modifie_le: string;
+}

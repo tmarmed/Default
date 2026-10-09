@@ -1,7 +1,8 @@
 import type { SerieReunion } from './series';
 import { DEMO, demoApiFor } from './demo';
 import type { EntiteOrg, KindOrg, Org } from './organisation';
-import { adopterFichier, corbeille, creerFichierEspace, effacerFichier, fichiersCorbeille, fichiersEspaces, magasinSheets, poidsFichiers, quotaDrive, renommerFichier } from './gsheets';
+import { adopterFichier, corbeille, creerFichierEspace, effacerFichier, fichierBudget, fichiersCorbeille, fichiersEspaces, magasinSheets, poidsFichiers, quotaDrive, renommerFichier } from './gsheets';
+import type { CoutPersonne, Depense } from './types';
 import type { Data, DeletionCounts } from './hierarchy';
 import type { EquipeEspace, Magasin, PieceEntree, PieceJointe } from './magasin';
 export type { PieceEntree, PieceJointe } from './magasin';
@@ -294,4 +295,39 @@ export async function ecrirePoints(
 ): Promise<{ crees: PointReunion[]; modifies: PointReunion[] }> {
   const r = await route(settings, espace).m.ecrirePoints(creer, modifier, retirer);
   return { crees: r.crees.map((x) => ({ ...x, espace })), modifies: r.modifies.map((x) => ({ ...x, espace })) };
+}
+
+// ---------------------------------------------------------------------------
+// 💶 Budget (09/10) : Google Sheet « Budget » à part, un par entreprise (« budget@<espace> » en démo). Sans ce
+// fichier (pas encore créé, ou pas partagé avec vous), le budget est vide : aucun montant n'est montré.
+// ---------------------------------------------------------------------------
+const fichiersBudget = new Map<string, string | null>();
+async function routeBudget(espace: string, titre: string, creer: boolean) {
+  if (DEMO) return demoApiFor(`budget@${espace}`);
+  let f = fichiersBudget.get(espace);
+  if (f === undefined || (!f && creer)) {
+    const ent = fichiers.get(espace);
+    if (!ent) throw new Error("Cet espace de travail n'est relié à aucun Google Sheet.");
+    f = await fichierBudget(ent, titre, creer);
+    fichiersBudget.set(espace, f);
+  }
+  return f ? magasinSheets(f) : null;
+}
+export async function lireBudget(espace: string): Promise<{ depenses: Depense[]; couts: CoutPersonne[]; accessible: boolean }> {
+  const m = await routeBudget(espace, '', false);
+  if (!m) return { depenses: [], couts: [], accessible: false };
+  const r = await m.lireBudget();
+  return { depenses: r.depenses.map((x) => ({ ...x, espace })), couts: r.couts.map((x) => ({ ...x, espace })), accessible: true };
+}
+export async function ecrireDepense(espace: string, titre: string, d: Partial<Depense> & { id?: string }): Promise<Depense> {
+  const m = await routeBudget(espace, titre, true);
+  return { ...(await m!.ecrireDepense(d)), espace };
+}
+export async function supprimerDepense(espace: string, id: string): Promise<void> {
+  const m = await routeBudget(espace, '', false);
+  if (m) await m.supprimerDepense(id);
+}
+export async function ecrireCout(espace: string, titre: string, personne: string, cout: string): Promise<CoutPersonne | null> {
+  const m = await routeBudget(espace, titre, !!cout);
+  return m ? m.ecrireCout(personne, cout) : null;
 }

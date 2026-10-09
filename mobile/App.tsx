@@ -119,6 +119,7 @@ import {
   saveHierarchyCache,
 } from './src/storage';
 import { colors } from './src/theme';
+import { BudgetContext, type BudgetEspace, valeurBudget } from './src/budget';
 import { expandRange, listEntries, toggleDone } from './src/recurrence';
 import { actionDuChoix, appliquerPlan, lireRef, planSuivi, refPoint } from './src/pointsSuivi';
 import {
@@ -362,6 +363,8 @@ function Main() {
   const [orgTous, setOrgTous] = useState<Org>(ORG_VIDE);
   /** Espaces Équipe (hors entreprise) : leurs membres et rôles, à part de l'Organisation des entreprises */
   const [equipesEsp, setEquipesEsp] = useState<Record<string, api.EquipeEspace>>({});
+  /** 💶 Budget de chaque entreprise (Google Sheet « Budget » à part ; vide sans accès) */
+  const [budgets, setBudgets] = useState<Record<string, BudgetEspace>>({});
   const orgTousRef = useRef(orgTous);
   orgTousRef.current = orgTous;
   const orgDe = useCallback(
@@ -804,6 +807,10 @@ function Main() {
         const org: Org = { personnes: catOrg('personnes'), unites: catOrg('unites'), portfolios: catOrg('portfolios'), trains: catOrg('trains'), equipes: catOrg('equipes') };
         setOrgTous(org);
         AsyncStorage.setItem(ORG_CACHE_KEY, JSON.stringify(org)).catch(() => {});
+        // 💶 Budget des entreprises (Sheet à part) : sans accès, il reste vide
+        Promise.allSettled(entreprises.map((e) => api.lireBudget(e.id))).then((rb) =>
+          setBudgets((avant) => Object.fromEntries(entreprises.map((e, k) => [e.id, rb[k].status === 'fulfilled' ? (rb[k] as PromiseFulfilledResult<BudgetEspace>).value : (avant[e.id] ?? { depenses: [], couts: [], accessible: false })]))),
+        );
         // Membres des espaces Équipe (une lecture par espace) ; un espace injoignable garde sa dernière copie
         const espEq = liste.filter((e) => e.type === 'equipe');
         const resEq = await Promise.allSettled(espEq.map((e) => api.listEquipe(s, e.id)));
@@ -1484,6 +1491,36 @@ function Main() {
    * 📅 Réunions (lot 6) : calculées d'après vos rôles dans l'Organisation des espaces affichés, avec les équipes des
    * espaces Équipe (rien n'est enregistré)
    */
+  const titreBudget = useCallback((espace: string) => `${NOM_APP} | Budget | ${espaces.find((e) => e.id === espace)?.nom ?? espace}`, [espaces]);
+  const budgetValue = useMemo(
+    () =>
+      valeurBudget(
+        Object.fromEntries(Object.entries(budgets).filter(([e]) => visibles.includes(e))),
+        {
+          ecrireDepense: async (espace, d) => {
+            const o = await api.ecrireDepense(espace, titreBudget(espace), d);
+            setBudgets((b) => {
+              const x = b[espace] ?? { depenses: [], couts: [], accessible: true };
+              return { ...b, [espace]: { ...x, accessible: true, depenses: x.depenses.some((y) => y.id === o.id) ? x.depenses.map((y) => (y.id === o.id ? o : y)) : [...x.depenses, o] } };
+            });
+            return o;
+          },
+          supprimerDepense: async (espace, id) => {
+            await api.supprimerDepense(espace, id);
+            setBudgets((b) => (b[espace] ? { ...b, [espace]: { ...b[espace], depenses: b[espace].depenses.filter((y) => y.id !== id) } } : b));
+          },
+          ecrireCout: async (espace, personne, cout) => {
+            const o = await api.ecrireCout(espace, titreBudget(espace), personne, cout);
+            setBudgets((b) => {
+              const x = b[espace] ?? { depenses: [], couts: [], accessible: true };
+              const couts = x.couts.filter((c) => c.id !== personne);
+              return { ...b, [espace]: { ...x, accessible: x.accessible || !!o, couts: o ? [...couts, { ...o, espace }] : couts } };
+            });
+          },
+        },
+      ),
+    [budgets, visibles, titreBudget],
+  );
   const orgReunions = useMemo(() => {
     const eq = Object.entries(equipesEsp).filter(([id]) => visibles.includes(id));
     const base: Org = !eq.length
@@ -2634,6 +2671,7 @@ function Main() {
     <RechercheContext.Provider value={recherche ?? ''}>
     <PiecesContext.Provider value={chargerPieces}>
     <OrgContext.Provider value={orgValue}>
+    <BudgetContext.Provider value={budgetValue}>
     <MoiContext.Provider value={moi}>
     <OrgFiltreContext.Provider value={safe.actif ? orgFiltre : null}>
     <View style={styles.flex}>
@@ -4142,6 +4180,7 @@ function Main() {
     </View>
     </OrgFiltreContext.Provider>
     </MoiContext.Provider>
+    </BudgetContext.Provider>
     </OrgContext.Provider>
     </PiecesContext.Provider>
     </RechercheContext.Provider>

@@ -17,6 +17,7 @@ import { LiaisonOrg } from './LiaisonOrg';
 import { ChoiceSheet } from './ChoiceSheet';
 import { ChampEstimation, ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, SaisieFiche, SectionFiche } from './Choix';
 import { SectionPointsReunion } from './PointsElement';
+import { SectionDepenses } from './Budget';
 import { filTravail, listeEpics, listeIterations, listePI, metaTache } from '../choixTravail';
 
 interface Props {
@@ -316,6 +317,7 @@ export function FeatureForm({
         <ChampEstimation value={form.points} onChange={(v) => set('points', v)} jours={safe.pointsJours} facteur={facteurJours(form)} placeholder="Facultatif (globale, ex. 8)" />
       </SectionFiche>
 
+      {safe.actif && feature && <SectionDepenses espace={(feature as { espace?: string }).espace || 'moi'} porteur={`feature:${feature.id}`} />}
       <SectionPointsReunion id={feature?.id} espace={(feature as { espace?: string } | undefined)?.espace} />
       <SectionFiche titre="Détails">
         <ChampFiche label="Description" colonne>

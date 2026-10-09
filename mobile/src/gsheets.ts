@@ -112,7 +112,8 @@ export async function fichiersEspaces(): Promise<{ espaces: FichierEspace[]; aut
     espaces: r.files
       .filter(estEspace)
       .map((f) => ({ id: f.id, nom: f.name, type: f.appProperties!.type as TypeEspace, nomEspace: f.appProperties?.nom ?? f.name })),
-    autres: r.files.filter((f) => !estEspace(f)).map((f) => ({ id: f.id, nom: f.name, sansTitre: SANS_TITRE.test(f.name.trim()) })),
+    // Le Google Sheet « Budget » d'une entreprise n'est ni un espace ni une création interrompue
+    autres: r.files.filter((f) => !estEspace(f) && f.appProperties?.type !== 'budget').map((f) => ({ id: f.id, nom: f.name, sansTitre: SANS_TITRE.test(f.name.trim()) })),
   };
 }
 
@@ -155,6 +156,23 @@ export async function corbeille(id: string, dedans: boolean): Promise<void> {
 /** Renomme un fichier (règle de nommage des espaces) */
 export async function renommerFichier(id: string, nom: string): Promise<void> {
   await appel(`${DRIVE}/${id}?fields=id`, { method: 'PATCH', body: JSON.stringify({ name: nom }) });
+}
+
+/**
+ * 💶 Google Sheet « Budget » d'une entreprise (09/10) : fichier à part, reconnu par sa propriété « budgetDe » (le
+ * fichier de l'entreprise), créé au premier besoin avec l'accès déjà accordé (fichiers créés par l'application) ;
+ * on le partage à la main dans Google Drive avec les personnes qui ont le droit « Gérer le budget ».
+ */
+export async function fichierBudget(fichierEntreprise: string, titre: string, creer: boolean): Promise<string | null> {
+  const q = encodeURIComponent(`mimeType='application/vnd.google-apps.spreadsheet' and trashed=false and appProperties has { key='budgetDe' and value='${fichierEntreprise.replace(/[^0-9A-Za-z_-]/g, '')}' }`);
+  const r = await appel<{ files: { id: string }[] }>(`${DRIVE}?q=${q}&fields=files(id)&pageSize=1`);
+  if (r.files[0]) return r.files[0].id;
+  if (!creer) return null;
+  const f = await appel<{ id: string }>(`${DRIVE}?fields=id`, {
+    method: 'POST',
+    body: JSON.stringify({ name: titre, mimeType: 'application/vnd.google-apps.spreadsheet', appProperties: { mesTaches: '1', type: 'budget', budgetDe: fichierEntreprise } }),
+  });
+  return f.id;
 }
 
 /** Reprend un fichier de l'application (création interrompue) comme fichier d'un espace : nom et propriétés */

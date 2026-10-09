@@ -1,4 +1,5 @@
 import { addDays, toDateString } from './dates';
+import { joursOuvres } from './budget';
 import { aConcretiser, storiesBloquees } from './daily';
 import type { HierarchyValue } from './hierarchyContext';
 import { membresDe, type OrgValue } from './organisation';
@@ -116,12 +117,12 @@ export function piloteTrain(trainId: string, org: OrgValue, h: H, points: PointR
 }
 
 /** Portfolio : epics par état et leur avancement, OKR et leurs résultats clés */
-export function pilotePortfolio(portfolioId: string, org: OrgValue, h: H, today: string) {
+export function pilotePortfolio(portfolioId: string, org: OrgValue, h: H, today: string, couts: Map<string, string> = new Map()) {
   const pf = org.portfolio.get(portfolioId);
   const epics = h.epicList.filter((e) => e.portfolio === portfolioId).map((e) => {
     const fs = h.featureList.filter((f) => f.epic === e.id);
     const st = h.items.filter((t) => t.type === 'story' && fs.some((f) => f.id === t.feature));
-    return { e, pct: st.length ? Math.round((100 * st.filter((t) => t.statut === 'termine').length) / st.length) : 0, budget: budgetEpic(e, org, h) };
+    return { e, pct: st.length ? Math.round((100 * st.filter((t) => t.statut === 'termine').length) / st.length) : 0, budget: budgetEpic(e, org, h, couts) };
   });
   const parEtat = (v: string) => epics.filter((x) => (x.e.etat || 'idee') === v).length;
   const okrs = h.objectifList
@@ -139,17 +140,21 @@ export function pilotePortfolio(portfolioId: string, org: OrgValue, h: H, today:
   return { epics, budget, idee: parEtat('idee'), analysePret: parEtat('analyse') + parEtat('pret'), enCours: parEtat('en_cours'), termine: parEtat('termine'), okrs };
 }
 
-/** Jours travaillés par an : coût d'une journée = coût annuel ÷ 218 */
-export const JOURS_PAR_AN = 218;
+/** Jours ouvrés réels d'une année (lundi-vendredi, hors fériés) : coût d'une journée = coût annuel ÷ ces jours (09/10, plus de règle des 218) */
+const ouvresParAn = new Map<number, number>();
+export function joursOuvresAnnee(annee: number): number {
+  if (!ouvresParAn.has(annee)) ouvresParAn.set(annee, joursOuvres(`${annee}-01-01`, `${annee}-12-31`));
+  return ouvresParAn.get(annee)!;
+}
 const nombre = (v?: string) => Number(String(v ?? '').replace(/\s/g, '').replace(',', '.')) || 0;
-export const coutJour = (coutAnnuel?: string) => Math.round(nombre(coutAnnuel) / JOURS_PAR_AN);
+export const coutJour = (coutAnnuel?: string, annee = new Date().getFullYear()) => Math.round(nombre(coutAnnuel) / joursOuvresAnnee(annee));
 
 /**
  * Consommé d'une epic (09/10), calculé : pour chaque tâche ou story terminée de l'epic (directement ou par sa
  * feature), points × jours par point de l'équipe × coût d'une journée du responsable (son coût annuel ÷ 218).
  * `sansCout` : jours terminés dont le responsable n'a pas de coût annuel (non comptés).
  */
-export function consommeCalcule(epicId: string, org: OrgValue, h: Pick<H, 'items' | 'featureList'>) {
+export function consommeCalcule(epicId: string, org: OrgValue, h: Pick<H, 'items' | 'featureList'>, couts: Map<string, string> = new Map()) {
   const fs = new Map(h.featureList.filter((f) => f.epic === epicId).map((f) => [f.id, f]));
   let euros = 0;
   let jours = 0;
@@ -158,7 +163,7 @@ export function consommeCalcule(epicId: string, org: OrgValue, h: Pick<H, 'items
     if (t.parent || t.statut !== 'termine' || !(t.epic === epicId || fs.has(t.feature))) continue;
     const equipe = t.equipe || fs.get(t.feature)?.equipe || '';
     const j = pointsBruts(t) * (equipe ? (calendrierEquipe(equipe, org).jpp ?? 1) : 1);
-    const cout = coutJour(org.personne.get(t.responsable ?? '')?.cout_annuel);
+    const cout = coutJour(couts.get(t.responsable ?? ''));
     jours += j;
     if (cout) euros += j * cout;
     else sansCout += j;
@@ -167,8 +172,8 @@ export function consommeCalcule(epicId: string, org: OrgValue, h: Pick<H, 'items
 }
 
 /** Budget d'une epic : prévu, consommé (saisi à la main, sinon calculé), reste */
-export function budgetEpic(e: Epic, org: OrgValue, h: Pick<H, 'items' | 'featureList'>) {
-  const calc = consommeCalcule(e.id, org, h);
+export function budgetEpic(e: Epic, org: OrgValue, h: Pick<H, 'items' | 'featureList'>, couts: Map<string, string> = new Map()) {
+  const calc = consommeCalcule(e.id, org, h, couts);
   const manuel = (e.consomme ?? '') !== '';
   const consomme = manuel ? nombre(e.consomme) : calc.euros;
   const prevu = nombre(e.budget);

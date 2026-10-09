@@ -46,7 +46,12 @@ qui est décidé hors réunion porte la marque « décidé hors réunion » et e
 valideur par défaut = animateur. Même règle pour le budget (validé 09/10) : décision depuis le Chat par la personne qui a le droit
 (message « À décider »), ou en séance (le message disparaît alors) ; décidé hors réunion = mis en avant à la réunion
 suivante (Confirmer / Corriger par ligne d'ajustement). Maquette à jour (13 écrans) : docs/maquette-budget.html.
-Prochaine étape : coder en 5 lots (1 Sheet Budget + dépenses ; 2 congés + jours réels ; 3 calculs + Pilotage ;
+Lot 1 codé (09/10) : Sheet « Budget » à part par entreprise (src/budget.ts, api lireBudget / ecrireDepense / ecrireCout ;
+démo « budget@demo-entreprise »), coût annuel sorti de l'Organisation (fiche Personne, ÷ jours ouvrés réels de
+l'année), « 💶 Dépenses » dans les fiches entreprise (vue Entreprise), portfolio, train, équipe, epic, feature, avec
+répartition (effectif / parts égales / % à la main). Reste : le Budget prévu de l'epic est encore dans le Sheet de
+l'entreprise (à déplacer au lot 5, dossier d'investissement).
+Suite : coder en 5 lots (1 Sheet Budget + dépenses ; 2 congés + jours réels ; 3 calculs + Pilotage ;
 4 demandes de budget en réunion + messages ; 5 dossier d'investissement + mode Simple + Mes suivis).
 9. Renforcer la confidentialité du Chat : « prive » n'est qu'à l'affichage, l'onglet Echanges reste lisible par qui
    ouvre le Sheet de l'espace (sujet à part, 09/10).

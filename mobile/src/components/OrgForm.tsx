@@ -6,7 +6,9 @@ import { CLE_ORG, type EntiteOrg, type EquipeAgile, ICONE_ORG, type KindOrg, mem
 import { useSafe } from '../safe';
 import { useEspaces } from '../espaces';
 import { colors } from '../theme';
-import { coutJour, euros } from '../pilotage';
+import { enfantsRepartition } from '../budget';
+import { useHierarchy } from '../hierarchyContext';
+import { ChampCoutAnnuel, SectionDepenses } from './Budget';
 import { METIERS, roleDansEquipe } from '../droits';
 import { ChampFiche, LigneChoix, LigneEnfant, LigneMulti, ListeEnfants, SaisieFiche, SectionFiche, type AutresChoix, type GroupeChoix } from './Choix';
 import { DeleteSection } from './DeleteSection';
@@ -28,7 +30,7 @@ const SUPPRIMER: Record<string, string> = {
 export type RangerOrg = { kind: KindOrg; champ: string; ids: string[] };
 
 const VIDES: Record<KindOrg, Donnees> = {
-  personne: { nom: '', email: '', unite: '', manager: '', capacite: '', metier: '', nature: 'humain', cout_annuel: '' },
+  personne: { nom: '', email: '', unite: '', manager: '', capacite: '', metier: '', nature: 'humain' },
   unite: { nom: '', type: 'service', parent: '', responsable: '' },
   portfolio: { nom: '', epic_owner: '' },
   train: { nom: '', portfolio: '', rte: '', pm: '', calendrier: '' },
@@ -206,6 +208,7 @@ export function OrgForm({
 
   const set = (k: string) => (v: string) => setForm((x) => ({ ...x, [k]: v }));
   const id = entite?.id ?? '';
+  const hBudget = useHierarchy();
   const personnes = [...org.personnes].sort((a, b) => a.nom.localeCompare(b.nom));
   const nomUnite = (id: string) => {
     const u = org.unite.get(id);
@@ -468,9 +471,7 @@ export function OrgForm({
             <ChampFiche label="Capacité" sous={safe.pointsJours ? 'Jours par sprint.' : 'Jours par sprint (convertis en points avec « 1 point = … j » du calendrier de l’équipe).'}>
               <SaisieFiche placeholder="Facultatif (ex. 8)" value={form.capacite} onChangeText={set('capacite')} keyboardType="decimal-pad" />
             </ChampFiche>
-            <ChampFiche label="Coût annuel" sous={`En euros (salaire chargé…). Coût d’une journée : coût annuel ÷ 218 jours${form.cout_annuel ? ` = ${euros(coutJour(form.cout_annuel))}` : ''} ; sert au budget consommé des epics. Visible de ceux qui lisent l’Organisation.`}>
-              <SaisieFiche placeholder="Facultatif (ex. 75000)" value={form.cout_annuel ?? ''} onChangeText={(v) => set('cout_annuel')(v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
-            </ChampFiche>
+            {safe.actif && entite && <ChampCoutAnnuel espace={(entite as { espace?: string }).espace || 'moi'} personne={entite.id} />}
           </SectionFiche>
         </>
       )}
@@ -627,6 +628,9 @@ export function OrgForm({
         </>
       )}
 
+      {safe.actif && entite && (kind === 'portfolio' || kind === 'train' || kind === 'equipeagile') && (
+        <SectionDepenses espace={(entite as { espace?: string }).espace || 'moi'} porteur={`${kind}:${entite.id}`} enfants={enfantsRepartition(`${kind}:${entite.id}`, org, hBudget)} />
+      )}
       {entite && <Text style={[f.hint, s.consequence]}>Suppression : {consequence[kind]}. Rien d'autre n'est supprimé.</Text>}
       {entite && (
         <DeleteSection
