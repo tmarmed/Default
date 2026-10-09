@@ -7,7 +7,7 @@ import { useHierarchy } from '../../hierarchyContext';
 import { useOrg } from '../../organisation';
 import { BlocBudgetSimple } from '../Budget';
 import { colors } from '../../theme';
-import { type Echange, type Item, RECURRENCE_DEFAUTS, type Reunion } from '../../types';
+import { type Echange, type Item, lieAObjectif, RECURRENCE_DEFAUTS, type Reunion } from '../../types';
 import { SaisieFiche, SectionFiche } from '../Choix';
 import type { ActionsDaily } from '../Daily';
 import { FenetreReunion } from '../FenetreReunion';
@@ -341,7 +341,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
           <>
             <Navigation n={objectifs.length} cur={i} onChoisir={setIdxObj} />
             <TitreFiche icone="🎯" titre={o.titre} vide="" sous={`objectif ${i + 1} sur ${objectifs.length}${o.fin ? ` · échéance ${dateCourte(o.fin)}` : ''}`} />
-            <Compteurs l={[{ valeur: `${pct} %`, libelle: 'avancement' }, { valeur: String(h.epicList.filter((x) => x.objectif === o.id).length), libelle: 'projets' }, { valeur: String(h.items.filter((t) => t.objectif === o.id && t.statut !== 'termine').length), libelle: 'tâches ouvertes' }]} />
+            <Compteurs l={[{ valeur: `${pct} %`, libelle: 'avancement' }, { valeur: String(h.epicList.filter((x) => lieAObjectif(x, o.id)).length), libelle: 'projets' }, { valeur: String(h.items.filter((t) => t.objectif === o.id && t.statut !== 'termine').length), libelle: 'tâches ouvertes' }]} />
             <SectionFiche titre="Objectif">
               <View style={{ padding: 12 }}>
                 <Pastilles petit options={['Garder', REPOUSSER, 'Abandonner'].map((x) => ({ value: x, label: x }))} value={decObj[o.id] ?? 'Garder'} onChange={(x) => setDecObj((m) => ({ ...m, [o.id]: x }))} />

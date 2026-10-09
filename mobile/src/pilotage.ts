@@ -7,7 +7,7 @@ import { membresDe, type OrgValue } from './organisation';
 import { iterationOf, iterationOfItem, iterationsOf, lireCalendrier, piOf, pointsOf } from './pi';
 import { enRetardSuivi, estFini, statutEffectif } from './pointsSuivi';
 import { pointsFaits, velocite } from './reunionsEquipe';
-import type { Conge, Echange, Epic, Item, PointReunion } from './types';
+import { type Conge, type Echange, type Epic, type Item, lieAObjectif, type PointReunion } from './types';
 import type { DetailEpic } from './consomme';
 
 /**
@@ -202,7 +202,8 @@ export function pilotePerso(h: H, today: string) {
   const objectifs = h.objectifList
     .filter((o) => (o.espace || 'moi') === 'moi' && (!o.fin || o.fin >= today))
     .map((o) => {
-      const l = taches.filter((t) => t.objectif === o.id);
+      const projets = new Set(h.epicList.filter((e) => lieAObjectif(e, o.id)).map((e) => e.id));
+      const l = taches.filter((t) => t.objectif === o.id || projets.has(t.epic));
       return { o, faites: l.filter((t) => t.statut === 'termine').length, total: l.length };
     });
   const il30 = toDateString(addDays(d, -30));

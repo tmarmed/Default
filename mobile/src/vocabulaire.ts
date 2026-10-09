@@ -24,6 +24,14 @@ const REMPLACEMENTS: [RegExp, string][] = [
   [/\bl['’]epic\b/g, 'le projet'],
   [/\bd['’]epic\b/g, 'de projet'],
   [/\bd['’]epics\b/g, 'de projets'],
+  // Features : « étapes du projet » (validé le 09/10)
+  [/\b(\d+) features?\b/g, '$1 étape$S du projet'],
+  [/\b[Ll]a feature\b/g, 'l’étape'],
+  [/\b[Uu]ne feature\b/g, 'une étape'],
+  [/\bFeatures\b/g, 'Étapes du projet'],
+  [/\bFeature\b/g, 'Étape du projet'],
+  [/\bfeatures\b/g, 'étapes'],
+  [/\bfeature\b/g, 'étape'],
   [/\bEpics\b/g, 'Projets'],
   [/\bepics\b/g, 'projets'],
   [/\bEpic\b/g, 'Projet'],
@@ -42,6 +50,7 @@ export function vocab(texte: string | undefined): string | undefined {
   if (!simple || !texte) return texte;
   let t = texte;
   for (const [re, par] of REMPLACEMENTS) t = t.replace(re, par);
+  t = t.replace(/\b(\d+) étape\$S du projet/g, (_m, n: string) => `${n} étape${Number(n) > 1 ? 's' : ''} du projet`);
   for (const [re, par] of ACCORDS) t = t.replace(re, par);
   return t;
 }

@@ -95,6 +95,8 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
 
   const set = <K extends keyof ObjectifInput>(k: K, v: ObjectifInput[K]) => setForm((x) => ({ ...x, [k]: v }));
   const epics = objectif ? h.epicList.filter((e) => e.objectif === objectif.id) : [];
+  // Projets liés aussi (objectif principal ailleurs), validé le 09/10 : comptés dans « Projets » et l'avancement
+  const epicsLies = objectif ? h.epicList.filter((e) => e.objectif !== objectif.id && idsDe(e.okrs).includes(objectif.id)) : [];
   const alertes = objectif && form.debut ? alertesObjectif({ id: objectif.id, titre: form.titre || objectif.titre, debut: form.debut, fin: form.fin }, h.epicList, h.items) : [];
   const progress = objectif ? progressObjectif({ ...objectif, ...form }, h.data) : null;
   const children = objectif
@@ -330,8 +332,11 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
         </>
       )}
       {!okrSafe && <ListeEnfants
-        titre={`Epics · ${epics.length}`}
-        enfants={epics.map((e) => ({ id: e.id, texte: `🗂️ ${e.titre} · ${formatEpicDates(e).split(' · ')[0]}`, onPress: () => onOpenEpic(e) }))}
+        titre={`Epics · ${epics.length + epicsLies.length}`}
+        enfants={[
+          ...epics.map((e) => ({ id: e.id, texte: `🗂️ ${e.titre} · ${formatEpicDates(e).split(' · ')[0]}`, onPress: () => onOpenEpic(e) })),
+          ...epicsLies.map((e) => ({ id: e.id, texte: `🗂️ ${e.titre} · 🔗 lié aussi (objectif principal : ${h.objectifs.get(e.objectif)?.titre ?? 'aucun'})`, onPress: () => onOpenEpic(e) })),
+        ]}
         candidats={h.epicList
           .filter((e) => !objectif || e.objectif !== objectif.id)
           .map((e) => ({

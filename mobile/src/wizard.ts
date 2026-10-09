@@ -18,7 +18,9 @@ export const LEVEL_LABEL: Record<Level, string> = {
   get epic() {
     return vocabulaireSimple() ? 'Projet' : 'Epic';
   },
-  feature: 'Feature',
+  get feature() {
+    return vocabulaireSimple() ? 'Étape du projet' : 'Feature';
+  },
   tache: 'Tâche',
 };
 export const LEVEL_PLURAL: Record<Level, string> = {
@@ -27,7 +29,9 @@ export const LEVEL_PLURAL: Record<Level, string> = {
   get epic() {
     return vocabulaireSimple() ? 'Projets' : 'Epics';
   },
-  feature: 'Features',
+  get feature() {
+    return vocabulaireSimple() ? 'Étapes du projet' : 'Features';
+  },
   tache: 'Tâches',
 };
 export const LEVEL_ICON: Record<Level, string> = { domaine: '🏷️', objectif: '🎯', epic: '🗂️', feature: '🧩', tache: '✓' };
@@ -243,7 +247,7 @@ export function draftAlerts(draft: WNode[]): string[] {
     if (!b) continue;
     const titre = n.titre.trim() || LEVEL_LABEL[n.level];
     // On nomme toujours le type de l'élément et du parent : « La tâche « X » … l'epic « Y » »
-    const MOTS: Record<Level, string> = { domaine: 'le domaine', objectif: "l'objectif", epic: vocabulaireSimple() ? 'le projet' : "l'epic", feature: 'la feature', tache: 'la tâche' };
+    const MOTS: Record<Level, string> = { domaine: 'le domaine', objectif: "l'objectif", epic: vocabulaireSimple() ? 'le projet' : "l'epic", feature: vocabulaireSimple() ? 'l’étape' : 'la feature', tache: 'la tâche' };
     const E = `${MOTS[n.level].charAt(0).toUpperCase()}${MOTS[n.level].slice(1)} « ${titre} »`;
     const P = `${MOTS[p.level]} « ${p.titre} »`;
     if (n.level === 'feature') {

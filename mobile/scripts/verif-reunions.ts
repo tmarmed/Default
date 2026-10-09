@@ -10,7 +10,9 @@ import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '.
 import { creerMagasin, nettoyerDepense } from '../src/magasin';
 import { mesSuivis, reunionDeNote } from '../src/daily';
 import { reglerVocabulaire, vocab } from '../src/vocabulaire';
-import type { Conge, Depense, PointReunion } from '../src/types';
+import type { Conge, Depense, Item, PointReunion } from '../src/types';
+import { lieAObjectif } from '../src/types';
+import { progressObjectif } from '../src/hierarchy';
 import { consommeReel } from '../src/consomme';
 import { capaciteEquipePI, coutJour, joursOuvresAnnee, niveauxDeRoles, piloteEquipe, pilotePortfolio, piloteTrain, suivisDuNiveau } from '../src/pilotage';
 import { pointsFinis, backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteCompteRendu, texteReponse, veilleOuvree } from '../src/daily';
@@ -534,9 +536,18 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   ok(reunionDeNote(pS({ reunion: 'retro-equipeagile:e-2026-10-14' })) === 'Rétrospective du 14/10', 'Mes suivis : réunion d’origine lisible');
   // Vocabulaire (09/10) : en mode Simple, pas de mot du SAFe (epic → projet, accords compris) ; SAFe inchangé
   reglerVocabulaire(true);
-  ok(vocab("L'epic « A » finit avant l’epic « B »") === 'Le projet « A » finit avant le projet « B »' && vocab('3 epics ajoutées') === '3 projets ajoutés' && vocab('1 epic liée') === '1 projet lié' && vocab('Nouvelle epic') === 'Nouveau projet' && vocab('Sans epic') === 'Sans projet' && vocab('Epics · 2') === 'Projets · 2', 'vocabulaire Simple : epic → projet (articles et accords)');
+  ok(vocab("L'epic « A » finit avant l’epic « B »") === 'Le projet « A » finit avant le projet « B »' && vocab('3 epics ajoutées') === '3 projets ajoutés' && vocab('1 epic liée') === '1 projet lié' && vocab('Nouvelle epic') === 'Nouveau projet' && vocab('Sans epic') === 'Sans projet' && vocab('Epics · 2') === 'Projets · 2' && vocab('3 features et 12 tâches') === '3 étapes du projet et 12 tâches' && vocab('1 feature') === '1 étape du projet', 'vocabulaire Simple : epic → projet, feature → étape du projet (articles et accords)');
   reglerVocabulaire(false);
   ok(vocab("L'epic « A »") === "L'epic « A »", 'vocabulaire SAFe : inchangé');
+  // Objectif ↔ projet (epic ↔ OKR), plusieurs à plusieurs, dans les deux modes : principal + liés aussi
+  {
+    const dd = donneesDemo('moi').entities;
+    const e1 = dd.epic.find((e) => e.id === 'e1')!;
+    const o2 = dd.objectif.find((o) => o.id === 'o2')!;
+    ok(lieAObjectif(e1, 'o1') && lieAObjectif(e1, 'o2') && !lieAObjectif(e1, 'o3') && !lieAObjectif(e1, ''), 'lien objectif ↔ projet : principal et liés aussi');
+    const it = (x: Partial<Item>) => ({ periodicite: '', statut: 'termine', ...x }) as Item;
+    ok(progressObjectif({ ...o2, cible: '' }, { items: [it({ epic: 'e1' }), it({ epic: 'e1', statut: 'a_faire' } as Partial<Item>)], epics: dd.epic }).label === '1/2', 'avancement d’un objectif : compte les projets liés aussi');
+  }
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
   reglerConversion(true, new Map([['acmeqmob', 0.5]]));
   ok(pointsOf({ points: '4', equipe: 'acmeqmob' }) === 2 && pointsOf({ points: '4', equipe: 'autre' }) === 4 && versPoints('3', 0.5) === '6' && depuisPoints('6', 0.5) === '3', 'conversion : 4 pts = 2 j avec 1 point = ½ j ; saisie 3 j → 6 pts');

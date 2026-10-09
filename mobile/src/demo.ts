@@ -122,7 +122,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '37';
+const DEMO_DATA_VERSION = '38';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -292,7 +292,7 @@ function sampleEntities(): {
       obj('o3', 'Tenir ses comptes à jour', 'dperso', m(-6), '', '#E37400', { description: 'Objectif permanent' }),
     ],
     epic: [
-      ep('e1', 'Refonte du site web', m(-1), m(4, 0), '#1A73E8', { objectif: 'o1', etat: 'en_cours' }, 'Nouveau site vitrine et prise de rendez-vous en ligne'),
+      ep('e1', 'Refonte du site web', m(-1), m(4, 0), '#1A73E8', { objectif: 'o1', okrs: 'o2', etat: 'en_cours' }, 'Nouveau site vitrine et prise de rendez-vous en ligne'),
       ep('e2', 'Salon professionnel', m(0, 15), m(2, 10), '#E37400', { objectif: 'o1', etat: 'pret' }, 'Stand, supports et rendez-vous clients'),
       ep('e3', "Déménagement de l'entrepôt", m(-3), m(1, 15), '#8E24AA', { domaine: 'dpro', etat: 'en_cours' }),
       ep('e6', 'Application mobile clients', m(6), m(12, 0), '#C2185B', { domaine: 'dpro', etat: 'idee' }),

@@ -10,7 +10,7 @@ import { useSafe } from '../safe';
 import { toDateString } from '../dates';
 import { barFor, formatEpicDates, positionOf, progress, roadmapWindow, shift, Window, Zoom } from '../roadmap';
 import { colors } from '../theme';
-import type { Domaine, Epic, Item, Objectif } from '../types';
+import { type Domaine, type Epic, idsDe, type Item, type Objectif } from '../types';
 import { useDomainFilter, useRecherche } from './DomainFilter';
 import { AlertsCard, estIgnoree, IgnoreContext } from './AlertsCard';
 import { checksRoadmap, dateCheck, filtrerDomaine } from '../checks';
@@ -287,6 +287,15 @@ export function Roadmap({
                                     <EpicBar epic={e} win={win} items={items} todayPos={todayPos} alertes={epicAlerts.get(e.id)!} onOpen={onOpenEpic} onFix={onFixEpic} onAlign={onAlign} />
                                   </View>
                                 ))}
+                              {/* Projets liés aussi à cet objectif (rangés sous leur objectif principal) : une ligne, pas de barre */}
+                              {(() => {
+                                const aussi = epics.filter((e) => e.objectif !== o.id && idsDe(e.okrs).includes(o.id));
+                                return aussi.length ? (
+                                  <Text style={[styles.subhead, styles.indent]}>
+                                    {vocab(`🔗 lié aussi : ${aussi.map((e) => `🗂️ ${e.titre}`).join(', ')}`)}
+                                  </Text>
+                                ) : null;
+                              })()}
                             </View>
                           );
                         })}

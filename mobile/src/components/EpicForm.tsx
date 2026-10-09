@@ -158,7 +158,7 @@ export function EpicForm({
   /** SAFe (lot 4) : OKR directs (epic sans value stream) et OKR reçus par ses value streams (repliés) */
   const [choixOkr, setChoixOkr] = useState(false);
   const [okrVsOuverts, setOkrVsOuverts] = useState(false);
-  const okrsDirects = idsDe(form.value_streams).length ? [] : [...new Set([...idsDe(form.okrs), ...(form.objectif ? [form.objectif] : [])])];
+  const okrsDirects = safe.actif && idsDe(form.value_streams).length ? [] : [...new Set([...(form.objectif ? [form.objectif] : []), ...idsDe(form.okrs)])];
   const okrsVus = okrsDirects.map((id) => h.objectifs.get(id)).filter((o): o is NonNullable<typeof o> => !!o);
   const okrsVs = okrsParValueStreams({ ...(form as Epic), id: epic?.id ?? '' }, h.valueStreams).map((id) => h.objectifs.get(id)).filter((o): o is NonNullable<typeof o> => !!o);
   const tasks = epic ? tasksOfEpic(epic.id, items, h.featureList) : [];
@@ -402,6 +402,15 @@ export function EpicForm({
                 {!okrsVus.length && <Text style={f.videCarte}>{idsDe(form.value_streams).length ? 'Ses value streams n’ont pas encore d’OKR.' : 'Aucun OKR pour l’instant.'}</Text>}
               </SectionFiche>
             )}
+            {/* Mode Simple (09/10) : objectif principal (rattachement, Roadmap) et autres objectifs liés (champ okrs, le même qu'en SAFe) */}
+            {!safe.actif && (
+              <SectionFiche titre={`🎯 Objectifs · ${okrsVus.length}`} onAjouter={() => setChoixOkr(true)} ajouterLabel="Lier d’autres objectifs">
+                {okrsVus.map((o) => (
+                  <LigneEnfant key={o.id} texte={`🎯 ${o.titre}`} meta={o.id === form.objectif ? 'objectif principal · range le projet dans la Roadmap' : 'lié aussi'} />
+                ))}
+                {!okrsVus.length && <Text style={f.videCarte}>Aucun objectif : choisissez l’objectif principal dans « Rattachement », puis liez-en d’autres avec ＋.</Text>}
+              </SectionFiche>
+            )}
             {safe.actif && !!idsDe(form.value_streams).length && (
               <Pressable onPress={() => setOkrVsOuverts((x) => !x)} accessibilityRole="button">
                 <Text style={f.hint}>{okrVsOuverts ? '▾' : '▸'} OKR des value streams liés · {okrsVs.length}</Text>
@@ -558,15 +567,17 @@ export function EpicForm({
             />
             {choixOkr && (
           <FeuilleMulti
-            titre="Choisir des OKR"
-            groupes={[{ options: h.objectifList.filter((o) => !okrsDirects.includes(o.id)).map((o) => ({ value: o.id, label: `🎯 ${o.titre}` })) }]}
-            selection={[]}
-            nouveau={onNouveau ? { label: 'Nouvel OKR', onPress: () => { setChoixOkr(false); onNouveau('objectif'); } } : undefined}
-            vide="Aucun autre OKR."
-            libelleValider={(n) => (n ? `Ajouter ${n} OKR` : 'Ajouter')}
+            titre={safe.actif ? 'Choisir des OKR' : 'Objectifs liés'}
+            groupes={[{ options: h.objectifList.filter((o) => (safe.actif ? !okrsDirects.includes(o.id) : o.id !== form.objectif)).map((o) => ({ value: o.id, label: `🎯 ${o.titre}` })) }]}
+            selection={safe.actif ? [] : idsDe(form.okrs).filter((id) => id !== form.objectif)}
+            nouveau={onNouveau ? { label: safe.actif ? 'Nouvel OKR' : 'Nouvel objectif', onPress: () => { setChoixOkr(false); onNouveau('objectif'); } } : undefined}
+            vide={safe.actif ? 'Aucun autre OKR.' : 'Aucun autre objectif.'}
+            libelleValider={(n) => (safe.actif ? (n ? `Ajouter ${n} OKR` : 'Ajouter') : 'Valider')}
             onValider={(l) => {
               setChoixOkr(false);
-              if (l.length) setForm((x) => ({ ...x, okrs: joindreIds([...idsDe(x.okrs), ...l]) }));
+              // Simple : la sélection remplace les objectifs liés (on peut en retirer) ; SAFe : ajoute
+              if (!safe.actif) setForm((x) => ({ ...x, okrs: joindreIds(l) }));
+              else if (l.length) setForm((x) => ({ ...x, okrs: joindreIds([...idsDe(x.okrs), ...l]) }));
             }}
             onFermer={() => setChoixOkr(false)}
           />

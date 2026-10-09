@@ -8,7 +8,7 @@ import { iterationByKey, iterationOf, iterationOfItem, iterationsOf, piEnd, piLa
 import { occurrencesBetween, recurrenceState } from './recurrence';
 import { etatEpic } from './safe';
 import { chargeOf, pointsCheck, subtaskMap } from './subtasks';
-import { aDateFin, aHeureFin, ETATS_EPIC, type Item } from './types';
+import { aDateFin, aHeureFin, ETATS_EPIC, type Item, lieAObjectif } from './types';
 
 /**
  * Alertes de chaque écran, calculées à partir des données (rien n'est modifié tout seul) :
@@ -816,7 +816,7 @@ function checksRoadmapBrut(h: HierarchyValue, today: string): Check[] {
       });
   }
   for (const o of h.objectifList) {
-    const epics = h.epicList.filter((e) => e.objectif === o.id);
+    const epics = h.epicList.filter((e) => lieAObjectif(e, o.id));
     const directes = h.items.filter((t) => t.objectif === o.id);
     const prog = progressObjectif(o, { items: h.items, epics: h.epicList, features: h.featureList });
     // Objectif en retard : échéance passée, pas atteint

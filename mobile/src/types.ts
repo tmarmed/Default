@@ -416,6 +416,11 @@ export type ResultatCleInput = Omit<ResultatCle, 'id' | 'cree_le' | 'modifie_le'
 
 /** Liste d'ids « a;b;c » ↔ tableau */
 export const idsDe = (v: string | undefined) => (v ? v.split(';').filter(Boolean) : []);
+/**
+ * Lien objectif ↔ projet (epic ↔ OKR), plusieurs à plusieurs, le même dans les deux modes (validé le 09/10) :
+ * l'objectif principal (champ objectif : range le projet dans la Roadmap) et les autres objectifs liés (champ okrs).
+ */
+export const lieAObjectif = (e: { objectif: string; okrs?: string }, objectifId: string) => !!objectifId && (e.objectif === objectifId || idsDe(e.okrs).includes(objectifId));
 export const joindreIds = (l: string[]) => [...new Set(l)].join(';');
 
 /** Alerte ignorée : sa clé, et la situation (son message) au moment où on l'a ignorée. */

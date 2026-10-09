@@ -1,5 +1,5 @@
 import type { SerieReunion } from './series';
-import { type Domaine, type Echange, type Epic, type EntityKind, type Feature, idsDe, type Ignoree, type Item, joindreIds, type Objectif, type ObjectifPI, type ResultatCle, type ValueStream } from './types';
+import { type Domaine, type Echange, type Epic, type EntityKind, type Feature, idsDe, type Ignoree, type Item, joindreIds, type Objectif, type ObjectifPI, type ResultatCle, type ValueStream, lieAObjectif } from './types';
 
 /**
  * Hiérarchie Domaine > Objectif > Epic > Feature > Tâche.
@@ -240,7 +240,8 @@ export function progressObjectif(o: Objectif, d: Pick<Data, 'items' | 'epics'> &
     const actuel = parseFloat(o.actuel) || 0;
     return { ratio: Math.min(1, Math.max(0, actuel / cible)), label: `${o.actuel || 0}/${o.cible}${o.unite ? ` ${o.unite}` : ''}` };
   }
-  const epicIds = new Set(d.epics.filter((e) => e.objectif === o.id).map((e) => e.id));
+  // Tous les projets liés (objectif principal ou lié aussi), validé le 09/10
+  const epicIds = new Set(d.epics.filter((e) => lieAObjectif(e, o.id)).map((e) => e.id));
   const featIds = new Set((d.features ?? []).filter((f) => epicIds.has(f.epic)).map((f) => f.id));
   const tasks = d.items.filter(
     (t) => !t.periodicite && (t.objectif === o.id || epicIds.has(t.epic) || featIds.has(t.feature)),

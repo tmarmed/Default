@@ -98,6 +98,11 @@ demandes : équipe → Revue du mois de l'entreprise, décidées par le responsa
 d'équipe (chaque jour), Revue de la semaine, Revue du mois (💶 Budget), Revue du trimestre, Bilan annuel ;
 Entreprise = Revue du mois (💶 Budget, demandes), Revue du trimestre (révision du budget, pas de réunion semestrielle),
 Point annuel (budget de l'année) ; Moi : étape 💶 Budget à la Revue des objectifs et au Point annuel.
+Vocabulaire (09/10) : aucun mot du SAFe en Simple (src/vocabulaire.ts, vocab() dans les composants communs) : epic →
+projet, feature → étape du projet, story → tâche, ni OKR, ni PI, ni sprint. Reste : « SM / PO » et « j par sprint »
+de l'Organisation → avec les rôles du Simple (point 6). Lien objectif ↔ projet plusieurs à plusieurs dans les deux
+modes (types.ts lieAObjectif) : objectif principal (champ objectif, Roadmap) + liés aussi (champ okrs) ; fiche Projet
+« 🎯 Objectifs · n », fiche Objectif (liés aussi), avancement et alertes sur tous les projets liés, Roadmap « 🔗 lié aussi ».
 Codé (09/10) : types point_equipe, semaine_equipe, revue_mois, trimestre_simple, bilan_annuel, annuel_entreprise
 (src/types.ts, séries dans src/reunions.ts seriesDe, étapes dans reunion/Niveau.tsx CONFIGS) ; entreprise = niveau
 « unite:<direction de premier niveau> » (🏢) ; escalade et compte rendu de l'équipe vers le responsable de
