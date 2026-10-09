@@ -22,6 +22,8 @@ export interface Personne {
   manager: string;
   /** Jours disponibles par itération, vide = non renseigné */
   capacite: string;
+  /** Pilotage (09/10) : salaire annuel chargé en euros (coût d'une journée = salaire ÷ 218 jours), vide = non renseigné */
+  salaire?: string;
   /** Métier dans son équipe (dev, testeur, designer, analyste, autre ; voir src/droits.ts), vide = membre */
   metier?: string;
   /** Type de personne : humain (par défaut), IA chat (Claude) ou agent IA (bientôt, lot 12) */

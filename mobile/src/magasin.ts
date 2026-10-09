@@ -82,7 +82,7 @@ export const ONGLETS: Record<TableBase, { nom: string; colonnes: string[] }> = {
       'telephone', 'parent', 'heure_fin', 'date_fin', 'termine_le', 'statut_avant', 'equipe', 'responsable', 'rang',
     ],
   },
-  epic: { nom: 'Epics', colonnes: ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le', 'objectif', 'domaine', 'etat', 'portfolio', 'value_streams', 'okrs', 'rang'] },
+  epic: { nom: 'Epics', colonnes: ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le', 'objectif', 'domaine', 'etat', 'portfolio', 'value_streams', 'okrs', 'rang', 'budget', 'consomme'] },
   feature: { nom: 'Features', colonnes: ['id', 'titre', 'description', 'epic', 'pi', 'iteration', 'points', 'couleur', 'cree_le', 'modifie_le', 'train', 'equipe', 'rang'] },
   objectifpi: { nom: 'ObjectifsPI', colonnes: ['id', 'titre', 'pi', 'type', 'valeur_prevue', 'valeur_obtenue', 'cree_le', 'modifie_le', 'domaine', 'epic'] },
   objectif: { nom: 'Objectifs', colonnes: ['id', 'titre', 'description', 'domaine', 'debut', 'fin', 'couleur', 'cible', 'actuel', 'unite', 'cree_le', 'modifie_le'] },
@@ -96,7 +96,7 @@ export const TABLES = Object.keys(ONGLETS) as TableBase[];
 
 /** Onglets de l'Organisation d'une entreprise (vue Entreprise et vue Delivery SAFe) */
 export const ONGLETS_ORG: Record<KindOrg, { nom: string; colonnes: string[] }> = {
-  personne: { nom: 'Personnes', colonnes: ['id', 'nom', 'email', 'unite', 'manager', 'capacite', 'metier', 'cree_le', 'modifie_le', 'nature'] },
+  personne: { nom: 'Personnes', colonnes: ['id', 'nom', 'email', 'unite', 'manager', 'capacite', 'metier', 'cree_le', 'modifie_le', 'nature', 'salaire'] },
   unite: { nom: 'Unites', colonnes: ['id', 'nom', 'type', 'parent', 'responsable', 'cree_le', 'modifie_le'] },
   portfolio: { nom: 'Portfolios', colonnes: ['id', 'nom', 'epic_owner', 'cree_le', 'modifie_le'] },
   train: { nom: 'Trains', colonnes: ['id', 'nom', 'portfolio', 'rte', 'pm', 'cree_le', 'modifie_le', 'calendrier'] },
@@ -269,6 +269,11 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
   }
   if (kind === 'epic' && !ETATS_EPIC.includes(out.etat)) out.etat = '';
   if (kind === 'epic') for (const k of ['value_streams', 'okrs']) if (!/^[0-9A-Za-z;-]*$/.test(out[k])) throw new Error(`Liste « ${k} » invalide.`);
+  if (kind === 'epic')
+    for (const k of ['budget', 'consomme'] as const) {
+      out[k] = (out[k] ?? '').replace(/\s/g, '').replace(',', '.');
+      if (out[k] && !RE_NOMBRE.test(out[k])) throw new Error(`${k === 'budget' ? 'Budget' : 'Consommé'} : montant en euros attendu.`);
+    }
   if ((kind === 'epic' || kind === 'feature') && out.rang && !/^\d+$/.test(out.rang)) out.rang = '';
   if (out.couleur !== undefined && out.couleur !== '' && !/^#[0-9A-Fa-f]{6}$/.test(out.couleur)) out.couleur = '#1A73E8';
   verifierLiens(out);
@@ -295,6 +300,8 @@ export function nettoyerOrg<K extends KindOrg>(kind: K, data: Partial<EntiteOrg<
     if (!['ia_chat', 'agent_ia'].includes(out.nature ?? '')) out.nature = 'humain';
     out.capacite = out.capacite.replace(',', '.');
     if (out.capacite && !RE_NOMBRE.test(out.capacite)) throw new Error('Capacité : nombre de jours attendu.');
+    out.salaire = (out.salaire ?? '').replace(/\s/g, '').replace(',', '.');
+    if (out.salaire && !RE_NOMBRE.test(out.salaire)) throw new Error('Salaire : montant en euros attendu.');
   } else if (kind === 'unite') {
     if (out.type !== 'direction') out.type = 'service';
     // Pas de boucle : une unité ne peut pas être placée sous elle-même ou sous une de ses sous-unités

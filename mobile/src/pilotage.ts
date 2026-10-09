@@ -2,10 +2,10 @@ import { addDays, toDateString } from './dates';
 import { aConcretiser, storiesBloquees } from './daily';
 import type { HierarchyValue } from './hierarchyContext';
 import { membresDe, type OrgValue } from './organisation';
-import { iterationByKey, iterationOf, iterationOfItem, lireCalendrier, piOf, pointsOf } from './pi';
+import { iterationOf, iterationOfItem, lireCalendrier, piOf, pointsBruts, pointsOf } from './pi';
 import { enRetardSuivi, estFini, statutEffectif } from './pointsSuivi';
 import { pointsFaits, velocite } from './reunionsEquipe';
-import type { Echange, Item, PointReunion } from './types';
+import type { Echange, Epic, Item, PointReunion } from './types';
 
 /**
  * 📊 Pilotage (lot 5, maquette validée le 09/10, docs/maquette-pilotage.html) : calculs purs, sans écriture.
@@ -121,7 +121,7 @@ export function pilotePortfolio(portfolioId: string, org: OrgValue, h: H, today:
   const epics = h.epicList.filter((e) => e.portfolio === portfolioId).map((e) => {
     const fs = h.featureList.filter((f) => f.epic === e.id);
     const st = h.items.filter((t) => t.type === 'story' && fs.some((f) => f.id === t.feature));
-    return { e, pct: st.length ? Math.round((100 * st.filter((t) => t.statut === 'termine').length) / st.length) : 0 };
+    return { e, pct: st.length ? Math.round((100 * st.filter((t) => t.statut === 'termine').length) / st.length) : 0, budget: budgetEpic(e, org, h) };
   });
   const parEtat = (v: string) => epics.filter((x) => (x.e.etat || 'idee') === v).length;
   const okrs = h.objectifList
@@ -134,8 +134,52 @@ export function pilotePortfolio(portfolioId: string, org: OrgValue, h: H, today:
       });
       return { o, nbKr: krs.length, pct: pcts.length ? Math.round(pcts.reduce((s, x) => s + x, 0) / pcts.length) : 0, clos: !!o.fin && o.fin < today };
     });
-  return { epics, idee: parEtat('idee'), analysePret: parEtat('analyse') + parEtat('pret'), enCours: parEtat('en_cours'), termine: parEtat('termine'), okrs };
+  const avecBudget = epics.filter((x) => x.budget.prevu || x.budget.consomme);
+  const budget = { prevu: avecBudget.reduce((s, x) => s + x.budget.prevu, 0), consomme: avecBudget.reduce((s, x) => s + x.budget.consomme, 0), epics: avecBudget };
+  return { epics, budget, idee: parEtat('idee'), analysePret: parEtat('analyse') + parEtat('pret'), enCours: parEtat('en_cours'), termine: parEtat('termine'), okrs };
 }
+
+/** Jours travaillés par an : coût d'une journée = salaire annuel chargé ÷ 218 */
+export const JOURS_PAR_AN = 218;
+const nombre = (v?: string) => Number(String(v ?? '').replace(/\s/g, '').replace(',', '.')) || 0;
+export const coutJour = (salaire?: string) => Math.round(nombre(salaire) / JOURS_PAR_AN);
+
+/**
+ * Consommé d'une epic (09/10), calculé : pour chaque tâche ou story terminée de l'epic (directement ou par sa
+ * feature), points × jours par point de l'équipe × coût d'une journée du responsable (son salaire ÷ 218).
+ * `sansCout` : jours terminés dont le responsable n'a pas de salaire (non comptés).
+ */
+export function consommeCalcule(epicId: string, org: OrgValue, h: Pick<H, 'items' | 'featureList'>) {
+  const fs = new Map(h.featureList.filter((f) => f.epic === epicId).map((f) => [f.id, f]));
+  let euros = 0;
+  let jours = 0;
+  let sansCout = 0;
+  for (const t of h.items) {
+    if (t.parent || t.statut !== 'termine' || !(t.epic === epicId || fs.has(t.feature))) continue;
+    const equipe = t.equipe || fs.get(t.feature)?.equipe || '';
+    const j = pointsBruts(t) * (equipe ? (calendrierEquipe(equipe, org).jpp ?? 1) : 1);
+    const cout = coutJour(org.personne.get(t.responsable ?? '')?.salaire);
+    jours += j;
+    if (cout) euros += j * cout;
+    else sansCout += j;
+  }
+  return { euros: Math.round(euros), jours: Math.round(jours * 10) / 10, sansCout: Math.round(sansCout * 10) / 10 };
+}
+
+/** Budget d'une epic : prévu, consommé (saisi à la main, sinon calculé), reste */
+export function budgetEpic(e: Epic, org: OrgValue, h: Pick<H, 'items' | 'featureList'>) {
+  const calc = consommeCalcule(e.id, org, h);
+  const manuel = (e.consomme ?? '') !== '';
+  const consomme = manuel ? nombre(e.consomme) : calc.euros;
+  const prevu = nombre(e.budget);
+  return { prevu, consomme, manuel, calcule: calc, depasse: prevu > 0 && consomme > prevu };
+}
+
+/** « 12 300 € » */
+export const euros = (n: number) => `${Math.round(n).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ')} €`;
+
+/** Compteur court : « 200 k€ » à partir de 10 000 € */
+export const eurosCourt = (n: number) => (Math.abs(n) >= 10000 ? `${Math.round(n / 1000).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ')} k€` : euros(n));
 
 /** Mode Simple (🔒 Moi) : la semaine (heures planifiées / 35 h disponibles), retards, objectifs, domaines délaissés */
 export function pilotePerso(h: H, today: string) {

@@ -173,6 +173,9 @@ export interface Epic {
   okrs?: string;
   /** Backlog (lot 4) : rang de priorité dans le backlog du portfolio */
   rang?: string;
+  /** Pilotage (09/10) : budget prévu en euros ; consommé saisi à la main (vide = calculé d'après les salaires) */
+  budget?: string;
+  consomme?: string;
 }
 
 export type EtatEpic = 'idee' | 'analyse' | 'pret' | 'en_cours' | 'termine';

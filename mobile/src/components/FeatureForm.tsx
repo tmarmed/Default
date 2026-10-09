@@ -4,7 +4,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { childrenOf, describeCounts, domaineOf, objectifOf } from '../hierarchy';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
-import { fmtPoints, iterationNom, nomSprintDe, piLabel, pointsOf } from '../pi';
+import { fmtPoints, iterationNom, nomSprintDe, piLabel, pointsOf, facteurJours } from '../pi';
 import { useSafe } from '../safe';
 import { colors } from '../theme';
 import type { Feature, FeatureInput, Item } from '../types';
@@ -313,7 +313,7 @@ export function FeatureForm({
             onChange={(v) => set('iteration', v)}
           />
         )}
-        <ChampEstimation value={form.points} onChange={(v) => set('points', v)} jours={safe.pointsJours} placeholder="Facultatif (globale, ex. 8)" />
+        <ChampEstimation value={form.points} onChange={(v) => set('points', v)} jours={safe.pointsJours} facteur={facteurJours(form)} placeholder="Facultatif (globale, ex. 8)" />
       </SectionFiche>
 
       <SectionPointsReunion id={feature?.id} espace={(feature as { espace?: string } | undefined)?.espace} />

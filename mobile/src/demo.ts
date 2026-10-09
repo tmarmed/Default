@@ -121,7 +121,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '30';
+const DEMO_DATA_VERSION = '31';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -497,8 +497,8 @@ const SEEDS_ENTREPRISE: Seeds = {
     e.domaine = [{ id: 'acmdpro', nom: 'Pro', icone: '💼', couleur: '#1A73E8', parent: '', ...base }];
     e.objectif = [{ id: 'acmo1', titre: 'Fidéliser les clients', domaine: 'acmdpro', debut: m(-2), fin: m(10), couleur: '#1A73E8', description: '', cible: '90', actuel: '82', unite: '% de clients fidèles', ...base }];
     e.epic = [
-      { id: 'acme1', titre: 'Nouveau CRM', description: '', debut: m(0), fin: m(6), couleur: '#00897B', objectif: 'acmo1', domaine: '', etat: 'pret', portfolio: 'acmpf1', ...base },
-      { id: 'acme2', titre: 'Application client', description: '', debut: m(-1), fin: m(8), couleur: '#C2185B', objectif: 'acmo1', domaine: '', etat: 'en_cours', portfolio: 'acmpf1', ...base },
+      { id: 'acme1', titre: 'Nouveau CRM', description: '', debut: m(0), fin: m(6), couleur: '#00897B', objectif: 'acmo1', domaine: '', etat: 'pret', portfolio: 'acmpf1', budget: '80000', ...base },
+      { id: 'acme2', titre: 'Application client', description: '', debut: m(-1), fin: m(8), couleur: '#C2185B', objectif: 'acmo1', domaine: '', etat: 'en_cours', portfolio: 'acmpf1', budget: '120000', ...base },
     ];
     e.feature = [
       { id: 'acmf1', titre: 'Reprise des données', description: '', epic: 'acme1', pi: piOf(now), iteration: '', points: '13', couleur: '', train: 'acmtr1', equipe: 'acmeqmob', ...base },
@@ -596,7 +596,7 @@ const SEEDS_ENTREPRISE: Seeds = {
         p('acmp9', 'Emma Roy', 'acmu3', 'acmp2', '6', 'testeur'),
         p('acmp10', 'Léa Roux', 'acmu3', 'acmp2', '8', 'designer'),
         p('acmp11', 'Hugo Blanc', 'acmu3', 'acmp2', '8', 'dev'),
-      ],
+      ].map((x) => ({ ...x, salaire: ({ acmp6: '58000', acmp7: '61000', acmp8: '54000', acmp9: '50000', acmp10: '52000', acmp11: '56000' } as Record<string, string>)[x.id] ?? '' })),
       unites: [
         { id: 'acmu1', nom: 'Direction générale', type: 'direction' as const, parent: '', responsable: 'acmp1', ...base },
         { id: 'acmu2', nom: 'Direction technique', type: 'direction' as const, parent: 'acmu1', responsable: 'acmp2', ...base },

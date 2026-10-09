@@ -36,7 +36,7 @@ import { LinkPicker } from './LinkPicker';
 import { filtrerEspace, HierarchyContext, useHierarchy } from '../hierarchyContext';
 import { espaceParId, ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces';
 import { useSafe } from '../safe';
-import { iterationByKey, iterationNom, iterationOf } from '../pi';
+import { iterationByKey, iterationNom, iterationOf, facteurJours } from '../pi';
 import { callNumber } from '../phone';
 import { fmtPoints } from '../pi';
 import { canHaveSubtasks, PARENT_TYPES, pointsCheck, subtaskMap } from '../subtasks';
@@ -669,6 +669,7 @@ export function TaskForm({
                 value={form.points}
                 onChange={(v) => set('points', v)}
                 jours={safe.pointsJours}
+                facteur={facteurJours(form)}
                 // Sans estimation : celle des sous-tâches, en gris (elle compte déjà, rien à décider)
                 placeholder={check.sous > 0 ? `${fmtPoints(check.sous, safe.pointsJours)} d'après les sous-tâches` : undefined}
               />

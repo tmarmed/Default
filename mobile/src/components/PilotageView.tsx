@@ -6,6 +6,8 @@ import type { OrgValue } from '../organisation';
 import { nomSprintDe, piLabel } from '../pi';
 import {
   decisionsDuNiveau,
+  euros,
+  eurosCourt,
   type NiveauPilotage,
   niveauxDeRoles,
   piloteEquipe,
@@ -202,6 +204,20 @@ export function PilotageView({
           {x.epics.map((y, i) => ligneJauge(y.e.id, `🗂️ ${y.e.titre}`, `${y.e.etat || 'idée'} · ${y.pct} %`.replace('en_cours', 'en cours').replace('termine', 'terminé').replace(/^pret/, 'prêt'), y.pct, undefined, i === 0))}
           {!x.epics.length && <Vide texte="Aucun epic dans ce portfolio." />}
         </SectionFiche>
+        <SectionFiche titre="Budget · prévu / consommé">
+          <View style={[st.compteurs, s.pad]}>
+            <Compteur valeur={eurosCourt(x.budget.prevu)} libelle="prévu" />
+            <Compteur valeur={eurosCourt(x.budget.consomme)} libelle="consommé" ton={x.budget.prevu && x.budget.consomme > x.budget.prevu ? 'rouge' : undefined} />
+            <Compteur valeur={eurosCourt(Math.max(0, x.budget.prevu - x.budget.consomme))} libelle="reste" />
+          </View>
+          {x.budget.epics.map((y, i) => {
+            const b = y.budget;
+            const detail = b.manuel ? 'saisi à la main' : `calculé : ${b.calcule.jours} j terminés${b.calcule.sansCout ? ` · ${b.calcule.sansCout} j sans salaire renseigné` : ''}`;
+            return ligneJauge(`b${y.e.id}`, `🗂️ ${y.e.titre}`, `${euros(b.consomme)} sur ${b.prevu ? euros(b.prevu) : 'budget non renseigné'} · ${detail}`, b.prevu ? (100 * b.consomme) / b.prevu : 0, b.depasse ? 'rouge' : undefined, i === 0, b.depasse ? { texte: `+${euros(b.consomme - b.prevu)}`, ton: 'rouge' } : undefined);
+          })}
+          {!x.budget.epics.length && <Vide texte="Aucun budget renseigné (fiche de l’epic)." />}
+          <Text style={s.aide}>Consommé calculé : points terminés × jours par point de l’équipe × coût d’une journée du responsable (salaire annuel chargé ÷ 218 jours, fiche Personne). Modifiable à la main dans la fiche de l’epic.</Text>
+        </SectionFiche>
         <SectionFiche titre="OKR · résultats clés">
           {x.okrs.map((y, i) => ligneJauge(y.o.id, `🎯 ${y.o.titre}`, `${y.nbKr} résultat${y.nbKr > 1 ? 's' : ''} clé${y.nbKr > 1 ? 's' : ''} · ${y.pct} %${y.clos ? ' · clos' : ''}`, y.pct, y.pct >= 60 ? 'vert' : undefined, i === 0, y.clos ? { texte: 'Clos', ton: 'gris' } : undefined))}
           {!x.okrs.length && <Vide texte="Aucun OKR avec des résultats clés." />}
@@ -257,6 +273,7 @@ export function PilotageView({
 
 const s = StyleSheet.create({
   page: { paddingBottom: 40 },
+  aide: { fontSize: 12, color: colors.muted, lineHeight: 17, paddingHorizontal: 10, paddingBottom: 10 },
   pad: { padding: 10 },
   puces: { gap: 8, paddingHorizontal: 16, paddingVertical: 8 },
   puce: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#fff' },

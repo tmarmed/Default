@@ -4,8 +4,6 @@ import type { Espace } from '../espaces';
 import { useHierarchy } from '../hierarchyContext';
 import { type EntiteOrg, type KindOrg, makeOrgValue, membresDe, nomPersonne, type OrgValue, porteurs, type Unite } from '../organisation';
 import { colors } from '../theme';
-import { fmtPoints } from '../pi';
-import { useSafe } from '../safe';
 import { ChoiceSheet } from './ChoiceSheet';
 import { libelleMoi } from '../droits';
 import { type AutresChoix, FeuilleMulti, type GroupeChoix, LigneChoix } from './Choix';
@@ -402,7 +400,6 @@ function VueEntreprise({ o, espace, replies, basculer, onOuvrir, onAjouter, onPl
 }
 
 function Personne({ niveau, p, o, onPress, surligne }: { niveau: number; p: OrgValue['personnes'][number]; o: OrgValue; onPress: () => void; surligne?: boolean }) {
-  const safe = useSafe();
   const equipes = o.equipes.filter((e) => membresDe(e).includes(p.id) || e.po === p.id || e.sm === p.id).map((e) => `👥 ${e.nom}`);
   const initiales = p.nom
     .split(/\s+/)
@@ -418,7 +415,7 @@ function Personne({ niveau, p, o, onPress, surligne }: { niveau: number; p: OrgV
       <View style={s.flex}>
         <Text style={s.personneNom}>{p.nom}</Text>
         <Text style={s.sous}>
-          {[p.manager ? `Manager : ${nomPersonne(o, p.manager)}` : '', equipes.join(', '), p.capacite ? fmtPoints(parseFloat(p.capacite) || 0, safe.pointsJours) : ''].filter(Boolean).join(' · ') || p.email || 'Sans e-mail'}
+          {[p.manager ? `Manager : ${nomPersonne(o, p.manager)}` : '', equipes.join(', '), p.capacite ? `${String(parseFloat(p.capacite) || 0).replace('.', ',')} j par sprint` : ''].filter(Boolean).join(' · ') || p.email || 'Sans e-mail'}
         </Text>
       </View>
     </Pressable>

@@ -32,6 +32,8 @@ import { ChoiceSheet } from './ChoiceSheet';
 import { ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, LigneMulti, ListeEnfants, SaisieFiche, SectionFiche } from './Choix';
 import { SectionPointsReunion } from './PointsElement';
 import { okrsParValueStreams } from '../strategie';
+import { useOrg } from '../organisation';
+import { consommeCalcule, euros } from '../pilotage';
 
 interface Props {
   visible: boolean;
@@ -115,6 +117,7 @@ export function EpicForm({
   const { espace, setEspace, h } = useEspaceFiche(visible, epic, defaults);
   const espaceFil = useEspaceFil(espace);
   const safe = useSafe();
+  const org = useOrg();
   const features = epic ? h.featureList.filter((f) => f.epic === epic.id) : [];
 
   useEffect(() => {
@@ -132,6 +135,8 @@ export function EpicForm({
               portfolio: epic.portfolio ?? '',
               value_streams: epic.value_streams ?? '',
               okrs: epic.okrs ?? '',
+              budget: epic.budget ?? '',
+              consomme: epic.consomme ?? '',
               // État enregistré seulement s'il a été choisi à la main (vide = déduit des dates)
               etat: epic.etat,
             }
@@ -196,7 +201,7 @@ export function EpicForm({
   const formInitial = useMemo(
     () =>
       epic
-        ? { titre: epic.titre, description: epic.description, debut: epic.debut, fin: epic.fin, couleur: epic.couleur, objectif: epic.objectif, domaine: epic.domaine, portfolio: epic.portfolio ?? '', value_streams: epic.value_streams ?? '', okrs: epic.okrs ?? '', etat: epic.etat }
+        ? { titre: epic.titre, description: epic.description, debut: epic.debut, fin: epic.fin, couleur: epic.couleur, objectif: epic.objectif, domaine: epic.domaine, portfolio: epic.portfolio ?? '', value_streams: epic.value_streams ?? '', okrs: epic.okrs ?? '', budget: epic.budget ?? '', consomme: epic.consomme ?? '', etat: epic.etat }
         : form,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [epic?.id],
@@ -211,7 +216,7 @@ export function EpicForm({
     bloque: erreurForm,
     enregistrer: (f) => onSave({ ...f, espace, titre: f.titre.trim() }, true),
     decrire: (a, b) =>
-      decrireChangement(a, b, { titre: 'Titre', description: 'Description', debut: 'Début', fin: 'Fin', couleur: 'Couleur', objectif: 'Objectif', domaine: 'Domaine', portfolio: 'Portfolio', etat: 'État', value_streams: 'Value streams', okrs: 'OKR' }, (k, v) =>
+      decrireChangement(a, b, { titre: 'Titre', description: 'Description', debut: 'Début', fin: 'Fin', couleur: 'Couleur', objectif: 'Objectif', domaine: 'Domaine', portfolio: 'Portfolio', etat: 'État', value_streams: 'Value streams', okrs: 'OKR', budget: 'Budget prévu', consomme: 'Consommé' }, (k, v) =>
         k === 'value_streams' ? idsDe(v).map((id) => h.valueStreams.find((x) => x.id === id)?.nom ?? '').join(', ') || 'aucun' : k === 'okrs' ? idsDe(v).map((id) => h.objectifs.get(id)?.titre ?? '').join(', ') || 'aucun' : k === 'objectif' ? (h.objectifs.get(v)?.titre ?? v) : k === 'domaine' ? (h.domaines.get(v)?.nom ?? v) : k === 'etat' ? (ETATS_EPIC.find((e) => e.value === v)?.label ?? v) : k === 'couleur' ? 'changée' : v,
       ['titre', 'description']),
   });
@@ -420,6 +425,26 @@ export function EpicForm({
                 />
               )}
             </SectionFiche>
+
+            {/* Budget (09/10) : prévu ; consommé calculé d'après les salaires (fiche Personne), modifiable à la main */}
+            {safe.actif && (
+              <SectionFiche titre="Budget">
+                <ChampFiche label="Prévu" sous="En euros.">
+                  <SaisieFiche placeholder="Facultatif (ex. 120000)" value={form.budget ?? ''} onChangeText={(v) => set('budget', v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
+                </ChampFiche>
+                {(() => {
+                  const c = epic ? consommeCalcule(epic.id, org, { items, featureList: h.featureList }) : null;
+                  return (
+                    <ChampFiche
+                      label="Consommé"
+                      sous={`Vide : calculé${c ? ` (${euros(c.euros)}, ${c.jours} j terminés${c.sansCout ? `, dont ${c.sansCout} j sans salaire renseigné` : ''})` : ''} : points terminés × jours par point × coût d’une journée du responsable (salaire ÷ 218 jours).`}
+                    >
+                      <SaisieFiche placeholder={c ? `Calculé : ${euros(c.euros)}` : 'Calculé'} value={form.consomme ?? ''} onChangeText={(v) => set('consomme', v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" />
+                    </ChampFiche>
+                  );
+                })()}
+              </SectionFiche>
+            )}
 
             <SectionPointsReunion id={epic?.id} espace={(epic as { espace?: string } | undefined)?.espace} />
             <SectionFiche titre="Détails">

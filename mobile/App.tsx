@@ -39,7 +39,8 @@ import { type Action, type Check, checksDatesDomaine, checksParEcran, signatures
 import { AlertsCard, CheckActionContext, IgnoreContext, nbAlertes } from './src/components/AlertsCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
-import { definirCalendrier, iterationNom, iterationOf, iterationOfItem, piLabel, piOf } from './src/pi';
+import { definirCalendrier, iterationNom, iterationOf, iterationOfItem, piLabel, piOf, reglerConversion } from './src/pi';
+import { calendrierEquipe as calendrierPilotage } from './src/pilotage';
 import { Roadmap } from './src/components/Roadmap';
 import { LoginScreen } from './src/components/LoginScreen';
 import { TaskForm } from './src/components/TaskForm';
@@ -1498,6 +1499,8 @@ function Main() {
     if (DEMO && !moiDemo) return makeOrgValue(orgTousLesRoles(base));
     return eq.length ? makeOrgValue(base) : orgValue;
   }, [orgValue, equipesEsp, visibles, moiDemo]);
+  // Conversion des estimations (09/10) : en mode Simple, points × « 1 point = … j » de l'équipe (calendrier agile)
+  reglerConversion(!safe.actif, new Map(orgReunions.equipes.map((e) => [e.id, calendrierPilotage(e.id, orgReunions).jpp ?? 1] as [string, number]).filter(([, j]) => j !== 1)));
   // Calendrier agile (07/10) : celui de votre équipe (ou de son train), partout dans l'application
   const monCalendrier = calendrierPersonne(orgReunions, moiEchange);
   definirCalendrier(monCalendrier);

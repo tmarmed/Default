@@ -1,5 +1,6 @@
 import { isValidElement, ReactNode, useContext, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
+import { depuisPoints, versPoints } from '../pi';
 import { colors } from '../theme';
 import { ChoiceSheet } from './ChoiceSheet';
 import { AutoContext, LectureContext } from './EnregistrementAuto';
@@ -142,7 +143,19 @@ export function SaisieFiche(props: TextInputProps) {
 }
 
 /** Estimation d'une fiche (tâche, feature) : le nombre suivi de son unité (« 3 j », « 5 pts »), le même partout */
-export function ChampEstimation({ value, onChange, jours, placeholder }: { value: string; onChange: (v: string) => void; jours: boolean; placeholder?: string }) {
+/**
+ * Estimation : le Sheet garde des points. En mode Simple avec « 1 point = … j » ≠ 1 (facteur), on saisit et lit des
+ * jours, convertis en points à l'enregistrement (09/10).
+ */
+export function ChampEstimation({ value: brut, onChange: changer, jours, placeholder, facteur = 1 }: { value: string; onChange: (v: string) => void; jours: boolean; placeholder?: string; facteur?: number }) {
+  const [saisie, setSaisie] = useState<string | null>(null);
+  const conv = jours && facteur !== 1;
+  const value = conv ? (saisie ?? depuisPoints(brut, facteur)) : brut;
+  const onChange = (v: string) => {
+    if (!conv) return changer(v);
+    setSaisie(v);
+    changer(versPoints(v, facteur));
+  };
   return (
     <ChampFiche label="Estimation">
       <View style={s.estimation}>
@@ -155,6 +168,7 @@ export function ChampEstimation({ value, onChange, jours, placeholder }: { value
           accessibilityLabel="Estimation"
         />
         {!!value && <Text style={s.unite}>{jours ? 'j' : parseFloat(value) > 1 ? 'pts' : 'pt'}</Text>}
+        {conv && !!value && <Text style={s.unite}>{` (${brut} pt${parseFloat(brut) > 1 ? 's' : ''} · 1 point = ${String(facteur).replace('.', ',')} j)`}</Text>}
       </View>
     </ChampFiche>
   );

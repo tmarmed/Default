@@ -4,7 +4,7 @@
  * Lancer : npm run verif:reunions
  */
 import { donneesDemo, orgDemo, orgTousLesRoles, pointsDemo } from '../src/demo';
-import { niveauxDeRoles, piloteEquipe, pilotePortfolio, piloteTrain, suivisDuNiveau } from '../src/pilotage';
+import { budgetEpic, consommeCalcule, coutJour, niveauxDeRoles, piloteEquipe, pilotePortfolio, piloteTrain, suivisDuNiveau } from '../src/pilotage';
 import { pointsFinis, backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteCompteRendu, texteReponse, veilleOuvree } from '../src/daily';
 import { toDateString } from '../src/dates';
 import { ciblesEscalade, destinatairesTransfert, equipesDePersonne } from '../src/echange/hierarchieEchange';
@@ -14,7 +14,7 @@ import { aReprendre, chaineEscalade, parEspace, pointsEscalade, reunionDeNiveau,
 import { arreterSerie, couperSerie, datesRegle, exceptionsOrphelines, libelleRegle, lireExceptions, modifierOccurrence, modifierSerie, occurrences } from '../src/series';
 import { seriesACreer, serieParDefaut, serieVide, etapesParcours, ongletParcours, parcoursParDefaut, participantsReunion, reunionsAVenir } from '../src/reunions';
 import { type Echange, type Reunion, TYPES_REUNION } from '../src/types';
-import { iterationOf, iterationsOf, lireCalendrier, piOf } from '../src/pi';
+import { depuisPoints, iterationOf, iterationsOf, lireCalendrier, piOf, pointsOf, reglerConversion, versPoints } from '../src/pi';
 import { checkParent } from '../src/subtasks';
 import { choixParDefaut, concretisationDe, elementACreer, patchConcretise, rattachementPour } from '../src/concretisation';
 import { actionDuChoix, lireRef, planSuivi, roleEscalade, statutEffectif } from '../src/pointsSuivi';
@@ -421,6 +421,22 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const tr = piloteTrain('acmtr1', oT, hP, [], jourP);
   ok(tr.equipes.length === 2, 'pilotage train : charge de ses deux équipes');
   ok(pilotePortfolio('acmpf1', oT, hP, jourP).epics.length > 0, 'pilotage portfolio : ses epics');
+  // Budget (09/10) : consommé = points terminés × jours par point × salaire ÷ 218 ; saisi à la main, il l'emporte
+  const pf = pilotePortfolio('acmpf1', oT, hP, jourP);
+  ok(pf.budget.prevu === 200000 && pf.budget.epics.length === 2, 'budget : prévu des epics du portfolio');
+  const st = { parent: '', feature: '', id: 'bx1', type: 'story', statut: 'termine', epic: 'acme2', points: '4', equipe: 'acmeqmob', responsable: 'acmp6' } as never;
+  const st2 = { parent: '', feature: '', id: 'bx2', type: 'story', statut: 'termine', epic: 'acme2', points: '2', equipe: 'acmeqmob', responsable: 'acmp1' } as never;
+  const c = consommeCalcule('acme2', oT, { items: [st, st2], featureList: [] });
+  ok(coutJour('58000') === 266 && c.euros === 4 * 266 && c.jours === 6 && c.sansCout === 2, 'budget : consommé calculé (4 j × 266 €), jours sans salaire signalés');
+  const ep = (d.entities.epic ?? []).find((e) => e.id === 'acme2')!;
+  const bm = budgetEpic({ ...ep, consomme: '150000' }, oT, { items: [st], featureList: [] });
+  ok(bm.manuel && bm.consomme === 150000 && bm.depasse, 'budget : consommé saisi à la main, dépassement signalé');
+  // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
+  reglerConversion(true, new Map([['acmeqmob', 0.5]]));
+  ok(pointsOf({ points: '4', equipe: 'acmeqmob' }) === 2 && pointsOf({ points: '4', equipe: 'autre' }) === 4 && versPoints('3', 0.5) === '6' && depuisPoints('6', 0.5) === '3', 'conversion : 4 pts = 2 j avec 1 point = ½ j ; saisie 3 j → 6 pts');
+  reglerConversion(false, new Map([['acmeqmob', 0.5]]));
+  ok(pointsOf({ points: '4', equipe: 'acmeqmob' }) === 4, 'conversion : en SAFe, les points restent des points');
+  reglerConversion(false, new Map());
 }
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
 process.exit(erreurs ? 1 : 0);

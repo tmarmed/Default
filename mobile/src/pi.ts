@@ -161,9 +161,35 @@ export function iterationOfItem(t: Item): string {
   return t.iteration || '';
 }
 
-export const pointsOf = (x: { points?: string }) => {
+/**
+ * Conversion des estimations (09/10) : le Sheet garde toujours des points. En mode Simple (affichage en jours),
+ * une estimation vaut points × « 1 point = … j » de l'équipe de l'élément (1 par défaut : rien ne change).
+ * Réglé par App à chaque rendu (même principe qu'estNeutre).
+ */
+const conversion = { jours: false, jpp: new Map<string, number>() };
+export function reglerConversion(jours: boolean, jpp: Map<string, number>) {
+  conversion.jours = jours;
+  conversion.jpp = jpp;
+}
+/** Jours par point appliqués à l'affichage d'un élément : 1 en mode SAFe, sinon celui de son équipe */
+export const facteurJours = (x: { equipe?: string }) => (conversion.jours ? (conversion.jpp.get(x.equipe ?? '') ?? 1) : 1);
+
+/** Points enregistrés, sans conversion */
+export const pointsBruts = (x: { points?: string }) => {
   const n = parseFloat(x.points ?? '');
   return Number.isFinite(n) && n > 0 ? n : 0;
+};
+/** Estimation affichée : points en SAFe, jours en mode Simple (points × jours par point de l'équipe) */
+export const pointsOf = (x: { points?: string; equipe?: string }) => pointsBruts(x) * facteurJours(x);
+/** Saisie en jours (mode Simple) → points enregistrés */
+export function versPoints(saisie: string, facteur: number): string {
+  const n = parseFloat(saisie.replace(',', '.'));
+  if (!saisie || !Number.isFinite(n) || facteur === 1) return saisie;
+  return String(Math.round((n / facteur) * 100) / 100);
+}
+export const depuisPoints = (points: string, facteur: number) => {
+  const n = parseFloat(points);
+  return !points || !Number.isFinite(n) || facteur === 1 ? points : String(Math.round(n * facteur * 100) / 100);
 };
 
 /** « 3 pts », ou « 3 j » quand 1 point = 1 jour */
