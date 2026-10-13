@@ -29,7 +29,7 @@ import { iterationOf } from '../../pi';
 import { type CatalogueParcours, type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../../reunions';
 import { subtaskMap } from '../../subtasks';
 import { aReprendre, parEspace, pointsEscalade, titreEscalade } from '../../suiviEscalade';
-import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, patchConcretise, resumeChoix, resumePoint } from '../../concretisation';
+import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, estSuivi, LIBELLE_TYPE_CREE, patchConcretise, resumeChoix, resumePoint } from '../../concretisation';
 import { FeuilleConcretiser } from './Concretiser';
 import { libelleElement } from '../../elementConcerne';
 import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../../pointsSuivi';
@@ -438,8 +438,8 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
       de: mail,
       a: d.resp,
       type: 'message' as const,
-      titre: `📌 Nouveau suivi · ${d.pt.texte}`.slice(0, 200),
-      texte: `${libelleNote(d.pt)} noté ${quand} par ${e.nomDe(d.pt.personne)}${story(d.element) ? ` (${story(d.element)})` : ''}. Responsable : ${e.nomDe(d.resp)} · Validation : ${e.nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}.`,
+      titre: `${estSuivi(d) ? '📌 Nouveau suivi' : `✓ ${LIBELLE_TYPE_CREE(d.type)} pour vous`} · ${d.pt.texte}`.slice(0, 200),
+      texte: `${libelleNote(d.pt)} noté ${quand} par ${e.nomDe(d.pt.personne)}${story(d.element) ? ` (${story(d.element)})` : ''}. Responsable : ${e.nomDe(d.resp)}${estSuivi(d) ? ` · Validation : ${e.nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}` : ' · sans suivi'}.`,
       choix: '',
       reponse: '',
       note: '',

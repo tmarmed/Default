@@ -26,7 +26,7 @@ import { seriesACreer, serieParDefaut, serieVide, etapesParcours, ongletParcours
 import { type Echange, type Reunion, TYPES_REUNION } from '../src/types';
 import { depuisPoints, iterationOf, iterationsOf, lireCalendrier, piOf, pointsOf, reglerConversion, versPoints } from '../src/pi';
 import { checkParent } from '../src/subtasks';
-import { choixParDefaut, concretisationDe, elementACreer, patchConcretise, rattachementPour } from '../src/concretisation';
+import { choixParDefaut, concretisationDe, elementACreer, estSuivi, patchConcretise, rattachementPour, resumeChoix } from '../src/concretisation';
 import { actionDuChoix, lireRef, planSuivi, roleEscalade, statutEffectif } from '../src/pointsSuivi';
 import { avecCriteres, capacite, criteresDe, etatPrete, feriesFrance, joursOuvres, lireNombre, nombreFr } from '../src/reunionsEquipe';
 
@@ -361,6 +361,14 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   ok(c.que === 'creer' && c.type === 'tache' && c.ratt === 'st1' && c.resp === 'emma@x' && c.valid === 'nina@x' && concretisationDe(c) === 'sous_tache', 'action : créer une tâche sous la story, responsable qui l’a notée, validation l’animatrice');
   const b = choixParDefaut({ type: 'blocage', texte: 'API bloquée', element: 'st1', personne: 'tom@x', responsable: '' }, { animateur: 'nina@x', echeance: '2026-10-14', h, moi: 'nina@x' });
   ok(b.que === 'suivre' && concretisationDe(b) === 'suivi' && concretisationDe({ ...b, qui: 'dessus' }) === 'escalade', 'blocage : point de suivi ; niveau du dessus : escalade');
+  {
+    // Refonte du 13/10 : Type → À qui → Suivi ; ⚡ Action rapide ; Transmettre à part ; sans suivi = note close
+    const sans = patchConcretise({ ...c, suivi: false }, 't1');
+    ok(sans.statut === 'plus_suivi' && !sans.validateur && !sans.echeance && sans.responsable === 'emma@x' && patchConcretise(c, 't1').statut === 'en_cours', 'créer sans suivi : élément créé, note close (plus suivie), sans validateur ni échéance');
+    ok(estSuivi({ ...c, suivi: false, transmis: true }) && estSuivi({ ...b, suivi: false }) && !estSuivi({ ...c, que: 'rien' }), 'transmission et action rapide : toujours suivies ; rien : jamais');
+    const dep = choixParDefaut({ type: 'dependance', texte: 'API de l’équipe Paiement', element: '', personne: 'tom@x', responsable: '' }, { animateur: 'nina@x', echeance: '', h, moi: 'nina@x' });
+    ok(dep.que === 'suivre' && dep.transmis === true && resumeChoix(b, (m) => m, h).startsWith('⚡ Action rapide') && resumeChoix({ ...c, suivi: false }, (m) => m, h).endsWith('Sans suivi'), 'dépendance : action rapide à transmettre ; résumés « ⚡ Action rapide » et « Sans suivi »');
+  }
   const x = elementACreer({ ...c, type: 'rendez-vous', ech: '2026-10-09' }, { type: 'action' }, { espace: 'e', iteration: '2026-T4-IT1', equipe: 'eq', idDe: () => 'p1', description: 'd', h, moi: 'nina@x' });
   ok(x.kind === 'item' && x.input.type === 'rendez-vous' && x.input.parent === 'st1' && x.input.date === '2026-10-09', 'rendez-vous créé sous la story, à la date d’échéance');
   const pch = patchConcretise(b, 'ech1');

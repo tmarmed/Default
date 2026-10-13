@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { type ChoixConcret, erreurChoix, LIBELLE_TYPE_CREE, type QueFaire, type QuiCharge, rattachementPour, typeParDefaut, TYPES_CREES, type TypeCree } from '../../concretisation';
+import { type ChoixConcret, erreurChoix, estSuivi, LIBELLE_TYPE_CREE, type QueFaire, type QuiCharge, rattachementPour, typeParDefaut, TYPES_CREES, type TypeCree } from '../../concretisation';
+import { congesDe, useConges } from '../../conges';
+import { addDays, toDateString } from '../../dates';
 import { elementDe } from '../../elementConcerne';
 import { useHierarchy } from '../../hierarchyContext';
+import { jourCourt } from '../../pointsSuivi';
 import { colors } from '../../theme';
 import { TYPE_ICONS } from '../../types';
 import { LigneChoix } from '../Choix';
@@ -17,10 +20,10 @@ export interface PersonneChoix {
 }
 
 /**
- * Feuille « Concrétiser » (08/10, maquettes/escalade-retour) : une section par question, tout prérempli, un seul
- * bouton. Que faire ? · Qui s'en charge ? · Validation · Échéance. L'élément concerné est celui du point (choisi en le
- * notant) : il n'est plus redemandé ici ; « Rattaché à › » part de lui et peut monter plus haut (08/10). « Créer une tâche… » :
- * Type › (tous les types), Titre, Rattaché à › (l'élément du dessus, qui change avec le type).
+ * Feuille « Concrétiser » (refonte validée le 13/10) : trois questions indépendantes, tout prérempli, un seul bouton.
+ * Type (Rien · Créer un élément · ⚡ Action rapide · Demande de budget) · À qui (moi ou mon équipe ; « ↪ Transmettre » à
+ * part : remplaçant d'un absent, autre équipe, niveau du dessus) · Suivi (oui : validation et échéance ; non : la note
+ * est close). L'élément concerné est celui du point ; « Rattaché à › » part de lui et peut monter plus haut.
  */
 export function FeuilleConcretiser({
   titre = 'Concrétiser',
@@ -77,9 +80,23 @@ export function FeuilleConcretiser({
     const email = v.replace(/^↑/, '');
     const q = v.startsWith('↑') ? 'dessus' : quiDe(email);
     // Transmis au train : le niveau du dessus décide, on suit seulement (re-concrétiser au retour de la réponse)
-    set({ resp: email, qui: q, ...(q === 'dessus' && c.que === 'creer' ? { que: 'suivre' as QueFaire } : {}) });
+    set({ resp: email, qui: q, transmis: true, ...(q === 'dessus' && c.que === 'creer' ? { que: 'suivre' as QueFaire } : {}) });
   };
   const nom = (l: PersonneChoix[], v: string) => l.find((x) => x.email === v)?.nom ?? v;
+  // Responsable absent d'ici l'échéance (congés, fermetures) : on prévient et on propose de transmettre (13/10)
+  const { conges } = useConges();
+  const absence = (() => {
+    if (c.que === 'rien' || c.que === 'budget' || !c.resp || c.qui === 'dessus') return '';
+    const auj = toDateString(new Date());
+    const fin = c.ech && c.ech > auj ? c.ech : toDateString(addDays(new Date(), 7));
+    const ab = congesDe(conges, c.resp, auj, fin);
+    if (!ab.length) return '';
+    const du = ab.reduce((m, x) => (x.du < m ? x.du : m), ab[0].du);
+    const au = ab.reduce((m, x) => (x.au > m ? x.au : m), ab[0].au);
+    const qui = nom([moi, ...equipe, ...autresTous], c.resp);
+    const debut = du < auj ? auj : du;
+    return debut === au ? `Absence de ${qui} le ${jourCourt(au)}.` : `Absence de ${qui} du ${jourCourt(debut)} au ${jourCourt(au)}.`;
+  })();
   const libRatt = (() => {
     if (!rattId) return c.type === 'story' || c.type === 'feature' ? 'À choisir' : 'Aucun · dans l’équipe et le sprint';
     const y = elementDe(rattId, h);
@@ -113,19 +130,19 @@ export function FeuilleConcretiser({
           </View>
           <Text style={s.sousTitre}>{sous}</Text>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 16 }}>
-            <Text style={s.section}>QUE FAIRE ?</Text>
+            <Text style={s.section}>TYPE</Text>
             <View style={s.carte}>
               {puces<QueFaire>(
                 [
-                  { v: 'suivre', l: '📌 Suivre', aide: 'jusqu’à validation' },
-                  { v: 'creer', l: '✓ Créer une tâche…', off: c.qui === 'dessus' },
                   { v: 'rien', l: '⊘ Rien', aide: 'clos' },
+                  { v: 'creer', l: '✓ Créer un élément', off: c.qui === 'dessus' },
+                  { v: 'suivre', l: '⚡ Action rapide', aide: 'sans élément' },
                   ...(budget ? [{ v: 'budget' as QueFaire, l: '💶 Demande de budget', aide: budget.decideur }] : []),
                 ],
                 c.que,
                 (v) => set({ que: v, ...(v === 'creer' && !rattMain ? { type: typeParDefaut(c.element, h) } : {}) }),
               )}
-              {c.qui === 'dessus' && <Text style={[s.aide, { paddingHorizontal: 12, paddingBottom: 8 }]}>Transmis à {nomDessus || 'niveau du dessus'} : il décide ; vous pourrez re-concrétiser au retour de la réponse.</Text>}
+              {c.que === 'suivre' && <Text style={[s.aide, s.aideBloc]}>Une action à faire, sans créer d’élément : suivie jusqu’à validation.</Text>}
               {c.que === 'budget' && budget && (
                 <>
                   <View style={[s.ligne, s.bord]}>
@@ -191,43 +208,96 @@ export function FeuilleConcretiser({
 
             {c.que !== 'rien' && c.que !== 'budget' && (
               <>
-                <Text style={s.section}>QUI S'EN CHARGE ?</Text>
+                <Text style={s.section}>À QUI ?</Text>
                 <View style={s.carte}>
-                  <LigneChoix
-                    label="Responsable"
-                    value={c.qui === 'dessus' ? `↑${c.resp}` : c.resp}
-                    onChange={(v) => v && changerResp(v)}
-                    groupes={[
-                      { titre: 'Moi', options: [{ value: moi.email, label: moi.nom, meta: moi.meta }] },
-                      { titre: nomEquipe ? `Équipe ${nomEquipe}` : 'Mon équipe', options: equipe.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) },
-                      ...autres.map((g) => ({ titre: `${g.titre} · transmettre`, options: g.personnes.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) })),
-                      ...(dessus.length ? [{ titre: `${nomDessus || 'Niveau du dessus'} · transmettre`, options: [...new Map(dessus.map((x) => [x.email, x])).keys()].map((m) => ({ value: `↑${m}`, label: dessus.find((x) => x.email === m)!.nom, meta: dessus.filter((x) => x.email === m).map((x) => x.meta).filter(Boolean).join(' · ') })) }] : []),
-                    ].filter((g) => g.options.length)}
-                    libelle={(v) => `${nom([moi, ...equipe, ...autresTous, ...dessus], v.replace(/^↑/, ''))}${v.startsWith('↑') ? ` · ${nomDessus || 'niveau du dessus'}` : ''}`}
-                    fixe
-                  />
-                  {c.qui !== 'moi' && c.qui !== 'dessus' && !equipe.some((x) => x.email === c.resp) && <Text style={[s.aide, { paddingHorizontal: 12, paddingBottom: 8 }]}>↪ Transmis hors de l’équipe.</Text>}
+                  {!c.transmis ? (
+                    <LigneChoix
+                      label="Responsable"
+                      value={c.resp}
+                      onChange={(v) => v && set({ resp: v, qui: v === moi.email ? 'moi' : 'equipe' })}
+                      groupes={[
+                        { titre: 'Moi', options: [{ value: moi.email, label: moi.nom, meta: moi.meta }] },
+                        { titre: nomEquipe ? `Équipe ${nomEquipe}` : 'Mon équipe', options: equipe.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) },
+                      ].filter((g) => g.options.length)}
+                      libelle={(v) => nom([moi, ...equipe, ...autresTous, ...dessus], v)}
+                      fixe
+                    />
+                  ) : (
+                    <LigneChoix
+                      label="↪ Transmettre à"
+                      value={c.qui === 'dessus' ? `↑${c.resp}` : c.resp}
+                      onChange={(v) => v && changerResp(v)}
+                      groupes={[
+                        { titre: nomEquipe ? `Équipe ${nomEquipe} · remplaçant` : 'Mon équipe · remplaçant', options: equipe.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) },
+                        ...autres.map((g) => ({ titre: g.titre, options: g.personnes.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) })),
+                        ...(dessus.length ? [{ titre: `${nomDessus || 'Niveau du dessus'} · escalade`, options: [...new Map(dessus.map((x) => [x.email, x])).keys()].map((m) => ({ value: `↑${m}`, label: dessus.find((x) => x.email === m)!.nom, meta: dessus.filter((x) => x.email === m).map((x) => x.meta).filter(Boolean).join(' · ') })) }] : []),
+                      ].filter((g) => g.options.length)}
+                      libelle={(v) => `${nom([moi, ...equipe, ...autresTous, ...dessus], v.replace(/^↑/, ''))}${v.startsWith('↑') ? ` · ${nomDessus || 'niveau du dessus'}` : ''}`}
+                      fixe
+                    />
+                  )}
+                  {!!absence && (
+                    <View style={[s.bord, s.alerte]}>
+                      <Text style={s.alerteTexte}>⚠️ {absence}</Text>
+                      {!c.transmis && (
+                        <Pressable onPress={() => set({ transmis: true })} hitSlop={6} accessibilityRole="button">
+                          <Text style={s.lien}>↪ Transmettre à un remplaçant</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  )}
+                  <Pressable
+                    onPress={() => (c.transmis ? set({ transmis: false, qui: c.resp === moi.email ? 'moi' : 'equipe', resp: c.qui === 'dessus' || !equipe.some((x) => x.email === c.resp) ? moi.email : c.resp }) : set({ transmis: true }))}
+                    style={[s.ligne, s.bord]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={s.lien}>{c.transmis ? '← Affecter dans l’équipe' : '↪ Transmettre'}</Text>
+                    <Text style={[s.aide, { flex: 1 }]} numberOfLines={2}>
+                      {c.transmis ? (c.qui === 'dessus' ? `${nomDessus || 'Le niveau du dessus'} décide ; vous pourrez re-concrétiser au retour de la réponse.` : 'Toujours suivi jusqu’à validation.') : 'responsable absent, autre équipe ou niveau du dessus'}
+                    </Text>
+                  </Pressable>
                 </View>
 
-                <Text style={s.section}>VALIDATION</Text>
-                <View style={s.carte}>
-                  <LigneChoix
-                    label="Validé par"
-                    value={c.valid}
-                    onChange={(v) => v && set({ valid: v })}
-                    groupes={[{ options: validateurs.map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) }]}
-                    libelle={(v) => {
-                      const x = validateurs.find((y) => y.email === v);
-                      return x ? `${x.nom}${x.meta ? ` · ${x.meta}` : ''}` : v;
-                    }}
-                    fixe
-                  />
-                </View>
+                {c.que === 'creer' && !c.transmis && c.qui !== 'dessus' && (
+                  <>
+                    <Text style={s.section}>SUIVI</Text>
+                    <View style={s.carte}>
+                      {puces<'oui' | 'non'>(
+                        [
+                          { v: 'oui', l: '📌 Suivi', aide: 'jusqu’à validation' },
+                          { v: 'non', l: 'Sans suivi', aide: 'la note est close' },
+                        ],
+                        c.suivi === false ? 'non' : 'oui',
+                        (v) => set({ suivi: v === 'oui' }),
+                      )}
+                      {c.suivi === false && <Text style={[s.aide, s.aideBloc]}>L’élément est créé et vit sa vie ; la note n’est plus suivie en réunion.</Text>}
+                    </View>
+                  </>
+                )}
 
-                <Text style={s.section}>ÉCHÉANCE</Text>
-                <View style={[s.carte, s.ligne]}>
-                  <DateField nu mode="date" value={c.ech} onChange={(v) => set({ ech: v })} placeholder="Sans échéance" />
-                </View>
+                {estSuivi(c) && (
+                  <>
+                    <Text style={s.section}>VALIDATION</Text>
+                    <View style={s.carte}>
+                      <LigneChoix
+                        label="Validé par"
+                        value={c.valid}
+                        onChange={(v) => v && set({ valid: v })}
+                        groupes={[{ options: validateurs.map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) }]}
+                        libelle={(v) => {
+                          const x = validateurs.find((y) => y.email === v);
+                          return x ? `${x.nom}${x.meta ? ` · ${x.meta}` : ''}` : v;
+                        }}
+                        fixe
+                      />
+                    </View>
+
+                    <Text style={s.section}>ÉCHÉANCE</Text>
+                    <View style={[s.carte, s.ligne]}>
+                      <DateField nu mode="date" value={c.ech} onChange={(v) => set({ ech: v })} placeholder="Sans échéance" />
+                    </View>
+                  </>
+                )}
               </>
             )}
             {!!erreur && <Text style={s.erreur}>{erreur}</Text>}
@@ -277,6 +347,10 @@ const s = StyleSheet.create({
   puceTexteOn: { color: '#fff', fontWeight: '600' },
   aide: { fontSize: 11.5, color: colors.muted, fontWeight: '400' },
   aideOn: { color: '#DCE8FD' },
+  aideBloc: { paddingHorizontal: 12, paddingBottom: 8 },
+  alerte: { paddingHorizontal: 12, paddingVertical: 10, gap: 6, backgroundColor: '#FFF7ED' },
+  alerteTexte: { fontSize: 13, color: '#9A3412' },
+  lien: { fontSize: 14, color: colors.primary, fontWeight: '600' },
   bord: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E4E7EC' },
   ligne: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 12, minHeight: 46 },
   cle: { width: 104, fontSize: 13, color: colors.muted },

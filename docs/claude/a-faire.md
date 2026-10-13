@@ -206,7 +206,10 @@ Synchronisation du portfolio et la Revue du mois (Simple). Reste : enveloppes de
 Étape « 📈 Écarts budgétaires »
 (Synchronisation du portfolio à chaque sprint, Comité budgétaire à la révision de mi-année ; Simple : Revue du mois de
 l'entreprise) : par epic en écart, Réviser le budget prévu (→ demande), Réduire le périmètre (→ note d'action),
-Accepter l'écart (motif). En cours de conception : refonte de la feuille « Concrétiser » (suivi, type, affectation).
+Accepter l'écart (motif). Codé (13/10) : refonte de la feuille « Concrétiser » : Type (Rien · Créer un élément · ⚡ Action rapide, valeur
+enregistrée « suivre » · Demande de budget) → À qui (affectation Moi / équipe ; « ↪ Transmettre » à part : remplaçant,
+autre équipe, niveau du dessus, toujours suivi) → Suivi (oui : validation + échéance ; non : statut plus_suivi).
+Alerte d'absence (congés) avec « Transmettre à un remplaçant ». ChoixConcret.suivi / transmis, estSuivi().
 13. Extensions (validées le 13/10, à concevoir) : relances automatiques dans le Chat (suivi proche ou après son
     échéance) ; vie des risques (ROAM suivi dans le temps) et des dépendances entre équipes ; indicateurs des réunions
     (suivis tenus à l'échéance, décisions hors réunion confirmées, notes jamais concrétisées).

@@ -5,13 +5,15 @@ import { PARENT_TYPES } from './subtasks';
 import { type Concretisation, type ItemInput, type ItemType, type PointReunion, RECURRENCE_DEFAUTS, TYPE_LABELS } from './types';
 
 /**
- * Feuille « Concrétiser » (08/10, docs/regles-reunions.html bloc 6) : une section par question.
- * - Que faire ? suivre (point de suivi) · créer (Type ›, Titre, Rattaché à ›) · rien (clos)
- * - Qui s'en charge ? moi (suivre) · mon équipe (transmettre) · niveau du dessus (escalader) ; le responsable
- * - Élément concerné · Validation (l'animateur par défaut) · Échéance (la prochaine réunion par défaut)
- * Ce qui est créé est toujours rattaché à l'élément du dessus, selon son type (rattachementPour).
+ * Feuille « Concrétiser » (refonte validée le 13/10, docs/regles-reunions.html bloc 6) : trois questions indépendantes.
+ * - Type : ⊘ Rien (clos) · ✓ Créer un élément (Type ›, Titre, Rattaché à ›) · ⚡ Action rapide (sans élément, toujours
+ *   suivie ; valeur enregistrée « suivre ») · 💶 Demande de budget
+ * - À qui : moi ou mon équipe (affectation) ; « ↪ Transmettre » à part : responsable absent, autre équipe, niveau du
+ *   dessus (escalade). Une transmission est toujours suivie.
+ * - Suivi : oui (point de suivi jusqu'à validation : validateur, échéance) ou non (la note est close, l'élément créé vit
+ *   sa vie). Ce qui est créé est toujours rattaché à l'élément du dessus, selon son type (rattachementPour).
  */
-/** « budget » (13/10) : la note devient une demande de budget, soumise au niveau du dessus */
+/** « budget » (13/10) : la note devient une demande de budget, soumise au niveau du dessus ; « suivre » = ⚡ Action rapide */
 export type QueFaire = 'suivre' | 'creer' | 'rien' | 'budget';
 export type QuiCharge = 'moi' | 'equipe' | 'dessus';
 /** Type d'élément créé : un type de tâche, une story, une feature, ou une 🗓️ réunion ponctuelle */
@@ -34,7 +36,15 @@ export interface ChoixConcret {
   montant?: string;
   periode?: string;
   pour?: string;
+  /** Suivi jusqu'à validation (défaut : oui) ; non = la note est close à l'envoi, l'élément créé continue */
+  suivi?: boolean;
+  /** Choisi par « ↪ Transmettre » (remplaçant d'un absent, autre équipe, niveau du dessus) */
+  transmis?: boolean;
 }
+
+/** Le point reste suivi jusqu'à validation ? (action rapide et transmission : toujours ; rien, budget : jamais) */
+export const estSuivi = (c: Pick<ChoixConcret, 'que' | 'suivi' | 'qui' | 'transmis'>) =>
+  c.que === 'suivre' || (c.que === 'creer' && (c.suivi !== false || c.qui === 'dessus' || !!c.transmis));
 
 export const LIBELLE_TYPE_CREE = (t: TypeCree) => (t === 'feature' ? 'Feature' : t === 'reunion' ? 'Réunion' : TYPE_LABELS[t]);
 export const TYPES_CREES: TypeCree[] = ['tache', 'rendez-vous', 'appel', 'story', 'bug', 'reunion', 'feature', 'demarche', 'mission', 'exploration'];
@@ -88,8 +98,9 @@ export function rattachementPour(type: TypeCree, element: string, h: H): { id: s
 }
 
 /**
- * Choix proposé pour une note : demande d'action → créer une tâche ; blocage, décision à prendre → suivre ; décision
- * prise → rien (une trace) ; responsable = qui l'a notée
+ * Choix proposé pour une note (tableau validé le 13/10) : information, décision prise → rien ; demande d'action,
+ * proposition → créer une tâche suivie ; blocage, décision à prendre, risque, dépendance → ⚡ action rapide ;
+ * responsable = qui l'a notée
  */
 export function choixParDefaut(
   pt: Pick<PointReunion, 'type' | 'texte' | 'element' | 'personne' | 'responsable' | 'sous_type'>,
@@ -97,6 +108,7 @@ export function choixParDefaut(
 ): ChoixConcret {
   // Information : fermée d'office (validé le 13/10) ; on peut quand même choisir de la concrétiser
   const que: QueFaire = pt.type === 'action' || pt.type === 'proposition' ? 'creer' : pt.type === 'information' || (pt.type === 'decision' && pt.sous_type === 'prise') ? 'rien' : 'suivre';
+  // Dépendance : elle vient d'une autre équipe → à transmettre (le responsable reste à choisir dans « ↪ Transmettre »)
   const type = typeParDefaut(pt.element, o.h);
   const resp = (pt.responsable || pt.personne).toLowerCase();
   return {
@@ -109,6 +121,8 @@ export function choixParDefaut(
     valid: o.animateur.toLowerCase(),
     ech: o.echeance,
     ratt: rattachementPour(type, pt.element, o.h)?.id ?? '',
+    suivi: true,
+    transmis: pt.type === 'dependance',
   };
 }
 
@@ -125,7 +139,7 @@ export function concretisationDe(c: ChoixConcret): Concretisation {
 export function erreurChoix(c: ChoixConcret, h: H): string | null {
   if (c.que === 'rien') return null;
   if (c.que === 'budget') return Number(String(c.montant ?? '').replace(',', '.')) > 0 ? null : 'Montant de la demande en euros.';
-  if (!c.resp) return 'Choisissez le responsable.';
+  if (!c.resp) return c.transmis ? 'Choisissez à qui transmettre.' : 'Choisissez le responsable.';
   if (c.que === 'creer') {
     if (!c.titre.trim()) return 'Donnez un titre.';
     if ((c.type === 'story' || c.type === 'feature') && !rattachementPour(c.type, c.element, h)) return 'Choisissez à quoi la rattacher.';
@@ -144,12 +158,13 @@ export function resumeChoix(c: ChoixConcret, nomDe: (email: string) => string, h
     c.qui === 'dessus'
       ? '⤴ Escaladé'
       : c.que === 'suivre'
-        ? '📌 Suivi'
+        ? '⚡ Action rapide'
         : `✓ ${LIBELLE_TYPE_CREE(c.type)}${c.ratt ? ` · ${c.type === 'reunion' ? 'liée à' : 'sous'} ${(() => {
             const y = elementDe(c.ratt, h);
             return y ? `${y.icone} ${y.titre}` : '';
           })()}` : ''}`;
-  return [quoi, `Responsable : ${nomDe(c.resp)}`, `Validation : ${nomDe(c.valid)}`, c.ech ? `Échéance : ${jourCourt(c.ech)}` : ''].filter(Boolean).join(' · ');
+  if (!estSuivi(c)) return [quoi, `Responsable : ${nomDe(c.resp)}`, 'Sans suivi'].join(' · ');
+  return [quoi, `${c.transmis && c.qui !== 'dessus' ? '↪ Transmis à' : 'Responsable :'} ${nomDe(c.resp)}`, `Validation : ${nomDe(c.valid)}`, c.ech ? `Échéance : ${jourCourt(c.ech)}` : ''].filter(Boolean).join(' · ');
 }
 
 /** Ce que la concrétisation crée au compte rendu : une tâche (tout type), une feature, ou une réunion ponctuelle */
@@ -198,17 +213,19 @@ export function elementACreer(
   return { kind: 'item', input };
 }
 
-/** Colonnes du point après concrétisation (statut En cours, sauf « Rien ») */
+/** Colonnes du point après concrétisation (statut En cours, sauf « Rien » ; « Plus suivi » pour un élément sans suivi) */
 export function patchConcretise(c: ChoixConcret, lien: string): Partial<PointReunion> {
+  const clos = c.que === 'rien' || c.que === 'budget';
+  const suivi = estSuivi(c);
   return {
     concretisation: concretisationDe(c),
     tache: lien,
-    // Rien, demande de budget : la note est close (la demande suit son propre circuit)
-    responsable: c.que === 'rien' || c.que === 'budget' ? '' : c.resp,
+    // Rien, demande de budget : la note est close (la demande suit son propre circuit) ; sans suivi : close, l'élément continue
+    responsable: clos ? '' : c.resp,
     element: c.element,
-    statut: c.que === 'rien' || c.que === 'budget' ? '' : 'en_cours',
-    validateur: c.que === 'rien' || c.que === 'budget' ? '' : c.valid,
-    echeance: c.que === 'rien' || c.que === 'budget' ? '' : c.ech,
+    statut: clos ? '' : suivi ? 'en_cours' : 'plus_suivi',
+    validateur: clos || !suivi ? '' : c.valid,
+    echeance: clos || !suivi ? '' : c.ech,
     type_cree: c.que === 'creer' ? c.type : '',
     rattache: c.que === 'creer' ? c.ratt : '',
   };
@@ -228,7 +245,8 @@ export function resumePoint(pt: PointReunion, nomDe: (email: string) => string, 
     valid: pt.validateur ?? '',
     ech: pt.echeance ?? '',
     ratt: pt.rattache ?? '',
+    suivi: pt.statut !== 'plus_suivi' || !!pt.validateur,
   };
-  if (!c.valid) return resumeChoix({ ...c, valid: c.resp }, nomDe, h).replace(/ · Validation : [^·]+/, '');
+  if (!c.valid && c.suivi) return resumeChoix({ ...c, valid: c.resp }, nomDe, h).replace(/ · Validation : [^·]+/, '');
   return resumeChoix(c, nomDe, h);
 }

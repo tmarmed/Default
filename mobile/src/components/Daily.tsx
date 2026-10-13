@@ -41,7 +41,7 @@ import { type Concretisation, type Echange, type EchangeInput, estTechnique, typ
 import { etatDe, texteDirect } from '../etatReunion';
 import { useLive } from './useLive';
 import { FeuilleChoix, SectionFiche } from './Choix';
-import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, patchConcretise, resumeChoix as resumeConcret, resumePoint } from '../concretisation';
+import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, estSuivi, LIBELLE_TYPE_CREE, patchConcretise, resumeChoix as resumeConcret, resumePoint } from '../concretisation';
 import { libelleElement } from '../elementConcerne';
 import { echeanceParDefaut, estFini, jourCourt, LIBELLE_STATUT, relierEscalades, validateurDe } from '../pointsSuivi';
 import { absentsLe, useConges } from '../conges';
@@ -620,8 +620,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       de: mail,
       a: d.resp,
       type: 'message' as const,
-      titre: `📌 Nouveau suivi · ${d.pt.texte}`.slice(0, 200),
-      texte: `${libelleNote(d.pt)} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} par ${nomDe(d.pt.personne)}${libelleElement(d.element, h) ? ` (${libelleElement(d.element, h)})` : ''}. Responsable : ${nomDe(d.resp)} · Validation : ${nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}.`,
+      titre: `${estSuivi(d) ? '📌 Nouveau suivi' : `✓ ${LIBELLE_TYPE_CREE(d.type)} pour vous`} · ${d.pt.texte}`.slice(0, 200),
+      texte: `${libelleNote(d.pt)} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} par ${nomDe(d.pt.personne)}${libelleElement(d.element, h) ? ` (${libelleElement(d.element, h)})` : ''}. Responsable : ${nomDe(d.resp)}${estSuivi(d) ? ` · Validation : ${nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}` : ' · sans suivi'}.`,
       choix: '',
       reponse: '',
       note: '',
