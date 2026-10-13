@@ -6,7 +6,13 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
 Décidé (validé par l'utilisateur) :
 - Bilan du soir = même affichage que « Hier » (éléments du plan + statut modifiable + notes) ; la section
   « Changé depuis ce matin » disparaît.
-- Les changements repérés automatiquement ne sont PLUS des « notes Information » : nouveau nom à choisir (en cours).
+- Les changements repérés automatiquement ne sont PLUS des « notes Information » : ils s'appellent « Avancement »
+  (section « Avancement depuis le Daily du 12/10 »).
+- Affichage : bloc en tête de la 1re étape (Situation, Hier, Prévu / fait…) avec le filtre + section du compte rendu ;
+  réunions perso (sans compte rendu) : 1re étape seulement.
+- Toucher un avancement ouvre la fiche de l'élément (pas de note créée).
+- EN ATTENTE : forme du filtre (proposé : pastilles par sorte, tout coché, compte rendu = ce que le filtre affiche),
+  puis : première réunion sans photo, périmètre (éléments de qui).
 - Une entrée par élément (tâche, story, feature, epic…), départ → arrivée sur la période ; allers-retours compensés ;
   revenu à son départ = rien.
 - Période : depuis la réunion précédente (même type ; perso : ma réunion précédente Point perso / Bilan / Daily).
