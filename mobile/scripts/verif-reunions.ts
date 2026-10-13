@@ -556,6 +556,11 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
     const seance = planSuivi({ ...base, action: 'valider' }).points[0].patch;
     ok(chat.hors_reunion === '1' && seance.hors_reunion === '' && chat.statut === 'valide', 'suivi validé depuis le Chat : « décidé hors réunion » ; en séance : non');
   }
+  // Même personne deux fois (Scrum Master aussi membre, deux fiches au même e-mail) : un seul participant
+  {
+    const oD2 = makeOrgValue({ personnes: [{ id: 'a', nom: 'Vous', email: 'v@x' }, { id: 'b', nom: 'Vous (SM)', email: 'V@x' }, { id: 'c', nom: 'Nina', email: 'n@x' }] as never, unites: [], portfolios: [], trains: [], equipes: [{ id: 'eq', nom: 'E', train: '', po: '', sm: 'b', membres: 'a;c', cree_le: '', modifie_le: '' }] });
+    ok(participantsReunion({ type: 'daily', niveau: 'equipeagile:eq' }, oD2).join() === 'b,c', 'participants : une personne au même e-mail une seule fois (la fiche du rôle)');
+  }
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
   reglerConversion(true, new Map([['acmeqmob', 0.5]]));
   ok(pointsOf({ points: '4', equipe: 'acmeqmob' }) === 2 && pointsOf({ points: '4', equipe: 'autre' }) === 4 && versPoints('3', 0.5) === '6' && depuisPoints('6', 0.5) === '3', 'conversion : 4 pts = 2 j avec 1 point = ½ j ; saisie 3 j → 6 pts');

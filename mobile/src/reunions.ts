@@ -335,7 +335,15 @@ export function participantsReunion(r: Pick<Reunion, 'type' | 'niveau'> & { part
     const u = org.unite.get(n.id);
     if (u) ids.push(u.responsable, ...org.equipes.filter((e) => (e.espace || 'moi') === (u.espace || 'moi')).flatMap((e) => [e.sm, e.po]));
   }
-  return [...new Set(ids.filter(Boolean))];
+  // Une même personne une seule fois (13/10) : deux fiches au même e-mail (ex. Scrum Master aussi membre, ou une
+  // fiche par espace) ne font qu'un participant ; on garde la première (celle du rôle : SM, PO, puis membres)
+  const vus = new Set<string>();
+  return [...new Set(ids.filter(Boolean))].filter((id) => {
+    const m = org.personne.get(id)?.email?.toLowerCase() || `id:${id}`;
+    if (vus.has(m)) return false;
+    vus.add(m);
+    return true;
+  });
 }
 
 const MOIS_LONGS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
