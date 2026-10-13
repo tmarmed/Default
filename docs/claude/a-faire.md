@@ -30,8 +30,13 @@ Sujets proposés, au choix de l'utilisateur :
   concrétisation, absente de l'étape Concrétisation.
 - Façon de travailler : ne jamais appliquer de choix par défaut ; une question sans réponse est reposée (à ajouter au
   skill travail-ensemble, dans les deux dépôts). Questions avec la fenêtre à cocher (AskUserQuestion), un point à la fois.
-- Restent à traiter (un par un) : 4 « percée de compréhension » dans conception-coherence + glossaire ; 5 deux défauts
-  de « Transmettre à » (l'absent proposé comme remplaçant ; « Facultatif » au lieu de « À choisir ») ; 6 sujet suivant.
+- Point 4 fait : « percée de compréhension » (conception-coherence point 8, glossaire) ; travail-ensemble : fenêtre à
+  cocher, un point à la fois, jamais de choix par défaut. À recopier dans tmarmed/mes-skills.
+- Point 5, décidé (pas encore codé) : **remplacer = affecter**. L'alerte d'absence propose « Choisir un remplaçant », qui
+  ouvre la ligne Responsable (équipe, sans la personne absente ; les autres absents restent, marqués « absent le … »).
+  « ↪ Transmettre » ne contient plus le groupe « remplaçant » (autres équipes + niveau du dessus seulement) et le bouton
+  ouvre directement la liste : jamais de ligne « Transmettre à » vide. Affecter et transmettre restent exclusifs.
+- Point 6 : sujet suivant, à demander.
   Dépôt mes-skills : lien de création envoyé, attendre « créé ».
 
 ## Fait (session du 08/10, validation de la démo)

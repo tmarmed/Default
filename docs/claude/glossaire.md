@@ -9,8 +9,10 @@
   Abandonné, Plus suivi).
 - **Action rapide** : une action à faire sans créer d'élément, toujours suivie (13/10).
 - **Affecter** : donner la responsabilité à moi ou à une personne de mon équipe.
-- **Transmettre** : passer à quelqu'un hors du cas normal : responsable absent (remplaçant), autre équipe, niveau du
-  dessus. Englobe l'ancienne « escalade » (vers le haut). Toujours suivi.
+- **Remplacer** : affecter à une autre personne de l'équipe quand le responsable est absent (13/10 : c'est une
+  affectation, pas une transmission).
+- **Transmettre** : passer hors de mon équipe : autre équipe ou niveau du dessus. Englobe l'ancienne « escalade »
+  (vers le haut). Toujours suivi.
 - **Maillon** : chaque niveau (équipe, train, portfolio, entreprise) par lequel passe une transmission ou une demande ;
   chacun décide ou transmet plus haut, jamais automatiquement.
 - **Hors réunion** : décision prise dans le Chat ; elle est confirmée ensuite en réunion.
