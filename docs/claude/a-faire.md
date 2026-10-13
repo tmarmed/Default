@@ -36,7 +36,9 @@ Sujets proposés, au choix de l'utilisateur :
   ouvre la ligne Responsable (équipe, sans la personne absente ; les autres absents restent, marqués « absent le … »).
   « ↪ Transmettre » ne contient plus le groupe « remplaçant » (autres équipes + niveau du dessus seulement) et le bouton
   ouvre directement la liste : jamais de ligne « Transmettre à » vide. Affecter et transmettre restent exclusifs.
-- Point 6 : sujet suivant, à demander.
+- Point 5 codé et validé en captures (13/10).
+- Point 6 : plan du jour choisi ; règles écrites (docs/regles-reunions.html, bloc 12, R1 à R9). Prochaine étape :
+  maquette à valider, puis code. Plus tard : plusieurs projets perso dans 🔒 Moi ; agenda Google.
   Dépôt mes-skills : lien de création envoyé, attendre « créé ».
 
 ## Fait (session du 08/10, validation de la démo)
