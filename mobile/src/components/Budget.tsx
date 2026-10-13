@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { avecDossiers, situationEnveloppe, cleDe, type Decision, libelleDecisionDossier, manquesDossier, depensesDe, iconeCategorie, libellePeriode, libelleStatutDemande, resumeDepense, useBudget } from '../budget';
+import { aRepartirPortfolio, montantDemande, repartitionProposee, trainDePersonne, avecDossiers, situationEnveloppe, cleDe, type Decision, libelleDecisionDossier, manquesDossier, depensesDe, iconeCategorie, libellePeriode, libelleStatutDemande, resumeDepense, useBudget } from '../budget';
 import { coutJour, euros, joursOuvresAnnee } from '../pilotage';
 import { colors } from '../theme';
 import { useSafe } from '../safe';
@@ -667,7 +667,16 @@ export function useEnveloppe(niveau: string, annee = String(new Date().getFullYe
   const b = useBudget();
   const h = useHierarchy();
   const org = useOrg();
-  return situationEnveloppe(niveau, annee, { enveloppes: b.enveloppes, dossiers: b.dossiers, demandes: b.demandes, epics: h.epicList, portfoliosDe: (esp) => org.portfolios.filter((p) => (p.espace || 'moi') === esp).map((p) => p.id) });
+  return situationEnveloppe(niveau, annee, {
+    enveloppes: b.enveloppes,
+    dossiers: b.dossiers,
+    demandes: b.demandes,
+    epics: h.epicList,
+    portfoliosDe: (esp) => org.portfolios.filter((p) => (p.espace || 'moi') === esp).map((p) => p.id),
+    // Trains (13/10) : part des epics selon les points de leurs features ; enveloppes des trains du portfolio
+    features: h.featureList,
+    trainsDe: (pf) => org.trains.filter((t) => t.portfolio === pf).map((t) => t.id),
+  });
 }
 export function LigneEnveloppe({ niveau, apres = 0 }: { niveau: string; apres?: number }) {
   const x = useEnveloppe(niveau);
@@ -678,6 +687,103 @@ export function LigneEnveloppe({ niveau, apres = 0 }: { niveau: string; apres?: 
       Enveloppe {euros(x.enveloppe)} · Engagé {euros(x.engage)} · Disponible {euros(x.disponible)}
       {apres ? ` · après cet accord : ${euros(reste)}${reste < 0 ? ' (dépasse l’enveloppe)' : ''}` : ''}
     </Text>
+  );
+}
+
+/** Pilotage (13/10, session 3) : enveloppe de chaque train du portfolio */
+export function LignesEnveloppesTrains({ portfolio }: { portfolio: string }) {
+  const org = useOrg();
+  const trains = org.trains.filter((t) => t.portfolio === portfolio);
+  if (!trains.length) return null;
+  return (
+    <>
+      {trains.map((t) => (
+        <View key={t.id}>
+          <Text style={[s.sous, { paddingHorizontal: 14, paddingTop: 8, fontWeight: '600' }]}>🚆 {t.nom}</Text>
+          <LigneEnveloppe niveau={`train:${t.id}`} />
+        </View>
+      ))}
+    </>
+  );
+}
+
+/**
+ * 💶 Budget participatif · Répartition (13/10, session 3) : une ligne par train du portfolio — enveloppe actuelle,
+ * montant demandé (écrit dans ses demandes), part du vote, montant proposé (part du vote × reste à répartir),
+ * modifiable ; enregistré à l'envoi du compte rendu (`montants`, tenus par la réunion).
+ */
+export function RepartitionTrains({
+  portfolio,
+  demandes,
+  montants,
+  onMontant,
+  peutModifier,
+  onPropose,
+  annee: anneeSeance,
+}: {
+  portfolio: string;
+  demandes: { texte: string; par: string; pts: number }[];
+  montants: Record<string, string>;
+  onMontant: (train: string, v: string) => void;
+  peutModifier: boolean;
+  /** Montants proposés (pour l'envoi, si l'animateur ne les a pas modifiés) */
+  onPropose?: (p: Record<string, number>) => void;
+  /** Année des enveloppes : celle de la séance (un Budget participatif de janvier fixe l'année qui commence) */
+  annee?: string;
+}) {
+  const b = useBudget();
+  const h = useHierarchy();
+  const org = useOrg();
+  const annee = anneeSeance ?? String(new Date().getFullYear());
+  const trains = org.trains.filter((t) => t.portfolio === portfolio);
+  const ctx = { enveloppes: b.enveloppes, dossiers: b.dossiers, demandes: b.demandes, epics: h.epicList, features: h.featureList, trainsDe: (pf: string) => org.trains.filter((t) => t.portfolio === pf).map((t) => t.id) };
+  const env = situationEnveloppe(`portfolio:${portfolio}`, annee, ctx);
+  const aRepartir = aRepartirPortfolio(portfolio, annee, ctx);
+  const dem = demandes.map((d) => ({ ...d, train: trainDePersonne(d.par, org), montant: montantDemande(d.texte) }));
+  const propose = repartitionProposee(
+    trains.map((t) => t.id),
+    dem,
+    aRepartir,
+  );
+  const ptsTot = dem.reduce((x, d) => x + d.pts, 0);
+  const cleP = JSON.stringify(propose);
+  useEffect(() => {
+    onPropose?.(propose);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleP]);
+  const actuel = (t: string) => b.enveloppes.find((x) => x.niveau === `train:${t}` && x.annee === annee)?.montant ?? '';
+  const valeur = (t: string) => montants[t] ?? (propose[t] !== undefined ? String(propose[t]) : actuel(t));
+  const total = trains.reduce((x, t) => x + (Number(valeur(t.id).replace(',', '.')) || 0), 0);
+  const sansTrain = dem.filter((d) => !d.train);
+  return (
+    <SectionFiche titre={`💶 Enveloppes des trains ${annee}`}>
+      {!env.defini && <Text style={[s.sous, s.pad]}>Le portfolio n’a pas d’enveloppe pour {annee} : à fixer d’abord au Comité budgétaire.</Text>}
+      {trains.map((t, i) => {
+        const l = dem.filter((d) => d.train === t.id);
+        const pts = l.reduce((x, d) => x + d.pts, 0);
+        return (
+          <View key={t.id} style={i > 0 ? s.bord : undefined}>
+            <ChampFiche label={`🚆 ${t.nom}`}>
+              <SaisieFiche
+                placeholder="Montant (€)"
+                value={valeur(t.id)}
+                editable={peutModifier}
+                onChangeText={(v) => onMontant(t.id, v.replace(/[^0-9.,]/g, ''))}
+                keyboardType="decimal-pad"
+                accessibilityLabel={`Enveloppe du train ${t.nom}`}
+              />
+            </ChampFiche>
+            <Text style={[s.sous, { paddingHorizontal: 14, paddingBottom: 8 }]}>
+              {`Enveloppe actuelle ${actuel(t.id) ? euros(Number(actuel(t.id))) : 'à définir'} · Demandé ${euros(l.reduce((x, d) => x + d.montant, 0))} (${l.length} demande${l.length > 1 ? 's' : ''}) · Vote ${ptsTot ? Math.round((100 * pts) / ptsTot) : 0} %${propose[t.id] !== undefined ? ` · Proposé ${euros(propose[t.id])}` : ' · Sans demande : enveloppe actuelle gardée'}`}
+            </Text>
+          </View>
+        );
+      })}
+      <Text style={[s.sous, s.pad, total > aRepartir ? { color: colors.warning } : undefined]}>
+        {`Total réparti ${euros(total)} sur ${euros(aRepartir)} à répartir${total > aRepartir ? ` · dépasse de ${euros(total - aRepartir)}` : ''}. À répartir = enveloppe du portfolio ${euros(env.enveloppe)} − epics sans train − demandes accordées au portfolio. Enregistré à l’envoi du compte rendu.`}
+      </Text>
+      {!!sansTrain.length && <Text style={[s.sous, s.pad]}>{`${sansTrain.length} demande${sansTrain.length > 1 ? 's' : ''} sans train (auteur hors des trains du portfolio) : non comptée${sansTrain.length > 1 ? 's' : ''}.`}</Text>}
+    </SectionFiche>
   );
 }
 
@@ -717,7 +823,7 @@ export function BlocEnveloppes({ espace, portfolios, peutModifier }: { espace: s
           <LigneEnveloppe niveau={x.niveau} />
         </View>
       ))}
-      <Text style={[s.sous, s.pad]}>Engagé : budgets prévus des epics lancées + demandes accordées ; pour l’entreprise, les enveloppes données aux portfolios. Disponible = Enveloppe − Engagé.</Text>
+      <Text style={[s.sous, s.pad]}>Engagé : budgets prévus des epics lancées + demandes accordées ; pour l’entreprise, les enveloppes données aux portfolios ; pour un portfolio, celles données à ses trains (les epics qu’ils réalisent sont alors payées par eux). Disponible = Enveloppe − Engagé.</Text>
       {!!err && <Text style={s.err}>{err}</Text>}
     </SectionFiche>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import type { VoteEtat } from '../../etatReunion';
 import { fmtPoints, piOf, shiftPi, nomSprintDe } from '../../pi';
@@ -10,7 +10,8 @@ import { capaciteEquipePI } from '../../pilotage';
 import { colors } from '../../theme';
 import { type Epic, ETATS_EPIC, type Feature, type Item, STATUT_LABELS, type TypeReunion, TYPES_REUNION } from '../../types';
 import { SectionFiche } from '../Choix';
-import { BlocBudgetSimple, BlocDossiers, BlocEcarts, BlocEnveloppes, BlocPrepDossiers } from '../Budget';
+import { BlocBudgetSimple, BlocDossiers, BlocEcarts, BlocEnveloppes, BlocPrepDossiers, RepartitionTrains } from '../Budget';
+import { useBudget } from '../../budget';
 import { TitreFiche } from '../FormSheet';
 import { ListeEditable, MesTaches, Navigation } from './Affinage';
 import { AjoutElement } from './Ajout';
@@ -64,7 +65,9 @@ type Etape =
   | { k: 'mes_elements'; icone: string; titre: string; sous: string; liste: (c: Ctx) => Elem[] }
   | { k: 'voter_confiance' }
   | { k: 'voter_etoiles'; cle: string }
-  | { k: 'voter_budget'; cle: string };
+  | { k: 'voter_budget'; cle: string }
+  /** Budget participatif (13/10) : enveloppes des trains du portfolio */
+  | { k: 'repartition_trains'; cle: string };
 /**
  * « ＋ Ajouter … » d'une étape (08/10) : feature du PI (PI Planning), feature du prochain PI (affinage du train,
  * préparation du PI), objectif du PI, epic (idée du portfolio), résultat clé de l'OKR en cours
@@ -391,15 +394,15 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
   budget: {
     nomCourt: 'au budget participatif',
     sm: [
-      ['situation', 'Situation', SIT('Répartir le budget du semestre', 'Entre les demandes des trains, par un vote des participants (100 points chacun).', (c) => [{ valeur: String(c.r.donneesDe('demande').length), libelle: 'demandes' }, { valeur: String(new Set(c.r.donneesDe('budget').map((x) => x.p.personne)).size), libelle: 'votants' }, { valeur: String(c.e.personnes.length), libelle: 'participants' }])],
+      ['situation', 'Situation', SIT('Répartir le budget entre les trains', 'Demandes des trains (avec leur montant), vote des participants (100 points chacun), puis enveloppe de chaque train.', (c) => [{ valeur: String(c.r.donneesDe('demande').length), libelle: 'demandes' }, { valeur: String(new Set(c.r.donneesDe('budget').map((x) => x.p.personne)).size), libelle: 'votants' }, { valeur: String(c.e.personnes.length), libelle: 'participants' }])],
       ['demandes', 'Demandes', { k: 'saisies', icone: '🙋', titre: 'Demandes', sous: 'Préparées par les PM et RTE', cle: 'demande' }],
       ['vote', 'Vote', { k: 'budget', cle: 'demande' }],
-      ['repartition', 'Répartition', { k: 'points', icone: '💶', titre: 'Répartition', sous: 'Décidée d’après le vote', placeholder: '＋ Décision (montant) ou action' }],
+      ['repartition', 'Répartition', { k: 'repartition_trains', cle: 'demande' }],
       ['concretisation', 'Concrétisation', CONC],
       ['compte_rendu', 'Compte rendu', CR],
     ],
     membre: [
-      ['demandes_m', 'Mes demandes', { k: 'saisie', icone: '🙋', titre: 'Mes demandes', sous: 'Ce que je demande (et pourquoi)', cle: 'demande', placeholder: 'Programme fidélité · 400 k€' }],
+      ['demandes_m', 'Mes demandes', { k: 'saisie', icone: '🙋', titre: 'Mes demandes', sous: 'Pour mon train : quoi, pourquoi et combien (le montant compte pour la répartition)', cle: 'demande', placeholder: 'Programme fidélité · 40 k€' }],
       ['vote_m', 'Mon vote', { k: 'voter_budget', cle: 'demande' }],
     ],
   },
@@ -472,6 +475,10 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
   // Décision directe en séance (13/10) : une note « Décision prise » garde la trace (close d'office), remplacée si
   // on change d'avis — état d'une epic, OKR gardé / ajusté / arrêté, objectif du Simple…
   const [notesDecision, setNotesDecision] = useState<Record<string, string>>({});
+  // Budget participatif (13/10) : enveloppes des trains saisies ; proposées (si non modifiées), écrites à l'envoi
+  const [montantsTrains, setMontantsTrains] = useState<Record<string, string>>({});
+  const proposesTrains = useRef<Record<string, number>>({});
+  const budgetR = useBudget();
   const noterDecision = (cle: string, element: string, texte: string) => {
     const avant = notesDecision[cle];
     if (avant) r.retirerNote(avant);
@@ -871,6 +878,22 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
       }
       case 'voter_budget':
         return <VoteBudget r={r} demandes={saisiesDe(et.cle)} />;
+      case 'repartition_trains':
+        return (
+          <>
+            <TitreFiche icone="💶" titre="Répartition" vide="" sous="Enveloppe de chaque train : part du vote × ce qui reste à répartir, modifiable" />
+            <RepartitionTrains
+              portfolio={portfolioId}
+              demandes={total(et.cle)}
+              montants={montantsTrains}
+              onMontant={(t, v) => setMontantsTrains((m) => ({ ...m, [t]: v }))}
+              peutModifier={r.anime && !lecture}
+              onPropose={(x) => (proposesTrains.current = x)}
+              annee={p.reunion.debut.slice(0, 4)}
+            />
+            <BlocPoints r={r} points={r.tous.filter((y) => r.ici(y))} lecture={lecture} stories={[]} placeholder="＋ Décision ou action" />
+          </>
+        );
       default:
         return null;
     }
@@ -901,9 +924,22 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
       }
       for (const [esp, l] of parEsp) await p.actions.modifierEntites(esp, 'objectif', l);
     }
+    // Budget participatif : enveloppe de l'année de chaque train (Sheet Budget, onglet Enveloppes)
+    const lignesTrains: string[] = [];
+    if (p.reunion.type === 'budget' && Object.keys(proposesTrains.current).length) {
+      const annee = p.reunion.debut.slice(0, 4);
+      for (const t of r.org.trains.filter((x) => x.portfolio === portfolioId)) {
+        const v = (montantsTrains[t.id] ?? String(proposesTrains.current[t.id] ?? '')).replace(',', '.');
+        if (v === '') continue;
+        const avant = budgetR.enveloppes.find((x) => x.niveau === `train:${t.id}` && x.annee === annee)?.montant ?? '';
+        if (v !== avant) await budgetR.ecrireEnveloppe(p.reunion.espace || 'moi', `train:${t.id}`, annee, v);
+        lignesTrains.push(`Enveloppe ${annee} du train ${t.nom} : ${Number(v).toLocaleString('fr-FR')} €${avant && avant !== v ? ` (avant : ${Number(avant).toLocaleString('fr-FR')} €)` : ''}`);
+      }
+    }
     await r.envoyerCompteRendu({
       iteration: '',
       lignes: [
+        ...lignesTrains,
         ...(decision ? [`Vote de confiance : ${decision.choix === 'retenir' ? decision.val : 'reporté'}`] : []),
         ...dec.map(([id, v]) => `${[...etapes.values()].map((z) => (z.et.k === 'elements' ? z.et.liste(c).find((q) => q.id === id)?.titre : undefined)).find(Boolean) ?? id} : ${v}`),
       ],

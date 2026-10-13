@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import { addDays, toDateString } from './dates';
 import { estOuvre } from './series';
-import { CATEGORIES_DEPENSE, type CoutPersonne, type DemandeBudget, DECISIONS_DOSSIER, type Depense, type DossierInvestissement, type Echange, type Enveloppe, type Epic, PERIODES_DEPENSE } from './types';
+import { CATEGORIES_DEPENSE, type CoutPersonne, type DemandeBudget, DECISIONS_DOSSIER, type Depense, type DossierInvestissement, type Echange, type Enveloppe, type Epic, type Feature, PERIODES_DEPENSE } from './types';
 
 /**
  * 💶 Budget (lot 1, conception validée le 09/10, docs/maquette-budget.html).
@@ -291,29 +291,107 @@ export function libelleDecisionDossier(d?: DossierInvestissement): string {
 // 💶 Enveloppe · Engagé · Disponible (validé le 13/10) : l'enveloppe d'un niveau pour l'année ; Engagé = budgets
 // prévus des epics lancées du niveau + demandes accordées par le niveau (sur l'année) ; pour l'entreprise, les
 // enveloppes données à ses portfolios. Disponible = Enveloppe − Engagé.
+// Trains (13/10, session 3) : le portfolio répartit son enveloppe entre ses trains (Budget participatif) ; une epic
+// lancée est payée par les trains qui la réalisent, au prorata des points de ses features. Engagé d'un train = sa part
+// des epics lancées + demandes accordées au train ; Engagé du portfolio = enveloppes de ses trains + part des epics
+// qui reste au portfolio (sans feature, ou sur un train sans enveloppe) + demandes accordées au portfolio.
 // ---------------------------------------------------------------------------
 const LANCEE = new Set(['lancer', 'continuer', 'changer']);
+/** Part d'une epic réalisée par un train : points de ses features sur ce train ÷ points de toutes ses features
+ * (sans points : au nombre de features) ; 0 si l'epic n'a pas de feature */
+export function partTrain(epic: string, train: string, features: Pick<Feature, 'epic' | 'train' | 'points'>[]): number {
+  const fs = features.filter((f) => f.epic === epic);
+  if (!fs.length) return 0;
+  const pts = (l: typeof fs) => l.reduce((s, f) => s + nombre(f.points), 0);
+  const tot = pts(fs);
+  const du = fs.filter((f) => (f.train ?? '') === train);
+  return tot ? pts(du) / tot : du.length / fs.length;
+}
 /** Montant d'une demande accordée sur une année : ponctuel tel quel, par mois × 12, par an × 1 */
 const surAnnee = (d: DemandeBudget) => nombre(d.montant_accorde || d.montant) * (d.periode === 'mois' ? 12 : 1);
 export function situationEnveloppe(
   niveau: string,
   annee: string,
-  c: { enveloppes: Enveloppe[]; dossiers: Map<string, DossierInvestissement>; demandes: DemandeBudget[]; epics: Epic[]; portfoliosDe?: (espace: string) => string[] },
+  c: {
+    enveloppes: Enveloppe[];
+    dossiers: Map<string, DossierInvestissement>;
+    demandes: DemandeBudget[];
+    epics: Epic[];
+    portfoliosDe?: (espace: string) => string[];
+    /** Trains : features (train, points) et trains d'un portfolio */
+    features?: Pick<Feature, 'epic' | 'train' | 'points'>[];
+    trainsDe?: (portfolio: string) => string[];
+  },
 ) {
   const env = c.enveloppes.find((x) => x.niveau === niveau && x.annee === annee);
   const [k, id] = [niveau.slice(0, niveau.indexOf(':')), niveau.slice(niveau.indexOf(':') + 1)];
+  const lancee = (e: Epic & { budget?: string }) => {
+    const d = c.dossiers.get(e.id)?.decision;
+    return d ? LANCEE.has(d) : e.etat === 'pret' || e.etat === 'en_cours';
+  };
+  const avecEnv = (n: string) => c.enveloppes.some((x) => x.niveau === n && x.annee === annee);
+  const trainsAvecEnveloppe = k === 'portfolio' && c.trainsDe ? c.trainsDe(id).filter((t) => avecEnv(`train:${t}`)) : [];
   const epicsLancees =
     k === 'portfolio'
-      ? avecDossiers(c.epics.filter((e) => e.portfolio === id), c.dossiers).filter((e) => {
-          const d = c.dossiers.get(e.id)?.decision;
-          return d ? LANCEE.has(d) : e.etat === 'pret' || e.etat === 'en_cours';
-        })
-      : [];
-  const projets = epicsLancees.reduce((s, e) => s + nombre(e.budget), 0);
+      ? avecDossiers(c.epics.filter((e) => e.portfolio === id), c.dossiers).filter(lancee)
+      : k === 'train'
+        ? avecDossiers(c.epics, c.dossiers).filter((e) => lancee(e) && partTrain(e.id, id, c.features ?? []) > 0)
+        : [];
+  // Part payée par ce niveau : train = sa part des points ; portfolio = ce qui ne revient pas à un train qui a une enveloppe
+  const part = (e: Epic) => (k === 'train' ? partTrain(e.id, id, c.features ?? []) : 1 - trainsAvecEnveloppe.reduce((s, t) => s + partTrain(e.id, t, c.features ?? []), 0));
+  const projets = epicsLancees.reduce((s, e) => s + nombre(e.budget) * part(e), 0);
   const accordees = c.demandes.filter((d) => d.destination === niveau && d.statut === 'accordee' && (d.du || '').slice(0, 4) <= annee && (!d.au || d.au.slice(0, 4) >= annee));
   const demandes = accordees.reduce((s, d) => s + surAnnee(d), 0);
-  const sousEnveloppes = k === 'entreprise' && c.portfoliosDe ? c.portfoliosDe(id).reduce((s, p) => s + nombre(c.enveloppes.find((x) => x.niveau === `portfolio:${p}` && x.annee === annee)?.montant), 0) : 0;
+  const montantDe = (n: string) => nombre(c.enveloppes.find((x) => x.niveau === n && x.annee === annee)?.montant);
+  const sousEnveloppes =
+    k === 'entreprise' && c.portfoliosDe
+      ? c.portfoliosDe(id).reduce((s, p) => s + montantDe(`portfolio:${p}`), 0)
+      : k === 'portfolio'
+        ? trainsAvecEnveloppe.reduce((s, t) => s + montantDe(`train:${t}`), 0)
+        : 0;
   const engage = projets + demandes + sousEnveloppes;
   const enveloppe = env ? nombre(env.montant) : 0;
   return { enveloppe, defini: !!env, engage, disponible: enveloppe - engage, projets, demandes, sousEnveloppes, epicsLancees };
+}
+
+// ---------------------------------------------------------------------------
+// 💶 Budget participatif (13/10, session 3) : les demandes des trains, avec leur montant, et la répartition de
+// l'enveloppe du portfolio entre ses trains (part du vote × ce qui reste à répartir, modifiable).
+// ---------------------------------------------------------------------------
+/** Montant écrit dans une demande : « Programme fidélité · 40 k€ », « 1,2 M€ », « 35 000 € » ; 0 si aucun */
+export function montantDemande(texte: string): number {
+  const m = texte.replace(/ /g, ' ').match(/(\d[\d ]*(?:[.,]\d+)?)\s*(k€|K€|k|K|M€|m€|€)/);
+  if (!m) return 0;
+  const n = Number(m[1].replace(/ /g, '').replace(',', '.'));
+  return Math.round(n * (/^[kK]/.test(m[2]) ? 1000 : /^[mM]/.test(m[2]) ? 1_000_000 : 1));
+}
+/** Train d'une personne (par son adresse) : RTE ou PM du train, ou membre, PO, SM d'une de ses équipes */
+export function trainDePersonne(mail: string, org: { personnes: { id: string; email: string }[]; trains: { id: string; rte: string; pm: string }[]; equipes: { train: string; po: string; sm: string; membres: string }[] }): string {
+  const pid = org.personnes.find((p) => p.email.toLowerCase() === mail.toLowerCase())?.id;
+  if (!pid) return '';
+  const t = org.trains.find((x) => x.rte === pid || x.pm === pid);
+  if (t) return t.id;
+  return org.equipes.find((e) => e.po === pid || e.sm === pid || e.membres.split(';').includes(pid))?.train ?? '';
+}
+/**
+ * Répartition proposée : chaque train reçoit sa part du vote (points de ses demandes ÷ tous les points ; sans vote,
+ * au prorata des montants demandés) de ce qui reste à répartir, arrondie au millier. Ni demande ni vote : rien n'est
+ * proposé (l'enveloppe actuelle de chaque train reste).
+ */
+export function repartitionProposee(trains: string[], demandes: { train: string; pts: number; montant: number }[], aRepartir: number): Record<string, number> {
+  const pts = demandes.reduce((s, d) => s + d.pts, 0);
+  const dem = demandes.reduce((s, d) => s + d.montant, 0);
+  const out: Record<string, number> = {};
+  if (!pts && !dem) return out;
+  for (const t of trains) {
+    const l = demandes.filter((d) => d.train === t);
+    const part = pts ? l.reduce((s, d) => s + d.pts, 0) / pts : dem ? l.reduce((s, d) => s + d.montant, 0) / dem : 0;
+    out[t] = Math.max(0, Math.round((part * aRepartir) / 1000) * 1000);
+  }
+  return out;
+}
+/** Ce qui reste à répartir entre les trains : enveloppe du portfolio − epics lancées sans feature − demandes accordées au portfolio */
+export function aRepartirPortfolio(portfolio: string, annee: string, c: Parameters<typeof situationEnveloppe>[2]): number {
+  const tous = situationEnveloppe(`portfolio:${portfolio}`, annee, { ...c, trainsDe: c.trainsDe, enveloppes: [...c.enveloppes, ...(c.trainsDe?.(portfolio) ?? []).map((t) => ({ id: `_${t}`, niveau: `train:${t}`, annee, montant: '0', modifie_le: '' }))] });
+  return tous.enveloppe - tous.projets - tous.demandes;
 }

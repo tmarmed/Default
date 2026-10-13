@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
 import { iterationOf, piOf, piStart, shiftPi } from './pi';
 import { photoDe, pointsPhoto } from './avancement';
+import { estOuvre } from './series';
 import { creerMagasin, type Kind, type Persistance, type Table, TABLES, TABLES_ORG } from './magasin';
 import { CLE_ORG, type KindOrg, type Org } from './organisation';
 import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, type ValueStream, type Echange } from './types';
@@ -123,7 +124,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '48';
+const DEMO_DATA_VERSION = '51';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -592,7 +593,24 @@ const SEEDS_ENTREPRISE: Seeds = {
       ...pointsPhoto(`art_sync-train:acmtr1-${veille}`, 'paul.leroy@acme.example', train, sans).map((x, k) => ({ ...x, id: `acmavt${k + 1}`, cree_le: `${veille}T11:30:00.000Z` })),
       ...pointsPhoto(`revue_portfolio-portfolio:acmpf1-${veille}`, 'marc.petit@acme.example', portfolio, sans).map((x, k) => ({ ...x, id: `acmavp${k + 1}`, cree_le: `${veille}T11:30:00.000Z` })),
     ];
-    return [...photoHier, ...photosNiveaux, ...liste];
+    // 💶 Budget participatif (13/10, session 3) : prochaine séance (début d'un PI sur deux, T1 et T3), demandes du
+    // train Clients avec leur montant (RTE Sara Martin, PM Marc Petit), une demande sans train (l'Epic Owner), et deux votes
+    let piB = piOf(toDateString(new Date()));
+    for (let k = 0; k < 4 && !(/-T[13]$/.test(piB) && toDateString(piStart(piB)) >= toDateString(new Date())); k++) piB = shiftPi(piB, 1);
+    let jourB = toDateString(piStart(piB));
+    while (!estOuvre(jourB)) jourB = toDateString(addDays(new Date(`${jourB}T12:00`), 1));
+    const reunionBudget = `budget-portfolio:acmpf1-${jourB}`;
+    const donnee = (id: string, par: string, d: Record<string, unknown>) => pt(id, { reunion: reunionBudget, personne: par, auteur: par, type: 'donnee', texte: JSON.stringify(d), cree_le: `${toDateString(new Date())}T08:00:00.000Z` });
+    const marc = 'marc.petit@acme.example';
+    const julie = 'julie.morel@acme.example';
+    const budgetParticipatif = [
+      donnee('acmbp1', sara, { k: 'demande', c: 'dm1', o: 'membre', texte: 'Plateforme de tests automatisés · 60 k€' }),
+      donnee('acmbp2', marc, { k: 'demande', c: 'dm2', o: 'membre', texte: 'Programme fidélité dans l’application · 150 k€' }),
+      donnee('acmbp3', julie, { k: 'demande', c: 'dm3', o: 'membre', texte: 'Étude de marché Benelux · 30 k€' }),
+      donnee('acmbp4', sara, { k: 'budget', c: 'budget', o: 'membre', l: { dm1: 60, dm2: 30, dm3: 10 } }),
+      donnee('acmbp5', marc, { k: 'budget', c: 'budget', o: 'membre', l: { dm1: 20, dm2: 70, dm3: 10 } }),
+    ];
+    return [...photoHier, ...photosNiveaux, ...liste, ...budgetParticipatif];
   },
   entities: () => {
     const e = vide();
@@ -787,6 +805,10 @@ export function budgetDemoEntreprise(): { depense: Depense[]; cout: CoutPersonne
     enveloppe: [
       { id: `entreprise:demo-entreprise|${an}`, niveau: 'entreprise:demo-entreprise', annee: an, montant: '400000', modifie_le: stamp },
       { id: `portfolio:acmpf1|${an}`, niveau: 'portfolio:acmpf1', annee: an, montant: '250000', modifie_le: stamp },
+      // Enveloppe du train Clients (Budget participatif, 13/10) : il paie les epics qu'il réalise
+      { id: `train:acmtr1|${an}`, niveau: 'train:acmtr1', annee: an, montant: '200000', modifie_le: stamp },
+      // Année suivante : enveloppe du portfolio déjà fixée (Comité budgétaire de janvier), à répartir entre les trains
+      { id: `portfolio:acmpf1|${Number(an) + 1}`, niveau: 'portfolio:acmpf1', annee: String(Number(an) + 1), montant: '280000', modifie_le: stamp },
     ],
     // 💼 Lot 5 : dossiers d'investissement (deux epics lancées, une idée à décider, MVP du CRM presque atteint)
     dossier: [

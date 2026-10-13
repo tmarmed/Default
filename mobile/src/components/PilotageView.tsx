@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { libelleNote } from '../daily';
-import { BlocBudgetSimple, LigneEnveloppe } from './Budget';
+import { BlocBudgetSimple, LigneEnveloppe, LignesEnveloppesTrains } from './Budget';
 import { avecDossiers, libelleStatutDemande, reunionDuNiveau, useBudget } from '../budget';
 import { consommeReel } from '../consomme';
 import { useHierarchy } from '../hierarchyContext';
@@ -222,6 +222,10 @@ export function PilotageView({
         <SectionFiche titre={`Charge par équipe · ${nomSprintDe(x.it.key)}`}>
           {x.equipes.map((y, i) => ligneJauge(y.e.id, `Équipe ${y.e.nom}`, `${y.charge.engage} / ${y.charge.capacite} pts${y.charge.capacite && y.charge.engage > y.charge.capacite ? ' · surcharge' : ''}`, y.charge.capacite ? (100 * y.charge.engage) / y.charge.capacite : 0, y.charge.capacite && y.charge.engage > y.charge.capacite ? 'rouge' : undefined, i === 0))}
         </SectionFiche>
+        {/* 13/10 (session 3) : enveloppe du train (Budget participatif) ; Engagé = sa part des epics + demandes accordées */}
+        <SectionFiche titre={`💶 Enveloppe ${today.slice(0, 4)}`}>
+          <LigneEnveloppe niveau={`train:${n.id}`} />
+        </SectionFiche>
         <SectionFiche titre="Prévisibilité du train">
           <View style={[st.compteurs, s.pad]}>
             <Compteur valeur={x.velocite ? String(x.velocite) : '—'} libelle="vélocité du train" />
@@ -260,6 +264,8 @@ export function PilotageView({
             </View>
             {/* 13/10 : enveloppe de l'année (Comité budgétaire) */}
             <LigneEnveloppe niveau={`portfolio:${n.id}`} />
+            {/* 13/10 (session 3) : enveloppes des trains du portfolio (Budget participatif) */}
+            <LignesEnveloppesTrains portfolio={n.id} />
             {x.budget.epics.map((y, i) => {
               const d = y.d!;
               const ecart = y.prevu ? d.estimationFin - y.prevu : 0;

@@ -5,7 +5,7 @@
  */
 import { budgetDemoEntreprise, donneesDemo, orgDemo, orgTousLesRoles, pointsDemo } from '../src/demo';
 import { absentsLe, joursAbsence, joursPrevus, jppConstate } from '../src/conges';
-import { avecDossiers, situationEnveloppe, gerantsBudget, libelleDecisionDossier, libelleStatutDemande, manquesDossier, niveauDessus, reunionDuNiveau } from '../src/budget';
+import { aRepartirPortfolio, montantDemande, partTrain, repartitionProposee, trainDePersonne, avecDossiers, situationEnveloppe, gerantsBudget, libelleDecisionDossier, libelleStatutDemande, manquesDossier, niveauDessus, reunionDuNiveau } from '../src/budget';
 import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '../src/budget';
 import { creerMagasin, nettoyerDepense, nettoyerPoint } from '../src/magasin';
 import { creneauxLibres, elementsDuPlan, finMax, JOURNEE_DEFAUT, momentsLibres, mesSuivis, planDe, reunionDeNote, reunionPrecedenteAvecPlan } from '../src/daily';
@@ -657,6 +657,25 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   ok(messagePremiere('daily') === 'L’avancement sera visible à partir du prochain Daily.' && messagePremiere('art_sync') === 'L’avancement sera visible à partir de la prochaine ART sync.', 'avancement : message de la première réunion (A8)');
   ok(depuis('daily-equipeagile:x-2026-10-12') === 'depuis le Daily du 12/10' && depuis('art_sync-train:t-2026-10-06') === 'depuis l’ART sync du 06/10', 'avancement : titre « depuis le Daily du 12/10 »');
   ok(textes.every((t) => { try { nettoyerPoint({ ...pointsPhoto('daily-equipeagile:x-2026-10-13', 'n@x.fr', {}, { sortes: [], niveaux: [] })[0], texte: t }); return true; } catch { return false; } }), 'avancement : lignes de photo acceptées par le Sheet');
+}
+// Enveloppes des trains (13/10, session 3) : portfolio → trains → epics
+{
+  const fs = [{ epic: 'A', train: 't1', points: '7' }, { epic: 'A', train: 't2', points: '3' }, { epic: 'B', train: '', points: '' }];
+  ok(partTrain('A', 't1', fs) === 0.7 && partTrain('A', 't2', fs) === 0.3 && partTrain('B', 't1', fs) === 0 && partTrain('C', 't1', fs) === 0, 'enveloppes des trains : part d’une epic selon les points de ses features');
+  ok(montantDemande('Programme fidélité · 40 k€') === 40000 && montantDemande('Outils 1,5 M€') === 1500000 && montantDemande('Licence 12 000 €') === 12000 && montantDemande('Sans montant') === 0, 'demande : montant lu dans le texte (k€, M€, €)');
+  const orgT = { personnes: [{ id: 'p1', email: 'rte@x.fr' }, { id: 'p2', email: 'dev@x.fr' }], trains: [{ id: 't1', rte: 'p1', pm: '' }], equipes: [{ train: 't1', po: '', sm: '', membres: 'p2' }] };
+  ok(trainDePersonne('RTE@x.fr', orgT) === 't1' && trainDePersonne('dev@x.fr', orgT) === 't1' && trainDePersonne('autre@x.fr', orgT) === '', 'demande : train de son auteur (RTE, PM ou membre d’une équipe)');
+  const rp = repartitionProposee(['t1', 't2'], [{ train: 't1', pts: 150, montant: 0 }, { train: 't2', pts: 50, montant: 0 }], 100000);
+  ok(rp.t1 === 75000 && rp.t2 === 25000 && Object.keys(repartitionProposee(['t1'], [], 100000)).length === 0, 'répartition proposée : part du vote × reste à répartir ; sans demande ni vote, rien n’est proposé');
+  const an = '2026';
+  const env = (niveau: string, montant: string) => ({ id: niveau, niveau, annee: an, montant, modifie_le: '' });
+  const ep = (id: string, budget: string) => ({ id, titre: id, portfolio: 'pf', etat: 'en_cours', budget }) as never;
+  const ctxT = { enveloppes: [env('portfolio:pf', '300000'), env('train:t1', '120000')], dossiers: new Map(), demandes: [], epics: [ep('A', '100000'), ep('B', '50000')], features: fs, trainsDe: () => ['t1', 't2'] };
+  const sT1 = situationEnveloppe('train:t1', an, ctxT);
+  const sPf = situationEnveloppe('portfolio:pf', an, ctxT);
+  ok(Math.round(sT1.projets) === 70000 && sT1.disponible === 50000, 'train : Engagé = sa part des epics lancées (70 % de 100 000 €)');
+  ok(sPf.sousEnveloppes === 120000 && Math.round(sPf.projets) === 80000 && sPf.engage === 200000, 'portfolio : enveloppes des trains + part restante (train sans enveloppe 30 000 €, epic sans feature 50 000 €), sans double compte');
+  ok(aRepartirPortfolio('pf', an, ctxT) === 250000, 'reste à répartir entre les trains : enveloppe − epics sans train − demandes du portfolio');
 }
 Promise.all(testsAsync).then(() => {
   console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');
