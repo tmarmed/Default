@@ -1588,6 +1588,14 @@ function Main() {
             );
             setInfo(`Dossier « ${epic.titre} » soumis pour décision.`);
           },
+          ecrireEnveloppe: async (espace, niveau, annee, montant) => {
+            const o = await api.ecrireEnveloppe(espace, titreBudget(espace), niveau, annee, montant);
+            setBudgets((b) => {
+              const x = b[espace] ?? { depenses: [], couts: [], accessible: true };
+              const l = (x.enveloppes ?? []).filter((y) => y.id !== `${niveau}|${annee}`);
+              return { ...b, [espace]: { ...x, accessible: true, enveloppes: o ? [...l, o] : l } };
+            });
+          },
           supprimerDepense: async (espace, id) => {
             await api.supprimerDepense(espace, id);
             setBudgets((b) => (b[espace] ? { ...b, [espace]: { ...b[espace], depenses: b[espace].depenses.filter((y) => y.id !== id) } } : b));

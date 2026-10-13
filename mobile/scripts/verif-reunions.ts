@@ -5,7 +5,7 @@
  */
 import { budgetDemoEntreprise, donneesDemo, orgDemo, orgTousLesRoles, pointsDemo } from '../src/demo';
 import { absentsLe, joursAbsence, joursPrevus, jppConstate } from '../src/conges';
-import { avecDossiers, gerantsBudget, libelleDecisionDossier, libelleStatutDemande, manquesDossier, niveauDessus, reunionDuNiveau } from '../src/budget';
+import { avecDossiers, situationEnveloppe, gerantsBudget, libelleDecisionDossier, libelleStatutDemande, manquesDossier, niveauDessus, reunionDuNiveau } from '../src/budget';
 import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '../src/budget';
 import { creerMagasin, nettoyerDepense, nettoyerPoint } from '../src/magasin';
 import { mesSuivis, reunionDeNote } from '../src/daily';
@@ -575,6 +575,17 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
     const cP = choixParDefaut({ type: 'proposition', texte: 'p', element: '', personne: 'a@x', responsable: '' }, { animateur: 'a@x', echeance: '', h: hN, moi: 'a@x' });
     const base = { reunion: 'retro-equipeagile:e-2026-10-14', personne: 'a@x', auteur: 'a@x', texte: 't', element: '' };
     ok(cI.que === 'rien' && cP.que === 'creer' && nettoyerPoint({ ...base, type: 'proposition', sous_type: 'reportee' }).sous_type === 'reportee' && nettoyerPoint({ ...base, type: 'blocage', sous_type: 'reportee' }).sous_type === '', 'notes : Information fermée d’office ; Proposition → tâche d’amélioration, reportée à la rétro suivante');
+  }
+  // Enveloppes (13/10) : Engagé = budgets prévus des epics lancées + demandes accordées ; entreprise = enveloppes des portfolios
+  {
+    const bD = budgetDemoEntreprise();
+    const an = String(new Date().getFullYear());
+    const ctxE = { enveloppes: bD.enveloppe, dossiers: new Map(bD.dossier.map((d) => [d.id, d])), demandes: bD.demande, epics: donneesDemo('demo-entreprise').entities.epic, portfoliosDe: () => ['acmpf1'] };
+    const sP = situationEnveloppe('portfolio:acmpf1', an, ctxE);
+    const sE = situationEnveloppe('entreprise:demo-entreprise', an, ctxE);
+    ok(sP.enveloppe === 250000 && sP.projets === 200000 && sP.disponible === 250000 - sP.engage && sE.sousEnveloppes === 250000 && sE.disponible === 150000 - sE.demandes, 'enveloppes : Engagé = epics lancées + demandes accordées ; entreprise = enveloppes des portfolios');
+    const sC = seriesDe(makeOrgValue(orgTousLesRoles(orgDemo('demo-entreprise'))), 'vous@demo', true).map((v) => `${v.type}|${v.serie.niveau}`);
+    ok(sC.includes('comite_budget|unite:acmu1'), 'Comité budgétaire : réunion de l’entreprise (direction de premier niveau)');
   }
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
   reglerConversion(true, new Map([['acmeqmob', 0.5]]));

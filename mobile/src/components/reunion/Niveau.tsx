@@ -10,7 +10,7 @@ import { capaciteEquipePI } from '../../pilotage';
 import { colors } from '../../theme';
 import { type Epic, ETATS_EPIC, type Feature, type Item, STATUT_LABELS, type TypeReunion, TYPES_REUNION } from '../../types';
 import { SectionFiche } from '../Choix';
-import { BlocBudgetSimple, BlocDossiers, BlocPrepDossiers } from '../Budget';
+import { BlocBudgetSimple, BlocDossiers, BlocEcarts, BlocEnveloppes, BlocPrepDossiers } from '../Budget';
 import { TitreFiche } from '../FormSheet';
 import { ListeEditable, MesTaches, Navigation } from './Affinage';
 import { AjoutElement } from './Ajout';
@@ -53,6 +53,8 @@ type Etape =
   | { k: 'concretisation' }
   | { k: 'dossiers' }
   | { k: 'dossiers_prep' }
+  | { k: 'enveloppes' }
+  | { k: 'ecarts' }
   | { k: 'budget_simple'; mode: 'suivi' | 'revision' | 'annee' }
   | { k: 'compte_rendu' }
   // Participants
@@ -143,6 +145,21 @@ const SIT_SIMPLE = (objectif: string, sous: string): Etape =>
     { valeur: String(objectifsSimple(c).length), libelle: 'objectifs' },
   ]);
 export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
+  // 🏛️ Comité budgétaire (13/10) : entreprise, en janvier et en juillet ; enveloppes, écarts, demandes des portfolios
+  comite_budget: {
+    nomCourt: 'au Comité budgétaire',
+    sm: [
+      ['situation', 'Situation', SIT('Fixer et réviser les enveloppes', 'Enveloppes de l’année par portfolio, écarts entre le prévu et l’estimation à la fin, demandes reçues des portfolios.', (c) => [{ valeur: String(c.r.org.portfolios.filter((p) => (p.espace || 'moi') === (c.r.reunion.espace || 'moi')).length), libelle: 'portfolios' }, { valeur: String(c.epics.length), libelle: 'epics' }])],
+      ['enveloppes', 'Enveloppes', { k: 'enveloppes' }],
+      ['ecarts', 'Écarts', { k: 'ecarts' }],
+      ['concretisation', 'Concrétisation', CONC],
+      ['compte_rendu', 'Compte rendu', CR],
+    ],
+    membre: [
+      ['taches', 'Mes tâches', TACHES],
+      ['notes', 'Mes notes', { k: 'notes' }],
+    ],
+  },
   // ---- Mode Simple à plusieurs (09/10) : mêmes étapes que le SAFe (notes, suivis, Concrétisation, compte rendu) ----
   point_equipe: {
     nomCourt: 'au point d’équipe',
@@ -171,6 +188,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
       ['situation', 'Situation', SIT_SIMPLE('Revoir les objectifs et le budget du mois', 'Objectifs : garder, ajuster, arrêter ; budget : prévu, dépensé, reste ; demandes de budget.')],
       ['objectifs', 'Objectifs', OBJ_SIMPLE],
       ['budget', 'Budget', { k: 'budget_simple', mode: 'suivi' }],
+      ['ecarts', 'Écarts', { k: 'ecarts' }],
       ['concretisation', 'Concrétisation', CONC],
       ['compte_rendu', 'Compte rendu', CR],
     ],
@@ -360,7 +378,8 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
     sm: [
       ['situation', 'Situation', SIT('Synchroniser les trains du portfolio', 'Avancement des epics, notes transmises par les trains.', (c) => [{ valeur: String(c.epics.filter((x) => x.etat === 'en_cours').length), libelle: 'epics en cours' }, { valeur: String(c.r.reportes.length), libelle: 'transmis reçus', ton: 'orange' }, { valeur: String(c.epics.length), libelle: 'epics' }])],
       ['epics', 'Epics en cours', { k: 'liste', icone: '🗂️', titre: 'Epics en cours', sous: 'Avancement', lignes: (c) => epicsPortfolio(c).filter((x) => x.pastille === 'En cours'), points: true }],
-      ['escalades', 'Transmis reçus', { k: 'points', icone: '↪', titre: 'Transmis reçus', sous: 'Reçus des ART sync (à concrétiser) et nouveaux', placeholder: '＋ Blocage, décision ou demande d’action' }],
+      ['escalades', 'Transmis reçus', { k: 'points', icone: '↪', titre: 'Transmis reçus', sous: 'Reçus des ART sync (à concrétiser) et nouveaux', placeholder: '＋ Note (information, blocage, décision, action)' }],
+      ['ecarts', 'Écarts', { k: 'ecarts' }],
       ['concretisation', 'Concrétisation', CONC],
       ['compte_rendu', 'Compte rendu', CR],
     ],
@@ -749,6 +768,34 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
             <BlocPrepDossiers epics={epics} />
           </>
         );
+      case 'enveloppes': {
+        const esp = p.reunion.espace || 'moi';
+        return (
+          <>
+            <TitreFiche icone="💶" titre="Enveloppes" vide="" sous="Enveloppe · Engagé · Disponible, pour l’entreprise et chaque portfolio" />
+            <BlocEnveloppes espace={esp} portfolios={r.org.portfolios.filter((x) => (x.espace || 'moi') === esp)} peutModifier={r.anime && !lecture} />
+          </>
+        );
+      }
+      case 'ecarts': {
+        const esp = p.reunion.espace || 'moi';
+        return (
+          <>
+            <TitreFiche icone="📈" titre="Écarts budgétaires" vide="" sous="Estimation à la fin au-dessus du prévu : réviser, réduire le périmètre, ou accepter (motif)" />
+            <BlocEcarts
+              epics={epics}
+              h={e.h}
+              org={r.org}
+              espace={esp}
+              peutDecider={r.anime && !lecture}
+              onDecision={(ep, texte) => noterDecision(`ecart:${ep.id}`, ep.id, texte)}
+              onReduire={(ep, ecart) => {
+                r.noter({ personne: r.mail, type: 'action', texte: `Réduire le périmètre de « ${ep.titre} » (écart de ${Math.round(ecart).toLocaleString('fr-FR')} €)`, element: ep.id });
+              }}
+            />
+          </>
+        );
+      }
       case 'budget_simple':
         return (
           <>
@@ -784,7 +831,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
       case 'notes':
         return (
           <>
-            <TitreFiche icone="📝" titre={et.titre ?? 'Mes notes'} vide="" sous="Blocages, décisions, actions : ils arrivent chez l’animateur" />
+            <TitreFiche icone="📝" titre={et.titre ?? 'Mes notes'} vide="" sous="Informations, blocages, décisions, actions : elles arrivent chez l’animateur" />
             <BlocPoints r={r} titre={et.titre ?? 'Mes notes'} points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={[]} />
           </>
         );

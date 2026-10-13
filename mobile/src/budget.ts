@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import { addDays, toDateString } from './dates';
 import { estOuvre } from './series';
-import { CATEGORIES_DEPENSE, type CoutPersonne, type DemandeBudget, DECISIONS_DOSSIER, type Depense, type DossierInvestissement, type Echange, type Epic, PERIODES_DEPENSE } from './types';
+import { CATEGORIES_DEPENSE, type CoutPersonne, type DemandeBudget, DECISIONS_DOSSIER, type Depense, type DossierInvestissement, type Echange, type Enveloppe, type Epic, PERIODES_DEPENSE } from './types';
 
 /**
  * 💶 Budget (lot 1, conception validée le 09/10, docs/maquette-budget.html).
@@ -17,6 +17,7 @@ export interface BudgetEspace {
   couts: CoutPersonne[];
   demandes?: DemandeBudget[];
   dossiers?: DossierInvestissement[];
+  enveloppes?: Enveloppe[];
   /** Le Sheet Budget existe et vous est accessible */
   accessible: boolean;
 }
@@ -27,6 +28,9 @@ export interface BudgetValue {
   couts: Map<string, string>;
   depenses: Depense[];
   demandes: DemandeBudget[];
+  /** 13/10 : enveloppes des niveaux (Comité budgétaire) */
+  enveloppes: Enveloppe[];
+  ecrireEnveloppe: (espace: string, niveau: string, annee: string, montant: string) => Promise<void>;
   /** Lot 5 : dossiers d'investissement des epics (clé : id de l'epic) */
   dossiers: Map<string, DossierInvestissement>;
   /** Crée ou complète le dossier d'une epic (Sheet Budget de l'entreprise) */
@@ -49,6 +53,8 @@ export const BUDGET_VIDE: BudgetValue = {
   depenses: [],
   demandes: [],
   dossiers: new Map(),
+  enveloppes: [],
+  ecrireEnveloppe: async () => {},
   ecrireDossier: async () => {
     throw new Error('Budget indisponible.');
   },
@@ -66,7 +72,7 @@ export const BudgetContext = createContext<BudgetValue>(BUDGET_VIDE);
 export const useBudget = () => useContext(BudgetContext);
 
 /** Assemble le contexte à partir des budgets chargés */
-export function valeurBudget(parEspace: Record<string, BudgetEspace>, actions: Pick<BudgetValue, 'ecrireDepense' | 'supprimerDepense' | 'ecrireCout' | 'soumettreDemande' | 'deciderDemande' | 'confirmerDemande' | 'ecrireDossier' | 'soumettreDossier'>): BudgetValue {
+export function valeurBudget(parEspace: Record<string, BudgetEspace>, actions: Pick<BudgetValue, 'ecrireDepense' | 'supprimerDepense' | 'ecrireCout' | 'soumettreDemande' | 'deciderDemande' | 'confirmerDemande' | 'ecrireDossier' | 'soumettreDossier' | 'ecrireEnveloppe'>): BudgetValue {
   const all = Object.values(parEspace);
   return {
     parEspace,
@@ -74,6 +80,7 @@ export function valeurBudget(parEspace: Record<string, BudgetEspace>, actions: P
     depenses: all.flatMap((b) => b.depenses),
     demandes: all.flatMap((b) => b.demandes ?? []),
     dossiers: new Map(all.flatMap((b) => (b.dossiers ?? []).map((d) => [d.id, d] as [string, DossierInvestissement]))),
+    enveloppes: all.flatMap((b) => b.enveloppes ?? []),
     ...actions,
   };
 }
@@ -125,12 +132,13 @@ export function reunionDuNiveau(niveau: string, simple = false): string {
 export function gerantsBudget(niveau: string, org: OrgDemande, simple = false): string[] {
   const [k, id] = [niveau.slice(0, niveau.indexOf(':')), niveau.slice(niveau.indexOf(':') + 1)];
   const mail = (pid?: string) => (pid ? (org.personne.get(pid)?.email ?? '').toLowerCase() : '');
-  const ids = simple
+  // Entreprise (les deux modes) : responsable de la direction de premier niveau
+  const ids = k === 'entreprise'
+    ? (org.unites ?? []).filter((u) => !u.parent && (u.espace || 'moi') === id).map((u) => u.responsable)
+    : simple
     ? k === 'equipeagile'
       ? [org.equipe.get(id)?.sm || org.equipe.get(id)?.po]
-      : k === 'entreprise'
-        ? (org.unites ?? []).filter((u) => !u.parent && (u.espace || 'moi') === id).map((u) => u.responsable)
-        : []
+      : []
     : k === 'equipeagile' ? [org.equipe.get(id)?.sm] : k === 'train' ? [org.train.get(id)?.rte, org.train.get(id)?.pm] : k === 'portfolio' ? [org.portfolio.get(id)?.epic_owner] : [];
   return [...new Set(ids.map(mail).filter(Boolean))];
 }
@@ -277,4 +285,35 @@ export function libelleDecisionDossier(d?: DossierInvestissement): string {
   const q = DECISIONS_DOSSIER.find((x) => x.value === d.decision);
   const le = d.decide_le ? ` le ${Number(d.decide_le.slice(8, 10))}/${d.decide_le.slice(5, 7)}` : '';
   return `${q?.fait ?? d.decision}${le}${d.decide_a ? ` · ${d.decide_a}` : ''}`;
+}
+
+// ---------------------------------------------------------------------------
+// 💶 Enveloppe · Engagé · Disponible (validé le 13/10) : l'enveloppe d'un niveau pour l'année ; Engagé = budgets
+// prévus des epics lancées du niveau + demandes accordées par le niveau (sur l'année) ; pour l'entreprise, les
+// enveloppes données à ses portfolios. Disponible = Enveloppe − Engagé.
+// ---------------------------------------------------------------------------
+const LANCEE = new Set(['lancer', 'continuer', 'changer']);
+/** Montant d'une demande accordée sur une année : ponctuel tel quel, par mois × 12, par an × 1 */
+const surAnnee = (d: DemandeBudget) => nombre(d.montant_accorde || d.montant) * (d.periode === 'mois' ? 12 : 1);
+export function situationEnveloppe(
+  niveau: string,
+  annee: string,
+  c: { enveloppes: Enveloppe[]; dossiers: Map<string, DossierInvestissement>; demandes: DemandeBudget[]; epics: Epic[]; portfoliosDe?: (espace: string) => string[] },
+) {
+  const env = c.enveloppes.find((x) => x.niveau === niveau && x.annee === annee);
+  const [k, id] = [niveau.slice(0, niveau.indexOf(':')), niveau.slice(niveau.indexOf(':') + 1)];
+  const epicsLancees =
+    k === 'portfolio'
+      ? avecDossiers(c.epics.filter((e) => e.portfolio === id), c.dossiers).filter((e) => {
+          const d = c.dossiers.get(e.id)?.decision;
+          return d ? LANCEE.has(d) : e.etat === 'pret' || e.etat === 'en_cours';
+        })
+      : [];
+  const projets = epicsLancees.reduce((s, e) => s + nombre(e.budget), 0);
+  const accordees = c.demandes.filter((d) => d.destination === niveau && d.statut === 'accordee' && (d.du || '').slice(0, 4) <= annee && (!d.au || d.au.slice(0, 4) >= annee));
+  const demandes = accordees.reduce((s, d) => s + surAnnee(d), 0);
+  const sousEnveloppes = k === 'entreprise' && c.portfoliosDe ? c.portfoliosDe(id).reduce((s, p) => s + nombre(c.enveloppes.find((x) => x.niveau === `portfolio:${p}` && x.annee === annee)?.montant), 0) : 0;
+  const engage = projets + demandes + sousEnveloppes;
+  const enveloppe = env ? nombre(env.montant) : 0;
+  return { enveloppe, defini: !!env, engage, disponible: enveloppe - engage, projets, demandes, sousEnveloppes, epicsLancees };
 }

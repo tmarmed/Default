@@ -197,7 +197,13 @@ dossiers d'investissement soumis dans le Chat (« 📨 Soumettre pour décision 
 Revue du portfolio) ; décisions directes en séance → note « Décision prise » (close). Plus suivi : fait.
 Fait aussi (13/10) : notes fermées hors sprint supprimées à l'envoi du compte rendu de la réunion suivante de la même
 série (base.tsx, pointsFinis) ; Daily « Aujourd'hui » : tâches en cours reprises d'office (cochées, décochables) et en tête, « Blocages toujours ouverts » des dailies précédents rappelés.
-Validé (13/10), à coder avec les enveloppes et le Comité budgétaire : étape « 📈 Écarts budgétaires »
+Codé (13/10) : enveloppes (onglet Enveloppes du Sheet Budget, situationEnveloppe : Engagé = budgets prévus des
+epics lancées + demandes accordées sur l'année ; entreprise = enveloppes des portfolios ; affichées au Pilotage du
+portfolio et dans « Accorder », alerte si dépassement) ; réunion 🏛️ Comité budgétaire (comite_budget, niveau
+« unite:<direction> », janvier et juillet, responsable anime, Epic Owners participent : Enveloppes, Écarts,
+Concrétisation avec les demandes des portfolios) ; étape « 📈 Écarts budgétaires » (BlocEcarts) dans le Comité, la
+Synchronisation du portfolio et la Revue du mois (Simple). Reste : enveloppes des trains au Budget participatif.
+Étape « 📈 Écarts budgétaires »
 (Synchronisation du portfolio à chaque sprint, Comité budgétaire à la révision de mi-année ; Simple : Revue du mois de
 l'entreprise) : par epic en écart, Réviser le budget prévu (→ demande), Réduire le périmètre (→ note d'action),
 Accepter l'écart (motif). En cours de conception : refonte de la feuille « Concrétiser » (suivi, type, affectation).

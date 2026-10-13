@@ -519,6 +519,7 @@ export type TypeReunion =
   | 'sync_portfolio'
   | 'budget'
   | 'iteration_ip'
+  | 'comite_budget'
   | 'point_perso'
   | 'bilan_soir'
   | 'revue_semaine'
@@ -608,9 +609,10 @@ export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
   revue_okr: { icone: '🎯', libelle: 'Revue des OKR', mode: 'safe', niveau: 'portfolio', role: 'epic_owner', duree: 60, etapes: ['OKR par OKR', 'Statut', 'Compte rendu'] },
   affinage_train: { icone: '🪄', libelle: 'Affinage du backlog du train', mode: 'safe', niveau: 'train', role: 'pm', duree: 60, etapes: ['Situation', 'Features à préparer', 'Feature', 'Concrétisation', 'Compte rendu'] },
   prepa_pi: { icone: '🧭', libelle: 'Préparation du PI Planning', mode: 'safe', niveau: 'train', role: 'rte', duree: 90, etapes: ['Situation', 'Vision', 'Features du PI', 'Capacité', 'Dépendances', 'Organisation', 'Concrétisation', 'Compte rendu'] },
-  sync_portfolio: { icone: '🔄', libelle: 'Synchronisation du portfolio', mode: 'safe', niveau: 'portfolio', role: 'epic_owner', duree: 45, etapes: ['Situation', 'Epics en cours', 'Escalades des trains', 'Concrétisation', 'Compte rendu'] },
+  sync_portfolio: { icone: '🔄', libelle: 'Synchronisation du portfolio', mode: 'safe', niveau: 'portfolio', role: 'epic_owner', duree: 45, etapes: ['Situation', 'Epics en cours', 'Escalades des trains', 'Écarts', 'Concrétisation', 'Compte rendu'] },
   budget: { icone: '💶', libelle: 'Budget participatif', mode: 'safe', niveau: 'portfolio', role: 'epic_owner', duree: 120, etapes: ['Situation', 'Demandes', 'Vote', 'Répartition', 'Concrétisation', 'Compte rendu'] },
   iteration_ip: { icone: '💡', libelle: 'Semaine IP', mode: 'safe', niveau: 'train', role: 'rte', duree: 60, etapes: ['Situation', 'Programme', 'Hackathon', 'Formation', 'Concrétisation', 'Compte rendu'] },
+  comite_budget: { icone: '🏛️', libelle: 'Comité budgétaire', mode: 'safe', niveau: 'entreprise', role: 'epic_owner', duree: 120, etapes: ['Situation', 'Enveloppes', 'Écarts', 'Concrétisation', 'Compte rendu'] },
   point_perso: { icone: '🌅', libelle: 'Point perso', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Hier', "Aujourd'hui", 'Plan figé'] },
   bilan_soir: { icone: '🌙', libelle: 'Bilan du soir', mode: 'simple', niveau: 'perso', role: 'moi', duree: 10, etapes: ['Prévu / fait', 'Pas fini'] },
   revue_semaine: { icone: '📆', libelle: 'Revue de la semaine', mode: 'simple', niveau: 'perso', role: 'moi', duree: 30, etapes: ['Semaine écoulée', 'En retard', 'Priorités'] },
@@ -619,7 +621,7 @@ export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
   point_annuel: { icone: '🎆', libelle: 'Point annuel', mode: 'simple', niveau: 'perso', role: 'moi', duree: 60, etapes: ["Bilan de l'année", 'Garder · arrêter · commencer', "Objectifs de l'année", 'Domaines', "Budget de l'année", 'Fin'] },
   point_equipe: { icone: '☀️', libelle: 'Point d’équipe', mode: 'simple', niveau: 'equipe', role: 'sm', duree: 15, etapes: ['Situation', 'Tâches', 'Concrétisation', 'Compte rendu'] },
   semaine_equipe: { icone: '📆', libelle: 'Revue de la semaine', mode: 'simple', niveau: 'equipe', role: 'sm', duree: 30, etapes: ['Situation', 'En retard', 'Priorités', 'Concrétisation', 'Compte rendu'] },
-  revue_mois: { icone: '🧭', libelle: 'Revue du mois', mode: 'simple', niveau: 'equipe', role: 'sm', duree: 45, etapes: ['Situation', 'Objectifs', 'Budget', 'Concrétisation', 'Compte rendu'] },
+  revue_mois: { icone: '🧭', libelle: 'Revue du mois', mode: 'simple', niveau: 'equipe', role: 'sm', duree: 45, etapes: ['Situation', 'Objectifs', 'Budget', 'Écarts', 'Concrétisation', 'Compte rendu'] },
   trimestre_simple: { icone: '🗂️', libelle: 'Revue du trimestre', mode: 'simple', niveau: 'equipe', role: 'sm', duree: 60, etapes: ['Situation', 'Objectifs', 'Budget', 'Concrétisation', 'Compte rendu'] },
   bilan_annuel: { icone: '🎆', libelle: 'Bilan annuel', mode: 'simple', niveau: 'equipe', role: 'sm', duree: 90, etapes: ['Situation', 'Garder · arrêter · commencer', 'Objectifs', 'Budget', 'Concrétisation', 'Compte rendu'] },
   annuel_entreprise: { icone: '🎆', libelle: 'Point annuel', mode: 'simple', niveau: 'entreprise', role: 'sm', duree: 120, etapes: ['Situation', 'Garder · arrêter · commencer', 'Objectifs', 'Budget de l’année', 'Concrétisation', 'Compte rendu'] },
@@ -823,6 +825,21 @@ export interface DossierInvestissement {
   decide_a: string;
   /** Décidé depuis le Chat (« 1 ») : mis en avant à la Revue du portfolio suivante jusqu'à « Confirmer » (« 2 ») */
   hors_reunion?: string;
+  modifie_le: string;
+}
+
+/**
+ * 💶 Enveloppe d'un niveau pour une année (13/10) : fixée au Comité budgétaire (portfolios) ou par le niveau du
+ * dessus. Onglet Enveloppes du Sheet Budget ; id = « niveau|année ». Engagé et Disponible sont calculés (src/budget.ts).
+ */
+export interface Enveloppe {
+  espace?: string;
+  id: string;
+  /** « portfolio:<id> », « train:<id> », « entreprise:<espace> »… */
+  niveau: string;
+  /** AAAA */
+  annee: string;
+  montant: string;
   modifie_le: string;
 }
 

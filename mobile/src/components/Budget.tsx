@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { avecDossiers, cleDe, type Decision, libelleDecisionDossier, manquesDossier, depensesDe, iconeCategorie, libellePeriode, libelleStatutDemande, resumeDepense, useBudget } from '../budget';
+import { avecDossiers, situationEnveloppe, cleDe, type Decision, libelleDecisionDossier, manquesDossier, depensesDe, iconeCategorie, libellePeriode, libelleStatutDemande, resumeDepense, useBudget } from '../budget';
 import { coutJour, euros, joursOuvresAnnee } from '../pilotage';
 import { colors } from '../theme';
 import { useSafe } from '../safe';
 import { CATEGORIES_DEPENSE, type CleRepartition, type DemandeBudget, type Depense, DECISIONS_DOSSIER, type DecisionDossier, type DossierInvestissement, type Epic, PERIODES_DEPENSE, type PeriodeDepense } from '../types';
 import { ChampFiche, SaisieFiche, SectionFiche } from './Choix';
 import { DateField } from './DateField';
+import { useHierarchy } from '../hierarchyContext';
+import { useOrg } from '../organisation';
 import { consommeReel, type CtxConsomme } from '../consomme';
 import type { OrgValue } from '../organisation';
 
@@ -369,6 +371,7 @@ function DecisionDemande({ d, premiere, peutDecider, plusHaut, onDecider, nomDe 
       </View>
       {peutDecider && (
         <>
+          <LigneEnveloppe niveau={d.destination} apres={(Number(montant.replace(',', '.')) || 0) * (d.periode === 'mois' ? 12 : 1)} />
           <View style={[s.actions, { flexWrap: 'wrap', alignItems: 'center' }]}>
             <SaisieFiche style={s.pctSaisie} value={montant} onChangeText={(v) => setMontant(v.replace(/[^0-9.,]/g, ''))} keyboardType="decimal-pad" accessibilityLabel="Montant accordé" />
             <Pressable onPress={() => onDecider({ choix: 'accorder', montant: Number(montant.replace(',', '.')) || Number(d.montant) })} style={s.btn} accessibilityRole="button">
@@ -655,6 +658,159 @@ export function BlocPrepDossiers({ epics }: { epics: Epic[] }) {
         );
       })}
       {!l.length && <Text style={[s.sous, s.pad]}>Aucun dossier à préparer.</Text>}
+    </SectionFiche>
+  );
+}
+
+/** Enveloppe · Engagé · Disponible d'un niveau pour l'année (13/10) ; `apres` : montant qu'on s'apprête à accorder */
+export function useEnveloppe(niveau: string, annee = String(new Date().getFullYear())) {
+  const b = useBudget();
+  const h = useHierarchy();
+  const org = useOrg();
+  return situationEnveloppe(niveau, annee, { enveloppes: b.enveloppes, dossiers: b.dossiers, demandes: b.demandes, epics: h.epicList, portfoliosDe: (esp) => org.portfolios.filter((p) => (p.espace || 'moi') === esp).map((p) => p.id) });
+}
+export function LigneEnveloppe({ niveau, apres = 0 }: { niveau: string; apres?: number }) {
+  const x = useEnveloppe(niveau);
+  if (!x.defini) return <Text style={[s.sous, { paddingHorizontal: 14 }]}>Pas d’enveloppe pour {new Date().getFullYear()} ({niveau.startsWith('train:') || niveau.startsWith('equipeagile:') ? 'à fixer par le niveau du dessus, au Budget participatif' : 'à fixer au Comité budgétaire'}).</Text>;
+  const reste = x.disponible - apres;
+  return (
+    <Text style={[s.sous, { paddingHorizontal: 14 }, reste < 0 ? { color: '#B3261E' } : null]}>
+      Enveloppe {euros(x.enveloppe)} · Engagé {euros(x.engage)} · Disponible {euros(x.disponible)}
+      {apres ? ` · après cet accord : ${euros(reste)}${reste < 0 ? ' (dépasse l’enveloppe)' : ''}` : ''}
+    </Text>
+  );
+}
+
+/**
+ * 🏛️ Comité budgétaire (13/10) : l'enveloppe de l'année de l'entreprise et de chacun de ses portfolios ; Engagé et
+ * Disponible de chacun. Enregistré à la sortie du champ (Sheet Budget, onglet Enveloppes).
+ */
+export function BlocEnveloppes({ espace, portfolios, peutModifier }: { espace: string; portfolios: { id: string; nom: string }[]; peutModifier: boolean }) {
+  const b = useBudget();
+  const annee = String(new Date().getFullYear());
+  const [saisies, setSaisies] = useState<Record<string, string>>({});
+  const [err, setErr] = useState('');
+  const niveaux = [{ niveau: `entreprise:${espace}`, nom: '🏢 Entreprise (total)' }, ...portfolios.map((p) => ({ niveau: `portfolio:${p.id}`, nom: `💼 ${p.nom}` }))];
+  const actuel = (n: string) => b.enveloppes.find((x) => x.niveau === n && x.annee === annee)?.montant ?? '';
+  const ecrire = (n: string) => {
+    const v = saisies[n];
+    if (v === undefined || v === actuel(n)) return;
+    setErr('');
+    b.ecrireEnveloppe(espace, n, annee, v).catch((x: Error) => setErr(`Non enregistré : ${x.message}`));
+  };
+  return (
+    <SectionFiche titre={`💶 Enveloppes ${annee}`}>
+      {niveaux.map((x, i) => (
+        <View key={x.niveau} style={i > 0 ? s.bord : undefined}>
+          <ChampFiche label={x.nom}>
+            <SaisieFiche
+              placeholder="Ex. 500000"
+              value={saisies[x.niveau] ?? actuel(x.niveau)}
+              editable={peutModifier}
+              onChangeText={(v) => setSaisies((m) => ({ ...m, [x.niveau]: v.replace(/[^0-9.,]/g, '') }))}
+              onBlur={() => ecrire(x.niveau)}
+              onEndEditing={() => ecrire(x.niveau)}
+              keyboardType="decimal-pad"
+              accessibilityLabel={`Enveloppe ${x.nom}`}
+            />
+          </ChampFiche>
+          <LigneEnveloppe niveau={x.niveau} />
+        </View>
+      ))}
+      <Text style={[s.sous, s.pad]}>Engagé : budgets prévus des epics lancées + demandes accordées ; pour l’entreprise, les enveloppes données aux portfolios. Disponible = Enveloppe − Engagé.</Text>
+      {!!err && <Text style={s.err}>{err}</Text>}
+    </SectionFiche>
+  );
+}
+
+/**
+ * 📈 Écarts budgétaires (13/10) : epics dont l'estimation à la fin dépasse le budget prévu. Trois choix : Réviser le
+ * budget prévu (nouveau montant, écrit tout de suite, trace « Décision prise ») ; Réduire le périmètre (note d'action à
+ * concrétiser) ; Accepter l'écart (motif obligatoire, trace « Décision prise »).
+ */
+export function BlocEcarts({ epics, h, org, espace, peutDecider, onDecision, onReduire }: { epics: Epic[]; h: CtxConsomme['h']; org: OrgValue; espace: string; peutDecider: boolean; onDecision: (e: Epic, texte: string) => void; onReduire: (e: Epic, ecart: number) => void }) {
+  const b = useBudget();
+  const today = new Date().toISOString().slice(0, 10);
+  const ed = avecDossiers(epics, b.dossiers);
+  const conso = consommeReel({ org, h: { ...h, epicList: avecDossiers(h.epicList, b.dossiers) }, couts: b.couts, depenses: b.depenses, today });
+  const lignes = ed
+    .map((e) => {
+      const d = conso.detail(e);
+      const fin = Number(b.dossiers.get(e.id)?.estimation_fin) || d.estimationFin;
+      return { e, prevu: Number(e.budget) || 0, fin, consomme: d.consomme };
+    })
+    // Seulement les epics lancées (dossier) ou déjà prêtes / en cours : une idée n'a pas d'écart à traiter
+    .filter((x) => x.prevu > 0 && x.fin > x.prevu && (['lancer', 'continuer', 'changer'].includes(b.dossiers.get(x.e.id)?.decision ?? '') || x.e.etat === 'pret' || x.e.etat === 'en_cours'));
+  const [choix, setChoix] = useState<Record<string, { c: 'reviser' | 'reduire' | 'accepter'; v: string }>>({});
+  const [faits, setFaits] = useState<Record<string, string>>({});
+  const [err, setErr] = useState('');
+  const valider = async (x: (typeof lignes)[number]) => {
+    const c = choix[x.e.id];
+    if (!c) return;
+    setErr('');
+    try {
+      if (c.c === 'reviser') {
+        if (!(Number(c.v.replace(',', '.')) > 0)) throw new Error('Nouveau budget prévu en euros.');
+        await b.ecrireDossier(espace, { id: x.e.id, budget_prevu: c.v });
+        onDecision(x.e, `Budget prévu de « ${x.e.titre} » révisé : ${euros(x.prevu)} → ${euros(Number(c.v.replace(',', '.')))}`);
+      } else if (c.c === 'reduire') onReduire(x.e, x.fin - x.prevu);
+      else {
+        if (!c.v.trim()) throw new Error('Motif obligatoire pour accepter l’écart.');
+        onDecision(x.e, `Écart de « ${x.e.titre} » accepté (+${euros(x.fin - x.prevu)}) : ${c.v.trim()}`);
+      }
+      setFaits((m) => ({ ...m, [x.e.id]: c.c === 'reviser' ? 'Budget révisé' : c.c === 'reduire' ? 'Périmètre à réduire (note à concrétiser)' : 'Écart accepté' }));
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  };
+  return (
+    <SectionFiche titre={`📈 Écarts budgétaires · ${lignes.length}`}>
+      {lignes.map((x, i) => {
+        const c = choix[x.e.id];
+        return (
+          <View key={x.e.id} style={[s.pad, i > 0 && s.bord]}>
+            <Text style={s.texte}>🗂️ {x.e.titre}</Text>
+            <Text style={[s.sous, { color: '#B3261E' }]}>Prévu {euros(x.prevu)} · Consommé réel {euros(x.consomme)} · Estimation à la fin {euros(x.fin)} (+{euros(x.fin - x.prevu)})</Text>
+            {faits[x.e.id] ? (
+              <Text style={[s.sous, { color: colors.success }]}>✓ {faits[x.e.id]}</Text>
+            ) : (
+              peutDecider && (
+                <>
+                  <View style={[s.actions, { paddingHorizontal: 0, flexWrap: 'wrap' }]}>
+                    {(
+                      [
+                        ['reviser', 'Réviser le budget prévu'],
+                        ['reduire', 'Réduire le périmètre'],
+                        ['accepter', 'Accepter l’écart'],
+                      ] as const
+                    ).map(([v, l]) => (
+                      <Pressable key={v} onPress={() => setChoix((m) => ({ ...m, [x.e.id]: { c: v, v: v === 'reviser' ? String(Math.ceil(x.fin)) : '' } }))} style={[s.puce, c?.c === v && s.puceOn]} accessibilityRole="radio">
+                        <Text style={[s.puceTexte, c?.c === v && s.puceTexteOn]}>{l}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  {c && c.c !== 'reduire' && (
+                    <SaisieFiche
+                      placeholder={c.c === 'reviser' ? 'Nouveau budget prévu (€)' : 'Motif (obligatoire)'}
+                      value={c.v}
+                      onChangeText={(v) => setChoix((m) => ({ ...m, [x.e.id]: { ...c, v: c.c === 'reviser' ? v.replace(/[^0-9.,]/g, '') : v } }))}
+                      keyboardType={c.c === 'reviser' ? 'decimal-pad' : 'default'}
+                      accessibilityLabel={c.c === 'reviser' ? 'Nouveau budget prévu' : 'Motif'}
+                    />
+                  )}
+                  {c && (
+                    <Pressable onPress={() => void valider(x)} style={[s.btn, { alignSelf: 'flex-start', marginTop: 8 }]} accessibilityRole="button">
+                      <Text style={s.btnTexte}>Valider</Text>
+                    </Pressable>
+                  )}
+                </>
+              )
+            )}
+          </View>
+        );
+      })}
+      {!lignes.length && <Text style={[s.sous, s.pad]}>✓ Aucun écart : toutes les estimations à la fin tiennent dans le prévu.</Text>}
+      {!!err && <Text style={s.err}>{err}</Text>}
     </SectionFiche>
   );
 }

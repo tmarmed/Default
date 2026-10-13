@@ -2,7 +2,7 @@ import type { SerieReunion } from './series';
 import { DEMO, demoApiFor } from './demo';
 import type { EntiteOrg, KindOrg, Org } from './organisation';
 import { adopterFichier, corbeille, creerFichierEspace, effacerFichier, fichierBudget, fichiersCorbeille, fichiersEspaces, magasinSheets, poidsFichiers, quotaDrive, renommerFichier } from './gsheets';
-import type { Conge, CoutPersonne, DemandeBudget, Depense, DossierInvestissement, JoursReels } from './types';
+import type { Conge, CoutPersonne, DemandeBudget, Depense, DossierInvestissement, Enveloppe, JoursReels } from './types';
 import type { Data, DeletionCounts } from './hierarchy';
 import type { EquipeEspace, Magasin, PieceEntree, PieceJointe } from './magasin';
 export type { PieceEntree, PieceJointe } from './magasin';
@@ -313,12 +313,17 @@ async function routeBudget(espace: string, titre: string, creer: boolean) {
   }
   return f ? magasinSheets(f) : null;
 }
-export async function lireBudget(espace: string): Promise<{ depenses: Depense[]; couts: CoutPersonne[]; demandes: DemandeBudget[]; dossiers: DossierInvestissement[]; accessible: boolean }> {
+export async function lireBudget(espace: string): Promise<{ depenses: Depense[]; couts: CoutPersonne[]; demandes: DemandeBudget[]; dossiers: DossierInvestissement[]; enveloppes: Enveloppe[]; accessible: boolean }> {
   const m = await routeBudget(espace, '', false);
-  if (!m) return { depenses: [], couts: [], demandes: [], dossiers: [], accessible: false };
+  if (!m) return { depenses: [], couts: [], demandes: [], dossiers: [], enveloppes: [], accessible: false };
   const r = await m.lireBudget();
   const avec = <T,>(l: T[]) => l.map((x) => ({ ...x, espace }));
-  return { depenses: avec(r.depenses), couts: avec(r.couts), demandes: avec(r.demandes), dossiers: avec(r.dossiers), accessible: true };
+  return { depenses: avec(r.depenses), couts: avec(r.couts), demandes: avec(r.demandes), dossiers: avec(r.dossiers), enveloppes: avec(r.enveloppes), accessible: true };
+}
+export async function ecrireEnveloppe(espace: string, titre: string, niveau: string, annee: string, montant: string): Promise<Enveloppe | null> {
+  const m = await routeBudget(espace, titre, true);
+  const o = await m!.ecrireEnveloppe(niveau, annee, montant);
+  return o ? { ...o, espace } : null;
 }
 export async function ecrireDossier(espace: string, titre: string, d: Partial<DossierInvestissement> & { id: string }): Promise<DossierInvestissement> {
   const m = await routeBudget(espace, titre, true);

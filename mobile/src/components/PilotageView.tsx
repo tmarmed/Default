@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { libelleNote } from '../daily';
-import { BlocBudgetSimple } from './Budget';
+import { BlocBudgetSimple, LigneEnveloppe } from './Budget';
 import { avecDossiers, libelleStatutDemande, reunionDuNiveau, useBudget } from '../budget';
 import { consommeReel } from '../consomme';
 import { useHierarchy } from '../hierarchyContext';
@@ -258,6 +258,8 @@ export function PilotageView({
               <Compteur valeur={eurosCourt(x.budget.consomme)} libelle="Consommé réel" />
               <Compteur valeur={eurosCourt(x.budget.estimationFin)} libelle="Estimation à la fin" ton={x.budget.prevu && x.budget.estimationFin > x.budget.prevu ? 'rouge' : undefined} />
             </View>
+            {/* 13/10 : enveloppe de l'année (Comité budgétaire) */}
+            <LigneEnveloppe niveau={`portfolio:${n.id}`} />
             {x.budget.epics.map((y, i) => {
               const d = y.d!;
               const ecart = y.prevu ? d.estimationFin - y.prevu : 0;

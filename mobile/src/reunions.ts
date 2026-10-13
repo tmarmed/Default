@@ -58,6 +58,7 @@ const CADENCE: Record<TypeReunion, { heure: string; repetition: RepetitionReunio
   sync_portfolio: { heure: '11:00', repetition: 'iteration' },
   budget: { heure: '09:00', repetition: 'pi' },
   iteration_ip: { heure: '10:00', repetition: 'pi' },
+  comite_budget: { heure: '09:00', repetition: 'trimestrielle' },
   point_perso: { heure: '08:30', repetition: 'quotidienne' },
   bilan_soir: { heure: '18:30', repetition: 'quotidienne' },
   revue_semaine: { heure: '08:00', repetition: 'hebdomadaire' },
@@ -92,6 +93,8 @@ export const REGLES: Record<TypeReunion, Pick<SerieReunion, 'unite'> & Partial<S
   // Budget participatif : chaque semestre (un PI sur deux, à partir de celui de janvier)
   budget: { unite: 'pi', ancre: 'debut', tous: '2', debut: '2026-01-15' },
   iteration_ip: { unite: 'pi', ancre: 'ip' },
+  // Comité budgétaire (13/10) : en janvier (budget de l'année) et en juillet (révision de mi-année)
+  comite_budget: { unite: 'trimestre', ancre: 'debut', tous: '2', debut: '2026-01-01' },
   point_perso: { unite: 'jour' },
   bilan_soir: { unite: 'jour' },
   revue_semaine: { unite: 'semaine', jours: '1' },
@@ -214,6 +217,13 @@ export function seriesDe(org: OrgValue, moi: string, safeActif: boolean, stockee
         ajouter('prepa_pi', niveau, orgaTrain(t, 'rte'), t.espace, cal);
       }
     }
+    // Comité budgétaire (13/10) : direction de premier niveau de l'entreprise ; son responsable anime, les Epic Owners
+    // des portfolios participent
+    for (const u of org.unites.filter((x) => !x.parent && (est(x.responsable) || org.portfolios.some((p) => (p.espace || 'moi') === (x.espace || 'moi') && est(p.epic_owner))))) {
+      const niveau = `unite:${u.id}`;
+      niveaux.add(niveau);
+      ajouter('comite_budget', niveau, emailDe(u.responsable), u.espace, calendrierCourant());
+    }
     for (const p of portfolios) {
       const niveau = `portfolio:${p.id}`;
       niveaux.add(niveau);
@@ -333,7 +343,9 @@ export function participantsReunion(r: Pick<Reunion, 'type' | 'niveau'> & { part
   } else if (n.kind === 'unite') {
     // Mode Simple, entreprise : le responsable de la direction et les responsables des équipes de l'entreprise
     const u = org.unite.get(n.id);
-    if (u) ids.push(u.responsable, ...org.equipes.filter((e) => (e.espace || 'moi') === (u.espace || 'moi')).flatMap((e) => [e.sm, e.po]));
+    // Comité budgétaire : le responsable et les Epic Owners ; mode Simple : les responsables des équipes
+    if (u && r.type === 'comite_budget') ids.push(u.responsable, ...org.portfolios.filter((p) => (p.espace || 'moi') === (u.espace || 'moi')).map((p) => p.epic_owner));
+    else if (u) ids.push(u.responsable, ...org.equipes.filter((e) => (e.espace || 'moi') === (u.espace || 'moi')).flatMap((e) => [e.sm, e.po]));
   }
   // Une même personne une seule fois (13/10) : deux fiches au même e-mail (ex. Scrum Master aussi membre, ou une
   // fiche par espace) ne font qu'un participant ; on garde la première (celle du rôle : SM, PO, puis membres)

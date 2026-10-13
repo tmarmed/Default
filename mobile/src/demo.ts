@@ -1,4 +1,4 @@
-import type { Conge, CoutPersonne, DemandeBudget, Depense, DossierInvestissement } from './types';
+import type { Conge, CoutPersonne, DemandeBudget, Depense, DossierInvestissement, Enveloppe } from './types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
 import { iterationOf, piOf, piStart, shiftPi } from './pi';
@@ -122,7 +122,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '39';
+const DEMO_DATA_VERSION = '40';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -321,7 +321,7 @@ function sampleEntities(): {
   };
 }
 
-type Seeds = { items: () => Item[]; entities: () => ReturnType<typeof sampleEntities>; org?: () => Org; points?: () => PointReunion[]; budget?: () => { depense: Depense[]; cout: CoutPersonne[]; demande: DemandeBudget[]; dossier?: DossierInvestissement[] }; conges?: () => Conge[] };
+type Seeds = { items: () => Item[]; entities: () => ReturnType<typeof sampleEntities>; org?: () => Org; points?: () => PointReunion[]; budget?: () => { depense: Depense[]; cout: CoutPersonne[]; demande: DemandeBudget[]; dossier?: DossierInvestissement[]; enveloppe?: Enveloppe[] }; conges?: () => Conge[] };
 
 /**
  * Stockage d'un espace de la démo (« moi » : clés historiques ; autres : « mes-taches:demo@<espace> »), avec
@@ -340,7 +340,7 @@ function creerStore(espace: string, seeds: Seeds) {
       for (const t of Object.keys(memoire) as Table[]) if (ev.key === null || ev.key === cle(t) || ev.key.endsWith(`~${cle(t)}`)) delete memoire[t];
     });
   const exemples = (t: Table): unknown[] =>
-    t === 'depense' || t === 'cout' || t === 'demande' || t === 'dossier' ? (seeds.budget?.()[t] ?? []) : t === 'conge' ? (seeds.conges?.() ?? []) : t === 'joursreels' ? [] : t === 'items' ? seeds.items() : t === 'pointreunion' ? (seeds.points?.() ?? []) : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : (seeds.entities()[t as Kind] ?? []);
+    t === 'depense' || t === 'cout' || t === 'demande' || t === 'dossier' || t === 'enveloppe' ? (seeds.budget?.()[t] ?? []) : t === 'conge' ? (seeds.conges?.() ?? []) : t === 'joursreels' ? [] : t === 'items' ? seeds.items() : t === 'pointreunion' ? (seeds.points?.() ?? []) : TABLES_ORG.includes(t as KindOrg) ? (seeds.org?.()[CLE_ORG[t as KindOrg]] ?? []) : (seeds.entities()[t as Kind] ?? []);
 
   const persistance: Persistance = {
     async lire(t) {
@@ -684,7 +684,7 @@ function joursOuvresAvant(jour: string, n: number): string {
  * 💶 Google Sheet « Budget » d'ACME (démo, 09/10) : coûts annuels des membres des équipes, et des dépenses de
  * chaque sorte (loyer de l'entreprise réparti par effectif, licence d'une epic, prestataire par jour, audit d'une feature)
  */
-export function budgetDemoEntreprise(): { depense: Depense[]; cout: CoutPersonne[]; demande: DemandeBudget[]; dossier: DossierInvestissement[] } {
+export function budgetDemoEntreprise(): { depense: Depense[]; cout: CoutPersonne[]; demande: DemandeBudget[]; dossier: DossierInvestissement[]; enveloppe: Enveloppe[] } {
   const stamp = new Date().toISOString();
   const debutAnnee = `${new Date().getFullYear()}-01-01`;
   const dans = (j: number) => toDateString(addDays(new Date(), j));
@@ -692,7 +692,13 @@ export function budgetDemoEntreprise(): { depense: Depense[]; cout: CoutPersonne
   const dem = (id: string, x: Partial<DemandeBudget>): DemandeBudget => ({ id, motif: '', montant: '0', periode: 'ponctuel', du: debutAnnee, au: '', pour: '', demandeur: '', destination: 'train:acmtr1', soumis_par: '', origine: '', statut: 'soumise', montant_accorde: '', motif_decision: '', decide_par: '', decide_le: '', hors_reunion: '', cree_le: stamp, modifie_le: stamp, ...x });
   const couts: [string, string][] = [['acmp6', '58000'], ['acmp7', '61000'], ['acmp8', '54000'], ['acmp9', '50000'], ['acmp10', '52000'], ['acmp11', '56000']];
   const dos = (id: string, x: Partial<DossierInvestissement>): DossierInvestissement => ({ id, hypothese: '', estimation: '', budget_prevu: '', budget_mvp: '', decision: '', decide_le: '', decide_par: '', decide_a: '', modifie_le: stamp, ...x });
+  const an = String(new Date().getFullYear());
   return {
+    // 💶 Enveloppes de l'année (Comité budgétaire) : entreprise et portfolio Digital
+    enveloppe: [
+      { id: `entreprise:demo-entreprise|${an}`, niveau: 'entreprise:demo-entreprise', annee: an, montant: '400000', modifie_le: stamp },
+      { id: `portfolio:acmpf1|${an}`, niveau: 'portfolio:acmpf1', annee: an, montant: '250000', modifie_le: stamp },
+    ],
     // 💼 Lot 5 : dossiers d'investissement (deux epics lancées, une idée à décider, MVP du CRM presque atteint)
     dossier: [
       dos('acme1', { hypothese: 'Un seul CRM fait gagner une demi-journée par semaine aux commerciaux', estimation: '60', budget_prevu: '80000', budget_mvp: '12000', decision: 'lancer', decide_le: dans(-30), decide_par: 'marc.petit@acme.example', decide_a: 'Revue du portfolio' }),

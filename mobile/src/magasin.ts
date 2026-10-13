@@ -4,7 +4,7 @@ import { COLONNES_SERIE, type SerieReunion } from './series';
 import { cleanLinks, type Data, type DeletionCounts, planDeletion } from './hierarchy';
 import { aPurger } from './stockage';
 import { cascadeLinks, checkParent } from './subtasks';
-import { CATEGORIES_DEPENSE, type DemandeBudget, type DossierInvestissement, DECISIONS_DOSSIER, type Conge, type JoursReels, NATURES_CONGE, type CoutPersonne, type Depense, PERIODES_DEPENSE, type Concretisation, type Domaine, type Echange, type Epic, type Feature, type Ignoree, type Item, type ItemInput, NATURES_ECHANGE, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, TYPES_POINT, type ValueStream } from './types';
+import { CATEGORIES_DEPENSE, type DemandeBudget, type DossierInvestissement, type Enveloppe, DECISIONS_DOSSIER, type Conge, type JoursReels, NATURES_CONGE, type CoutPersonne, type Depense, PERIODES_DEPENSE, type Concretisation, type Domaine, type Echange, type Epic, type Feature, type Ignoree, type Item, type ItemInput, NATURES_ECHANGE, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, TYPES_POINT, type ValueStream } from './types';
 import { CLE_ORG, type EntiteOrg, type EquipeAgile, type KindOrg, membresDe, type Org, type Personne } from './organisation';
 
 /**
@@ -19,7 +19,7 @@ export type TableBase = 'items' | Kind;
 /** Tables de l'Organisation (seulement dans le Google Sheet d'une entreprise, onglets créés au premier usage) */
 export type Table = TableBase | KindOrg | 'piecejointe' | 'pointreunion' | 'serie' | TableBudget | TableConges;
 /** Tables du Google Sheet « Budget » d'une entreprise (src/budget.ts) */
-export type TableBudget = 'depense' | 'cout' | 'demande' | 'dossier';
+export type TableBudget = 'depense' | 'cout' | 'demande' | 'dossier' | 'enveloppe';
 /** Congés et jours réels (lot 2, 09/10) : dans le Sheet de l'espace */
 export type TableConges = 'conge' | 'joursreels';
 export type EntityOf<K extends Kind> = K extends 'epic'
@@ -39,7 +39,7 @@ export type EntityOf<K extends Kind> = K extends 'epic'
               : K extends 'echange'
                 ? Echange
                 : Ignoree;
-type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : T extends 'piecejointe' ? LignePiece : T extends 'pointreunion' ? PointReunion : T extends 'serie' ? SerieReunion : T extends 'depense' ? Depense : T extends 'cout' ? CoutPersonne : T extends 'demande' ? DemandeBudget : T extends 'dossier' ? DossierInvestissement : T extends 'conge' ? Conge : T extends 'joursreels' ? JoursReels : never;
+type RowOf<T extends Table> = T extends 'items' ? Item : T extends Kind ? EntityOf<T> : T extends KindOrg ? EntiteOrg<T> : T extends 'piecejointe' ? LignePiece : T extends 'pointreunion' ? PointReunion : T extends 'serie' ? SerieReunion : T extends 'depense' ? Depense : T extends 'cout' ? CoutPersonne : T extends 'demande' ? DemandeBudget : T extends 'dossier' ? DossierInvestissement : T extends 'enveloppe' ? Enveloppe : T extends 'conge' ? Conge : T extends 'joursreels' ? JoursReels : never;
 /** Morceau d'une pièce jointe (onglet PiecesJointes) : une cellule contient au plus 50 000 caractères */
 export interface LignePiece {
   id: string;
@@ -123,6 +123,7 @@ export const ONGLETS_BUDGET: Record<TableBudget, { nom: string; colonnes: string
   cout: { nom: 'CoutsAnnuels', colonnes: ['id', 'cout_annuel', 'cree_le', 'modifie_le'] },
   demande: { nom: 'DemandesBudget', colonnes: ['id', 'motif', 'montant', 'periode', 'du', 'au', 'pour', 'demandeur', 'destination', 'soumis_par', 'origine', 'statut', 'montant_accorde', 'motif_decision', 'decide_par', 'decide_le', 'hors_reunion', 'cree_le', 'modifie_le'] },
   dossier: { nom: 'Dossiers', colonnes: ['id', 'hypothese', 'estimation', 'budget_prevu', 'budget_mvp', 'estimation_fin', 'decision', 'decide_le', 'decide_par', 'decide_a', 'hors_reunion', 'modifie_le'] },
+  enveloppe: { nom: 'Enveloppes', colonnes: ['id', 'niveau', 'annee', 'montant', 'modifie_le'] },
 };
 /** 📅 Congés et jours réels (lot 2, 09/10) : onglets du Sheet de l'espace, créés au premier usage */
 export const ONGLETS_CONGES: Record<TableConges, { nom: string; colonnes: string[] }> = {
@@ -847,9 +848,20 @@ export function creerMagasin(p: Persistance) {
       return out;
     },
     /** 💶 Budget : dépenses et coûts annuels (Google Sheet « Budget » de l'entreprise) */
-    async lireBudget(): Promise<{ depenses: Depense[]; couts: CoutPersonne[]; demandes: DemandeBudget[]; dossiers: DossierInvestissement[] }> {
-      const [depenses, couts, demandes, dossiers] = await Promise.all([p.lire('depense'), p.lire('cout'), p.lire('demande'), p.lire('dossier')]);
-      return { depenses, couts, demandes, dossiers };
+    async lireBudget(): Promise<{ depenses: Depense[]; couts: CoutPersonne[]; demandes: DemandeBudget[]; dossiers: DossierInvestissement[]; enveloppes: Enveloppe[] }> {
+      const [depenses, couts, demandes, dossiers, enveloppes] = await Promise.all([p.lire('depense'), p.lire('cout'), p.lire('demande'), p.lire('dossier'), p.lire('enveloppe')]);
+      return { depenses, couts, demandes, dossiers, enveloppes };
+    },
+    /** Enveloppe d'un niveau pour une année (créée ou remplacée ; montant vide = retirée) */
+    async ecrireEnveloppe(niveau: string, annee: string, montant: string): Promise<Enveloppe | null> {
+      const liste = await p.lire('enveloppe');
+      const id = `${niveau}|${annee}`;
+      const m = String(montant ?? '').replace(/\s/g, '').replace(',', '.');
+      if (m && !RE_NOMBRE.test(m)) throw new Error('Enveloppe : nombre en euros attendu.');
+      if (!RE_PORTEUR.test(niveau) || !/^\d{4}$/.test(annee)) throw new Error('Enveloppe : niveau ou année invalide.');
+      const o: Enveloppe = { id, niveau, annee, montant: m, modifie_le: new Date().toISOString() };
+      await p.ecrire('enveloppe', m ? [...liste.filter((x) => x.id !== id), o] : liste.filter((x) => x.id !== id));
+      return m ? o : null;
     },
     /** Dossier d'investissement d'une epic (créé ou complété ; id = id de l'epic) */
     async ecrireDossier(d: Partial<DossierInvestissement> & { id: string }): Promise<DossierInvestissement> {

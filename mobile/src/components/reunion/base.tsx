@@ -391,7 +391,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
   // niveau ; soumise au niveau du dessus à l'envoi du compte rendu (même circuit que les demandes de budget)
   const budgetCtx = useBudget();
   const simpleR = TYPES_REUNION[reunion.type]?.mode === 'simple';
-  const niveauBudget = e.niveauIci ? (simpleR && e.niveauIci.kind === 'unite' ? `entreprise:${org.unite.get(e.niveauIci.id)?.espace || 'moi'}` : `${e.niveauIci.kind}:${e.niveauIci.id}`) : '';
+  const niveauBudget = e.niveauIci ? (e.niveauIci.kind === 'unite' ? `entreprise:${org.unite.get(e.niveauIci.id)?.espace || 'moi'}` : `${e.niveauIci.kind}:${e.niveauIci.id}`) : '';
   const dessusBudget = niveauBudget ? niveauDessus(niveauBudget, org, simpleR) : null;
   const budgetConcret =
     niveauBudget && dessusBudget && gerantsBudget(niveauBudget, org, simpleR).includes(mail)
@@ -808,7 +808,7 @@ export function BlocPoints({
   lecture,
   element = '',
   stories,
-  placeholder = '＋ Blocage, décision ou demande d’action',
+  placeholder = '＋ Note (information, blocage, décision, action)',
   pourPrep,
   onglet = 'membre',
 }: {
@@ -970,7 +970,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
         (() => {
           // Mode Simple : l'entreprise (direction de premier niveau) reçoit les demandes des équipes à la Revue du mois
           const simpleR = TYPES_REUNION[r.reunion.type]?.mode === 'simple';
-          const niveau = simpleR && e.niveauIci.kind === 'unite' ? `entreprise:${r.org.unite.get(e.niveauIci.id)?.espace || 'moi'}` : `${e.niveauIci.kind}:${e.niveauIci.id}`;
+          const niveau = e.niveauIci.kind === 'unite' ? `entreprise:${r.org.unite.get(e.niveauIci.id)?.espace || 'moi'}` : `${e.niveauIci.kind}:${e.niveauIci.id}`;
           return (
             <BlocDemandesBudget
               niveau={niveau}
