@@ -13,6 +13,7 @@ export const LIBELLE_STATUT: Record<Exclude<StatutSuivi, ''>, string> = {
   valide: 'Validé',
   a_reprendre: 'À reprendre',
   abandonne: 'Abandonné',
+  plus_suivi: 'Plus suivi',
 };
 export const TON_STATUT: Record<Exclude<StatutSuivi, ''>, 'bleu' | 'vert' | 'orange' | 'gris' | 'rouge'> = {
   en_cours: 'bleu',
@@ -20,6 +21,7 @@ export const TON_STATUT: Record<Exclude<StatutSuivi, ''>, 'bleu' | 'vert' | 'ora
   valide: 'vert',
   a_reprendre: 'orange',
   abandonne: 'gris',
+  plus_suivi: 'gris',
 };
 
 /** Statut d'un point concrétisé : le sien ; une tâche créée terminée → « Fait » ; ancien point sans statut → déduit */
@@ -33,7 +35,8 @@ export function statutEffectif(p: Pick<PointReunion, 'statut' | 'concretisation'
   if (p.concretisation === 'sous_tache' || p.concretisation === 'tache') return tacheFinie || !t ? 'valide' : 'en_cours';
   return 'en_cours';
 }
-export const estFini = (s: StatutSuivi) => s === 'valide' || s === 'abandonne';
+/** Suivi fermé : validé, abandonné ou plus suivi (filtre « Fermées », gardé jusqu'à sa suppression) */
+export const estFini = (s: StatutSuivi | undefined) => s === 'valide' || s === 'abandonne' || s === 'plus_suivi';
 /** Échéance passée et pas encore fait */
 export const enRetardSuivi = (p: Pick<PointReunion, 'echeance'>, s: StatutSuivi, jour: string) => !!p.echeance && p.echeance < jour && (s === 'en_cours' || s === 'a_reprendre');
 
@@ -60,7 +63,7 @@ export const jourCourt = (j: string) => (j ? `${Number(j.slice(8, 10))}/${j.slic
 // ---------------------------------------------------------------------------
 // Actions sur un point de suivi (feuille du Suivi, ou réponse « Valider ? » du Chat : le même point)
 // ---------------------------------------------------------------------------
-export type ActionSuivi = 'en_cours' | 'fait' | 'valider' | 'reconcretiser' | 'reprendre' | 'abandonner';
+export type ActionSuivi = 'en_cours' | 'fait' | 'valider' | 'reconcretiser' | 'reprendre' | 'abandonner' | 'plus_suivre';
 /** Choix de la question « Valider ? » du Chat (motif obligatoire pour les deux derniers) */
 export const CHOIX_VALIDER = ['Valider', 'Re-concrétiser', 'À reprendre (motif)', 'Abandonner (motif)'];
 export const actionDuChoix = (c: string): ActionSuivi | null =>
@@ -148,19 +151,22 @@ export function planSuivi(o: {
   // Rappels « À valider » (et anciennes questions « Valider ? ») encore ouverts sur ce point : réglés dès qu'on décide
   const ouvertes = o.echanges.filter((e) => e.statut === 'envoye' && !!e.point && (e.point === ref || e.point.startsWith(`${ref}|`)) && e.id !== o.question?.id && (e.type === 'question' || e.titre.startsWith(TITRE_RAPPEL)));
   const question = o.question ?? ouvertes[0];
-  const statut = action === 'en_cours' ? 'en_cours' : action === 'fait' ? 'fait' : action === 'valider' ? 'valide' : action === 'reprendre' ? 'a_reprendre' : action === 'abandonner' ? 'abandonne' : '';
+  const statut = action === 'en_cours' ? 'en_cours' : action === 'fait' ? 'fait' : action === 'valider' ? 'valide' : action === 'reprendre' ? 'a_reprendre' : action === 'abandonner' ? 'abandonne' : action === 'plus_suivre' ? 'plus_suivi' : '';
   if (!statut) return plan;
   const role = roleEscalade(pt);
   const haut = lireRef(question?.point ?? '')?.haut;
   // Niveau du bas qui refuse la réponse : il attend de nouveau (En cours), le niveau du dessus est rouvert
   const refusEscalade = action === 'reprendre' && role === 'bas' && !!haut;
-  const decide = action === 'valider' || action === 'reprendre' || action === 'abandonner';
+  const decide = action === 'valider' || action === 'reprendre' || action === 'abandonner' || action === 'plus_suivre';
   plan.points.push({ espace, patch: { id: pt.id, statut: refusEscalade ? 'en_cours' : statut, note, ...(decide ? { hors_reunion: o.horsReunion ? '1' : '' } : {}) } });
-  if (action === 'valider' || action === 'reprendre' || action === 'abandonner')
+  if (action === 'valider' || action === 'reprendre' || action === 'abandonner' || action === 'plus_suivre')
     for (const q of ouvertes) plan.echanges.push({ e: q, patch: { statut: 'pris_en_compte', reponse: action === 'valider' ? CHOIX_VALIDER[0] : action === 'reprendre' ? CHOIX_VALIDER[2] : CHOIX_VALIDER[3], note } });
 
   if (action === 'fait' && valid && valid !== m)
     plan.envoyer.push(msg(valid, 'message', `${TITRE_RAPPEL} ${pt.texte}`, `${o.nomDe(m)} a passé le suivi à « Fait »${note ? ` : ${note}` : '.'} Validez-le ici (✅ Valider) ou dans la Situation de la réunion (« À valider »).`, ref));
+  // Plus suivi : le responsable est informé ; l'élément lié continue sa route (ni supprimé ni abandonné)
+  if (action === 'plus_suivre' && resp && resp !== m)
+    plan.envoyer.push(msg(resp, 'message', `ℹ️ Pour information · Plus suivi en réunion · ${pt.texte}`, `${o.nomDe(m)} ne suit plus ce point en réunion${note ? ` : ${note}` : '.'} L’élément lié continue sa vie.`));
   if ((action === 'reprendre' || action === 'abandonner') && resp && resp !== m && !refusEscalade)
     plan.envoyer.push(msg(resp, 'message', `${action === 'reprendre' ? '↩ À reprendre' : '⊘ Abandonné'} · ${pt.texte}`, `${o.nomDe(m)} : ${note}`));
   if (refusEscalade && haut) {

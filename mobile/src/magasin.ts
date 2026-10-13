@@ -422,7 +422,7 @@ export function nettoyerPoint(data: Partial<PointReunion>, base?: PointReunion):
   for (const k of ['element', 'tache']) if (!RE_ID.test(out[k])) throw new Error(`Lien « ${k} » invalide.`);
   if (!(CONCRETISATIONS as string[]).includes(out.concretisation)) out.concretisation = '';
   // Point de suivi (08/10) : statut, validateur, échéance, mot ou motif ; type créé et rattachement
-  if (!['', 'en_cours', 'fait', 'valide', 'a_reprendre', 'abandonne'].includes(out.statut)) out.statut = '';
+  if (!['', 'en_cours', 'fait', 'valide', 'a_reprendre', 'abandonne', 'plus_suivi'].includes(out.statut)) out.statut = '';
   out.validateur = out.validateur.trim().toLowerCase();
   if (out.echeance && !/^\d{4}-\d{2}-\d{2}$/.test(out.echeance)) out.echeance = '';
   out.note = out.note.trim().slice(0, 1000);

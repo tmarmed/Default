@@ -640,7 +640,8 @@ export type TypePoint = 'hier' | 'aujourdhui' | 'blocage' | 'decision' | 'action
  */
 export type Concretisation = '' | 'sous_tache' | 'tache' | 'rien' | 'escalade' | 'synchro' | 'suivi';
 /** Statut d'un point de suivi (08/10) ; vide = pas encore concrétisé (ou ancien point) */
-export type StatutSuivi = '' | 'en_cours' | 'fait' | 'valide' | 'a_reprendre' | 'abandonne';
+/** « plus_suivi » (13/10) : plus suivi en réunion, mais l'élément lié (tâche, story…) continue sa vie */
+export type StatutSuivi = '' | 'en_cours' | 'fait' | 'valide' | 'a_reprendre' | 'abandonne' | 'plus_suivi';
 export interface PointReunion {
   /** Espace (Google Sheet) d'où vient l'élément : posé par l'application au chargement, jamais enregistré */
   espace?: string;

@@ -34,8 +34,8 @@ Ajuster ajoute une note à concrétiser) ; participants repris de l'Organisation
    rôles du mode Simple pour l'accès aux réunions (aujourd'hui par défaut : équipe = Scrum Master, sinon Product
    Owner, anime, les membres participent ; entreprise = responsable de la direction de premier niveau anime, les
    responsables des équipes participent ; budget : le responsable de l'équipe demande, celui de l'entreprise décide).
-7. « Ne plus suivre » un point de suivi, depuis la réunion correspondante, possible dans toutes les réunions
-   (demandé le 09/10).
+7. « Ne plus suivre » : FAIT (13/10) — statut « Plus suivi » (fermé, filtre « Fermées ») ; l'élément lié continue sa
+   vie ; message « Pour information » au responsable ; bouton « 👁 Ne plus suivre » pour le valideur.
 
 8. Congés déclarés par chacun dans l'application (demandé le 09/10) : capacité de l'équipe calculée d'avance
    (Planification, PI Planning, Préparation du PI, Pilotage), affinée à chaque sprint et validée en Rétrospective.
@@ -188,3 +188,12 @@ Reste (pilotage) : coûts annuels visibles de ceux qui lisent l'Organisation (à
 
 ## Fait récemment (08/10)
 - Suivis complets (statuts, validation, Chat « Valider ? », escalade qui redescend), vocabulaire Notes / Suivis partout (plus de « point »), fiche de l'élément en deux blocs, escalader force « Suivre », fichiers .md.
+
+## Décisions du 13/10 (à coder)
+- Notes : ℹ️ Information = type par défaut dans toutes les réunions, fermée d'office (rien à concrétiser) sauf si on
+  choisit de la concrétiser. Daily : Hier et Aujourd'hui gardent les tâches + un bloc de notes en bas (Information,
+  Blocage, Décision, Demande d'action ; pas Proposition) ; écran Blocages à remplacer (proposition en cours).
+- Rétro : type 💡 Proposition (amélioration continue) ; retenue au vote → Concrétisation directe ; reportée → rétro
+  suivante ; non retenue → fermée ; étape « Actions » supprimée ; même type pour les Problèmes de l'Inspect & Adapt.
+- Enveloppes : Engagé = budgets prévus des epics lancées + demandes accordées ; Disponible = Enveloppe − Engagé.
+- Comparaison consommé réel / prévu pour affiner le budget : à placer dans une réunion budget (proposition en cours).

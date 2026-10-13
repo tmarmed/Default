@@ -561,6 +561,12 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
     const oD2 = makeOrgValue({ personnes: [{ id: 'a', nom: 'Vous', email: 'v@x' }, { id: 'b', nom: 'Vous (SM)', email: 'V@x' }, { id: 'c', nom: 'Nina', email: 'n@x' }] as never, unites: [], portfolios: [], trains: [], equipes: [{ id: 'eq', nom: 'E', train: '', po: '', sm: 'b', membres: 'a;c', cree_le: '', modifie_le: '' }] });
     ok(participantsReunion({ type: 'daily', niveau: 'equipeagile:eq' }, oD2).join() === 'b,c', 'participants : une personne au même e-mail une seule fois (la fiche du rôle)');
   }
+  // « Plus suivi » (13/10) : fermé (filtre « Fermées »), le responsable est informé, la tâche liée n'est pas touchée
+  {
+    const ptP = { id: 'p1', reunion: 'daily-equipeagile:e-2026-10-02', personne: 'emma@x', auteur: 'a@x', type: 'action', texte: 't', element: '', concretisation: 'tache', tache: 'acm9', responsable: 'emma@x', cree_le: '', statut: 'en_cours', validateur: 'moi@x' } as PointReunion;
+    const plP = planSuivi({ pt: ptP, espace: 'e', note: '', moi: 'moi@x', animateur: 'moi@x', nomDe: (m: string) => m, echanges: [], niveau: '', action: 'plus_suivre' });
+    ok(plP.points.length === 1 && plP.points[0].patch.statut === 'plus_suivi' && plP.envoyer.length === 1 && plP.envoyer[0].a === 'emma@x' && mesSuivis([{ ...ptP, statut: 'plus_suivi' }], 'emma@x').fermees.length === 1, 'Plus suivi : fermé, responsable informé, élément lié non touché');
+  }
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
   reglerConversion(true, new Map([['acmeqmob', 0.5]]));
   ok(pointsOf({ points: '4', equipe: 'acmeqmob' }) === 2 && pointsOf({ points: '4', equipe: 'autre' }) === 4 && versPoints('3', 0.5) === '6' && depuisPoints('6', 0.5) === '3', 'conversion : 4 pts = 2 j avec 1 point = ½ j ; saisie 3 j → 6 pts');

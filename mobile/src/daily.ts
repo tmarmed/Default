@@ -161,7 +161,7 @@ export function pointsFinis(points: PointReunion[], reunionId: string, items: It
     .filter((p) => p.reunion.startsWith(serie) && p.reunion !== reunionId && !p.id.startsWith('local-'))
     .filter((p) => {
       // Point de suivi (08/10) : fini quand il est validé ou abandonné (son statut fait foi)
-      if (p.statut) return p.statut === 'valide' || p.statut === 'abandonne';
+      if (p.statut) return p.statut === 'valide' || p.statut === 'abandonne' || p.statut === 'plus_suivi';
       return (
         p.concretisation === 'rien' ||
         ((p.concretisation === 'sous_tache' || p.concretisation === 'tache') && (!parId.get(p.tache) || parId.get(p.tache)?.statut === 'termine')) ||
@@ -304,8 +304,8 @@ export function texteCompteRendu(o: {
 // 📌 Mes suivis (lot 5, 09/10) : écran de l'onglet Réunions (src/components/reunion/MesSuivis.tsx)
 // ---------------------------------------------------------------------------
 /** Ouverte : note à concrétiser, ou suivi pas encore validé / abandonné */
-export const estOuverte = (p: PointReunion) => (p.statut ? p.statut !== 'valide' && p.statut !== 'abandonne' : aConcretiser(p) && !p.concretisation);
-export const estFermee = (p: PointReunion) => p.statut === 'valide' || p.statut === 'abandonne';
+export const estOuverte = (p: PointReunion) => (p.statut ? p.statut !== 'valide' && p.statut !== 'abandonne' && p.statut !== 'plus_suivi' : aConcretiser(p) && !p.concretisation);
+export const estFermee = (p: PointReunion) => p.statut === 'valide' || p.statut === 'abandonne' || p.statut === 'plus_suivi';
 
 /** Mes notes : responsable, valideur, ou noté par / pour moi (pas encore concrétisé) */
 export function mesSuivis(points: PointReunion[], moi: string): { ouvertes: PointReunion[]; fermees: PointReunion[] } {

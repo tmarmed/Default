@@ -7,6 +7,7 @@ import {
   appliquerPlan,
   enRetardSuivi,
   jourCourt,
+  estFini,
   LIBELLE_STATUT,
   motifObligatoire,
   peutFaire,
@@ -114,7 +115,7 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
     ctx.onPoints(modifies.filter((x) => x.espace === ctx.espace));
     const autres = plan.points.filter((x) => x.espace !== ctx.espace).length;
     ctx.onInfo?.(
-      `« ${pt.texte} » : ${action === 'valider' ? 'validé' : action === 'reprendre' ? 'à reprendre' : action === 'abandonner' ? 'abandonné' : action === 'fait' ? 'fait' : 'en cours'}` +
+      `« ${pt.texte} » : ${action === 'valider' ? 'validé' : action === 'reprendre' ? 'à reprendre' : action === 'abandonner' ? 'abandonné' : action === 'plus_suivre' ? 'plus suivi (l’élément lié continue)' : action === 'fait' ? 'fait' : 'en cours'}` +
         (plan.envoyer.length ? ` · ${plan.envoyer.length} message${plan.envoyer.length > 1 ? 's' : ''} dans le Chat` : '') +
         (autres ? ' · l’autre maillon de la transmission est mis à jour' : '') +
         '.',
@@ -194,7 +195,7 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
  */
 function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onFermer }: { pt: PointReunion; ctx: CtxSuivi; onEnregistrer: (a: ActionSuivi, note: string) => Promise<void>; onReconcretiser: () => void; onFermer: () => void }) {
   const st = statutEffectif(pt, ctx.items);
-  const fini = st === 'valide' || st === 'abandonne';
+  const fini = estFini(st);
   const faire = peutFaire(pt, ctx.moi, ctx.animateur) && !fini;
   const valideur = validateurDe(pt, ctx.animateur) === ctx.moi.toLowerCase();
   const [statut, setStatut] = useState<'en_cours' | 'fait'>(st === 'fait' ? 'fait' : 'en_cours');
@@ -251,7 +252,7 @@ function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onFermer }: { p
             <View style={s.carte}>
               {fini ? (
                 <View style={s.ligne}>
-                  <Text style={s.valeur}>{st === 'valide' ? '✅ Validé' : '⊘ Abandonné'}</Text>
+                  <Text style={s.valeur}>{st === 'valide' ? '✅ Validé' : st === 'plus_suivi' ? '👁 Plus suivi' : '⊘ Abandonné'}</Text>
                 </View>
               ) : faire ? (
                 puces<'en_cours' | 'fait'>(
@@ -282,6 +283,7 @@ function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onFermer }: { p
                       { v: 'reconcretiser', l: '✎ Re-concrétiser' },
                       { v: 'reprendre', l: '↩ À reprendre' },
                       { v: 'abandonner', l: '⊘ Abandonner' },
+                      { v: 'plus_suivre', l: '👁 Ne plus suivre' },
                     ],
                     decision,
                     (v) => setDecision(v === decision ? '' : v),
@@ -335,7 +337,7 @@ function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onFermer }: { p
  * gardés jusqu'à leur suppression) ; décidés depuis le Chat (« hors réunion »), mis en avant jusqu'à « Confirmer ».
  */
 export function repartirSuivis(points: PointReunion[]) {
-  const ferme = (x: PointReunion) => x.statut === 'valide' || x.statut === 'abandonne';
+  const ferme = (x: PointReunion) => estFini(x.statut);
   return {
     horsReunion: points.filter((x) => x.hors_reunion === '1'),
     fermees: points.filter((x) => ferme(x) && x.hors_reunion !== '1'),
@@ -356,7 +358,7 @@ export function BlocHorsReunion({ points, ctx, peutConfirmer }: { points: PointR
           <Ligne
             premiere
             texte={x.texte}
-            sous={`Décidé hors réunion (depuis le Chat) · ${x.statut === 'valide' ? '✅ validé' : x.statut === 'abandonne' ? '⊘ abandonné' : '↩ à reprendre'}${x.note ? ` · ${x.note}` : ''}${x.validateur ? ` · par ${ctx.nomDe(x.validateur)}` : ''}`}
+            sous={`Décidé hors réunion (depuis le Chat) · ${x.statut === 'valide' ? '✅ validé' : x.statut === 'abandonne' ? '⊘ abandonné' : x.statut === 'plus_suivi' ? '👁 plus suivi' : '↩ à reprendre'}${x.note ? ` · ${x.note}` : ''}${x.validateur ? ` · par ${ctx.nomDe(x.validateur)}` : ''}`}
             pastille={{ texte: 'Décidé hors réunion', ton: 'orange' }}
           />
           {peutConfirmer && (
