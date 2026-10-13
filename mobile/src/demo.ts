@@ -123,7 +123,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '43';
+const DEMO_DATA_VERSION = '44';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -554,6 +554,7 @@ const SEEDS_ENTREPRISE: Seeds = {
     liste.push(risque);
     const train = { ...tout, ...photoDe({ suivis: [{ ...risque, statut: 'en_cours' }] }, 0) };
     changer(train, 'f:acmf1', 3, shiftPi(pi, 1));
+    changer(train, 'q:acmopi1', 1, '4');
     changer(train, 'e:acme2', 1, '100000');
     changer(train, 'd:acmdb3', 0, 'soumise');
     changer(train, 'd:acmdb3', 1, '2400');
@@ -595,6 +596,8 @@ const SEEDS_ENTREPRISE: Seeds = {
       { id: 'acmr2', objectif: 'acmo1', titre: 'Note de l’application', actuel: '4.1', cible: '4.5', unite: '/ 5', ...base },
       { id: 'acmr3', objectif: 'acmo2', titre: 'Coût par commande', actuel: '12', cible: '8', unite: '€', ...base },
     ];
+    // Objectif du PI du train Clients (avancement à l'ART sync : valeur obtenue 4 → 6 sur 10)
+    e.objectifpi = [{ id: 'acmopi1', titre: 'Paiement en ligne disponible pour tous les clients', pi: piOf(toDateString(new Date())), type: 'engage', valeur_prevue: '8', valeur_obtenue: '6', domaine: '', epic: 'acme2', ...base }];
     e.valuestream = [
       { id: 'acmvs1', nom: 'Parcours client en ligne', type: 'operationnel', description: '', portfolio: 'acmpf1', trains: 'acmtr1', okrs: 'acmo1', ...base },
       { id: 'acmvs2', nom: 'Plateforme de paiement', type: 'developpement', description: '', portfolio: 'acmpf1', trains: '', okrs: 'acmo1;acmo2', ...base },
@@ -793,7 +796,7 @@ export function demoApiFor(espace = 'moi') {
   if (!st) {
     const seeds =
       espace === 'moi'
-        ? { items: sample, entities: sampleEntities }
+        ? { items: sample, entities: sampleEntities, points: pointsMoi }
         : espace === 'demo-equipe'
           ? SEEDS_EQUIPE
           : espace === 'demo-entreprise'
@@ -817,6 +820,16 @@ export async function effacerDemo(espace: string): Promise<void> {
   } catch {
     // Stockage indisponible : rien à effacer
   }
+}
+/**
+ * 🔒 Moi (13/10) : photo de la Revue des objectifs du mois dernier, d'où « Avancement depuis la Revue des objectifs du … » :
+ * « Doubler le nombre de clients » est passé de 5 à 8 clients
+ */
+function pointsMoi(): PointReunion[] {
+  const avant = toDateString(addDays(new Date(), -30));
+  const photo = photoDe({ objectifs: sampleEntities().objectif }, 3);
+  photo['o:o1'] = ['', '5', ...photo['o:o1'].split('|').slice(2)].join('|');
+  return pointsPhoto(`revue_objectifs-perso-${avant}`, MOI_DEMO, photo, { sortes: [], niveaux: [] }).map((x, k) => ({ ...x, id: `moiav${k + 1}`, cree_le: `${avant}T18:00:00.000Z` }));
 }
 /** Données d'exemple d'un espace de la démo (sans stockage) : pour les vérifications automatiques */
 export function donneesDemo(espace = 'moi') {

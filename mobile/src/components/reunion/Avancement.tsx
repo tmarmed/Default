@@ -210,7 +210,7 @@ export function BlocAvancement({
             <Ligne
               key={`${l.cle}-${l.sorte}`}
               premiere={i === 0}
-              texte={`${iconeNiveau(l.niveau)}${av.titreDe(l.cle)}`}
+              texte={`${l.cle.startsWith('q:') ? '🎯 ' : iconeNiveau(l.niveau)}${av.titreDe(l.cle)}`}
               sous={phrase(l, nomComplet)}
               tache={!lecture && t ? t : undefined}
               onOuvrir={lecture ? undefined : t && onOuvrir ? () => onOuvrir(t) : ouvrirEntite(l.cle)}
