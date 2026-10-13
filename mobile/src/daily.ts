@@ -362,14 +362,47 @@ export const reunionPlanJour = (jour: string) => `plan_jour-moi-${jour}`;
 export interface EvenementJour {
   /** HH:MM */
   heure: string;
+  /** HH:MM (sinon début + 30 min) */
+  fin?: string;
   titre: string;
   /** Événement perso ajouté à la main (sinon : réunion de l'application) */
   perso?: boolean;
   id?: string;
 }
-/** Créneaux proposés : Matin, Après-midi, puis « avant 9:30 », « entre 9:30 et 14:00 », « après 14:00 » */
-export function creneauxDuJour(evenements: Pick<EvenementJour, 'heure'>[]): string[] {
-  const h = [...new Set(evenements.map((x) => x.heure).filter((x) => /^\d{1,2}:\d{2}$/.test(x)))].sort((a, b) => a.padStart(5, '0').localeCompare(b.padStart(5, '0')));
-  if (!h.length) return ['Matin', 'Après-midi'];
-  return ['Matin', 'Après-midi', `avant ${h[0]}`, ...h.slice(1).map((x, i) => `entre ${h[i]} et ${x}`), `après ${h[h.length - 1]}`];
+/** Journée de travail (réglable par chacun) : défaut 9:00 → 18:00, déjeuner 12:00 → 14:00 */
+export interface Journee {
+  debut: string;
+  fin: string;
+  dejDebut: string;
+  dejFin: string;
+}
+export const JOURNEE_DEFAUT: Journee = { debut: '9:00', fin: '18:00', dejDebut: '12:00', dejFin: '14:00' };
+const minutes = (h: string) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(h.trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : NaN;
+};
+const hhmm = (n: number) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
+/** Fin d'un événement : sa fin, sinon début + 30 min */
+export const finDe = (e: Pick<EvenementJour, 'heure' | 'fin'>) => (e.fin && minutes(e.fin) > minutes(e.heure) ? e.fin : hhmm(minutes(e.heure) + 30));
+/**
+ * Créneaux libres (R5, deux niveaux) : par demi-journée (Matin = début → déjeuner, Après-midi = déjeuner → fin),
+ * les trous d'au moins `min` minutes entre les événements, « 9:45 → 11:00 »
+ */
+export function creneauxLibres(j: Journee, evenements: Pick<EvenementJour, 'heure' | 'fin'>[], min = 30): { matin: string[]; apresMidi: string[] } {
+  const occupe = evenements
+    .map((e) => [minutes(e.heure), minutes(finDe(e))] as [number, number])
+    .filter(([a, b]) => !isNaN(a) && !isNaN(b))
+    .sort((x, y) => x[0] - y[0]);
+  const libres = (de: number, a: number) => {
+    const out: string[] = [];
+    let t = de;
+    for (const [x, y] of occupe) {
+      if (y <= t || x >= a) continue;
+      if (x - t >= min) out.push(`${hhmm(t)} → ${hhmm(x)}`);
+      t = Math.max(t, y);
+    }
+    if (a - t >= min) out.push(`${hhmm(t)} → ${hhmm(a)}`);
+    return out;
+  };
+  return { matin: libres(minutes(j.debut), minutes(j.dejDebut)), apresMidi: libres(minutes(j.dejFin), minutes(j.fin)) };
 }

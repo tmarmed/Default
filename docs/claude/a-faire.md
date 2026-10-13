@@ -44,7 +44,8 @@ Sujets proposés, au choix de l'utilisateur :
   préparation : « Plan du … » fait / pas fait (point « hier » + sous_type fait|pas_fait), « Mon plan du jour ».
   Helpers src/daily.ts (elementsDuPlan, planDe, reunionPrecedenteAvecPlan, faitDe) + tests verif:reunions.
   Lot 2 codé (13/10) : « Ma journée · vue par moi seul » (réunions du jour + événements perso) et « Mes créneaux »
-  (Matin, Après-midi, avant / entre / après) dans la préparation ; rangés dans 🔒 Moi (points « donnee » de
+  (deux niveaux : Matin / Après-midi, puis « Affiner » : créneau libre ≥ 30 min ; journée 9:00 → 18:00 et
+  déjeuner 12:00 → 14:00 réglables, ligne plan_reglage-moi-2000-01-01 ; événement perso avec début et fin) ; rangés dans 🔒 Moi (points « donnee » de
   plan_jour-moi-AAAA-MM-JJ), écrits avec « Mon point ». Jamais affichés au tour de table.
   Restent (lots suivants) : 3 plan entre espaces + onglet « Plan · nom »
   protégé par personne (aujourd'hui : onglet des points de la réunion) ; 4 Point perso / Bilan du soir ; 5 coche

@@ -32,7 +32,7 @@ import { useHierarchy } from '../hierarchyContext';
 import { autresEquipesDuTrain, membresDe, type OrgValue, porteurs } from '../organisation';
 import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
 import { type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../reunions';
-import { PARCOURS_DAILY as CATALOGUE, elementsDuPlan, type EvenementJour, faitDe, planDe, reunionPlanJour, reunionPrecedenteAvecPlan } from '../daily';
+import { PARCOURS_DAILY as CATALOGUE, elementsDuPlan, type EvenementJour, faitDe, JOURNEE_DEFAUT, type Journee, planDe, reunionPlanJour, reunionPrecedenteAvecPlan } from '../daily';
 import { lireDonnee } from '../etatReunion';
 import { reunionsAVenir } from '../reunions';
 import { BlocCreneaux } from './reunion/Creneaux';
@@ -150,6 +150,14 @@ let compteurLocal = 0;
 const idLocal = () => `local-${Date.now()}-${++compteurLocal}`;
 /** Points affichables (sans les lignes techniques : état, votes, préparations) */
 const sansTech = (l: PointReunion[]) => l.filter((x) => !estTechnique(x));
+/** Réglage de la journée de travail dans 🔒 Moi (une ligne, hors des jours) */
+const PREFIXE_REGLAGE = 'plan_reglage-moi-2000-01-01';
+/** « 9:30 » + 15 min → « 9:45 » */
+const minutesVersHeure = (h: string, duree: number) => {
+  const [a, b] = h.split(':').map(Number);
+  const n = a * 60 + b + (duree || 30);
+  return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
+};
 
 export function FenetreDaily(p: Props) {
   const { reunion } = p;
@@ -321,12 +329,23 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const [creneaux, setCreneaux] = useState<Record<string, string>>({});
   const [evtsPerso, setEvtsPerso] = useState<EvenementJour[]>([]);
   const [anciensPlan, setAnciensPlan] = useState<string[]>([]);
+  /** Journée de travail réglée par chacun (🔒 Moi, une ligne à part, gardée d'un jour à l'autre) */
+  const [journee, setJournee] = useState<Journee>(JOURNEE_DEFAUT);
+  const [ligneJournee, setLigneJournee] = useState('');
   useEffect(() => {
     if (!visible) return;
     setCreneaux({});
     setEvtsPerso([]);
     setAnciensPlan([]);
     let actif = true;
+    actions
+      .lirePoints('moi', PREFIXE_REGLAGE)
+      .then((l) => {
+        const x = l.find((y) => y.type === 'donnee' && y.personne === mail && lireDonnee(y)?.k === 'journee');
+        const d = x && lireDonnee<Partial<Journee>>(x);
+        if (actif && x && d) (setJournee({ ...JOURNEE_DEFAUT, ...d }), setLigneJournee(x.id));
+      })
+      .catch(() => {});
     actions
       .lirePoints('moi', reunionPlanJour(jour))
       .then((l) => {
@@ -336,9 +355,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         const c: Record<string, string> = {};
         const ev: EvenementJour[] = [];
         for (const x of miens) {
-          const d = lireDonnee<{ c?: string; h?: string; t?: string }>(x);
+          const d = lireDonnee<{ c?: string; h?: string; f?: string; t?: string }>(x);
           if (d?.k === 'creneau' && x.element && d.c) c[x.element] = d.c;
-          if (d?.k === 'evt' && d.h && d.t) ev.push({ heure: d.h, titre: d.t, perso: true, id: x.id });
+          if (d?.k === 'evt' && d.h && d.t) ev.push({ heure: d.h, fin: d.f, titre: d.t, perso: true, id: x.id });
         }
         setCreneaux(c);
         setEvtsPerso(ev);
@@ -353,7 +372,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     () =>
       reunionsAVenir(org, mail, jour, safe.actif, 1)
         .filter((r) => r.debut.slice(0, 10) === jour)
-        .map((r) => ({ heure: r.debut.slice(11, 16).replace(/^0/, ''), titre: [r.titre, libelleNiveau(lireNiveau(r.niveau), org)].filter(Boolean).join(' · ') })),
+        .map((r) => ({ heure: r.debut.slice(11, 16).replace(/^0/, ''), fin: minutesVersHeure(r.debut.slice(11, 16), r.duree_min), titre: [r.titre, libelleNiveau(lireNiveau(r.niveau), org)].filter(Boolean).join(' · ') })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [org, mail, jour, safe.actif],
   );
@@ -361,7 +380,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     const base = { reunion: reunionPlanJour(jour), personne: mail, auteur: mail, type: 'donnee' as const, concretisation: '' as const, tache: '', responsable: '' };
     const creer = [
       ...Object.entries(creneaux).filter(([id, c]) => c && garder.has(id)).map(([id, c]) => ({ ...base, element: id, texte: JSON.stringify({ k: 'creneau', c }) })),
-      ...evtsPerso.map((x) => ({ ...base, element: '', texte: JSON.stringify({ k: 'evt', h: x.heure, t: x.titre }) })),
+      ...evtsPerso.map((x) => ({ ...base, element: '', texte: JSON.stringify({ k: 'evt', h: x.heure, f: x.fin, t: x.titre }) })),
     ];
     if (!creer.length && !anciensPlan.length) return;
     try {
@@ -369,6 +388,22 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       setAnciensPlan(crees.map((x) => x.id));
     } catch (err) {
       onInfo?.(`Créneaux non enregistrés dans 🔒 Moi : ${(err as Error).message}`);
+    }
+  };
+
+  /** Réglage de la journée : écrit tout de suite (rare), remplace la ligne précédente */
+  const changerJournee = async (j: Journee) => {
+    setJournee(j);
+    try {
+      const { crees } = await actions.ecrirePoints(
+        'moi',
+        [{ reunion: PREFIXE_REGLAGE, personne: mail, auteur: mail, type: 'donnee', concretisation: '', tache: '', responsable: '', element: '', texte: JSON.stringify({ k: 'journee', ...j }) }],
+        [],
+        ligneJournee ? [ligneJournee] : [],
+      );
+      setLigneJournee(crees[0]?.id ?? '');
+    } catch (err) {
+      onInfo?.(`Journée non enregistrée dans 🔒 Moi : ${(err as Error).message}`);
     }
   };
 
@@ -828,6 +863,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 elements={aujListe.filter((t) => coche('aujourdhui', t, t.titre))}
                 creneaux={creneaux}
                 evenements={[...reunionsDuJour, ...evtsPerso]}
+                journee={journee}
+                onJournee={changerJournee}
                 onCreneau={(id, c) => setCreneaux((x) => ({ ...x, [id]: c }))}
                 onAjouterEvt={(ev) => setEvtsPerso((l) => [...l, ev])}
                 onRetirerEvt={(ev) => setEvtsPerso((l) => l.filter((y) => y !== ev))}
