@@ -61,8 +61,8 @@ Sujets proposés, au choix de l'utilisateur :
   Aujourd'hui restés dans PointsReunion relus normalement). Une préparation pour plusieurs Dailies FAIT : dans
   « Aujourd'hui », une section par autre Daily du jour (👥 Web · Daily 9:30) ; à l'envoi, chaque Daily reçoit sa part.
   « Hier » des autres équipes FAIT (fait / pas fait par Daily, envoyé à chacun) + sélecteur « Espaces » à chaque étape
-  (enlever un Daily le cache, le sort du Plan du jour et rien ne lui est envoyé). RESTE : Bilan du soir sur les heures
-  du plan ; docs/mission.html et docs/bilan-reunions.html à mettre à jour. (ancien : onglet
+  (enlever un Daily le cache, le sort du Plan du jour et rien ne lui est envoyé). Bilan du soir FAIT (Prévu ce matin + statut modifiable,
+  « Changé depuis ce matin » = terminé aujourd'hui hors plan ; les autres changements de statut ne sont pas datés). RESTE : docs/mission.html et docs/bilan-reunions.html à mettre à jour. (ancien : onglet
   « Plan · nom » protégé par personne) ; Bilan du soir sur les places du plan
   Restent (lots suivants) : 3 plan entre espaces + onglet « Plan · nom »
   protégé par personne (aujourd'hui : onglet des points de la réunion) ; 4 Point perso / Bilan du soir ; 5 coche

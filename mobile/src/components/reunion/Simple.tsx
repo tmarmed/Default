@@ -78,9 +78,6 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
       .then((x) => x && setGac(JSON.parse(x)))
       .catch(() => {});
   }, [jour]);
-  // Plan du jour (13/10) : places, événements perso et journée dans 🔒 Moi, comme au Daily
-  const safe = useSafe();
-  const pj = usePlanJour({ visible: true, actions, mail: moi.toLowerCase(), jour, org, safeActif: safe.actif, onInfo });
   const poser = (id: string, c: Choix) => setChoix((m) => ({ ...m, [id]: c }));
   const ligneChoix = (t: Item, i: number, opts: Choix[], defaut: Choix) => (
     <View key={t.id} style={[st.ligne, { flexDirection: 'column', alignItems: 'stretch' }, i > 0 && st.bord]}>
@@ -94,6 +91,9 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
     </View>
   );
 
+  // Plan du jour (13/10) : places, événements perso et journée dans 🔒 Moi, comme au Daily
+  const safe = useSafe();
+  const pj = usePlanJour({ visible: true, actions, mail: moi.toLowerCase(), jour, org, safeActif: safe.actif, onInfo });
   // ---- Point perso ----
   const hier = taches.filter((t) => t.statut !== 'termine' && !!t.date && t.date < jour);
   // Aujourd'hui : prévu aujourd'hui, plus ce qu'on refait d'hier (choix par défaut)
@@ -102,8 +102,12 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
   const planifie = auj.filter((t) => dansPlan.includes(t.id));
   const hPlan = planifie.reduce((s, t) => s + duree(t), 0);
   // ---- Bilan du soir ----
-  const prevus = taches.filter((t) => (plan ?? []).includes(t.id));
+  // Prévu ce matin (13/10) : le plan du Point perso et ce que j'ai coché à mes Dailies du jour (plan commun)
+  const prevus = h.items.filter((t) => (plan ?? []).includes(t.id) || (reunion.type === 'bilan_soir' && pj.planAilleurs.some((x) => x.element === t.id)));
   const faits = prevus.filter((t) => t.statut === 'termine');
+  const moiId = org.personnes.find((x) => x.email.toLowerCase() === moi.toLowerCase())?.id ?? '';
+  // Changé depuis ce matin : terminé aujourd'hui sans être prévu (seul changement de statut daté dans les données)
+  const changes = h.items.filter((t) => !prevus.includes(t) && (!t.responsable || t.responsable === moiId) && !t.periodicite && t.termine_le === jour);
   const pasFinis = prevus.filter((t) => t.statut !== 'termine');
   // ---- Revue de la semaine ----
   const faitesSemaine = taches.filter((t) => t.statut === 'termine' && !!t.termine_le && t.termine_le > ilYa7 && t.termine_le <= jour);
@@ -251,9 +255,11 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
       case 'prevu':
         return (
           <>
-            <TitreFiche icone="📊" titre="Prévu / fait" vide="" sous={plan ? `Plan du ${dateCourte(jour)}` : 'Pas de plan figé ce matin'} />
+            <TitreFiche icone="📊" titre="Prévu / fait" vide="" sous={prevus.length ? `Prévu ce matin · statut à mettre à jour si besoin` : 'Rien de prévu ce matin (Point perso ou Daily)'} />
             <Compteurs l={[{ valeur: `${faits.length}/${prevus.length}`, libelle: 'du plan fait', ton: 'vert' }, { valeur: heures(faits.reduce((s, t) => s + duree(t), 0)), libelle: 'faites' }, { valeur: String(prevus.length - faits.length), libelle: 'pas fini', ton: prevus.length - faits.length ? 'orange' : undefined }]} />
-            <SectionFiche titre="Plan">{prevus.length ? prevus.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={pastilleStatut(t.statut)} tache={t} />) : <Vide texte="Pas de plan : faites le point perso le matin." />}</SectionFiche>
+            <SectionFiche titre="Prévu ce matin">{prevus.length ? prevus.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={pastilleStatut(t.statut)} tache={t} />) : <Vide texte="Pas de plan : faites le point perso le matin." />}</SectionFiche>
+            {/* 13/10 : ce qui a changé de statut aujourd'hui (ou a été créé) sans être prévu ce matin */}
+            <SectionFiche titre={`Changé depuis ce matin · ${changes.length}`}>{changes.length ? changes.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous="terminé aujourd’hui, hors plan" pastille={pastilleStatut(t.statut)} tache={t} />) : <Vide texte="Rien d’autre n’a changé aujourd’hui." />}</SectionFiche>
           </>
         );
       case 'pasfini':
