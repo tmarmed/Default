@@ -21,7 +21,7 @@
 - **Plan du jour** : ce que je compte faire aujourd'hui (éléments cochés au Daily, au Point perso). C'est une
   intention, pas un état : cocher ne change jamais le statut d'un élément. « Hier » revoit le plan de la veille
   (fait / pas fait, sans toucher au statut).
-- **Créneau** : moment de la journée où je place un élément de mon plan (Matin, Après-midi, avant / entre / après
-  une réunion ou un événement perso). Facultatif, visible par moi seulement.
+- **Moment libre** : temps de la journée sans réunion, rendez-vous ni événement perso ; dans l'étape « Plan du jour »,
+  on y place un élément (il prend tout le moment, durée ajustable ; le reste redevient libre). Visible par moi seul.
 - **Percée de compréhension** : découverte d'un concept ou d'un niveau d'abstraction plus juste ; on relit alors
   les règles qui en dépendent et on les met à jour (skill conception-coherence, point 8).
