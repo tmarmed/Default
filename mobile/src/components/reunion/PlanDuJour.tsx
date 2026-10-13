@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { enHeure, enMinutes, type EvenementJour, finDe, finMax, type Journee, momentsLibres, type PlaceJour } from '../../daily';
+import { demiDe, enHeure, enMinutes, type EvenementJour, finDe, finMax, type Journee, momentsLibres, type PlaceJour } from '../../daily';
 import { colors } from '../../theme';
 import type { Item } from '../../types';
 import { SectionFiche } from '../Choix';
 import { ChoiceSheet } from '../ChoiceSheet';
+import { Frise, Glissable, PX } from './Frise';
 import { Ligne, Pastille, st, Vide } from './ui';
 
 const RE_HEURE = /^([01]?\d|2[0-3]):[0-5]\d$/;
@@ -73,6 +74,26 @@ export function PlanDuJour({
     // Chacun prend l'heure de début de l'autre et garde sa durée
     onPlacer(a, { demi: pb.demi, debut: pb.debut, fin: enHeure(enMinutes(pb.debut!) + da) });
     onPlacer(b, { demi: pa.demi, debut: pa.debut, fin: enHeure(enMinutes(pa.debut!) + db) });
+    setDeplace('');
+  };
+
+  // ---- Glisser (R5c) : un lâcher sur la frise place, déplace, échange ou remet « À placer » ----
+  const haut = useRef(0);
+  const snap = (n: number) => Math.round(n / 15) * 15;
+  const deposer = (id: string, pageY: number) => {
+    const m = enMinutes(journee.debut) + (pageY - haut.current) / PX;
+    const p = placeDe(id);
+    if (m < enMinutes(journee.debut) - 10) return p.debut ? (onPlacer(id, { demi: p.demi }), setRegle('')) : undefined;
+    const sur = avecHeure.find((t) => t.id !== id && enMinutes(placeDe(t.id).debut!) <= m && m < enMinutes(placeDe(t.id).fin!));
+    if (sur && p.debut) return echanger(id, sur.id);
+    const libre = momentsLibres(journee, occupes(id), 15).find((x) => enMinutes(x.de) <= m && m < enMinutes(x.a));
+    if (!libre) return;
+    let debut = Math.max(enMinutes(libre.de), snap(m));
+    if (enMinutes(libre.a) - debut < 15) debut = enMinutes(libre.de);
+    const duree = p.debut && p.fin ? enMinutes(p.fin) - enMinutes(p.debut) : enMinutes(libre.a) - debut;
+    const finE = Math.min(enMinutes(libre.a), debut + duree);
+    onPlacer(id, { demi: libre.demi, debut: enHeure(debut), fin: enHeure(finE) });
+    setRegle(id);
     setDeplace('');
   };
 
@@ -174,9 +195,6 @@ export function PlanDuJour({
                 ))}
               </View>
               <View style={st.choix}>
-                <Pressable onPress={() => (setDeplace(id), setRegle(''))} style={[st.choixPastille, st.choixPetit]} accessibilityRole="button">
-                  <Text style={[st.choixTexte, st.choixTextePetit]}>↕ Déplacer</Text>
-                </Pressable>
                 <Pressable onPress={() => (onPlacer(id, { demi: p.demi }), setRegle(''))} style={[st.choixPastille, st.choixPetit]} accessibilityRole="button">
                   <Text style={[st.choixTexte, st.choixTextePetit]}>↩ À placer</Text>
                 </Pressable>
@@ -222,7 +240,9 @@ export function PlanDuJour({
             vue === 'demi' ? (
               ligneElement(t, i)
             ) : (
-              <Ligne key={t.id} premiere={i === 0} texte={titreDe(t)} sous={placeDe(t.id).demi ? `à placer · ${placeDe(t.id).demi === 'Matin' ? 'matin' : 'après-midi'}` : 'à placer'} />
+              <Glissable key={t.id} onLacher={(py) => deposer(t.id, py)}>
+                <Ligne premiere={i === 0} texte={`⠿ ${titreDe(t)}`} sous={`${placeDe(t.id).demi ? `${placeDe(t.id).demi === 'Matin' ? 'matin' : 'après-midi'} · ` : ''}glissez-le dans la journée`} />
+              </Glissable>
             ),
           )
         ) : (
@@ -240,10 +260,23 @@ export function PlanDuJour({
           {avecHeure.length ? avecHeure.map((t, i) => ligneElement(t, i)) : <Vide texte="Aucun élément dans l’emploi du temps." />}
         </SectionFiche>
       ) : (
-        <SectionFiche titre={`Emploi du temps · ${journee.debut} → ${journee.fin}`}>{blocs.map(blocEdt)}</SectionFiche>
+        <>
+          <Text style={[st.sous, { marginHorizontal: 20, marginBottom: 6 }]}>Glissez un élément dans la journée, sur un autre pour échanger, ou tout en haut pour le remettre à placer. Touchez un moment libre pour y placer un élément.</Text>
+          <Frise
+            debut={journee.debut}
+            fin={journee.fin}
+            blocs={blocs.map(({ de, a, quoi, titre, id }) => ({ de, a, quoi, titre, id }))}
+            choisi={regle}
+            onMesure={(y) => (haut.current = y)}
+            onLibre={(b) => setMoment({ de: b.de, a: b.a, demi: demiDe(journee, b.de) })}
+            onElement={(id) => setRegle(regle === id ? '' : id)}
+            onLacher={deposer}
+          />
+          {!!regle && parId.get(regle) && aHeure(regle) && <SectionFiche titre={titreDe(parId.get(regle)!)}>{blocEdt(blocs.find((b) => b.id === regle)!, 0)}</SectionFiche>}
+        </>
       )}
 
-      <SectionFiche titre="Ma journée · vue par moi seul">
+      <SectionFiche titre="Ma journée">
         {reglage ? (
           <View style={st.saisieBloc}>
             <View style={st.saisieLigne}>
