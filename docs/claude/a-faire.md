@@ -3,7 +3,7 @@
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
 ## Prochaine session (préparée le 13/10)
-Skills chargés (`.claude/skills/`, copie de `tmarmed/mes-skills`) : les appliquer dès la première réponse.
+Skills chargés (`.claude/skills/`) : les appliquer dès la première réponse. Dépôt `tmarmed/mes-skills` à remplir dès que l’utilisateur l’a créé : voir `docs/claude/mes-skills.md`.
 Codé le 13/10 en fin de session : feuille « Concrétiser » (Type → À qui → Suivi, ⚡ Action rapide, ↪ Transmettre à part,
 qui vide la personne choisie, alerte d'absence). À montrer en captures, dont « Sans suivi » (capture non faite).
 Décision du 13/10 : les spécifications (règles, cas d'usage, critères « Quand…, alors… ») s'écrivent dans
