@@ -1,0 +1,67 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Maquette Plan du jour</title><style>
+:root{--fond:#eef1f6;--carte:#fff;--texte:#1d2330;--doux:#6b7486;--bleu:#1a73e8;--bleu-c:#e8f0fe;--vert:#137333;--vert-c:#e6f4ea;--rouge:#b3261e;--rouge-c:#fce8e6;--orange:#b45309;--orange-c:#fef3e2;--bord:#e1e6ee}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--texte);font:14px/1.45 -apple-system,system-ui,Segoe UI,Roboto,sans-serif}
+main{max-width:1640px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:22px;margin:0 0 4px}.sous{color:var(--doux);margin:0 0 18px}
+.ecrans{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+.tel{width:360px;max-width:100%;background:#f6f7f9;border-radius:26px;border:8px solid #1d2330;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.12)}
+.legende{width:360px;max-width:100%;font-size:13px;color:var(--doux);margin:6px 2px 0}
+.barre{background:#fff;padding:12px 14px 8px;border-bottom:1px solid var(--bord)}
+.barre .t{font-weight:700;font-size:17px}.puces{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.puce{border:1px solid var(--bord);border-radius:14px;padding:3px 10px;font-size:12.5px;background:#fff}
+.puce.on{background:var(--bleu);color:#fff;border-color:var(--bleu)}
+.corps{padding:10px 12px 14px}
+.sec{font-size:11.5px;font-weight:700;color:var(--doux);letter-spacing:.04em;margin:14px 4px 6px;text-transform:uppercase}
+.carte{background:var(--carte);border-radius:12px;overflow:hidden}
+.tuiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tuile{background:#fff;border-radius:12px;padding:10px 8px;text-align:center}
+.tuile b{display:block;font-size:19px}.tuile span{font-size:11.5px;color:var(--doux)}
+.r{color:var(--rouge)}.o{color:var(--orange)}.v{color:var(--vert)}
+.ligne{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--bord)}
+.ligne:first-child{border-top:none}
+.l1{flex:1;min-width:0}.l1 .s{font-size:12px;color:var(--doux)}
+.past{font-size:11.5px;font-weight:600;border-radius:10px;padding:2px 8px;white-space:nowrap}
+.p-r{background:var(--rouge-c);color:var(--rouge)}.p-o{background:var(--orange-c);color:var(--orange)}.p-v{background:var(--vert-c);color:var(--vert)}.p-b{background:var(--bleu-c);color:var(--bleu)}
+.jauge{height:8px;background:#eef1f6;border-radius:4px;overflow:hidden;margin-top:5px}
+.jauge i{display:block;height:100%;background:var(--bleu)}.jauge i.rouge{background:var(--rouge)}.jauge i.vert{background:var(--vert)}
+.chev{color:#b0b7c3}
+svg{display:block;width:100%;height:auto}
+.note{font-size:12px;color:var(--doux);padding:8px 12px}
+.btn{display:inline-block;background:var(--bleu);color:#fff;border-radius:16px;padding:5px 12px;font-size:12.5px;font-weight:600}
+.btn2{display:inline-block;border:1px solid var(--bord);color:var(--bleu);border-radius:16px;padding:5px 12px;font-size:12.5px;font-weight:600;background:#fff}
+.champ{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border-top:1px solid var(--bord)}.champ:first-child{border-top:none}
+.champ .k{color:var(--doux)}.champ .val{font-weight:600;text-align:right}
+.seg{display:flex;gap:6px;flex-wrap:wrap}.seg span{border:1px solid var(--bord);border-radius:12px;padding:2px 9px;font-size:12px;background:#fff}.seg span.on{background:var(--bleu);color:#fff;border-color:var(--bleu)}
+.pct{font-weight:600;border:1px solid var(--bord);border-radius:8px;padding:1px 7px;font-size:12.5px}
+.alerte{background:var(--orange-c);color:var(--orange);border-radius:10px;padding:8px 10px;font-size:12.5px;margin-top:8px}
+.alerte.r{background:var(--rouge-c);color:var(--rouge)}
+.case{width:18px;height:18px;border:2px solid var(--doux);border-radius:5px;flex:none}.case.on{background:var(--bleu);border-color:var(--bleu);position:relative}.case.on:after{content:"✓";color:#fff;font-size:12px;position:absolute;left:2px;top:-2px}
+.cren{font-size:11.5px;color:var(--bleu);background:var(--bleu-c);border-radius:8px;padding:1px 7px;white-space:nowrap}
+.evt{font-size:12px;color:var(--doux);padding:6px 12px;background:#f6f7f9;border-top:1px solid var(--bord)}
+.bt{display:flex;gap:6px}.bt span{font-size:12px;border:1px solid var(--bord);border-radius:10px;padding:2px 8px}.bt .fv{background:var(--vert-c);color:var(--vert);border-color:var(--vert-c)}.bt .fo{background:var(--orange-c);color:var(--orange);border-color:var(--orange-c)}
+.aide{font-size:12px;color:var(--doux);padding:6px 4px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--fond:#14171c;--carte:#1e232b;--texte:#e6e9ef;--doux:#9aa3b2;--bord:#2c323c;--bleu-c:#1d2b44}.tel{background:#181c22}.barre{background:#1e232b}.puce,.tuile{background:#1e232b}.evt{background:#181c22}}
+</style></head><body><main>
+<h1>Maquette · Plan du jour</h1><p class="sous">13/10 · règles R1 à R9 (docs/regles-reunions.html, bloc 12) · démo : Nina Dupont, équipes Mobile et Web</p>
+<div class="ecrans"><div><div class="tel"><div class="barre"><div class="t">Daily · Ma préparation</div><div class="puces"><span class="puce on">👥 Mobile</span><span class="puce on">👥 Web</span><span class="puce on">🔒 Moi</span></div></div><div class="corps">
+<div class="sec">Aujourd'hui · mon plan · 3 cochés</div><div class="aide">Cocher = mon plan du jour. Le statut ne change pas.</div>
+<div class="sec">👥 Mobile</div><div class="carte"><div class="ligne"><span class="case on"></span><div class="l1">📖 Écran de connexion<div class="s">story · 5 points</div></div><span class=cren>avant 9:30</span><span class="past p-b">en cours ▾</span></div><div class="ligne"><span class="case on"></span><div class="l1">✓ Corriger le test de connexion<div class="s">tâche · sous Écran de connexion</div></div><span class=cren>matin</span><span class="past p-o">à faire ▾</span></div><div class="ligne"><span class="case"></span><div class="l1">📖 Migrer les contacts clients<div class="s">story · 8 points</div></div><span class="past p-r">bloqué ▾</span></div></div>
+<div class="sec">👥 Web</div><div class="carte"><div class="ligne"><span class="case on"></span><div class="l1">✓ Relire la page d'accueil<div class="s">tâche</div></div><span class=cren>entre 11:00 et 14:00</span><span class="past p-o">à faire ▾</span></div></div>
+<div class="sec">Ma journée (vue par moi seul)</div><div class="carte"><div class="evt">9:30 · Daily Mobile</div><div class="evt">11:00 · Rendez-vous médecin (perso)</div><div class="evt">14:00 · Revue de sprint Mobile</div><div class="ligne"><div class="l1" style="color:var(--bleu)">＋ Événement perso</div></div></div>
+<div class="sec">Notes · 1</div><div class="carte"><div class="ligne"><div class="l1">Le serveur de test refuse les connexions<div class="s">Blocage · Écran de connexion</div></div></div></div>
+</div></div><div class="legende"><b>1 · Préparation</b> : plan entre espaces (R1, R2, R5, R7). Chaque morceau va dans l'onglet « Plan · Nina Dupont » de son équipe ; créneaux et événements perso dans 🔒 Moi.</div></div><div><div class="tel"><div class="barre"><div class="t">Daily · Mobile · Animer</div><div class="puces"><span class="puce">Vous</span><span class="puce on">Nina</span><span class="puce">Paul</span><span class="puce">Tom</span></div></div><div class="corps">
+<div class="sec">👤 Nina Dupont · 2 sur 5</div>
+<div class="sec">⏪ Hier · plan du 12/10</div><div class="carte"><div class="ligne"><div class="l1">📖 Écran de connexion<div class="s">story · en cours</div></div></div><div class="ligne" style="border-top:none;padding-top:0"><div class="bt"><span class="fv">✓ Fait</span><span>Pas fait</span></div></div><div class="ligne"><div class="l1">✓ Préparer les données de test<div class="s">tâche · terminée</div></div></div><div class="ligne" style="border-top:none;padding-top:0"><div class="bt"><span>✓ Fait</span><span class="fo">Pas fait</span></div></div></div>
+<div class="sec">▶️ Aujourd'hui · 2 cochés</div><div class="carte"><div class="ligne"><span class="case on"></span><div class="l1">📖 Écran de connexion<div class="s">story · 5 points</div></div><span class="past p-b">en cours ▾</span></div><div class="ligne"><span class="case on"></span><div class="l1">✓ Corriger le test de connexion<div class="s">tâche</div></div><span class="past p-o">à faire ▾</span></div><div class="ligne"><span class="case"></span><div class="l1">📖 Migrer les contacts clients<div class="s">story · 8 points</div></div><span class="past p-r">bloqué ▾</span></div></div>
+<div class="aide">L'équipe ne voit pas les créneaux (R6) ; la tâche de l'équipe Web est au Daily Web.</div>
+<div class="sec">Notes · 1</div><div class="carte"><div class="ligne"><div class="l1">Le serveur de test refuse les connexions<div class="s">Blocage · par Nina Dupont</div></div></div></div>
+</div></div><div class="legende"><b>2 · Tour de table</b> : Hier (fait / pas fait, vu de l'équipe, R4, R8) et Aujourd'hui (cases + pastille de statut modifiable à part, R2).</div></div><div><div class="tel"><div class="barre"><div class="t">Nouvelle note · Nina Dupont</div></div><div class="corps">
+<div class="carte"><div class="ligne"><div class="l1">Type</div><b>Information</b></div><div class="ligne"><div class="l1">Élément concerné</div><b>📖 Écran de connexion</b></div><div class="ligne"><div class="l1">Note</div><span>Le client valide la maquette vendredi</span></div><div class="ligne"><span class="case on"></span><div class="l1">À concrétiser<div class="s">décochée : seulement partagée (compte rendu) et close</div></div></div></div>
+<div class="aide">La coche n'existe que pour le type Information, cochée d'office, partout où on ajoute une note.</div>
+<div class="sec">Notes prises dans « Hier »</div><div class="aide">Elles ne reviennent pas dans « Aujourd'hui » ; elles se concrétisent à l'étape Concrétisation.</div>
+</div></div><div class="legende"><b>3 · Ajouter une note</b> : coche « À concrétiser » des Informations (décision du 13/10).</div></div><div><div class="tel"><div class="barre"><div class="t">🌅 Point perso · 🔒 Moi</div><div class="puces"><span class="puce on">🔒 Moi</span><span class="puce on">👥 Mobile</span><span class="puce">👥 Web</span></div></div><div class="corps">
+<div class="sec">⏪ Hier · plan du 12/10</div><div class="carte"><div class="ligne"><div class="l1">Appeler la banque<div class="s">tâche perso</div></div></div><div class="ligne" style="border-top:none;padding-top:0"><div class="bt"><span class="fv">✓ Fait</span><span>Pas fait</span></div></div></div>
+<div class="sec">▶️ Aujourd'hui</div><div class="carte"><div class="ligne"><span class="case on"></span><div class="l1">Préparer le dossier de formation<div class="s">tâche perso</div></div><span class=cren>après-midi</span><span class="past p-o">à faire ▾</span></div><div class="ligne"><span class="case on"></span><div class="l1">📖 Écran de connexion<div class="s">👥 Mobile · story</div></div><span class=cren>avant 9:30</span><span class="past p-b">en cours ▾</span></div></div>
+<div class="sec">🌙 Bilan du soir</div><div class="aide">Même liste avec fait / pas fait pour aujourd'hui.</div>
+</div></div><div class="legende"><b>4 · Point perso</b> : 🔒 Moi = une équipe d'une personne (R9) ; même plan entre espaces que le Daily.</div></div></div></main></body></html>
