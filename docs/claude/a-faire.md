@@ -11,7 +11,9 @@ Décidé (validé par l'utilisateur) :
 - Affichage : bloc en tête de la 1re étape (Situation, Hier, Prévu / fait…) avec le filtre + section du compte rendu ;
   réunions perso (sans compte rendu) : 1re étape seulement.
 - Toucher un avancement ouvre la fiche de l'élément (pas de note créée).
-- EN ATTENTE : forme du filtre (proposé : pastilles par sorte, tout coché, compte rendu = ce que le filtre affiche),
+- 1re étape : bloc à part, dans l'ordre 1. éléments (compteurs ou plan), 2. « Avancement depuis le … » avec son filtre
+  (s'ouvre / se ferme, 1re étape seulement : sorte + niveau), 3. « 📌 Suivis » (notes) inchangé.
+- EN ATTENTE : ce que fait le toucher (proposé : comme l'existant, fiche › + pastille de statut touchable) ; forme du filtre (proposé : pastilles par sorte, tout coché, compte rendu = ce que le filtre affiche),
   puis : première réunion sans photo, périmètre (éléments de qui).
 - Une entrée par élément (tâche, story, feature, epic…), départ → arrivée sur la période ; allers-retours compensés ;
   revenu à son départ = rien.
