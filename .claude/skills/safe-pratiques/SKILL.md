@@ -16,6 +16,9 @@ description: Repères SAFe (famille « safe », tous projets) : niveaux, rôles,
   **Business Owners**.
 - Portfolio : **Epic Owner** (porte une epic, son dossier d'investissement), **Lean Portfolio Management**
   (stratégie, financement, gouvernance), **Enterprise Architect**.
+- Transverses : **Coach agile** (SAFe Practice Consultant, Agile Coach : accompagne équipes et trains, peut animer) ;
+  **Communautés de pratique** (Chapters : personnes du même métier dans plusieurs équipes, un Chapter lead, partage
+  des pratiques et des compétences).
 
 ## Éléments
 - **Epic** (portfolio) → **Feature** (train, tient dans un PI) → **Story** (équipe, tient dans un sprint) → tâches.
@@ -40,7 +43,8 @@ description: Repères SAFe (famille « safe », tous projets) : niveaux, rôles,
 ## Budgets Lean
 - On finance des **chaînes de valeur** (enveloppes), pas des projets ; garde-fous (guardrails) : plafonds, revues
   des epics au-delà d'un seuil, équilibre entre types de travail.
-- Budget participatif : les responsables répartissent les enveloppes entre les epics ; révision en milieu d'année.
+- Budget participatif : le portfolio répartit son enveloppe entre ses **trains** (chaînes de valeur), d'après les
+  demandes et un vote ; une epic est payée par les trains qui la réalisent ; révision en milieu d'année.
 - Suivre le **prévu, l'engagé et le consommé** ; un écart se traite (réviser le budget, réduire le périmètre,
   accepter avec motif).
 

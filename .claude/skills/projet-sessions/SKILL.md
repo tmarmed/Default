@@ -12,6 +12,8 @@ description: Bonne pratique de gestion de projet avec Claude (famille « projet 
 ## Pendant
 - **Une session par fonctionnalité** : une session trop longue coûte cher et perd le fil.
 - Livrer par lots : coder → vérifier (tests, captures) → commit + push → résumer.
+- Un point « non vérifié » (écran pas ouvert, cas pas joué) n'est jamais laissé tel quel : proposer aussitôt de le
+  vérifier, avant de passer au sujet suivant.
 
 ## Clôture (quand l'utilisateur veut fermer)
 1. Le dernier lot est vérifié, commité et poussé.

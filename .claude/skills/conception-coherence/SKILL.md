@@ -22,6 +22,9 @@ description: Liste de contrôle de cohérence (famille « conception », génér
    est une intention, le statut est un état »), lister les règles déjà écrites qui en dépendent, les relire avec ce
    concept et les mettre à jour (décisions remplacées notées dans le journal). Les règles ne sont pas figées : elles
    émergent et se simplifient à chaque percée (Eric Evans, *refactoring toward deeper insight*).
+9. **Cloisonnement** : les données d'exemple ou de démo restent hors du code de l'application (le code est générique,
+   la démo vit dans son propre fichier et son propre stockage) ; chaque donnée nouvelle est rangée dans l'espace de
+   son niveau (équipe, train, perso…) et n'est lue que par ceux qui y ont accès.
 
 ## Après le code
 - Un test par règle de gestion nouvelle.

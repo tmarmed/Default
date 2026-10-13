@@ -13,6 +13,8 @@ description: Façon de travailler avec l’utilisateur (famille « travail », v
   disponible : choix numérotés en texte (« 1a, 2b »).
 - **Jamais de choix par défaut** : une question sans réponse claire (fenêtre fermée, réponse hors sujet) reste
   ouverte et est reposée ; une réponse libre ambiguë est reformulée et reconfirmée avant d'être notée.
+- **Question reposée** (après « Attends », un redémarrage ou une demande) : toujours remettre son explication avant
+  les choix, jamais la fenêtre seule ; rappeler la réponse précédente s'il y en avait une.
 - Terminer par **les questions encore ouvertes** (skill `travail-decortiquer`) puis, au plus, une remarque
   d'entraînement (skill `travail-coach`).
 
