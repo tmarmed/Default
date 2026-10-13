@@ -1025,7 +1025,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
             jour={e.jour}
             placeholder="＋ Note oubliée"
             stories={e.situation.cartes}
-            onAjouter={(type, texte, element, _c, sous_type) => void r.noter({ personne: r.mail, type, texte, element, sous_type })}
+            onAjouter={(type, texte, element, c, sous_type) => void r.noter({ personne: r.mail, type, texte, element, sous_type, ...(c?.c === 'rien' ? { concretisation: 'rien' as const } : {}) })}
           />
         </SectionFiche>
       )}

@@ -52,6 +52,11 @@ Sujets proposés, au choix de l'utilisateur :
   à ajuster aussitôt ; ↕ Déplacer (moment libre, échange, À placer) au toucher ; réunions + éléments déjà à l'heure
   fixes ; événements perso ; places rangées dans 🔒 Moi ({k:'place', d, h, f}). Restent : glisser (au lieu de
   toucher), tâche nouvelle → « À placer » d'office + ouverture directe sur le Plan du jour, plan commun multi-espaces.
+  FAIT ensuite (13/10) : frise à glisser (Frise.tsx : glisser vers un moment libre, sur un autre = échange, en haut =
+  À placer) ; tâche nouvelle (🆕) cochée d'office + ouverture directe (etapeInitiale de FenetreReunion) ; Point perso :
+  même Plan du jour (usePlanJour partagé) ; coche « À concrétiser » des Informations (SaisiePoint, décochée →
+  concretisation « rien »). RESTE : plan commun multi-espaces (une préparation sur plusieurs Dailies, onglet
+  « Plan · nom » protégé par personne) ; Bilan du soir sur les places du plan ; dépôt mes-skills (accès de l'app GitHub).
   Restent (lots suivants) : 3 plan entre espaces + onglet « Plan · nom »
   protégé par personne (aujourd'hui : onglet des points de la réunion) ; 4 Point perso / Bilan du soir ; 5 coche
   « À concrétiser » des Informations.

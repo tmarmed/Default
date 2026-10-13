@@ -52,8 +52,8 @@ export function SuivisPerso({ reunion, moi, echanges, actions, onInfo }: { reuni
     ctxCreer: (pt) => ({ espace, iteration: '', equipe: '', idDe: () => '', description: `${libelleNote(pt)} noté au ${reunion.titre} du ${jour}.`, h, moi }),
     onInfo,
   };
-  const ajouter = async (type: TypePoint, texte: string, element: string, sous_type: SousType = '') => {
-    const { crees } = await actions.ecrirePoints(espace, [{ reunion: reunion.id, personne: moi.toLowerCase(), auteur: moi.toLowerCase(), type, sous_type, texte, element, concretisation: '', tache: '', responsable: '' }], [], []);
+  const ajouter = async (type: TypePoint, texte: string, element: string, sous_type: SousType = '', partagee = false) => {
+    const { crees } = await actions.ecrirePoints(espace, [{ reunion: reunion.id, personne: moi.toLowerCase(), auteur: moi.toLowerCase(), type, sous_type, texte, element, concretisation: partagee ? 'rien' : '', tache: '', responsable: '' }], [], []);
     setPoints((l) => [...l, ...crees]);
   };
   return (
@@ -62,7 +62,7 @@ export function SuivisPerso({ reunion, moi, echanges, actions, onInfo }: { reuni
       <SectionFiche titre={`📌 Suivis · ${suivis.length}${notes.length ? ` · Notes à concrétiser · ${notes.length}` : ''}`}>
         <LignesSuivi points={suivis} notes={notes} ctx={ctx} />
         {!suivis.length && !notes.length && <Vide texte="✓ Rien à suivre." />}
-        <SaisiePoint types={TYPES_NOTE} typeDefaut="information" jour={jour} placeholder="＋ Nouvelle note" onAjouter={(type, texte, element, _c, sous) => void ajouter(type, texte, element, sous)} />
+        <SaisiePoint types={TYPES_NOTE} typeDefaut="information" jour={jour} placeholder="＋ Nouvelle note" onAjouter={(type, texte, element, c, sous) => void ajouter(type, texte, element, sous, c?.c === 'rien')} />
       </SectionFiche>
     </>
   );

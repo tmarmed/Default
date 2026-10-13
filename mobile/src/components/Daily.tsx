@@ -457,7 +457,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         {notes.map((y, i) => (
           <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={surStory(y) || 'sans story'} pastille={{ texte: libelleNote(y), ton: tonType(y.type) }} onRetirer={() => retirerPrep(y.id)} />
         ))}
-        <SaisiePoint premiere={!notes.length} types={TYPES_NOTE} typeDefaut="information" jour={jour} placeholder="＋ Note (information, blocage, décision, action)" stories={stories} onAjouter={(type, texte, element, _c, sous_type) => setPrep((l) => [...l, { ...nouveau(type, texte, element, '', onglet), sous_type }])} />
+        <SaisiePoint premiere={!notes.length} types={TYPES_NOTE} typeDefaut="information" jour={jour} placeholder="＋ Note (information, blocage, décision, action)" stories={stories} onAjouter={(type, texte, element, c, sous_type) => setPrep((l) => [...l, { ...nouveau(type, texte, element, '', onglet), sous_type, ...(c?.c === 'rien' ? { concretisation: 'rien' as const } : {}) }])} />
       </SectionFiche>
     );
   };
@@ -1134,7 +1134,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   jour={jour}
                   placeholder={`＋ Ajouter pour ${courant.nom}…`}
                   stories={situation.cartes.filter((t) => t.responsable === courant.id)}
-                  onAjouter={(type, texte, element, _c, sous_type) => ajouter({ personne: m, type, texte, element, sous_type })}
+                  onAjouter={(type, texte, element, c, sous_type) => ajouter({ personne: m, type, texte, element, sous_type, ...(c?.c === 'rien' ? { concretisation: 'rien' as const } : {}) })}
                 />
               )}
             </SectionFiche>
@@ -1220,7 +1220,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 );
               })()}
             <SectionFiche titre="Note oubliée">
-              <SaisiePoint premiere types={TYPES_NOTE} typeDefaut="information" titre="Nouvelle note oubliée" jour={jour} placeholder="＋ Note oubliée" stories={situation.cartes} onAjouter={(type, texte, element, _c, sous_type) => ajouter({ personne: mail, type, texte, element, sous_type })} />
+              <SaisiePoint premiere types={TYPES_NOTE} typeDefaut="information" titre="Nouvelle note oubliée" jour={jour} placeholder="＋ Note oubliée" stories={situation.cartes} onAjouter={(type, texte, element, c, sous_type) => ajouter({ personne: mail, type, texte, element, sous_type, ...(c?.c === 'rien' ? { concretisation: 'rien' as const } : {}) })} />
             </SectionFiche>
           </>
         );

@@ -332,7 +332,10 @@ export function SaisiePoint({
   const [resp, setResp] = useState(concretiser?.respDefaut ?? '');
   // Décision (validation du 08/10) : un seul type, sous-type « à prendre » (par défaut) ou « prise »
   const [sousType, setSousType] = useState<SousType>('a_prendre');
+  // Information (13/10) : « À concrétiser » cochée d'office ; décochée, la note est seulement partagée (close : « Rien »)
+  const [aConcret, setAConcret] = useState(true);
   const ouvrir = () => {
+    setAConcret(true);
     setType(parDefaut());
     setSousType('a_prendre');
     setElement(elementDefaut);
@@ -345,7 +348,8 @@ export function SaisiePoint({
     const t = texte.trim();
     if (!t) return;
     const cc: Concretisation = c === 'sous_tache' && !element ? 'tache' : c;
-    onAjouter(type, t, element, concretiser ? { c: cc, resp } : undefined, type === 'decision' ? sousType : '');
+    const partagee = type === 'information' && !aConcret;
+    onAjouter(type, t, element, partagee ? { c: 'rien', resp: '' } : concretiser ? { c: cc, resp } : undefined, type === 'decision' ? sousType : '');
     setOuvert(false);
   };
   const libelle = placeholder.replace(/^＋\s*/, '');
@@ -390,8 +394,13 @@ export function SaisiePoint({
             />
           </View>
         </SectionFiche>
+        {type === 'information' && (
+          <SectionFiche titre="Suite">
+            <LigneCase premiere texte="À concrétiser" sous={aConcret ? 'à l’étape Concrétisation, comme les autres notes' : 'seulement partagée (compte rendu), close'} pastille={{ texte: aConcret ? 'oui' : 'non', ton: aConcret ? 'bleu' : 'gris' }} coche={aConcret} onBasculer={() => setAConcret((x) => !x)} />
+          </SectionFiche>
+        )}
         {/* Point de suivi oublié : on le concrétise tout de suite (Transmettre ou Escalader : à l'étape Concrétisation) */}
-        {!!concretiser && (
+        {!!concretiser && !(type === 'information' && !aConcret) && (
           <>
             <SectionFiche titre="Concrétiser">
               <View style={st.champ}>
