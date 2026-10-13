@@ -533,6 +533,8 @@ const SEEDS_ENTREPRISE: Seeds = {
     // Suivis tels qu'hier : les maquettes du panier étaient encore « en cours » (passées à « fait » depuis)
     const suivisHier = liste.filter((x) => !!x.statut).map((x) => (x.id === 'acmpt8' ? { ...x, statut: 'en_cours' as const } : x));
     const photo = photoDe({ items: etatHier, features, epics: (ent.epic as Epic[]).filter((x) => eIds.has(x.id)), suivis: suivisHier, tousItems: items.map((t) => etatHier.find((a) => a.id === t.id) ?? t) }, 0);
+    // L'epic de l'application mobile était « Analyse » hier
+    for (const k of Object.keys(photo).filter((x) => x.startsWith('e:')).slice(0, 1)) photo[k] = ['analyse', ...photo[k].split('|').slice(1)].join('|');
     const photoHier = pointsPhoto(reunion(veille), nina, photo, { sortes: [], niveaux: [] }).map((x, k) => ({ ...x, id: `acmav${k + 1}`, cree_le: `${veille}T09:55:00.000Z` }));
     return [...photoHier, ...liste];
   },

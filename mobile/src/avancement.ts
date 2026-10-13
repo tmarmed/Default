@@ -213,6 +213,25 @@ export function photoPrecedente(points: PointReunion[], reunion: string, prefixe
   ok.sort((a, b) => (a.reunion.slice(-10) + a.le < b.reunion.slice(-10) + b.le ? -1 : 1));
   return ok.pop() ?? null;
 }
+/**
+ * En perso (13/10) : ma réunion précédente peut aussi être un Daily de mon équipe, plus récent que mon dernier rituel.
+ * La base reste la photo de mon rituel ; les photos des Dailies plus récentes (le même jour ou avant) la complètent
+ * pour les éléments qu'elles contiennent. Sans photo de rituel : rien (première réunion).
+ */
+export function photoPrecedenteAvec(points: PointReunion[], reunion: string, prefixes: string[], complements: PointReunion[]): PhotoLue | null {
+  const base = photoPrecedente(points, reunion, prefixes);
+  if (!base || !complements.length) return base;
+  const jour = reunion.slice(-10);
+  const plusRecentes = photos(complements)
+    .filter((x) => x.reunion.slice(-10) <= jour && x.le > base.le)
+    .sort((a, b) => (a.le < b.le ? -1 : 1));
+  if (!plusRecentes.length) return base;
+  const photo: Photo = { ...base.photo };
+  for (const x of plusRecentes) for (const [cle, v] of Object.entries(x.photo)) if (cle in photo) photo[cle] = v;
+  const derniere = plusRecentes[plusRecentes.length - 1];
+  return { ...base, reunion: derniere.reunion, le: derniere.le, photo };
+}
+
 export const photoDeLaReunion = (points: PointReunion[], reunion: string) => photos(points).find((x) => x.reunion === reunion) ?? null;
 
 // ---------- Libellés ----------
@@ -280,7 +299,7 @@ export function phrase(l: LigneAv, nom: (idOuMail: string) => string): string {
   return `${s} : ${valeurLisible(l, l.de, nom)} → ${valeurLisible(l, l.a, nom)}`;
 }
 
-const ICONE: Record<NiveauAv, string> = { element: '', feature: '🧩 ', epic: '🏔 ', budget: '💶 ', objectif: '🎯 ', suivi: '📌 ' };
+const ICONE: Record<NiveauAv, string> = { element: '', feature: '🧩 ', epic: '🗂️ ', budget: '💶 ', objectif: '🎯 ', suivi: '📌 ' };
 export const iconeNiveau = (n: NiveauAv) => ICONE[n];
 
 /** Lignes `donnee` de la photo à écrire avec l'envoi de la réunion (une seule écriture groupée, règle du quota) */

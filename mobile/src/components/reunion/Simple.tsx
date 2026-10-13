@@ -52,7 +52,7 @@ const heures = (n: number) => `${Math.floor(n)} h${n % 1 ? ` ${String(Math.round
 type Choix = 'auj' | 'demain' | 'reporter' | 'abandon' | 'semaine' | 'plustard';
 const LIB: Record<Choix, string> = { auj: 'Refaire aujourd’hui', demain: 'Demain', reporter: 'Reporter', abandon: 'Abandonner', semaine: 'Cette semaine', plustard: 'Plus tard' };
 
-export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil, moi = '', echanges = [] }: { reunion: Reunion; actions: ActionsDaily; onFermer: () => void; onFini?: () => void; onInfo?: (t: string) => void; fil?: string; moi?: string; echanges?: Echange[] }) {
+export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil, moi = '', echanges = [], onOpenTask, onOpenEntite }: { reunion: Reunion; actions: ActionsDaily; onFermer: () => void; onFini?: () => void; onInfo?: (t: string) => void; fil?: string; moi?: string; echanges?: Echange[]; onOpenTask?: (t: Item) => void; onOpenEntite?: (kind: 'feature' | 'epic' | 'objectif', id: string) => void }) {
   const h = useHierarchy();
   const org = useOrg();
   const jour = reunion.debut.slice(0, 10);
@@ -125,6 +125,20 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
     };
   }, [actions, reunion.espace]);
   const jourPerso = reunion.type === 'point_perso' || reunion.type === 'bilan_soir';
+  // Dailies de mes équipes aujourd'hui : leur photo complète ma réunion précédente (« depuis le Daily du … »)
+  const [pointsDailies, setPointsDailies] = useState<PointReunion[]>([]);
+  const cleDailies = pj.dailiesDuJour.map((r) => r.id).join(',');
+  useEffect(() => {
+    if (!jourPerso || !pj.dailiesDuJour.length) return;
+    let actif = true;
+    Promise.all(pj.dailiesDuJour.map((r) => actions.lirePoints(r.espace || 'moi', r.id).catch(() => [] as PointReunion[])))
+      .then((l) => actif && setPointsDailies(l.flat()))
+      .catch(() => {});
+    return () => {
+      actif = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleDailies, jourPerso]);
   const prefixesAv = jourPerso ? ['point_perso-', 'bilan_soir-'] : [reunion.id.slice(0, -10)];
   const miens = useMemo(() => taches.filter((t) => (t.espace || 'moi') === 'moi' || (!!moiId && t.responsable === moiId)), [taches, moiId]);
   const avancement = useAvancement({
@@ -134,6 +148,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
     points: pointsMoi,
     perimetre: { items: miens, objectifs: h.objectifList.filter((o) => (o.espace || 'moi') === 'moi'), suivis: pointsMoi.filter((x) => !!x.statut && prefixesAv.some((p) => x.reunion.startsWith(p))) },
     sources: { items: h.items, objectifList: h.objectifList, points: pointsMoi },
+    complements: jourPerso ? pointsDailies : undefined,
   });
   const pasFinis = prevus.filter((t) => t.statut !== 'termine');
   // ---- Revue de la semaine ----
@@ -217,7 +232,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
       case 'suivis':
         return (
           <>
-            <BlocAvancement av={avancement} nom={(m) => (m.toLowerCase() === moi.toLowerCase() || m === moiId ? 'Vous' : org.personnes.find((x) => x.id === m || x.email.toLowerCase() === m.toLowerCase())?.nom ?? m)} />
+            <BlocAvancement av={avancement} nom={(m) => (m.toLowerCase() === moi.toLowerCase() || m === moiId ? 'Vous' : org.personnes.find((x) => x.id === m || x.email.toLowerCase() === m.toLowerCase())?.nom ?? m)} onOuvrir={onOpenTask} onOuvrirEntite={onOpenEntite} />
             <SuivisPerso reunion={reunion} moi={moi} echanges={echanges} actions={actions} onInfo={onInfo} />
           </>
         );

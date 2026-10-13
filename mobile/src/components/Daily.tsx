@@ -135,6 +135,8 @@ interface Props {
   onInfo?: (texte: string) => void;
   /** Ouvre la fiche d'une tâche (le même ouvreur que le reste de l'application) */
   onOpenTask?: (t: Item) => void;
+  /** Fiche d'une feature, d'une epic ou d'un objectif (depuis l'avancement, 13/10) */
+  onOpenEntite?: (kind: 'feature' | 'epic' | 'objectif', id: string) => void;
   /** Échanges chargés (🔄 Synchro) : questions de l'équipe au PO, suivi des blocages passés en Synchro */
   echanges?: Echange[];
 }
@@ -188,7 +190,7 @@ function useEquipeDaily(reunion: Reunion, org: OrgValue, aujourdhui: string, poi
   return { h, equipe, jour, it, situation, bloquees, personnes, role, nomDe, train, rte, pm, parId, subs, dansEquipe };
 }
 
-function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onFermer, onInfo, onOpenTask, echanges = [] }: Props & { reunion: Reunion }) {
+function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onFermer, onInfo, onOpenTask, onOpenEntite, echanges = [] }: Props & { reunion: Reunion }) {
   const safe = useSafe();
   const mail = moi.toLowerCase();
   const espace = reunion.espace || 'moi';
@@ -1070,7 +1072,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               const noms = personnes.filter((y) => ab.fermeture || ab.personnes.includes(y.email.toLowerCase())).map((y) => y.nom);
               return noms.length ? <Text style={[st.sous, { marginHorizontal: 16, marginTop: 6 }]}>📅 Absents aujourd’hui : {noms.join(', ')}</Text> : null;
             })()}
-            <BlocAvancement av={avancement} nom={nomDe} onOuvrir={lecture ? undefined : onOpenTask} />
+            <BlocAvancement av={avancement} nom={nomDe} onOuvrir={lecture ? undefined : onOpenTask} onOuvrirEntite={lecture ? undefined : onOpenEntite} />
             <SectionFiche
               titre={`📌 Suivis · ${nSuivisVus}${reportesVus.length || vueSuivi === 'notes' ? ` · Notes à concrétiser · ${reportesVus.length}` : ''}`}
               droite={
@@ -1394,7 +1396,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               )}
             </SectionFiche>
             {/* Avancement (13/10) : même filtre qu'à la Situation ; compte rendu déjà envoyé : la photo et le filtre de l'envoi */}
-            <BlocAvancement av={x.cle === 'cr_lecture' ? avancementCR : avancement} nom={nomDe} compteRendu lecture={x.cle === 'cr_lecture'} onOuvrir={lecture ? undefined : onOpenTask} />
+            <BlocAvancement av={x.cle === 'cr_lecture' ? avancementCR : avancement} nom={nomDe} compteRendu lecture={x.cle === 'cr_lecture'} onOuvrir={lecture ? undefined : onOpenTask} onOuvrirEntite={lecture ? undefined : onOpenEntite} />
           </>
         );
       }

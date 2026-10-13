@@ -9,8 +9,10 @@ photo dans l'écriture de envoyerCompteRendu), Daily (Situation, compte rendu, e
 photo à « Terminer » ; Point perso et Bilan du soir se suivent) ; démo : photo du Daily d'hier (Mobile).
 Vérifié dans la démo (texte de l'écran) : Daily (6 lignes, filtre, compte rendu filtré ouvert d'office), ART sync,
 Point perso et Bilan du soir (message de première réunion ; après « Terminer » du Point perso : « Rien n'a bougé »).
-À valider par l'utilisateur en captures. Limites : la fiche d'une feature ou d'une epic ne s'ouvre pas depuis
-l'avancement (seulement tâches et stories) ; Daily en perso pas pris comme « ma réunion précédente » (photo d'équipe).
+Limites corrigées (13/10) : toucher une feature, une epic ou un objectif ouvre sa fiche (onOpenEntite, d'App aux
+réunions) ; en perso, la photo du Daily du jour de mes équipes, plus récente, complète ma réunion précédente
+(photoPrecedenteAvec). Restent sans fiche depuis l'avancement : objectif du PI, enveloppe, demande, suivi (le suivi
+est juste en dessous, dans « 📌 Suivis »).
 Décidé (validé par l'utilisateur) :
 - Bilan du soir = même affichage que « Hier » (éléments du plan + statut modifiable + notes) ; la section
   « Changé depuis ce matin » disparaît.

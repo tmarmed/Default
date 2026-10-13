@@ -20,6 +20,7 @@ import {
   photoDe,
   photoDeLaReunion,
   photoPrecedente,
+  photoPrecedenteAvec,
   phrase,
   pointsPhoto,
   SORTES_AV,
@@ -68,12 +69,14 @@ export function useAvancement(o: {
   perimetre: Perimetre;
   sources: Sources;
   lecture?: boolean;
+  /** En perso : photos des Dailies de mes équipes, qui complètent ma réunion précédente (photoPrecedenteAvec) */
+  complements?: PointReunion[];
 }): Avancement {
-  const { type, reunion, prefixes, points, perimetre, sources, lecture } = o;
+  const { type, reunion, prefixes, points, perimetre, sources, lecture, complements } = o;
   const focus = focusDe(type);
   const [filtreLocal, setFiltre] = useState<FiltreAv>(FILTRE_TOUT);
   const cle = prefixes.join(',');
-  const prec = useMemo(() => photoPrecedente(points, reunion, prefixes), [points, reunion, cle]); // eslint-disable-line react-hooks/exhaustive-deps
+  const prec = useMemo(() => (complements ? photoPrecedenteAvec(points, reunion, prefixes, complements) : photoPrecedente(points, reunion, prefixes)), [points, reunion, cle, complements]); // eslint-disable-line react-hooks/exhaustive-deps
   const envoyee = useMemo(() => photoDeLaReunion(points, reunion), [points, reunion]);
   const actuelle = useMemo(() => photoDe(perimetre, focus), [perimetre, focus]);
   const lu = lecture && envoyee;
@@ -147,16 +150,24 @@ export function BlocAvancement({
   compteRendu,
   lecture,
   onOuvrir,
+  onOuvrirEntite,
 }: {
   av: Avancement;
   nom: (idOuMail: string) => string;
   compteRendu?: boolean;
   lecture?: boolean;
   onOuvrir?: (t: Item) => void;
+  onOuvrirEntite?: (kind: 'feature' | 'epic' | 'objectif', id: string) => void;
 }) {
   // Responsable d'un élément : id de personne (Organisation) ; d'un suivi : adresse e-mail
   const org = useOrg();
   const nomComplet = (x: string) => org.personnes.find((y) => y.id === x)?.nom ?? nom(x);
+  // Feature, epic, objectif : leur fiche (un objectif du PI, une enveloppe, une demande ou un suivi n'en ont pas ici)
+  const KIND: Record<string, 'feature' | 'epic' | 'objectif'> = { f: 'feature', e: 'epic', o: 'objectif' };
+  const ouvrirEntite = (cle: string) => {
+    const k = KIND[cle.slice(0, 1)];
+    return k && onOuvrirEntite ? () => onOuvrirEntite(k, cle.slice(2)) : undefined;
+  };
   const filtre = estFiltre(av.filtre);
   const [ouvert, setOuvert] = useState(compteRendu ? filtre : false);
   if (!av.lignes) {
@@ -182,7 +193,7 @@ export function BlocAvancement({
               texte={`${iconeNiveau(l.niveau)}${av.titreDe(l.cle)}`}
               sous={phrase(l, nomComplet)}
               tache={!lecture && t ? t : undefined}
-              onOuvrir={!lecture && t && onOuvrir ? () => onOuvrir(t) : undefined}
+              onOuvrir={lecture ? undefined : t && onOuvrir ? () => onOuvrir(t) : ouvrirEntite(l.cle)}
             />
           );
         })

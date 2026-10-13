@@ -1324,6 +1324,12 @@ function Main() {
     for (const x of patchs) await saveEntity('valuestream', { id: x.id }, { okrs: x.okrs });
   };
   const [featDomaine, setFeatDomaine] = useState<string | undefined>(undefined);
+  /** Fiche d'une feature, d'une epic ou d'un objectif, depuis l'avancement d'une réunion (13/10) */
+  const ouvrirEntite = (kind: 'feature' | 'epic' | 'objectif', id: string) => {
+    if (kind === 'feature') openFeature(hv.featureList.find((x) => x.id === id) ?? null);
+    else if (kind === 'epic') openEpic(hv.epicList.find((x) => x.id === id) ?? null);
+    else openObjectif(hv.objectifList.find((x) => x.id === id) ?? null);
+  };
   const openFeature = (f: Feature | null, defaults?: Partial<FeatureInput>, domaine?: string, champ?: string) => {
     empiler('feature', champ);
     setEditingFeature(f);
@@ -2863,6 +2869,7 @@ function Main() {
           }}
           onInfo={setInfo}
           onOpenTask={openForm}
+          onOpenEntite={ouvrirEntite}
           echanges={tousHier.echanges ?? []}
         />
         </StatutTacheContext.Provider>
@@ -3303,6 +3310,7 @@ function Main() {
           onInfo={setInfo}
           daily={actionsDaily}
           onOpenTask={openForm}
+          onOpenEntite={ouvrirEntite}
           echanges={tousHier.echanges ?? []}
           onOuvrir={(r) => {
             setSeulEnCours(null);

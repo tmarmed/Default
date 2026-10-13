@@ -46,6 +46,8 @@ interface Props {
   daily?: ActionsDaily;
   /** Ouvre la fiche d'une tâche (› d'une story ou d'une tâche qui a des sous-tâches) */
   onOpenTask?: (t: Item) => void;
+  /** Fiche d'une feature, d'une epic ou d'un objectif (depuis l'avancement, 13/10) */
+  onOpenEntite?: (kind: 'feature' | 'epic' | 'objectif', id: string) => void;
   /** Échanges chargés (questions de l'équipe au PO, suivi des blocages passés en 🔄 Synchro) */
   echanges?: Echange[];
   /** Ouvrir une réunion : la fenêtre est tenue par l'application (bandeau de réunion, ouverture au démarrage) */
@@ -73,7 +75,7 @@ function dansDelivery(r: Reunion, f: OrgFiltre, org: OrgValue): boolean {
   return f.kind === 'equipeagile' ? n.kind === 'equipeagile' && n.id === f.id : f.kind === 'train' ? train === f.id : portfolio === f.id;
 }
 
-export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre, onInfo, daily, onOpenTask, echanges, onOuvrir, onModifier }: Props) {
+export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre, onInfo, daily, onOpenTask, onOpenEntite, echanges, onOuvrir, onModifier }: Props) {
   const [ouverteIci, setOuverte] = useState<Reunion | null>(null);
   const [suivisOuverts, setSuivisOuverts] = useState(false);
   const espacesReunions = useMemo(() => [...new Set(reunions.map((r) => r.espace || 'moi'))].sort(), [reunions]);
@@ -194,7 +196,7 @@ export function ReunionsView({ reunions, org, moi, aujourdhui, safeActif, filtre
         />
       )}
       {ouverte && (
-        <FenetreDeReunion reunion={ouverte} org={org} moi={moi} aujourdhui={aujourdhui} daily={daily} onFermer={() => setOuverte(null)} onInfo={onInfo} onOpenTask={onOpenTask} echanges={echanges} />
+        <FenetreDeReunion reunion={ouverte} org={org} moi={moi} aujourdhui={aujourdhui} daily={daily} onFermer={() => setOuverte(null)} onInfo={onInfo} onOpenTask={onOpenTask} onOpenEntite={onOpenEntite} echanges={echanges} />
       )}
     </>
   );
@@ -215,19 +217,21 @@ export function FenetreDeReunion(p: {
   onFini?: () => void;
   onInfo?: (texte: string) => void;
   onOpenTask?: (t: Item) => void;
+  /** Fiche d'une feature, d'une epic ou d'un objectif (depuis l'avancement, 13/10) */
+  onOpenEntite?: (kind: 'feature' | 'epic' | 'objectif', id: string) => void;
   echanges?: Echange[];
 }) {
-  const { reunion: ouverte, org, moi, aujourdhui, daily, onFermer, onInfo, onOpenTask, echanges } = p;
+  const { reunion: ouverte, org, moi, aujourdhui, daily, onFermer, onInfo, onOpenTask, onOpenEntite, echanges } = p;
   const jour = ouverte.debut.slice(0, 10);
   const mode = ouverte.organisateur.toLowerCase() === moi.toLowerCase() ? 'organisateur' : 'participant';
   const fil = [libelleNiveau(lireNiveau(ouverte.niveau), org) || '👤 Personnel', periodeReunion(ouverte), jourCourt(jour), heureReunion(ouverte), dureeReunion(ouverte.duree_min)].filter(Boolean).join(' · ');
   if (ouverte.type === 'daily' && !!ouverte.niveau && daily)
     // Daily validé : contenu de chaque étape, points enregistrés dans le Sheet de l'équipe
-    return <FenetreDaily visible reunion={ouverte} mode={mode} org={org} moi={moi} aujourdhui={aujourdhui} fil={fil} actions={daily} onFermer={onFermer} onInfo={onInfo} onOpenTask={onOpenTask} echanges={echanges} />;
+    return <FenetreDaily visible reunion={ouverte} mode={mode} org={org} moi={moi} aujourdhui={aujourdhui} fil={fil} actions={daily} onFermer={onFermer} onInfo={onInfo} onOpenTask={onOpenTask} onOpenEntite={onOpenEntite} echanges={echanges} />;
   // Réunions d'équipe validées (07/10) : contenu de chaque étape, sur le socle commun
-  const props = { visible: true, reunion: ouverte, org, moi, aujourdhui, fil, onFermer, onFini: p.onFini, onInfo, onOpenTask, echanges };
+  const props = { visible: true, reunion: ouverte, org, moi, aujourdhui, fil, onFermer, onFini: p.onFini, onInfo, onOpenTask, onOpenEntite, echanges };
   // Rituels personnels (seul) : sur vos tâches, sans live ni compte rendu
-  if (!ouverte.niveau && daily && estRituelSimple(ouverte.type)) return <FenetreSimple reunion={ouverte} actions={daily} fil={fil} onFermer={onFermer} onFini={p.onFini} onInfo={onInfo} moi={moi} echanges={echanges} />;
+  if (!ouverte.niveau && daily && estRituelSimple(ouverte.type)) return <FenetreSimple reunion={ouverte} actions={daily} fil={fil} onFermer={onFermer} onFini={p.onFini} onInfo={onInfo} moi={moi} echanges={echanges} onOpenTask={onOpenTask} onOpenEntite={onOpenEntite} />;
   // 📅 Réunion libre : son parcours (points, décisions, compte rendu), même personnelle
   if (ouverte.type === 'reunion' && daily) return <FenetreNiveau {...props} actions={daily} />;
   if (ouverte.niveau && daily) {

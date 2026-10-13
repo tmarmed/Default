@@ -156,6 +156,8 @@ export interface PropsReunion {
   onFini?: () => void;
   onInfo?: (texte: string) => void;
   onOpenTask?: (t: Item) => void;
+  /** Fiche d'une feature, d'une epic ou d'un objectif (depuis l'avancement, 13/10) */
+  onOpenEntite?: (kind: 'feature' | 'epic' | 'objectif', id: string) => void;
   echanges?: Echange[];
 }
 
@@ -636,6 +638,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     avancement,
     avancementCR,
     ouvrirTache: p.onOpenTask,
+    ouvrirEntite: p.onOpenEntite,
     live,
     libelleEtape: opts.libelleEtape,
   };
@@ -751,7 +754,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
   const { e } = r;
   return (
     <>
-      <BlocAvancement av={r.avancement} nom={e.nomDe} onOuvrir={lecture ? undefined : r.ouvrirTache} />
+      <BlocAvancement av={r.avancement} nom={e.nomDe} onOuvrir={lecture ? undefined : r.ouvrirTache} onOuvrirEntite={lecture ? undefined : r.ouvrirEntite} />
       <BlocSuiviSeul r={r} lecture={lecture} onAjouter={onAjouter} />
     </>
   );
@@ -1135,7 +1138,7 @@ export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode 
         {notes.length ? notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`Rien (clos) · noté par ${e.nomDe(d.pt.personne)}`} pastille={{ texte: libelleNote(d.pt), ton: 'gris' }} />) : <Vide texte="Rien." />}
       </SectionFiche>
       {/* Avancement (13/10) : même filtre qu'à la Situation ; compte rendu déjà envoyé : la photo et le filtre de l'envoi */}
-      <BlocAvancement av={reunionId ? r.avancementCR : r.avancement} nom={e.nomDe} compteRendu lecture={!!reunionId} onOuvrir={reunionId ? undefined : r.ouvrirTache} />
+      <BlocAvancement av={reunionId ? r.avancementCR : r.avancement} nom={e.nomDe} compteRendu lecture={!!reunionId} onOuvrir={reunionId ? undefined : r.ouvrirTache} onOuvrirEntite={reunionId ? undefined : r.ouvrirEntite} />
     </>
   );
 }
