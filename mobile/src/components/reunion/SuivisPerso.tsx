@@ -62,7 +62,7 @@ export function SuivisPerso({ reunion, moi, echanges, actions, onInfo }: { reuni
       <SectionFiche titre={`📌 Suivis · ${suivis.length}${notes.length ? ` · Notes à concrétiser · ${notes.length}` : ''}`}>
         <LignesSuivi points={suivis} notes={notes} ctx={ctx} />
         {!suivis.length && !notes.length && <Vide texte="✓ Rien à suivre." />}
-        <SaisiePoint types={TYPES_NOTE} typeDefaut="action" jour={jour} placeholder="＋ Nouvelle note" onAjouter={(type, texte, element, _c, sous) => void ajouter(type, texte, element, sous)} />
+        <SaisiePoint types={TYPES_NOTE} typeDefaut="information" jour={jour} placeholder="＋ Nouvelle note" onAjouter={(type, texte, element, _c, sous) => void ajouter(type, texte, element, sous)} />
       </SectionFiche>
     </>
   );

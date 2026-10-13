@@ -32,7 +32,7 @@ export const dateCourte = (jour: string) => `${Number(jour.slice(8, 10))}/${jour
 export const prefixeReunion = (r: Pick<Reunion, 'id'>) => r.id.slice(0, -10);
 
 /**
- * Parcours du daily par rôle : membre (Hier, Aujourd'hui, Blocages), PO (Stories à accepter, Backlog à préparer,
+ * Parcours du daily par rôle : membre (Hier, Aujourd'hui avec « Mes notes » en bas, Résumé — 13/10), PO (Stories à accepter, Backlog à préparer,
  * Questions de l'équipe ; s'il n'est pas membre, il fait aussi Hier et Aujourd'hui pour ses tâches), Scrum Master
  * (Situation, Tour de table, Concrétisation, Compte rendu). Plus d'étape « Prêt » (07/10) : le membre envoie depuis
  * Blocages, le PO depuis Questions de l'équipe.
@@ -42,7 +42,9 @@ export const PARCOURS_DAILY: CatalogueParcours = {
   membre: [
     { cle: 'hier', nom: 'Hier' },
     { cle: 'aujourdhui', nom: 'Aujourd’hui' },
-    { cle: 'blocages', nom: 'Blocages' },
+    // 13/10 : plus d'écran Blocages ; les notes (tous types, Information par défaut) se prennent sous Hier et
+    // Aujourd'hui ; « Résumé » récapitule et envoie au Scrum Master
+    { cle: 'resume', nom: 'Résumé' },
   ],
   po: [
     { cle: 'accepter', nom: 'Stories à accepter' },
@@ -105,8 +107,11 @@ export const pastilleSuivi = (p: Pick<PointReunion, 'type' | 'reunion' | 'sous_t
 /** Points à concrétiser : blocages, décisions, actions */
 export const aConcretiser = (p: Pick<PointReunion, 'type'>) => (TYPES_NOTE_TRAIN as string[]).includes(p.type);
 /** Types de note (validation du 08/10) ; au train (PI Planning, ART sync…), aussi Risque et Dépendance */
-export const TYPES_NOTE: TypePoint[] = ['blocage', 'decision', 'action', 'information'];
+// Information d'abord : type par défaut des notes (validé le 13/10), fermée d'office (rien à concrétiser)
+export const TYPES_NOTE: TypePoint[] = ['information', 'blocage', 'decision', 'action'];
 export const TYPES_NOTE_TRAIN: TypePoint[] = [...TYPES_NOTE, 'risque', 'dependance'];
+/** Note qui attend une concrétisation : pas une Information (fermée d'office, sauf si on choisit de la concrétiser) */
+export const attendConcretisation = (p: Pick<PointReunion, 'type'>) => aConcretiser(p) && p.type !== 'information';
 
 /** Concrétisation proposée : sous-tâche de la story (sinon tâche à part) pour un blocage ou une action ; rien pour une décision */
 export function concretisationParDefaut(p: Pick<PointReunion, 'type' | 'element' | 'sous_type'>): Concretisation {

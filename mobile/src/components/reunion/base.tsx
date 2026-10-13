@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import {
+  attendConcretisation,
   aConcretiser,
   concretisationParDefaut,
   dateCourte,
@@ -323,7 +324,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
   const voter = (el: string, val: string, tour: number) => voterLot([{ el, val }], tour);
 
   // ---- Concrétisation (animateur) ----
-  const reportes = useMemo(() => aReprendre(serveur, reunion.id).filter(aConcretiser), [serveur, reunion.id]);
+  const reportes = useMemo(() => aReprendre(serveur, reunion.id).filter(attendConcretisation), [serveur, reunion.id]);
   const aDecider = [...[...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => ici(x) && aConcretiser(x) && !x.concretisation), ...(anime ? reportes : [])];
   /**
    * Concrétisation d'un point (08/10, feuille « Concrétiser ») : les choix de l'animateur sur ceux proposés
@@ -830,7 +831,7 @@ export function BlocPoints({
           key={filtre || 'tous'}
           premiere={!vus.length}
           types={typesNote(r)}
-          typeDefaut={filtre || (/Risque/.test(placeholder) && r.e.niveauIci?.kind === 'train' ? 'risque' : 'blocage')}
+          typeDefaut={filtre || (/Risque/.test(placeholder) && r.e.niveauIci?.kind === 'train' ? 'risque' : 'information')}
           titre={filtre ? TITRE_TYPE[filtre] : undefined}
           jour={e.jour}
           placeholder={placeholder}
@@ -993,7 +994,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
           <SaisiePoint
             premiere
             types={typesNote(r)}
-            typeDefaut="blocage"
+            typeDefaut="information"
             titre="Nouvelle note oubliée"
             jour={e.jour}
             placeholder="＋ Note oubliée"

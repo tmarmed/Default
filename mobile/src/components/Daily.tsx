@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   aConcretiser,
+  attendConcretisation,
   backlogAPreparer,
   concretisationParDefaut,
   dateCourte,
@@ -406,6 +407,18 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       .filter((x) => x.type === type && !liste.some((t) => x.element === t.id && x.texte === t.titre))
       .map((x) => <Ligne key={x.id} texte={x.texte} sous={surStory(x) || 'ajouté par vous'} onRetirer={() => retirerPrep(x.id)} />);
 
+  /** Bloc « Mes notes » (13/10) sous Hier et Aujourd'hui : tous les types, Information par défaut (fermée d'office) */
+  const blocMesNotes = (stories: Item[], onglet: Prep = 'membre') => {
+    const notes = prep.filter((y) => (TYPES_NOTE as string[]).includes(y.type));
+    return (
+      <SectionFiche titre={`Mes notes · ${notes.length}`}>
+        {notes.map((y, i) => (
+          <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={surStory(y) || 'sans story'} pastille={{ texte: libelleNote(y), ton: tonType(y.type) }} onRetirer={() => retirerPrep(y.id)} />
+        ))}
+        <SaisiePoint premiere={!notes.length} types={TYPES_NOTE} typeDefaut="information" jour={jour} placeholder="＋ Note (information, blocage, décision, action)" stories={stories} onAjouter={(type, texte, element, _c, sous_type) => setPrep((l) => [...l, { ...nouveau(type, texte, element, '', onglet), sous_type }])} />
+      </SectionFiche>
+    );
+  };
   // PO : stories à accepter, backlog à préparer, questions de l'équipe
   const aAccepter = storiesAAccepter(situation.elements);
   const pi = piOf(jour);
@@ -502,7 +515,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const nValider = nouveauxSuivis.filter((x) => statutAffiche(x, h.items, jour).s === 'fait' && validateurDe(x, ctxSuivi.animateur) === mail).length;
   // À concrétiser : ce qui ne l'a pas encore été (un compte rendu déjà envoyé ne recrée rien)
   // Points de suivi reportés des réunions précédentes (escalades reçues, réponses recopiées) : à concrétiser aussi
-  const reportes = useMemo(() => aReprendre(serveur, reunion.id).filter(aConcretiser), [serveur, reunion.id]);
+  const reportes = useMemo(() => aReprendre(serveur, reunion.id).filter(attendConcretisation), [serveur, reunion.id]);
   const aDecider = [...[...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => dela(x) && aConcretiser(x) && !x.concretisation), ...(anime ? reportes : [])];
   // Concrétisation (08/10, feuille « Concrétiser ») : les choix du SM sur ceux proposés ; forme d'avant (c, resp, a) en plus
   const escaladesDaily = [
@@ -695,44 +708,38 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     const lecture = o.lecture;
     switch (x.cle) {
       case 'hier':
+      case 'aujourdhui': {
+        const hier = x.cle === 'hier';
         return (
           <>
-            <TitreFiche icone="⏪" titre="Hier" vide="" sous={sous('Cochez ce dont vous parlerez')} />
-            <SectionFiche titre={`Mes stories et tâches · ${hierListe.length}`}>
-              {listeTaches('hier', hierListe, 'Rien en cours ni terminé hier.', pr)}
-              {listeLibres('hier', hierListe)}
-              <SaisiePoint types={['hier']} jour={jour} placeholder="＋ Autre chose fait hier" stories={mesStories} onAjouter={(type, texte, element) => setPrep((l) => [...l, nouveau(type, texte, element, '', pr)])} />
+            <TitreFiche icone={hier ? '⏪' : '▶️'} titre={hier ? 'Hier' : 'Aujourd’hui'} vide="" sous={sous(hier ? 'Cochez ce dont vous parlerez' : 'Ce que vous allez faire')} />
+            <SectionFiche titre={`Mes stories et tâches · ${(hier ? hierListe : aujListe).length}`}>
+              {hier ? listeTaches('hier', hierListe, 'Rien en cours ni terminé hier.', pr) : listeTaches('aujourdhui', aujListe, 'Rien à votre nom dans le sprint.', pr)}
+              {listeLibres(hier ? 'hier' : 'aujourdhui', hier ? hierListe : aujListe)}
             </SectionFiche>
+            {blocMesNotes(mesStories, pr)}
           </>
         );
-      case 'aujourdhui':
-        return (
-          <>
-            <TitreFiche icone="▶️" titre="Aujourd’hui" vide="" sous={sous('Ce que vous allez faire')} />
-            <SectionFiche titre={`Mes stories et tâches · ${aujListe.length}`}>
-              {listeTaches('aujourdhui', aujListe, 'Rien à votre nom dans le sprint.', pr)}
-              {listeLibres('aujourdhui', aujListe)}
-              <SaisiePoint types={['aujourdhui']} jour={jour} placeholder="＋ Autre chose aujourd’hui" stories={mesStories} onAjouter={(type, texte, element) => setPrep((l) => [...l, nouveau(type, texte, element, '', pr)])} />
-            </SectionFiche>
-          </>
-        );
+      }
+      // Résumé (13/10) : ce dont vous parlerez et vos notes, avant « Envoyer au Scrum Master » ; « blocages » :
+      // ancien nom de l'étape (parcours enregistrés avant le 13/10)
+      case 'resume':
       case 'blocages': {
-        const liste = prep.filter((y) => y.type === 'blocage');
+        const nHier = prep.filter((y) => y.type === 'hier').length;
+        const nAuj = prep.filter((y) => y.type === 'aujourdhui').length;
+        const notes = prep.filter((y) => (TYPES_NOTE as string[]).includes(y.type));
         return (
           <>
-            <TitreFiche icone="🧱" titre="Blocages" vide="" sous={sous('Ce qui vous empêche d’avancer')} />
-            <SectionFiche titre={`Blocages · ${liste.length}`}>
-              {liste.map((y, i) => (
-                <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={surStory(y) || 'sans story'} onRetirer={() => retirerPrep(y.id)} />
+            <TitreFiche icone="📋" titre="Résumé" vide="" sous={sous('Ce que vous direz au tour de table')} />
+            <SectionFiche titre="Tâches">
+              <Ligne premiere texte={`⏪ Hier · ${nHier} élément${nHier > 1 ? 's' : ''}`} />
+              <Ligne texte={`▶️ Aujourd’hui · ${nAuj} élément${nAuj > 1 ? 's' : ''}`} />
+            </SectionFiche>
+            <SectionFiche titre={`Mes notes · ${notes.length}`}>
+              {TYPES_NOTE.flatMap((ty) => notes.filter((y) => y.type === ty)).map((y, i) => (
+                <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={surStory(y) || 'sans story'} pastille={{ texte: libelleNote(y), ton: tonType(y.type) }} onRetirer={() => retirerPrep(y.id)} />
               ))}
-              <SaisiePoint
-                premiere={!liste.length}
-                types={['blocage']}
-                jour={jour}
-                placeholder="＋ Blocage"
-                stories={mesStories}
-                onAjouter={(type, texte, element) => setPrep((l) => [...l, nouveau(type, texte, element, '', pr)])}
-              />
+              {!notes.length && <Vide texte="Aucune note." />}
             </SectionFiche>
           </>
         );
@@ -977,7 +984,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             <SectionFiche
               titre={`Notes · ${filtreType ? `${notes.filter((y) => y.type === filtreType).length} sur ${notes.length}` : notes.length}`}
               droite={<PastilleFiltres actif={!!filtreType} ouvert={filtresOuverts} onPress={() => setFiltresOuverts((o) => !o)} />}
-              entete={filtresOuverts && <FiltresType types={['hier', 'aujourdhui', 'blocage', 'decision', 'action']} value={filtreType} onChange={setFiltreType} />}
+              entete={filtresOuverts && <FiltresType types={['hier', 'aujourdhui', 'information', 'blocage', 'decision', 'action']} value={filtreType} onChange={setFiltreType} />}
             >
               {notes.filter((y) => !filtreType || y.type === filtreType).map((y, i) => {
                 const q = echangeDe(y);
@@ -1002,7 +1009,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   key={filtreType || 'tous'}
                   premiere={!notes.filter((y) => !filtreType || y.type === filtreType).length}
                   types={TYPES_NOTE}
-                  typeDefaut={filtreType || 'blocage'}
+                  typeDefaut={filtreType || 'information'}
                   titre={filtreType === 'blocage' || filtreType === 'decision' || filtreType === 'action' ? TITRE_TYPE[filtreType] : `Nouvelle note · ${courant.nom}`}
                   jour={jour}
                   placeholder={`＋ Ajouter pour ${courant.nom}…`}
@@ -1092,7 +1099,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 );
               })()}
             <SectionFiche titre="Note oubliée">
-              <SaisiePoint premiere types={TYPES_NOTE} typeDefaut="blocage" titre="Nouvelle note oubliée" jour={jour} placeholder="＋ Note oubliée" stories={situation.cartes} onAjouter={(type, texte, element, _c, sous_type) => ajouter({ personne: mail, type, texte, element, sous_type })} />
+              <SaisiePoint premiere types={TYPES_NOTE} typeDefaut="information" titre="Nouvelle note oubliée" jour={jour} placeholder="＋ Note oubliée" stories={situation.cartes} onAjouter={(type, texte, element, _c, sous_type) => ajouter({ personne: mail, type, texte, element, sous_type })} />
             </SectionFiche>
           </>
         );
