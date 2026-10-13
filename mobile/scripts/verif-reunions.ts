@@ -8,7 +8,7 @@ import { absentsLe, joursAbsence, joursPrevus, jppConstate } from '../src/conges
 import { avecDossiers, situationEnveloppe, gerantsBudget, libelleDecisionDossier, libelleStatutDemande, manquesDossier, niveauDessus, reunionDuNiveau } from '../src/budget';
 import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '../src/budget';
 import { creerMagasin, nettoyerDepense, nettoyerPoint } from '../src/magasin';
-import { mesSuivis, reunionDeNote } from '../src/daily';
+import { elementsDuPlan, faitDe, mesSuivis, planDe, reunionDeNote, reunionPrecedenteAvecPlan } from '../src/daily';
 import { reglerVocabulaire, vocab } from '../src/vocabulaire';
 import type { Conge, Depense, Item, PointReunion } from '../src/types';
 import { lieAObjectif } from '../src/types';
@@ -129,7 +129,7 @@ const dEnt = donneesDemo('demo-entreprise').items;
 const pts = pointsDemo('demo-entreprise');
 const nina = reunionsAVenir(o, mail('acmp7'), toDateString(new Date()), true, 14);
 const prochain = nina.find((r) => r.type === 'daily' && r.niveau === 'equipeagile:acmeqmob')!;
-ok(!!prochain && prochain.organisateur === mail('acmp7') && pts.filter((x) => x.reunion === prochain.id && x.personne === 'tom.faure@acme.example').length === 3, 'démo : Tom a préparé 3 points pour le prochain daily de Mobile (animé par Nina)');
+ok(!!prochain && prochain.organisateur === mail('acmp7') && pts.filter((x) => x.reunion === prochain.id && x.personne === 'tom.faure@acme.example').length === 4, 'démo : Tom a préparé 4 points (dont « fait » sur son plan d’hier) pour le prochain daily de Mobile (animé par Nina)');
 const s1 = suivis(pts, dEnt);
 ok(s1.length === 3 && s1.every((x) => x.tache.statut !== 'termine'), 'démo : 3 suivis (points concrétisés, tâche pas finie)');
 ok(suivis(pts, dEnt.map((t) => (t.id === 'acm7' ? { ...t, statut: 'termine' as const } : t))).length === 2, 'suivi : une tâche terminée n’est plus suivie');
@@ -594,6 +594,18 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
     ok(sP.enveloppe === 250000 && sP.projets === 200000 && sP.disponible === 250000 - sP.engage && sE.sousEnveloppes === 250000 && sE.disponible === 150000 - sE.demandes, 'enveloppes : Engagé = epics lancées + demandes accordées ; entreprise = enveloppes des portfolios');
     const sC = seriesDe(makeOrgValue(orgTousLesRoles(orgDemo('demo-entreprise'))), 'vous@demo', true).map((v) => `${v.type}|${v.serie.niveau}`);
     ok(sC.includes('comite_budget|unite:acmu1'), 'Comité budgétaire : réunion de l’entreprise (direction de premier niveau)');
+  }
+  // Plan du jour (13/10) : une intention, jamais un statut
+  {
+    const R = (j: string) => `daily-equipeagile:x-${j}`;
+    const p = (reunion: string, type: PointReunion['type'], element: string, sous_type: PointReunion['sous_type'] = '') =>
+      ({ reunion, personne: 'a@x', type, element, sous_type }) as Pick<PointReunion, 'reunion' | 'personne' | 'type' | 'element' | 'sous_type'>;
+    const pts = [p(R('2026-10-09'), 'aujourdhui', 'e1'), p(R('2026-10-12'), 'aujourdhui', 'e2'), p(R('2026-10-12'), 'aujourdhui', 'e3'), p(R('2026-10-13'), 'hier', 'e2', 'pas_fait'), p(R('2026-10-13'), 'aujourdhui', 'e2')];
+    const it = (id: string, statut: Item['statut']) => ({ id, statut }) as Item;
+    ok(elementsDuPlan([it('a', 'a_faire'), it('b', 'termine'), it('c', 'en_cours')]).map((x) => x.id).join() === 'c,a', 'plan du jour : éléments pas terminés, ceux en cours en haut (R1)');
+    ok(reunionPrecedenteAvecPlan(pts, R('2026-10-13'), 'a@x') === R('2026-10-12') && [...planDe(pts, R('2026-10-12'), 'a@x')].join() === 'e2,e3', 'plan du jour : « Hier » = le plan de la daily précédente (R4)');
+    ok(faitDe(pts, R('2026-10-13'), 'a@x', 'e2') === 'pas_fait' && faitDe(pts, R('2026-10-13'), 'a@x', 'e3') === '', 'plan du jour : fait / pas fait noté à la daily du jour, « pas encore dit » sinon (R4)');
+    ok(nettoyerPoint({ id: 'z', reunion: R('2026-10-13'), type: 'hier', texte: 'Écran', personne: 'a@x', auteur: 'a@x', sous_type: 'fait' } as never).sous_type === 'fait', 'plan du jour : « fait » gardé à la lecture du Sheet');
   }
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
   reglerConversion(true, new Map([['acmeqmob', 0.5]]));

@@ -151,6 +151,7 @@ export function LigneCase({
   coche,
   onBasculer,
   onOuvrir,
+  fige,
 }: {
   texte: string;
   sous?: string;
@@ -158,16 +159,18 @@ export function LigneCase({
   premiere?: boolean;
   coche: boolean;
   onBasculer: () => void;
+  /** Lecture seule (plan d'une autre personne au tour de table) : la case ne coche pas */
+  fige?: boolean;
   onOuvrir?: () => void;
   /** Tâche de la ligne : pastille de statut touchable */
   tache?: Item;
 }) {
   return (
     <View style={[st.ligne, !premiere && st.bord]}>
-      <Pressable onPress={onBasculer} hitSlop={10} accessibilityRole="checkbox" accessibilityState={{ checked: coche }} accessibilityLabel={texte}>
-        <Text style={[st.caseACocher, coche && st.caseCochee]}>{coche ? '✓' : ''}</Text>
+      <Pressable onPress={onBasculer} disabled={fige} hitSlop={10} accessibilityRole="checkbox" accessibilityState={{ checked: coche, disabled: !!fige }} accessibilityLabel={texte}>
+        <Text style={[st.caseACocher, coche && st.caseCochee, fige && !coche && st.caseFigee]}>{coche ? '✓' : ''}</Text>
       </Pressable>
-      <Pressable onPress={onOuvrir ?? onBasculer} style={st.ligneCorps} accessibilityRole="button" accessibilityLabel={onOuvrir ? `Ouvrir « ${texte} »` : texte}>
+      <Pressable onPress={onOuvrir ?? (fige ? undefined : onBasculer)} disabled={!onOuvrir && fige} style={st.ligneCorps} accessibilityRole="button" accessibilityLabel={onOuvrir ? `Ouvrir « ${texte} »` : texte}>
         <View style={st.corps}>
           <Text style={st.texte}>{texte}</Text>
           {!!sous && <Text style={st.sous}>{sous}</Text>}
@@ -175,6 +178,40 @@ export function LigneCase({
         {tache ? <PastilleStatut t={tache} affiche={pastille} /> : <Pastille {...pastille} />}
         {onOuvrir && <Text style={st.chevron}>›</Text>}
       </Pressable>
+    </View>
+  );
+}
+
+/**
+ * Élément du plan d'hier (13/10) : « ✓ Fait » / « Pas fait » ; le statut de l'élément ne change pas (pastille à part,
+ * modifiable). Lecture seule au tour de table (`onChanger` absent) : « pas encore dit » si rien n'est noté.
+ */
+export function LigneFait({ texte, sous, valeur, onChanger, premiere, tache }: { texte: string; sous?: string; valeur: '' | 'fait' | 'pas_fait'; onChanger?: (v: 'fait' | 'pas_fait') => void; premiere?: boolean; tache?: Item }) {
+  const bouton = (v: 'fait' | 'pas_fait', l: string) => (
+    <Pressable
+      key={v}
+      disabled={!onChanger}
+      onPress={() => onChanger?.(v)}
+      style={[st.choixPastille, st.choixPetit, valeur === v && (v === 'fait' ? st.faitOn : st.pasFaitOn)]}
+      accessibilityRole="radio"
+      accessibilityState={{ selected: valeur === v, disabled: !onChanger }}
+      accessibilityLabel={`${l} : ${texte}`}
+    >
+      <Text style={[st.choixTexte, st.choixTextePetit, valeur === v && st.choixTexteOn]}>{l}</Text>
+    </Pressable>
+  );
+  return (
+    <View style={[st.ligneFait, !premiere && st.bord]}>
+      <View style={st.ligneHaut}>
+        <View style={st.corps}>
+          <Text style={st.texte}>{texte}</Text>
+          {!!sous && <Text style={st.sous}>{sous}</Text>}
+        </View>
+        {tache && <PastilleStatut t={tache} />}
+      </View>
+      <View style={st.choix}>
+        {onChanger || valeur ? [bouton('fait', '✓ Fait'), bouton('pas_fait', 'Pas fait')] : <Text style={st.sous}>pas encore dit</Text>}
+      </View>
     </View>
   );
 }
@@ -523,6 +560,10 @@ export const st = StyleSheet.create({
   ajouterTexte: { color: '#fff', fontWeight: '700', fontSize: 13 },
   caseACocher: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#A0A6B1', textAlign: 'center', lineHeight: 19, fontSize: 14, color: '#fff', overflow: 'hidden' },
   caseCochee: { backgroundColor: colors.primary, borderColor: colors.primary },
+  caseFigee: { opacity: 0.45 },
+  ligneFait: { paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
+  faitOn: { backgroundColor: '#137333', borderColor: '#137333' },
+  pasFaitOn: { backgroundColor: '#B45309', borderColor: '#B45309' },
 });
 
 /**

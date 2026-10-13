@@ -332,3 +332,26 @@ export function reunionDeNote(p: PointReunion): string {
   return /^\d{4}-\d{2}-\d{2}$/.test(jour) ? `${lib} du ${`${Number(jour.slice(8, 10))}/${jour.slice(5, 7)}`}` : lib;
 }
 
+
+// ---------------------------------------------------------------------------
+// Plan du jour (13/10, docs/regles-reunions.html bloc 12) : une intention, jamais un statut
+// ---------------------------------------------------------------------------
+/** R1 : éléments proposés : pas terminés, ceux en cours en haut */
+export const elementsDuPlan = (l: Item[]) => l.filter((t) => t.statut !== 'termine').sort((a, b) => Number(b.statut === 'en_cours') - Number(a.statut === 'en_cours'));
+/** Plan du jour d'une personne à une réunion : ses points « aujourd'hui » liés à un élément (id de l'élément) */
+export const planDe = (points: Pick<PointReunion, 'reunion' | 'personne' | 'type' | 'element'>[], reunion: string, personne: string) =>
+  new Set(points.filter((x) => x.reunion === reunion && x.personne === personne && x.type === 'aujourdhui' && !!x.element).map((x) => x.element));
+/** Réunion précédente de la série où la personne avait un plan (« Hier » : le plan de la veille) */
+export function reunionPrecedenteAvecPlan(points: Pick<PointReunion, 'reunion' | 'personne' | 'type' | 'element'>[], reunion: string, personne: string): string {
+  const prefixe = reunion.slice(0, -10);
+  return points
+    .filter((x) => x.reunion.startsWith(prefixe) && x.reunion < reunion && x.personne === personne && x.type === 'aujourdhui' && !!x.element)
+    .map((x) => x.reunion)
+    .sort()
+    .pop() ?? '';
+}
+/** R4 : fait / pas fait d'un élément du plan d'hier, noté à cette réunion (point « hier » de la personne) ; '' = pas encore dit */
+export const faitDe = (points: Pick<PointReunion, 'reunion' | 'personne' | 'type' | 'element' | 'sous_type'>[], reunion: string, personne: string, element: string): '' | 'fait' | 'pas_fait' => {
+  const x = points.find((y) => y.reunion === reunion && y.personne === personne && y.type === 'hier' && y.element === element && (y.sous_type === 'fait' || y.sous_type === 'pas_fait'));
+  return x ? (x.sous_type as 'fait' | 'pas_fait') : '';
+};

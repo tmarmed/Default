@@ -38,7 +38,14 @@ Sujets proposés, au choix de l'utilisateur :
   ouvre directement la liste : jamais de ligne « Transmettre à » vide. Affecter et transmettre restent exclusifs.
 - Point 5 codé et validé en captures (13/10).
 - Point 6 : plan du jour choisi ; règles écrites (docs/regles-reunions.html, bloc 12, R1 à R9). Prochaine étape :
-  maquette à valider, puis code. Plus tard : plusieurs projets perso dans 🔒 Moi ; agenda Google.
+  maquette validée (docs/maquette-plan-du-jour.html). Plus tard : plusieurs projets perso dans 🔒 Moi ; agenda Google.
+- Plan du jour, lot 1 codé (13/10) : tour de table « ⏪ Hier · plan du … » (fait / pas fait, lecture seule) et
+  « ▶️ Aujourd'hui · n cochés sur m » (tous ses éléments pas terminés, cases selon son plan, statut modifiable à part) ;
+  préparation : « Plan du … » fait / pas fait (point « hier » + sous_type fait|pas_fait), « Mon plan du jour ».
+  Helpers src/daily.ts (elementsDuPlan, planDe, reunionPrecedenteAvecPlan, faitDe) + tests verif:reunions.
+  Restent (lots suivants) : 2 créneaux + événements perso (🔒 Moi) ; 3 plan entre espaces + onglet « Plan · nom »
+  protégé par personne (aujourd'hui : onglet des points de la réunion) ; 4 Point perso / Bilan du soir ; 5 coche
+  « À concrétiser » des Informations.
   Dépôt mes-skills : lien de création envoyé, attendre « créé ».
 
 ## Fait (session du 08/10, validation de la démo)

@@ -495,6 +495,10 @@ const SEEDS_ENTREPRISE: Seeds = {
       pt('acmpt11', { personne: MOI_DEMO, auteur: MOI_DEMO, type: 'blocage', texte: 'Salle de démo pas encore réservée', element: 'acm13' }),
       pt('acmpt12', { reunion: reunion(veille), personne: nina, auteur: nina, type: 'decision', sous_type: 'a_prendre', texte: 'Choisir la bibliothèque de graphiques', cree_le: `${veille}T09:44:00.000Z` }),
       pt('acmpt4', { type: 'aujourdhui', texte: 'Brancher la connexion Google', element: 'acm4' }),
+      // Plan du jour (13/10) : le plan de Tom à la daily d'hier ; aujourd'hui, l'écran de connexion est noté « fait »
+      pt('acmpt16', { reunion: reunion(veille), type: 'aujourdhui', texte: 'Écran de connexion', element: 'acm4', cree_le: `${veille}T09:30:00.000Z` }),
+      pt('acmpt17', { reunion: reunion(veille), type: 'aujourdhui', texte: 'Obtenir les accès à l’API de test', element: 'acm7', cree_le: `${veille}T09:30:00.000Z` }),
+      pt('acmpt18', { type: 'hier', texte: 'Écran de connexion', element: 'acm4', sous_type: 'fait' }),
       pt('acmpt5', { type: 'blocage', texte: 'Le serveur de test refuse les connexions', element: 'acm4' }),
       pt('acmpt6', { reunion: reunion(veille), type: 'blocage', texte: 'Règles du mot de passe à confirmer', element: 'acm4', concretisation: 'synchro', tache: 'acmx3', responsable: paul, auteur: nina, cree_le: `${veille}T09:41:00.000Z` }),
       pt('acmpt7', { reunion: reunion(avant), personne: paul, auteur: nina, type: 'action', texte: 'Clarifier les règles de remboursement', concretisation: 'tache', tache: 'acm12', responsable: paul, cree_le: `${avant}T09:44:00.000Z` }),

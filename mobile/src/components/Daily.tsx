@@ -32,7 +32,7 @@ import { useHierarchy } from '../hierarchyContext';
 import { autresEquipesDuTrain, membresDe, type OrgValue, porteurs } from '../organisation';
 import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
 import { type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../reunions';
-import { PARCOURS_DAILY as CATALOGUE } from '../daily';
+import { PARCOURS_DAILY as CATALOGUE, elementsDuPlan, faitDe, planDe, reunionPrecedenteAvecPlan } from '../daily';
 import { useSafe } from '../safe';
 import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
@@ -50,7 +50,7 @@ import { FeuilleConcretiser } from './reunion/Concretiser';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
 import { TitreFiche } from './FormSheet';
-import { Compteur, pluriel, Entonnoir, FiltresType, FiltresVue, Ligne, LigneCase, LigneStory, Pastille, PastilleFiltres, Pastilles, pastilleStatut, SaisiePoint, st, TITRE_TYPE, titreAjout, type Ton, TONS, tonType, Vide, type VueSuivi } from './reunion/ui';
+import { Compteur, pluriel, Entonnoir, FiltresType, FiltresVue, Ligne, LigneCase, LigneFait, LigneStory, Pastille, PastilleFiltres, Pastilles, pastilleStatut, SaisiePoint, st, TITRE_TYPE, titreAjout, type Ton, TONS, tonType, Vide, type VueSuivi } from './reunion/ui';
 
 /**
  * Daily (lot 6, validé le 01/10 ; parcours séparés le 06/10) : contenu de la fenêtre de réunion. Chaque rôle de la
@@ -382,7 +382,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   );
   const idsIteration = new Set(situation.elements.map((t) => t.id));
   // Vos éléments : stories, tâches et sous-tâches de l'itération à votre nom, et les tâches nées des réunions
-  const miens = moiP ? h.items.filter((t) => t.responsable === moiP.id && (idsIteration.has(t.id) || pointDeTache.has(t.id))) : [];
+  const idsCartes = new Set(situation.cartes.map((t) => t.id));
+  const miens = moiP ? h.items.filter((t) => t.responsable === moiP.id && (idsIteration.has(t.id) || idsCartes.has(t.id) || pointDeTache.has(t.id))) : [];
   const hierListe = miens.filter(
     (t) => t.statut === 'en_cours' || (t.statut === 'termine' && (!t.termine_le || t.termine_le >= veille)) || (pointDeTache.has(t.id) && t.statut !== 'termine'),
   );
@@ -400,6 +401,15 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** Blocages encore ouverts des dailies précédents (notés par vous) : rappelés dans Aujourd'hui, sans les renoter */
   const blocagesOuverts = serveur.filter((x) => x.type === 'blocage' && x.personne === mail && x.reunion < reunion.id && x.reunion.startsWith(reunion.id.slice(0, -10)) && !estFini(x.statut) && x.concretisation !== 'rien');
 
+  // Plan du jour (13/10) : « Hier » = le plan de la daily précédente, chaque élément « fait » / « pas fait » (sans
+  // toucher au statut) ; noté en point « hier » lié à l'élément (sous_type), envoyé avec le reste de la préparation
+  const planHierDe = (m: string) => {
+    const r = reunionPrecedenteAvecPlan(tous, reunion.id, m);
+    return { reunion: r, elements: [...planDe(tous, r, m)].map((id) => parId.get(id)).filter((t): t is Item => !!t) };
+  };
+  const monPlanHier = planHierDe(mail);
+  const noterFait = (t: Item, v: 'fait' | 'pas_fait') =>
+    setPrep((l) => [...l.filter((x) => !(x.type === 'hier' && x.element === t.id && (x.sous_type === 'fait' || x.sous_type === 'pas_fait'))), { ...nouveau('hier', t.titre, t.id), sous_type: v }]);
   /** Ligne d'une de vos tâches : case à cocher, sous-tâches (›), à droite son état ou « Action · 29/09 » */
   const ligneTache = (type: TypePoint, t: Item, i: number, onglet: Prep) => {
     const pt = pointDeTache.get(t.id);
@@ -423,7 +433,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** Points ajoutés à la main (pas une tâche de la liste) */
   const listeLibres = (type: TypePoint, liste: Item[]) =>
     prep
-      .filter((x) => x.type === type && !liste.some((t) => x.element === t.id && x.texte === t.titre))
+      .filter((x) => x.type === type && !x.sous_type && !liste.some((t) => x.element === t.id && x.texte === t.titre) && !(type === 'hier' && monPlanHier.elements.some((t) => t.id === x.element)))
       .map((x) => <Ligne key={x.id} texte={x.texte} sous={surStory(x) || 'ajouté par vous'} onRetirer={() => retirerPrep(x.id)} />);
 
   /** Bloc « Mes notes » (13/10) sous Hier et Aujourd'hui : tous les types, Information par défaut (fermée d'office) */
@@ -736,11 +746,24 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         const hier = x.cle === 'hier';
         return (
           <>
-            <TitreFiche icone={hier ? '⏪' : '▶️'} titre={hier ? 'Hier' : 'Aujourd’hui'} vide="" sous={sous(hier ? 'Cochez ce dont vous parlerez' : 'Ce que vous allez faire')} />
-            <SectionFiche titre={`Mes stories et tâches · ${(hier ? hierListe : aujListe).length}`}>
-              {hier ? listeTaches('hier', hierListe, 'Rien en cours ni terminé hier.', pr) : listeTaches('aujourdhui', aujListe, 'Rien à votre nom dans le sprint.', pr)}
-              {listeLibres(hier ? 'hier' : 'aujourdhui', hier ? hierListe : aujListe)}
-            </SectionFiche>
+            <TitreFiche icone={hier ? '⏪' : '▶️'} titre={hier ? 'Hier' : 'Aujourd’hui'} vide="" sous={sous(hier ? 'Fait ou pas fait, et ce dont vous parlerez' : 'Cochez ce que vous ferez aujourd’hui : le statut ne change pas')} />
+            {hier && monPlanHier.elements.length > 0 && (
+              <SectionFiche titre={`Plan du ${dateCourte(monPlanHier.reunion.slice(-10))} · ${monPlanHier.elements.length}`}>
+                {monPlanHier.elements.map((t, i) => (
+                  <LigneFait key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} valeur={faitDe(tous, reunion.id, mail, t.id)} onChanger={(v) => noterFait(t, v)} tache={t} />
+                ))}
+              </SectionFiche>
+            )}
+            {(() => {
+              // Hier : ce qui n'était pas au plan ; Aujourd'hui : cocher = plan du jour, le statut ne change pas (13/10)
+              const liste = hier ? hierListe.filter((t) => !monPlanHier.elements.some((y) => y.id === t.id)) : aujListe;
+              return (
+                <SectionFiche titre={hier ? `${monPlanHier.elements.length ? 'Hors plan' : 'Mes stories et tâches'} · ${liste.length}` : `Mon plan du jour · ${aujListe.filter((t) => coche('aujourdhui', t, t.titre)).length} sur ${aujListe.length}`}>
+                  {hier ? listeTaches('hier', liste, 'Rien en cours ni terminé hier.', pr) : listeTaches('aujourdhui', liste, 'Rien à votre nom dans le sprint.', pr)}
+                  {listeLibres(hier ? 'hier' : 'aujourdhui', liste)}
+                </SectionFiche>
+              );
+            })()}
             {!hier && blocagesOuverts.length > 0 && (
               <SectionFiche titre={`Blocages toujours ouverts · ${blocagesOuverts.length}`}>
                 {blocagesOuverts.map((y, i) => (
@@ -990,9 +1013,16 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       case 'tour': {
         if (!courant) return <Vide texte="Aucun participant dans l’équipe." />;
         const m = courant.email.toLowerCase();
-        const stories = situation.cartes.filter((t) => t.responsable === courant.id);
-        // Lecture seule : les points du Sheet (ce que chacun a envoyé, ce que le SM a noté et concrétisé)
-        const notes = (lecture ? serveur : tous).filter((y) => dela(y) && y.personne === m).sort((a, b) => a.cree_le.localeCompare(b.cree_le));
+        // Plan du jour (13/10) : ses éléments pas terminés, cochés selon son plan ; le statut ne change pas ici
+        const estMoi = m === mail;
+        const sonPlan = planDe(lecture ? serveur : tous, reunion.id, m);
+        // Stories du sprint (cartes), tâches de l'itération, et ce qui est déjà à son plan
+        const sesElements = elementsDuPlan(h.items.filter((t) => (t.responsable === courant.id && (idsIteration.has(t.id) || idsCartes.has(t.id))) || sonPlan.has(t.id)));
+        const dansPlan = (t: Item) => (estMoi && !lecture ? coche('aujourdhui', t, t.titre) : sonPlan.has(t.id));
+        const sonHier = planHierDe(m);
+        // Lecture seule : les points du Sheet (ce que chacun a envoyé, ce que le SM a noté et concrétisé) ; Hier et
+        // Aujourd'hui sont affichés à part (plan du jour)
+        const notes = (lecture ? serveur : tous).filter((y) => dela(y) && y.personne === m && y.type !== 'hier' && y.type !== 'aujourdhui').sort((a, b) => a.cree_le.localeCompare(b.cree_le));
         return (
           <>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.membres}>
@@ -1003,19 +1033,37 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               ))}
             </ScrollView>
             <TitreFiche icone="👤" titre={courant.nom} vide="" sous={sous(`${membre + 1} sur ${personnes.length} · ${e.role(courant.id)}`)} />
-            <SectionFiche titre={`Ses stories · ${stories.length}`}>
-              {stories.length ? (
-                stories.map((t, i) => (
-                  <LigneStory key={t.id} t={t} premiere={i === 0} bloquee={e.bloquees.has(t.id)} retard={enRetard(t, aujourdhui)} fmt={fmt} nbSous={subs.get(t.id)?.length ?? 0} onOuvrir={ouvrir(t)} />
+            {sonHier.elements.length > 0 && (
+              <SectionFiche titre={`⏪ Hier · plan du ${dateCourte(sonHier.reunion.slice(-10))}`}>
+                {sonHier.elements.map((t, i) => (
+                  <LigneFait key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} valeur={faitDe(lecture ? serveur : tous, reunion.id, m, t.id)} tache={t} />
+                ))}
+              </SectionFiche>
+            )}
+            <SectionFiche titre={`▶️ Aujourd’hui · ${sesElements.filter(dansPlan).length} coché${sesElements.filter(dansPlan).length > 1 ? 's' : ''} sur ${sesElements.length}`}>
+              {sesElements.length ? (
+                sesElements.map((t, i) => (
+                  <LigneCase
+                    key={t.id}
+                    premiere={i === 0}
+                    texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`}
+                    sous={[t.type === 'story' ? fmt(Number(t.points) || 0) : t.parent ? `Sous-tâche de ${parId.get(t.parent)?.titre ?? 'la story'}` : '', e.bloquees.has(t.id) ? 'bloquée' : '', enRetard(t, aujourdhui) ? 'en retard' : ''].filter(Boolean).join(' · ')}
+                    coche={dansPlan(t)}
+                    fige={!estMoi || lecture}
+                    onBasculer={() => basculer('aujourdhui', t, t.titre, 'membre')}
+                    onOuvrir={ouvrir(t)}
+                    pastille={pastilleStatut(t.statut)}
+                    tache={t}
+                  />
                 ))
               ) : (
-                <Vide texte="Aucune story du sprint à son nom." />
+                <Vide texte="Rien à son nom dans le sprint." />
               )}
             </SectionFiche>
             <SectionFiche
               titre={`Notes · ${filtreType ? `${notes.filter((y) => y.type === filtreType).length} sur ${notes.length}` : notes.length}`}
               droite={<PastilleFiltres actif={!!filtreType} ouvert={filtresOuverts} onPress={() => setFiltresOuverts((o) => !o)} />}
-              entete={filtresOuverts && <FiltresType types={['hier', 'aujourdhui', 'information', 'blocage', 'decision', 'action']} value={filtreType} onChange={setFiltreType} />}
+              entete={filtresOuverts && <FiltresType types={['information', 'blocage', 'decision', 'action']} value={filtreType} onChange={setFiltreType} />}
             >
               {notes.filter((y) => !filtreType || y.type === filtreType).map((y, i) => {
                 const q = echangeDe(y);
@@ -1044,7 +1092,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   titre={filtreType === 'blocage' || filtreType === 'decision' || filtreType === 'action' ? TITRE_TYPE[filtreType] : `Nouvelle note · ${courant.nom}`}
                   jour={jour}
                   placeholder={`＋ Ajouter pour ${courant.nom}…`}
-                  stories={stories}
+                  stories={situation.cartes.filter((t) => t.responsable === courant.id)}
                   onAjouter={(type, texte, element, _c, sous_type) => ajouter({ personne: m, type, texte, element, sous_type })}
                 />
               )}

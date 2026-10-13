@@ -429,9 +429,10 @@ export function nettoyerPoint(data: Partial<PointReunion>, base?: PointReunion):
   out.note = out.note.trim().slice(0, 1000);
   if (out.rattache && !RE_ID.test(out.rattache)) throw new Error('Rattachement invalide.');
   if (out.echange && !RE_ID.test(out.echange)) throw new Error('Échange lié invalide.');
-  if (!['', 'a_prendre', 'prise', 'reportee'].includes(out.sous_type)) out.sous_type = '';
-  if (out.type !== 'decision' && !(out.type === 'proposition' && out.sous_type === 'reportee')) out.sous_type = '';
-  if (out.type === 'decision' && out.sous_type === 'reportee') out.sous_type = '';
+  if (!['', 'a_prendre', 'prise', 'reportee', 'fait', 'pas_fait'].includes(out.sous_type)) out.sous_type = '';
+  // Décision : à prendre / prise ; proposition : reportée ; plan d'hier (13/10) : fait / pas fait
+  const permis = out.type === 'decision' ? ['a_prendre', 'prise'] : out.type === 'proposition' ? ['reportee'] : out.type === 'hier' ? ['fait', 'pas_fait'] : [];
+  if (!permis.includes(out.sous_type)) out.sous_type = '';
   out.type_cree = out.type_cree.replace(/[^a-z_-]/g, '').slice(0, 30);
   return out as unknown as PointReunion;
 }
