@@ -2,6 +2,23 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
+## Session 3 (13/10) : changements depuis la dernière réunion — en conception (brainstorm, ne pas coder avant les réponses)
+Décidé (validé par l'utilisateur) :
+- Bilan du soir = même affichage que « Hier » (éléments du plan + statut modifiable + notes) ; la section
+  « Changé depuis ce matin » disparaît.
+- Les changements repérés automatiquement ne sont PLUS des « notes Information » : nouveau nom à choisir (en cours).
+- Une entrée par élément (tâche, story, feature, epic…), départ → arrivée sur la période ; allers-retours compensés ;
+  revenu à son départ = rien.
+- Période : depuis la réunion précédente (même type ; perso : ma réunion précédente Point perso / Bilan / Daily).
+- Calcul : photo à l'envoi de chaque réunion, comparée à la suivante (pas de nouvelles colonnes dans le Sheet).
+- Chaque réunion repère les changements de son élément de focus et des niveaux au-dessus (tableau du focus par
+  réunion donné en séance : perso = tâches / objectifs ; équipe = stories ; train = features ; portfolio = epics).
+- Tout repérer : A statuts (éléments, features, epics, suivis, demandes de budget) ; B valeurs (budget d'epic,
+  enveloppes, objectifs, objectifs du PI), sans seuil pour l'instant ; C échéance repoussée, déplacé de sprint / PI,
+  changement de responsable, ajouté en cours de route.
+- Tout est calculé ; l'affichage se règle par un filtre (par sorte de changement).
+- Tout faire en un seul lot, en profondeur, en posant les questions au fur et à mesure (ping-pong).
+
 ## Prochaine session (préparée le 13/10, fin de session 2)
 Skills chargés (`.claude/skills/`, copie dans le dépôt `tmarmed/mes-skills`, branche main) : les appliquer dès la
 première réponse ; questions dans la fenêtre à cocher (AskUserQuestion), un point à la fois, jamais de choix par défaut.
@@ -94,6 +111,8 @@ Information (concrétisées comme les autres), Risque et Dépendance au train ; 
 Ajuster ajoute une note à concrétiser) ; participants repris de l'Organisation ; Compte rendu visible de l'équipe.
 
 ## Reste à faire
+- Changements depuis la dernière réunion : seuil réglable pour les valeurs (budget, objectifs), dans le filtre ;
+  filtre pré-rempli gardé quelque part (où ? à décider) (demandé le 13/10, session 3).
 1. Faire voir à l'utilisateur, en captures, ce qui a été codé après la validation (Chat : Transmettre, Accepter et
    renvoyer, rappel ✅ Valider ; mode Simple « Suivis » ; types Information, Risque, Dépendance ; revue des OKR).
 2. Revue de sprint : inviter les parties prenantes hors équipe.
