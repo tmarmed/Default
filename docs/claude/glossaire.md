@@ -1,7 +1,8 @@
 # Glossaire (les mots qui portent une règle ; définir avant de concevoir)
 
 - **Note** : ce qu'on écrit en réunion (Information, Blocage, Décision à prendre / prise, Demande d'action, Risque,
-  Dépendance, Proposition). Information = type par défaut, fermée d'office.
+  Dépendance, Proposition). Information = type par défaut ; coche « À concrétiser » cochée d'office (13/10) ;
+  décochée, elle est seulement partagée (compte rendu) et close.
 - **Concrétiser** : décider ce que devient une note : Type (Rien · Créer un élément · Action rapide · Demande de
   budget) → À qui → Suivi.
 - **Point de suivi** : une note concrétisée et suivie jusqu'à validation (En cours → Fait → Validé ; ou À reprendre,
