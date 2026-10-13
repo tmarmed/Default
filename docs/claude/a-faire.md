@@ -13,6 +13,9 @@ Limites corrigées (13/10) : toucher une feature, une epic ou un objectif ouvre 
 réunions) ; en perso, la photo du Daily du jour de mes équipes, plus récente, complète ma réunion précédente
 (photoPrecedenteAvec). Restent sans fiche depuis l'avancement : objectif du PI, enveloppe, demande, suivi (le suivi
 est juste en dessous, dans « 📌 Suivis »).
+Démo (13/10) : photos d'hier aussi pour l'ART sync (feature avancée d'un PI, budget d'epic, demande accordée en partie,
+demande nouvelle) et la Revue du portfolio (epic Analyse → Prêt, enveloppe relevée, résultat clé d'OKR 78 → 82) ;
+vérifié à l'écran. Résultats clés des OKR ajoutés (clé « r: »).
 Décidé (validé par l'utilisateur) :
 - Bilan du soir = même affichage que « Hier » (éléments du plan + statut modifiable + notes) ; la section
   « Changé depuis ce matin » disparaît.

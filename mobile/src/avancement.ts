@@ -6,7 +6,7 @@
  * situation actuelle à cette photo. Une ligne par élément et par sorte, du départ à l'arrivée : les allers-retours se
  * compensent. Aucune colonne ajoutée dans le Sheet.
  */
-import type { DemandeBudget, Enveloppe, Epic, Feature, Item, Objectif, ObjectifPI, PointReunion, StatutSuivi, TypeReunion } from './types';
+import type { DemandeBudget, Enveloppe, Epic, Feature, Item, Objectif, ObjectifPI, PointReunion, ResultatCle, StatutSuivi, TypeReunion } from './types';
 import { ETATS_EPIC, STATUT_LABELS, TYPES_REUNION } from './types';
 
 /** Niveau d'un élément (rangée « niveau » du filtre) */
@@ -34,7 +34,7 @@ export const SORTES_AV: { v: SorteAv; l: string }[] = [
 const CHAMPS: SorteAv[] = ['statut', 'valeur', 'echeance', 'planning', 'responsable'];
 
 /** Photo : clé « t:id » (tâche, story), « f:id » (feature), « q:id » (objectif du PI), « e:id » (epic), « v:id »
- * (enveloppe), « d:id » (demande de budget), « o:id » (objectif), « s:id » (point de suivi) → « statut|valeur|échéance|
+ * (enveloppe), « d:id » (demande de budget), « o:id » (objectif), « r:id » (résultat clé d'un OKR), « s:id » (point de suivi) → « statut|valeur|échéance|
  * sprint ou PI|responsable » */
 export type Photo = Record<string, string>;
 export interface FiltreAv {
@@ -45,7 +45,7 @@ export interface FiltreAv {
 export const FILTRE_TOUT: FiltreAv = { sortes: [], niveaux: [] };
 export const estFiltre = (f: FiltreAv) => f.sortes.length > 0 || f.niveaux.length > 0;
 
-const NIVEAU_DE: Record<string, NiveauAv> = { t: 'element', f: 'feature', q: 'feature', e: 'epic', v: 'budget', d: 'budget', o: 'objectif', s: 'suivi' };
+const NIVEAU_DE: Record<string, NiveauAv> = { t: 'element', f: 'feature', q: 'feature', e: 'epic', v: 'budget', d: 'budget', o: 'objectif', r: 'objectif', s: 'suivi' };
 export const niveauDe = (cle: string): NiveauAv => NIVEAU_DE[cle.split(':')[0]] ?? 'element';
 /** Rang d'un niveau : une réunion montre son niveau de focus et ceux au-dessus (règle A3) ; les suivis toujours */
 const RANG: Record<NiveauAv, number> = { element: 0, feature: 1, epic: 2, budget: 2, objectif: 3, suivi: -1 };
@@ -79,6 +79,8 @@ export interface Perimetre {
   features?: Feature[];
   epics?: Epic[];
   objectifs?: Objectif[];
+  /** Résultats clés des OKR (valeur actuelle) */
+  resultats?: ResultatCle[];
   objectifsPI?: ObjectifPI[];
   enveloppes?: Enveloppe[];
   demandes?: DemandeBudget[];
@@ -99,6 +101,7 @@ export function photoDe(p: Perimetre, focus: number): Photo {
   for (const e of p.enveloppes ?? []) mettre(`v:${e.id}`, val('', e.montant, '', '', ''));
   for (const d of p.demandes ?? []) mettre(`d:${d.id}`, val(d.statut, d.statut === 'accordee' ? d.montant_accorde || d.montant : d.montant, '', '', ''));
   for (const o of p.objectifs ?? []) mettre(`o:${o.id}`, val('', o.actuel, o.fin, '', ''));
+  for (const r of p.resultats ?? []) mettre(`r:${r.id}`, val('', r.actuel, '', '', ''));
   for (const s of p.suivis ?? []) mettre(`s:${s.id}`, val(s.statut || 'ouvert', '', s.echeance, '', s.responsable || s.personne));
   return out;
 }

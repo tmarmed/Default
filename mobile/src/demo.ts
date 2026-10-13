@@ -123,7 +123,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '41';
+const DEMO_DATA_VERSION = '42';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -536,7 +536,35 @@ const SEEDS_ENTREPRISE: Seeds = {
     // L'epic de l'application mobile était « Analyse » hier
     for (const k of Object.keys(photo).filter((x) => x.startsWith('e:')).slice(0, 1)) photo[k] = ['analyse', ...photo[k].split('|').slice(1)].join('|');
     const photoHier = pointsPhoto(reunion(veille), nina, photo, { sortes: [], niveaux: [] }).map((x, k) => ({ ...x, id: `acmav${k + 1}`, cree_le: `${veille}T09:55:00.000Z` }));
-    return [...photoHier, ...liste];
+    // Avancement au niveau du train et du portfolio : photos d'hier de l'ART sync et de la Revue du portfolio, avec
+    // tout le delivery tel qu'hier (seuls les éléments de la réunion comptent) ; une feature avancée d'un PI, une epic
+    // dont le budget a grandi, une demande accordée en partie, une demande nouvelle ; au portfolio, une epic passée
+    // de Analyse à Prêt, l'enveloppe relevée, un résultat clé en progrès
+    const bud = budgetDemoEntreprise();
+    const pi = piOf(toDateString(new Date()));
+    const tout = photoDe({ items, features: ent.feature as Feature[], epics: ent.epic as Epic[], objectifs: ent.objectif, resultats: ent.resultat, objectifsPI: ent.objectifpi, enveloppes: bud.enveloppe, demandes: bud.demande, tousItems: items.map((t) => etatHier.find((a) => a.id === t.id) ?? t) }, 0);
+    const changer = (photoX: Record<string, string>, cle: string, i: number, v: string) => {
+      if (photoX[cle] === undefined) return;
+      const c = photoX[cle].split('|');
+      c[i] = v;
+      photoX[cle] = c.join('|');
+    };
+    const train = { ...tout };
+    changer(train, 'f:acmf1', 3, shiftPi(pi, 1));
+    changer(train, 'e:acme2', 1, '100000');
+    changer(train, 'd:acmdb3', 0, 'soumise');
+    changer(train, 'd:acmdb3', 1, '2400');
+    delete train['d:acmdb1'];
+    const portfolio = { ...tout };
+    changer(portfolio, 'e:acme1', 0, 'analyse');
+    changer(portfolio, `v:portfolio:acmpf1|${new Date().getFullYear()}`, 1, '230000');
+    changer(portfolio, 'r:acmr1', 1, '78');
+    const sans = { sortes: [], niveaux: [] };
+    const photosNiveaux = [
+      ...pointsPhoto(`art_sync-train:acmtr1-${veille}`, 'paul.leroy@acme.example', train, sans).map((x, k) => ({ ...x, id: `acmavt${k + 1}`, cree_le: `${veille}T11:30:00.000Z` })),
+      ...pointsPhoto(`revue_portfolio-portfolio:acmpf1-${veille}`, 'marc.petit@acme.example', portfolio, sans).map((x, k) => ({ ...x, id: `acmavp${k + 1}`, cree_le: `${veille}T11:30:00.000Z` })),
+    ];
+    return [...photoHier, ...photosNiveaux, ...liste];
   },
   entities: () => {
     const e = vide();

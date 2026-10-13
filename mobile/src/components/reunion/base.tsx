@@ -543,14 +543,16 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
       features,
       epics,
       objectifs: e.h.objectifList.filter(dansEspace),
+      resultats: e.h.resultats.filter(dansEspace),
       objectifsPI: e.h.objectifsPI.filter(dansEspace),
-      enveloppes: budgetCtx.enveloppes.filter(dansEspace),
+      // Enveloppe du niveau de la réunion (au niveau entreprise : toutes)
+      enveloppes: niveauBudget ? budgetCtx.enveloppes.filter((x) => x.niveau === niveauBudget || niveauBudget.startsWith('entreprise:')) : [],
       demandes: niveauBudget ? budgetCtx.demandes.filter((d) => d.demandeur === niveauBudget || d.destination === niveauBudget) : [],
       suivis: serveur.filter((x) => !!x.statut),
       tousItems: e.h.items,
     };
   })();
-  const sourcesAv = { items: e.h.items, featureList: e.h.featureList, epicList: e.h.epicList, objectifList: e.h.objectifList, objectifsPI: e.h.objectifsPI, enveloppes: budgetCtx.enveloppes, demandes: budgetCtx.demandes, points: serveur };
+  const sourcesAv = { items: e.h.items, featureList: e.h.featureList, epicList: e.h.epicList, objectifList: e.h.objectifList, resultats: e.h.resultats, objectifsPI: e.h.objectifsPI, enveloppes: budgetCtx.enveloppes, demandes: budgetCtx.demandes, points: serveur };
   const avancement = useAvancement({ type: reunion.type, reunion: reunion.id, prefixes: [prefixe], points: lus, perimetre: perimetreAv, sources: sourcesAv });
   const avancementCR = useAvancement({ type: reunion.type, reunion: dernierCR || reunion.id, prefixes: [prefixe], points: lus, perimetre: perimetreAv, sources: sourcesAv, lecture: true });
 

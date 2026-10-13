@@ -25,7 +25,7 @@ import {
   pointsPhoto,
   SORTES_AV,
 } from '../../avancement';
-import type { DemandeBudget, Enveloppe, Epic, Feature, Item, Objectif, ObjectifPI, PointReunion, TypeReunion } from '../../types';
+import type { DemandeBudget, Enveloppe, Epic, Feature, Item, Objectif, ObjectifPI, PointReunion, ResultatCle, TypeReunion } from '../../types';
 import { useOrg } from '../../organisation';
 import { SectionFiche } from '../Choix';
 import { Ligne, PastilleFiltres, st, Vide } from './ui';
@@ -50,6 +50,7 @@ interface Sources {
   featureList?: Feature[];
   epicList?: Epic[];
   objectifList?: Objectif[];
+  resultats?: ResultatCle[];
   objectifsPI?: ObjectifPI[];
   enveloppes?: Enveloppe[];
   demandes?: DemandeBudget[];
@@ -91,6 +92,11 @@ export function useAvancement(o: {
     if (p === 'q') return sources.objectifsPI?.find((x) => x.id === id)?.titre ?? 'Objectif du PI supprimé';
     if (p === 'e') return sources.epicList?.find((x) => x.id === id)?.titre ?? 'Epic supprimée';
     if (p === 'o') return sources.objectifList?.find((x) => x.id === id)?.titre ?? 'Objectif supprimé';
+    if (p === 'r') {
+      const r = sources.resultats?.find((x) => x.id === id);
+      const okr = r ? sources.objectifList?.find((x) => x.id === r.objectif)?.titre : '';
+      return r ? `${okr ? `${okr} · ` : ''}${r.titre}${r.unite ? ` (${r.unite})` : ''}` : 'Résultat clé supprimé';
+    }
     if (p === 'v') {
       const e = sources.enveloppes?.find((x) => x.id === id);
       return e ? `Enveloppe ${e.annee}` : 'Enveloppe supprimée';
