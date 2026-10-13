@@ -26,3 +26,6 @@ cycles de vie. Il a demandé que je l'entraîne pour progresser.
 
 ## Progrès (mettre à jour en fin de session)
 - 13/10/2026 : point de départ. À travailler d'abord : 1 (messages qui mêlent plusieurs sujets) et 2 (définitions).
+- 13/10/2026 (fin de session) : progrès sur 4 (il revient consciemment sur une décision : « fait / pas fait » remplacé
+  par le statut) et 5 (critères « Quand…, alors… » acceptés). À travailler encore : 1 (réponses qui ajoutent une idée
+  dans la même phrase) ; utiliser « Attends » quand il veut préciser, c'est efficace.

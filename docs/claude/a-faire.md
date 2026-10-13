@@ -2,17 +2,18 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
-## Prochaine session (préparée le 13/10)
-Skills chargés (`.claude/skills/`) : les appliquer dès la première réponse. Dépôt `tmarmed/mes-skills` à remplir dès que l’utilisateur l’a créé : voir `docs/claude/mes-skills.md`.
-Codé le 13/10 en fin de session : feuille « Concrétiser » (Type → À qui → Suivi, ⚡ Action rapide, ↪ Transmettre à part,
-qui vide la personne choisie, alerte d'absence). À montrer en captures, dont « Sans suivi » (capture non faite).
-Décision du 13/10 : les spécifications (règles, cas d'usage, critères « Quand…, alors… ») s'écrivent dans
-`docs/regles-reunions.html` ; une page HTML par fonctionnalité pourra être un livrable plus tard.
+## Prochaine session (préparée le 13/10, fin de session 2)
+Skills chargés (`.claude/skills/`, copie dans le dépôt `tmarmed/mes-skills`, branche main) : les appliquer dès la
+première réponse ; questions dans la fenêtre à cocher (AskUserQuestion), un point à la fois, jamais de choix par défaut.
+Fait le 13/10 : plan du jour complet (voir « Décisions du 13/10 » ci-dessous et docs/regles-reunions.html bloc 12),
+remplacer = affecter, Transmettre hors de l'équipe, coche « À concrétiser » des Informations, documents à jour.
+Vérification moins coûteuse : lire le texte de l'écran (Playwright innerText) plutôt que des captures ; démo en ligne
+publiée après chaque lot (docs/claude/livraison.md).
 Sujets proposés, au choix de l'utilisateur :
 1. Enveloppes des trains au Budget participatif.
 2. Droits transverses, dont les rôles du mode Simple (item 6).
 3. Corriger les estimations de la démo (valeurs « à la fin » trop grandes).
-4. Mettre à jour docs/mission.html et docs/bilan-reunions.html avec les fonctions récentes.
+4. Bilan du soir : dater aussi les autres changements de statut (aujourd'hui seuls les passages à « terminé »).
 
 ## Décisions du 13/10 (session 2, plan du jour) — à écrire dans docs/regles-reunions.html puis coder (pas encore validé pour coder)
 - Plan du jour : au tour de table et dans « Ma préparation », tous les éléments pas terminés de la personne (stories et
