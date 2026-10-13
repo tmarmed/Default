@@ -103,17 +103,24 @@ export function usePlanJour({ visible, actions, mail, jour, org, safeActif, onIn
 
   // Plan commun (R5b, 13/10) : les éléments cochés « aujourd'hui » à mes autres réunions du jour (Dailies de mes
   // équipes, quel que soit l'espace) ; une lecture par réunion, à l'ouverture
-  const [planAilleurs, setPlanAilleurs] = useState<{ element: string; reunion: string; titre: string }[]>([]);
+  const [planAilleurs, setPlanAilleurs] = useState<{ id: string; element: string; reunion: string; titre: string }[]>([]);
+  /** Mes Dailies du jour (une préparation pour plusieurs Dailies, R5b) */
+  const dailiesDuJour = useMemo(
+    () => reunionsAVenir(org, mail, jour, safeActif, 1).filter((r) => r.debut.slice(0, 10) === jour && r.type === 'daily'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [org, mail, jour, safeActif],
+  );
+  /** Relecture après un envoi (les points d'aujourd'hui des autres Dailies viennent de changer) */
+  const [relire, setRelire] = useState(0);
   useEffect(() => {
     if (!visible) return;
     setPlanAilleurs([]);
     let actif = true;
-    const dailies = reunionsAVenir(org, mail, jour, safeActif, 1).filter((r) => r.debut.slice(0, 10) === jour && r.type === 'daily');
     Promise.all(
-      dailies.map((r) =>
+      dailiesDuJour.map((r) =>
         actions
           .lirePoints(r.espace || 'moi', r.id)
-          .then((l) => l.filter((x) => x.reunion === r.id && x.personne === mail && x.type === 'aujourdhui' && !!x.element).map((x) => ({ element: x.element, reunion: r.id, titre: [r.titre, libelleNiveau(lireNiveau(r.niveau), org)].filter(Boolean).join(' · ') })))
+          .then((l) => l.filter((x) => x.reunion === r.id && x.personne === mail && x.type === 'aujourdhui' && !!x.element).map((x) => ({ id: x.id, element: x.element, reunion: r.id, titre: [r.titre, libelleNiveau(lireNiveau(r.niveau), org)].filter(Boolean).join(' · ') })))
           .catch(() => []),
       ),
     ).then((ll) => actif && setPlanAilleurs(ll.flat()));
@@ -121,6 +128,6 @@ export function usePlanJour({ visible, actions, mail, jour, org, safeActif, onIn
       actif = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, jour]);
-  return { planAilleurs, places, setPlaces, evtsPerso, setEvtsPerso, journee, changerJournee, ecrire: ecrireCreneaux, reunionsDuJour };
+  }, [visible, jour, relire]);
+  return { dailiesDuJour, relirePlans: () => setRelire((n) => n + 1), planAilleurs, places, setPlaces, evtsPerso, setEvtsPerso, journee, changerJournee, ecrire: ecrireCreneaux, reunionsDuJour };
 }

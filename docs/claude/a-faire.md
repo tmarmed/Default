@@ -58,7 +58,9 @@ Sujets proposés, au choix de l'utilisateur :
   concretisation « rien »). Plan commun FAIT (usePlanJour.planAilleurs : éléments cochés à mes autres Dailies du
   jour, places gardées). Onglet « Plan · nom » protégé FAIT (Persistance.lirePlans / ecrirePlan, gsheets : créé +
   addProtectedRange pour la personne seule ; lu dans le même batchGet que PointsReunion ; anciens points Hier et
-  Aujourd'hui restés dans PointsReunion relus normalement). RESTE : (une préparation sur plusieurs Dailies, onglet
+  Aujourd'hui restés dans PointsReunion relus normalement). Une préparation pour plusieurs Dailies FAIT : dans
+  « Aujourd'hui », une section par autre Daily du jour (👥 Web · Daily 9:30) ; à l'envoi, chaque Daily reçoit sa part.
+  RESTE : « Hier » des autres équipes dans la même préparation (aujourd'hui : dans chaque Daily) ; (ancien : onglet
   « Plan · nom » protégé par personne) ; Bilan du soir sur les places du plan ; dépôt mes-skills (accès de l'app GitHub).
   Restent (lots suivants) : 3 plan entre espaces + onglet « Plan · nom »
   protégé par personne (aujourd'hui : onglet des points de la réunion) ; 4 Point perso / Bilan du soir ; 5 coche

@@ -317,7 +317,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   }, [visible, reunion.id]);
 
   // Plan du jour (13/10, R5) : places, événements perso et journée, dans 🔒 Moi (vus par moi seul) ; écrits avec « Mon point »
-  const { planAilleurs, places, setPlaces, evtsPerso, setEvtsPerso, journee, changerJournee, ecrire: ecrireCreneaux, reunionsDuJour } = usePlanJour({ visible, actions, mail, jour, org, safeActif: safe.actif, onInfo });
+  const { dailiesDuJour, relirePlans, planAilleurs, places, setPlaces, evtsPerso, setEvtsPerso, journee, changerJournee, ecrire: ecrireCreneaux, reunionsDuJour } = usePlanJour({ visible, actions, mail, jour, org, safeActif: safe.actif, onInfo });
 
   // Animateur : chaque étape et chaque membre du tour de table sont publiés dans la ligne d'état
   useEffect(() => {
@@ -414,6 +414,32 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** Blocages encore ouverts des dailies précédents (notés par vous) : rappelés dans Aujourd'hui, sans les renoter */
   const blocagesOuverts = serveur.filter((x) => x.type === 'blocage' && x.personne === mail && x.reunion < reunion.id && x.reunion.startsWith(reunion.id.slice(0, -10)) && !estFini(x.statut) && x.concretisation !== 'rien');
 
+  // Une préparation pour plusieurs Dailies (R5b, 13/10) : dans « Aujourd'hui », mes éléments des autres équipes qui
+  // ont un Daily aujourd'hui ; à l'envoi de mon point, chaque Daily reçoit sa part (un lot par Daily changé)
+  const autresDailies = dailiesDuJour
+    .filter((r) => r.id !== reunion.id && lireNiveau(r.niveau)?.kind === 'equipeagile')
+    .map((r) => {
+      const eq = lireNiveau(r.niveau)!.id;
+      const elements = moiP ? elementsDuPlan(h.items.filter((t) => t.responsable === moiP.id && t.statut !== 'termine' && porteurs(t, h, org).equipe === eq)) : [];
+      return { r, eq, nom: org.equipe.get(eq)?.nom ?? '', elements };
+    })
+    .filter((x) => x.elements.length > 0);
+  const [choixAutres, setChoixAutres] = useState<Record<string, Record<string, boolean>>>({});
+  const cocheAutre = (rid: string, id: string) => choixAutres[rid]?.[id] ?? planAilleurs.some((x) => x.reunion === rid && x.element === id);
+  const basculerAutre = (rid: string, id: string) => setChoixAutres((m) => ({ ...m, [rid]: { ...(m[rid] ?? {}), [id]: !cocheAutre(rid, id) } }));
+  const envoyerAutres = async () => {
+    for (const a of autresDailies) {
+      const ch = choixAutres[a.r.id];
+      if (!ch || !Object.keys(ch).length) continue;
+      const deja = planAilleurs.filter((x) => x.reunion === a.r.id);
+      const creer = a.elements.filter((t) => cocheAutre(a.r.id, t.id) && !deja.some((x) => x.element === t.id)).map((t) => aEcrire({ ...nouveau('aujourdhui', t.titre, t.id), reunion: a.r.id }));
+      const retirer = deja.filter((x) => !cocheAutre(a.r.id, x.element)).map((x) => x.id);
+      if (creer.length || retirer.length) await actions.ecrirePoints(a.r.espace || 'moi', creer, [], retirer);
+    }
+    setChoixAutres({});
+    relirePlans();
+  };
+
   // Plan du jour (13/10) : « Hier » = le plan de la daily précédente, chaque élément « fait » / « pas fait » (sans
   // toucher au statut) ; noté en point « hier » lié à l'élément (sous_type), envoyé avec le reste de la préparation
   const planHierDe = (m: string) => {
@@ -497,6 +523,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     const { crees } = await actions.ecrirePoints(espace, pts.map(aEcrire), [], retires);
     // Plan commun : on ne retire que les places des éléments de ce Daily décochés ; les autres (autres Dailies, Point perso) restent
     if (o === 'membre') {
+      await envoyerAutres();
       const coches = new Set(pts.filter((x) => x.type === 'aujourdhui').map((x) => x.element));
       await ecrireCreneaux(new Set(Object.keys(places).filter((id) => coches.has(id) || !aujListe.some((t) => t.id === id))));
     }
@@ -782,6 +809,15 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 </SectionFiche>
               );
             })()}
+            {!hier &&
+              pr === 'membre' &&
+              autresDailies.map((a) => (
+                <SectionFiche key={a.r.id} titre={`👥 ${a.nom} · Daily ${a.r.debut.slice(11, 16).replace(/^0/, '')} · ${a.elements.filter((t) => cocheAutre(a.r.id, t.id)).length} sur ${a.elements.length}`}>
+                  {a.elements.map((t, i) => (
+                    <LigneCase key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} sous={`envoyé au Daily ${a.nom}`} coche={cocheAutre(a.r.id, t.id)} onBasculer={() => basculerAutre(a.r.id, t.id)} pastille={pastilleStatut(t.statut)} tache={t} />
+                  ))}
+                </SectionFiche>
+              ))}
             {!hier && blocagesOuverts.length > 0 && (
               <SectionFiche titre={`Blocages toujours ouverts · ${blocagesOuverts.length}`}>
                 {blocagesOuverts.map((y, i) => (
@@ -805,7 +841,10 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               elements={[
                 ...aujListe.filter((t) => coche('aujourdhui', t, t.titre)),
                 // Plan commun (R5b) : ce que j'ai coché à mes autres Dailies du jour (autres équipes, autres espaces)
-                ...[...new Set(planAilleurs.filter((x) => x.reunion !== reunion.id).map((x) => x.element))].map((id) => parId.get(id)).filter((t): t is Item => !!t && t.statut !== 'termine' && !aujListe.some((y) => y.id === t.id)),
+                ...[...new Set([...planAilleurs.filter((x) => x.reunion !== reunion.id).map((x) => x.element), ...autresDailies.flatMap((a) => a.elements.filter((t) => cocheAutre(a.r.id, t.id)).map((t) => t.id))])]
+                  .filter((id) => !autresDailies.some((a) => a.elements.some((t) => t.id === id) && !cocheAutre(a.r.id, id)))
+                  .map((id) => parId.get(id))
+                  .filter((t): t is Item => !!t && t.statut !== 'termine' && !aujListe.some((y) => y.id === t.id)),
               ].filter((t) => !aMoi.some((y) => y.id === t.id))}
               places={places}
               fixes={fixes}
