@@ -18,4 +18,4 @@ Dans `mobile/` :
   une réunion : `getByRole('button').filter({ hasText: 'Daily' }).filter({ hasText: 'Mobile' })` ; étapes : « Suivant »
   (le tour de table passe chaque personne) ; rituels perso (Point perso, Bilan du soir, Revue des objectifs) : mode
   « Simple ». Bouton ＋ d'une section : `getByRole('button', { name: '<ajouterLabel>' })`.
-- Recopier `DEMO_DATA_VERSION` (+1) à chaque changement des données de démo.
+- Augmenter `DEMO_DATA_VERSION` de 1 à chaque changement des données de démo (sinon le navigateur garde les anciennes).
