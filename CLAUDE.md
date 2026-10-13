@@ -11,9 +11,10 @@ CLAUDE.md s'y charge). Branche de travail : `claude/version-safe` ; toujours com
   l'explication s'il l'a manquée.
 - Garder à jour : `docs/regles-reunions.html`, `docs/mission.html`, `docs/bilan-reunions.html`.
 
-## Skills du projet (`.claude/skills/`, chargés seuls si la session part de `claude/version-safe`)
-`travailler-ensemble` (toujours) · `decortiquer-message` (messages longs ou dictés) · `verifier-coherence` (avant de
-concevoir) · `coach-produit` (une remarque d'entraînement en fin de réponse) · `cloturer-session` (fin de session).
+## Skills (`.claude/skills/`, copie du dépôt `tmarmed/mes-skills` ; chargés si la session part de `claude/version-safe`)
+`travail-ensemble` (toujours) · `travail-decortiquer` · `travail-coach` · `conception-specifier` (spécifications
+dans `docs/regles-reunions.html`) · `conception-coherence` · `projet-prioriser` · `projet-decisions` ·
+`projet-sessions` · `safe-pratiques`. Toute amélioration d'un skill : dans les deux dépôts.
 
 ## Relais entre sessions
 Une session par fonctionnalité. Lire d'abord `docs/claude/a-faire.md` ; le mettre à jour avant de finir.

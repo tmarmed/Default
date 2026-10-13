@@ -2,6 +2,18 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
+## Prochaine session (préparée le 13/10)
+Skills chargés (`.claude/skills/`, copie de `tmarmed/mes-skills`) : les appliquer dès la première réponse.
+Codé le 13/10 en fin de session : feuille « Concrétiser » (Type → À qui → Suivi, ⚡ Action rapide, ↪ Transmettre à part,
+qui vide la personne choisie, alerte d'absence). À montrer en captures, dont « Sans suivi » (capture non faite).
+Décision du 13/10 : les spécifications (règles, cas d'usage, critères « Quand…, alors… ») s'écrivent dans
+`docs/regles-reunions.html` ; une page HTML par fonctionnalité pourra être un livrable plus tard.
+Sujets proposés, au choix de l'utilisateur :
+1. Enveloppes des trains au Budget participatif.
+2. Droits transverses, dont les rôles du mode Simple (item 6).
+3. Corriger les estimations de la démo (valeurs « à la fin » trop grandes).
+4. Mettre à jour docs/mission.html et docs/bilan-reunions.html avec les fonctions récentes.
+
 ## Fait (session du 08/10, validation de la démo)
 Validation écran par écran, puis les deux blocs codés (captures vérifiées dans la démo, verif:* au vert) :
 - Bloc 1 : noms entiers partout ; suivis au même format (Situation, fiche) avec Validation et Échéance ; titre du
