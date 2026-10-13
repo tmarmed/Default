@@ -2,7 +2,15 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
-## Session 3 (13/10) : changements depuis la dernière réunion — en conception (brainstorm, ne pas coder avant les réponses)
+## Session 3 (13/10) : Avancement depuis la réunion précédente — CODÉ (règles : docs/regles-reunions.html, bloc 13)
+Fait : src/avancement.ts (photo, comparaison, libellés ; tests verif:reunions), reunion/Avancement.tsx (useAvancement,
+BlocAvancement) ; branché dans useReunion (toutes les réunions du socle : Situation via BlocSuivi, compte rendu,
+photo dans l'écriture de envoyerCompteRendu), Daily (Situation, compte rendu, envoi), rituels perso (1re étape,
+photo à « Terminer » ; Point perso et Bilan du soir se suivent) ; démo : photo du Daily d'hier (Mobile).
+Vérifié dans la démo (texte de l'écran) : Daily (6 lignes, filtre, compte rendu filtré ouvert d'office), ART sync,
+Point perso et Bilan du soir (message de première réunion ; après « Terminer » du Point perso : « Rien n'a bougé »).
+À valider par l'utilisateur en captures. Limites : la fiche d'une feature ou d'une epic ne s'ouvre pas depuis
+l'avancement (seulement tâches et stories) ; Daily en perso pas pris comme « ma réunion précédente » (photo d'équipe).
 Décidé (validé par l'utilisateur) :
 - Bilan du soir = même affichage que « Hier » (éléments du plan + statut modifiable + notes) ; la section
   « Changé depuis ce matin » disparaît.

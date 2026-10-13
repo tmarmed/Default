@@ -23,5 +23,9 @@
   plan par le statut des éléments, modifiable (13/10 : plus de « fait / pas fait »).
 - **Moment libre** : temps de la journée sans réunion, rendez-vous ni événement perso ; dans l'étape « Plan du jour »,
   on y place un élément (il prend tout le moment, durée ajustable ; le reste redevient libre). Visible par moi seul.
+- **Avancement** (13/10) : ce qui a bougé depuis la réunion précédente, repéré par l'application (pas une note, rien
+  à concrétiser) ; une ligne par élément et par sorte (statut, valeur, échéance, sprint ou PI, responsable, ajouté en
+  cours de route), du départ à l'arrivée. **Photo** : l'état des éléments enregistré à l'envoi de chaque réunion,
+  comparé à la suivante (règles : docs/regles-reunions.html, bloc 13).
 - **Percée de compréhension** : découverte d'un concept ou d'un niveau d'abstraction plus juste ; on relit alors
   les règles qui en dépendent et on les met à jour (skill conception-coherence, point 8).
