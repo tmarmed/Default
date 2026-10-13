@@ -30,3 +30,6 @@ description: Façon de travailler avec l’utilisateur (famille « travail », v
 - **Pendant une tâche, toujours afficher** (13/10) : « ⏱ temps passé / temps estimé · n % », par exemple
   « ⏱ 20 min / 1 h 30 · 25 % ». Noter l'heure de début (`date`), estimer au départ, réviser l'estimation si elle
   change (et le dire).
+- **À chaque indicateur, tout recalculer** (13/10) : temps passé = l'horloge (`date`) moins l'heure de début, jamais
+  au jugé ; pourcentage = le travail réellement fait ; estimation révisée = temps passé ÷ pourcentage (ex. 12 min à
+  40 % → environ 30 min au total), en gardant l'estimation de départ à côté : « ⏱ 12 min / ≈ 30 min (prévu 2 h) · 40 % ».
