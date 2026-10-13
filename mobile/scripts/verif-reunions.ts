@@ -526,8 +526,8 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
     let refus = 0;
     await mag.ecrireDossier({ id: 'e1', budget_mvp: '2000' }).catch(() => refus++);
     await mag.ecrireDossier({ id: 'e1', estimation: 'dix' }).catch(() => refus++);
-    const d = await mag.ecrireDossier({ id: 'e1', budget_mvp: '400', decision: 'lancer' });
-    ok(refus === 2 && d.hypothese === 'H' && d.budget_mvp === '400' && d.decision === 'lancer' && (mem.dossier ?? []).length === 1, 'dossier : une ligne par epic, complété champ par champ, MVP ≤ budget prévu');
+    const d = await mag.ecrireDossier({ id: 'e1', budget_mvp: '400', decision: 'lancer', hors_reunion: '1' });
+    ok(refus === 2 && d.hypothese === 'H' && d.budget_mvp === '400' && d.decision === 'lancer' && d.hors_reunion === '1' && (mem.dossier ?? []).length === 1, 'dossier : une ligne par epic, complété champ par champ, MVP ≤ budget prévu');
   })());
   // 📌 Mes suivis (lot 5) : ouvertes (à concrétiser, en cours, fait, à reprendre) et fermées (validé, abandonné)
   const pS = (x: Partial<PointReunion>) => ({ id: 'x', reunion: 'daily-equipeagile:e-2026-10-02', personne: 'a@x', auteur: 'a@x', type: 'action', texte: 't', element: '', concretisation: '', tache: '', responsable: '', cree_le: '', ...x }) as PointReunion;

@@ -98,8 +98,14 @@ export function SectionDossier({ espace, epic, lecture, simple }: { espace: stri
       <ChampFiche label="Budget du MVP (€)">{champ('budget_mvp', 'Ex. 30000')}</ChampFiche>
       <View style={s.pad}>
         <Text style={[s.sous, manques.length ? { color: colors.warning } : null]}>
-          {d?.decision ? `Décision : ${libelleDecisionDossier(d)}` : manques.length ? `À compléter : ${manques.join(', ')}. Une epic sans dossier complet ne peut pas être lancée.` : 'Dossier complet : à décider à la Revue du portfolio (Lancer, Pas maintenant, Abandonner).'}
+          {d?.decision ? `Décision : ${libelleDecisionDossier(d)}` : manques.length ? `À compléter : ${manques.join(', ')}. Une epic sans dossier complet ne peut pas être lancée.` : 'Dossier complet : à décider à la Revue du portfolio (Lancer, Pas maintenant, Abandonner), ou depuis le Chat.'}
         </Text>
+        {/* 13/10 : comme les suivis et les demandes, un dossier peut être décidé depuis le Chat (Confirmer en séance) */}
+        {!lecture && !d?.decision && !manques.length && (
+          <Pressable onPress={() => b.soumettreDossier(espace, epic).catch((e: Error) => setErr(e.message))} style={[s.btn2, { alignSelf: 'flex-start', marginTop: 8 }]} accessibilityRole="button">
+            <Text style={s.btn2Texte}>📨 Soumettre pour décision</Text>
+          </Pressable>
+        )}
         {!!err && <Text style={s.err}>{err}</Text>}
       </View>
     </SectionFiche>
@@ -446,7 +452,7 @@ function NouvelleDemande({ epics, niveau, onAnnuler, onSoumettre }: { epics: { i
  * (dossier complet seulement), ⏸ Pas maintenant, ✖ Abandonner. Budget du MVP atteint (consommé réel ≥ budget du
  * MVP) : ▶ Continuer, ↪ Changer de direction, ⏹ Arrêter. Décision écrite tout de suite dans le Sheet Budget.
  */
-export function BlocDossiers({ epics, h, org, espace, reunion, moi, peutDecider, nomDe = (m: string) => m, onEtat }: { epics: Epic[]; h: CtxConsomme['h']; org: OrgValue; espace: string; reunion: string; moi: string; peutDecider: boolean; nomDe?: (m: string) => string; onEtat?: (e: Epic, etat: Epic['etat']) => Promise<void> }) {
+export function BlocDossiers({ epics, h, org, espace, reunion, moi, peutDecider, nomDe = (m: string) => m, onEtat, onDecision }: { epics: Epic[]; h: CtxConsomme['h']; org: OrgValue; espace: string; reunion: string; moi: string; peutDecider: boolean; nomDe?: (m: string) => string; onEtat?: (e: Epic, etat: Epic['etat']) => Promise<void>; onDecision?: (e: Epic, libelle: string) => void }) {
   const b = useBudget();
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState('');
@@ -460,11 +466,14 @@ export function BlocDossiers({ epics, h, org, espace, reunion, moi, peutDecider,
     return lance(d) && Number(d?.budget_mvp) > 0 && conso.detail(e).consomme >= Number(d!.budget_mvp);
   });
   const decides = ed.filter((e) => b.dossiers.get(e.id)?.decision && !aDecider.includes(e) && !mvp.includes(e));
+  // Décidés depuis le Chat : en tête, « Confirmer » les range (13/10)
+  const horsReunion = ed.filter((e) => b.dossiers.get(e.id)?.hors_reunion === '1');
   const decider = async (e: Epic, decision: DecisionDossier) => {
     setErr('');
     setBusy(e.id);
     try {
       await b.ecrireDossier(espace, { id: e.id, decision, decide_le: today, decide_par: moi, decide_a: reunion });
+      onDecision?.(e, DECISIONS_DOSSIER.find((q) => q.value === decision)?.fait ?? decision);
       if (decision === 'lancer' && (e.etat === 'idee' || e.etat === 'analyse' || !e.etat)) await onEtat?.(e, 'pret');
       if (decision === 'arreter') await onEtat?.(e, 'termine');
     } catch (x) {
@@ -492,6 +501,21 @@ export function BlocDossiers({ epics, h, org, espace, reunion, moi, peutDecider,
   };
   return (
     <>
+      {horsReunion.length > 0 && (
+        <SectionFiche titre={`Décidé hors réunion · ${horsReunion.length}`}>
+          {horsReunion.map((e, i) => (
+            <View key={e.id} style={[s.pad, i > 0 && s.bord]}>
+              <Text style={s.texte}>🗂️ {e.titre}</Text>
+              <Text style={s.sous}>{libelleDecisionDossier(b.dossiers.get(e.id))}{b.dossiers.get(e.id)?.decide_par ? ` · par ${nomDe(b.dossiers.get(e.id)!.decide_par)}` : ''}</Text>
+              {peutDecider && (
+                <Pressable onPress={() => b.ecrireDossier(espace, { id: e.id, hors_reunion: '2' }).catch((x: Error) => setErr(x.message))} style={[s.btn, { alignSelf: 'flex-start', marginTop: 8 }]} accessibilityRole="button">
+                  <Text style={s.btnTexte}>Confirmer</Text>
+                </Pressable>
+              )}
+            </View>
+          ))}
+        </SectionFiche>
+      )}
       <SectionFiche titre={`💼 Dossiers d'investissement · ${aDecider.length} à décider`}>
         {aDecider.map((e, i) => {
           const d = b.dossiers.get(e.id);

@@ -450,8 +450,18 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
   const [choix, setChoix] = useState<Record<string, string>>({});
   // Revue des OKR (08/10) : « Ajuster » ajoute une note à concrétiser (Responsable, Échéance) ; une autre décision la retire
   const [notesAjuster, setNotesAjuster] = useState<Record<string, string>>({});
+  // Décision directe en séance (13/10) : une note « Décision prise » garde la trace (close d'office), remplacée si
+  // on change d'avis — état d'une epic, OKR gardé / ajusté / arrêté, objectif du Simple…
+  const [notesDecision, setNotesDecision] = useState<Record<string, string>>({});
+  const noterDecision = (cle: string, element: string, texte: string) => {
+    const avant = notesDecision[cle];
+    if (avant) r.retirerNote(avant);
+    const pt = r.noter({ personne: r.mail, type: 'decision', sous_type: 'prise', texte, element });
+    setNotesDecision((m) => ({ ...m, [cle]: pt.id }));
+  };
   const decider = (y: { id: string; titre: string }, z: string) => {
     setChoix((m) => ({ ...m, [y.id]: z }));
+    noterDecision(`choix:${y.id}`, y.id, `${y.titre.replace(/^🎯 /, '')} : ${z}`);
     if (p.reunion.type !== 'revue_okr') return;
     const deja = notesAjuster[y.id];
     if (z === 'Ajuster' && !deja) {
@@ -726,6 +736,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
               moi={r.mail}
               peutDecider={r.anime && !lecture}
               nomDe={e.nomDe}
+              onDecision={(ep, libelle) => noterDecision(`dossier:${ep.id}`, ep.id, `Dossier « ${ep.titre} » : ${libelle}`)}
               onEtat={p.actions.modifierEntites ? (ep, etat) => p.actions.modifierEntites!(ep.espace || esp, 'epic', [{ id: ep.id, etat }]) : undefined}
             />
           </>

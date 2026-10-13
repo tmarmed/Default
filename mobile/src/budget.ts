@@ -31,6 +31,8 @@ export interface BudgetValue {
   dossiers: Map<string, DossierInvestissement>;
   /** Crée ou complète le dossier d'une epic (Sheet Budget de l'entreprise) */
   ecrireDossier: (espace: string, d: Partial<DossierInvestissement> & { id: string }) => Promise<void>;
+  /** Soumet un dossier complet pour décision dans le Chat (Epic Owner du portfolio) */
+  soumettreDossier: (espace: string, epic: Epic) => Promise<void>;
   /** Lot 4 : soumet une demande née en réunion (message « À décider » aux personnes qui décident) */
   soumettreDemande: (espace: string, d: Omit<DemandeBudget, 'id' | 'cree_le' | 'modifie_le' | 'statut' | 'montant_accorde' | 'motif_decision' | 'decide_par' | 'decide_le' | 'hors_reunion' | 'destination'> & { destination?: string }) => Promise<void>;
   /** Décision : en séance (reunion = titre) ou hors réunion (reunion vide) */
@@ -50,6 +52,7 @@ export const BUDGET_VIDE: BudgetValue = {
   ecrireDossier: async () => {
     throw new Error('Budget indisponible.');
   },
+  soumettreDossier: async () => {},
   soumettreDemande: async () => {},
   deciderDemande: async () => {},
   confirmerDemande: async () => {},
@@ -63,7 +66,7 @@ export const BudgetContext = createContext<BudgetValue>(BUDGET_VIDE);
 export const useBudget = () => useContext(BudgetContext);
 
 /** Assemble le contexte à partir des budgets chargés */
-export function valeurBudget(parEspace: Record<string, BudgetEspace>, actions: Pick<BudgetValue, 'ecrireDepense' | 'supprimerDepense' | 'ecrireCout' | 'soumettreDemande' | 'deciderDemande' | 'confirmerDemande' | 'ecrireDossier'>): BudgetValue {
+export function valeurBudget(parEspace: Record<string, BudgetEspace>, actions: Pick<BudgetValue, 'ecrireDepense' | 'supprimerDepense' | 'ecrireCout' | 'soumettreDemande' | 'deciderDemande' | 'confirmerDemande' | 'ecrireDossier' | 'soumettreDossier'>): BudgetValue {
   const all = Object.values(parEspace);
   return {
     parEspace,
@@ -85,6 +88,10 @@ export const TITRE_INFO = 'ℹ️ Pour information ·';
 export const CHOIX_DEMANDE = ['💶 Accorder', '↩ À reprendre (motif)', '✖ Refuser (motif)'];
 export const estDemandeBudget = (e: { titre: string; point?: string }) => e.titre.startsWith(TITRE_DEMANDE) && !!e.point;
 export const estInformation = (e: { titre: string }) => e.titre.startsWith(TITRE_INFO);
+/** 💼 Dossier d'investissement soumis pour décision dans le Chat (13/10) : mêmes choix qu'à la Revue du portfolio */
+export const TITRE_DOSSIER = '💼 Dossier d’investissement ·';
+export const CHOIX_DOSSIER = ['✅ Lancer', '⏸ Pas maintenant', '✖ Abandonner (motif)'];
+export const estQuestionDossier = (e: { titre: string; point?: string }) => e.titre.startsWith(TITRE_DOSSIER) && !!e.point;
 
 type OrgDemande = {
   equipe: Map<string, { train: string; sm: string; po?: string; espace?: string }>;

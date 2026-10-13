@@ -189,7 +189,15 @@ Reste (pilotage) : coûts annuels visibles de ceux qui lisent l'Organisation (à
 ## Fait récemment (08/10)
 - Suivis complets (statuts, validation, Chat « Valider ? », escalade qui redescend), vocabulaire Notes / Suivis partout (plus de « point »), fiche de l'élément en deux blocs, escalader force « Suivre », fichiers .md.
 
-## Décisions du 13/10 (à coder)
+## Décisions du 13/10 — codées le 13/10
+Fait : Information par défaut et fermée d'office (toutes réunions) ; Daily (Mes notes sous Hier et Aujourd'hui, Résumé
+à la place de Blocages) ; 💡 Proposition (Rétro, Inspect & Adapt ; reportée = sous_type « reportee ») ; demande de
+budget = choix de concrétisation d'une note (soumise au compte rendu ; plus de bouton « Nouvelle demande ») ;
+dossiers d'investissement soumis dans le Chat (« 📨 Soumettre pour décision », décidé hors réunion, Confirmer à la
+Revue du portfolio) ; décisions directes en séance → note « Décision prise » (close). Plus suivi : fait.
+Reste à valider : étape « 📈 Écarts budgétaires » ; règle de suppression des notes fermées hors sprint ; extensions
+(relances automatiques, vie des risques et dépendances, indicateurs des réunions).
+## Décisions du 13/10 (détail)
 - Notes : ℹ️ Information = type par défaut dans toutes les réunions, fermée d'office (rien à concrétiser) sauf si on
   choisit de la concrétiser. Daily : Hier et Aujourd'hui gardent les tâches + un bloc de notes en bas (Information,
   Blocage, Décision, Demande d'action ; pas Proposition) ; écran Blocages à remplacer (proposition en cours).

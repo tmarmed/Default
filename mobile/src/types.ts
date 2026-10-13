@@ -821,6 +821,8 @@ export interface DossierInvestissement {
   decide_par: string;
   /** Réunion où la décision a été prise */
   decide_a: string;
+  /** Décidé depuis le Chat (« 1 ») : mis en avant à la Revue du portfolio suivante jusqu'à « Confirmer » (« 2 ») */
+  hors_reunion?: string;
   modifie_le: string;
 }
 

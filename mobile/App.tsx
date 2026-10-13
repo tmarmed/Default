@@ -120,7 +120,7 @@ import {
 } from './src/storage';
 import { colors } from './src/theme';
 import { reglerVocabulaire } from './src/vocabulaire';
-import { BudgetContext, type BudgetEspace, CHOIX_DEMANDE, estDemandeBudget, gerantsBudget, libellePeriode, libelleStatutDemande, niveauDessus, reunionDuNiveau, TITRE_DEMANDE, TITRE_INFO, valeurBudget } from './src/budget';
+import { BudgetContext, type BudgetEspace, CHOIX_DEMANDE, CHOIX_DOSSIER, estQuestionDossier, TITRE_DOSSIER, estDemandeBudget, gerantsBudget, libellePeriode, libelleStatutDemande, niveauDessus, reunionDuNiveau, TITRE_DEMANDE, TITRE_INFO, valeurBudget } from './src/budget';
 import { euros as eurosBudget } from './src/pilotage';
 import { CongesContext, type CongesValue } from './src/conges';
 import { FeuilleMesConges } from './src/components/Conges';
@@ -1576,6 +1576,18 @@ function Main() {
               return { ...b, [espace]: { ...x, accessible: true, dossiers: l.some((y) => y.id === o.id) ? l.map((y) => (y.id === o.id ? o : y)) : [...l, o] } };
             });
           },
+          // 💼 Dossier complet soumis dans le Chat (13/10) : « À décider » à l'Epic Owner du portfolio (mêmes choix qu'en
+          // séance) ; la réponse est « décidée hors réunion », à confirmer à la Revue du portfolio suivante
+          soumettreDossier: async (espace, epic) => {
+            const niveau = epic.portfolio ? `portfolio:${epic.portfolio}` : '';
+            const a = (niveau ? gerantsBudget(niveau, orgReunions) : []).filter((m) => m !== moiEchange);
+            if (!a.length) throw new Error('Personne d’autre ne décide de ce portfolio : décidez-en à la Revue du portfolio.');
+            await actionsDaily.envoyerEchanges(
+              espace,
+              a.map((m) => ({ de: moiEchange, a: m, type: 'question', nature: 'decision_a_prendre', titre: `${TITRE_DOSSIER} ${epic.titre}`.slice(0, 200), texte: `Dossier complet, soumis par ${nomEchange(moiEchange)}.\nÀ traiter à : Revue du portfolio`, choix: CHOIX_DOSSIER.join(';'), reponse: '', note: '', statut: 'envoye', element: epic.id, niveau, transmis_par: '', prive: '1', pieces_jointes: '', point: `dossier:${epic.id}`, parent: '', espace })),
+            );
+            setInfo(`Dossier « ${epic.titre} » soumis pour décision.`);
+          },
           supprimerDepense: async (espace, id) => {
             await api.supprimerDepense(espace, id);
             setBudgets((b) => (b[espace] ? { ...b, [espace]: { ...b[espace], depenses: b[espace].depenses.filter((y) => y.id !== id) } } : b));
@@ -1886,6 +1898,18 @@ function Main() {
   /** Réponse dans Synchro : recopiée en « Décision » dans les réunions de la chaîne, si l'échange est une escalade */
   const repondreEchange = async (e: Echange, reponse: string, note: string, montantAccorde?: string) => {
     // 💶 Demande de budget décidée depuis le Chat (lot 4) : mêmes choix qu'en séance, « décidé hors réunion »
+    // 💼 Dossier d'investissement décidé depuis le Chat (13/10) : décidé hors réunion, Confirmer à la Revue du portfolio
+    if (estQuestionDossier(e)) {
+      const id = (e.point ?? '').replace(/^dossier:/, '');
+      const ep = hv.epicList.find((x) => x.id === id);
+      const decision = reponse.startsWith('✅') ? 'lancer' : reponse.startsWith('⏸') ? 'pas_maintenant' : 'abandonner';
+      const esp = e.espace || ep?.espace || 'moi';
+      await budgetActions.current.ecrireDossier(esp, { id, decision, decide_le: today, decide_par: moiEchange, decide_a: 'hors réunion (Chat)', hors_reunion: '1' });
+      if (decision === 'lancer' && ep && (ep.etat === 'idee' || ep.etat === 'analyse' || !ep.etat)) await saveEntity('epic', ep, { etat: 'pret' });
+      await saveEntity('echange', e, { reponse, note, statut: 'pris_en_compte' });
+      setInfo(`Dossier « ${ep?.titre ?? id} » : ${decision === 'lancer' ? 'lancé' : decision === 'pas_maintenant' ? 'remis à plus tard' : 'abandonné'} (hors réunion, à confirmer à la Revue du portfolio).`);
+      return;
+    }
     if (estDemandeBudget(e)) {
       const d = budgetActions.current.demandes.find((x) => x.id === e.point);
       if (!d) throw new Error('Demande introuvable (Sheet « Budget » non partagé avec vous ?).');

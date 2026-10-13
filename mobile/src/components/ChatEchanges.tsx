@@ -8,7 +8,7 @@ import { FormSheet, TitreFiche } from './FormSheet';
 import { idsPieces, PiecesEchange } from './Pieces';
 import { ActionsEchange } from './Transmettre';
 import { TITRE_RAPPEL } from '../pointsSuivi';
-import { estDemandeBudget, montantAccordeValide, montantDemandeDe, useBudget } from '../budget';
+import { estDemandeBudget, estQuestionDossier, montantAccordeValide, montantDemandeDe, useBudget } from '../budget';
 import { euros } from '../pilotage';
 
 /**
@@ -223,7 +223,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
           </SectionFiche>
         )}
         {/* Transmettre, suivre en réunion, s'en occuper ; accepter ou faire reprendre une réponse (validation du 08/10) */}
-        {!!hierarchie && !estDemandeBudget(e) && (e.a === moi && e.statut === 'envoye' ? !e.titre.startsWith(TITRE_RAPPEL) || !!e.point : recue) && (
+        {!!hierarchie && !estDemandeBudget(e) && !estQuestionDossier(e) && (e.a === moi && e.statut === 'envoye' ? !e.titre.startsWith(TITRE_RAPPEL) || !!e.point : recue) && (
           <SectionFiche titre={recue ? 'La réponse' : 'Ou bien'}>
             <Text style={s.ou}>
               {[hierarchie.libelle(e) && `📍 ${hierarchie.libelle(e)}`, e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`].filter(Boolean).join(' · ') || (recue ? 'Acceptez-la, ou faites-la reprendre.' : 'Transmettez-le, suivez-le en réunion ou occupez-vous-en.')}

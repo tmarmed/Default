@@ -122,7 +122,7 @@ export const ONGLETS_BUDGET: Record<TableBudget, { nom: string; colonnes: string
   depense: { nom: 'Depenses', colonnes: ['id', 'motif', 'categorie', 'montant', 'periode', 'du', 'au', 'porteur', 'cle', 'parts', 'cree_le', 'modifie_le'] },
   cout: { nom: 'CoutsAnnuels', colonnes: ['id', 'cout_annuel', 'cree_le', 'modifie_le'] },
   demande: { nom: 'DemandesBudget', colonnes: ['id', 'motif', 'montant', 'periode', 'du', 'au', 'pour', 'demandeur', 'destination', 'soumis_par', 'origine', 'statut', 'montant_accorde', 'motif_decision', 'decide_par', 'decide_le', 'hors_reunion', 'cree_le', 'modifie_le'] },
-  dossier: { nom: 'Dossiers', colonnes: ['id', 'hypothese', 'estimation', 'budget_prevu', 'budget_mvp', 'estimation_fin', 'decision', 'decide_le', 'decide_par', 'decide_a', 'modifie_le'] },
+  dossier: { nom: 'Dossiers', colonnes: ['id', 'hypothese', 'estimation', 'budget_prevu', 'budget_mvp', 'estimation_fin', 'decision', 'decide_le', 'decide_par', 'decide_a', 'hors_reunion', 'modifie_le'] },
 };
 /** 📅 Congés et jours réels (lot 2, 09/10) : onglets du Sheet de l'espace, créés au premier usage */
 export const ONGLETS_CONGES: Record<TableConges, { nom: string; colonnes: string[] }> = {
@@ -872,6 +872,7 @@ export function creerMagasin(p: Persistance) {
         decide_le: String(x.decide_le ?? ''),
         decide_par: String(x.decide_par ?? ''),
         decide_a: String(x.decide_a ?? ''),
+        hors_reunion: String(x.hors_reunion ?? ''),
         modifie_le: new Date().toISOString(),
       };
       if (o.budget_mvp && o.budget_prevu && Number(o.budget_mvp) > Number(o.budget_prevu)) throw new Error('Budget du MVP : au plus le budget prévu.');
