@@ -38,7 +38,7 @@ export interface ChoixConcret {
   pour?: string;
   /** Suivi jusqu'à validation (défaut : oui) ; non = la note est close à l'envoi, l'élément créé continue */
   suivi?: boolean;
-  /** Choisi par « ↪ Transmettre » (remplaçant d'un absent, autre équipe, niveau du dessus) */
+  /** Choisi par « ↪ Transmettre » (hors de l'équipe : autre équipe, niveau du dessus ; remplacer un absent = affecter) */
   transmis?: boolean;
 }
 

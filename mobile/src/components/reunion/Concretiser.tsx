@@ -21,8 +21,8 @@ export interface PersonneChoix {
 
 /**
  * Feuille « Concrétiser » (refonte validée le 13/10) : trois questions indépendantes, tout prérempli, un seul bouton.
- * Type (Rien · Créer un élément · ⚡ Action rapide · Demande de budget) · À qui (moi ou mon équipe ; « ↪ Transmettre » à
- * part : remplaçant d'un absent, autre équipe, niveau du dessus) · Suivi (oui : validation et échéance ; non : la note
+ * Type (Rien · Créer un élément · ⚡ Action rapide · Demande de budget) · À qui (moi ou mon équipe ; remplacer un absent
+ * = affecter ; « ↪ Transmettre » à part, hors de l'équipe : autre équipe, niveau du dessus) · Suivi (oui : validation et échéance ; non : la note
  * est close). L'élément concerné est celui du point ; « Rattaché à › » part de lui et peut monter plus haut.
  */
 export function FeuilleConcretiser({
@@ -85,18 +85,39 @@ export function FeuilleConcretiser({
   const nom = (l: PersonneChoix[], v: string) => l.find((x) => x.email === v)?.nom ?? v;
   // Responsable absent d'ici l'échéance (congés, fermetures) : on prévient et on propose de transmettre (13/10)
   const { conges } = useConges();
-  const absence = (() => {
-    if (c.que === 'rien' || c.que === 'budget' || !c.resp || c.qui === 'dessus') return '';
+  /** « le 13/10 » ou « du 13/10 au 15/10 » : absence d'une personne d'ici l'échéance (sinon dans les 7 jours) */
+  const periodeAbsence = (email: string) => {
     const auj = toDateString(new Date());
     const fin = c.ech && c.ech > auj ? c.ech : toDateString(addDays(new Date(), 7));
-    const ab = congesDe(conges, c.resp, auj, fin);
+    const ab = congesDe(conges, email, auj, fin);
     if (!ab.length) return '';
     const du = ab.reduce((m, x) => (x.du < m ? x.du : m), ab[0].du);
     const au = ab.reduce((m, x) => (x.au > m ? x.au : m), ab[0].au);
-    const qui = nom([moi, ...equipe, ...autresTous], c.resp);
     const debut = du < auj ? auj : du;
-    return debut === au ? `Absence de ${qui} le ${jourCourt(au)}.` : `Absence de ${qui} du ${jourCourt(debut)} au ${jourCourt(au)}.`;
+    return debut === au ? `le ${jourCourt(au)}` : `du ${jourCourt(debut)} au ${jourCourt(au)}`;
+  };
+  const absence = (() => {
+    if (c.que === 'rien' || c.que === 'budget' || !c.resp || c.qui === 'dessus') return '';
+    const p = periodeAbsence(c.resp);
+    return p ? `Absence de ${nom([moi, ...equipe, ...autresTous], c.resp)} ${p}.` : '';
   })();
+  /** Remplacer = affecter (13/10) : la ligne Responsable s'ouvre sans la personne absente ; les autres absents restent, marqués */
+  const [remplace, setRemplace] = useState('');
+  const optionEquipe = (x: PersonneChoix) => {
+    const p = periodeAbsence(x.email);
+    return { value: x.email, label: x.nom, meta: [x.meta, p && `absent ${p}`].filter(Boolean).join(' · ') || undefined };
+  };
+  /** « ↪ Transmettre » (hors de l'équipe) : la liste s'ouvre aussitôt ; Annuler sans choix revient à l'affectation */
+  const [avantTransmis, setAvantTransmis] = useState<{ resp: string; qui: QuiCharge } | null>(null);
+  const transmettre = () => {
+    setAvantTransmis({ resp: c.resp, qui: c.qui === 'dessus' ? quiDe(c.resp) : c.qui });
+    set({ transmis: true, resp: '' });
+  };
+  const affecter = (a = avantTransmis ?? (c.qui === 'dessus' ? null : { resp: c.resp, qui: quiDe(c.resp) })) => {
+    setAvantTransmis(null);
+    const garde = a && (a.resp === moi.email || equipe.some((x) => x.email === a.resp));
+    set({ transmis: false, resp: garde ? a!.resp : moi.email, qui: garde ? a!.qui : 'moi' });
+  };
   const libRatt = (() => {
     if (!rattId) return c.type === 'story' || c.type === 'feature' ? 'À choisir' : 'Aucun · dans l’équipe et le sprint';
     const y = elementDe(rattId, h);
@@ -212,12 +233,19 @@ export function FeuilleConcretiser({
                 <View style={s.carte}>
                   {!c.transmis ? (
                     <LigneChoix
+                      key={remplace || 'responsable'}
                       label="Responsable"
+                      titreFeuille={remplace ? `Remplaçant de ${nom([moi, ...equipe], remplace)}` : undefined}
+                      ouverte={!!remplace}
+                      onAnnuler={() => setRemplace('')}
                       value={c.resp}
-                      onChange={(v) => v && set({ resp: v, qui: v === moi.email ? 'moi' : 'equipe' })}
+                      onChange={(v) => {
+                        setRemplace('');
+                        if (v) set({ resp: v, qui: v === moi.email ? 'moi' : 'equipe' });
+                      }}
                       groupes={[
-                        { titre: 'Moi', options: [{ value: moi.email, label: moi.nom, meta: moi.meta }] },
-                        { titre: nomEquipe ? `Équipe ${nomEquipe}` : 'Mon équipe', options: equipe.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) },
+                        { titre: 'Moi', options: moi.email === remplace ? [] : [optionEquipe(moi)] },
+                        { titre: nomEquipe ? `Équipe ${nomEquipe}` : 'Mon équipe', options: equipe.filter((x) => x.email !== moi.email && x.email !== remplace).map(optionEquipe) },
                       ].filter((g) => g.options.length)}
                       libelle={(v) => nom([moi, ...equipe, ...autresTous, ...dessus], v)}
                       fixe
@@ -225,10 +253,12 @@ export function FeuilleConcretiser({
                   ) : (
                     <LigneChoix
                       label="↪ Transmettre à"
+                      vide="À choisir"
+                      ouverte={!c.resp}
+                      onAnnuler={() => !c.resp && affecter()}
                       value={c.qui === 'dessus' ? `↑${c.resp}` : c.resp}
                       onChange={(v) => v && changerResp(v)}
                       groupes={[
-                        { titre: nomEquipe ? `Équipe ${nomEquipe} · remplaçant` : 'Mon équipe · remplaçant', options: equipe.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) },
                         ...autres.map((g) => ({ titre: g.titre, options: g.personnes.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) })),
                         ...(dessus.length ? [{ titre: `${nomDessus || 'Niveau du dessus'} · escalade`, options: [...new Map(dessus.map((x) => [x.email, x])).keys()].map((m) => ({ value: `↑${m}`, label: dessus.find((x) => x.email === m)!.nom, meta: dessus.filter((x) => x.email === m).map((x) => x.meta).filter(Boolean).join(' · ') })) }] : []),
                       ].filter((g) => g.options.length)}
@@ -240,20 +270,20 @@ export function FeuilleConcretiser({
                     <View style={[s.bord, s.alerte]}>
                       <Text style={s.alerteTexte}>⚠️ {absence}</Text>
                       {!c.transmis && (
-                        <Pressable onPress={() => set({ transmis: true, resp: '' })} hitSlop={6} accessibilityRole="button">
-                          <Text style={s.lien}>↪ Transmettre à un remplaçant</Text>
+                        <Pressable onPress={() => setRemplace(c.resp)} hitSlop={6} accessibilityRole="button">
+                          <Text style={s.lien}>Choisir un remplaçant</Text>
                         </Pressable>
                       )}
                     </View>
                   )}
                   <Pressable
-                    onPress={() => (c.transmis ? set({ transmis: false, qui: c.resp === moi.email ? 'moi' : 'equipe', resp: c.qui === 'dessus' || !equipe.some((x) => x.email === c.resp) ? moi.email : c.resp }) : set({ transmis: true, resp: '' }))}
+                    onPress={() => (c.transmis ? affecter() : transmettre())}
                     style={[s.ligne, s.bord]}
                     accessibilityRole="button"
                   >
                     <Text style={s.lien}>{c.transmis ? '← Affecter dans l’équipe' : '↪ Transmettre'}</Text>
                     <Text style={[s.aide, { flex: 1 }]} numberOfLines={2}>
-                      {c.transmis ? (c.qui === 'dessus' ? `${nomDessus || 'Le niveau du dessus'} décide ; vous pourrez re-concrétiser au retour de la réponse.` : 'Toujours suivi jusqu’à validation.') : 'responsable absent, autre équipe ou niveau du dessus'}
+                      {c.transmis ? (c.qui === 'dessus' ? `${nomDessus || 'Le niveau du dessus'} décide ; vous pourrez re-concrétiser au retour de la réponse.` : 'Toujours suivi jusqu’à validation.') : 'autre équipe ou niveau du dessus'}
                     </Text>
                   </Pressable>
                 </View>

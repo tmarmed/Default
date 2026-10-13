@@ -270,12 +270,16 @@ export interface LigneChoixProps {
   changement?: { avant: string; annuler: () => void };
   /** Liste fixe (type, état, répétition, itération…) : pas de pastille de recherche, réservée aux éléments existants */
   fixe?: boolean;
+  /** Feuille ouverte dès l'affichage de la ligne (bouton qui mène directement au choix) */
+  ouverte?: boolean;
+  /** Feuille fermée sans choix (Annuler) */
+  onAnnuler?: () => void;
 }
 
 /** Ligne de choix + sa feuille */
 export function LigneChoix(p: LigneChoixProps) {
   const lectureLigne = useContext(LectureContext);
-  const [ouvert, setOuvert] = useState(false);
+  const [ouvert, setOuvert] = useState(!!p.ouverte);
   const ch = useChangement();
   const opts = toutes(p.groupes, p.autres);
   const nom = (v: string) => (v ? (p.libelle?.(v) ?? opts.find((o) => o.value === v)?.label ?? '?') : '');
@@ -330,7 +334,10 @@ export function LigneChoix(p: LigneChoixProps) {
             setOuvert(false);
             p.onChange(v);
           }}
-          onFermer={() => setOuvert(false)}
+          onFermer={() => {
+            setOuvert(false);
+            p.onAnnuler?.();
+          }}
         />
       )}
     </View>
