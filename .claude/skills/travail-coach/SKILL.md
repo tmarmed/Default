@@ -29,3 +29,7 @@ cycles de vie. Il a demandé que je l'entraîne pour progresser.
 - 13/10/2026 (fin de session) : progrès sur 4 (il revient consciemment sur une décision : « fait / pas fait » remplacé
   par le statut) et 5 (critères « Quand…, alors… » acceptés). À travailler encore : 1 (réponses qui ajoutent une idée
   dans la même phrase) ; utiliser « Attends » quand il veut préciser, c'est efficace.
+- 13/10/2026 (fin de session 3) : progrès sur 3 (cohérence : il repère le Coach agile proposé à tort en mode Simple, et
+  demande l'existant avant de décider : « qu'est-ce qu'on avait avant ? ») et sur la vérification (il exige que les
+  points « non vérifiés » le soient). À travailler : 1 (décider le découpage une fois : les chapters passés de « même
+  lot » à « plus tard » en deux messages ; dire d'emblée « maintenant » ou « plus tard »).

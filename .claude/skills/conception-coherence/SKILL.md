@@ -11,7 +11,7 @@ description: Liste de contrôle de cohérence (famille « conception », génér
    fait presque la même chose ?
 3. **Modes et niveaux** : si le produit a plusieurs modes (simple / complet) ou niveaux (équipe, programme,
    entreprise) : mêmes données et mêmes composants, seuls les mots et les options changent ; aucun jargon du mode
-   complet dans le mode simple.
+   complet dans le mode simple — ni mot, ni rôle, ni concept (13/10 : « Coach agile » proposé à tort en mode Simple).
 4. **Cycle de vie** : chaque état a une entrée et une sortie ; rien ne reste bloqué ; la trace est gérée.
 5. **Cas d'usage** : simples puis composés ; absence, refus, aller-retour, plusieurs destinataires.
 6. **Effets de bord** : messages et notifications, confidentialité (ce qui est privé le reste ; reformuler avant de

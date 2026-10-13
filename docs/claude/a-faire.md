@@ -2,6 +2,20 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
+## Prochaine session (préparée le 13/10, fin de session 3)
+Skills chargés (`.claude/skills/`, copie dans `tmarmed/mes-skills`, branche main) : les appliquer dès la première
+réponse ; fenêtre à cocher, un point à la fois, jamais de choix par défaut ; **pendant une tâche : « ⏱ temps passé /
+estimé · n % » d'après l'horloge (`date`), jamais au jugé**.
+Fait en session 3 (13/10) : Avancement depuis la réunion précédente (bloc 13), enveloppes des trains (bloc 14), rôles
+transverses (bloc 15), estimations de la démo, deuxième train dans la démo, vérification du cloisonnement des données.
+Sujets proposés, au choix de l'utilisateur (dans cet ordre conseillé) :
+1. Chapters (conception commencée, voir « Reste à faire » : qui crée, qui est membre).
+2. Partage automatique du Sheet « 💶 Budget » avec les seules personnes qui ont « Gérer le budget » (point 10), lié
+   aux rôles transverses (Contrôleur de gestion, Suppléant).
+3. Avancement : seuil réglable des valeurs et filtre pré-rempli gardé (Reste à faire).
+4. Le reste de la liste « Reste à faire » (Revue de sprint : parties prenantes hors équipe — en partie couvert par la
+   Partie prenante ; affectations d'une personne ; fermetures de l'entreprise…).
+
 ## Session 3 (13/10) : Avancement depuis la réunion précédente — CODÉ (règles : docs/regles-reunions.html, bloc 13)
 Fait : src/avancement.ts (photo, comparaison, libellés ; tests verif:reunions), reunion/Avancement.tsx (useAvancement,
 BlocAvancement) ; branché dans useReunion (toutes les réunions du socle : Situation via BlocSuivi, compte rendu,
@@ -65,7 +79,8 @@ Sujets proposés, au choix de l'utilisateur :
 2. ~~Droits transverses~~ CODÉ (13/10, session 3 ; règles bloc 15) : src/transverses.ts (catalogue, vers le bas, qui
    donne, Suppléant), branché dans participants, séries, animation, budget, droits du travail, Pilotage ;
    RolesTransverses.tsx (fiche du niveau, fiche de la personne) ; démo : Karim Haddad coach du train Clients, Claire
-   Vidal direction du portfolio. Non vérifié à l'écran : la fiche de la personne. Chapters : reportés.
+   Vidal direction du portfolio. Vérifié à l'écran (13/10) : fiche de la personne, ajout de bout en bout (Marc Petit
+   Contrôleur de gestion du train Clients, gardé après rechargement). Chapters : reportés.
 3. ~~Corriger les estimations de la démo~~ FAIT (13/10) : historique de stories terminées aux 3 sprints précédents
    (Mobile ≈ 18 points par sprint, Web 10), et depuis janvier une story par équipe et par sprint sur l'epic terminée
    « Site e-commerce v1 » (230 000 € prévus, 226 148 € consommés) ; Hors epics 10 412 € ; coût d'un point 559 €
