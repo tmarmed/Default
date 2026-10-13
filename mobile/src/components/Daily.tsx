@@ -39,6 +39,7 @@ import { useSafe } from '../safe';
 import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
 import { enfantsRepartition, gerantsBudget, niveauDessus, reunionDuNiveau, useBudget } from '../budget';
+import { BlocAvancement, useAvancement } from './reunion/Avancement';
 import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PeriodeDepense, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type Statut, type TypePoint } from '../types';
 import { etatDe, texteDirect } from '../etatReunion';
 import { useLive } from './useLive';
@@ -272,6 +273,18 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       .map((x) => x.reunion);
     return ids.sort().pop() ?? '';
   }, [lus, prefixe, jour]);
+  /**
+   * Avancement depuis le Daily précédent (13/10, bloc 13) : stories et tâches de l'équipe, plus les features et epics
+   * rattachées ; une photo est écrite avec le compte rendu
+   */
+  const itemsAv = h.items.filter((t) => e.dansEquipe(t));
+  const fIdsAv = new Set(itemsAv.map((t) => t.feature).filter(Boolean));
+  const featuresAv = h.featureList.filter((f) => fIdsAv.has(f.id));
+  const eIdsAv = new Set([...itemsAv.map((t) => t.epic), ...featuresAv.map((f) => f.epic)].filter(Boolean));
+  const perimetreAv = { items: itemsAv, features: featuresAv, epics: h.epicList.filter((x) => eIdsAv.has(x.id)), suivis: serveur.filter((x) => !!x.statut), tousItems: h.items };
+  const sourcesAv = { items: h.items, featureList: h.featureList, epicList: h.epicList, points: serveur };
+  const avancement = useAvancement({ type: reunion.type, reunion: reunion.id, prefixes: [prefixe], points: lus, perimetre: perimetreAv, sources: sourcesAv });
+  const avancementCR = useAvancement({ type: reunion.type, reunion: dernierCR || reunion.id, prefixes: [prefixe], points: lus, perimetre: perimetreAv, sources: sourcesAv, lecture: true });
   /**
    * Parcours d'origine d'un point déjà envoyé : « PO » pour une réponse à un échange ou une story à accepter ou à
    * préparer (ou tout, s'il n'est pas membre), sinon « Mon point »
@@ -768,7 +781,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     // Points au suivi fini : gardés jusqu'à la rétro (ou la démo) du niveau, qui les supprime (voir NETTOYAGE)
     // Lignes d'état des dailies précédents : retirées (celle d'aujourd'hui reste jusqu'au compte rendu suivant)
     const etatsAnciens = lus.filter((x) => x.type === 'etat' && x.reunion !== reunion.id).map((x) => x.id);
-    const ecrits = await actions.ecrirePoints(espace, [...creer, ...(recus.get(espace) ?? [])], modifier, [...Object.keys(anciens), ...etatsAnciens]);
+    // Avancement (13/10) : photo de la situation, comparée au Daily suivant ; dans la même écriture
+    const photo = avancement.envoi(mail);
+    const ecrits = await actions.ecrirePoints(espace, [...creer, ...photo.creer, ...(recus.get(espace) ?? [])], modifier, [...Object.keys(anciens), ...etatsAnciens, ...photo.retirer]);
     for (const [esp, l] of recus) if (esp !== espace) await actions.ecrirePoints(esp, l, [], []);
     await relierEscalades(actions, espace, envoyes, escaladesEnvoyees.map((d) => d.pt.id), [...preparation, ...locaux].map((y) => y.id), ecrits.crees, echangeDuPoint);
     live.terminer();
@@ -1055,6 +1070,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               const noms = personnes.filter((y) => ab.fermeture || ab.personnes.includes(y.email.toLowerCase())).map((y) => y.nom);
               return noms.length ? <Text style={[st.sous, { marginHorizontal: 16, marginTop: 6 }]}>📅 Absents aujourd’hui : {noms.join(', ')}</Text> : null;
             })()}
+            <BlocAvancement av={avancement} nom={nomDe} onOuvrir={lecture ? undefined : onOpenTask} />
             <SectionFiche
               titre={`📌 Suivis · ${nSuivisVus}${reportesVus.length || vueSuivi === 'notes' ? ` · Notes à concrétiser · ${reportesVus.length}` : ''}`}
               droite={
@@ -1377,6 +1393,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 <Vide texte="Rien." />
               )}
             </SectionFiche>
+            {/* Avancement (13/10) : même filtre qu'à la Situation ; compte rendu déjà envoyé : la photo et le filtre de l'envoi */}
+            <BlocAvancement av={x.cle === 'cr_lecture' ? avancementCR : avancement} nom={nomDe} compteRendu lecture={x.cle === 'cr_lecture'} onOuvrir={lecture ? undefined : onOpenTask} />
           </>
         );
       }

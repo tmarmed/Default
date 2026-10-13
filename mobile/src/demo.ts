@@ -2,6 +2,7 @@ import type { Conge, CoutPersonne, DemandeBudget, Depense, DossierInvestissement
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
 import { iterationOf, piOf, piStart, shiftPi } from './pi';
+import { photoDe, pointsPhoto } from './avancement';
 import { creerMagasin, type Kind, type Persistance, type Table, TABLES, TABLES_ORG } from './magasin';
 import { CLE_ORG, type KindOrg, type Org } from './organisation';
 import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, type ValueStream, type Echange } from './types';
@@ -122,7 +123,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '40';
+const DEMO_DATA_VERSION = '41';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -491,7 +492,18 @@ const SEEDS_ENTREPRISE: Seeds = {
     const pt = (id: string, x: Partial<PointReunion>): PointReunion => ({
       id, reunion: reunion(jour), personne: tom, auteur: tom, type: 'hier', texte: '', element: '', concretisation: '', tache: '', responsable: '', cree_le: new Date(Date.now() - 3600_000).toISOString(), ...x,
     });
-    return [
+    // Avancement (13/10, bloc 13) : photo du Daily d'hier (envoyé), d'où « Avancement depuis le Daily du … » :
+    // l'accès à l'API passé En cours, l'inscription Terminée, le paiement repris par Emma, la migration déplacée
+    // de sprint, et la relecture du compte rendu ajoutée en cours de route
+    const items = SEEDS_ENTREPRISE.items();
+    const ent = SEEDS_ENTREPRISE.entities();
+    const mobile = items.filter((t) => t.equipe === 'acmeqmob');
+    const fIds = new Set(mobile.map((t) => t.feature).filter(Boolean));
+    const features = (ent.feature as Feature[]).filter((f) => fIds.has(f.id));
+    const eIds = new Set([...mobile.map((t) => t.epic), ...features.map((f) => f.epic)].filter(Boolean));
+    const hier = (id: string, o: Partial<Item>) => mobile.map((t) => (t.id === id ? { ...t, ...o } : t));
+    const etatHier = hier('acm7', { statut: 'a_faire' }).map((t) => (t.id === 'acm9' ? { ...t, statut: 'en_cours' as const } : t.id === 'acm5' ? { ...t, responsable: 'acmp8' } : t.id === 'acm2' ? { ...t, iteration: iterationOf(addDays(new Date(), -14)).key } : t)).filter((t) => t.id !== 'acm14');
+    const liste: PointReunion[] = [
       pt('acmpt1', { reunion: reunion(veille), type: 'blocage', texte: 'Pas d’accès à l’API de test', element: 'acm4', concretisation: 'sous_tache', tache: 'acm7', responsable: tom, cree_le: `${veille}T09:40:00.000Z` }),
       pt('acmpt2', { reunion: reunion(avant), personne: emma, auteur: nina, type: 'action', texte: 'Commander les licences de test', concretisation: 'tache', tache: 'acm8', responsable: emma, cree_le: `${avant}T09:42:00.000Z` }),
       pt('acmpt3', { type: 'hier', texte: 'Formulaire de connexion terminé', element: 'acm4' }),
@@ -518,6 +530,11 @@ const SEEDS_ENTREPRISE: Seeds = {
       pt('acmpt15', { reunion: reunion(avant), personne: paul, auteur: MOI_DEMO, type: 'action', texte: 'Mettre à jour le guide d’installation', concretisation: 'suivi', responsable: paul, statut: 'valide', validateur: MOI_DEMO, note: 'Guide relu', hors_reunion: '1', cree_le: `${avant}T09:50:00.000Z` }),
       pt('acmpt14', { reunion: reunion(avant), personne: MOI_DEMO, auteur: MOI_DEMO, type: 'action', texte: 'Réserver la salle de démo du vendredi', concretisation: 'suivi', responsable: MOI_DEMO, statut: 'abandonne', validateur: nina, note: 'Démo faite à distance', cree_le: `${avant}T09:49:00.000Z` }),
     ];
+    // Suivis tels qu'hier : les maquettes du panier étaient encore « en cours » (passées à « fait » depuis)
+    const suivisHier = liste.filter((x) => !!x.statut).map((x) => (x.id === 'acmpt8' ? { ...x, statut: 'en_cours' as const } : x));
+    const photo = photoDe({ items: etatHier, features, epics: (ent.epic as Epic[]).filter((x) => eIds.has(x.id)), suivis: suivisHier, tousItems: items.map((t) => etatHier.find((a) => a.id === t.id) ?? t) }, 0);
+    const photoHier = pointsPhoto(reunion(veille), nina, photo, { sortes: [], niveaux: [] }).map((x, k) => ({ ...x, id: `acmav${k + 1}`, cree_le: `${veille}T09:55:00.000Z` }));
+    return [...photoHier, ...liste];
   },
   entities: () => {
     const e = vide();

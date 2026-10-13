@@ -17,6 +17,8 @@ import { AjoutElement, ChoixJour } from './Ajout';
 import { Compteurs } from './base';
 import { PlanDuJour } from './PlanDuJour';
 import { SuivisPerso } from './SuivisPerso';
+import { BlocAvancement, useAvancement } from './Avancement';
+import type { PointReunion } from '../../types';
 import { usePlanJour } from './usePlanJour';
 import { useSafe } from '../../safe';
 import { Ligne, Pastilles, pastilleStatut, st, Vide } from './ui';
@@ -106,8 +108,33 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
   const prevus = h.items.filter((t) => (plan ?? []).includes(t.id) || (reunion.type === 'bilan_soir' && pj.planAilleurs.some((x) => x.element === t.id)));
   const faits = prevus.filter((t) => t.statut === 'termine');
   const moiId = org.personnes.find((x) => x.email.toLowerCase() === moi.toLowerCase())?.id ?? '';
-  // Changé depuis ce matin : terminé aujourd'hui sans être prévu (seul changement de statut daté dans les données)
-  const changes = h.items.filter((t) => !prevus.includes(t) && (!t.responsable || t.responsable === moiId) && !t.periodicite && t.termine_le === jour);
+  /**
+   * Avancement depuis ma réunion précédente (13/10, bloc 13 ; remplace « Changé depuis ce matin ») : Point perso et
+   * Bilan du soir se suivent (le même jour compris), les autres rituels regardent leur propre série ; mes éléments
+   * (🔒 Moi, ou dont je suis responsable) et mes objectifs ; une photo est écrite à « Terminer »
+   */
+  const [pointsMoi, setPointsMoi] = useState<PointReunion[]>([]);
+  useEffect(() => {
+    let actif = true;
+    actions
+      .lirePoints(reunion.espace || 'moi', '')
+      .then((l) => actif && setPointsMoi(l))
+      .catch(() => {});
+    return () => {
+      actif = false;
+    };
+  }, [actions, reunion.espace]);
+  const jourPerso = reunion.type === 'point_perso' || reunion.type === 'bilan_soir';
+  const prefixesAv = jourPerso ? ['point_perso-', 'bilan_soir-'] : [reunion.id.slice(0, -10)];
+  const miens = useMemo(() => taches.filter((t) => (t.espace || 'moi') === 'moi' || (!!moiId && t.responsable === moiId)), [taches, moiId]);
+  const avancement = useAvancement({
+    type: reunion.type,
+    reunion: reunion.id,
+    prefixes: prefixesAv,
+    points: pointsMoi,
+    perimetre: { items: miens, objectifs: h.objectifList.filter((o) => (o.espace || 'moi') === 'moi'), suivis: pointsMoi.filter((x) => !!x.statut && prefixesAv.some((p) => x.reunion.startsWith(p))) },
+    sources: { items: h.items, objectifList: h.objectifList, points: pointsMoi },
+  });
   const pasFinis = prevus.filter((t) => t.statut !== 'termine');
   // ---- Revue de la semaine ----
   const faitesSemaine = taches.filter((t) => t.statut === 'termine' && !!t.termine_le && t.termine_le > ilYa7 && t.termine_le <= jour);
@@ -188,7 +215,12 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
     switch (cle) {
       // Suivis et notes (08/10) : les mêmes que les réunions d'équipe ; le Chat peut y lier un message
       case 'suivis':
-        return <SuivisPerso reunion={reunion} moi={moi} echanges={echanges} actions={actions} onInfo={onInfo} />;
+        return (
+          <>
+            <BlocAvancement av={avancement} nom={(m) => (m.toLowerCase() === moi.toLowerCase() || m === moiId ? 'Vous' : org.personnes.find((x) => x.id === m || x.email.toLowerCase() === m.toLowerCase())?.nom ?? m)} />
+            <SuivisPerso reunion={reunion} moi={moi} echanges={echanges} actions={actions} onInfo={onInfo} />
+          </>
+        );
       case 'hier':
         return (
           <>
@@ -259,7 +291,6 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
             <Compteurs l={[{ valeur: `${faits.length}/${prevus.length}`, libelle: 'du plan fait', ton: 'vert' }, { valeur: heures(faits.reduce((s, t) => s + duree(t), 0)), libelle: 'faites' }, { valeur: String(prevus.length - faits.length), libelle: 'pas fini', ton: prevus.length - faits.length ? 'orange' : undefined }]} />
             <SectionFiche titre="Prévu ce matin">{prevus.length ? prevus.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={pastilleStatut(t.statut)} tache={t} />) : <Vide texte="Pas de plan : faites le point perso le matin." />}</SectionFiche>
             {/* 13/10 : ce qui a changé de statut aujourd'hui (ou a été créé) sans être prévu ce matin */}
-            <SectionFiche titre={`Changé depuis ce matin · ${changes.length}`}>{changes.length ? changes.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous="terminé aujourd’hui, hors plan" pastille={pastilleStatut(t.statut)} tache={t} />) : <Vide texte="Rien d’autre n’a changé aujourd’hui." />}</SectionFiche>
           </>
         );
       case 'pasfini':
@@ -478,6 +509,9 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
       await AsyncStorage.setItem(CLE_PLAN(jour), JSON.stringify(dansPlan)).catch(() => {});
       await pj.ecrire(new Set(Object.keys(pj.places).filter((id) => dansPlan.includes(id) || !auj.some((t) => t.id === id))));
     }
+    // Avancement (13/10) : photo de la situation, comparée à ma réunion suivante (une écriture)
+    const photo = avancement.envoi(moi || 'moi@local', [...patches.values()].flat());
+    await actions.ecrirePoints(reunion.espace || 'moi', photo.creer, [], photo.retirer).catch(() => {});
     if (reunion.type === 'revue_semaine') await AsyncStorage.setItem(CLE_PRIORITES, JSON.stringify(priorites)).catch(() => {});
     if (reunion.type === 'point_annuel') await AsyncStorage.setItem(CLE_GAC(jour), JSON.stringify(gac)).catch(() => {});
     onFini?.();

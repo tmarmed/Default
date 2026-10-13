@@ -31,6 +31,8 @@ import { subtaskMap } from '../../subtasks';
 import { aReprendre, parEspace, pointsEscalade, titreEscalade } from '../../suiviEscalade';
 import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, estSuivi, LIBELLE_TYPE_CREE, patchConcretise, resumeChoix, resumePoint } from '../../concretisation';
 import { FeuilleConcretiser } from './Concretiser';
+import { BlocAvancement, useAvancement } from './Avancement';
+import type { Perimetre } from '../../avancement';
 import { libelleElement } from '../../elementConcerne';
 import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../../pointsSuivi';
 import { BlocHorsReunion, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, repartirSuivis, statutAffiche } from './Suivi';
@@ -497,7 +499,9 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     // (les réunions du sprint gardent leur nettoyage par la rétro, voir NETTOYAGE)
     const sprint = ['daily', 'planification', 'affinage', 'revue', 'retro'].includes(reunion.type);
     const fermeesAvant = sprint ? [] : pointsFinis(serveur, reunion.id, e.h.items);
-    const ecrits = await actions.ecrirePoints(espace, [...creer, ...(recus.get(espace) ?? [])], modifier, [...new Set([...Object.keys(anciens), ...etatsAnciens, ...(o.retirer ?? []), ...fermeesAvant])]);
+    // Avancement (13/10) : photo de la situation, comparée à la réunion suivante ; dans la même écriture
+    const photo = avancement.envoi(mail, o.stories);
+    const ecrits = await actions.ecrirePoints(espace, [...creer, ...photo.creer, ...(recus.get(espace) ?? [])], modifier, [...new Set([...Object.keys(anciens), ...etatsAnciens, ...(o.retirer ?? []), ...fermeesAvant, ...photo.retirer])]);
     for (const [esp, l] of recus) if (esp !== espace) await actions.ecrirePoints(esp, l, [], []);
     await relierEscalades(actions, espace, envoyes, escaladesEnvoyees.map((d) => d.pt.id), [...preparation, ...locaux].map((y) => y.id), ecrits.crees, echangeDuPoint);
     live.terminer();
@@ -518,6 +522,35 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
       .map((x) => x.reunion);
     return ids.sort().pop() ?? '';
   }, [lus, prefixe, e.jour]);
+
+  /**
+   * Avancement depuis la réunion précédente de la série (13/10, bloc 13) : périmètre de la réunion (règle A4) — ses
+   * éléments, les features et epics rattachées au-dessus, et selon le niveau celles du train ou du portfolio ; la
+   * photo est réduite au focus de la réunion (règle A3)
+   */
+  const perimetreAv: Perimetre = (() => {
+    const n = e.niveauIci;
+    const items = e.h.items.filter((t) => e.dansEquipe(t));
+    const fIds = new Set(items.map((t) => t.feature).filter(Boolean));
+    const features = e.h.featureList.filter((f) => fIds.has(f.id) || (n?.kind === 'train' && (f.train ?? '') === n.id));
+    const eIds = new Set([...items.map((t) => t.epic), ...features.map((f) => f.epic)].filter(Boolean));
+    const dansEspace = (x: { espace?: string }) => (x.espace || 'moi') === espace;
+    const epics = e.h.epicList.filter((x) => eIds.has(x.id) || (n?.kind === 'portfolio' ? x.portfolio === n.id : simpleR && dansEspace(x)));
+    return {
+      items,
+      features,
+      epics,
+      objectifs: e.h.objectifList.filter(dansEspace),
+      objectifsPI: e.h.objectifsPI.filter(dansEspace),
+      enveloppes: budgetCtx.enveloppes.filter(dansEspace),
+      demandes: niveauBudget ? budgetCtx.demandes.filter((d) => d.demandeur === niveauBudget || d.destination === niveauBudget) : [],
+      suivis: serveur.filter((x) => !!x.statut),
+      tousItems: e.h.items,
+    };
+  })();
+  const sourcesAv = { items: e.h.items, featureList: e.h.featureList, epicList: e.h.epicList, objectifList: e.h.objectifList, objectifsPI: e.h.objectifsPI, enveloppes: budgetCtx.enveloppes, demandes: budgetCtx.demandes, points: serveur };
+  const avancement = useAvancement({ type: reunion.type, reunion: reunion.id, prefixes: [prefixe], points: lus, perimetre: perimetreAv, sources: sourcesAv });
+  const avancementCR = useAvancement({ type: reunion.type, reunion: dernierCR || reunion.id, prefixes: [prefixe], points: lus, perimetre: perimetreAv, sources: sourcesAv, lecture: true });
 
   /** Suivi des points (08/10) : statuts, validation, re-concrétisation ; écrit tout de suite */
   const animateurR = (reunion.organisateur || mail).toLowerCase();
@@ -600,6 +633,9 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     poserChoix,
     envoyerCompteRendu,
     dernierCR,
+    avancement,
+    avancementCR,
+    ouvrirTache: p.onOpenTask,
     live,
     libelleEtape: opts.libelleEtape,
   };
@@ -712,6 +748,16 @@ const typesNote = (r: R) => (r.e.niveauIci?.kind === 'train' ? TYPES_NOTE_TRAIN 
 // ---------------------------------------------------------------------------
 /** « Suivi · n » de la Situation : points concrétisés non finis, échanges en attente, points reportés */
 export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAjouter?: boolean }) {
+  const { e } = r;
+  return (
+    <>
+      <BlocAvancement av={r.avancement} nom={e.nomDe} onOuvrir={lecture ? undefined : r.ouvrirTache} />
+      <BlocSuiviSeul r={r} lecture={lecture} onAjouter={onAjouter} />
+    </>
+  );
+}
+
+function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAjouter?: boolean }) {
   const { e } = r;
   const [filtre, setFiltre] = useState<TypePoint | ''>('');
   const [ouvert, setOuvert] = useState(false);
@@ -1088,6 +1134,8 @@ export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode 
       <SectionFiche titre={`Clos · ${notes.length}`}>
         {notes.length ? notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`Rien (clos) · noté par ${e.nomDe(d.pt.personne)}`} pastille={{ texte: libelleNote(d.pt), ton: 'gris' }} />) : <Vide texte="Rien." />}
       </SectionFiche>
+      {/* Avancement (13/10) : même filtre qu'à la Situation ; compte rendu déjà envoyé : la photo et le filtre de l'envoi */}
+      <BlocAvancement av={reunionId ? r.avancementCR : r.avancement} nom={e.nomDe} compteRendu lecture={!!reunionId} onOuvrir={reunionId ? undefined : r.ouvrirTache} />
     </>
   );
 }
