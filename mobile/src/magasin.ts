@@ -174,7 +174,16 @@ export interface Persistance {
   lire<T extends Table>(t: T): Promise<RowOf<T>[]>;
   /** Réécrit toute la table */
   ecrire<T extends Table>(t: T, rows: RowOf<T>[]): Promise<void>;
+  /**
+   * Plan du jour (13/10, R7) : un onglet « Plan · Nina Dupont » par personne (ses points Hier et Aujourd'hui),
+   * protégé par Google (elle seule le modifie). Absent (démo, mémoire) : ces points restent dans PointsReunion.
+   */
+  lirePlans?(): Promise<PointReunion[]>;
+  /** Réécrit l'onglet de plan de `personne` (créé et protégé s'il manque) */
+  ecrirePlan?(personne: string, rows: PointReunion[]): Promise<void>;
 }
+/** Points rangés dans l'onglet de plan de la personne (R7) : Hier et Aujourd'hui */
+export const estPointPlan = (x: Pick<PointReunion, 'type'>) => x.type === 'hier' || x.type === 'aujourdhui';
 
 const RE_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const RE_HEURE = /^\d{2}:\d{2}$/;
@@ -635,15 +644,17 @@ export function creerMagasin(p: Persistance) {
     },
     /** Points des réunions dont l'id commence par `prefixe` (ex. tous les dailies d'une équipe) : une lecture */
     async lirePoints(prefixe: string): Promise<PointReunion[]> {
-      return (await p.lire('pointreunion')).filter((x) => x.reunion.startsWith(prefixe));
+      // Lus en même temps : un seul appel groupé (notes et onglets « Plan · … »)
+      const [pts, plans] = await Promise.all([p.lire('pointreunion'), p.lirePlans?.() ?? []]);
+      return [...pts, ...plans].filter((x) => x.reunion.startsWith(prefixe));
     },
     /**
      * « ↻ Actualiser » d'une réunion : ses points (id commençant par `prefixe`), les tâches et les échanges de
      * l'espace, lus en même temps (une seule lecture groupée)
      */
     async lireReunion(prefixe: string): Promise<{ points: PointReunion[]; items: Item[]; echanges: Echange[] }> {
-      const [points, items, echanges] = await Promise.all([p.lire('pointreunion'), p.lire('items'), p.lire('echange')]);
-      return { points: points.filter((x) => x.reunion.startsWith(prefixe)), items, echanges };
+      const [points, plans, items, echanges] = await Promise.all([p.lire('pointreunion'), p.lirePlans?.() ?? [], p.lire('items'), p.lire('echange')]);
+      return { points: [...points, ...plans].filter((x) => x.reunion.startsWith(prefixe)), items, echanges };
     },
     /**
      * Points d'une réunion en un seul passage (une lecture, une écriture) : `creer` (nouveaux points), `modifier`
@@ -653,18 +664,32 @@ export function creerMagasin(p: Persistance) {
     async ecrirePoints(creer: Omit<PointReunion, 'id' | 'cree_le'>[], modifier: (Partial<PointReunion> & { id: string })[], retirer: string[] = []): Promise<{ crees: PointReunion[]; modifies: PointReunion[] }> {
       if (!creer.length && !modifier.length && !retirer.length) return { crees: [], modifies: [] };
       const sans = new Set(retirer);
-      let list = (await p.lire('pointreunion')).filter((x) => !sans.has(x.id));
+      // Onglets de plan (R7) : Hier et Aujourd'hui vont dans l'onglet de la personne ; le reste dans PointsReunion
+      const avecPlans = !!p.lirePlans && !!p.ecrirePlan;
+      const [tous, plansAvant] = await Promise.all([p.lire('pointreunion'), avecPlans ? p.lirePlans!() : Promise.resolve([] as PointReunion[])]);
+      let list = tous.filter((x) => !sans.has(x.id));
+      let plans = plansAvant.filter((x) => !sans.has(x.id));
+      const plansTouches = new Set(plansAvant.filter((x) => sans.has(x.id)).map((x) => x.personne));
+      const listeTouchee = tous.length !== list.length || creer.some((x) => !(avecPlans && estPointPlan(x)));
       const now = new Date().toISOString();
       const modifies: PointReunion[] = [];
+      let modifListe = false;
       for (const patch of modifier) {
         const current = list.find((x) => x.id === patch.id);
-        if (!current) throw new Error('Point introuvable (peut-être retiré).');
-        const o = { ...nettoyerPoint(patch, current), id: current.id, cree_le: current.cree_le };
-        list = list.map((x) => (x.id === o.id ? o : x));
+        const dansPlan = !current ? plans.find((x) => x.id === patch.id) : undefined;
+        if (!current && !dansPlan) throw new Error('Point introuvable (peut-être retiré).');
+        const base = (current ?? dansPlan)!;
+        const o = { ...nettoyerPoint(patch, base), id: base.id, cree_le: base.cree_le };
+        if (current) (list = list.map((x) => (x.id === o.id ? o : x)), (modifListe = true));
+        else (plans = plans.map((x) => (x.id === o.id ? o : x)), plansTouches.add(o.personne));
         modifies.push(o);
       }
       const crees = creer.map((x) => ({ ...nettoyerPoint(x), id: nouvelId(), cree_le: now }));
-      await p.ecrire('pointreunion', [...list, ...crees]);
+      const versPlan = crees.filter((x) => avecPlans && estPointPlan(x));
+      for (const x of versPlan) plansTouches.add(x.personne);
+      plans = [...plans, ...versPlan];
+      if (listeTouchee || modifListe || !avecPlans) await p.ecrire('pointreunion', [...list, ...crees.filter((x) => !versPlan.includes(x))]);
+      for (const personne of plansTouches) await p.ecrirePlan!(personne, plans.filter((x) => x.personne === personne));
       return { crees, modifies };
     },
     /** Pièces jointes reconstituées (une lecture) ; une pièce incomplète est ignorée */

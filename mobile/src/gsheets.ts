@@ -1,6 +1,7 @@
 import { getAccessToken } from './auth';
 import { AuthError } from './authError';
 import { creerMagasin, type Magasin, ONGLETS, ONGLETS_TOUS, type Persistance, type Table, TABLES } from './magasin';
+import type { PointReunion } from './types';
 import type { TypeEspace } from './espaces';
 
 /**
@@ -245,6 +246,10 @@ function persistanceSheets(fichier: string): Persistance {
   /** Nombre de lignes de données au dernier passage (pour effacer ce qui dépasse) */
   const lignes = new Map<Table, number>();
   let ongletsVerifies: Promise<Set<string>> | null = null;
+  /** Onglets de plan (R7) : e-mail → nom de l'onglet, et nombre de lignes au dernier passage */
+  const ongletPlan = new Map<string, string>();
+  let titresLus = 0;
+  const lignesPlan = new Map<string, number>();
   /** Onglets de l'Organisation déjà vérifiés (créés au premier usage, seulement dans le fichier d'une entreprise) */
   const ongletsOrg = new Map<Table, Promise<void>>();
 
@@ -263,6 +268,7 @@ function persistanceSheets(fichier: string): Persistance {
   /** Onglets de base manquants (fichier ancien ou modifié à la main) : ajoutés avec leurs colonnes ; renvoie les onglets existants */
   const verifierOnglets = () =>
     (ongletsVerifies ??= (async () => {
+      titresLus = Date.now();
       const s = await appel<{ sheets: { properties: { title: string } }[] }>(`${SHEETS}/${fichier}?fields=sheets.properties.title`);
       const existants = new Set(s.sheets.map((x) => x.properties.title));
       const manquants = TABLES.filter((t) => !existants.has(ONGLETS[t].nom));
@@ -299,7 +305,7 @@ function persistanceSheets(fichier: string): Persistance {
    * Lectures groupées : les onglets demandés au même moment (chargement d'un espace : tâches, epics, features…)
    * sont lus en un seul appel (values:batchGet) au lieu d'un appel par onglet.
    */
-  let enAttente: { t: Table; ok: (v: string[][]) => void; ko: (e: unknown) => void }[] = [];
+  let enAttente: { t: string; ok: (v: string[][]) => void; ko: (e: unknown) => void }[] = [];
   let minuterie: ReturnType<typeof setTimeout> | null = null;
   const vider = async () => {
     const lot = enAttente;
@@ -307,7 +313,7 @@ function persistanceSheets(fichier: string): Persistance {
     minuterie = null;
     const tables = [...new Set(lot.map((x) => x.t))];
     try {
-      const q = tables.map((t) => `ranges=${encodeURIComponent(plage(ONGLETS_TOUS[t].nom, 'A1:ZZ'))}`).join('&');
+      const q = tables.map((t) => `ranges=${encodeURIComponent(plage(t, 'A1:ZZ'))}`).join('&');
       const r = await appel<{ valueRanges?: { values?: string[][] }[] }>(`${SHEETS}/${fichier}/values:batchGet?majorDimension=ROWS&${q}`);
       const par = new Map(tables.map((t, i) => [t, r.valueRanges?.[i]?.values ?? []]));
       for (const x of lot) x.ok(par.get(x.t)!);
@@ -315,7 +321,8 @@ function persistanceSheets(fichier: string): Persistance {
       for (const x of lot) x.ko(e);
     }
   };
-  const lireValeurs = (t: Table) =>
+  /** Valeurs d'un onglet (par son nom), lues avec les autres demandés au même moment */
+  const lireValeurs = (t: string) =>
     new Promise<string[][]>((ok, ko) => {
       enAttente.push({ t, ok, ko });
       minuterie ??= setTimeout(vider, 0);
@@ -325,7 +332,7 @@ function persistanceSheets(fichier: string): Persistance {
     async lire(t) {
       await assurerOnglet(t);
       const nom = ONGLETS_TOUS[t].nom;
-      const [entete = [], ...rows] = await lireValeurs(t);
+      const [entete = [], ...rows] = await lireValeurs(nom);
       const brut = entete.map((h) => String(h).trim());
       // Champs de l'application (« sprint » du Sheet = champ `iteration`)
       const cols = brut.map((h) => CHAMP_DE[h] ?? h);
@@ -368,8 +375,67 @@ function persistanceSheets(fichier: string): Persistance {
       }
       lignes.set(t, values.length);
     },
+    // ---- Onglets « Plan · Nina Dupont » (13/10, R7) : un par personne, protégé (elle seule le modifie) ----
+    async lirePlans() {
+      // Onglets créés par les autres depuis : la liste des onglets est relue au plus une fois par minute
+      if (titresLus && Date.now() - titresLus > 60_000) ongletsVerifies = null;
+      const existants = await verifierOnglets();
+      const noms = [...existants].filter((x) => x.startsWith(PREFIXE_PLAN));
+      const lus = await Promise.all(noms.map((n) => lireValeurs(n)));
+      const out: PointReunion[] = [];
+      lus.forEach(([entete = [], ...rows], i) => {
+        const cols = entete.map((h) => String(h).trim());
+        lignesPlan.set(noms[i], rows.length);
+        for (const row of rows) {
+          const o = Object.fromEntries(cols.map((c, j) => [c, row[j] === undefined || row[j] === null ? '' : String(row[j])])) as unknown as PointReunion;
+          if (!o.id) continue;
+          out.push(o);
+          if (o.personne) ongletPlan.set(o.personne.toLowerCase(), noms[i]);
+        }
+      });
+      return out;
+    },
+    async ecrirePlan(personne, rows) {
+      const existants = await verifierOnglets();
+      const mail = personne.toLowerCase();
+      let nom = ongletPlan.get(mail);
+      if (!nom || !existants.has(nom)) {
+        // Nom lisible : la personne de l'Organisation du fichier (onglet Personnes s'il existe), sinon son e-mail
+        let lisible = mail;
+        if (existants.has(ONGLETS_TOUS.personne.nom)) {
+          const pers = (await this.lire('personne')) as unknown as { email?: string; nom?: string }[];
+          lisible = pers.find((x) => (x.email ?? '').toLowerCase() === mail)?.nom?.trim() || mail;
+        }
+        nom = `${PREFIXE_PLAN}${lisible}`.slice(0, 90);
+        if (existants.has(nom)) nom = `${PREFIXE_PLAN}${mail}`.slice(0, 90);
+        // Création et protection en un seul appel (identifiant de feuille choisi ici) : seule la personne modifie
+        const sheetId = 100000 + Math.floor(Math.random() * 900000000);
+        await appel(`${SHEETS}/${fichier}:batchUpdate`, {
+          method: 'POST',
+          body: JSON.stringify({
+            requests: [
+              { addSheet: { properties: { sheetId, title: nom, gridProperties: { frozenRowCount: 1 } } } },
+              { addProtectedRange: { protectedRange: { range: { sheetId }, description: `Plan du jour de ${lisible} : elle ou lui seul le modifie`, warningOnly: false, editors: { users: [mail] } } } },
+            ],
+          }),
+        });
+        existants.add(nom);
+        ongletPlan.set(mail, nom);
+        lignesPlan.set(nom, 0);
+      }
+      const cols = ONGLETS_TOUS.pointreunion.colonnes;
+      const values = [enteteSheet(cols), ...(rows as unknown as Record<string, unknown>[]).map((r) => cols.map((c) => (r[c] === undefined || r[c] === null ? '' : String(r[c]))))];
+      await appel(`${SHEETS}/${fichier}/values/${encodeURIComponent(plage(nom, 'A1'))}?valueInputOption=RAW`, { method: 'PUT', body: JSON.stringify({ values }) });
+      const avant = lignesPlan.get(nom) ?? 0;
+      if (avant > rows.length) {
+        await appel(`${SHEETS}/${fichier}/values/${encodeURIComponent(plage(nom, `A${rows.length + 2}:${colonne(cols.length)}${avant + 1}`))}:clear`, { method: 'POST', body: '{}' });
+      }
+      lignesPlan.set(nom, rows.length);
+    },
   };
 }
+/** Onglets de plan : « Plan · Nina Dupont » */
+const PREFIXE_PLAN = 'Plan · ';
 
 const magasins = new Map<string, Magasin>();
 /** Opérations sur le Google Sheet d'un espace */

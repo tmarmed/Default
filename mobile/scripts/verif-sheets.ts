@@ -10,6 +10,8 @@ import { ONGLETS } from '../src/magasin';
 type Feuille = string[][];
 const fichiers = new Map<string, { titre: string; props: Record<string, string>; feuilles: Map<string, Feuille>; jete?: boolean }>();
 let appels = 0;
+/** Protections demandées (onglets « Plan · … », R7) : éditeurs */
+const protections: string[] = [];
 
 const lettre = (s: string) => [...s].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0);
 function cellule(ref: string) {
@@ -80,6 +82,7 @@ globalThis.fetch = (async (input: string, init: RequestInit = {}) => {
   if (url.pathname.endsWith(':batchUpdate') && !url.pathname.includes('/values')) {
     for (const r of corps.requests) {
       if (r.addSheet) f.feuilles.set(r.addSheet.properties.title, []);
+      if (r.addProtectedRange) protections.push(r.addProtectedRange.protectedRange.editors.users.join(','));
       if (r.updateSheetProperties) {
         // Renomme la première feuille
         const [premiere, contenu] = [...f.feuilles][0];
@@ -329,7 +332,10 @@ const ok = (cond: unknown, msg: string) => {
   }));
   const avantPts = appels;
   const ecrits = await dm.ecrirePoints(pts, []);
-  ok(ecrits.crees.length === 10 && appels - avantPts <= 4 && fichiers.get(idD)!.feuilles.has('PointsReunion'), `daily : 10 points en ${appels - avantPts} appels (onglet créé au premier usage, une écriture)`);
+  ok(ecrits.crees.length === 10 && appels - avantPts <= 6 && fichiers.get(idD)!.feuilles.has('PointsReunion'), `daily : 10 points en ${appels - avantPts} appels (onglets créés au premier usage : PointsReunion, et « Plan · » de Tom pour Hier et Aujourd'hui)`);
+  // Plan du jour (13/10, R7) : Hier et Aujourd'hui dans l'onglet « Plan · » de la personne, protégé (elle seule modifie)
+  const ongletsD = [...fichiers.get(idD)!.feuilles.keys()];
+  ok(ongletsD.includes('Plan · tom@x.fr') && protections.includes('tom@x.fr') && fichiers.get(idD)!.feuilles.get('PointsReunion')!.length === 7 && fichiers.get(idD)!.feuilles.get('Plan · tom@x.fr')!.length === 5, 'plan du jour : Hier et Aujourd’hui de Tom dans « Plan · tom@x.fr », protégé pour lui seul ; les notes dans PointsReunion');
   const avantPts2 = appels;
   await dm.ecrirePoints([{ ...pts[0], reunion: 'daily-equipeagile:eq1-2026-10-05', texte: 'Autre jour' }], []);
   ok(appels - avantPts2 === 2, `daily : ajout suivant en ${appels - avantPts2} appels (une lecture, une écriture)`);
@@ -374,7 +380,8 @@ const ok = (cond: unknown, msg: string) => {
   await dm.ecrirePoints([], lusPts.map((x, i) => ({ id: x.id, concretisation: i % 2 ? 'tache' as const : 'rien' as const, tache: i % 2 ? tachesD[1].id : '', responsable: 'Emma@x.fr' })));
   const nConc = appels - avantConc;
   const conc = await magasinSheets(idD).lirePoints(reu);
-  ok(nConc === 2 && conc.filter((x) => x.concretisation === 'tache').length === 5 && conc.every((x) => x.responsable === 'emma@x.fr'), `daily : 10 points concrétisés en ${nConc} appels`);
+  // 3 appels : les points Hier et Aujourd'hui (onglet de plan) sont réécrits à part (dans l'application, seul leur auteur les modifie)
+  ok(nConc <= 3 && conc.filter((x) => x.concretisation === 'tache').length === 5 && conc.every((x) => x.responsable === 'emma@x.fr'), `daily : 10 points concrétisés en ${nConc} appels`);
   // Le participant renvoie sa préparation : ses anciens points sont remplacés (une lecture, une écriture)
   const anciens = conc.filter((x) => x.auteur === 'tom@x.fr').map((x) => x.id);
   await dm.ecrirePoints([{ ...pts[0], texte: 'Préparation renvoyée' }], [], anciens);
@@ -419,7 +426,7 @@ const ok = (cond: unknown, msg: string) => {
   const apresPO = await magasinSheets(idD).lirePoints(reu);
   const decPO = apresPO.filter((x) => x.type === 'decision' && x.personne === 'paul@x.fr');
   ok(
-    nPO <= 4 && repEch.modifies.every((e) => e.statut === 'repondu') && repPO.crees.length === 4 && decPO.length === 3 &&
+    nPO <= 5 && repEch.modifies.every((e) => e.statut === 'repondu') && repPO.crees.length === 4 && decPO.length === 3 &&
       decPO.every((x) => !x.concretisation && echSy.some((e) => e.id === x.tache)) && !apresPO.some((x) => x.texte === 'Story acceptée'),
     `daily : 3 réponses du PO (échanges) dupliquées en décisions de la réunion, préparation reprise, en ${nPO} appels`,
   );
