@@ -123,7 +123,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '44';
+const DEMO_DATA_VERSION = '45';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -475,6 +475,18 @@ const SEEDS_ENTREPRISE: Seeds = {
       ['Relire le compte rendu du client', 'tache', SANS_DATE, { equipe: 'acmeqmob', responsable: `${ID_VOUS_DEMO}-demo-entreprise`, iteration: iterationOf(new Date()).key }],
       // Plan commun (R5b) : tâche de l'équipe Web cochée par Vous au Daily Web du jour
       ['Relire la page d’accueil', 'tache', SANS_DATE, { equipe: 'acmeqweb', responsable: `${ID_VOUS_DEMO}-demo-entreprise`, iteration: iterationOf(new Date()).key }],
+      // Historique (13/10) : stories terminées aux trois sprints précédents (environ 18 points par sprint pour Mobile,
+      // 10 pour Web), pour un coût d'un point réaliste (≈ 500 €) et des estimations à la fin crédibles
+      ...[1, 2, 3].flatMap((n): [string, Item['type'], number, Partial<Item>][] => {
+        const jour = addDays(new Date(), -14 * n);
+        const fini = { statut: 'termine' as const, termine_le: toDateString(addDays(jour, -2)), iteration: iterationOf(jour).key };
+        return [
+          [`Parcours de commande · étape ${n}`, 'story', SANS_DATE, { feature: 'acmf2', points: '8', equipe: 'acmeqmob', responsable: 'acmp8', ...fini }],
+          [`Profil client · partie ${n}`, 'story', SANS_DATE, { feature: 'acmf2', points: '5', equipe: 'acmeqmob', responsable: 'acmp9', ...fini }],
+          [`Import des contacts · lot ${n}`, 'story', SANS_DATE, { feature: 'acmf1', points: '5', equipe: 'acmeqmob', responsable: 'acmp7', ...fini }],
+          [`Pages du site · lot ${n}`, 'story', SANS_DATE, { feature: 'acmf3', points: '10', equipe: 'acmeqweb', responsable: 'acmp10', ...fini }],
+        ];
+      }),
     ]),
   // Daily de Mobile (onglet PointsReunion) : le point préparé par Tom pour le prochain daily, trois points concrétisés
   // aux dailies précédents dont la tâche n'est pas finie, et un blocage de Tom passé en échange 🔄 Synchro vers Paul
