@@ -1,6 +1,6 @@
 ---
 name: travail-ensemble
-description: Façon de travailler avec l’utilisateur (famille « travail », valable pour tous ses projets). À appliquer à chaque réponse dès le début de chaque session : français et court, explication puis choix numérotés en texte, recommander puis demander, ne rien coder avant « je valide », noms entiers, validation par captures.
+description: Façon de travailler avec l’utilisateur (famille « travail », valable pour tous ses projets). À appliquer à chaque réponse dès le début de chaque session : français et court, explication puis choix à cocher, un point à la fois, jamais de choix par défaut, recommander puis demander, ne rien coder avant « je valide », noms entiers, validation par captures.
 ---
 
 # Travailler ensemble
