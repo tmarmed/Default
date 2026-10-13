@@ -484,10 +484,18 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const aujListe = miens.filter((t) => t.statut !== 'termine').sort((a, b) => Number(b.statut === 'en_cours') - Number(a.statut === 'en_cours'));
   // 13/10 : les tâches en cours sont reprises d'office dans Aujourd'hui (cochées), sauf si on les décoche
   const [decochesAuj, setDecochesAuj] = useState<Set<string>>(new Set());
+  // Tâche nouvelle (R5d, 13/10) : créée ou changée pour moi après l'envoi de ma préparation, pas dans mon plan
+  // envoyé → cochée d'office (elle arrive « À placer » dans le Plan du jour)
+  const mesEnvois = serveur.filter((x) => x.reunion === reunion.id && x.personne === mail && x.auteur === mail);
+  const dernierEnvoi = mesEnvois.reduce((m, x) => (x.cree_le > m ? x.cree_le : m), '');
+  const nouvelles = new Set(
+    dernierEnvoi ? aujListe.filter((t) => !mesEnvois.some((x) => x.type === 'aujourdhui' && x.element === t.id) && (t.modifie_le || t.cree_le || '') > dernierEnvoi).map((t) => t.id) : [],
+  );
+  const parDefautAuj = (t: Item) => (t.statut === 'en_cours' || nouvelles.has(t.id)) && !prep.some((x) => x.type === 'aujourdhui' && x.element === t.id);
   const coche = (type: TypePoint, t: Item, texte: string) =>
-    prep.some((x) => x.type === type && x.element === t.id && x.texte === texte) || (type === 'aujourdhui' && t.statut === 'en_cours' && !decochesAuj.has(t.id) && !prep.some((x) => x.type === 'aujourdhui' && x.element === t.id));
+    prep.some((x) => x.type === type && x.element === t.id && x.texte === texte) || (type === 'aujourdhui' && parDefautAuj(t) && !decochesAuj.has(t.id));
   const basculer = (type: TypePoint, t: Item, texte: string, onglet: Prep) => {
-    const parDefaut = type === 'aujourdhui' && t.statut === 'en_cours' && !prep.some((x) => x.type === 'aujourdhui' && x.element === t.id);
+    const parDefaut = type === 'aujourdhui' && parDefautAuj(t);
     if (parDefaut) return setDecochesAuj((s) => (s.has(t.id) ? new Set([...s].filter((x) => x !== t.id)) : new Set([...s, t.id])));
     setPrep((l) => (coche(type, t, texte) ? l.filter((x) => !(x.type === type && x.element === t.id && x.texte === texte)) : [...l, nouveau(type, texte, t.id, '', onglet)]));
   };
@@ -507,7 +515,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const ligneTache = (type: TypePoint, t: Item, i: number, onglet: Prep) => {
     const pt = pointDeTache.get(t.id);
     const n = subs.get(t.id)?.length ?? 0;
-    const sous = n ? pluriel(n, 'sous-tâche') : t.parent ? `Sous-tâche de ${parId.get(t.parent)?.titre ?? 'la story'}` : '';
+    const sous = [nouvelles.has(t.id) ? '🆕 Nouveau' : '', n ? pluriel(n, 'sous-tâche') : t.parent ? `Sous-tâche de ${parId.get(t.parent)?.titre ?? 'la story'}` : ''].filter(Boolean).join(' · ');
     return (
       <LigneCase
         key={t.id}
@@ -569,7 +577,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   // avait envoyé ; ce qui vient d'être écrit est repris (sans relecture), pour un nouvel envoi ou le compte rendu.
   const envoyerPreparation = async (o: Prep) => {
     // Tâches en cours reprises d'office dans Aujourd'hui (pas décochées) : ajoutées au point envoyé
-    const reprises = o === 'membre' ? aujListe.filter((t) => t.statut === 'en_cours' && !decochesAuj.has(t.id) && !prep.some((x) => x.type === 'aujourdhui' && x.element === t.id)).map((t) => nouveau('aujourdhui', t.titre, t.id, '', o)) : [];
+    const reprises = o === 'membre' ? aujListe.filter((t) => parDefautAuj(t) && !decochesAuj.has(t.id)).map((t) => nouveau('aujourdhui', t.titre, t.id, '', o)) : [];
     const pts = [...preparationDe(o), ...reprises];
     const ici = o === 'po' ? reponsesPO.filter((r) => r.ici) : [];
     if (ici.length) await actions.repondreEchanges(ici.map((r) => ({ e: r.q, reponse: r.q.reponse, note: r.q.note })));
@@ -1428,6 +1436,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         : undefined,
       onTerminer: sm_ ? (o.lecture ? undefined : envoyerCompteRendu) : () => envoyerPreparation(o.role === 'po' ? 'po' : 'membre'),
       fermer: sm_,
+      // R5d : préparation déjà envoyée et du nouveau à placer → ouverture directe sur le Plan du jour
+      etapeInitiale: !sm_ && o.role !== 'po' && charge && nouvelles.size > 0 ? Math.max(0, o.etapes.findIndex((x) => x.cle === 'plan')) || undefined : undefined,
     };
   });
   // Onglet « Compte rendu · date » : le dernier compte rendu de la série, en lecture seule

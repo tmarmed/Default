@@ -54,6 +54,8 @@ export interface OngletReunion {
    * (✓) et l'on passe au premier onglet pas encore fait (la fenêtre se ferme s'il n'y en a plus)
    */
   fermer?: boolean;
+  /** Étape où ouvrir l'onglet (ex. Plan du jour quand il y a du nouveau à placer) ; les étapes d'avant sont passées */
+  etapeInitiale?: number;
 }
 
 interface Props {
@@ -145,6 +147,18 @@ export function FenetreReunion(p: Props) {
   }, [visible, reunion?.id, mode]);
   useEffect(() => () => void (minuterie.current && clearTimeout(minuterie.current)), []);
 
+  // Ouverture directe sur une étape (connue après la lecture des données) : seulement si l'onglet n'a pas encore bougé
+  const initiales = liste.map((o) => `${o.cle}:${o.etapeInitiale ?? ''}`).join('|');
+  useEffect(() => {
+    if (!visible) return;
+    setEtats((m) => {
+      let n = m;
+      for (const o of liste)
+        if (o.etapeInitiale && !m[o.cle]) n = { ...n, [o.cle]: { etape: o.etapeInitiale, faites: Array.from({ length: o.etapeInitiale }, (_x, i) => i) } };
+      return n;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, initiales]);
   const { etape, faites } = etats[courant.cle] ?? { etape: 0, faites: [] };
   const etapes = courant.etapes;
   const poser = (x: { etape?: number; faites?: number[] }) => setEtats((m) => ({ ...m, [courant.cle]: { etape, faites, ...x } }));

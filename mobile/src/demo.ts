@@ -470,6 +470,8 @@ const SEEDS_ENTREPRISE: Seeds = {
       ['Clarifier les règles de remboursement', 'tache', SANS_DATE, { equipe: 'acmeqmob', responsable: 'acmp6', statut: 'en_cours', iteration: iterationOf(new Date()).key }],
       // « Ma préparation » de Vous (validation du 08/10) : une story en cours à votre nom dans le sprint
       ['Préparer la démo du sprint', 'story', SANS_DATE, { feature: 'acmf2', points: '2', equipe: 'acmeqmob', responsable: `${ID_VOUS_DEMO}-demo-entreprise`, statut: 'en_cours', iteration: iterationOf(new Date()).key }],
+      // Plan du jour (13/10, R5d) : tâche affectée à Vous après l'envoi de sa préparation → « Nouveau », à placer
+      ['Relire le compte rendu du client', 'tache', SANS_DATE, { equipe: 'acmeqmob', responsable: `${ID_VOUS_DEMO}-demo-entreprise`, iteration: iterationOf(new Date()).key }],
     ]),
   // Daily de Mobile (onglet PointsReunion) : le point préparé par Tom pour le prochain daily, trois points concrétisés
   // aux dailies précédents dont la tâche n'est pas finie, et un blocage de Tom passé en échange 🔄 Synchro vers Paul
@@ -493,6 +495,7 @@ const SEEDS_ENTREPRISE: Seeds = {
       pt('acmpt3', { type: 'hier', texte: 'Formulaire de connexion terminé', element: 'acm4' }),
       // Note préparée par Vous pour le prochain daily ; note d'hier pas encore concrétisée (« Notes à concrétiser »)
       pt('acmpt11', { personne: MOI_DEMO, auteur: MOI_DEMO, type: 'blocage', texte: 'Salle de démo pas encore réservée', element: 'acm13' }),
+      pt('acmpt19', { personne: MOI_DEMO, auteur: MOI_DEMO, type: 'aujourdhui', texte: 'Préparer la démo du sprint', element: 'acm13' }),
       pt('acmpt12', { reunion: reunion(veille), personne: nina, auteur: nina, type: 'decision', sous_type: 'a_prendre', texte: 'Choisir la bibliothèque de graphiques', cree_le: `${veille}T09:44:00.000Z` }),
       pt('acmpt4', { type: 'aujourdhui', texte: 'Brancher la connexion Google', element: 'acm4' }),
       // Plan du jour (13/10) : le plan de Tom à la daily d'hier ; aujourd'hui, l'écran de connexion est noté « fait »
