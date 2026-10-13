@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import {
+  pointsFinis,
   attendConcretisation,
   aConcretiser,
   concretisationParDefaut,
@@ -492,7 +493,11 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     );
     // Lignes d'état des réunions précédentes de la série : retirées (celle-ci reste jusqu'au compte rendu suivant)
     const etatsAnciens = lus.filter((x) => x.type === 'etat' && !ici(x)).map((x) => x.id);
-    const ecrits = await actions.ecrirePoints(espace, [...creer, ...(recus.get(espace) ?? [])], modifier, [...Object.keys(anciens), ...etatsAnciens, ...(o.retirer ?? [])]);
+    // Notes fermées hors sprint (13/10) : supprimées à l'envoi du compte rendu de la réunion suivante de la même série
+    // (les réunions du sprint gardent leur nettoyage par la rétro, voir NETTOYAGE)
+    const sprint = ['daily', 'planification', 'affinage', 'revue', 'retro'].includes(reunion.type);
+    const fermeesAvant = sprint ? [] : pointsFinis(serveur, reunion.id, e.h.items);
+    const ecrits = await actions.ecrirePoints(espace, [...creer, ...(recus.get(espace) ?? [])], modifier, [...new Set([...Object.keys(anciens), ...etatsAnciens, ...(o.retirer ?? []), ...fermeesAvant])]);
     for (const [esp, l] of recus) if (esp !== espace) await actions.ecrirePoints(esp, l, [], []);
     await relierEscalades(actions, espace, envoyes, escaladesEnvoyees.map((d) => d.pt.id), [...preparation, ...locaux].map((y) => y.id), ecrits.crees, echangeDuPoint);
     live.terminer();

@@ -43,7 +43,7 @@ import { useLive } from './useLive';
 import { FeuilleChoix, SectionFiche } from './Choix';
 import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, patchConcretise, resumeChoix as resumeConcret, resumePoint } from '../concretisation';
 import { libelleElement } from '../elementConcerne';
-import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../pointsSuivi';
+import { echeanceParDefaut, estFini, jourCourt, LIBELLE_STATUT, relierEscalades, validateurDe } from '../pointsSuivi';
 import { absentsLe, useConges } from '../conges';
 import { BlocHorsReunion, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, repartirSuivis, statutAffiche } from './reunion/Suivi';
 import { FeuilleConcretiser } from './reunion/Concretiser';
@@ -386,10 +386,19 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const hierListe = miens.filter(
     (t) => t.statut === 'en_cours' || (t.statut === 'termine' && (!t.termine_le || t.termine_le >= veille)) || (pointDeTache.has(t.id) && t.statut !== 'termine'),
   );
-  const aujListe = miens.filter((t) => t.statut !== 'termine');
+  // Aujourd'hui (13/10) : d'abord les tâches reprises d'hier et celles en cours, puis le reste
+  const aujListe = miens.filter((t) => t.statut !== 'termine').sort((a, b) => Number(b.statut === 'en_cours' || hierListe.includes(b)) - Number(a.statut === 'en_cours' || hierListe.includes(a)));
   const coche = (type: TypePoint, t: Item, texte: string) => prep.some((x) => x.type === type && x.element === t.id && x.texte === texte);
+  // 13/10 : cocher une tâche pas finie dans Hier la reprend aussi dans Aujourd'hui (pas besoin de la recocher)
   const basculer = (type: TypePoint, t: Item, texte: string, onglet: Prep) =>
-    setPrep((l) => (coche(type, t, texte) ? l.filter((x) => !(x.type === type && x.element === t.id && x.texte === texte)) : [...l, nouveau(type, texte, t.id, '', onglet)]));
+    setPrep((l) => {
+      if (coche(type, t, texte)) return l.filter((x) => !(x.type === type && x.element === t.id && x.texte === texte));
+      const ajout = [nouveau(type, texte, t.id, '', onglet)];
+      if (type === 'hier' && t.statut !== 'termine' && !l.some((x) => x.type === 'aujourdhui' && x.element === t.id)) ajout.push(nouveau('aujourdhui', texte, t.id, '', onglet));
+      return [...l, ...ajout];
+    });
+  /** Blocages encore ouverts des dailies précédents (notés par vous) : rappelés dans Aujourd'hui, sans les renoter */
+  const blocagesOuverts = serveur.filter((x) => x.type === 'blocage' && x.personne === mail && x.reunion < reunion.id && x.reunion.startsWith(reunion.id.slice(0, -10)) && !estFini(x.statut) && x.concretisation !== 'rien');
 
   /** Ligne d'une de vos tâches : case à cocher, sous-tâches (›), à droite son état ou « Action · 29/09 » */
   const ligneTache = (type: TypePoint, t: Item, i: number, onglet: Prep) => {
@@ -730,6 +739,13 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               {hier ? listeTaches('hier', hierListe, 'Rien en cours ni terminé hier.', pr) : listeTaches('aujourdhui', aujListe, 'Rien à votre nom dans le sprint.', pr)}
               {listeLibres(hier ? 'hier' : 'aujourdhui', hier ? hierListe : aujListe)}
             </SectionFiche>
+            {!hier && blocagesOuverts.length > 0 && (
+              <SectionFiche titre={`Blocages toujours ouverts · ${blocagesOuverts.length}`}>
+                {blocagesOuverts.map((y, i) => (
+                  <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`noté le ${dateCourte(y.reunion.slice(-10))}${y.statut ? ` · ${LIBELLE_STATUT[y.statut]}` : y.concretisation ? '' : ' · pas encore concrétisé'}`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
+                ))}
+              </SectionFiche>
+            )}
             {blocMesNotes(mesStories, pr)}
           </>
         );

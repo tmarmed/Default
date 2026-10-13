@@ -195,8 +195,13 @@ Fait : Information par défaut et fermée d'office (toutes réunions) ; Daily (M
 budget = choix de concrétisation d'une note (soumise au compte rendu ; plus de bouton « Nouvelle demande ») ;
 dossiers d'investissement soumis dans le Chat (« 📨 Soumettre pour décision », décidé hors réunion, Confirmer à la
 Revue du portfolio) ; décisions directes en séance → note « Décision prise » (close). Plus suivi : fait.
-Reste à valider : étape « 📈 Écarts budgétaires » ; règle de suppression des notes fermées hors sprint ; extensions
-(relances automatiques, vie des risques et dépendances, indicateurs des réunions).
+Fait aussi (13/10) : notes fermées hors sprint supprimées à l'envoi du compte rendu de la réunion suivante de la même
+série (base.tsx, pointsFinis) ; Daily « Aujourd'hui » : tâche cochée dans Hier et pas finie reprise d'office, tâches
+reprises et en cours d'abord, « Blocages toujours ouverts » des dailies précédents rappelés.
+Reste à valider : étape « 📈 Écarts budgétaires » (Synchronisation du portfolio, Comité budgétaire).
+13. Extensions (validées le 13/10, à concevoir) : relances automatiques dans le Chat (suivi proche ou après son
+    échéance) ; vie des risques (ROAM suivi dans le temps) et des dépendances entre équipes ; indicateurs des réunions
+    (suivis tenus à l'échéance, décisions hors réunion confirmées, notes jamais concrétisées).
 ## Décisions du 13/10 (détail)
 - Notes : ℹ️ Information = type par défaut dans toutes les réunions, fermée d'office (rien à concrétiser) sauf si on
   choisit de la concrétiser. Daily : Hier et Aujourd'hui gardent les tâches + un bloc de notes en bas (Information,
