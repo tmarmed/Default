@@ -34,9 +34,9 @@ import { libelleElement } from '../../elementConcerne';
 import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../../pointsSuivi';
 import { BlocHorsReunion, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, repartirSuivis, statutAffiche } from './Suivi';
 import { colors } from '../../theme';
-import { enfantsRepartition, gerantsBudget, niveauDessus } from '../../budget';
+import { enfantsRepartition, gerantsBudget, niveauDessus, reunionDuNiveau, useBudget } from '../../budget';
 import { BlocDemandesBudget } from '../Budget';
-import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type TypePoint, TYPES_REUNION } from '../../types';
+import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PeriodeDepense, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type TypePoint, TYPES_REUNION } from '../../types';
 import { FeuilleChoix, SectionFiche } from '../Choix';
 import type { ActionsDaily } from '../Daily';
 import { estAutre, placeholderNote, reponsePrete } from '../EchangesView';
@@ -386,10 +386,29 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
    * acceptées, estimées…) ; `lignes` : le résumé propre à la réunion, en tête du compte rendu ; `retirer` : points à
    * supprimer (fin de suivi).
    */
+  // 💶 Demande de budget comme concrétisation d'une note (13/10) : proposée à qui a le droit « Gérer le budget » du
+  // niveau ; soumise au niveau du dessus à l'envoi du compte rendu (même circuit que les demandes de budget)
+  const budgetCtx = useBudget();
+  const simpleR = TYPES_REUNION[reunion.type]?.mode === 'simple';
+  const niveauBudget = e.niveauIci ? (simpleR && e.niveauIci.kind === 'unite' ? `entreprise:${org.unite.get(e.niveauIci.id)?.espace || 'moi'}` : `${e.niveauIci.kind}:${e.niveauIci.id}`) : '';
+  const dessusBudget = niveauBudget ? niveauDessus(niveauBudget, org, simpleR) : null;
+  const budgetConcret =
+    niveauBudget && dessusBudget && gerantsBudget(niveauBudget, org, simpleR).includes(mail)
+      ? {
+          decideur: reunionDuNiveau(dessusBudget, simpleR) || 'niveau du dessus',
+          pour: [
+            ...(simpleR ? e.h.epicList.filter((x) => (x.espace || 'moi') === espace).map((x) => ({ value: `epic:${x.id}`, label: `🗂️ ${x.titre}` })) : enfantsRepartition(niveauBudget, org, e.h).filter((x) => x.cle.startsWith('epic:')).map((x) => ({ value: x.cle, label: x.nom }))),
+            { value: niveauBudget, label: `${e.nomNiveau} (sans ${simpleR ? 'projet' : 'epic'})` },
+          ],
+        }
+      : undefined;
   const envoyerCompteRendu = async (o: { iteration: string; stories?: (Partial<Item> & { id: string })[]; lignes: string[]; retirer?: string[]; creerStories?: ItemInput[] }) => {
     if (o.stories?.length && actions.modifierItems) await actions.modifierItems(espace, o.stories);
     if (o.creerStories?.length) await actions.creerTaches(espace, o.creerStories);
     const decides = aDecider.map((pt) => ({ pt, ...choixDe(pt) }));
+    // Demandes de budget nées des notes (une par note) ; la note est close
+    for (const d of decides.filter((x) => x.que === 'budget' && !!budgetConcret))
+      await budgetCtx.soumettreDemande(espace, { motif: d.pt.texte, montant: String(d.montant ?? '').replace(',', '.'), periode: (d.periode || 'ponctuel') as PeriodeDepense, du: e.jour, au: '', pour: d.pour || budgetConcret!.pour[0].value, demandeur: niveauBudget, soumis_par: mail, origine: `${TYPES_REUNION[reunion.type].libelle} du ${dateCourte(e.jour)}` });
     // Concrétisation « Créer » (08/10) : tâches de tout type (un lot), features (un lot), réunions ponctuelles (un lot),
     // chacune rattachée à l'élément du dessus
     const idDe = (m: string) => personneParEmail(m, org)?.id ?? '';
@@ -531,6 +550,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     onInfo,
   };
   return {
+    budgetConcret,
     ctxSuivi,
     e,
     org,
@@ -981,6 +1001,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
               dessus={dessus}
               validateurs={validateurs}
               contexte={contexte}
+              budget={r.budgetConcret}
               onValider={(c) => {
                 r.poserChoix(pt.id, c);
                 setOuvert(null);

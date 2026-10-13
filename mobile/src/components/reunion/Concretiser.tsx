@@ -34,9 +34,12 @@ export function FeuilleConcretiser({
   nomDessus = '',
   validateurs,
   contexte,
+  budget,
   onValider,
   onFermer,
 }: {
+  /** 💶 Demande de budget (13/10) : proposée à qui a le droit « Gérer le budget » ; éléments possibles (epics, niveau) */
+  budget?: { pour: { value: string; label: string }[]; decideur: string };
   titre?: string;
   /** « Blocage noté par Tom Faure : « … » » */
   sous: string;
@@ -117,11 +120,35 @@ export function FeuilleConcretiser({
                   { v: 'suivre', l: '📌 Suivre', aide: 'jusqu’à validation' },
                   { v: 'creer', l: '✓ Créer une tâche…', off: c.qui === 'dessus' },
                   { v: 'rien', l: '⊘ Rien', aide: 'clos' },
+                  ...(budget ? [{ v: 'budget' as QueFaire, l: '💶 Demande de budget', aide: budget.decideur }] : []),
                 ],
                 c.que,
                 (v) => set({ que: v, ...(v === 'creer' && !rattMain ? { type: typeParDefaut(c.element, h) } : {}) }),
               )}
               {c.qui === 'dessus' && <Text style={[s.aide, { paddingHorizontal: 12, paddingBottom: 8 }]}>Transmis à {nomDessus || 'niveau du dessus'} : il décide ; vous pourrez re-concrétiser au retour de la réponse.</Text>}
+              {c.que === 'budget' && budget && (
+                <>
+                  <View style={[s.ligne, s.bord]}>
+                    <Text style={s.cle}>Montant (€)</Text>
+                    <TextInput value={c.montant ?? ''} onChangeText={(v) => set({ montant: v.replace(/[^0-9.,]/g, '') })} style={s.input} placeholder="Ex. 1200" placeholderTextColor={colors.muted} keyboardType="decimal-pad" accessibilityLabel="Montant de la demande" />
+                  </View>
+                  <View style={s.bord}>
+                    {puces<string>(
+                      [
+                        { v: 'ponctuel', l: 'Ponctuel' },
+                        { v: 'mois', l: 'Par mois' },
+                        { v: 'an', l: 'Par an' },
+                      ],
+                      c.periode || 'ponctuel',
+                      (v) => set({ periode: v }),
+                    )}
+                  </View>
+                  <View style={s.bord}>
+                    <LigneChoix label="Pour" value={c.pour || budget.pour[0]?.value || ''} onChange={(v) => v && set({ pour: v })} groupes={[{ options: budget.pour }]} libelle={(v) => budget.pour.find((x) => x.value === v)?.label ?? v} fixe />
+                  </View>
+                  <Text style={[s.aide, { paddingHorizontal: 12, paddingBottom: 8 }]}>Soumise à l’envoi du compte rendu ; la note est close, la demande suit son circuit (décision en réunion ou depuis le Chat).</Text>
+                </>
+              )}
               {c.que === 'creer' && (
                 <>
                   <View style={s.bord}>
@@ -162,7 +189,7 @@ export function FeuilleConcretiser({
               )}
             </View>
 
-            {c.que !== 'rien' && (
+            {c.que !== 'rien' && c.que !== 'budget' && (
               <>
                 <Text style={s.section}>QUI S'EN CHARGE ?</Text>
                 <View style={s.carte}>

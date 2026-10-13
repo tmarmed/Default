@@ -281,7 +281,7 @@ const s = StyleSheet.create({
 /**
  * 💶 Demandes de budget dans une réunion (lot 4, 09/10), à l'étape Concrétisation : décidé hors réunion (Confirmer),
  * à décider (Accorder en totalité ou en partie, À reprendre, Refuser, Soumettre plus haut), nos demandes, et
- * « ＋ Nouvelle demande de budget » (seulement pour qui a le droit « Gérer le budget » de ce niveau).
+ * la demande elle-même naît d'une note (Concrétiser › 💶 Demande de budget, 13/10), seulement pour qui a le droit.
  */
 export function BlocDemandesBudget({ niveau, espace, reunion, moi, anime, lecture, gerants, gerantsDessus, epics, nomDe = (m: string) => m }: { niveau: string; espace: string; reunion: string; moi: string; anime: boolean; lecture: boolean; gerants: string[]; gerantsDessus: boolean; epics: { id: string; titre: string }[]; nomDe?: (m: string) => string }) {
   const b = useBudget();
@@ -323,10 +323,9 @@ export function BlocDemandesBudget({ niveau, espace, reunion, moi, anime, lectur
           </View>
         </View>
       ))}
+      {/* 13/10 : une demande naît d'une note (Concrétiser › 💶 Demande de budget), comme un suivi ou une escalade */}
       {droit && anime && !lecture && !nouvelle && (
-        <Pressable onPress={() => setNouvelle(true)} style={[s.ligne, s.bord]} accessibilityRole="button">
-          <Text style={s.ajout}>＋ Nouvelle demande de budget</Text>
-        </Pressable>
+        <Text style={[s.sous, s.pad, s.bord]}>Pour demander du budget : notez-le, puis « Concrétiser › 💶 Demande de budget ».</Text>
       )}
       {nouvelle && (
         <NouvelleDemande

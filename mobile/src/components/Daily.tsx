@@ -36,7 +36,8 @@ import { PARCOURS_DAILY as CATALOGUE } from '../daily';
 import { useSafe } from '../safe';
 import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
-import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type Statut, type TypePoint } from '../types';
+import { enfantsRepartition, gerantsBudget, niveauDessus, reunionDuNiveau, useBudget } from '../budget';
+import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PeriodeDepense, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type Statut, type TypePoint } from '../types';
 import { etatDe, texteDirect } from '../etatReunion';
 import { useLive } from './useLive';
 import { FeuilleChoix, SectionFiche } from './Choix';
@@ -219,6 +220,15 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const tous = useMemo(() => [...serveur.filter((x) => !(x.id in anciens)), ...prep, ...locaux] as PointReunion[], [serveur, anciens, prep, locaux]);
   const e = useEquipeDaily(reunion, org, aujourdhui, tous, echanges);
   const { h, equipe, jour, it, situation, personnes, nomDe, rte, pm, parId, subs } = e;
+  // 💶 Demande de budget comme concrétisation d'une note (13/10) : pour qui a le droit « Gérer le budget » de l'équipe
+  const budgetCtx = useBudget();
+  const eqB = lireNiveau(reunion.niveau)?.kind === 'equipeagile' ? org.equipe.get(lireNiveau(reunion.niveau)!.id) : undefined;
+  const niveauBudget = eqB ? `equipeagile:${eqB.id}` : '';
+  const dessusBudget = niveauBudget ? niveauDessus(niveauBudget, org) : null;
+  const budgetConcret =
+    niveauBudget && dessusBudget && gerantsBudget(niveauBudget, org).includes(mail)
+      ? { decideur: reunionDuNiveau(dessusBudget) || 'niveau du dessus', pour: [...enfantsRepartition(niveauBudget, org, h).filter((x) => x.cle.startsWith('epic:')).map((x) => ({ value: x.cle, label: x.nom })), { value: niveauBudget, label: `${eqB!.nom} (sans epic)` }] }
+      : undefined;
   const congesCtx = useConges();
   const veille = veilleOuvree(jour);
   const dela = (pt: PointReunion) => pt.reunion === reunion.id;
@@ -563,6 +573,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   // ---- Envoi du compte rendu : tâches (un lot), échanges (un lot), points (un lot, votre préparation comprise) ----
   const envoyerCompteRendu = async () => {
     const decides = aDecider.map((pt) => ({ pt, ...choixDe(pt) }));
+    // Demandes de budget nées des notes (13/10) : une par note, soumises au niveau du dessus ; la note est close
+    for (const d of decides.filter((x) => x.que === 'budget' && !!budgetConcret))
+      await budgetCtx.soumettreDemande(espace, { motif: d.pt.texte, montant: String(d.montant ?? '').replace(',', '.'), periode: (d.periode || 'ponctuel') as PeriodeDepense, du: jour, au: '', pour: d.pour || budgetConcret!.pour[0].value, demandeur: niveauBudget, soumis_par: mail, origine: `Daily du ${dateCourte(jour)}` });
     // « Créer » (08/10) : tâches de tout type, features, réunions ponctuelles, rattachées à l'élément du dessus
     const idDe = (m: string) => personneParEmail(m, org)?.id ?? '';
     const ctxCreer = (pt: PointReunion) => ({ espace, iteration: it.key, equipe: equipe?.id ?? '', train: e.train?.id, idDe, description: `${libelleNote(pt)} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} (${nomDe(pt.personne)}).`, h, moi: mail });
@@ -1090,6 +1103,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                     dessus={escaladesDaily}
                     validateurs={validateurs}
                     contexte={situation.cartes.map((t) => t.id)}
+                    budget={budgetConcret}
                     onValider={(c) => {
                       setChoix((mm) => ({ ...mm, [pt.id]: c }));
                       setFeuille(null);

@@ -639,7 +639,8 @@ export type TypePoint = 'hier' | 'aujourdhui' | 'blocage' | 'decision' | 'action
  * l'itération, rien, escalade au RTE, ou (blocage) échange 🔄 Synchro adressé au PO, au SM ou à un membre de
  * l'équipe ; vide = pas encore décidé
  */
-export type Concretisation = '' | 'sous_tache' | 'tache' | 'rien' | 'escalade' | 'synchro' | 'suivi';
+/** « budget » (13/10) : la note est devenue une demande de budget (circuit des demandes, src/budget.ts) */
+export type Concretisation = '' | 'sous_tache' | 'tache' | 'rien' | 'escalade' | 'synchro' | 'suivi' | 'budget';
 /** Statut d'un point de suivi (08/10) ; vide = pas encore concrétisé (ou ancien point) */
 /** « plus_suivi » (13/10) : plus suivi en réunion, mais l'élément lié (tâche, story…) continue sa vie */
 export type StatutSuivi = '' | 'en_cours' | 'fait' | 'valide' | 'a_reprendre' | 'abandonne' | 'plus_suivi';

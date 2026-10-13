@@ -129,6 +129,7 @@ export const LIBELLE_CONCRETISATION: Record<Concretisation, string> = {
   escalade: 'transmis',
   synchro: 'transmis',
   suivi: 'suivi',
+  budget: 'demande de budget',
 };
 
 /**

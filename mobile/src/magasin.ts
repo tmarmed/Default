@@ -408,7 +408,7 @@ export function nettoyerSerie(data: Partial<SerieReunion>, base?: SerieReunion):
   return out as unknown as SerieReunion;
 }
 
-const CONCRETISATIONS: Concretisation[] = ['', 'sous_tache', 'tache', 'rien', 'escalade', 'synchro', 'suivi'];
+const CONCRETISATIONS: Concretisation[] = ['', 'sous_tache', 'tache', 'rien', 'escalade', 'synchro', 'suivi', 'budget'];
 /** Point de réunion enregistré : champs connus et vérifiés (type, texte, e-mails, liens) */
 export function nettoyerPoint(data: Partial<PointReunion>, base?: PointReunion): PointReunion {
   const out = {} as Record<string, string>;

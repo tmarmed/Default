@@ -11,7 +11,8 @@ import { type Concretisation, type ItemInput, type ItemType, type PointReunion, 
  * - Élément concerné · Validation (l'animateur par défaut) · Échéance (la prochaine réunion par défaut)
  * Ce qui est créé est toujours rattaché à l'élément du dessus, selon son type (rattachementPour).
  */
-export type QueFaire = 'suivre' | 'creer' | 'rien';
+/** « budget » (13/10) : la note devient une demande de budget, soumise au niveau du dessus */
+export type QueFaire = 'suivre' | 'creer' | 'rien' | 'budget';
 export type QuiCharge = 'moi' | 'equipe' | 'dessus';
 /** Type d'élément créé : un type de tâche, une story, une feature, ou une 🗓️ réunion ponctuelle */
 export type TypeCree = ItemType | 'feature' | 'reunion';
@@ -29,6 +30,10 @@ export interface ChoixConcret {
   ech: string;
   /** Rattaché à (id de l'élément du dessus) ; vide = rien de valide (à choisir) ou point général */
   ratt: string;
+  /** Demande de budget : montant (euros), période (ponctuel, mois, an), pour (« epic:<id> » ou le niveau) */
+  montant?: string;
+  periode?: string;
+  pour?: string;
 }
 
 export const LIBELLE_TYPE_CREE = (t: TypeCree) => (t === 'feature' ? 'Feature' : t === 'reunion' ? 'Réunion' : TYPE_LABELS[t]);
@@ -110,6 +115,7 @@ export function choixParDefaut(
 /** Concrétisation enregistrée dans le point (colonne « concretisation ») */
 export function concretisationDe(c: ChoixConcret): Concretisation {
   if (c.que === 'rien') return 'rien';
+  if (c.que === 'budget') return 'budget';
   if (c.qui === 'dessus') return 'escalade';
   if (c.que === 'suivre') return 'suivi';
   return c.type !== 'feature' && c.type !== 'reunion' && !!c.ratt && !!c.element ? 'sous_tache' : 'tache';
@@ -118,6 +124,7 @@ export function concretisationDe(c: ChoixConcret): Concretisation {
 /** Choix complet et cohérent ? (créer : un titre et un rattachement valide ; escalader : un responsable) */
 export function erreurChoix(c: ChoixConcret, h: H): string | null {
   if (c.que === 'rien') return null;
+  if (c.que === 'budget') return Number(String(c.montant ?? '').replace(',', '.')) > 0 ? null : 'Montant de la demande en euros.';
   if (!c.resp) return 'Choisissez le responsable.';
   if (c.que === 'creer') {
     if (!c.titre.trim()) return 'Donnez un titre.';
@@ -132,6 +139,7 @@ export function erreurChoix(c: ChoixConcret, h: H): string | null {
  */
 export function resumeChoix(c: ChoixConcret, nomDe: (email: string) => string, h: H): string {
   if (c.que === 'rien') return 'Rien (clos)';
+  if (c.que === 'budget') return `💶 Demande de budget · ${c.montant ?? ''} €${c.periode && c.periode !== 'ponctuel' ? ` par ${c.periode === 'an' ? 'an' : 'mois'}` : ''}`;
   const quoi =
     c.qui === 'dessus'
       ? '⤴ Escaladé'
@@ -195,11 +203,12 @@ export function patchConcretise(c: ChoixConcret, lien: string): Partial<PointReu
   return {
     concretisation: concretisationDe(c),
     tache: lien,
-    responsable: c.que === 'rien' ? '' : c.resp,
+    // Rien, demande de budget : la note est close (la demande suit son propre circuit)
+    responsable: c.que === 'rien' || c.que === 'budget' ? '' : c.resp,
     element: c.element,
-    statut: c.que === 'rien' ? '' : 'en_cours',
-    validateur: c.que === 'rien' ? '' : c.valid,
-    echeance: c.que === 'rien' ? '' : c.ech,
+    statut: c.que === 'rien' || c.que === 'budget' ? '' : 'en_cours',
+    validateur: c.que === 'rien' || c.que === 'budget' ? '' : c.valid,
+    echeance: c.que === 'rien' || c.que === 'budget' ? '' : c.ech,
     type_cree: c.que === 'creer' ? c.type : '',
     rattache: c.que === 'creer' ? c.ratt : '',
   };
@@ -208,6 +217,7 @@ export function patchConcretise(c: ChoixConcret, lien: string): Partial<PointReu
 /** Résumé d'un point déjà concrétisé (lecture, compte rendu, suivi) */
 export function resumePoint(pt: PointReunion, nomDe: (email: string) => string, h: H): string {
   if (pt.concretisation === 'rien') return 'Rien (clos)';
+  if (pt.concretisation === 'budget') return '💶 Demande de budget';
   const c: ChoixConcret = {
     que: pt.concretisation === 'suivi' || pt.concretisation === 'escalade' || pt.concretisation === 'synchro' ? 'suivre' : 'creer',
     type: (pt.type_cree as TypeCree) || 'tache',
