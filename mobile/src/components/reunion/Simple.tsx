@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { addDays, toDateString } from '../../dates';
-import { dateCourte } from '../../daily';
+import { dateCourte, enHeure, enMinutes } from '../../daily';
 import { useHierarchy } from '../../hierarchyContext';
 import { useOrg } from '../../organisation';
 import { BlocBudgetSimple } from '../Budget';
@@ -15,13 +15,16 @@ import { TitreFiche } from '../FormSheet';
 import { Navigation } from './Affinage';
 import { AjoutElement, ChoixJour } from './Ajout';
 import { Compteurs } from './base';
+import { PlanDuJour } from './PlanDuJour';
 import { SuivisPerso } from './SuivisPerso';
+import { usePlanJour } from './usePlanJour';
+import { useSafe } from '../../safe';
 import { Ligne, Pastilles, pastilleStatut, st, Vide } from './ui';
 
 /**
  * Rituels personnels du mode Simple (lot 6, maquettes r12 à r15), seul : ni live, ni « ↻ Actualiser », ni compte
  * rendu. Ils agissent sur vos tâches : « Terminer » applique les choix en une écriture groupée par Sheet.
- * - Point perso du matin : Hier (refaire, reporter, abandonner) · Aujourd'hui (le plan, heures prévues) · Plan figé
+ * - Point perso du matin : Hier (refaire, reporter, abandonner) · Aujourd'hui (le plan, heures prévues) · Plan du jour
  * - Bilan du soir : Prévu / fait · Pas fini (demain, reporter, abandonner)
  * - Revue de la semaine : Semaine écoulée · En retard · Semaine à venir · Priorités (3)
  * - Revue des objectifs : un objectif par écran (garder, décaler l'échéance, abandonner) · Domaines délaissés · Fin
@@ -75,6 +78,9 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
       .then((x) => x && setGac(JSON.parse(x)))
       .catch(() => {});
   }, [jour]);
+  // Plan du jour (13/10) : places, événements perso et journée dans 🔒 Moi, comme au Daily
+  const safe = useSafe();
+  const pj = usePlanJour({ visible: true, actions, mail: moi.toLowerCase(), jour, org, safeActif: safe.actif, onInfo });
   const poser = (id: string, c: Choix) => setChoix((m) => ({ ...m, [id]: c }));
   const ligneChoix = (t: Item, i: number, opts: Choix[], defaut: Choix) => (
     <View key={t.id} style={[st.ligne, { flexDirection: 'column', alignItems: 'stretch' }, i > 0 && st.bord]}>
@@ -215,8 +221,26 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
       case 'plan':
         return (
           <>
-            <TitreFiche icone="📌" titre="Plan figé" vide="" sous={`${planifie.length} tâche${planifie.length > 1 ? 's' : ''} · ${heures(hPlan)}`} />
-            <SectionFiche titre="Mon plan">{planifie.length ? planifie.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={{ texte: t.heure || heures(duree(t)), ton: 'bleu' }} />) : <Vide texte="Plan vide." />}</SectionFiche>
+            <TitreFiche icone="🗓️" titre="Plan du jour" vide="" sous={`${planifie.length} tâche${planifie.length > 1 ? 's' : ''} · ${heures(hPlan)} · vu par vous seul`} />
+            {/* 13/10 (R5) : le même Plan du jour que le Daily ; les tâches à l'heure aujourd'hui sont fixes */}
+            <PlanDuJour
+              elements={planifie.filter((t) => !(t.date === jour && t.heure))}
+              places={pj.places}
+              fixes={[...pj.reunionsDuJour.filter((x) => !/Point perso/.test(x.titre)), ...planifie.filter((t) => t.date === jour && !!t.heure).map((t) => ({ heure: t.heure.replace(/^0/, ''), fin: t.heure_fin ? t.heure_fin.replace(/^0/, '') : enHeure(enMinutes(t.heure) + 60), titre: t.titre }))]}
+              perso={pj.evtsPerso}
+              journee={pj.journee}
+              onPlacer={(id, p) =>
+                pj.setPlaces((x) => {
+                  const y = { ...x };
+                  if (p) y[id] = p;
+                  else delete y[id];
+                  return y;
+                })
+              }
+              onAjouterEvt={(ev) => pj.setEvtsPerso((l) => [...l, ev])}
+              onRetirerEvt={(ev) => pj.setEvtsPerso((l) => l.filter((y) => y !== ev))}
+              onJournee={pj.changerJournee}
+            />
             <Text style={[st.sous, { marginHorizontal: 16, marginTop: 8 }]}>Une tâche ajoutée après le plan vous sera proposée au bilan du soir (« hors plan »).</Text>
           </>
         );
@@ -440,7 +464,10 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
           l.map((d) => ({ ...RECURRENCE_DEFAUTS, espace: esp, titre: `À planifier · ${d.nom}`, type: 'tache', date: demain, heure: '', heure_fin: '', date_fin: '', lieu: '', description: `Domaine délaissé (revue des objectifs du ${dateCourte(jour)}).`, priorite: 'normale', statut: 'a_faire', parent: '', feature: '', epic: '', objectif: '', domaine: d.id, points: '', iteration: '', telephone: '', equipe: '', responsable: '' })),
         );
     }
-    if (reunion.type === 'point_perso') await AsyncStorage.setItem(CLE_PLAN(jour), JSON.stringify(dansPlan)).catch(() => {});
+    if (reunion.type === 'point_perso') {
+      await AsyncStorage.setItem(CLE_PLAN(jour), JSON.stringify(dansPlan)).catch(() => {});
+      await pj.ecrire(new Set(dansPlan));
+    }
     if (reunion.type === 'revue_semaine') await AsyncStorage.setItem(CLE_PRIORITES, JSON.stringify(priorites)).catch(() => {});
     if (reunion.type === 'point_annuel') await AsyncStorage.setItem(CLE_GAC(jour), JSON.stringify(gac)).catch(() => {});
     onFini?.();
@@ -476,7 +503,7 @@ const TYPES_ETAPES: Partial<Record<Reunion['type'], { cle: string; nom: string }
     SUIVIS,
     { cle: 'hier', nom: 'Hier' },
     { cle: 'aujourdhui', nom: 'Aujourd’hui' },
-    { cle: 'plan', nom: 'Plan figé' },
+    { cle: 'plan', nom: 'Plan du jour' },
   ],
   bilan_soir: [
     SUIVIS,

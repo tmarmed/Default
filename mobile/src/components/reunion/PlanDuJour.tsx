@@ -143,7 +143,10 @@ export function PlanDuJour({
     ...avecHeure.map((t) => ({ de: placeDe(t.id).debut!, a: placeDe(t.id).fin ?? finDe({ heure: placeDe(t.id).debut! }), quoi: 'element' as const, titre: titreDe(t), id: t.id })),
     { de: journee.dejDebut, a: journee.dejFin, quoi: 'dejeuner' as const, titre: 'Pause déjeuner' },
     ...momentsLibres(journee, occupes()).map((m) => ({ ...m, quoi: 'libre' as const, titre: 'Libre' })),
-  ].sort((x, y) => enMinutes(x.de) - enMinutes(y.de) || (x.quoi === 'libre' ? 1 : -1));
+  ]
+    // Hors de la journée (Bilan du soir à 18:30…) : pas dans l'emploi du temps
+    .filter((b) => enMinutes(b.a) > enMinutes(journee.debut) && enMinutes(b.de) < enMinutes(journee.fin))
+    .sort((x, y) => enMinutes(x.de) - enMinutes(y.de) || (x.quoi === 'libre' ? 1 : -1));
 
   const blocEdt = (b: Bloc, i: number) => {
     const bord = i > 0 && st.bord;
