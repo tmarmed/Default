@@ -19,7 +19,8 @@ Décidé (validé par l'utilisateur) :
   compte rendu ; le compte rendu envoyé = ce que le filtre affiche. Compte rendu : fermé, ouvert d'office si filtré.
 - Première réunion (pas de photo) : « L'avancement sera visible à partir du prochain Daily » (« de la prochaine
   ART sync »… : nom de la réunion, accord du genre, sans date).
-- EN ATTENTE : (proposé : pastilles par sorte, tout coché, compte rendu = ce que le filtre affiche),
+- Périmètre : celui que la réunion montre déjà (moi / équipe / train / portfolio) + features et epics rattachées
+  au-dessus. Toutes les questions sont répondues : écrire les règles puis coder. (proposé : pastilles par sorte, tout coché, compte rendu = ce que le filtre affiche),
   puis : première réunion sans photo, périmètre (éléments de qui).
 - Une entrée par élément (tâche, story, feature, epic…), départ → arrivée sur la période ; allers-retours compensés ;
   revenu à son départ = rien.
