@@ -27,3 +27,6 @@ description: Façon de travailler avec l’utilisateur (famille « travail », v
   vérifié ou capturé.
 - Commit + push sur la branche de travail indiquée dans le CLAUDE.md du projet, à chaque lot terminé.
 - Quand le travail dure, dire en quelques mots ce que je fais (l'utilisateur suit souvent depuis son téléphone).
+- **Pendant une tâche, toujours afficher** (13/10) : « ⏱ temps passé / temps estimé · n % », par exemple
+  « ⏱ 20 min / 1 h 30 · 25 % ». Noter l'heure de début (`date`), estimer au départ, réviser l'estimation si elle
+  change (et le dire).
