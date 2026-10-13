@@ -14,6 +14,26 @@ Sujets proposés, au choix de l'utilisateur :
 3. Corriger les estimations de la démo (valeurs « à la fin » trop grandes).
 4. Mettre à jour docs/mission.html et docs/bilan-reunions.html avec les fonctions récentes.
 
+## Décisions du 13/10 (session 2, plan du jour) — à écrire dans docs/regles-reunions.html puis coder (pas encore validé pour coder)
+- Plan du jour : au tour de table et dans « Ma préparation », tous les éléments pas terminés de la personne (stories et
+  tâches du sprint : à faire, en cours, bloqués ; en cours en haut). On coche « aujourd'hui » : ça remplit le plan du
+  jour et la réunion, **jamais le statut**. La pastille de statut reste et peut être changée (seul changement d'élément).
+- Réunions concernées : Daily, Point perso (mode Simple), Bilan du soir, « Hier » du Daily du lendemain (pas la Revue
+  de la semaine).
+- « Hier » : plan de la veille, chaque élément « fait » / « pas fait » (sans toucher au statut) + prise de notes.
+  Les notes d'« Hier » ne réapparaissent pas dans « Aujourd'hui » ; elles se concrétisent à l'étape Concrétisation.
+- Créneaux (facultatif, dans la préparation) : Matin, Après-midi, et « avant / entre … et … / après » calculés depuis
+  les réunions de l'application + événements perso ajoutés à la main ; agenda Google plus tard (nouvelle autorisation
+  Google = accord explicite de l'utilisateur, cf. interdits). Créneaux visibles par la personne seulement.
+- Notes Information : décision du 08/10 maintenue (se concrétisent) ; en plus, coche « À concrétiser » cochée d'office,
+  seulement pour le type Information, partout où on ajoute une note. Décochée : va au compte rendu, se clôt sans
+  concrétisation, absente de l'étape Concrétisation.
+- Façon de travailler : ne jamais appliquer de choix par défaut ; une question sans réponse est reposée (à ajouter au
+  skill travail-ensemble, dans les deux dépôts). Questions avec la fenêtre à cocher (AskUserQuestion), un point à la fois.
+- Restent à traiter (un par un) : 4 « percée de compréhension » dans conception-coherence + glossaire ; 5 deux défauts
+  de « Transmettre à » (l'absent proposé comme remplaçant ; « Facultatif » au lieu de « À choisir ») ; 6 sujet suivant.
+  Dépôt mes-skills : lien de création envoyé, attendre « créé ».
+
 ## Fait (session du 08/10, validation de la démo)
 Validation écran par écran, puis les deux blocs codés (captures vérifiées dans la démo, verif:* au vert) :
 - Bloc 1 : noms entiers partout ; suivis au même format (Situation, fiche) avec Validation et Échéance ; titre du
