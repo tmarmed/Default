@@ -61,11 +61,11 @@ Sujets proposés, au choix de l'utilisateur :
   Aujourd'hui restés dans PointsReunion relus normalement). Une préparation pour plusieurs Dailies FAIT : dans
   « Aujourd'hui », une section par autre Daily du jour (👥 Web · Daily 9:30) ; à l'envoi, chaque Daily reçoit sa part.
   RESTE : « Hier » des autres équipes dans la même préparation (aujourd'hui : dans chaque Daily) ; (ancien : onglet
-  « Plan · nom » protégé par personne) ; Bilan du soir sur les places du plan ; dépôt mes-skills (accès de l'app GitHub).
+  « Plan · nom » protégé par personne) ; Bilan du soir sur les places du plan
   Restent (lots suivants) : 3 plan entre espaces + onglet « Plan · nom »
   protégé par personne (aujourd'hui : onglet des points de la réunion) ; 4 Point perso / Bilan du soir ; 5 coche
   « À concrétiser » des Informations.
-  Dépôt mes-skills : lien de création envoyé, attendre « créé ».
+  Dépôt mes-skills : REMPLI le 13/10 (branche main, 9 skills + README). Toute amélioration d’un skill : dans les deux dépôts.
 
 ## Fait (session du 08/10, validation de la démo)
 Validation écran par écran, puis les deux blocs codés (captures vérifiées dans la démo, verif:* au vert) :
