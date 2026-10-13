@@ -8,7 +8,7 @@ import { absentsLe, joursAbsence, joursPrevus, jppConstate } from '../src/conges
 import { avecDossiers, situationEnveloppe, gerantsBudget, libelleDecisionDossier, libelleStatutDemande, manquesDossier, niveauDessus, reunionDuNiveau } from '../src/budget';
 import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '../src/budget';
 import { creerMagasin, nettoyerDepense, nettoyerPoint } from '../src/magasin';
-import { creneauxLibres, elementsDuPlan, JOURNEE_DEFAUT, faitDe, mesSuivis, planDe, reunionDeNote, reunionPrecedenteAvecPlan } from '../src/daily';
+import { creneauxLibres, elementsDuPlan, finMax, JOURNEE_DEFAUT, momentsLibres, faitDe, mesSuivis, planDe, reunionDeNote, reunionPrecedenteAvecPlan } from '../src/daily';
 import { reglerVocabulaire, vocab } from '../src/vocabulaire';
 import type { Conge, Depense, Item, PointReunion } from '../src/types';
 import { lieAObjectif } from '../src/types';
@@ -147,10 +147,10 @@ const onglets = (r: Parameters<typeof etapesParcours>[0]) =>
   etapesParcours(r, PARCOURS_DAILY)
     .map((o) => `${ongletParcours(o)}${o.lecture ? ' (lecture)' : ''} : ${o.etapes.map((x) => x.nom).join(', ')}`)
     .join(' | ');
-const MEMBRE = 'Ma préparation : Hier, Aujourd’hui, Résumé';
+const MEMBRE = 'Ma préparation : Hier, Aujourd’hui, Plan du jour, Résumé';
 const PO = 'PO : Stories à accepter, Backlog à préparer, Questions de l’équipe';
 const SM = 'Situation, Tour de table, Concrétisation, Compte rendu';
-ok(onglets({ membre: true }) === MEMBRE, 'parcours séparés : membre seul → un seul parcours (pas d’onglets) : Hier, Aujourd’hui, Résumé (notes sous Hier et Aujourd’hui, plus d’écran Blocages)');
+ok(onglets({ membre: true }) === MEMBRE, 'parcours séparés : membre seul → un seul parcours (pas d’onglets) : Hier, Aujourd’hui, Plan du jour, Résumé (notes sous Hier et Aujourd’hui, plus d’écran Blocages)');
 ok(onglets({}) === onglets({ membre: true }), 'parcours séparés : sans rôle connu → celui du membre');
 ok(onglets({ membre: true, po: true }) === `${MEMBRE} | ${PO}`, 'parcours séparés : PO membre → Ma préparation, PO (plus d’onglet « Suivre » : bandeau En direct)');
 ok(onglets({ po: true }) === `PO : Hier, Aujourd’hui, Stories à accepter, Backlog à préparer, Questions de l’équipe`, 'parcours séparés : PO hors équipe → PO (avec Hier et Aujourd’hui pour ses tâches)');
@@ -607,6 +607,9 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
     ok(faitDe(pts, R('2026-10-13'), 'a@x', 'e2') === 'pas_fait' && faitDe(pts, R('2026-10-13'), 'a@x', 'e3') === '', 'plan du jour : fait / pas fait noté à la daily du jour, « pas encore dit » sinon (R4)');
     const lib = creneauxLibres(JOURNEE_DEFAUT, [{ heure: '9:30', fin: '9:45' }, { heure: '11:00', fin: '11:20' }, { heure: '14:00', fin: '15:00' }, { heure: '16:40', fin: '17:45' }]);
     ok(lib.matin.join('|') === '9:00 → 9:30|9:45 → 11:00|11:20 → 12:00' && lib.apresMidi.join('|') === '15:00 → 16:40', 'plan du jour : créneaux libres de 30 min au moins, par demi-journée, sans le déjeuner (R5)');
+    const m = momentsLibres(JOURNEE_DEFAUT, [{ heure: '9:30', fin: '9:45' }, { heure: '10:00', fin: '11:00' }]);
+    ok(m.map((x) => `${x.demi} ${x.de}-${x.a}`).join('|') === 'Matin 9:00-9:30|Matin 11:00-12:00|Après-midi 14:00-18:00', 'plan du jour : moments libres de l’emploi du temps (≥ 30 min, sans le déjeuner) (R5)');
+    ok(finMax(JOURNEE_DEFAUT, '11:00', [{ heure: '15:00' }]) === '12:00' && finMax(JOURNEE_DEFAUT, '14:00', [{ heure: '15:00' }]) === '15:00', 'plan du jour : un élément placé ne dépasse pas le déjeuner ni le prochain temps occupé (R5)');
     ok(nettoyerPoint({ id: 'z', reunion: R('2026-10-13'), type: 'hier', texte: 'Écran', personne: 'a@x', auteur: 'a@x', sous_type: 'fait' } as never).sous_type === 'fait', 'plan du jour : « fait » gardé à la lecture du Sheet');
   }
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe

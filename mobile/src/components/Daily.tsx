@@ -32,10 +32,10 @@ import { useHierarchy } from '../hierarchyContext';
 import { autresEquipesDuTrain, membresDe, type OrgValue, porteurs } from '../organisation';
 import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
 import { type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../reunions';
-import { PARCOURS_DAILY as CATALOGUE, elementsDuPlan, type EvenementJour, faitDe, JOURNEE_DEFAUT, type Journee, planDe, reunionPlanJour, reunionPrecedenteAvecPlan } from '../daily';
+import { PARCOURS_DAILY as CATALOGUE, elementsDuPlan, type EvenementJour, faitDe, JOURNEE_DEFAUT, type Journee, type PlaceJour, planDe, reunionPlanJour, reunionPrecedenteAvecPlan } from '../daily';
 import { lireDonnee } from '../etatReunion';
 import { reunionsAVenir } from '../reunions';
-import { BlocCreneaux } from './reunion/Creneaux';
+import { PlanDuJour } from './reunion/PlanDuJour';
 import { useSafe } from '../safe';
 import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
@@ -326,7 +326,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   }, [visible, reunion.id]);
 
   // Créneaux du plan du jour (13/10, R5, R6) : dans 🔒 Moi, vus par moi seul ; lus à l'ouverture, écrits avec « Mon point »
-  const [creneaux, setCreneaux] = useState<Record<string, string>>({});
+  const [places, setPlaces] = useState<Record<string, PlaceJour>>({});
   const [evtsPerso, setEvtsPerso] = useState<EvenementJour[]>([]);
   const [anciensPlan, setAnciensPlan] = useState<string[]>([]);
   /** Journée de travail réglée par chacun (🔒 Moi, une ligne à part, gardée d'un jour à l'autre) */
@@ -334,7 +334,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const [ligneJournee, setLigneJournee] = useState('');
   useEffect(() => {
     if (!visible) return;
-    setCreneaux({});
+    setPlaces({});
     setEvtsPerso([]);
     setAnciensPlan([]);
     let actif = true;
@@ -352,14 +352,14 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         if (!actif) return;
         const miens = l.filter((x) => x.type === 'donnee' && x.personne === mail);
         setAnciensPlan(miens.map((x) => x.id));
-        const c: Record<string, string> = {};
+        const c: Record<string, PlaceJour> = {};
         const ev: EvenementJour[] = [];
         for (const x of miens) {
-          const d = lireDonnee<{ c?: string; h?: string; f?: string; t?: string }>(x);
-          if (d?.k === 'creneau' && x.element && d.c) c[x.element] = d.c;
+          const d = lireDonnee<{ d?: string; h?: string; f?: string; t?: string }>(x);
+          if (d?.k === 'place' && x.element && (d.d === 'Matin' || d.d === 'Après-midi' || d.h)) c[x.element] = { demi: d.d === 'Matin' || d.d === 'Après-midi' ? d.d : '', debut: d.h || undefined, fin: d.f || undefined };
           if (d?.k === 'evt' && d.h && d.t) ev.push({ heure: d.h, fin: d.f, titre: d.t, perso: true, id: x.id });
         }
-        setCreneaux(c);
+        setPlaces(c);
         setEvtsPerso(ev);
       })
       .catch(() => {});
@@ -379,7 +379,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const ecrireCreneaux = async (garder: Set<string>) => {
     const base = { reunion: reunionPlanJour(jour), personne: mail, auteur: mail, type: 'donnee' as const, concretisation: '' as const, tache: '', responsable: '' };
     const creer = [
-      ...Object.entries(creneaux).filter(([id, c]) => c && garder.has(id)).map(([id, c]) => ({ ...base, element: id, texte: JSON.stringify({ k: 'creneau', c }) })),
+      ...Object.entries(places).filter(([id, p]) => (p.demi || p.debut) && garder.has(id)).map(([id, p]) => ({ ...base, element: id, texte: JSON.stringify({ k: 'place', d: p.demi, h: p.debut ?? '', f: p.fin ?? '' }) })),
       ...evtsPerso.map((x) => ({ ...base, element: '', texte: JSON.stringify({ k: 'evt', h: x.heure, f: x.fin, t: x.titre }) })),
     ];
     if (!creer.length && !anciensPlan.length) return;
@@ -858,18 +858,6 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 </SectionFiche>
               );
             })()}
-            {!hier && pr === 'membre' && (
-              <BlocCreneaux
-                elements={aujListe.filter((t) => coche('aujourdhui', t, t.titre))}
-                creneaux={creneaux}
-                evenements={[...reunionsDuJour, ...evtsPerso]}
-                journee={journee}
-                onJournee={changerJournee}
-                onCreneau={(id, c) => setCreneaux((x) => ({ ...x, [id]: c }))}
-                onAjouterEvt={(ev) => setEvtsPerso((l) => [...l, ev])}
-                onRetirerEvt={(ev) => setEvtsPerso((l) => l.filter((y) => y !== ev))}
-              />
-            )}
             {!hier && blocagesOuverts.length > 0 && (
               <SectionFiche titre={`Blocages toujours ouverts · ${blocagesOuverts.length}`}>
                 {blocagesOuverts.map((y, i) => (
@@ -878,6 +866,33 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               </SectionFiche>
             )}
             {blocMesNotes(mesStories, pr)}
+          </>
+        );
+      }
+      // Plan du jour (13/10, R5) : l'emploi du temps, vu par moi seul ; les éléments cochés dans Aujourd'hui sans
+      // heure propre ce jour-là sont « À placer » ; réunions et éléments déjà à l'heure occupent le temps
+      case 'plan': {
+        const aMoi = moiP ? h.items.filter((t) => t.responsable === moiP.id && t.date === jour && !!t.heure && t.statut !== 'termine') : [];
+        const fixes: EvenementJour[] = [...reunionsDuJour, ...aMoi.map((t) => ({ heure: t.heure.replace(/^0/, ''), fin: t.heure_fin ? t.heure_fin.replace(/^0/, '') : undefined, titre: t.titre }))];
+        return (
+          <>
+            <TitreFiche icone="🗓️" titre="Plan du jour" vide="" sous={sous('Placez vos éléments dans la journée : vu par vous seul')} />
+            <PlanDuJour
+              elements={aujListe.filter((t) => coche('aujourdhui', t, t.titre) && !aMoi.some((y) => y.id === t.id))}
+              places={places}
+              fixes={fixes}
+              perso={evtsPerso}
+              journee={journee}
+              onPlacer={(id, p) => setPlaces((x) => {
+                const y = { ...x };
+                if (p) y[id] = p;
+                else delete y[id];
+                return y;
+              })}
+              onAjouterEvt={(ev) => setEvtsPerso((l) => [...l, ev])}
+              onRetirerEvt={(ev) => setEvtsPerso((l) => l.filter((y) => y !== ev))}
+              onJournee={changerJournee}
+            />
           </>
         );
       }

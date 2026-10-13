@@ -42,6 +42,8 @@ export const PARCOURS_DAILY: CatalogueParcours = {
   membre: [
     { cle: 'hier', nom: 'Hier' },
     { cle: 'aujourdhui', nom: 'Aujourd’hui' },
+    // 13/10 : l'emploi du temps de la journée (vu par moi seul), entre Aujourd'hui et le Résumé
+    { cle: 'plan', nom: 'Plan du jour' },
     // 13/10 : plus d'écran Blocages ; les notes (tous types, Information par défaut) se prennent sous Hier et
     // Aujourd'hui ; « Résumé » récapitule et envoie au Scrum Master
     { cle: 'resume', nom: 'Résumé' },
@@ -405,4 +407,31 @@ export function creneauxLibres(j: Journee, evenements: Pick<EvenementJour, 'heur
     return out;
   };
   return { matin: libres(minutes(j.debut), minutes(j.dejDebut)), apresMidi: libres(minutes(j.dejFin), minutes(j.fin)) };
+}
+
+/** Place d'un élément dans le plan du jour (R5) : demi-journée, et heure si placé dans l'emploi du temps */
+export interface PlaceJour {
+  demi: '' | 'Matin' | 'Après-midi';
+  /** HH:MM (vide = pas encore dans l'emploi du temps) */
+  debut?: string;
+  fin?: string;
+}
+export const enMinutes = (h: string) => minutes(h);
+export const enHeure = (n: number) => hhmm(n);
+/** Demi-journée d'une heure : avant la fin du déjeuner → Matin si avant son début */
+export const demiDe = (j: Journee, h: string): 'Matin' | 'Après-midi' => (minutes(h) < minutes(j.dejDebut) ? 'Matin' : 'Après-midi');
+/** Moments libres de la journée (≥ `min` minutes), hors déjeuner et hors temps occupé, dans l'ordre */
+export function momentsLibres(j: Journee, occupes: Pick<EvenementJour, 'heure' | 'fin'>[], min = 30): { de: string; a: string; demi: 'Matin' | 'Après-midi' }[] {
+  const l = creneauxLibres(j, occupes, min);
+  const vers = (x: string, demi: 'Matin' | 'Après-midi') => {
+    const [de, a] = x.split(' → ');
+    return { de, a, demi };
+  };
+  return [...l.matin.map((x) => vers(x, 'Matin')), ...l.apresMidi.map((x) => vers(x, 'Après-midi'))];
+}
+/** Fin la plus tardive possible pour un élément commençant à `debut` : le prochain temps occupé, le déjeuner ou la fin de journée */
+export function finMax(j: Journee, debut: string, occupes: Pick<EvenementJour, 'heure' | 'fin'>[]): string {
+  const d = minutes(debut);
+  const bornes = [minutes(j.fin), ...(d < minutes(j.dejDebut) ? [minutes(j.dejDebut)] : []), ...occupes.map((e) => minutes(e.heure)).filter((x) => x > d)];
+  return hhmm(Math.min(...bornes));
 }

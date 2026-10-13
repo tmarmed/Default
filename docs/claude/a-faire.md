@@ -47,6 +47,11 @@ Sujets proposés, au choix de l'utilisateur :
   (deux niveaux : Matin / Après-midi, puis « Affiner » : créneau libre ≥ 30 min ; journée 9:00 → 18:00 et
   déjeuner 12:00 → 14:00 réglables, ligne plan_reglage-moi-2000-01-01 ; événement perso avec début et fin) ; rangés dans 🔒 Moi (points « donnee » de
   plan_jour-moi-AAAA-MM-JJ), écrits avec « Mon point ». Jamais affichés au tour de table.
+  13/10 (refait) : étape « Plan du jour » (3ᵉ de la préparation, src/components/reunion/PlanDuJour.tsx) : deux vues
+  (Matin / Après-midi · Emploi du temps), « À placer », moment libre touché → élément placé sur tout le moment, durée
+  à ajuster aussitôt ; ↕ Déplacer (moment libre, échange, À placer) au toucher ; réunions + éléments déjà à l'heure
+  fixes ; événements perso ; places rangées dans 🔒 Moi ({k:'place', d, h, f}). Restent : glisser (au lieu de
+  toucher), tâche nouvelle → « À placer » d'office + ouverture directe sur le Plan du jour, plan commun multi-espaces.
   Restent (lots suivants) : 3 plan entre espaces + onglet « Plan · nom »
   protégé par personne (aujourd'hui : onglet des points de la réunion) ; 4 Point perso / Bilan du soir ; 5 coche
   « À concrétiser » des Informations.
