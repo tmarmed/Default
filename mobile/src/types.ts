@@ -679,6 +679,8 @@ export interface PointReunion {
   echange?: string;
   /** Décision (validation du 08/10) : « a_prendre » (se concrétise comme un blocage) ou « prise » (trace) */
   sous_type?: SousType;
+  /** Suivi décidé depuis le Chat (« 1 ») : mis en avant à la réunion suivante jusqu'à « Confirmer » (« 2 »), validé le 09/10 */
+  hors_reunion?: string;
 }
 export type SousType = '' | 'a_prendre' | 'prise';
 export const TYPES_POINT: TypePoint[] = ['hier', 'aujourdhui', 'blocage', 'decision', 'action', 'information', 'risque', 'dependance', 'etat', 'vote', 'donnee'];

@@ -548,6 +548,14 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
     const it = (x: Partial<Item>) => ({ periodicite: '', statut: 'termine', ...x }) as Item;
     ok(progressObjectif({ ...o2, cible: '' }, { items: [it({ epic: 'e1' }), it({ epic: 'e1', statut: 'a_faire' } as Partial<Item>)], epics: dd.epic }).label === '1/2', 'avancement d’un objectif : compte les projets liés aussi');
   }
+  // Suivi décidé depuis le Chat : marqué « hors réunion » (mis en avant à la réunion suivante) ; en séance : non
+  {
+    const ptH = { id: 'h1', reunion: 'daily-equipeagile:e-2026-10-02', personne: 'a@x', auteur: 'a@x', type: 'action', texte: 't', element: '', concretisation: 'suivi', tache: '', responsable: 'a@x', cree_le: '', statut: 'fait', validateur: 'moi@x' } as PointReunion;
+    const base = { pt: ptH, espace: 'e', note: '', moi: 'moi@x', animateur: 'moi@x', nomDe: (m: string) => m, echanges: [], niveau: '' };
+    const chat = planSuivi({ ...base, action: 'valider', horsReunion: true }).points[0].patch;
+    const seance = planSuivi({ ...base, action: 'valider' }).points[0].patch;
+    ok(chat.hors_reunion === '1' && seance.hors_reunion === '' && chat.statut === 'valide', 'suivi validé depuis le Chat : « décidé hors réunion » ; en séance : non');
+  }
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
   reglerConversion(true, new Map([['acmeqmob', 0.5]]));
   ok(pointsOf({ points: '4', equipe: 'acmeqmob' }) === 2 && pointsOf({ points: '4', equipe: 'autre' }) === 4 && versPoints('3', 0.5) === '6' && depuisPoints('6', 0.5) === '3', 'conversion : 4 pts = 2 j avec 1 point = ½ j ; saisie 3 j → 6 pts');

@@ -117,6 +117,8 @@ export function planSuivi(o: {
   niveau: string;
   /** Question « Valider ? » à laquelle on répond (Chat) : réglée par l'appelant */
   question?: Echange;
+  /** Décidé depuis le Chat : marqué « hors réunion », mis en avant à la réunion suivante */
+  horsReunion?: boolean;
 }): PlanSuivi {
   const { pt, espace, action, moi } = o;
   const m = moi.toLowerCase();
@@ -152,7 +154,8 @@ export function planSuivi(o: {
   const haut = lireRef(question?.point ?? '')?.haut;
   // Niveau du bas qui refuse la réponse : il attend de nouveau (En cours), le niveau du dessus est rouvert
   const refusEscalade = action === 'reprendre' && role === 'bas' && !!haut;
-  plan.points.push({ espace, patch: { id: pt.id, statut: refusEscalade ? 'en_cours' : statut, note } });
+  const decide = action === 'valider' || action === 'reprendre' || action === 'abandonner';
+  plan.points.push({ espace, patch: { id: pt.id, statut: refusEscalade ? 'en_cours' : statut, note, ...(decide ? { hors_reunion: o.horsReunion ? '1' : '' } : {}) } });
   if (action === 'valider' || action === 'reprendre' || action === 'abandonner')
     for (const q of ouvertes) plan.echanges.push({ e: q, patch: { statut: 'pris_en_compte', reponse: action === 'valider' ? CHOIX_VALIDER[0] : action === 'reprendre' ? CHOIX_VALIDER[2] : CHOIX_VALIDER[3], note } });
 

@@ -417,12 +417,14 @@ export function FiltresType({ types, value, onChange }: { types: TypePoint[]; va
 }
 
 /** Vue de la Situation (validation du 08/10) : tout, les suivis (concrétisés) ou les notes pas encore concrétisées */
-export type VueSuivi = 'tout' | 'suivis' | 'notes';
-export function FiltresVue({ value, onChange, nSuivis, nNotes }: { value: VueSuivi; onChange: (v: VueSuivi) => void; nSuivis: number; nNotes: number }) {
+export type VueSuivi = 'tout' | 'suivis' | 'notes' | 'fermees';
+export function FiltresVue({ value, onChange, nSuivis, nNotes, nFermees }: { value: VueSuivi; onChange: (v: VueSuivi) => void; nSuivis: number; nNotes: number; nFermees?: number }) {
   const opts: { v: VueSuivi; l: string }[] = [
     { v: 'tout', l: 'Tout' },
     { v: 'suivis', l: `Suivis · ${nSuivis}` },
     { v: 'notes', l: `Notes à concrétiser · ${nNotes}` },
+    // Validés ou abandonnés, gardés jusqu'à leur suppression (validé le 09/10)
+    ...(nFermees !== undefined ? [{ v: 'fermees' as const, l: `Fermées · ${nFermees}` }] : []),
   ];
   return (
     <View style={st.filtresBloc}>

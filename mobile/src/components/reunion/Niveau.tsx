@@ -10,7 +10,7 @@ import { capaciteEquipePI } from '../../pilotage';
 import { colors } from '../../theme';
 import { type Epic, ETATS_EPIC, type Feature, type Item, STATUT_LABELS, type TypeReunion, TYPES_REUNION } from '../../types';
 import { SectionFiche } from '../Choix';
-import { BlocBudgetSimple, BlocDossiers } from '../Budget';
+import { BlocBudgetSimple, BlocDossiers, BlocPrepDossiers } from '../Budget';
 import { TitreFiche } from '../FormSheet';
 import { ListeEditable, MesTaches, Navigation } from './Affinage';
 import { AjoutElement } from './Ajout';
@@ -52,6 +52,7 @@ type Etape =
   | { k: 'budget'; cle: string }
   | { k: 'concretisation' }
   | { k: 'dossiers' }
+  | { k: 'dossiers_prep' }
   | { k: 'budget_simple'; mode: 'suivi' | 'revision' | 'annee' }
   | { k: 'compte_rendu' }
   // Participants
@@ -303,6 +304,7 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
     membre: [
       ['taches', 'Mes tâches', TACHES],
       ['mes_epics', 'Mes epics', { k: 'mes_elements', icone: '🗂️', titre: 'Epics du portfolio', sous: 'Leur état', liste: epicsPortfolio }],
+      ['dossiers_prep', 'Mes dossiers', { k: 'dossiers_prep' }],
       ['idees_m', 'Idées', { k: 'saisie', icone: '💡', titre: 'Mes idées', sous: 'Nouvelles idées d’epic', cle: 'idee_pf', placeholder: 'Idée' }],
     ],
   },
@@ -716,6 +718,13 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
           </>
         );
       }
+      case 'dossiers_prep':
+        return (
+          <>
+            <TitreFiche icone="💼" titre="Mes dossiers d'investissement" vide="" sous="À compléter avant la séance : hypothèse, estimation, budget prévu, budget du MVP" />
+            <BlocPrepDossiers epics={epics} />
+          </>
+        );
       case 'budget_simple':
         return (
           <>

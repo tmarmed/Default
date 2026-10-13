@@ -43,7 +43,7 @@ import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, pat
 import { libelleElement } from '../elementConcerne';
 import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../pointsSuivi';
 import { absentsLe, useConges } from '../conges';
-import { type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, statutAffiche } from './reunion/Suivi';
+import { BlocHorsReunion, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, repartirSuivis, statutAffiche } from './reunion/Suivi';
 import { FeuilleConcretiser } from './reunion/Concretiser';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
@@ -496,7 +496,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     }),
     onInfo,
   };
-  const nouveauxSuivis = pointsDeSuivi(serveur, reunion.id);
+  // Ouverts, fermés (filtre « Fermées ») et décidés hors réunion (en tête, « Confirmer ») — validé le 09/10
+  const { horsReunion: horsReunionD, fermees: fermeesD, ouverts: ouvertsD } = repartirSuivis(pointsDeSuivi(serveur, reunion.id));
+  const nouveauxSuivis = vueSuivi === 'fermees' ? fermeesD : ouvertsD;
   const nValider = nouveauxSuivis.filter((x) => statutAffiche(x, h.items, jour).s === 'fait' && validateurDe(x, ctxSuivi.animateur) === mail).length;
   // À concrétiser : ce qui ne l'a pas encore été (un compte rendu déjà envoyé ne recrée rien)
   // Points de suivi reportés des réunions précédentes (escalades reçues, réponses recopiées) : à concrétiser aussi
@@ -880,14 +882,15 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               entete={
                 filtresSuiviOuverts && (
                   <>
-                    <FiltresVue value={vueSuivi} onChange={setVueSuivi} nSuivis={suivisEquipe.length + suivisEchanges.length + nouveauxSuivis.length} nNotes={reportes.length} />
+                    <FiltresVue value={vueSuivi} onChange={setVueSuivi} nSuivis={suivisEquipe.length + suivisEchanges.length + nouveauxSuivis.length} nNotes={reportes.length} nFermees={fermeesD.length} />
                     <FiltresType types={TYPES_NOTE} value={filtreSuivi} onChange={setFiltreSuivi} />
                   </>
                 )
               }
             >
-              <LignesSuivi points={vueSuivi === 'notes' ? [] : nouveauxSuivis.filter((x) => !filtreSuivi || x.type === filtreSuivi)} ctx={{ ...ctxSuivi, lecture }} aValider={aValider && nValider > 0} />
-              {!aValider && vueSuivi !== 'notes' && suivisEquipe.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).map(({ point, tache }, i) => (
+              {vueSuivi !== 'fermees' && !aValider && <BlocHorsReunion points={horsReunionD} ctx={ctxSuivi} peutConfirmer={anime && !lecture} />}
+              <LignesSuivi points={vueSuivi === 'notes' ? [] : nouveauxSuivis.filter((x) => !filtreSuivi || x.type === filtreSuivi)} premiere={!horsReunionD.length || vueSuivi === 'fermees'} ctx={{ ...ctxSuivi, lecture: lecture || vueSuivi === 'fermees' }} aValider={aValider && nValider > 0} />
+              {!aValider && vueSuivi !== 'notes' && vueSuivi !== 'fermees' && suivisEquipe.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).map(({ point, tache }, i) => (
                 <Ligne
                   key={point.id}
                   premiere={!nouveauxSuivis.length && i === 0}
@@ -897,7 +900,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 />
               ))}
               {/* Blocages passés en 🔄 Synchro : suivis tant que l'échange existe (sans historique) */}
-              {!aValider && vueSuivi !== 'notes' && suivisEchanges.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).map(({ point, echange }, i) => (
+              {!aValider && vueSuivi !== 'notes' && vueSuivi !== 'fermees' && suivisEchanges.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).map(({ point, echange }, i) => (
                 <Ligne
                   key={point.id}
                   premiere={!nouveauxSuivis.length && !suivisEquipe.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).length && i === 0}
@@ -911,7 +914,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 />
               ))}
               {/* Points de suivi reportés : escalades reçues et réponses recopiées, à concrétiser (cas d'usage 1 et 2) */}
-              {!aValider && vueSuivi !== 'suivis' && reportesVus.map((point, i) => (
+              {!aValider && vueSuivi !== 'suivis' && vueSuivi !== 'fermees' && reportesVus.map((point, i) => (
                 <Ligne
                   key={point.id}
                   premiere={!nouveauxSuivis.length && !suivisEquipe.length && !suivisEchanges.length && i === 0}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { type ACreer, type ChoixConcret, choixParDefaut, elementACreer, LIBELLE_TYPE_CREE, patchConcretise, type TypeCree } from '../../concretisation';
 import type { HierarchyValue } from '../../hierarchyContext';
 import {
@@ -327,5 +327,45 @@ function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onFermer }: { p
         </View>
       </View>
     </Modal>
+  );
+}
+
+/**
+ * Suivis d'une réunion répartis (validé le 09/10) : ouverts ; fermés (validés, abandonnés : filtre « Fermées »,
+ * gardés jusqu'à leur suppression) ; décidés depuis le Chat (« hors réunion »), mis en avant jusqu'à « Confirmer ».
+ */
+export function repartirSuivis(points: PointReunion[]) {
+  const ferme = (x: PointReunion) => x.statut === 'valide' || x.statut === 'abandonne';
+  return {
+    horsReunion: points.filter((x) => x.hors_reunion === '1'),
+    fermees: points.filter((x) => ferme(x) && x.hors_reunion !== '1'),
+    ouverts: points.filter((x) => !ferme(x) && x.hors_reunion !== '1'),
+  };
+}
+
+/** Suivis décidés hors réunion : en tête de la Situation, « Confirmer » (l'animateur) les range */
+export function BlocHorsReunion({ points, ctx, peutConfirmer }: { points: PointReunion[]; ctx: CtxSuivi; peutConfirmer: boolean }) {
+  const confirmer = async (x: PointReunion) => {
+    const { modifies } = await ctx.actions.ecrirePoints(ctx.espace, [], [{ id: x.id, hors_reunion: '2' }], []);
+    ctx.onPoints(modifies);
+  };
+  return (
+    <>
+      {points.map((x, i) => (
+        <View key={x.id} style={i > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border } : undefined}>
+          <Ligne
+            premiere
+            texte={x.texte}
+            sous={`Décidé hors réunion (depuis le Chat) · ${x.statut === 'valide' ? '✅ validé' : x.statut === 'abandonne' ? '⊘ abandonné' : '↩ à reprendre'}${x.note ? ` · ${x.note}` : ''}${x.validateur ? ` · par ${ctx.nomDe(x.validateur)}` : ''}`}
+            pastille={{ texte: 'Décidé hors réunion', ton: 'orange' }}
+          />
+          {peutConfirmer && (
+            <Pressable onPress={() => void confirmer(x)} style={{ alignSelf: 'flex-start', marginLeft: 14, marginBottom: 10, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: colors.primary }} accessibilityRole="button">
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>Confirmer</Text>
+            </Pressable>
+          )}
+        </View>
+      ))}
+    </>
   );
 }

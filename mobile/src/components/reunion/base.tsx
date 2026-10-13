@@ -31,7 +31,7 @@ import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, pat
 import { FeuilleConcretiser } from './Concretiser';
 import { libelleElement } from '../../elementConcerne';
 import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../../pointsSuivi';
-import { type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, statutAffiche } from './Suivi';
+import { BlocHorsReunion, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, repartirSuivis, statutAffiche } from './Suivi';
 import { colors } from '../../theme';
 import { enfantsRepartition, gerantsBudget, niveauDessus } from '../../budget';
 import { BlocDemandesBudget } from '../Budget';
@@ -696,13 +696,16 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
   const suivisEquipe = calculerSuivis(anciensPts, e.h.items);
   const suivisEch = suivisSynchro(anciensPts, r.echanges);
   const passe = (t: TypePoint) => !filtre || t === filtre;
-  const nouveaux = pointsDeSuivi(r.serveur, r.reunionId).filter((x) => passe(x.type));
+  // Ouverts, fermés (filtre « Fermées ») et décidés hors réunion (en tête, « Confirmer ») — validé le 09/10
+  const { horsReunion, fermees, ouverts } = repartirSuivis(pointsDeSuivi(r.serveur, r.reunionId).filter((x) => passe(x.type)));
+  const nouveaux = vue === 'fermees' ? fermees : ouverts;
+
   const nValider = nouveaux.filter((x) => statutAffiche(x, e.h.items, e.jour).s === 'fait' && validateurDe(x, r.ctxSuivi.animateur) === r.mail).length;
   const n = suivisEquipe.length + suivisEch.length + r.reportes.length + pointsDeSuivi(r.serveur, r.reunionId).length;
   const nf = suivisEquipe.filter((x) => passe(x.point.type)).length + suivisEch.filter((x) => passe(x.point.type)).length + r.reportes.filter((x) => passe(x.type)).length + nouveaux.length;
   const notesVues = r.reportes.filter((x) => passe(x.type));
   const nSuivisVus = nf - notesVues.length;
-  let k = nouveaux.length && vue !== 'notes' ? 1 : 0;
+  let k = (nouveaux.length || horsReunion.length) && vue !== 'notes' ? 1 : 0;
   return (
     <SectionFiche
       titre={`📌 Suivis · ${nSuivisVus}${notesVues.length || vue === 'notes' ? ` · Notes à concrétiser · ${notesVues.length}` : ''}`}
@@ -719,14 +722,15 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
       entete={
         ouvert && (
           <>
-            <FiltresVue value={vue} onChange={setVue} nSuivis={n - r.reportes.length} nNotes={r.reportes.length} />
+            <FiltresVue value={vue} onChange={setVue} nSuivis={n - r.reportes.length} nNotes={r.reportes.length} nFermees={fermees.length} />
             <FiltresType types={typesNote(r)} value={filtre} onChange={setFiltre} />
           </>
         )
       }
     >
-      <LignesSuivi points={vue === 'notes' ? [] : nouveaux} ctx={{ ...r.ctxSuivi, lecture }} aValider={aValider && nValider > 0} />
-      {!aValider && vue !== 'notes' && suivisEquipe.filter((x) => passe(x.point.type)).map(({ point, tache }) => (
+      {vue !== 'fermees' && !aValider && <BlocHorsReunion points={horsReunion} ctx={r.ctxSuivi} peutConfirmer={r.anime && !lecture} />}
+      <LignesSuivi points={vue === 'notes' ? [] : nouveaux} premiere={!horsReunion.length || vue === 'fermees'} ctx={{ ...r.ctxSuivi, lecture: lecture || vue === 'fermees' }} aValider={aValider && nValider > 0} />
+      {!aValider && vue !== 'notes' && vue !== 'fermees' && suivisEquipe.filter((x) => passe(x.point.type)).map(({ point, tache }) => (
         <Ligne
           key={point.id}
           premiere={k++ === 0}
@@ -735,7 +739,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
           pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }}
         />
       ))}
-      {!aValider && vue !== 'notes' && suivisEch.filter((x) => passe(x.point.type)).map(({ point, echange }) => (
+      {!aValider && vue !== 'notes' && vue !== 'fermees' && suivisEch.filter((x) => passe(x.point.type)).map(({ point, echange }) => (
         <Ligne
           key={point.id}
           premiere={k++ === 0}
@@ -744,7 +748,7 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
           pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }}
         />
       ))}
-      {!aValider && vue !== 'suivis' && notesVues.map((point) => (
+      {!aValider && vue !== 'suivis' && vue !== 'fermees' && notesVues.map((point) => (
         <Ligne key={point.id} premiere={k++ === 0} texte={point.texte} sous={`📝 Note à concrétiser · notée le ${jourCourt(point.reunion.slice(-10))} par ${e.nomDe(point.personne)}${point.echange ? ` · ${lienPrive(point, r.echanges, e.nomDe)}` : ''}`} pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }} />
       ))}
       {!n && <Vide texte="✓ Rien en attente des réunions précédentes." />}

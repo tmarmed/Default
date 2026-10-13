@@ -83,9 +83,10 @@ estimé = max(epic, features, stories). Une epic en Idée / Analyse ne reçoit p
 « MVP … atteint ». Partie 2 codée : 📌 Mes suivis (onglet Réunions, en tête) : notes où je suis responsable, valideur ou auteur,
 dans toutes mes réunions (une lecture par espace) ; Ouvertes (à concrétiser, en cours, à valider, en retard, à
 reprendre) / Fermées (validées, abandonnées avec motif, gardées jusqu'à leur suppression) ; lecture seule (on traite
-dans la réunion ou le Chat). Reste du lot 5 : « Ma préparation » de l'Epic Owner (dossiers à compléter), filtre
-« Fermées » dans les réunions, marque « validé hors réunion » des suivis, Mode Simple budget (à préciser : pas de
-Sheet Budget dans 🔒 Moi).
+dans la réunion ou le Chat). Lot 5 terminé (13/10) : « Ma préparation » de l'Epic Owner (Revue du portfolio, « Mes dossiers » à compléter) ;
+filtre « Fermées » des suivis (Daily et autres réunions : validés, abandonnés) ; suivi décidé depuis le Chat =
+colonne hors_reunion « 1 » de PointsReunion, mis en avant en tête de la Situation (« Décidé hors réunion »,
+« Confirmer » par l'animateur → « 2 »). Composants communs : repartirSuivis, BlocHorsReunion (reunion/Suivi.tsx).
 Mode Simple (validé le 09/10, codé le 09/10 sans maquette à la demande de l'utilisateur) : trois cadres Seul / Équipe / Entreprise, mêmes
 réunions simplifiées (notes, suivis, Chat), même moteur que le SAFe avec des réglages fixés et affichés (« Réglé par
 le mode Simple »), mêmes données dans les mêmes Sheets (basculer ne perd rien). Projet (Simple) = epic (SAFe) ;

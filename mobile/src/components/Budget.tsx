@@ -612,3 +612,26 @@ export function BlocBudgetSimple({ epics, h, org, espace, mode, peutModifier }: 
     </>
   );
 }
+
+/**
+ * « Ma préparation » de l'Epic Owner avant la Revue du portfolio (lot 5, maquette écran 5) : ses dossiers
+ * d'investissement à compléter (ce qui manque) et ceux prêts pour la décision. Ils se complètent dans la fiche.
+ */
+export function BlocPrepDossiers({ epics }: { epics: Epic[] }) {
+  const b = useBudget();
+  const l = epics.filter((e) => e.etat !== 'termine' && (!b.dossiers.get(e.id)?.decision || b.dossiers.get(e.id)?.decision === 'pas_maintenant'));
+  return (
+    <SectionFiche titre={`💼 Mes dossiers d'investissement · ${l.length}`}>
+      {l.map((e, i) => {
+        const m = manquesDossier(b.dossiers.get(e.id), e);
+        return (
+          <View key={e.id} style={[s.pad, i > 0 && s.bord]}>
+            <Text style={s.texte}>🗂️ {e.titre}</Text>
+            <Text style={[s.sous, m.length ? { color: colors.warning } : null]}>{m.length ? `Dossier : ${4 - m.length} sur 4 renseignés · à compléter : ${m.join(', ')} (dans la fiche de l'epic)` : 'Dossier complet : prêt pour la décision en séance'}</Text>
+          </View>
+        );
+      })}
+      {!l.length && <Text style={[s.sous, s.pad]}>Aucun dossier à préparer.</Text>}
+    </SectionFiche>
+  );
+}

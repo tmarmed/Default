@@ -1901,7 +1901,7 @@ function Main() {
     if (ref && action && action !== 'reconcretiser' && settings) {
       const pt = (await api.lirePoints(settings, ref.espace, '')).find((x) => x.id === ref.id);
       if (pt) {
-        const plan = planSuivi({ pt, espace: ref.espace, action, note, moi: moiEchange, animateur: pt.validateur || moiEchange, nomDe: nomEchange, echanges: tousHier.echanges ?? [], niveau: e.niveau, question: e });
+        const plan = planSuivi({ pt, espace: ref.espace, action, note, moi: moiEchange, animateur: pt.validateur || moiEchange, nomDe: nomEchange, echanges: tousHier.echanges ?? [], niveau: e.niveau, question: e, horsReunion: true });
         await appliquerPlan(plan, actionsDaily);
       }
       setInfo(`Suivi « ${(e.titre || '').replace(/^Valider \? /, '')} » : ${reponse.replace(' (motif)', '').toLowerCase()}.`);
@@ -2040,7 +2040,7 @@ function Main() {
       if (!ref || !settings) return;
       const pt = (await api.lirePoints(settings, ref.espace, '')).find((x) => x.id === ref.id);
       if (pt) {
-        const plan = planSuivi({ pt, espace: ref.espace, action: 'valider', note: mot, moi: moiEchange, animateur: pt.validateur || moiEchange, nomDe: nomEchange, echanges: echangesTous(), niveau: e.niveau, question: e });
+        const plan = planSuivi({ pt, espace: ref.espace, action: 'valider', note: mot, moi: moiEchange, animateur: pt.validateur || moiEchange, nomDe: nomEchange, echanges: echangesTous(), niveau: e.niveau, question: e, horsReunion: true });
         await appliquerPlan(plan, actionsDaily);
       }
       await retirerEchange(e);
