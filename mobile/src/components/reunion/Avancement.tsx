@@ -27,6 +27,7 @@ import {
 } from '../../avancement';
 import type { DemandeBudget, Enveloppe, Epic, Feature, Item, Objectif, ObjectifPI, PointReunion, ResultatCle, TypeReunion } from '../../types';
 import { useOrg } from '../../organisation';
+import { LIBELLE_TYPE_POINT, libelleNote } from '../../daily';
 import { SectionFiche } from '../Choix';
 import { Ligne, PastilleFiltres, st, Vide } from './ui';
 
@@ -40,8 +41,9 @@ export interface Avancement {
   setFiltre: (f: FiltreAv) => void;
   /** Lignes à écrire à l'envoi (photo) et anciennes lignes de cette réunion à retirer */
   envoi: (personne: string, patches?: (Partial<Item> & { id: string })[]) => { creer: Omit<PointReunion, 'id' | 'cree_le'>[]; retirer: string[] };
-  /** Titre et élément d'une clé */
+  /** Titre et élément d'une clé ; type de note d'un point de suivi */
   titreDe: (cle: string) => string;
+  typeDe: (cle: string) => string;
   itemDe: (cle: string) => Item | undefined;
 }
 
@@ -84,7 +86,9 @@ export function useAvancement(o: {
   const apres = lu ? envoyee.photo : actuelle;
   const filtre = lu ? envoyee.filtre : filtreLocal;
   const lignes = useMemo(() => (prec ? comparer(prec.photo, apres, focus) : null), [prec, apres, focus]);
-  const vues = useMemo(() => (lignes ? filtrer(lignes, filtre) : []), [lignes, filtre]);
+  /** Type de note d'un point de suivi (Risque, Blocage…) */
+  const typeDe = (k: string) => (k.startsWith('s:') ? (sources.points?.find((x) => x.id === k.slice(2))?.type ?? '') : '');
+  const vues = useMemo(() => (lignes ? filtrer(lignes, filtre, typeDe) : []), [lignes, filtre, sources.points]); // eslint-disable-line react-hooks/exhaustive-deps
   const titreDe = (k: string) => {
     const [p, id] = [k.slice(0, 1), k.slice(2)];
     if (p === 't') return sources.items.find((x) => x.id === id)?.titre ?? 'Élément supprimé';
@@ -102,7 +106,11 @@ export function useAvancement(o: {
       return e ? `Enveloppe ${e.annee}` : 'Enveloppe supprimée';
     }
     if (p === 'd') return sources.demandes?.find((x) => x.id === id)?.motif ?? 'Demande supprimée';
-    if (p === 's') return sources.points?.find((x) => x.id === id)?.texte ?? 'Suivi supprimé';
+    if (p === 's') {
+      // « Risque · Retard du fournisseur » : le type de la note devant son texte
+      const pt = sources.points?.find((x) => x.id === id);
+      return pt ? `${libelleNote(pt)} · ${pt.texte}` : 'Suivi supprimé';
+    }
     return k;
   };
   return {
@@ -119,6 +127,7 @@ export function useAvancement(o: {
       return { creer: pointsPhoto(reunion, personne, photo, filtreLocal), retirer: envoyee?.ids ?? [] };
     },
     titreDe,
+    typeDe,
     itemDe: (k) => (k.startsWith('t:') ? sources.items.find((x) => x.id === k.slice(2)) : undefined),
   };
 }
@@ -129,6 +138,9 @@ const bascule = <T,>(liste: T[], v: T) => (liste.includes(v) ? liste.filter((x) 
 function Filtre({ av, lecture }: { av: Avancement; lecture?: boolean }) {
   const toutes = av.lignes ?? [];
   const niveaux = NIVEAUX_AV.filter((n) => toutes.some((l) => l.niveau === n.v));
+  // Type de note des points de suivi (Risque, Blocage, Demande d'action…), s'il y en a
+  const suivis = toutes.filter((l) => l.niveau === 'suivi');
+  const types = [...new Set(suivis.map((l) => av.typeDe(l.cle)).filter(Boolean))];
   const rangee = (cles: { v: string; l: string; n: number; off: boolean; onPress: () => void }[]) => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filtreLigne}>
       {cles.map((c) => (
@@ -142,6 +154,8 @@ function Filtre({ av, lecture }: { av: Avancement; lecture?: boolean }) {
     <View style={[st.filtresBloc, { gap: 6 }]}>
       {rangee(SORTES_AV.map((s) => ({ v: s.v, l: s.l, n: toutes.filter((l) => l.sorte === s.v).length, off: av.filtre.sortes.includes(s.v), onPress: () => av.setFiltre({ ...av.filtre, sortes: bascule(av.filtre.sortes, s.v) }) })))}
       {niveaux.length > 1 && rangee(niveaux.map((n) => ({ v: n.v, l: n.l, n: toutes.filter((l) => l.niveau === n.v).length, off: av.filtre.niveaux.includes(n.v), onPress: () => av.setFiltre({ ...av.filtre, niveaux: bascule(av.filtre.niveaux, n.v) }) })))}
+      {types.length > 0 &&
+        rangee(types.map((t) => ({ v: t, l: LIBELLE_TYPE_POINT[t as keyof typeof LIBELLE_TYPE_POINT] ?? t, n: suivis.filter((l) => av.typeDe(l.cle) === t).length, off: !!av.filtre.types?.includes(t), onPress: () => av.setFiltre({ ...av.filtre, types: bascule(av.filtre.types ?? [], t) }) })))}
     </View>
   );
 }

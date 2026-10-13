@@ -15,7 +15,8 @@ réunions) ; en perso, la photo du Daily du jour de mes équipes, plus récente,
 est juste en dessous, dans « 📌 Suivis »).
 Démo (13/10) : photos d'hier aussi pour l'ART sync (feature avancée d'un PI, budget d'epic, demande accordée en partie,
 demande nouvelle) et la Revue du portfolio (epic Analyse → Prêt, enveloppe relevée, résultat clé d'OKR 78 → 82) ;
-vérifié à l'écran. Résultats clés des OKR ajoutés (clé « r: »).
+vérifié à l'écran. Résultats clés des OKR ajoutés (clé « r: »). Points de suivi affichés avec leur type de note
+(« 📌 Risque · … ») + rangée « Type de note » dans le filtre (13/10) ; démo : risque suivi à l'ART sync.
 Décidé (validé par l'utilisateur) :
 - Bilan du soir = même affichage que « Hier » (éléments du plan + statut modifiable + notes) ; la section
   « Changé depuis ce matin » disparaît.

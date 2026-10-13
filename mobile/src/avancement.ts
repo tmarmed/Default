@@ -38,12 +38,13 @@ const CHAMPS: SorteAv[] = ['statut', 'valeur', 'echeance', 'planning', 'responsa
  * sprint ou PI|responsable » */
 export type Photo = Record<string, string>;
 export interface FiltreAv {
-  /** Sortes et niveaux décochés (vide = tout coché) */
+  /** Sortes, niveaux et types de note (points de suivi : Risque, Blocage…) décochés (vide = tout coché) */
   sortes: SorteAv[];
   niveaux: NiveauAv[];
+  types?: string[];
 }
-export const FILTRE_TOUT: FiltreAv = { sortes: [], niveaux: [] };
-export const estFiltre = (f: FiltreAv) => f.sortes.length > 0 || f.niveaux.length > 0;
+export const FILTRE_TOUT: FiltreAv = { sortes: [], niveaux: [], types: [] };
+export const estFiltre = (f: FiltreAv) => f.sortes.length > 0 || f.niveaux.length > 0 || (f.types?.length ?? 0) > 0;
 
 const NIVEAU_DE: Record<string, NiveauAv> = { t: 'element', f: 'feature', q: 'feature', e: 'epic', v: 'budget', d: 'budget', o: 'objectif', r: 'objectif', s: 'suivi' };
 export const niveauDe = (cle: string): NiveauAv => NIVEAU_DE[cle.split(':')[0]] ?? 'element';
@@ -138,7 +139,9 @@ export function comparer(avant: Photo, apres: Photo, focus: number): LigneAv[] {
   return out.sort((x, y) => ordre(x) - ordre(y));
 }
 
-export const filtrer = (lignes: LigneAv[], f: FiltreAv) => lignes.filter((l) => !f.sortes.includes(l.sorte) && !f.niveaux.includes(l.niveau));
+/** `typeDe` : type de note d'un point de suivi (clé « s: »), pour la rangée « Type de note » */
+export const filtrer = (lignes: LigneAv[], f: FiltreAv, typeDe?: (cle: string) => string) =>
+  lignes.filter((l) => !f.sortes.includes(l.sorte) && !f.niveaux.includes(l.niveau) && !(l.niveau === 'suivi' && typeDe && f.types?.includes(typeDe(l.cle))));
 
 // ---------- Enregistrement (lignes `donnee` de PointsReunion) ----------
 
@@ -198,7 +201,7 @@ export function photos(points: PointReunion[]): PhotoLue[] {
     if (!m) continue;
     const x = par.get(p.reunion) ?? { reunion: p.reunion, photo: {}, filtre: FILTRE_TOUT, le: '', ids: [] };
     Object.assign(x.photo, m.e);
-    if (m.f) x.filtre = { sortes: m.f.sortes ?? [], niveaux: m.f.niveaux ?? [] };
+    if (m.f) x.filtre = { sortes: m.f.sortes ?? [], niveaux: m.f.niveaux ?? [], types: m.f.types ?? [] };
     if ((p.cree_le ?? '') > x.le) x.le = p.cree_le ?? '';
     x.ids.push(p.id);
     par.set(p.reunion, x);
