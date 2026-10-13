@@ -20,7 +20,7 @@ Sujets proposés, au choix de l'utilisateur :
   jour et la réunion, **jamais le statut**. La pastille de statut reste et peut être changée (seul changement d'élément).
 - Réunions concernées : Daily, Point perso (mode Simple), Bilan du soir, « Hier » du Daily du lendemain (pas la Revue
   de la semaine).
-- « Hier » : plan de la veille, chaque élément « fait » / « pas fait » (sans toucher au statut) + prise de notes.
+- « Hier » (revu le 13/10) : plan de la veille avec le statut de chaque élément, modifiable (plus de fait / pas fait) + notes.
   Les notes d'« Hier » ne réapparaissent pas dans « Aujourd'hui » ; elles se concrétisent à l'étape Concrétisation.
 - Créneaux (facultatif, dans la préparation) : Matin, Après-midi, et « avant / entre … et … / après » calculés depuis
   les réunions de l'application + événements perso ajoutés à la main ; agenda Google plus tard (nouvelle autorisation
@@ -39,9 +39,9 @@ Sujets proposés, au choix de l'utilisateur :
 - Point 5 codé et validé en captures (13/10).
 - Point 6 : plan du jour choisi ; règles écrites (docs/regles-reunions.html, bloc 12, R1 à R9). Prochaine étape :
   maquette validée (docs/maquette-plan-du-jour.html). Plus tard : plusieurs projets perso dans 🔒 Moi ; agenda Google.
-- Plan du jour, lot 1 codé (13/10) : tour de table « ⏪ Hier · plan du … » (fait / pas fait, lecture seule) et
+- Plan du jour, lot 1 codé (13/10) : tour de table « ⏪ Hier · plan du … » (statut des éléments) et
   « ▶️ Aujourd'hui · n cochés sur m » (tous ses éléments pas terminés, cases selon son plan, statut modifiable à part) ;
-  préparation : « Plan du … » fait / pas fait (point « hier » + sous_type fait|pas_fait), « Mon plan du jour ».
+  préparation : « Plan du … » avec statuts, « Mon plan du jour ».
   Helpers src/daily.ts (elementsDuPlan, planDe, reunionPrecedenteAvecPlan, faitDe) + tests verif:reunions.
   Lot 2 codé (13/10) : « Ma journée · vue par moi seul » (réunions du jour + événements perso) et « Mes créneaux »
   (deux niveaux : Matin / Après-midi, puis « Affiner » : créneau libre ≥ 30 min ; journée 9:00 → 18:00 et
@@ -60,7 +60,7 @@ Sujets proposés, au choix de l'utilisateur :
   addProtectedRange pour la personne seule ; lu dans le même batchGet que PointsReunion ; anciens points Hier et
   Aujourd'hui restés dans PointsReunion relus normalement). Une préparation pour plusieurs Dailies FAIT : dans
   « Aujourd'hui », une section par autre Daily du jour (👥 Web · Daily 9:30) ; à l'envoi, chaque Daily reçoit sa part.
-  « Hier » des autres équipes FAIT (fait / pas fait par Daily, envoyé à chacun) + sélecteur « Espaces » à chaque étape
+  « Hier » des autres équipes FAIT (plan d'hier de chaque équipe avec statuts) + sélecteur « Espaces » à chaque étape
   (enlever un Daily le cache, le sort du Plan du jour et rien ne lui est envoyé). Bilan du soir FAIT (Prévu ce matin + statut modifiable,
   « Changé depuis ce matin » = terminé aujourd'hui hors plan ; les autres changements de statut ne sont pas datés). RESTE : docs/mission.html et docs/bilan-reunions.html à mettre à jour. (ancien : onglet
   « Plan · nom » protégé par personne) ; Bilan du soir sur les places du plan
@@ -68,6 +68,9 @@ Sujets proposés, au choix de l'utilisateur :
   protégé par personne (aujourd'hui : onglet des points de la réunion) ; 4 Point perso / Bilan du soir ; 5 coche
   « À concrétiser » des Informations.
   Dépôt mes-skills : REMPLI le 13/10 (branche main, 9 skills + README). Toute amélioration d’un skill : dans les deux dépôts.
+
+- DÉCISION REMPLACÉE (13/10, choix conscient) : plus de « fait / pas fait » ; une seule donnée, le statut (élément ou
+  point de suivi), revue au Bilan du soir et à « Hier » (même affichage ; Bilan fait → Hier déjà à jour).
 
 ## Fait (session du 08/10, validation de la démo)
 Validation écran par écran, puis les deux blocs codés (captures vérifiées dans la démo, verif:* au vert) :

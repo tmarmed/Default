@@ -32,7 +32,7 @@ import { useHierarchy } from '../hierarchyContext';
 import { autresEquipesDuTrain, membresDe, type OrgValue, porteurs } from '../organisation';
 import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
 import { type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../reunions';
-import { PARCOURS_DAILY as CATALOGUE, elementsDuPlan, type EvenementJour, faitDe, planDe, reunionPrecedenteAvecPlan } from '../daily';
+import { PARCOURS_DAILY as CATALOGUE, elementsDuPlan, type EvenementJour, planDe, reunionPrecedenteAvecPlan } from '../daily';
 import { PlanDuJour } from './reunion/PlanDuJour';
 import { usePlanJour } from './reunion/usePlanJour';
 import { useSafe } from '../safe';
@@ -52,7 +52,7 @@ import { FeuilleConcretiser } from './reunion/Concretiser';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
 import { TitreFiche } from './FormSheet';
-import { Compteur, pluriel, Entonnoir, FiltresType, FiltresVue, Ligne, LigneCase, LigneFait, LigneStory, Pastille, PastilleFiltres, Pastilles, pastilleStatut, SaisiePoint, st, TITRE_TYPE, titreAjout, type Ton, TONS, tonType, Vide, type VueSuivi } from './reunion/ui';
+import { Compteur, pluriel, Entonnoir, FiltresType, FiltresVue, Ligne, LigneCase, LigneStory, Pastille, PastilleFiltres, Pastilles, pastilleStatut, SaisiePoint, st, TITRE_TYPE, titreAjout, type Ton, TONS, tonType, Vide, type VueSuivi } from './reunion/ui';
 
 /**
  * Daily (lot 6, validé le 01/10 ; parcours séparés le 06/10) : contenu de la fenêtre de réunion. Chaque rôle de la
@@ -423,15 +423,13 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       const elements = moiP ? elementsDuPlan(h.items.filter((t) => t.responsable === moiP.id && t.statut !== 'termine' && porteurs(t, h, org).equipe === eq)) : [];
       const hierA = hierAilleurs.find((x) => x.reunion === r.id);
       const planHier = (hierA?.elements ?? []).map((id) => parId.get(id)).filter((t): t is Item => !!t);
-      return { r, eq, nom: org.equipe.get(eq)?.nom ?? '', elements, planHier, hierDu: hierA?.du ?? '', faits: hierA?.faits ?? [] };
+      return { r, eq, nom: org.equipe.get(eq)?.nom ?? '', elements, planHier, hierDu: hierA?.du ?? '' };
     })
     .filter((x) => x.elements.length > 0 || x.planHier.length > 0);
   // Espaces de la préparation (R5b) : on ajoute ou enlève un autre Daily à n'importe quelle étape ; enlevé, il est
   // caché, hors du Plan du jour, et rien ne lui est envoyé
   const [sansDailies, setSansDailies] = useState<Set<string>>(new Set());
   const montres = autresDailies.filter((a) => !sansDailies.has(a.r.id));
-  const [faitsAutres, setFaitsAutres] = useState<Record<string, Record<string, 'fait' | 'pas_fait'>>>({});
-  const faitAutre = (a: (typeof autresDailies)[number], id: string) => faitsAutres[a.r.id]?.[id] ?? a.faits.find((x) => x.element === id)?.v ?? '';
   const choixEspaces = autresDailies.length > 0 && (
     <View style={[st.choix, { marginHorizontal: 16, marginBottom: 6 }]}>
       <Text style={st.sous}>Espaces :</Text>
@@ -460,19 +458,15 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const envoyerAutres = async () => {
     for (const a of montres) {
       const ch = choixAutres[a.r.id] ?? {};
-      const fa = faitsAutres[a.r.id] ?? {};
-      if (!Object.keys(ch).length && !Object.keys(fa).length) continue;
+      if (!Object.keys(ch).length) continue;
       const deja = planAilleurs.filter((x) => x.reunion === a.r.id);
       const creer = [
         ...a.elements.filter((t) => cocheAutre(a.r.id, t.id) && !deja.some((x) => x.element === t.id)).map((t) => aEcrire({ ...nouveau('aujourdhui', t.titre, t.id), reunion: a.r.id })),
-        // « Hier » : fait / pas fait (point « hier » lié à l'élément), remplace ce qui avait été dit
-        ...Object.entries(fa).map(([id, v]) => aEcrire({ ...nouveau('hier', parId.get(id)?.titre ?? id, id), reunion: a.r.id, sous_type: v })),
       ];
-      const retirer = [...deja.filter((x) => !cocheAutre(a.r.id, x.element)).map((x) => x.id), ...a.faits.filter((x) => x.element in fa).map((x) => x.id)];
+      const retirer = deja.filter((x) => !cocheAutre(a.r.id, x.element)).map((x) => x.id);
       if (creer.length || retirer.length) await actions.ecrirePoints(a.r.espace || 'moi', creer, [], retirer);
     }
     setChoixAutres({});
-    setFaitsAutres({});
     relirePlans();
   };
 
@@ -483,8 +477,6 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     return { reunion: r, elements: [...planDe(tous, r, m)].map((id) => parId.get(id)).filter((t): t is Item => !!t) };
   };
   const monPlanHier = planHierDe(mail);
-  const noterFait = (t: Item, v: 'fait' | 'pas_fait') =>
-    setPrep((l) => [...l.filter((x) => !(x.type === 'hier' && x.element === t.id && (x.sous_type === 'fait' || x.sous_type === 'pas_fait'))), { ...nouveau('hier', t.titre, t.id), sous_type: v }]);
   /** Ligne d'une de vos tâches : case à cocher, sous-tâches (›), à droite son état ou « Action · 29/09 » */
   const ligneTache = (type: TypePoint, t: Item, i: number, onglet: Prep) => {
     const pt = pointDeTache.get(t.id);
@@ -827,12 +819,12 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         const hier = x.cle === 'hier';
         return (
           <>
-            <TitreFiche icone={hier ? '⏪' : '▶️'} titre={hier ? 'Hier' : 'Aujourd’hui'} vide="" sous={sous(hier ? 'Fait ou pas fait, et ce dont vous parlerez' : 'Cochez ce que vous ferez aujourd’hui : le statut ne change pas')} />
+            <TitreFiche icone={hier ? '⏪' : '▶️'} titre={hier ? 'Hier' : 'Aujourd’hui'} vide="" sous={sous(hier ? 'Le plan d’hier et son statut (modifiable), ce dont vous parlerez' : 'Cochez ce que vous ferez aujourd’hui : le statut ne change pas')} />
             {pr === 'membre' && choixEspaces}
             {hier && monPlanHier.elements.length > 0 && (
               <SectionFiche titre={`Plan du ${dateCourte(monPlanHier.reunion.slice(-10))} · ${monPlanHier.elements.length}`}>
                 {monPlanHier.elements.map((t, i) => (
-                  <LigneFait key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} valeur={faitDe(tous, reunion.id, mail, t.id)} onChanger={(v) => noterFait(t, v)} tache={t} />
+                  <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} pastille={pastilleStatut(t.statut)} tache={t} />
                 ))}
               </SectionFiche>
             )}
@@ -851,7 +843,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               montres.filter((a) => a.planHier.length > 0).map((a) => (
                 <SectionFiche key={`h-${a.r.id}`} titre={`👥 ${a.nom} · plan du ${dateCourte(a.hierDu.slice(-10))}`}>
                   {a.planHier.map((t, i) => (
-                    <LigneFait key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} valeur={faitAutre(a, t.id)} onChanger={(v) => setFaitsAutres((m) => ({ ...m, [a.r.id]: { ...(m[a.r.id] ?? {}), [t.id]: v } }))} tache={t} />
+                    <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} pastille={pastilleStatut(t.statut)} tache={t} />
                   ))}
                 </SectionFiche>
               ))}
@@ -1171,7 +1163,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             {sonHier.elements.length > 0 && (
               <SectionFiche titre={`⏪ Hier · plan du ${dateCourte(sonHier.reunion.slice(-10))}`}>
                 {sonHier.elements.map((t, i) => (
-                  <LigneFait key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} valeur={faitDe(lecture ? serveur : tous, reunion.id, m, t.id)} tache={t} />
+                  <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} pastille={pastilleStatut(t.statut)} tache={t} />
                 ))}
               </SectionFiche>
             )}

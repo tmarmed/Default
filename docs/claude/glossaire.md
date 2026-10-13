@@ -19,8 +19,8 @@
 - **Plus suivi** : le point n'est plus une alerte, l'élément créé continue sa vie (≠ Abandonné : plus besoin).
 - **Enveloppe** : budget annuel d'un niveau ; Engagé = budgets prévus des projets lancés + demandes accordées.
 - **Plan du jour** : ce que je compte faire aujourd'hui (éléments cochés au Daily, au Point perso). C'est une
-  intention, pas un état : cocher ne change jamais le statut d'un élément. « Hier » revoit le plan de la veille
-  (fait / pas fait, sans toucher au statut).
+  intention, pas un état : cocher ne change jamais le statut d'un élément. « Hier » (et le Bilan du soir) revoient le
+  plan par le statut des éléments, modifiable (13/10 : plus de « fait / pas fait »).
 - **Moment libre** : temps de la journée sans réunion, rendez-vous ni événement perso ; dans l'étape « Plan du jour »,
   on y place un élément (il prend tout le moment, durée ajustable ; le reste redevient libre). Visible par moi seul.
 - **Percée de compréhension** : découverte d'un concept ou d'un niveau d'abstraction plus juste ; on relit alors

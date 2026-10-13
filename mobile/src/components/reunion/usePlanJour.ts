@@ -104,8 +104,8 @@ export function usePlanJour({ visible, actions, mail, jour, org, safeActif, onIn
   // Plan commun (R5b, 13/10) : les éléments cochés « aujourd'hui » à mes autres réunions du jour (Dailies de mes
   // équipes, quel que soit l'espace) ; une lecture par réunion, à l'ouverture
   const [planAilleurs, setPlanAilleurs] = useState<{ id: string; element: string; reunion: string; titre: string }[]>([]);
-  /** « Hier » des autres Dailies (R4, R5b) : par Daily du jour, le plan de la veille et ce que j'en ai déjà dit */
-  const [hierAilleurs, setHierAilleurs] = useState<{ reunion: string; du: string; elements: string[]; faits: { id: string; element: string; v: 'fait' | 'pas_fait' }[] }[]>([]);
+  /** « Hier » des autres Dailies (R4, R5b) : par Daily du jour, le plan de la veille (revu par le statut des éléments) */
+  const [hierAilleurs, setHierAilleurs] = useState<{ reunion: string; du: string; elements: string[] }[]>([]);
   /** Mes Dailies du jour (une préparation pour plusieurs Dailies, R5b) */
   const dailiesDuJour = useMemo(
     () => reunionsAVenir(org, mail, jour, safeActif, 1).filter((r) => r.debut.slice(0, 10) === jour && r.type === 'daily'),
@@ -132,7 +132,6 @@ export function usePlanJour({ visible, actions, mail, jour, org, safeActif, onIn
               reunion: r.id,
               du,
               elements: [...new Set(miens.filter((x) => x.reunion === du && x.type === 'aujourdhui').map((x) => x.element))],
-              faits: miens.filter((x) => x.reunion === r.id && x.type === 'hier' && (x.sous_type === 'fait' || x.sous_type === 'pas_fait')).map((x) => ({ id: x.id, element: x.element, v: x.sous_type as 'fait' | 'pas_fait' })),
             };
             return { auj, hier };
           })

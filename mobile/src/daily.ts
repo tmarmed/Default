@@ -352,11 +352,6 @@ export function reunionPrecedenteAvecPlan(points: Pick<PointReunion, 'reunion' |
     .sort()
     .pop() ?? '';
 }
-/** R4 : fait / pas fait d'un élément du plan d'hier, noté à cette réunion (point « hier » de la personne) ; '' = pas encore dit */
-export const faitDe = (points: Pick<PointReunion, 'reunion' | 'personne' | 'type' | 'element' | 'sous_type'>[], reunion: string, personne: string, element: string): '' | 'fait' | 'pas_fait' => {
-  const x = points.find((y) => y.reunion === reunion && y.personne === personne && y.type === 'hier' && y.element === element && (y.sous_type === 'fait' || y.sous_type === 'pas_fait'));
-  return x ? (x.sous_type as 'fait' | 'pas_fait') : '';
-};
 
 // Créneaux (13/10, R5, R6) : facultatifs, rangés dans 🔒 Moi (privés), autour des événements de la journée
 /** Réunion technique du plan d'une journée dans 🔒 Moi : créneaux et événements perso (points « donnee ») */

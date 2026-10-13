@@ -688,8 +688,7 @@ export interface PointReunion {
   hors_reunion?: string;
 }
 /** Décision : à prendre, prise ; Proposition : « reportee » (reportée au vote, revient à la rétro suivante) */
-/** Décision : à prendre / prise ; reportée ; plan d'hier (13/10) : fait / pas fait (point « hier » lié à l'élément) */
-export type SousType = '' | 'a_prendre' | 'prise' | 'reportee' | 'fait' | 'pas_fait';
+export type SousType = '' | 'a_prendre' | 'prise' | 'reportee';
 export const TYPES_POINT: TypePoint[] = ['hier', 'aujourdhui', 'blocage', 'decision', 'action', 'information', 'risque', 'dependance', 'proposition', 'etat', 'vote', 'donnee'];
 /** Lignes techniques de PointsReunion (état, votes, préparations) : jamais affichées comme des points */
 export const estTechnique = (p: Pick<PointReunion, 'type'>) => p.type === 'etat' || p.type === 'vote' || p.type === 'donnee';

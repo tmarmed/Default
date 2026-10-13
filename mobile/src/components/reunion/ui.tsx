@@ -182,40 +182,6 @@ export function LigneCase({
   );
 }
 
-/**
- * Élément du plan d'hier (13/10) : « ✓ Fait » / « Pas fait » ; le statut de l'élément ne change pas (pastille à part,
- * modifiable). Lecture seule au tour de table (`onChanger` absent) : « pas encore dit » si rien n'est noté.
- */
-export function LigneFait({ texte, sous, valeur, onChanger, premiere, tache }: { texte: string; sous?: string; valeur: '' | 'fait' | 'pas_fait'; onChanger?: (v: 'fait' | 'pas_fait') => void; premiere?: boolean; tache?: Item }) {
-  const bouton = (v: 'fait' | 'pas_fait', l: string) => (
-    <Pressable
-      key={v}
-      disabled={!onChanger}
-      onPress={() => onChanger?.(v)}
-      style={[st.choixPastille, st.choixPetit, valeur === v && (v === 'fait' ? st.faitOn : st.pasFaitOn)]}
-      accessibilityRole="radio"
-      accessibilityState={{ selected: valeur === v, disabled: !onChanger }}
-      accessibilityLabel={`${l} : ${texte}`}
-    >
-      <Text style={[st.choixTexte, st.choixTextePetit, valeur === v && st.choixTexteOn]}>{l}</Text>
-    </Pressable>
-  );
-  return (
-    <View style={[st.ligneFait, !premiere && st.bord]}>
-      <View style={st.ligneHaut}>
-        <View style={st.corps}>
-          <Text style={st.texte}>{texte}</Text>
-          {!!sous && <Text style={st.sous}>{sous}</Text>}
-        </View>
-        {tache && <PastilleStatut t={tache} />}
-      </View>
-      <View style={st.choix}>
-        {onChanger || valeur ? [bouton('fait', '✓ Fait'), bouton('pas_fait', 'Pas fait')] : <Text style={st.sous}>pas encore dit</Text>}
-      </View>
-    </View>
-  );
-}
-
 export function LigneStory({
   t,
   premiere,
@@ -570,9 +536,6 @@ export const st = StyleSheet.create({
   caseACocher: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#A0A6B1', textAlign: 'center', lineHeight: 19, fontSize: 14, color: '#fff', overflow: 'hidden' },
   caseCochee: { backgroundColor: colors.primary, borderColor: colors.primary },
   caseFigee: { opacity: 0.45 },
-  ligneFait: { paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
-  faitOn: { backgroundColor: '#137333', borderColor: '#137333' },
-  pasFaitOn: { backgroundColor: '#B45309', borderColor: '#B45309' },
 });
 
 /**
