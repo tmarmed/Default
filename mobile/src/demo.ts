@@ -123,7 +123,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '45';
+const DEMO_DATA_VERSION = '48';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -487,6 +487,18 @@ const SEEDS_ENTREPRISE: Seeds = {
           [`Pages du site · lot ${n}`, 'story', SANS_DATE, { feature: 'acmf3', points: '10', equipe: 'acmeqweb', responsable: 'acmp10', ...fini }],
         ];
       }),
+      // Sprints plus anciens, depuis janvier : une story par équipe et par sprint, sur l'epic terminée « Site e-commerce
+      // v1 » (le coût des personnes de chaque sprint va alors à une epic, et « Hors epics » reste faible)
+      ...Array.from({ length: 30 }, (_, k) => k + 4)
+        .filter((n) => toDateString(addDays(new Date(), -14 * n)) >= `${new Date().getFullYear()}-01-01`)
+        .flatMap((n): [string, Item['type'], number, Partial<Item>][] => {
+          const jour = addDays(new Date(), -14 * n);
+          const fini = { statut: 'termine' as const, termine_le: toDateString(addDays(jour, -2)), iteration: iterationOf(jour).key };
+          return [
+            [`Site e-commerce v1 · mobile, incrément ${n}`, 'story', SANS_DATE, { epic: 'acme4', points: '13', equipe: 'acmeqmob', responsable: 'acmp8', ...fini }],
+            [`Site e-commerce v1 · web, incrément ${n}`, 'story', SANS_DATE, { epic: 'acme4', points: '8', equipe: 'acmeqweb', responsable: 'acmp10', ...fini }],
+          ];
+        }),
     ]),
   // Daily de Mobile (onglet PointsReunion) : le point préparé par Tom pour le prochain daily, trois points concrétisés
   // aux dailies précédents dont la tâche n'est pas finie, et un blocage de Tom passé en échange 🔄 Synchro vers Paul
@@ -567,7 +579,7 @@ const SEEDS_ENTREPRISE: Seeds = {
     const train = { ...tout, ...photoDe({ suivis: [{ ...risque, statut: 'en_cours' }] }, 0) };
     changer(train, 'f:acmf1', 3, shiftPi(pi, 1));
     changer(train, 'q:acmopi1', 1, '4');
-    changer(train, 'e:acme2', 1, '100000');
+    changer(train, 'e:acme2', 1, '90000');
     changer(train, 'd:acmdb3', 0, 'soumise');
     changer(train, 'd:acmdb3', 1, '2400');
     delete train['d:acmdb1'];
@@ -592,9 +604,11 @@ const SEEDS_ENTREPRISE: Seeds = {
     e.objectif = [{ id: 'acmo1', titre: 'Fidéliser les clients', domaine: 'acmdpro', debut: m(-2), fin: m(10), couleur: '#1A73E8', description: '', cible: '90', actuel: '82', unite: '% de clients fidèles', ...base }];
     e.epic = [
       { id: 'acme1', titre: 'Nouveau CRM', description: '', debut: m(0), fin: m(6), couleur: '#00897B', objectif: 'acmo1', domaine: '', etat: 'pret', portfolio: 'acmpf1', budget: '80000', ...base },
-      { id: 'acme2', titre: 'Application client', description: '', debut: m(-1), fin: m(8), couleur: '#C2185B', objectif: 'acmo1', domaine: '', etat: 'en_cours', portfolio: 'acmpf1', budget: '120000', ...base },
+      { id: 'acme2', titre: 'Application client', description: '', debut: m(-1), fin: m(8), couleur: '#C2185B', objectif: 'acmo1', domaine: '', etat: 'en_cours', portfolio: 'acmpf1', budget: '100000', ...base },
       // Lot 5 : idée en analyse, dossier d'investissement à compléter puis à décider à la Revue du portfolio
       { id: 'acme3', titre: 'Paiement en un clic', description: '', debut: m(2), fin: m(9), couleur: '#5E35B1', objectif: 'acmo1', domaine: '', etat: 'analyse', portfolio: 'acmpf1', ...base },
+      // Epic terminée (13/10) : le travail des équipes de janvier à l'été, avant l'Application client
+      { id: 'acme4', titre: 'Site e-commerce v1', description: '', debut: `${new Date().getFullYear()}-01-01`, fin: toDateString(addDays(new Date(), -14 * 4)), couleur: '#6D4C41', objectif: 'acmo1', domaine: '', etat: 'termine', portfolio: 'acmpf1', budget: '230000', ...base },
     ];
     e.feature = [
       { id: 'acmf1', titre: 'Reprise des données', description: '', epic: 'acme1', pi: piOf(now), iteration: '', points: '13', couleur: '', train: 'acmtr1', equipe: 'acmeqmob', ...base },
@@ -777,7 +791,7 @@ export function budgetDemoEntreprise(): { depense: Depense[]; cout: CoutPersonne
     // 💼 Lot 5 : dossiers d'investissement (deux epics lancées, une idée à décider, MVP du CRM presque atteint)
     dossier: [
       dos('acme1', { hypothese: 'Un seul CRM fait gagner une demi-journée par semaine aux commerciaux', estimation: '60', budget_prevu: '80000', budget_mvp: '12000', decision: 'lancer', decide_le: dans(-30), decide_par: 'marc.petit@acme.example', decide_a: 'Revue du portfolio' }),
-      dos('acme2', { hypothese: 'Les clients commandent plus depuis l’application', estimation: '90', budget_prevu: '120000', budget_mvp: '15000', decision: 'lancer', decide_le: dans(-40), decide_par: 'marc.petit@acme.example', decide_a: 'Revue du portfolio' }),
+      dos('acme2', { hypothese: 'Les clients commandent plus depuis l’application', estimation: '90', budget_prevu: '100000', budget_mvp: '15000', decision: 'lancer', decide_le: dans(-40), decide_par: 'marc.petit@acme.example', decide_a: 'Revue du portfolio' }),
       dos('acme3', { hypothese: 'Payer en un clic double les achats répétés', estimation: '40', budget_prevu: '60000' }),
     ],
     cout: couts.map(([id, cout_annuel]) => ({ id, cout_annuel, cree_le: stamp, modifie_le: stamp })),

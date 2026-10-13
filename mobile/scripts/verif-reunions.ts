@@ -500,7 +500,7 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   }
   ok(refus === 6, 'dépense : motif, montant, %, date, porteur et total des % vérifiés');
   const eRep = enfantsRepartition('entreprise:demo-entreprise', { ...oT, portfolios: oT.portfolios.map((p) => ({ ...p, espace: 'demo-entreprise' })) }, hP);
-  ok(eRep.length === 1 && eRep[0].effectif > 5 && enfantsRepartition('portfolio:acmpf1', oT, hP).length === 2, 'répartition : entreprise → portfolios (effectif), portfolio → ses epics');
+  ok(eRep.length === 1 && eRep[0].effectif > 5 && enfantsRepartition('portfolio:acmpf1', oT, hP).length === 3, 'répartition : entreprise → portfolios (effectif), portfolio → ses epics lancées ou terminées (pas Idée ni Analyse)');
   ok(budgetDemoEntreprise().depense.length === 4 && resumeDepense(dep({ periode: 'mois', montant: '300', du: '2026-09-01', au: '2027-06-30' })) === '300 € par mois · 1/09/2026 → 30/06/2027', 'démo : 4 dépenses ; résumé lisible');
   // 📅 Congés et jours réels (lot 2) : jours prévus = ouvrés − congés − fermetures, sans compter deux fois
   const cg = (x: Partial<Conge>) => ({ id: 'c', personne: 'paul@x', du: '2026-10-19', au: '2026-10-23', nature: 'conge', cree_le: '', modifie_le: '', ...x }) as Conge;
@@ -593,7 +593,7 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
     const ctxE = { enveloppes: bD.enveloppe, dossiers: new Map(bD.dossier.map((d) => [d.id, d])), demandes: bD.demande, epics: donneesDemo('demo-entreprise').entities.epic, portfoliosDe: () => ['acmpf1'] };
     const sP = situationEnveloppe('portfolio:acmpf1', an, ctxE);
     const sE = situationEnveloppe('entreprise:demo-entreprise', an, ctxE);
-    ok(sP.enveloppe === 250000 && sP.projets === 200000 && sP.disponible === 250000 - sP.engage && sE.sousEnveloppes === 250000 && sE.disponible === 150000 - sE.demandes, 'enveloppes : Engagé = epics lancées + demandes accordées ; entreprise = enveloppes des portfolios');
+    ok(sP.enveloppe === 250000 && sP.projets === 180000 && sP.disponible === 250000 - sP.engage && sE.sousEnveloppes === 250000 && sE.disponible === 150000 - sE.demandes, 'enveloppes : Engagé = epics lancées + demandes accordées ; entreprise = enveloppes des portfolios');
     const sC = seriesDe(makeOrgValue(orgTousLesRoles(orgDemo('demo-entreprise'))), 'vous@demo', true).map((v) => `${v.type}|${v.serie.niveau}`);
     ok(sC.includes('comite_budget|unite:acmu1'), 'Comité budgétaire : réunion de l’entreprise (direction de premier niveau)');
   }

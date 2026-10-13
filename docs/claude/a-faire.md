@@ -61,8 +61,9 @@ Sujets proposés, au choix de l'utilisateur :
 1. Enveloppes des trains au Budget participatif.
 2. Droits transverses, dont les rôles du mode Simple (item 6).
 3. ~~Corriger les estimations de la démo~~ FAIT (13/10) : historique de stories terminées aux 3 sprints précédents
-   (Mobile ≈ 18 points par sprint, Web 10) ; coût d'un point ≈ 484 € (avant : 3 978 €), Application client
-   122 666 € à la fin pour 120 000 € prévus (petit écart volontaire pour l'étape Écarts).
+   (Mobile ≈ 18 points par sprint, Web 10), et depuis janvier une story par équipe et par sprint sur l'epic terminée
+   « Site e-commerce v1 » (230 000 € prévus, 226 148 € consommés) ; Hors epics 10 412 € ; coût d'un point 559 €
+   (avant : 3 978 €) ; Application client prévue à 100 000 €, 110 655 € à la fin (écart volontaire pour l'étape Écarts).
 4. Bilan du soir : dater aussi les autres changements de statut (aujourd'hui seuls les passages à « terminé »).
 
 ## Décisions du 13/10 (session 2, plan du jour) — à écrire dans docs/regles-reunions.html puis coder (pas encore validé pour coder)
