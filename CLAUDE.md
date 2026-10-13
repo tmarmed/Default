@@ -11,6 +11,10 @@ CLAUDE.md s'y charge). Branche de travail : `claude/version-safe` ; toujours com
   l'explication s'il l'a manquée.
 - Garder à jour : `docs/regles-reunions.html`, `docs/mission.html`, `docs/bilan-reunions.html`.
 
+## Skills du projet (`.claude/skills/`, chargés seuls si la session part de `claude/version-safe`)
+`travailler-ensemble` (toujours) · `decortiquer-message` (messages longs ou dictés) · `verifier-coherence` (avant de
+concevoir) · `coach-produit` (une remarque d'entraînement en fin de réponse) · `cloturer-session` (fin de session).
+
 ## Relais entre sessions
 Une session par fonctionnalité. Lire d'abord `docs/claude/a-faire.md` ; le mettre à jour avant de finir.
 
@@ -24,6 +28,7 @@ Une session par fonctionnalité. Lire d'abord `docs/claude/a-faire.md` ; le mett
 | Pièces jointes du Chat | `docs/claude/pieces-jointes.md` |
 | Sécurité, confidentialité | `docs/claude/securite.md` |
 | Carte du code (où est quoi) | `docs/claude/code.md` |
+| Mots qui portent une règle (affecter, transmettre…) | `docs/claude/glossaire.md` |
 
 ## Interdits (toujours)
 - Jamais de secret OAuth dans le dépôt (seul l'identifiant client public est utilisé).

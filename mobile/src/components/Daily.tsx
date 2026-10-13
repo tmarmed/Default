@@ -547,7 +547,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     const base = choixParDefaut(pt, { animateur: reunion.organisateur || mail, echeance: echeanceParDefaut(reunion), h, moi: mail });
     const x = { ...base, ...choix[pt.id] };
     const dansEq = personnes.some((y) => y.email.toLowerCase() === x.resp);
-    if (!choix[pt.id]?.resp && x.qui !== 'dessus' && !dansEq) x.resp = po?.email.toLowerCase() ?? mail;
+    if (choix[pt.id]?.resp === undefined && x.qui !== 'dessus' && !dansEq) x.resp = po?.email.toLowerCase() ?? mail;
     if (x.qui === 'dessus' && !escaladesDaily.some((y) => y.email === x.resp)) x.resp = escaladesDaily[0]?.email ?? x.resp;
     return { ...x, c: concretisationDe(x), a: x.resp };
   };

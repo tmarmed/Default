@@ -232,7 +232,7 @@ export function FeuilleConcretiser({
                         ...autres.map((g) => ({ titre: g.titre, options: g.personnes.filter((x) => x.email !== moi.email).map((x) => ({ value: x.email, label: x.nom, meta: x.meta })) })),
                         ...(dessus.length ? [{ titre: `${nomDessus || 'Niveau du dessus'} · escalade`, options: [...new Map(dessus.map((x) => [x.email, x])).keys()].map((m) => ({ value: `↑${m}`, label: dessus.find((x) => x.email === m)!.nom, meta: dessus.filter((x) => x.email === m).map((x) => x.meta).filter(Boolean).join(' · ') })) }] : []),
                       ].filter((g) => g.options.length)}
-                      libelle={(v) => `${nom([moi, ...equipe, ...autresTous, ...dessus], v.replace(/^↑/, ''))}${v.startsWith('↑') ? ` · ${nomDessus || 'niveau du dessus'}` : ''}`}
+                      libelle={(v) => !v || v === '↑' ? 'À choisir' : `${nom([moi, ...equipe, ...autresTous, ...dessus], v.replace(/^↑/, ''))}${v.startsWith('↑') ? ` · ${nomDessus || 'niveau du dessus'}` : ''}`}
                       fixe
                     />
                   )}
@@ -240,14 +240,14 @@ export function FeuilleConcretiser({
                     <View style={[s.bord, s.alerte]}>
                       <Text style={s.alerteTexte}>⚠️ {absence}</Text>
                       {!c.transmis && (
-                        <Pressable onPress={() => set({ transmis: true })} hitSlop={6} accessibilityRole="button">
+                        <Pressable onPress={() => set({ transmis: true, resp: '' })} hitSlop={6} accessibilityRole="button">
                           <Text style={s.lien}>↪ Transmettre à un remplaçant</Text>
                         </Pressable>
                       )}
                     </View>
                   )}
                   <Pressable
-                    onPress={() => (c.transmis ? set({ transmis: false, qui: c.resp === moi.email ? 'moi' : 'equipe', resp: c.qui === 'dessus' || !equipe.some((x) => x.email === c.resp) ? moi.email : c.resp }) : set({ transmis: true }))}
+                    onPress={() => (c.transmis ? set({ transmis: false, qui: c.resp === moi.email ? 'moi' : 'equipe', resp: c.qui === 'dessus' || !equipe.some((x) => x.email === c.resp) ? moi.email : c.resp }) : set({ transmis: true, resp: '' }))}
                     style={[s.ligne, s.bord]}
                     accessibilityRole="button"
                   >

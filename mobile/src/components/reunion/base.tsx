@@ -337,7 +337,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     const x = { ...base, ...choix[pt.id] };
     // Responsable hors de l'équipe (ex. point reçu d'ailleurs) : le PO, sinon vous
     const dansEq = e.personnes.some((y) => y.email.toLowerCase() === x.resp);
-    if (!choix[pt.id]?.resp && x.qui !== 'dessus' && !dansEq) x.resp = e.po?.email.toLowerCase() ?? mail;
+    if (choix[pt.id]?.resp === undefined && x.qui !== 'dessus' && !dansEq) x.resp = e.po?.email.toLowerCase() ?? mail;
     if (x.qui === 'dessus' && !e.escalades.some((y) => y.email === x.resp)) x.resp = e.escalades[0]?.email ?? x.resp;
     return x;
   };
