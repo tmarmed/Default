@@ -148,6 +148,10 @@ Information (concrétisées comme les autres), Risque et Dépendance au train ; 
 Ajuster ajoute une note à concrétiser) ; participants repris de l'Organisation ; Compte rendu visible de l'équipe.
 
 ## Reste à faire
+- Chapters (13/10, reporté par l'utilisateur) : regroupement transverse par métier (SAFe seulement, pas en mode Simple),
+  Chapter lead ; décidé : réunion « Réunion du chapter » mensuelle (Situation · Pratiques avec vote étoiles · Compétences
+  · Concrétisation · Compte rendu), animée par le Chapter lead. Ouvert : qui crée (proposé : RTE ou Epic Owner) et qui
+  est membre (proposé : calculé par métier + ajouts / retraits par le Chapter lead).
 - Changements depuis la dernière réunion : seuil réglable pour les valeurs (budget, objectifs), dans le filtre ;
   filtre pré-rempli gardé quelque part (où ? à décider) (demandé le 13/10, session 3).
 1. Faire voir à l'utilisateur, en captures, ce qui a été codé après la validation (Chat : Transmettre, Accepter et
