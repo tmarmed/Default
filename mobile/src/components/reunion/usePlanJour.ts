@@ -104,6 +104,8 @@ export function usePlanJour({ visible, actions, mail, jour, org, safeActif, onIn
   // Plan commun (R5b, 13/10) : les éléments cochés « aujourd'hui » à mes autres réunions du jour (Dailies de mes
   // équipes, quel que soit l'espace) ; une lecture par réunion, à l'ouverture
   const [planAilleurs, setPlanAilleurs] = useState<{ id: string; element: string; reunion: string; titre: string }[]>([]);
+  /** « Hier » des autres Dailies (R4, R5b) : par Daily du jour, le plan de la veille et ce que j'en ai déjà dit */
+  const [hierAilleurs, setHierAilleurs] = useState<{ reunion: string; du: string; elements: string[]; faits: { id: string; element: string; v: 'fait' | 'pas_fait' }[] }[]>([]);
   /** Mes Dailies du jour (une préparation pour plusieurs Dailies, R5b) */
   const dailiesDuJour = useMemo(
     () => reunionsAVenir(org, mail, jour, safeActif, 1).filter((r) => r.debut.slice(0, 10) === jour && r.type === 'daily'),
@@ -115,19 +117,36 @@ export function usePlanJour({ visible, actions, mail, jour, org, safeActif, onIn
   useEffect(() => {
     if (!visible) return;
     setPlanAilleurs([]);
+    setHierAilleurs([]);
     let actif = true;
+    // Toute la série de chaque Daily en une lecture : aujourd'hui (mon plan) et la veille (« Hier »)
     Promise.all(
       dailiesDuJour.map((r) =>
         actions
-          .lirePoints(r.espace || 'moi', r.id)
-          .then((l) => l.filter((x) => x.reunion === r.id && x.personne === mail && x.type === 'aujourdhui' && !!x.element).map((x) => ({ id: x.id, element: x.element, reunion: r.id, titre: [r.titre, libelleNiveau(lireNiveau(r.niveau), org)].filter(Boolean).join(' · ') })))
-          .catch(() => []),
+          .lirePoints(r.espace || 'moi', r.id.slice(0, -10))
+          .then((l) => {
+            const miens = l.filter((x) => x.personne === mail && !!x.element);
+            const auj = miens.filter((x) => x.reunion === r.id && x.type === 'aujourdhui').map((x) => ({ id: x.id, element: x.element, reunion: r.id, titre: [r.titre, libelleNiveau(lireNiveau(r.niveau), org)].filter(Boolean).join(' · ') }));
+            const du = miens.filter((x) => x.reunion < r.id && x.type === 'aujourdhui').map((x) => x.reunion).sort().pop() ?? '';
+            const hier = {
+              reunion: r.id,
+              du,
+              elements: [...new Set(miens.filter((x) => x.reunion === du && x.type === 'aujourdhui').map((x) => x.element))],
+              faits: miens.filter((x) => x.reunion === r.id && x.type === 'hier' && (x.sous_type === 'fait' || x.sous_type === 'pas_fait')).map((x) => ({ id: x.id, element: x.element, v: x.sous_type as 'fait' | 'pas_fait' })),
+            };
+            return { auj, hier };
+          })
+          .catch(() => ({ auj: [], hier: null })),
       ),
-    ).then((ll) => actif && setPlanAilleurs(ll.flat()));
+    ).then((ll) => {
+      if (!actif) return;
+      setPlanAilleurs(ll.flatMap((x) => x.auj));
+      setHierAilleurs(ll.flatMap((x) => (x.hier && x.hier.du ? [x.hier] : [])));
+    });
     return () => {
       actif = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, jour, relire]);
-  return { dailiesDuJour, relirePlans: () => setRelire((n) => n + 1), planAilleurs, places, setPlaces, evtsPerso, setEvtsPerso, journee, changerJournee, ecrire: ecrireCreneaux, reunionsDuJour };
+  return { dailiesDuJour, relirePlans: () => setRelire((n) => n + 1), planAilleurs, hierAilleurs, places, setPlaces, evtsPerso, setEvtsPerso, journee, changerJournee, ecrire: ecrireCreneaux, reunionsDuJour };
 }

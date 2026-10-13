@@ -317,7 +317,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   }, [visible, reunion.id]);
 
   // Plan du jour (13/10, R5) : places, événements perso et journée, dans 🔒 Moi (vus par moi seul) ; écrits avec « Mon point »
-  const { dailiesDuJour, relirePlans, planAilleurs, places, setPlaces, evtsPerso, setEvtsPerso, journee, changerJournee, ecrire: ecrireCreneaux, reunionsDuJour } = usePlanJour({ visible, actions, mail, jour, org, safeActif: safe.actif, onInfo });
+  const { dailiesDuJour, relirePlans, planAilleurs, hierAilleurs, places, setPlaces, evtsPerso, setEvtsPerso, journee, changerJournee, ecrire: ecrireCreneaux, reunionsDuJour } = usePlanJour({ visible, actions, mail, jour, org, safeActif: safe.actif, onInfo });
 
   // Animateur : chaque étape et chaque membre du tour de table sont publiés dans la ligne d'état
   useEffect(() => {
@@ -421,22 +421,58 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     .map((r) => {
       const eq = lireNiveau(r.niveau)!.id;
       const elements = moiP ? elementsDuPlan(h.items.filter((t) => t.responsable === moiP.id && t.statut !== 'termine' && porteurs(t, h, org).equipe === eq)) : [];
-      return { r, eq, nom: org.equipe.get(eq)?.nom ?? '', elements };
+      const hierA = hierAilleurs.find((x) => x.reunion === r.id);
+      const planHier = (hierA?.elements ?? []).map((id) => parId.get(id)).filter((t): t is Item => !!t);
+      return { r, eq, nom: org.equipe.get(eq)?.nom ?? '', elements, planHier, hierDu: hierA?.du ?? '', faits: hierA?.faits ?? [] };
     })
-    .filter((x) => x.elements.length > 0);
+    .filter((x) => x.elements.length > 0 || x.planHier.length > 0);
+  // Espaces de la préparation (R5b) : on ajoute ou enlève un autre Daily à n'importe quelle étape ; enlevé, il est
+  // caché, hors du Plan du jour, et rien ne lui est envoyé
+  const [sansDailies, setSansDailies] = useState<Set<string>>(new Set());
+  const montres = autresDailies.filter((a) => !sansDailies.has(a.r.id));
+  const [faitsAutres, setFaitsAutres] = useState<Record<string, Record<string, 'fait' | 'pas_fait'>>>({});
+  const faitAutre = (a: (typeof autresDailies)[number], id: string) => faitsAutres[a.r.id]?.[id] ?? a.faits.find((x) => x.element === id)?.v ?? '';
+  const choixEspaces = autresDailies.length > 0 && (
+    <View style={[st.choix, { marginHorizontal: 16, marginBottom: 6 }]}>
+      <Text style={st.sous}>Espaces :</Text>
+      <View style={[st.choixPastille, st.choixPetit, st.choixOn]}>
+        <Text style={[st.choixTexte, st.choixTextePetit, st.choixTexteOn]}>👥 {equipe?.nom ?? 'Ce Daily'}</Text>
+      </View>
+      {autresDailies.map((a) => {
+        const on = !sansDailies.has(a.r.id);
+        return (
+          <Pressable
+            key={a.r.id}
+            onPress={() => setSansDailies((x) => (on ? new Set([...x, a.r.id]) : new Set([...x].filter((y) => y !== a.r.id))))}
+            style={[st.choixPastille, st.choixPetit, on && st.choixOn]}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: on }}
+          >
+            <Text style={[st.choixTexte, st.choixTextePetit, on && st.choixTexteOn]}>{on ? '✓ ' : '＋ '}👥 {a.nom}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
   const [choixAutres, setChoixAutres] = useState<Record<string, Record<string, boolean>>>({});
   const cocheAutre = (rid: string, id: string) => choixAutres[rid]?.[id] ?? planAilleurs.some((x) => x.reunion === rid && x.element === id);
   const basculerAutre = (rid: string, id: string) => setChoixAutres((m) => ({ ...m, [rid]: { ...(m[rid] ?? {}), [id]: !cocheAutre(rid, id) } }));
   const envoyerAutres = async () => {
-    for (const a of autresDailies) {
-      const ch = choixAutres[a.r.id];
-      if (!ch || !Object.keys(ch).length) continue;
+    for (const a of montres) {
+      const ch = choixAutres[a.r.id] ?? {};
+      const fa = faitsAutres[a.r.id] ?? {};
+      if (!Object.keys(ch).length && !Object.keys(fa).length) continue;
       const deja = planAilleurs.filter((x) => x.reunion === a.r.id);
-      const creer = a.elements.filter((t) => cocheAutre(a.r.id, t.id) && !deja.some((x) => x.element === t.id)).map((t) => aEcrire({ ...nouveau('aujourdhui', t.titre, t.id), reunion: a.r.id }));
-      const retirer = deja.filter((x) => !cocheAutre(a.r.id, x.element)).map((x) => x.id);
+      const creer = [
+        ...a.elements.filter((t) => cocheAutre(a.r.id, t.id) && !deja.some((x) => x.element === t.id)).map((t) => aEcrire({ ...nouveau('aujourdhui', t.titre, t.id), reunion: a.r.id })),
+        // « Hier » : fait / pas fait (point « hier » lié à l'élément), remplace ce qui avait été dit
+        ...Object.entries(fa).map(([id, v]) => aEcrire({ ...nouveau('hier', parId.get(id)?.titre ?? id, id), reunion: a.r.id, sous_type: v })),
+      ];
+      const retirer = [...deja.filter((x) => !cocheAutre(a.r.id, x.element)).map((x) => x.id), ...a.faits.filter((x) => x.element in fa).map((x) => x.id)];
       if (creer.length || retirer.length) await actions.ecrirePoints(a.r.espace || 'moi', creer, [], retirer);
     }
     setChoixAutres({});
+    setFaitsAutres({});
     relirePlans();
   };
 
@@ -792,6 +828,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         return (
           <>
             <TitreFiche icone={hier ? '⏪' : '▶️'} titre={hier ? 'Hier' : 'Aujourd’hui'} vide="" sous={sous(hier ? 'Fait ou pas fait, et ce dont vous parlerez' : 'Cochez ce que vous ferez aujourd’hui : le statut ne change pas')} />
+            {pr === 'membre' && choixEspaces}
             {hier && monPlanHier.elements.length > 0 && (
               <SectionFiche titre={`Plan du ${dateCourte(monPlanHier.reunion.slice(-10))} · ${monPlanHier.elements.length}`}>
                 {monPlanHier.elements.map((t, i) => (
@@ -809,9 +846,18 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 </SectionFiche>
               );
             })()}
+            {hier &&
+              pr === 'membre' &&
+              montres.filter((a) => a.planHier.length > 0).map((a) => (
+                <SectionFiche key={`h-${a.r.id}`} titre={`👥 ${a.nom} · plan du ${dateCourte(a.hierDu.slice(-10))}`}>
+                  {a.planHier.map((t, i) => (
+                    <LigneFait key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} valeur={faitAutre(a, t.id)} onChanger={(v) => setFaitsAutres((m) => ({ ...m, [a.r.id]: { ...(m[a.r.id] ?? {}), [t.id]: v } }))} tache={t} />
+                  ))}
+                </SectionFiche>
+              ))}
             {!hier &&
               pr === 'membre' &&
-              autresDailies.map((a) => (
+              montres.filter((a) => a.elements.length > 0).map((a) => (
                 <SectionFiche key={a.r.id} titre={`👥 ${a.nom} · Daily ${a.r.debut.slice(11, 16).replace(/^0/, '')} · ${a.elements.filter((t) => cocheAutre(a.r.id, t.id)).length} sur ${a.elements.length}`}>
                   {a.elements.map((t, i) => (
                     <LigneCase key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} sous={`envoyé au Daily ${a.nom}`} coche={cocheAutre(a.r.id, t.id)} onBasculer={() => basculerAutre(a.r.id, t.id)} pastille={pastilleStatut(t.statut)} tache={t} />
@@ -837,11 +883,12 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         return (
           <>
             <TitreFiche icone="🗓️" titre="Plan du jour" vide="" sous={sous('Placez vos éléments dans la journée : vu par vous seul')} />
+            {choixEspaces}
             <PlanDuJour
               elements={[
                 ...aujListe.filter((t) => coche('aujourdhui', t, t.titre)),
                 // Plan commun (R5b) : ce que j'ai coché à mes autres Dailies du jour (autres équipes, autres espaces)
-                ...[...new Set([...planAilleurs.filter((x) => x.reunion !== reunion.id).map((x) => x.element), ...autresDailies.flatMap((a) => a.elements.filter((t) => cocheAutre(a.r.id, t.id)).map((t) => t.id))])]
+                ...[...new Set([...planAilleurs.filter((x) => x.reunion !== reunion.id && !sansDailies.has(x.reunion)).map((x) => x.element), ...montres.flatMap((a) => a.elements.filter((t) => cocheAutre(a.r.id, t.id)).map((t) => t.id))])]
                   .filter((id) => !autresDailies.some((a) => a.elements.some((t) => t.id === id) && !cocheAutre(a.r.id, id)))
                   .map((id) => parId.get(id))
                   .filter((t): t is Item => !!t && t.statut !== 'termine' && !aujListe.some((y) => y.id === t.id)),

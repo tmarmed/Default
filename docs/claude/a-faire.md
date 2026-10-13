@@ -60,7 +60,9 @@ Sujets proposés, au choix de l'utilisateur :
   addProtectedRange pour la personne seule ; lu dans le même batchGet que PointsReunion ; anciens points Hier et
   Aujourd'hui restés dans PointsReunion relus normalement). Une préparation pour plusieurs Dailies FAIT : dans
   « Aujourd'hui », une section par autre Daily du jour (👥 Web · Daily 9:30) ; à l'envoi, chaque Daily reçoit sa part.
-  RESTE : « Hier » des autres équipes dans la même préparation (aujourd'hui : dans chaque Daily) ; (ancien : onglet
+  « Hier » des autres équipes FAIT (fait / pas fait par Daily, envoyé à chacun) + sélecteur « Espaces » à chaque étape
+  (enlever un Daily le cache, le sort du Plan du jour et rien ne lui est envoyé). RESTE : Bilan du soir sur les heures
+  du plan ; docs/mission.html et docs/bilan-reunions.html à mettre à jour. (ancien : onglet
   « Plan · nom » protégé par personne) ; Bilan du soir sur les places du plan
   Restent (lots suivants) : 3 plan entre espaces + onglet « Plan · nom »
   protégé par personne (aujourd'hui : onglet des points de la réunion) ; 4 Point perso / Bilan du soir ; 5 coche

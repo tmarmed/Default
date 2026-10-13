@@ -498,6 +498,7 @@ const SEEDS_ENTREPRISE: Seeds = {
       // Note préparée par Vous pour le prochain daily ; note d'hier pas encore concrétisée (« Notes à concrétiser »)
       pt('acmpt11', { personne: MOI_DEMO, auteur: MOI_DEMO, type: 'blocage', texte: 'Salle de démo pas encore réservée', element: 'acm13' }),
       pt('acmpt19', { personne: MOI_DEMO, auteur: MOI_DEMO, type: 'aujourdhui', texte: 'Préparer la démo du sprint', element: 'acm13' }),
+      pt('acmpt21', { reunion: `daily-equipeagile:acmeqweb-${veille}`, personne: MOI_DEMO, auteur: MOI_DEMO, type: 'aujourdhui', texte: 'Relire la page d’accueil', element: 'acm15', cree_le: `${veille}T09:30:00.000Z` }),
       pt('acmpt20', { reunion: `daily-equipeagile:acmeqweb-${jour}`, personne: MOI_DEMO, auteur: MOI_DEMO, type: 'aujourdhui', texte: 'Relire la page d’accueil', element: 'acm15' }),
       pt('acmpt12', { reunion: reunion(veille), personne: nina, auteur: nina, type: 'decision', sous_type: 'a_prendre', texte: 'Choisir la bibliothèque de graphiques', cree_le: `${veille}T09:44:00.000Z` }),
       pt('acmpt4', { type: 'aujourdhui', texte: 'Brancher la connexion Google', element: 'acm4' }),
