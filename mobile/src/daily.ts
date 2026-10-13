@@ -355,3 +355,21 @@ export const faitDe = (points: Pick<PointReunion, 'reunion' | 'personne' | 'type
   const x = points.find((y) => y.reunion === reunion && y.personne === personne && y.type === 'hier' && y.element === element && (y.sous_type === 'fait' || y.sous_type === 'pas_fait'));
   return x ? (x.sous_type as 'fait' | 'pas_fait') : '';
 };
+
+// Créneaux (13/10, R5, R6) : facultatifs, rangés dans 🔒 Moi (privés), autour des événements de la journée
+/** Réunion technique du plan d'une journée dans 🔒 Moi : créneaux et événements perso (points « donnee ») */
+export const reunionPlanJour = (jour: string) => `plan_jour-moi-${jour}`;
+export interface EvenementJour {
+  /** HH:MM */
+  heure: string;
+  titre: string;
+  /** Événement perso ajouté à la main (sinon : réunion de l'application) */
+  perso?: boolean;
+  id?: string;
+}
+/** Créneaux proposés : Matin, Après-midi, puis « avant 9:30 », « entre 9:30 et 14:00 », « après 14:00 » */
+export function creneauxDuJour(evenements: Pick<EvenementJour, 'heure'>[]): string[] {
+  const h = [...new Set(evenements.map((x) => x.heure).filter((x) => /^\d{1,2}:\d{2}$/.test(x)))].sort((a, b) => a.padStart(5, '0').localeCompare(b.padStart(5, '0')));
+  if (!h.length) return ['Matin', 'Après-midi'];
+  return ['Matin', 'Après-midi', `avant ${h[0]}`, ...h.slice(1).map((x, i) => `entre ${h[i]} et ${x}`), `après ${h[h.length - 1]}`];
+}

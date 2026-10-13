@@ -26,13 +26,16 @@ import {
   texteReponse,
   veilleOuvree,
 } from '../daily';
-import { destinatairesTransfert, lireNiveau, personneParEmail } from '../echange/hierarchieEchange';
+import { destinatairesTransfert, libelleNiveau, lireNiveau, personneParEmail } from '../echange/hierarchieEchange';
 import { aReprendre, parEspace, pointsEscalade, titreEscalade, titreTransmis } from '../suiviEscalade';
 import { useHierarchy } from '../hierarchyContext';
 import { autresEquipesDuTrain, membresDe, type OrgValue, porteurs } from '../organisation';
 import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
 import { type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../reunions';
-import { PARCOURS_DAILY as CATALOGUE, elementsDuPlan, faitDe, planDe, reunionPrecedenteAvecPlan } from '../daily';
+import { PARCOURS_DAILY as CATALOGUE, elementsDuPlan, type EvenementJour, faitDe, planDe, reunionPlanJour, reunionPrecedenteAvecPlan } from '../daily';
+import { lireDonnee } from '../etatReunion';
+import { reunionsAVenir } from '../reunions';
+import { BlocCreneaux } from './reunion/Creneaux';
 import { useSafe } from '../safe';
 import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
@@ -314,6 +317,61 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, reunion.id]);
 
+  // Créneaux du plan du jour (13/10, R5, R6) : dans 🔒 Moi, vus par moi seul ; lus à l'ouverture, écrits avec « Mon point »
+  const [creneaux, setCreneaux] = useState<Record<string, string>>({});
+  const [evtsPerso, setEvtsPerso] = useState<EvenementJour[]>([]);
+  const [anciensPlan, setAnciensPlan] = useState<string[]>([]);
+  useEffect(() => {
+    if (!visible) return;
+    setCreneaux({});
+    setEvtsPerso([]);
+    setAnciensPlan([]);
+    let actif = true;
+    actions
+      .lirePoints('moi', reunionPlanJour(jour))
+      .then((l) => {
+        if (!actif) return;
+        const miens = l.filter((x) => x.type === 'donnee' && x.personne === mail);
+        setAnciensPlan(miens.map((x) => x.id));
+        const c: Record<string, string> = {};
+        const ev: EvenementJour[] = [];
+        for (const x of miens) {
+          const d = lireDonnee<{ c?: string; h?: string; t?: string }>(x);
+          if (d?.k === 'creneau' && x.element && d.c) c[x.element] = d.c;
+          if (d?.k === 'evt' && d.h && d.t) ev.push({ heure: d.h, titre: d.t, perso: true, id: x.id });
+        }
+        setCreneaux(c);
+        setEvtsPerso(ev);
+      })
+      .catch(() => {});
+    return () => {
+      actif = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, jour]);
+  const reunionsDuJour: EvenementJour[] = useMemo(
+    () =>
+      reunionsAVenir(org, mail, jour, safe.actif, 1)
+        .filter((r) => r.debut.slice(0, 10) === jour)
+        .map((r) => ({ heure: r.debut.slice(11, 16).replace(/^0/, ''), titre: [r.titre, libelleNiveau(lireNiveau(r.niveau), org)].filter(Boolean).join(' · ') })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [org, mail, jour, safe.actif],
+  );
+  const ecrireCreneaux = async (garder: Set<string>) => {
+    const base = { reunion: reunionPlanJour(jour), personne: mail, auteur: mail, type: 'donnee' as const, concretisation: '' as const, tache: '', responsable: '' };
+    const creer = [
+      ...Object.entries(creneaux).filter(([id, c]) => c && garder.has(id)).map(([id, c]) => ({ ...base, element: id, texte: JSON.stringify({ k: 'creneau', c }) })),
+      ...evtsPerso.map((x) => ({ ...base, element: '', texte: JSON.stringify({ k: 'evt', h: x.heure, t: x.titre }) })),
+    ];
+    if (!creer.length && !anciensPlan.length) return;
+    try {
+      const { crees } = await actions.ecrirePoints('moi', creer, [], anciensPlan);
+      setAnciensPlan(crees.map((x) => x.id));
+    } catch (err) {
+      onInfo?.(`Créneaux non enregistrés dans 🔒 Moi : ${(err as Error).message}`);
+    }
+  };
+
   // Animateur : chaque étape et chaque membre du tour de table sont publiés dans la ligne d'état
   useEffect(() => {
     if (!visible || !anime || !charge || !etapeSm) return;
@@ -482,6 +540,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     if (ici.length) await actions.repondreEchanges(ici.map((r) => ({ e: r.q, reponse: r.q.reponse, note: r.q.note })));
     const retires = Object.keys(anciens).filter((id) => anciens[id] === o);
     const { crees } = await actions.ecrirePoints(espace, pts.map(aEcrire), [], retires);
+    if (o === 'membre') await ecrireCreneaux(new Set(pts.filter((x) => x.type === 'aujourdhui').map((x) => x.element)));
     setServeur((l) => [...l.filter((x) => !retires.includes(x.id)), ...crees]);
     setAnciens((a) => ({ ...Object.fromEntries(Object.entries(a).filter(([id]) => !retires.includes(id))), ...Object.fromEntries(crees.map((x) => [x.id, o])) }));
     setPrep((l) => [...l.filter((x) => (x.onglet ?? 'membre') !== o), ...crees.map((x) => ({ ...x, id: idLocal(), onglet: o }))]);
@@ -764,6 +823,16 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 </SectionFiche>
               );
             })()}
+            {!hier && pr === 'membre' && (
+              <BlocCreneaux
+                elements={aujListe.filter((t) => coche('aujourdhui', t, t.titre))}
+                creneaux={creneaux}
+                evenements={[...reunionsDuJour, ...evtsPerso]}
+                onCreneau={(id, c) => setCreneaux((x) => ({ ...x, [id]: c }))}
+                onAjouterEvt={(ev) => setEvtsPerso((l) => [...l, ev])}
+                onRetirerEvt={(ev) => setEvtsPerso((l) => l.filter((y) => y !== ev))}
+              />
+            )}
             {!hier && blocagesOuverts.length > 0 && (
               <SectionFiche titre={`Blocages toujours ouverts · ${blocagesOuverts.length}`}>
                 {blocagesOuverts.map((y, i) => (

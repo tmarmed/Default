@@ -8,7 +8,7 @@ import { absentsLe, joursAbsence, joursPrevus, jppConstate } from '../src/conges
 import { avecDossiers, situationEnveloppe, gerantsBudget, libelleDecisionDossier, libelleStatutDemande, manquesDossier, niveauDessus, reunionDuNiveau } from '../src/budget';
 import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '../src/budget';
 import { creerMagasin, nettoyerDepense, nettoyerPoint } from '../src/magasin';
-import { elementsDuPlan, faitDe, mesSuivis, planDe, reunionDeNote, reunionPrecedenteAvecPlan } from '../src/daily';
+import { creneauxDuJour, elementsDuPlan, faitDe, mesSuivis, planDe, reunionDeNote, reunionPrecedenteAvecPlan } from '../src/daily';
 import { reglerVocabulaire, vocab } from '../src/vocabulaire';
 import type { Conge, Depense, Item, PointReunion } from '../src/types';
 import { lieAObjectif } from '../src/types';
@@ -605,6 +605,7 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
     ok(elementsDuPlan([it('a', 'a_faire'), it('b', 'termine'), it('c', 'en_cours')]).map((x) => x.id).join() === 'c,a', 'plan du jour : éléments pas terminés, ceux en cours en haut (R1)');
     ok(reunionPrecedenteAvecPlan(pts, R('2026-10-13'), 'a@x') === R('2026-10-12') && [...planDe(pts, R('2026-10-12'), 'a@x')].join() === 'e2,e3', 'plan du jour : « Hier » = le plan de la daily précédente (R4)');
     ok(faitDe(pts, R('2026-10-13'), 'a@x', 'e2') === 'pas_fait' && faitDe(pts, R('2026-10-13'), 'a@x', 'e3') === '', 'plan du jour : fait / pas fait noté à la daily du jour, « pas encore dit » sinon (R4)');
+    ok(creneauxDuJour([{ heure: '14:00' }, { heure: '9:30' }, { heure: '11:00' }]).join('|') === 'Matin|Après-midi|avant 9:30|entre 9:30 et 11:00|entre 11:00 et 14:00|après 14:00' && creneauxDuJour([]).join('|') === 'Matin|Après-midi', 'plan du jour : créneaux autour des événements de la journée (R5)');
     ok(nettoyerPoint({ id: 'z', reunion: R('2026-10-13'), type: 'hier', texte: 'Écran', personne: 'a@x', auteur: 'a@x', sous_type: 'fait' } as never).sous_type === 'fait', 'plan du jour : « fait » gardé à la lecture du Sheet');
   }
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
