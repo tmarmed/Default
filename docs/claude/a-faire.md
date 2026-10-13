@@ -17,7 +17,9 @@ Décidé (validé par l'utilisateur) :
 - Filtre : pastille qui ouvre / ferme ; rangée par sorte (Statut · Valeur · Échéance · Sprint ou PI · Responsable ·
   Ajouté en cours de route) + rangée par niveau ; tout coché au départ. Même filtre (partagé) en 1re étape ET dans le
   compte rendu ; le compte rendu envoyé = ce que le filtre affiche. Compte rendu : fermé, ouvert d'office si filtré.
-- EN ATTENTE : (ancien) forme du filtre (proposé : pastilles par sorte, tout coché, compte rendu = ce que le filtre affiche),
+- Première réunion (pas de photo) : « L'avancement sera visible à partir du prochain Daily » (« de la prochaine
+  ART sync »… : nom de la réunion, accord du genre, sans date).
+- EN ATTENTE : (proposé : pastilles par sorte, tout coché, compte rendu = ce que le filtre affiche),
   puis : première réunion sans photo, périmètre (éléments de qui).
 - Une entrée par élément (tâche, story, feature, epic…), départ → arrivée sur la période ; allers-retours compensés ;
   revenu à son départ = rien.
