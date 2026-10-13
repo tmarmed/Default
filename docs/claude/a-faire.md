@@ -196,9 +196,11 @@ budget = choix de concrétisation d'une note (soumise au compte rendu ; plus de 
 dossiers d'investissement soumis dans le Chat (« 📨 Soumettre pour décision », décidé hors réunion, Confirmer à la
 Revue du portfolio) ; décisions directes en séance → note « Décision prise » (close). Plus suivi : fait.
 Fait aussi (13/10) : notes fermées hors sprint supprimées à l'envoi du compte rendu de la réunion suivante de la même
-série (base.tsx, pointsFinis) ; Daily « Aujourd'hui » : tâche cochée dans Hier et pas finie reprise d'office, tâches
-reprises et en cours d'abord, « Blocages toujours ouverts » des dailies précédents rappelés.
-Reste à valider : étape « 📈 Écarts budgétaires » (Synchronisation du portfolio, Comité budgétaire).
+série (base.tsx, pointsFinis) ; Daily « Aujourd'hui » : tâches en cours reprises d'office (cochées, décochables) et en tête, « Blocages toujours ouverts » des dailies précédents rappelés.
+Validé (13/10), à coder avec les enveloppes et le Comité budgétaire : étape « 📈 Écarts budgétaires »
+(Synchronisation du portfolio à chaque sprint, Comité budgétaire à la révision de mi-année ; Simple : Revue du mois de
+l'entreprise) : par epic en écart, Réviser le budget prévu (→ demande), Réduire le périmètre (→ note d'action),
+Accepter l'écart (motif). En cours de conception : refonte de la feuille « Concrétiser » (suivi, type, affectation).
 13. Extensions (validées le 13/10, à concevoir) : relances automatiques dans le Chat (suivi proche ou après son
     échéance) ; vie des risques (ROAM suivi dans le temps) et des dépendances entre équipes ; indicateurs des réunions
     (suivis tenus à l'échéance, décisions hors réunion confirmées, notes jamais concrétisées).

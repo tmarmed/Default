@@ -386,17 +386,17 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const hierListe = miens.filter(
     (t) => t.statut === 'en_cours' || (t.statut === 'termine' && (!t.termine_le || t.termine_le >= veille)) || (pointDeTache.has(t.id) && t.statut !== 'termine'),
   );
-  // Aujourd'hui (13/10) : d'abord les tâches reprises d'hier et celles en cours, puis le reste
-  const aujListe = miens.filter((t) => t.statut !== 'termine').sort((a, b) => Number(b.statut === 'en_cours' || hierListe.includes(b)) - Number(a.statut === 'en_cours' || hierListe.includes(a)));
-  const coche = (type: TypePoint, t: Item, texte: string) => prep.some((x) => x.type === type && x.element === t.id && x.texte === texte);
-  // 13/10 : cocher une tâche pas finie dans Hier la reprend aussi dans Aujourd'hui (pas besoin de la recocher)
-  const basculer = (type: TypePoint, t: Item, texte: string, onglet: Prep) =>
-    setPrep((l) => {
-      if (coche(type, t, texte)) return l.filter((x) => !(x.type === type && x.element === t.id && x.texte === texte));
-      const ajout = [nouveau(type, texte, t.id, '', onglet)];
-      if (type === 'hier' && t.statut !== 'termine' && !l.some((x) => x.type === 'aujourdhui' && x.element === t.id)) ajout.push(nouveau('aujourdhui', texte, t.id, '', onglet));
-      return [...l, ...ajout];
-    });
+  // Aujourd'hui (13/10) : d'abord les tâches en cours (reprises d'office), puis le reste
+  const aujListe = miens.filter((t) => t.statut !== 'termine').sort((a, b) => Number(b.statut === 'en_cours') - Number(a.statut === 'en_cours'));
+  // 13/10 : les tâches en cours sont reprises d'office dans Aujourd'hui (cochées), sauf si on les décoche
+  const [decochesAuj, setDecochesAuj] = useState<Set<string>>(new Set());
+  const coche = (type: TypePoint, t: Item, texte: string) =>
+    prep.some((x) => x.type === type && x.element === t.id && x.texte === texte) || (type === 'aujourdhui' && t.statut === 'en_cours' && !decochesAuj.has(t.id) && !prep.some((x) => x.type === 'aujourdhui' && x.element === t.id));
+  const basculer = (type: TypePoint, t: Item, texte: string, onglet: Prep) => {
+    const parDefaut = type === 'aujourdhui' && t.statut === 'en_cours' && !prep.some((x) => x.type === 'aujourdhui' && x.element === t.id);
+    if (parDefaut) return setDecochesAuj((s) => (s.has(t.id) ? new Set([...s].filter((x) => x !== t.id)) : new Set([...s, t.id])));
+    setPrep((l) => (coche(type, t, texte) ? l.filter((x) => !(x.type === type && x.element === t.id && x.texte === texte)) : [...l, nouveau(type, texte, t.id, '', onglet)]));
+  };
   /** Blocages encore ouverts des dailies précédents (notés par vous) : rappelés dans Aujourd'hui, sans les renoter */
   const blocagesOuverts = serveur.filter((x) => x.type === 'blocage' && x.personne === mail && x.reunion < reunion.id && x.reunion.startsWith(reunion.id.slice(0, -10)) && !estFini(x.statut) && x.concretisation !== 'rien');
 
@@ -465,7 +465,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   // S'il anime, le point est seulement enregistré : il rejoint ses points notés. Chaque parcours remplace ce qu'il
   // avait envoyé ; ce qui vient d'être écrit est repris (sans relecture), pour un nouvel envoi ou le compte rendu.
   const envoyerPreparation = async (o: Prep) => {
-    const pts = preparationDe(o);
+    // Tâches en cours reprises d'office dans Aujourd'hui (pas décochées) : ajoutées au point envoyé
+    const reprises = o === 'membre' ? aujListe.filter((t) => t.statut === 'en_cours' && !decochesAuj.has(t.id) && !prep.some((x) => x.type === 'aujourdhui' && x.element === t.id)).map((t) => nouveau('aujourdhui', t.titre, t.id, '', o)) : [];
+    const pts = [...preparationDe(o), ...reprises];
     const ici = o === 'po' ? reponsesPO.filter((r) => r.ici) : [];
     if (ici.length) await actions.repondreEchanges(ici.map((r) => ({ e: r.q, reponse: r.q.reponse, note: r.q.note })));
     const retires = Object.keys(anciens).filter((id) => anciens[id] === o);
@@ -755,7 +757,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       case 'resume':
       case 'blocages': {
         const nHier = prep.filter((y) => y.type === 'hier').length;
-        const nAuj = prep.filter((y) => y.type === 'aujourdhui').length;
+        const nAuj = aujListe.filter((t) => coche('aujourdhui', t, t.titre)).length + prep.filter((y) => y.type === 'aujourdhui' && !aujListe.some((t) => t.id === y.element)).length;
         const notes = prep.filter((y) => (TYPES_NOTE as string[]).includes(y.type));
         return (
           <>
