@@ -13,3 +13,9 @@ Dans `mobile/` :
   `executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'`, viewport 390×844.
 - Entrée démo : Fermer · Autoriser (×2) · SAFe · 🏢 ACME · Fermer ; puis onglets Tâches / Sprint / Réunions / PI.
 - Profil démo « Vous (tous les rôles) » = `vous@demo` ; données dans `src/demo.ts` (ACME, équipe Mobile).
+- Navigation (13/10) : onglets du bas par leur icône, `getByRole('tab').filter({ hasText: '📅' })` (Réunions), '📊'
+  (Pilotage), '🏛️' (Organisation : « 🏢 Entreprise » pour les personnes, « 🚆 Delivery SAFe » pour trains et équipes) ;
+  une réunion : `getByRole('button').filter({ hasText: 'Daily' }).filter({ hasText: 'Mobile' })` ; étapes : « Suivant »
+  (le tour de table passe chaque personne) ; rituels perso (Point perso, Bilan du soir, Revue des objectifs) : mode
+  « Simple ». Bouton ＋ d'une section : `getByRole('button', { name: '<ajouterLabel>' })`.
+- Recopier `DEMO_DATA_VERSION` (+1) à chaque changement des données de démo.
