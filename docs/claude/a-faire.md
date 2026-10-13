@@ -62,7 +62,10 @@ Sujets proposés, au choix de l'utilisateur :
    train / portfolio (budget.ts), RepartitionTrains (Budget.tsx), étape Répartition (Niveau.tsx), Pilotages ; démo :
    2 trains (Clients 150 000 €, Paiements 80 000 € ; feature « Paiement sécurisé » : l'Application client
    payée moitié-moitié), portfolio 2027 280 000 €, demandes et votes des deux trains au prochain Budget participatif.
-2. Droits transverses, dont les rôles du mode Simple (item 6).
+2. ~~Droits transverses~~ CODÉ (13/10, session 3 ; règles bloc 15) : src/transverses.ts (catalogue, vers le bas, qui
+   donne, Suppléant), branché dans participants, séries, animation, budget, droits du travail, Pilotage ;
+   RolesTransverses.tsx (fiche du niveau, fiche de la personne) ; démo : Karim Haddad coach du train Clients, Claire
+   Vidal direction du portfolio. Non vérifié à l'écran : la fiche de la personne. Chapters : reportés.
 3. ~~Corriger les estimations de la démo~~ FAIT (13/10) : historique de stories terminées aux 3 sprints précédents
    (Mobile ≈ 18 points par sprint, Web 10), et depuis janvier une story par équipe et par sprint sur l'epic terminée
    « Site e-commerce v1 » (230 000 € prévus, 226 148 € consommés) ; Hors epics 10 412 € ; coût d'un point 559 €

@@ -1,6 +1,8 @@
 import { createContext, useContext } from 'react';
 import { addDays, toDateString } from './dates';
 import { estOuvre } from './series';
+import type { OrgValue } from './organisation';
+import { ascendants, lireTransverses, remplaces, transversesDe } from './transverses';
 import { CATEGORIES_DEPENSE, type CoutPersonne, type DemandeBudget, DECISIONS_DOSSIER, type Depense, type DossierInvestissement, type Echange, type Enveloppe, type Epic, type Feature, PERIODES_DEPENSE } from './types';
 
 /**
@@ -140,6 +142,22 @@ export function gerantsBudget(niveau: string, org: OrgDemande, simple = false): 
       ? [org.equipe.get(id)?.sm || org.equipe.get(id)?.po]
       : []
     : k === 'equipeagile' ? [org.equipe.get(id)?.sm] : k === 'train' ? [org.train.get(id)?.rte, org.train.get(id)?.pm] : k === 'portfolio' ? [org.portfolio.get(id)?.epic_owner] : [];
+  // Rôles transverses (13/10, session 3) : Contrôleur de gestion du niveau ou du dessus ; Suppléant d'un gérant
+  const ov = org as unknown as Partial<OrgValue>;
+  if (ov.personnes && ov.equipes && ov.trains && ov.portfolios && ov.unites) {
+    const o = ov as OrgValue;
+    const jour = toDateString(new Date());
+    const enCours = (t: { du: string; au: string }) => (!t.du || t.du <= jour) && (!t.au || t.au >= jour);
+    const nivs =
+      k === 'entreprise'
+        ? o.unites.filter((u) => !u.parent && (u.espace || 'moi') === id).map((u) => ({ kind: 'unite' as const, id: u.id }))
+        : k === 'equipeagile' || k === 'train' || k === 'portfolio'
+          ? [{ kind: k as 'equipeagile' | 'train' | 'portfolio', id }]
+          : [];
+    for (const n of nivs) for (const t of ascendants(n, o).flatMap((x) => transversesDe(x, o))) if (t.role === 'controleur' && enCours(t)) ids.push(t.personne);
+    const tous = [...o.equipes, ...o.trains, ...o.portfolios, ...o.unites].flatMap((e) => lireTransverses(e.transverses));
+    for (const t of tous) if (t.role === 'suppleant' && ids.includes(t.remplace) && remplaces(t.personne, o, jour).includes(t.remplace)) ids.push(t.personne);
+  }
   return [...new Set(ids.map(mail).filter(Boolean))];
 }
 export const libelleStatutDemande = (d: DemandeBudget) =>

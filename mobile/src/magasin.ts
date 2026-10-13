@@ -101,10 +101,10 @@ export const TABLES = Object.keys(ONGLETS) as TableBase[];
 /** Onglets de l'Organisation d'une entreprise (vue Entreprise et vue Delivery SAFe) */
 export const ONGLETS_ORG: Record<KindOrg, { nom: string; colonnes: string[] }> = {
   personne: { nom: 'Personnes', colonnes: ['id', 'nom', 'email', 'unite', 'manager', 'capacite', 'metier', 'cree_le', 'modifie_le', 'nature'] },
-  unite: { nom: 'Unites', colonnes: ['id', 'nom', 'type', 'parent', 'responsable', 'cree_le', 'modifie_le'] },
-  portfolio: { nom: 'Portfolios', colonnes: ['id', 'nom', 'epic_owner', 'cree_le', 'modifie_le'] },
-  train: { nom: 'Trains', colonnes: ['id', 'nom', 'portfolio', 'rte', 'pm', 'cree_le', 'modifie_le', 'calendrier'] },
-  equipeagile: { nom: 'EquipesAgiles', colonnes: ['id', 'nom', 'train', 'po', 'sm', 'membres', 'cree_le', 'modifie_le', 'calendrier'] },
+  unite: { nom: 'Unites', colonnes: ['id', 'nom', 'type', 'parent', 'responsable', 'cree_le', 'modifie_le', 'transverses'] },
+  portfolio: { nom: 'Portfolios', colonnes: ['id', 'nom', 'epic_owner', 'cree_le', 'modifie_le', 'transverses'] },
+  train: { nom: 'Trains', colonnes: ['id', 'nom', 'portfolio', 'rte', 'pm', 'cree_le', 'modifie_le', 'calendrier', 'transverses'] },
+  equipeagile: { nom: 'EquipesAgiles', colonnes: ['id', 'nom', 'train', 'po', 'sm', 'membres', 'cree_le', 'modifie_le', 'calendrier', 'transverses'] },
 };
 export const TABLES_ORG = Object.keys(ONGLETS_ORG) as KindOrg[];
 /** Toutes les tables et leurs onglets */
@@ -372,6 +372,11 @@ export function nettoyerOrg<K extends KindOrg>(kind: K, data: Partial<EntiteOrg<
   } else if (kind === 'equipeagile') {
     out.membres = [...new Set(out.membres.split(';').map((m) => m.trim()).filter(Boolean))].join(';');
     if (!/^[0-9A-Za-z;-]*$/.test(out.membres)) throw new Error('Liste des membres invalide.');
+  }
+  // Rôles transverses (13/10) : « personne|rôle|du|au|remplacé » ; ids et dates seulement
+  if (kind !== 'personne') {
+    out.transverses = (out.transverses ?? '').split(';').map((x) => x.trim()).filter(Boolean).join(';');
+    if (!/^[0-9A-Za-z_|;-]*$/.test(out.transverses)) throw new Error('Rôles transverses invalides.');
   }
   // Calendrier agile (train, équipe) : JSON borné ; vide = celui du train, ou par défaut
   if (kind === 'train' || kind === 'equipeagile') out.calendrier = out.calendrier?.trim() ? JSON.stringify(lireCalendrier(out.calendrier)) : '';

@@ -5,6 +5,7 @@ import { prefixeReunion } from '../daily';
 import { libelleNiveau, lireNiveau } from '../echange/hierarchieEchange';
 import { type OrgFiltre, type OrgValue } from '../organisation';
 import { dureeReunion, heureReunion, participantsReunion, periodeReunion } from '../reunions';
+import { peutAnimer } from '../transverses';
 import { colors } from '../theme';
 import { type Echange, type Item, type Reunion, TYPES_REUNION } from '../types';
 import { type ActionsDaily, FenetreDaily } from './Daily';
@@ -223,7 +224,8 @@ export function FenetreDeReunion(p: {
 }) {
   const { reunion: ouverte, org, moi, aujourdhui, daily, onFermer, onInfo, onOpenTask, onOpenEntite, echanges } = p;
   const jour = ouverte.debut.slice(0, 10);
-  const mode = ouverte.organisateur.toLowerCase() === moi.toLowerCase() ? 'organisateur' : 'participant';
+  // Anime : l'organisateur, son Suppléant ou un Coach agile du niveau (rôles transverses, 13/10)
+  const mode = peutAnimer(moi, ouverte, org, jour) ? 'organisateur' : 'participant';
   const fil = [libelleNiveau(lireNiveau(ouverte.niveau), org) || '👤 Personnel', periodeReunion(ouverte), jourCourt(jour), heureReunion(ouverte), dureeReunion(ouverte.duree_min)].filter(Boolean).join(' · ');
   if (ouverte.type === 'daily' && !!ouverte.niveau && daily)
     // Daily validé : contenu de chaque étape, points enregistrés dans le Sheet de l'équipe

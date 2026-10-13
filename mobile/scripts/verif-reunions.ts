@@ -10,6 +10,7 @@ import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '.
 import { creerMagasin, nettoyerDepense, nettoyerPoint } from '../src/magasin';
 import { creneauxLibres, elementsDuPlan, finMax, JOURNEE_DEFAUT, momentsLibres, mesSuivis, planDe, reunionDeNote, reunionPrecedenteAvecPlan } from '../src/daily';
 import { reglerVocabulaire, vocab } from '../src/vocabulaire';
+import { aDroit, ecrireTransverses, lireTransverses, peutAnimer, peutDonner, remplaces } from '../src/transverses';
 import { photoPrecedenteAvec, comparer, depuis, filtrer, messagePremiere, photoDe, photoPrecedente, phrase, pointsPhoto, statutFeature, textesPhoto } from '../src/avancement';
 import type { Conge, Depense, Item, PointReunion } from '../src/types';
 import { lieAObjectif } from '../src/types';
@@ -98,9 +99,9 @@ ok(reunionsAVenir(o, mail('acmp1'), '2026-10-01', true, 92).length === 0, 'perso
 
 // Participants
 const daily = du(paul, '2026-10-13').find((r) => r.type === 'daily')!;
-ok(participantsReunion(daily, o).length === 4, 'daily de Mobile : 4 participants');
+ok(participantsReunion(daily, o).length === 5 && participantsReunion(daily, o).includes('acmp2'), 'daily de Mobile : 4 participants + le Coach agile du train (rôle transverse)');
 const sync = du(paul, '2026-10-07').find((r) => r.type === 'art_sync')!;
-ok(participantsReunion(sync, o).length === 6, 'ART sync : RTE, PM, SM et PO des 2 équipes (6)');
+ok(participantsReunion(sync, o).length === 7, 'ART sync : RTE, PM, SM et PO des 2 équipes (6) + le Coach agile du train');
 
 // Équipe hors train (espace Équipe) : pas de PI Planning, la planification de l'IT1 a lieu ; vous dans deux espaces
 const p = (id: string, email: string) => ({ id, nom: id, email, unite: '', manager: '', capacite: '', cree_le: '', modifie_le: '' });
@@ -676,6 +677,30 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   ok(Math.round(sT1.projets) === 70000 && sT1.disponible === 50000, 'train : Engagé = sa part des epics lancées (70 % de 100 000 €)');
   ok(sPf.sousEnveloppes === 120000 && Math.round(sPf.projets) === 80000 && sPf.engage === 200000, 'portfolio : enveloppes des trains + part restante (train sans enveloppe 30 000 €, epic sans feature 50 000 €), sans double compte');
   ok(aRepartirPortfolio('pf', an, ctxT) === 250000, 'reste à répartir entre les trains : enveloppe − epics sans train − demandes du portfolio');
+}
+// Rôles transverses (13/10, session 3)
+{
+  const auj = toDateString(new Date());
+  const base = orgDemo('demo-entreprise');
+  const mailDe = (id: string) => base.personnes.find((p) => p.id === id)!.email.toLowerCase();
+  // Hugo Blanc (acmp11) Coach agile du train Clients ; Claire Vidal (acmp1) Direction du portfolio ; Julie Morel
+  // (acmp3) Contrôleur de gestion du train ; Léa Roux (acmp10) Suppléante de Nina Dupont (acmp7, SM de Mobile)
+  const oX = makeOrgValue({
+    ...base,
+    trains: base.trains.map((t) => (t.id === 'acmtr1' ? { ...t, transverses: 'acmp11|coach;acmp3|controleur' } : t)),
+    portfolios: base.portfolios.map((p) => ({ ...p, transverses: 'acmp1|direction' })),
+    equipes: base.equipes.map((e) => (e.id === 'acmeqmob' ? { ...e, transverses: `acmp10|suppleant|${auj}|${auj}|acmp7` } : e)),
+  });
+  ok(ecrireTransverses(lireTransverses('a|coach;b|suppleant|2026-10-01|2026-10-05|c')) === 'a|coach;b|suppleant|2026-10-01|2026-10-05|c' && lireTransverses('x|inconnu').length === 0, 'rôles transverses : lus et écrits (rôle inconnu ignoré)');
+  ok(aDroit('acmp11', 'animer', { kind: 'equipeagile', id: 'acmeqmob' }, oX, auj) && !aDroit('acmp11', 'animer', { kind: 'equipeagile', id: 'acmeqmob' }, oX, auj, false), 'Coach agile du train : anime aussi ses équipes (vers le bas) ; jamais en mode Simple');
+  ok(aDroit('acmp1', 'voir', { kind: 'train', id: 'acmtr1' }, oX, auj) && !aDroit('acmp1', 'animer', { kind: 'train', id: 'acmtr1' }, oX, auj), 'Direction (lecture) : voit, n’anime pas');
+  ok(remplaces('acmp10', oX, auj).includes('acmp7') && remplaces('acmp10', oX, '2000-01-01').length === 0, 'Suppléant : remplace pendant sa période seulement');
+  const daily = { organisateur: mailDe('acmp7'), niveau: 'equipeagile:acmeqmob', type: 'daily' };
+  ok(peutAnimer(mailDe('acmp10'), daily, oX, auj) && peutAnimer(mailDe('acmp11'), daily, oX, auj) && !peutAnimer(mailDe('acmp9'), daily, oX, auj), 'animer : organisateur, son Suppléant, un Coach agile du niveau ; pas un membre');
+  ok(participantsReunion({ type: 'daily', niveau: 'equipeagile:acmeqmob' }, oX).includes('acmp11') && participantsReunion({ type: 'art_sync', niveau: 'train:acmtr1' }, oX).includes('acmp3') && !participantsReunion({ type: 'pi_planning', niveau: 'train:acmtr1' }, oX).includes('acmp3'), 'participants : Coach à toutes les réunions ; Contrôleur seulement à celles du budget');
+  ok(gerantsBudget('train:acmtr1', oX).includes(mailDe('acmp3')) && gerantsBudget('equipeagile:acmeqmob', oX).includes(mailDe('acmp10')), 'Gérer le budget : Contrôleur de gestion du niveau ; Suppléant d’un gérant');
+  ok(peutDonner('acmp4', 'coach', { kind: 'equipeagile', id: 'acmeqmob' }, oX) && !peutDonner('acmp9', 'coach', { kind: 'equipeagile', id: 'acmeqmob' }, oX) && peutDonner('acmp9', 'suppleant', { kind: 'equipeagile', id: 'acmeqmob' }, oX, 'acmp9') && peutDonner('acmp6', 'partie_prenante', { kind: 'equipeagile', id: 'acmeqmob' }, oX), 'qui donne : le responsable du niveau ou du dessus (RTE pour une équipe), le PO une Partie prenante, chacun son Suppléant');
+  ok(seriesDe(oX, mailDe('acmp11'), true).some((v) => v.type === 'daily' && v.serie.niveau === 'equipeagile:acmeqmob'), 'Coach agile du train : voit le Daily des équipes du train');
 }
 Promise.all(testsAsync).then(() => {
   console.log(erreurs ? `${erreurs} erreur(s)` : 'Réunions : OK');

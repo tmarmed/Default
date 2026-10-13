@@ -9,6 +9,7 @@ import { enRetardSuivi, estFini, statutEffectif } from './pointsSuivi';
 import { pointsFaits, velocite } from './reunionsEquipe';
 import { type Conge, type Echange, type Epic, type Item, lieAObjectif, type PointReunion } from './types';
 import type { DetailEpic } from './consomme';
+import { niveauxVus, remplaces } from './transverses';
 
 /**
  * 📊 Pilotage (lot 5, maquette validée le 09/10, docs/maquette-pilotage.html) : calculs purs, sans écriture.
@@ -29,9 +30,21 @@ type H = Pick<HierarchyValue, 'items' | 'featureList' | 'epicList' | 'objectifLi
 /** Niveaux proposés selon vos rôles : vos équipes ; RTE ou PM : le train et ses équipes ; Epic Owner : le portfolio */
 export function niveauxDeRoles(org: OrgValue, moi: string, simple: boolean): NiveauPilotage[] {
   const ids = new Set(org.personnes.filter((p) => p.email?.toLowerCase() === moi.toLowerCase()).map((p) => p.id));
+  // Rôles transverses (13/10) : Suppléant = niveaux de la personne remplacée ; Coach, Contrôleur, Direction, Partie
+  // prenante = le niveau donné et ceux du dessous
+  const jourT = toDateString(new Date());
+  const mesIds = [...ids];
+  for (const pid of mesIds) for (const r of remplaces(pid, org, jourT)) ids.add(r);
+  const transvVus = mesIds.flatMap((pid) => niveauxVus(pid, org, jourT, !simple));
+  const nomNiv = (n: { kind: string; id: string }) =>
+    n.kind === 'equipeagile' ? `👥 ${org.equipe.get(n.id)?.nom ?? ''}` : n.kind === 'train' ? `🚆 ${org.train.get(n.id)?.nom ?? ''}` : n.kind === 'portfolio' ? `💼 ${org.portfolio.get(n.id)?.nom ?? ''}` : `🏢 ${org.unites.find((u) => u.id === n.id)?.nom ?? ''}`;
+  const espaceNiv = (n: { kind: string; id: string }) =>
+    (n.kind === 'equipeagile' ? org.equipe.get(n.id)?.espace : n.kind === 'train' ? org.train.get(n.id)?.espace : n.kind === 'portfolio' ? org.portfolio.get(n.id)?.espace : org.unites.find((u) => u.id === n.id)?.espace) || 'moi';
   // Mode Simple (09/10) : 🔒 Moi, vos équipes et vos entreprises (direction de premier niveau)
   if (simple) {
     const l: NiveauPilotage[] = [{ kind: 'perso', id: 'moi', nom: '🔒 Moi', espace: 'moi' }];
+    for (const n of transvVus.filter((x) => x.kind === 'equipeagile' || x.kind === 'unite'))
+      if (!l.some((x) => x.kind === n.kind && x.id === n.id) && !(n.kind === 'unite' && org.unites.find((u) => u.id === n.id)?.parent)) l.push({ kind: n.kind as 'equipeagile' | 'unite', id: n.id, nom: nomNiv(n), espace: espaceNiv(n) });
     const miennes = org.equipes.filter((x) => ids.has(x.sm) || ids.has(x.po) || membresDe(x).some((m) => ids.has(m)));
     for (const e of miennes) l.push({ kind: 'equipeagile', id: e.id, nom: `👥 ${e.nom}`, espace: e.espace || 'moi' });
     for (const u of org.unites.filter((x) => !x.parent && (ids.has(x.responsable) || miennes.some((e) => (e.espace || 'moi') === (x.espace || 'moi') && (ids.has(e.sm) || ids.has(e.po))))))
@@ -47,6 +60,7 @@ export function niveauxDeRoles(org: OrgValue, moi: string, simple: boolean): Niv
     for (const e of org.equipes.filter((x) => x.train === t.id)) ajouter({ kind: 'equipeagile', id: e.id, nom: `👥 ${e.nom}`, espace: e.espace || 'moi' });
   }
   for (const e of org.equipes.filter((x) => ids.has(x.sm) || ids.has(x.po) || membresDe(x).some((m) => ids.has(m)))) ajouter({ kind: 'equipeagile', id: e.id, nom: `👥 ${e.nom}`, espace: e.espace || 'moi' });
+  for (const n of transvVus.filter((x) => x.kind !== 'unite')) ajouter({ kind: n.kind as 'equipeagile' | 'train' | 'portfolio', id: n.id, nom: nomNiv(n), espace: espaceNiv(n) });
   // Ordre : équipes d'abord (le plus proche), puis train, puis portfolio
   const rang = { equipeagile: 0, train: 1, portfolio: 2, unite: 3, perso: 4 };
   return out.sort((a, b) => rang[a.kind] - rang[b.kind]);

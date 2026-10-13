@@ -27,5 +27,8 @@
   à concrétiser) ; une ligne par élément et par sorte (statut, valeur, échéance, sprint ou PI, responsable, ajouté en
   cours de route), du départ à l'arrivée. **Photo** : l'état des éléments enregistré à l'envoi de chaque réunion,
   comparé à la suivante (règles : docs/regles-reunions.html, bloc 13).
+- **Rôle transverse** (13/10) : droits donnés à une personne en dehors de son rôle principal, sur un niveau et ceux
+  du dessous : Coach agile (SAFe), Contrôleur de gestion, Direction (lecture), Partie prenante, Suppléant (droits de la
+  personne remplacée entre deux dates). Règles : docs/regles-reunions.html, bloc 15.
 - **Percée de compréhension** : découverte d'un concept ou d'un niveau d'abstraction plus juste ; on relit alors
   les règles qui en dépendent et on les met à jour (skill conception-coherence, point 8).

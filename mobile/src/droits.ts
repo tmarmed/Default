@@ -1,5 +1,10 @@
 import { createContext, useContext } from 'react';
 import { membresDe, type OrgValue, type Personne } from './organisation';
+import { toDateString } from './dates';
+import { remplaces } from './transverses';
+
+/** Moi et les personnes que je remplace aujourd'hui (Suppléant, rôles transverses du 13/10) */
+const moiEtRemplaces = (moi: string, org: OrgValue) => new Set([moi, ...remplaces(moi, org, toDateString(new Date()))]);
 
 /**
  * Droits d'après les rôles (lot 3, étape 2) — les données d'une équipe restent invisibles (pas de mot « Sheet ») :
@@ -41,10 +46,11 @@ export function droitsTache(moi: string | null, t: Travail, org: OrgValue): { mo
   const eq = t.equipe ? org.equipe.get(t.equipe) : undefined;
   // Sans équipe : travail personnel ou pas encore rattaché, rien à protéger
   if (!eq) return { modifier: true, supprimer: true };
-  const sm = eq.sm === moi;
-  const po = eq.po === moi;
-  const sien = !!t.responsable && t.responsable === moi;
-  const libre = !t.responsable && membresDe(eq).includes(moi);
+  const moiS = moiEtRemplaces(moi, org);
+  const sm = moiS.has(eq.sm);
+  const po = moiS.has(eq.po);
+  const sien = !!t.responsable && moiS.has(t.responsable);
+  const libre = !t.responsable && membresDe(eq).some((m) => moiS.has(m));
   const modifier = sm || po || sien || libre;
   const supprimer = sm || sien;
   if (modifier) return { modifier, supprimer };
@@ -61,8 +67,9 @@ export function droitsFeature(moi: string | null, f: { train?: string; equipe?: 
   const train = f.train ? org.train.get(f.train) : undefined;
   const eq = f.equipe ? org.equipe.get(f.equipe) : undefined;
   if (!train && !eq) return { modifier: true };
-  if (train && (train.rte === moi || train.pm === moi)) return { modifier: true };
-  if (eq && (eq.sm === moi || eq.po === moi)) return { modifier: true };
+  const moiS = moiEtRemplaces(moi, org);
+  if (train && (moiS.has(train.rte) || moiS.has(train.pm))) return { modifier: true };
+  if (eq && (moiS.has(eq.sm) || moiS.has(eq.po))) return { modifier: true };
   return { modifier: false, raison: '🔒 Lecture seule' };
 }
 

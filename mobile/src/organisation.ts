@@ -42,6 +42,8 @@ export interface Unite {
   responsable: string;
   cree_le: string;
   modifie_le: string;
+  /** Rôles transverses (13/10) : « personne|rôle|du|au|remplacé » séparés par « ; » (src/transverses.ts) */
+  transverses?: string;
 }
 
 export interface Portfolio {
@@ -52,6 +54,8 @@ export interface Portfolio {
   epic_owner: string;
   cree_le: string;
   modifie_le: string;
+  /** Rôles transverses (13/10) : « personne|rôle|du|au|remplacé » séparés par « ; » (src/transverses.ts) */
+  transverses?: string;
 }
 
 export interface Train {
@@ -65,6 +69,8 @@ export interface Train {
   pm: string;
   cree_le: string;
   modifie_le: string;
+  /** Rôles transverses (13/10) : « personne|rôle|du|au|remplacé » séparés par « ; » (src/transverses.ts) */
+  transverses?: string;
   /** Calendrier agile du train (JSON, voir pi.ts) : par défaut pour ses équipes ; vide = calendrier par défaut */
   calendrier?: string;
 }
@@ -81,6 +87,8 @@ export interface EquipeAgile {
   membres: string;
   cree_le: string;
   modifie_le: string;
+  /** Rôles transverses (13/10) : « personne|rôle|du|au|remplacé » séparés par « ; » (src/transverses.ts) */
+  transverses?: string;
   /** Calendrier agile de l'équipe (JSON) ; vide = celui de son train */
   calendrier?: string;
 }

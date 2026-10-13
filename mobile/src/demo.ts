@@ -124,7 +124,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '52';
+const DEMO_DATA_VERSION = '53';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -759,9 +759,11 @@ const SEEDS_ENTREPRISE: Seeds = {
         { id: 'acmu3', nom: 'Développement', type: 'service' as const, parent: 'acmu2', responsable: 'acmp2', ...base },
         { id: 'acmu4', nom: 'Direction commerciale', type: 'direction' as const, parent: 'acmu1', responsable: 'acmp3', ...base },
       ],
-      portfolios: [{ id: 'acmpf1', nom: 'Digital', epic_owner: 'acmp3', ...base }],
+      // Rôles transverses (13/10) : Claire Vidal (direction générale) voit tout le portfolio
+      portfolios: [{ id: 'acmpf1', nom: 'Digital', epic_owner: 'acmp3', transverses: 'acmp1|direction', ...base }],
       trains: [
-        { id: 'acmtr1', nom: 'Clients', portfolio: 'acmpf1', rte: 'acmp4', pm: 'acmp5', ...base },
+        // Rôles transverses (13/10) : Karim Haddad (direction technique) coach agile du train et de ses équipes
+        { id: 'acmtr1', nom: 'Clients', portfolio: 'acmpf1', rte: 'acmp4', pm: 'acmp5', transverses: 'acmp2|coach', ...base },
         // Deuxième train (13/10) : réalise une partie de l'Application client (paiement sécurisé)
         { id: 'acmtr2', nom: 'Paiements', portfolio: 'acmpf1', rte: 'acmp12', pm: '', ...base },
       ],

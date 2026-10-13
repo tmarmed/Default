@@ -32,6 +32,8 @@ import { aReprendre, parEspace, pointsEscalade, titreEscalade } from '../../suiv
 import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, estSuivi, LIBELLE_TYPE_CREE, patchConcretise, resumeChoix, resumePoint } from '../../concretisation';
 import { FeuilleConcretiser } from './Concretiser';
 import { BlocAvancement, useAvancement } from './Avancement';
+import { peutAnimer } from '../../transverses';
+import { toDateString } from '../../dates';
 import type { Perimetre } from '../../avancement';
 import { libelleElement } from '../../elementConcerne';
 import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../../pointsSuivi';
@@ -184,7 +186,8 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
   const tous = useMemo(() => [...serveur.filter((x) => !(x.id in anciens)), ...prep.filter((x) => !estTechnique(x)), ...locaux] as PointReunion[], [serveur, anciens, prep, locaux]);
   const e = useEquipe(reunion, org, aujourdhui, tous, echanges);
   const moiP = personneParEmail(mail, org);
-  const anime = reunion.organisateur.toLowerCase() === mail;
+  // Anime : l'organisateur, son Suppléant ou un Coach agile du niveau (rôles transverses, 13/10)
+  const anime = peutAnimer(mail, reunion, org, toDateString(new Date()), TYPES_REUNION[reunion.type]?.mode !== 'simple');
   // Membre : de l'équipe, ou participant d'une réunion de train ou de portfolio ; « PO » : le PO (équipe) ou le PM (train)
   const estMembre = !!moiP && (e.equipe ? membresDe(e.equipe).includes(moiP.id) : e.personnes.some((x) => x.id === moiP.id) && moiP.id !== e.po?.id);
   const estPO = !!moiP && !!e.po && e.po.id === moiP.id;

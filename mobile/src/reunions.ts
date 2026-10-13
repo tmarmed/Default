@@ -4,6 +4,7 @@ import { calendrierEquipe, membresDe, type OrgValue } from './organisation';
 import { type Calendrier, calendrierCourant, iterationOf, lireCalendrier, piLabel, piOf } from './pi';
 import { occurrences, type SerieReunion, type UniteSerie } from './series';
 import { type RepetitionReunion, type Reunion, type TypeReunion, TYPES_REUNION } from './types';
+import { ascendants, lireTransverses, participeA, remplaces, transversesDe } from './transverses';
 
 /**
  * Réunions SAFe et agiles (lot 6) : pour l'instant **calculées, pas enregistrées**. Chacun voit les réunions de ses
@@ -163,7 +164,16 @@ export function seriesDe(org: OrgValue, moi: string, safeActif: boolean, stockee
 
   // Vous : toutes vos fiches de personne (une par entreprise ou espace Équipe), d'après votre e-mail
   const moiIds = new Set(org.personnes.filter((p) => !!mail && p.email?.toLowerCase() === mail).map((p) => p.id));
+  // Suppléant (13/10) : pendant sa période, les réunions de la personne remplacée sont aussi les siennes
+  const jourS = toDateString(new Date());
+  for (const pid of [...moiIds]) for (const r of remplaces(pid, org, jourS)) moiIds.add(r);
   const est = (id: string) => !!id && moiIds.has(id);
+  // Rôles transverses (13/10) : niveaux où vous êtes Coach agile (SAFe), Contrôleur de gestion ou Partie prenante
+  const transv = (kind: 'equipeagile' | 'train' | 'portfolio' | 'unite', id: string) =>
+    ascendants({ kind, id }, org)
+      .flatMap((x) => transversesDe(x, org))
+      .filter((t) => moiIds.has(t.personne) && t.role !== 'suppleant' && t.role !== 'direction' && (!t.du || t.du <= jourS) && (!t.au || t.au >= jourS))
+      .map((t) => t.role);
   if (!safeActif) {
     for (const t of ['point_perso', 'revue_semaine', 'revue_objectifs', 'revue_trimestre', 'point_annuel', 'bilan_soir'] as TypeReunion[]) ajouter(t, '', mail, 'moi', calendrierCourant());
     niveaux.add('');
@@ -229,6 +239,43 @@ export function seriesDe(org: OrgValue, moi: string, safeActif: boolean, stockee
       niveaux.add(niveau);
       const orga = emailDe(p.epic_owner);
       for (const t of ['revue_portfolio', 'revue_okr', 'sync_portfolio', 'budget'] as TypeReunion[]) ajouter(t, niveau, orga, p.espace, calendrierCourant());
+    }
+  }
+
+  // Rôles transverses (13/10, session 3) : les réunions des niveaux où vous êtes Coach agile (SAFe : toutes),
+  // Contrôleur de gestion (celles du budget) ou Partie prenante (revues, démos), sur ce niveau et ceux du dessous ;
+  // l'animateur reste celui du rôle principal (un Coach peut animer à sa place)
+  {
+    const deja = new Set(defauts.map((d) => `${d.type}|${d.serie.niveau}`));
+    const plus = (t: TypeReunion, niveau: string, orga: string, espace: string | undefined, cal: Calendrier, roles: string[]) => {
+      if (deja.has(`${t}|${niveau}`) || !roles.some((r) => participeA(r as never, t))) return;
+      deja.add(`${t}|${niveau}`);
+      niveaux.add(niveau);
+      ajouter(t, niveau, orga, espace, cal);
+    };
+    if (safeActif) {
+      for (const e of org.equipes) {
+        const roles = transv('equipeagile', e.id);
+        if (!roles.length) continue;
+        const enTrain = !!e.train && org.train.has(e.train);
+        for (const t of ['daily', 'planification', 'affinage', 'revue', 'retro'] as TypeReunion[]) {
+          if (deja.has(`${t}|equipeagile:${e.id}`) || !roles.some((r) => participeA(r as never, t))) continue;
+          deja.add(`${t}|equipeagile:${e.id}`);
+          niveaux.add(`equipeagile:${e.id}`);
+          ajouter(t, `equipeagile:${e.id}`, emailDe(e.sm || e.po), e.espace, calDe(calendrierEquipe(org, e)), enTrain ? (t === 'planification' ? ['debut_pi', 'sprint1'] : ['debut_pi']) : []);
+        }
+      }
+      for (const tr of org.trains) {
+        const roles = transv('train', tr.id);
+        const cal = calDe(tr.calendrier?.trim() ?? '');
+        for (const [t, qui] of [['pi_planning', 'rte'], ['system_demo', 'pm'], ['inspect_adapt', 'rte'], ['iteration_ip', 'rte'], ['art_sync', 'rte'], ['affinage_train', 'pm'], ['prepa_pi', 'rte']] as [TypeReunion, 'rte' | 'pm'][])
+          plus(t, `train:${tr.id}`, emailDe(qui === 'rte' ? tr.rte || tr.pm : tr.pm || tr.rte), tr.espace, cal, roles);
+      }
+      for (const pf of org.portfolios) for (const t of ['revue_portfolio', 'revue_okr', 'sync_portfolio', 'budget'] as TypeReunion[]) plus(t, `portfolio:${pf.id}`, emailDe(pf.epic_owner), pf.espace, calendrierCourant(), transv('portfolio', pf.id));
+      for (const u of org.unites.filter((x) => !x.parent)) plus('comite_budget', `unite:${u.id}`, emailDe(u.responsable), u.espace, calendrierCourant(), transv('unite', u.id));
+    } else {
+      for (const e of org.equipes) for (const t of ['point_equipe', 'semaine_equipe', 'revue_mois', 'trimestre_simple', 'bilan_annuel'] as TypeReunion[]) plus(t, `equipeagile:${e.id}`, emailDe(e.sm || e.po), e.espace, calendrierCourant(), transv('equipeagile', e.id).filter((r) => r !== 'coach'));
+      for (const u of org.unites.filter((x) => !x.parent)) for (const t of ['revue_mois', 'trimestre_simple', 'annuel_entreprise'] as TypeReunion[]) plus(t, `unite:${u.id}`, emailDe(u.responsable), u.espace, calendrierCourant(), transv('unite', u.id).filter((r) => r !== 'coach'));
     }
   }
 
@@ -347,6 +394,14 @@ export function participantsReunion(r: Pick<Reunion, 'type' | 'niveau'> & { part
     if (u && r.type === 'comite_budget') ids.push(u.responsable, ...org.portfolios.filter((p) => (p.espace || 'moi') === (u.espace || 'moi')).map((p) => p.epic_owner));
     else if (u) ids.push(u.responsable, ...org.equipes.filter((e) => (e.espace || 'moi') === (u.espace || 'moi')).flatMap((e) => [e.sm, e.po]));
   }
+  // Rôles transverses (13/10, session 3) : Coach agile (SAFe), Contrôleur de gestion (réunions du budget), Partie
+  // prenante (revues, démos), donnés sur ce niveau ou au-dessus ; Suppléant d'un participant, pendant sa période
+  const jourT = toDateString(new Date());
+  const safeR = TYPES_REUNION[r.type]?.mode !== 'simple';
+  for (const t of ascendants(n, org).flatMap((x) => transversesDe(x, org)))
+    if (t.role !== 'suppleant' && participeA(t.role, r.type) && (safeR || t.role !== 'coach') && (!t.du || t.du <= jourT) && (!t.au || t.au >= jourT)) ids.push(t.personne);
+  const tousT = [...org.equipes, ...org.trains, ...org.portfolios, ...org.unites].flatMap((e) => lireTransverses((e as { transverses?: string }).transverses));
+  for (const t of tousT) if (t.role === 'suppleant' && ids.includes(t.remplace) && remplaces(t.personne, org, jourT).includes(t.remplace)) ids.push(t.personne);
   // Une même personne une seule fois (13/10) : deux fiches au même e-mail (ex. Scrum Master aussi membre, ou une
   // fiche par espace) ne font qu'un participant ; on garde la première (celle du rôle : SM, PO, puis membres)
   const vus = new Set<string>();

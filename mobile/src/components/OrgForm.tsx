@@ -14,6 +14,7 @@ import { METIERS, roleDansEquipe } from '../droits';
 import { ChampFiche, LigneChoix, LigneEnfant, LigneMulti, ListeEnfants, SaisieFiche, SectionFiche, type AutresChoix, type GroupeChoix } from './Choix';
 import { DeleteSection } from './DeleteSection';
 import { SectionCalendrier } from './CalendrierAgile';
+import { RolesDeLaPersonne, SectionRolesTransverses } from './RolesTransverses';
 import { FormSheet, formStyles as f, TitreFiche } from './FormSheet';
 
 type Donnees = Record<string, string>;
@@ -32,10 +33,10 @@ export type RangerOrg = { kind: KindOrg; champ: string; ids: string[] };
 
 const VIDES: Record<KindOrg, Donnees> = {
   personne: { nom: '', email: '', unite: '', manager: '', capacite: '', metier: '', nature: 'humain' },
-  unite: { nom: '', type: 'service', parent: '', responsable: '' },
-  portfolio: { nom: '', epic_owner: '' },
-  train: { nom: '', portfolio: '', rte: '', pm: '', calendrier: '' },
-  equipeagile: { nom: '', train: '', po: '', sm: '', membres: '', calendrier: '' },
+  unite: { nom: '', type: 'service', parent: '', responsable: '', transverses: '' },
+  portfolio: { nom: '', epic_owner: '', transverses: '' },
+  train: { nom: '', portfolio: '', rte: '', pm: '', calendrier: '', transverses: '' },
+  equipeagile: { nom: '', train: '', po: '', sm: '', membres: '', calendrier: '', transverses: '' },
 };
 
 const TITRES: Record<KindOrg, [string, string]> = {
@@ -630,6 +631,17 @@ export function OrgForm({
         </>
       )}
 
+      {/* Rôles transverses (13/10) : saisis dans la fiche du niveau ; lus dans la fiche de la personne */}
+      {kind !== 'personne' && (
+        <SectionRolesTransverses
+          niveau={entite ? { kind, id: entite.id } : null}
+          value={form.transverses ?? ''}
+          onChange={(v) => setForm((x) => ({ ...x, transverses: v }))}
+          org={org}
+          safe={safe.actif}
+        />
+      )}
+      {kind === 'personne' && entite && <RolesDeLaPersonne pid={entite.id} org={org} />}
       {safe.actif && entite && (kind === 'portfolio' || kind === 'train' || kind === 'equipeagile') && (
         <SectionDepenses espace={(entite as { espace?: string }).espace || 'moi'} porteur={`${kind}:${entite.id}`} enfants={enfantsRepartition(`${kind}:${entite.id}`, org, hBudget)} />
       )}
