@@ -19,7 +19,7 @@ const d = donneesDemo('demo-entreprise');
 const o = makeOrgValue(orgDemo('demo-entreprise'));
 const h = buildHierarchy(d.entities.epic, d.entities.objectif, d.entities.domaine, d.entities.feature);
 
-ok(o.delivery && o.portfolios.length === 1 && o.trains.length === 1 && o.equipes.length === 2, 'ACME : 1 portfolio, 1 train, 2 équipes');
+ok(o.delivery && o.portfolios.length === 1 && o.trains.length === 2 && o.equipes.length === 2, 'ACME : 1 portfolio, 2 trains (Clients, Paiements), 2 équipes');
 
 const story = d.items.find((t) => t.titre === 'Écran de connexion')!;
 const p = porteurs(story, h, o);

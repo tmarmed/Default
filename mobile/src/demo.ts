@@ -124,7 +124,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '51';
+const DEMO_DATA_VERSION = '52';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -607,8 +607,10 @@ const SEEDS_ENTREPRISE: Seeds = {
       donnee('acmbp1', sara, { k: 'demande', c: 'dm1', o: 'membre', texte: 'Plateforme de tests automatisés · 60 k€' }),
       donnee('acmbp2', marc, { k: 'demande', c: 'dm2', o: 'membre', texte: 'Programme fidélité dans l’application · 150 k€' }),
       donnee('acmbp3', julie, { k: 'demande', c: 'dm3', o: 'membre', texte: 'Étude de marché Benelux · 30 k€' }),
-      donnee('acmbp4', sara, { k: 'budget', c: 'budget', o: 'membre', l: { dm1: 60, dm2: 30, dm3: 10 } }),
-      donnee('acmbp5', marc, { k: 'budget', c: 'budget', o: 'membre', l: { dm1: 20, dm2: 70, dm3: 10 } }),
+      donnee('acmbp6', 'leo.bernard@acme.example', { k: 'demande', c: 'dm4', o: 'membre', texte: 'Certification de sécurité des paiements · 80 k€' }),
+      donnee('acmbp4', sara, { k: 'budget', c: 'budget', o: 'membre', l: { dm1: 40, dm2: 30, dm3: 10, dm4: 20 } }),
+      donnee('acmbp5', marc, { k: 'budget', c: 'budget', o: 'membre', l: { dm1: 20, dm2: 50, dm3: 10, dm4: 20 } }),
+      donnee('acmbp7', 'leo.bernard@acme.example', { k: 'budget', c: 'budget', o: 'membre', l: { dm1: 10, dm2: 20, dm4: 70 } }),
     ];
     return [...photoHier, ...photosNiveaux, ...liste, ...budgetParticipatif];
   },
@@ -632,6 +634,8 @@ const SEEDS_ENTREPRISE: Seeds = {
       { id: 'acmf1', titre: 'Reprise des données', description: '', epic: 'acme1', pi: piOf(now), iteration: '', points: '13', couleur: '', train: 'acmtr1', equipe: 'acmeqmob', ...base },
       { id: 'acmf2', titre: 'Compte client mobile', description: '', epic: 'acme2', pi: piOf(now), iteration: '', points: '8', couleur: '', train: 'acmtr1', equipe: 'acmeqmob', ...base },
       { id: 'acmf3', titre: 'Nouveau site vitrine', description: '', epic: 'acme2', pi: piOf(now), iteration: '', points: '5', couleur: '', train: 'acmtr1', equipe: 'acmeqweb', ...base },
+      // Train Paiements (13/10) : l'Application client est payée à 13/26 par Clients et 13/26 par Paiements
+      { id: 'acmf4', titre: 'Paiement sécurisé', description: '', epic: 'acme2', pi: piOf(now), iteration: '', points: '13', couleur: '', train: 'acmtr2', equipe: '', ...base },
     ];
     // Lot 4 : OKR, résultats clés et value streams d'ACME
     e.objectif.push({ id: 'acmo2', titre: 'Réduire les coûts d’exploitation', domaine: 'acmdpro', debut: m(-1), fin: m(11), couleur: '#E37400', description: '', cible: '', actuel: '', unite: '', ...base });
@@ -746,6 +750,8 @@ const SEEDS_ENTREPRISE: Seeds = {
         p('acmp9', 'Emma Roy', 'acmu3', 'acmp2', '6', 'testeur'),
         p('acmp10', 'Léa Roux', 'acmu3', 'acmp2', '8', 'designer'),
         p('acmp11', 'Hugo Blanc', 'acmu3', 'acmp2', '8', 'dev'),
+        // Deuxième train du portfolio Digital (13/10) : son RTE
+        p('acmp12', 'Léo Bernard', 'acmu2', 'acmp2'),
       ],
       unites: [
         { id: 'acmu1', nom: 'Direction générale', type: 'direction' as const, parent: '', responsable: 'acmp1', ...base },
@@ -754,7 +760,11 @@ const SEEDS_ENTREPRISE: Seeds = {
         { id: 'acmu4', nom: 'Direction commerciale', type: 'direction' as const, parent: 'acmu1', responsable: 'acmp3', ...base },
       ],
       portfolios: [{ id: 'acmpf1', nom: 'Digital', epic_owner: 'acmp3', ...base }],
-      trains: [{ id: 'acmtr1', nom: 'Clients', portfolio: 'acmpf1', rte: 'acmp4', pm: 'acmp5', ...base }],
+      trains: [
+        { id: 'acmtr1', nom: 'Clients', portfolio: 'acmpf1', rte: 'acmp4', pm: 'acmp5', ...base },
+        // Deuxième train (13/10) : réalise une partie de l'Application client (paiement sécurisé)
+        { id: 'acmtr2', nom: 'Paiements', portfolio: 'acmpf1', rte: 'acmp12', pm: '', ...base },
+      ],
       equipes: [
         { id: 'acmeqmob', nom: 'Mobile', train: 'acmtr1', po: 'acmp6', sm: 'acmp7', membres: 'acmp6;acmp7;acmp8;acmp9', ...base },
         { id: 'acmeqweb', nom: 'Web', train: 'acmtr1', po: 'acmp10', sm: 'acmp11', membres: 'acmp10;acmp11', ...base },
@@ -806,7 +816,8 @@ export function budgetDemoEntreprise(): { depense: Depense[]; cout: CoutPersonne
       { id: `entreprise:demo-entreprise|${an}`, niveau: 'entreprise:demo-entreprise', annee: an, montant: '400000', modifie_le: stamp },
       { id: `portfolio:acmpf1|${an}`, niveau: 'portfolio:acmpf1', annee: an, montant: '250000', modifie_le: stamp },
       // Enveloppe du train Clients (Budget participatif, 13/10) : il paie les epics qu'il réalise
-      { id: `train:acmtr1|${an}`, niveau: 'train:acmtr1', annee: an, montant: '200000', modifie_le: stamp },
+      { id: `train:acmtr1|${an}`, niveau: 'train:acmtr1', annee: an, montant: '150000', modifie_le: stamp },
+      { id: `train:acmtr2|${an}`, niveau: 'train:acmtr2', annee: an, montant: '80000', modifie_le: stamp },
       // Année suivante : enveloppe du portfolio déjà fixée (Comité budgétaire de janvier), à répartir entre les trains
       { id: `portfolio:acmpf1|${Number(an) + 1}`, niveau: 'portfolio:acmpf1', annee: String(Number(an) + 1), montant: '280000', modifie_le: stamp },
     ],

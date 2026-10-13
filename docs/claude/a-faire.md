@@ -60,7 +60,8 @@ publiée après chaque lot (docs/claude/livraison.md).
 Sujets proposés, au choix de l'utilisateur :
 1. ~~Enveloppes des trains au Budget participatif~~ CODÉ (13/10, session 3 ; règles : bloc 14) : partTrain, Engagé
    train / portfolio (budget.ts), RepartitionTrains (Budget.tsx), étape Répartition (Niveau.tsx), Pilotages ; démo :
-   enveloppe du train Clients 200 000 €, portfolio 2027 280 000 €, demandes et votes au prochain Budget participatif.
+   2 trains (Clients 150 000 €, Paiements 80 000 € ; feature « Paiement sécurisé » : l'Application client
+   payée moitié-moitié), portfolio 2027 280 000 €, demandes et votes des deux trains au prochain Budget participatif.
 2. Droits transverses, dont les rôles du mode Simple (item 6).
 3. ~~Corriger les estimations de la démo~~ FAIT (13/10) : historique de stories terminées aux 3 sprints précédents
    (Mobile ≈ 18 points par sprint, Web 10), et depuis janvier une story par équipe et par sprint sur l'epic terminée
