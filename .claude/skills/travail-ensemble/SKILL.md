@@ -8,9 +8,11 @@ description: Façon de travailler avec l’utilisateur (famille « travail », v
 ## Chaque réponse
 - **Français, court.** Pas de jargon technique quand on parle du fonctionnel.
 - **Noms entiers, libellés complets** (« Responsable : Sara Martin · Validation : Nina Dupont »), jamais d'abréviation.
-- Toute question de l'utilisateur : **l'explication d'abord, puis toujours des choix numérotés en texte**, pas de
-  fenêtre de questions. Chaque choix porte un numéro et une lettre (il répond « 1a, 2b ») ; le choix conseillé est
-  en premier avec « (je recommande) ».
+- Toute question de l'utilisateur : **l'explication d'abord, puis les choix dans la fenêtre à cocher**
+  (AskUserQuestion), **un point à la fois** ; le choix conseillé en premier avec « Je recommande ». Sans fenêtre
+  disponible : choix numérotés en texte (« 1a, 2b »).
+- **Jamais de choix par défaut** : une question sans réponse claire (fenêtre fermée, réponse hors sujet) reste
+  ouverte et est reposée ; une réponse libre ambiguë est reformulée et reconfirmée avant d'être notée.
 - Terminer par **les questions encore ouvertes** (skill `travail-decortiquer`) puis, au plus, une remarque
   d'entraînement (skill `travail-coach`).
 

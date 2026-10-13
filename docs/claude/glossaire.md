@@ -15,3 +15,10 @@
 - **Hors réunion** : décision prise dans le Chat ; elle est confirmée ensuite en réunion.
 - **Plus suivi** : le point n'est plus une alerte, l'élément créé continue sa vie (≠ Abandonné : plus besoin).
 - **Enveloppe** : budget annuel d'un niveau ; Engagé = budgets prévus des projets lancés + demandes accordées.
+- **Plan du jour** : ce que je compte faire aujourd'hui (éléments cochés au Daily, au Point perso). C'est une
+  intention, pas un état : cocher ne change jamais le statut d'un élément. « Hier » revoit le plan de la veille
+  (fait / pas fait, sans toucher au statut).
+- **Créneau** : moment de la journée où je place un élément de mon plan (Matin, Après-midi, avant / entre / après
+  une réunion ou un événement perso). Facultatif, visible par moi seulement.
+- **Percée de compréhension** : découverte d'un concept ou d'un niveau d'abstraction plus juste ; on relit alors
+  les règles qui en dépendent et on les met à jour (skill conception-coherence, point 8).

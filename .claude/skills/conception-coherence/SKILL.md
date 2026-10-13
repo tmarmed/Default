@@ -18,6 +18,10 @@ description: Liste de contrôle de cohérence (famille « conception », génér
    rendre public), droits et rôles, données partagées, limites techniques (quotas, écritures groupées).
 7. **Automatique ou choisi ?** Par défaut, l'utilisateur choisit (proposition précochée qu'il peut enlever), rien ne
    se crée ni ne monte d'un niveau tout seul.
+8. **Percée de compréhension** : quand un concept nouveau ou un meilleur niveau d'abstraction apparaît (ex. « le plan
+   est une intention, le statut est un état »), lister les règles déjà écrites qui en dépendent, les relire avec ce
+   concept et les mettre à jour (décisions remplacées notées dans le journal). Les règles ne sont pas figées : elles
+   émergent et se simplifient à chaque percée (Eric Evans, *refactoring toward deeper insight*).
 
 ## Après le code
 - Un test par règle de gestion nouvelle.
