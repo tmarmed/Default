@@ -632,7 +632,8 @@ export const TYPES_REUNION: Record<TypeReunion, TypeReunionInfo> = {
  * écrite par l'animateur : texte JSON, voir src/etatReunion.ts), `vote` (le vote d'une personne : texte JSON) et
  * `donnee` (une préparation propre à une réunion : absences, stories choisies, idées… : texte JSON).
  */
-export type TypePoint = 'hier' | 'aujourdhui' | 'blocage' | 'decision' | 'action' | 'information' | 'risque' | 'dependance' | 'etat' | 'vote' | 'donnee';
+/** « proposition » (13/10) : amélioration continue, seulement en Rétrospective (et Problèmes de l'Inspect & Adapt) */
+export type TypePoint = 'hier' | 'aujourdhui' | 'blocage' | 'decision' | 'action' | 'information' | 'risque' | 'dependance' | 'proposition' | 'etat' | 'vote' | 'donnee';
 /**
  * Concrétisation d'un blocage, d'une décision ou d'une action : sous-tâche de l'élément, tâche à part dans
  * l'itération, rien, escalade au RTE, ou (blocage) échange 🔄 Synchro adressé au PO, au SM ou à un membre de
@@ -683,8 +684,9 @@ export interface PointReunion {
   /** Suivi décidé depuis le Chat (« 1 ») : mis en avant à la réunion suivante jusqu'à « Confirmer » (« 2 »), validé le 09/10 */
   hors_reunion?: string;
 }
-export type SousType = '' | 'a_prendre' | 'prise';
-export const TYPES_POINT: TypePoint[] = ['hier', 'aujourdhui', 'blocage', 'decision', 'action', 'information', 'risque', 'dependance', 'etat', 'vote', 'donnee'];
+/** Décision : à prendre, prise ; Proposition : « reportee » (reportée au vote, revient à la rétro suivante) */
+export type SousType = '' | 'a_prendre' | 'prise' | 'reportee';
+export const TYPES_POINT: TypePoint[] = ['hier', 'aujourdhui', 'blocage', 'decision', 'action', 'information', 'risque', 'dependance', 'proposition', 'etat', 'vote', 'donnee'];
 /** Lignes techniques de PointsReunion (état, votes, préparations) : jamais affichées comme des points */
 export const estTechnique = (p: Pick<PointReunion, 'type'>) => p.type === 'etat' || p.type === 'vote' || p.type === 'donnee';
 

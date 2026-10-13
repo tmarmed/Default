@@ -69,6 +69,7 @@ export const LIBELLE_TYPE_POINT: Record<TypePoint, string> = {
   information: 'Information',
   risque: 'Risque',
   dependance: 'Dépendance',
+  proposition: '💡 Proposition',
   etat: 'État',
   vote: 'Vote',
   donnee: 'Préparation',
@@ -105,7 +106,7 @@ export const ageAffiche = (date: string, jour: string) => {
 export const pastilleSuivi = (p: Pick<PointReunion, 'type' | 'reunion' | 'sous_type'>, jour: string) => ({ texte: libelleNote(p), age: ageAffiche(jourPoint(p), jour) });
 
 /** Points à concrétiser : blocages, décisions, actions */
-export const aConcretiser = (p: Pick<PointReunion, 'type'>) => (TYPES_NOTE_TRAIN as string[]).includes(p.type);
+export const aConcretiser = (p: Pick<PointReunion, 'type'>) => (TYPES_NOTE_TRAIN as string[]).includes(p.type) || p.type === 'proposition';
 /** Types de note (validation du 08/10) ; au train (PI Planning, ART sync…), aussi Risque et Dépendance */
 // Information d'abord : type par défaut des notes (validé le 13/10), fermée d'office (rien à concrétiser)
 export const TYPES_NOTE: TypePoint[] = ['information', 'blocage', 'decision', 'action'];

@@ -22,7 +22,9 @@ import { type ChoixVote, VoteEtoiles, votesDe } from './Vote';
  * - Mon point : Mes tâches · Mes idées (Ce qui va, À améliorer, avec son nom ou anonyme ; « Envoyer mes idées ») ·
  *   Voter (étoiles : 1 par idée, 3 au total ; « Envoyer mes votes »)
  * - Animer : Situation · Indicateurs · Ce qui va · À améliorer (compteur d'idées reçues, Ouvrir le vote, révélation,
- *   3 choix par idée) · Actions (atelier sur les idées retenues) · Concrétisation · Compte rendu.
+ *   choix par idée : Retenir, Reporter, Écarter) · Concrétisation · Compte rendu. 13/10 : « À améliorer » = 💡 Proposition
+ *   (même table et même cycle que les autres notes) ; retenue → note à concrétiser (créer une tâche d'amélioration) ;
+ *   reportée → revient à la rétro suivante ; écartée → fermée ; « Ce qui va » → Information. Plus d'étape Actions.
  * Au compte rendu, la rétro supprime du Sheet les points réglés de l'itération (daily, planification, affinage,
  * revue, rétro) : fin de vie des points (NETTOYAGE).
  */
@@ -39,7 +41,6 @@ export const PARCOURS_RETRO: CatalogueParcours = {
     { cle: 'indicateurs', nom: 'Indicateurs' },
     { cle: 'va', nom: 'Ce qui va' },
     { cle: 'ameliorer', nom: 'À améliorer' },
-    { cle: 'actions', nom: 'Actions' },
     { cle: 'concretisation', nom: 'Concrétisation' },
     { cle: 'compte_rendu', nom: 'Compte rendu' },
   ],
@@ -81,6 +82,22 @@ export function FenetreRetro(p: PropsReunion) {
   const v = useMemo(() => velocite(e.h.items, e.dansEquipe, shiftIteration(e.it.key, 1)), [e.h.items, e.it.key]); // eslint-disable-line react-hooks/exhaustive-deps
   // Actions de la dernière rétro : points de la série concrétisés en tâches
   const actionsPrec = r.serveur.filter((x) => !r.ici(x) && (x.concretisation === 'tache' || x.concretisation === 'sous_tache') && !!x.tache);
+
+  // 💡 En arrivant à la Concrétisation (13/10) : chaque idée devient une note de la rétro, une seule fois — À améliorer
+  // retenue → Proposition à concrétiser ; reportée → Proposition « reportée » (rétro suivante) ; écartée → rien ;
+  // Ce qui va → Information (fermée d'office). Une idée anonyme est notée au nom de l'animateur.
+  useEffect(() => {
+    if (cleAnim !== 'concretisation' || !r.anime) return;
+    const deja = new Set(r.tous.filter((x) => r.ici(x) && (x.type === 'proposition' || x.type === 'information')).map((x) => `${x.type}|${x.texte}`));
+    const auteur = (x: (typeof idees)[number]) => (x.anonyme ? r.mail : x.par);
+    for (const x of va) if (!deja.has(`information|${x.texte}`)) r.noter({ personne: auteur(x), type: 'information', texte: x.texte, element: '' });
+    triees.forEach((x, i) => {
+      const c = choixIdee[x.id] ?? (i < NB_ATELIER && nbVotes(x.id) > 0 ? 'retenir' : 'reporter');
+      if (c === 'ecarter' || c === 'tour' || deja.has(`proposition|${x.texte}`)) return;
+      r.noter({ personne: auteur(x), type: 'proposition', texte: x.texte, element: '', ...(c === 'reporter' ? { sous_type: 'reportee' as const } : {}) });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleAnim]);
 
   const ajouterIdee = (col: Idee['col'], texte: string) => r.poserDonnee('idee', `${Date.now()}`, { col, texte, anonyme });
   const listeIdees = (col: Idee['col'], titre: string) => {
@@ -275,6 +292,7 @@ export function FenetreRetro(p: PropsReunion) {
                             { value: 'retenir', label: '✓ Retenir' },
                             { value: 'tour', label: '🔁 Nouveau tour' },
                             { value: 'reporter', label: '⏭ Reporter' },
+                            { value: 'ecarter', label: '✖ Écarter' },
                           ]}
                           value={c}
                           onChange={(v2) => {

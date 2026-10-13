@@ -17,7 +17,8 @@ import { Pastilles, st as stUi, Vide } from './ui';
  */
 export const CARTES_POKER = ['1', '2', '3', '5', '8', '13', '?'];
 export const CARTES_CONFIANCE = ['1', '2', '3', '4', '5'];
-export type ChoixVote = 'retenir' | 'tour' | 'reporter';
+/** « ecarter » (13/10) : proposition non retenue, fermée */
+export type ChoixVote = 'retenir' | 'tour' | 'reporter' | 'ecarter';
 export interface DecisionVote {
   choix: ChoixVote;
   val?: string;

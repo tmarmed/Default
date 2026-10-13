@@ -481,6 +481,19 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
     return l[Math.min(idx[cle] ?? 0, Math.max(0, l.length - 1))];
   };
   const saisiesDe = (cle: string) => r.donneesDe<{ texte: string }>(cle).map((x) => ({ id: x.d.c ?? x.p.id, texte: x.d.texte, par: x.p.personne }));
+  // 💡 Inspect & Adapt (13/10, comme la Rétro) : en arrivant à la Concrétisation, chaque problème devient une
+  // Proposition — votée (au moins une étoile) → à concrétiser ; sans vote → reportée (Inspect & Adapt suivant)
+  useEffect(() => {
+    if (p.reunion.type !== 'inspect_adapt' || cleAnim !== 'concretisation' || !r.anime) return;
+    const deja = new Set(r.tous.filter((x) => r.ici(x) && x.type === 'proposition').map((x) => x.texte));
+    const tourV = vote?.tour ?? 1;
+    for (const x of saisiesDe('probleme')) {
+      if (deja.has(x.texte)) continue;
+      const nb = [...votesDe(r, x.id, tourV).values()].filter(Boolean).length;
+      r.noter({ personne: x.par, type: 'proposition', texte: x.texte, element: '', ...(nb ? {} : { sous_type: 'reportee' as const }) });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleAnim]);
   const total = (cle: string) => {
     const m = new Map<string, number>();
     for (const x of r.donneesDe<{ l: Record<string, number> }>('budget')) for (const [id, v] of Object.entries(x.d.l ?? {})) m.set(id, (m.get(id) ?? 0) + (Number(v) || 0));

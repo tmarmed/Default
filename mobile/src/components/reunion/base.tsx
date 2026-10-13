@@ -325,7 +325,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
 
   // ---- Concrétisation (animateur) ----
   const reportes = useMemo(() => aReprendre(serveur, reunion.id).filter(attendConcretisation), [serveur, reunion.id]);
-  const aDecider = [...[...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => ici(x) && aConcretiser(x) && !x.concretisation), ...(anime ? reportes : [])];
+  const aDecider = [...[...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => ici(x) && aConcretiser(x) && !x.concretisation && x.sous_type !== 'reportee'), ...(anime ? reportes : [])];
   /**
    * Concrétisation d'un point (08/10, feuille « Concrétiser ») : les choix de l'animateur sur ceux proposés
    * (action → créer une tâche, sinon suivre ; responsable = qui l'a noté ; validation = l'animateur ; échéance =

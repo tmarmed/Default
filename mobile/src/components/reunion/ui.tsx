@@ -60,7 +60,7 @@ export function PastilleStatut({ t, affiche }: { t: Item; affiche?: { texte: str
 export const pastilleStatut = (s: Statut): { texte: string; ton: Ton } =>
   s === 'termine' ? { texte: 'terminée', ton: 'vert' } : s === 'en_cours' ? { texte: 'en cours', ton: 'bleu' } : { texte: 'à faire', ton: 'gris' };
 /** Couleur de la pastille d'un point selon son type */
-export const tonType = (t: TypePoint): Ton => (t === 'blocage' || t === 'risque' ? 'rouge' : t === 'decision' || t === 'action' || t === 'dependance' ? 'orange' : t === 'information' ? 'gris' : 'bleu');
+export const tonType = (t: TypePoint): Ton => (t === 'blocage' || t === 'risque' ? 'rouge' : t === 'decision' || t === 'action' || t === 'dependance' ? 'orange' : t === 'information' ? 'gris' : t === 'proposition' ? 'vert' : 'bleu');
 
 /** Pastille ; `age` : une seconde pastille orange à côté, à partir de 2 jours (« depuis 3 j », règle du 07/10) ; `avant` : une pastille devant (la réunion d'un point de suivi) */
 export function Pastille({ texte, ton, age: date, avant }: { texte: string; ton: Ton; age?: string; avant?: { texte: string; ton: Ton } }) {
@@ -247,6 +247,7 @@ export const TITRE_TYPE: Record<string, string> = {
   information: 'Nouvelle information',
   risque: 'Nouveau risque',
   dependance: 'Nouvelle dépendance',
+  proposition: 'Nouvelle proposition',
 };
 export const titreAjout = (types: TypePoint[]) => (types.length === 1 ? (TITRE_TYPE[types[0]] ?? 'Nouvelle note') : 'Nouvelle note');
 

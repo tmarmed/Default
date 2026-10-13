@@ -7,7 +7,7 @@ import { budgetDemoEntreprise, donneesDemo, orgDemo, orgTousLesRoles, pointsDemo
 import { absentsLe, joursAbsence, joursPrevus, jppConstate } from '../src/conges';
 import { avecDossiers, gerantsBudget, libelleDecisionDossier, libelleStatutDemande, manquesDossier, niveauDessus, reunionDuNiveau } from '../src/budget';
 import { enfantsRepartition, montantSurPeriode, partsDe, resumeDepense } from '../src/budget';
-import { creerMagasin, nettoyerDepense } from '../src/magasin';
+import { creerMagasin, nettoyerDepense, nettoyerPoint } from '../src/magasin';
 import { mesSuivis, reunionDeNote } from '../src/daily';
 import { reglerVocabulaire, vocab } from '../src/vocabulaire';
 import type { Conge, Depense, Item, PointReunion } from '../src/types';
@@ -566,6 +566,15 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
     const ptP = { id: 'p1', reunion: 'daily-equipeagile:e-2026-10-02', personne: 'emma@x', auteur: 'a@x', type: 'action', texte: 't', element: '', concretisation: 'tache', tache: 'acm9', responsable: 'emma@x', cree_le: '', statut: 'en_cours', validateur: 'moi@x' } as PointReunion;
     const plP = planSuivi({ pt: ptP, espace: 'e', note: '', moi: 'moi@x', animateur: 'moi@x', nomDe: (m: string) => m, echanges: [], niveau: '', action: 'plus_suivre' });
     ok(plP.points.length === 1 && plP.points[0].patch.statut === 'plus_suivi' && plP.envoyer.length === 1 && plP.envoyer[0].a === 'emma@x' && mesSuivis([{ ...ptP, statut: 'plus_suivi' }], 'emma@x').fermees.length === 1, 'Plus suivi : fermé, responsable informé, élément lié non touché');
+  }
+  // Notes (13/10) : Information par défaut, fermée d'office ; 💡 Proposition (rétro) : créer une tâche d'amélioration ;
+  // proposition reportée gardée (rétro suivante), « reportée » refusé sur un autre type
+  {
+    const hN = { items: [], featureList: [], epicList: [], objectifList: [] } as never;
+    const cI = choixParDefaut({ type: 'information', texte: 'i', element: '', personne: 'a@x', responsable: '' }, { animateur: 'a@x', echeance: '', h: hN, moi: 'a@x' });
+    const cP = choixParDefaut({ type: 'proposition', texte: 'p', element: '', personne: 'a@x', responsable: '' }, { animateur: 'a@x', echeance: '', h: hN, moi: 'a@x' });
+    const base = { reunion: 'retro-equipeagile:e-2026-10-14', personne: 'a@x', auteur: 'a@x', texte: 't', element: '' };
+    ok(cI.que === 'rien' && cP.que === 'creer' && nettoyerPoint({ ...base, type: 'proposition', sous_type: 'reportee' }).sous_type === 'reportee' && nettoyerPoint({ ...base, type: 'blocage', sous_type: 'reportee' }).sous_type === '', 'notes : Information fermée d’office ; Proposition → tâche d’amélioration, reportée à la rétro suivante');
   }
   // Conversion (09/10) : points enregistrés ; en mode Simple, jours = points × jours par point de l'équipe
   reglerConversion(true, new Map([['acmeqmob', 0.5]]));
