@@ -317,7 +317,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   }, [visible, reunion.id]);
 
   // Plan du jour (13/10, R5) : places, événements perso et journée, dans 🔒 Moi (vus par moi seul) ; écrits avec « Mon point »
-  const { places, setPlaces, evtsPerso, setEvtsPerso, journee, changerJournee, ecrire: ecrireCreneaux, reunionsDuJour } = usePlanJour({ visible, actions, mail, jour, org, safeActif: safe.actif, onInfo });
+  const { planAilleurs, places, setPlaces, evtsPerso, setEvtsPerso, journee, changerJournee, ecrire: ecrireCreneaux, reunionsDuJour } = usePlanJour({ visible, actions, mail, jour, org, safeActif: safe.actif, onInfo });
 
   // Animateur : chaque étape et chaque membre du tour de table sont publiés dans la ligne d'état
   useEffect(() => {
@@ -495,7 +495,11 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     if (ici.length) await actions.repondreEchanges(ici.map((r) => ({ e: r.q, reponse: r.q.reponse, note: r.q.note })));
     const retires = Object.keys(anciens).filter((id) => anciens[id] === o);
     const { crees } = await actions.ecrirePoints(espace, pts.map(aEcrire), [], retires);
-    if (o === 'membre') await ecrireCreneaux(new Set(pts.filter((x) => x.type === 'aujourdhui').map((x) => x.element)));
+    // Plan commun : on ne retire que les places des éléments de ce Daily décochés ; les autres (autres Dailies, Point perso) restent
+    if (o === 'membre') {
+      const coches = new Set(pts.filter((x) => x.type === 'aujourdhui').map((x) => x.element));
+      await ecrireCreneaux(new Set(Object.keys(places).filter((id) => coches.has(id) || !aujListe.some((t) => t.id === id))));
+    }
     setServeur((l) => [...l.filter((x) => !retires.includes(x.id)), ...crees]);
     setAnciens((a) => ({ ...Object.fromEntries(Object.entries(a).filter(([id]) => !retires.includes(id))), ...Object.fromEntries(crees.map((x) => [x.id, o])) }));
     setPrep((l) => [...l.filter((x) => (x.onglet ?? 'membre') !== o), ...crees.map((x) => ({ ...x, id: idLocal(), onglet: o }))]);
@@ -798,7 +802,11 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
           <>
             <TitreFiche icone="🗓️" titre="Plan du jour" vide="" sous={sous('Placez vos éléments dans la journée : vu par vous seul')} />
             <PlanDuJour
-              elements={aujListe.filter((t) => coche('aujourdhui', t, t.titre) && !aMoi.some((y) => y.id === t.id))}
+              elements={[
+                ...aujListe.filter((t) => coche('aujourdhui', t, t.titre)),
+                // Plan commun (R5b) : ce que j'ai coché à mes autres Dailies du jour (autres équipes, autres espaces)
+                ...[...new Set(planAilleurs.filter((x) => x.reunion !== reunion.id).map((x) => x.element))].map((id) => parId.get(id)).filter((t): t is Item => !!t && t.statut !== 'termine' && !aujListe.some((y) => y.id === t.id)),
+              ].filter((t) => !aMoi.some((y) => y.id === t.id))}
               places={places}
               fixes={fixes}
               perso={evtsPerso}

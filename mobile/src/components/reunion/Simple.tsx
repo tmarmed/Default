@@ -224,7 +224,11 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
             <TitreFiche icone="🗓️" titre="Plan du jour" vide="" sous={`${planifie.length} tâche${planifie.length > 1 ? 's' : ''} · ${heures(hPlan)} · vu par vous seul`} />
             {/* 13/10 (R5) : le même Plan du jour que le Daily ; les tâches à l'heure aujourd'hui sont fixes */}
             <PlanDuJour
-              elements={planifie.filter((t) => !(t.date === jour && t.heure))}
+              elements={[
+                ...planifie,
+                // Plan commun (R5b) : ce que j'ai coché à mes Dailies du jour
+                ...[...new Set(pj.planAilleurs.map((x) => x.element))].map((id) => h.items.find((t) => t.id === id)).filter((t): t is Item => !!t && t.statut !== 'termine' && !planifie.some((y) => y.id === t.id)),
+              ].filter((t) => !(t.date === jour && t.heure))}
               places={pj.places}
               fixes={[...pj.reunionsDuJour.filter((x) => !/Point perso/.test(x.titre)), ...planifie.filter((t) => t.date === jour && !!t.heure).map((t) => ({ heure: t.heure.replace(/^0/, ''), fin: t.heure_fin ? t.heure_fin.replace(/^0/, '') : enHeure(enMinutes(t.heure) + 60), titre: t.titre }))]}
               perso={pj.evtsPerso}
@@ -466,7 +470,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
     }
     if (reunion.type === 'point_perso') {
       await AsyncStorage.setItem(CLE_PLAN(jour), JSON.stringify(dansPlan)).catch(() => {});
-      await pj.ecrire(new Set(dansPlan));
+      await pj.ecrire(new Set(Object.keys(pj.places).filter((id) => dansPlan.includes(id) || !auj.some((t) => t.id === id))));
     }
     if (reunion.type === 'revue_semaine') await AsyncStorage.setItem(CLE_PRIORITES, JSON.stringify(priorites)).catch(() => {});
     if (reunion.type === 'point_annuel') await AsyncStorage.setItem(CLE_GAC(jour), JSON.stringify(gac)).catch(() => {});

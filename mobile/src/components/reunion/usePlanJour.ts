@@ -101,5 +101,26 @@ export function usePlanJour({ visible, actions, mail, jour, org, safeActif, onIn
     }
   };
 
-  return { places, setPlaces, evtsPerso, setEvtsPerso, journee, changerJournee, ecrire: ecrireCreneaux, reunionsDuJour };
+  // Plan commun (R5b, 13/10) : les éléments cochés « aujourd'hui » à mes autres réunions du jour (Dailies de mes
+  // équipes, quel que soit l'espace) ; une lecture par réunion, à l'ouverture
+  const [planAilleurs, setPlanAilleurs] = useState<{ element: string; reunion: string; titre: string }[]>([]);
+  useEffect(() => {
+    if (!visible) return;
+    setPlanAilleurs([]);
+    let actif = true;
+    const dailies = reunionsAVenir(org, mail, jour, safeActif, 1).filter((r) => r.debut.slice(0, 10) === jour && r.type === 'daily');
+    Promise.all(
+      dailies.map((r) =>
+        actions
+          .lirePoints(r.espace || 'moi', r.id)
+          .then((l) => l.filter((x) => x.reunion === r.id && x.personne === mail && x.type === 'aujourdhui' && !!x.element).map((x) => ({ element: x.element, reunion: r.id, titre: [r.titre, libelleNiveau(lireNiveau(r.niveau), org)].filter(Boolean).join(' · ') })))
+          .catch(() => []),
+      ),
+    ).then((ll) => actif && setPlanAilleurs(ll.flat()));
+    return () => {
+      actif = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, jour]);
+  return { planAilleurs, places, setPlaces, evtsPerso, setEvtsPerso, journee, changerJournee, ecrire: ecrireCreneaux, reunionsDuJour };
 }
