@@ -14,7 +14,10 @@ Décidé (validé par l'utilisateur) :
 - 1re étape : bloc à part, dans l'ordre 1. éléments (compteurs ou plan), 2. « Avancement depuis le … » avec son filtre
   (s'ouvre / se ferme, 1re étape seulement : sorte + niveau), 3. « 📌 Suivis » (notes) inchangé.
 - Toucher un avancement : comme l'existant (ligne → fiche de l'élément ›, pastille de statut touchable).
-- EN ATTENTE : forme du filtre (proposé : pastilles par sorte, tout coché, compte rendu = ce que le filtre affiche),
+- Filtre : pastille qui ouvre / ferme ; rangée par sorte (Statut · Valeur · Échéance · Sprint ou PI · Responsable ·
+  Ajouté en cours de route) + rangée par niveau ; tout coché au départ. Même filtre (partagé) en 1re étape ET dans le
+  compte rendu ; le compte rendu envoyé = ce que le filtre affiche. Compte rendu : fermé, ouvert d'office si filtré.
+- EN ATTENTE : (ancien) forme du filtre (proposé : pastilles par sorte, tout coché, compte rendu = ce que le filtre affiche),
   puis : première réunion sans photo, périmètre (éléments de qui).
 - Une entrée par élément (tâche, story, feature, epic…), départ → arrivée sur la période ; allers-retours compensés ;
   revenu à son départ = rien.
