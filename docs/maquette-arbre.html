@@ -47,11 +47,11 @@ h1{font-size:21px;margin:0 0 4px}.intro{color:var(--doux);margin:0 0 18px;max-wi
 <body>
 <main>
 <h1>Maquette · arbre des éléments</h1>
-<p class="intro">Un seul composant pour toutes les réunions : chaque élément avec son état, et ses changements juste en dessous (↳). Le filtre « Tout » / « Changés seulement » change seulement ce qu'on affiche. Tout est ouvert au départ ; touchez ▾ pour fermer un niveau. Données de la démo ACME, équipe Mobile, depuis le Daily du 13/10.</p>
+<p class="intro">Un seul composant pour toutes les réunions : chaque élément avec son état, et ses changements juste en dessous (↳). Le filtre « Tout » / « Changés seulement » change seulement ce qu'on affiche. Les blocs et les niveaux sont ouverts au départ, et se ferment en touchant ▾ (sauf la Situation d'une réunion avec tour de table : blocs fermés). Données de la démo ACME, équipe Mobile, depuis le Daily du 13/10.</p>
 <div class="ecrans">
   <div>
     <div class="tel" id="sit"></div>
-    <p class="legende"><b>Daily · Situation</b> : toute l'équipe ; trois blocs avec le même composant et le même filtre : Éléments, 💶 Budget, 📌 Suivis.</p>
+    <p class="legende"><b>Daily · Situation</b> : toute l'équipe ; trois blocs fermés au départ (tour de table ensuite) : Éléments, 💶 Demandes de budget du Daily, 📌 Suivis.</p>
   </div>
   <div>
     <div class="tel" id="tour"></div>
@@ -86,9 +86,8 @@ const ARBRE = [
   ] },
 ];
 const BUDGET = [
-  { id: 'v1', ic: '💶', ti: 'Enveloppe 2026 · train Clients', st: null, s: '150 000 € · 92 000 € engagés', ch: [['valeur', 'Valeur : 120 000 € → 150 000 €', 25]] },
-  { id: 'd1', ic: '💶', ti: 'Demande : écrans de test', st: null, s: '2 000 € · accordée', ch: [['statut', 'Statut : Soumise → Accordée'], ['valeur', 'Valeur : 2 400 € → 2 000 €', 17]] },
-  { id: 'v2', ic: '💶', ti: 'Application client · budget de l’epic', st: null, s: '100 000 €', ch: [['valeur', 'Valeur : 99 500 € → 100 000 €', 0.5]] },
+  { id: 'd1', ic: '💶', ti: 'Demande : licence de l’outil de test', st: null, s: '1 200 € · demandée au Daily du 13/10 par Tom Faure', ch: [['statut', 'Statut : Soumise → Accordée']] },
+  { id: 'd2', ic: '💶', ti: 'Demande : écrans de test', st: null, s: '2 000 € · demandée au Daily du 09/10 par Emma Roy', ch: [['valeur', 'Valeur : 2 400 € → 2 000 €', 17]] },
 ];
 const SUIVIS = [
   { id: 'p1', ic: '📌', ti: 'Demande d’action · Revoir les maquettes du panier', st: 'fait', qui: 'Emma Roy', s: 'Emma Roy · à valider par vous', ch: [['statut', 'Statut : En cours → Fait']] },
@@ -99,9 +98,11 @@ LIB.fait = 'fait'; CL.fait = 'p-t'; LIB.retard = 'en retard'; CL.retard = 'p-o';
 const SORTES = [['', 'Tout changement'], ['statut', 'Statut'], ['valeur', 'Valeur'], ['echeance', 'Échéance'], ['planning', 'Sprint ou PI'], ['responsable', 'Responsable'], ['ajoute', 'Ajouté']];
 const SEUILS = [0, 1, 5, 10, 20];
 
-function etat() { return { mode: 'tout', sorte: '', seuil: 0, ferme: new Set(), filtres: {} }; }
+function etat() { return { mode: 'tout', sorte: '', seuil: 0, ferme: new Set(), filtres: {}, blocs: new Set() }; }
 const E = { sit: etat(), tour: etat() };
 E.tour.coches = new Set(['t1', 's6']);
+// Réunion avec tour de table : la Situation s'ouvre avec ses blocs fermés (le détail vient au tour de table)
+E.sit.blocs = new Set(['el', 'bu', 'su']);
 E.tour.membre = 'Tom Faure';
 
 const changes = (n, f) => (n.ch || []).filter(([s, , pct]) => (!f.sorte || s === f.sorte) && !(s === 'valeur' && f.seuil && pct !== undefined && pct < f.seuil));
@@ -134,17 +135,18 @@ function bloc(cle, id, titre, nodes, avecCases, avecSeuil) {
   const actif = f.mode !== 'tout' || f.sorte || f.seuil;
   const corps = nodes.map((n) => rendreNoeud(n, cle, f, avecCases)).join('');
   const chips = (k, liste) => `<div class="rangee">${liste.map(([v, l]) => `<span class="chip ${String(f[k]) === String(v) ? 'on' : ''}" data-f="${cle}" data-k="${k}" data-v="${v}">${l}</span>`).join('')}</div>`;
-  return `<div class="sec"><h3>${titre} · ${nbTous(nodes)} · ${nbChanges(nodes, f)} changés</h3><span class="pfiltre ${actif ? 'actif' : ''}" data-o="${cle}" data-b="${id}">Filtres ${ouvert ? '▴' : '▾'}</span></div>
-  ${ouvert ? `<div class="filtres">${chips('mode', [['tout', 'Tout'], ['changes', 'Changés seulement']])}${chips('sorte', SORTES)}${avecSeuil ? chips('seuil', SEUILS.map((x) => [x, x ? `Seuil ≥ ${x} %` : 'Seuil : tout changement'])) : ''}</div>` : ''}
-  <div class="carte">${corps || '<div class="vide">Rien n’a changé depuis le Daily du 13/10.</div>'}</div>`;
+  const fermeB = f.blocs.has(id);
+  return `<div class="sec"><h3 style="cursor:pointer" data-bloc="${cle}" data-id="${id}">${fermeB ? '›' : '▾'} ${titre} · ${nbTous(nodes)} · ${nbChanges(nodes, f)} changés</h3><span class="pfiltre ${actif ? 'actif' : ''}" data-o="${cle}" data-b="${id}">Filtres ${ouvert ? '▴' : '▾'}</span></div>
+  ${fermeB ? '' : `${ouvert ? `<div class="filtres">${chips('mode', [['tout', 'Tout'], ['changes', 'Changés seulement']])}${chips('sorte', SORTES)}${avecSeuil ? chips('seuil', SEUILS.map((x) => [x, x ? `Seuil ≥ ${x} %` : 'Seuil : tout changement'])) : ''}</div>` : ''}
+  <div class="carte">${corps || '<div class="vide">Rien n’a changé depuis le Daily du 13/10.</div>'}</div>`}`;
 }
 function rendre() {
   const s = E.sit;
   document.getElementById('sit').innerHTML = `<div class="haut"><div class="t">☀️ Daily · Situation</div><div class="st">Mobile · Sprint 1 · depuis le Daily du 13/10</div></div><div class="corps">
     <div class="tuiles"><div class="tuile"><b>13 / 21</b><span>pts faits / prévus</span></div><div class="tuile"><b class="r" style="color:var(--rouge)">1</b><span>story bloquée</span></div><div class="tuile"><b>0</b><span>en retard</span></div></div>
     <div style="font-size:12.5px;color:var(--doux);margin:4px 4px 0">📅 Absents aujourd’hui : Léa Roux</div>
-    ${bloc('sit', 'el', 'Éléments', ARBRE, false, false)}${bloc('sit', 'bu', '💶 Budget', BUDGET, false, true)}${bloc('sit', 'su', '📌 Suivis', SUIVIS, false, false)}
-    <div class="note">Le filtre est partagé par les trois blocs (un seul réglage par écran). Mode « Changés seulement » : les éléments sans changement disparaissent ; une epic ou une feature reste en gris si un élément en dessous a changé.</div></div>`;
+    ${bloc('sit', 'el', 'Éléments', ARBRE, false, false)}${bloc('sit', 'bu', '💶 Demandes de budget du Daily', BUDGET, false, true)}${bloc('sit', 'su', '📌 Suivis', SUIVIS, false, false)}
+    <div class="note">Le Daily a un tour de table : les trois blocs arrivent fermés (touchez leur titre pour les ouvrir). Une réunion sans tour de table (Revue de sprint, ART sync…) les montre ouverts. Le filtre est partagé par les trois blocs (un seul réglage par écran). Mode « Changés seulement » : les éléments sans changement disparaissent ; une epic ou une feature reste en gris si un élément en dessous a changé.</div></div>`;
   const t = E.tour;
   const mien = pourMembre(ARBRE, t.membre);
   const suivis = SUIVIS.filter((x) => x.qui === t.membre);
@@ -154,10 +156,11 @@ function rendre() {
     <div class="note">En gris : l'epic et la feature de ses stories, pour le contexte. « Paiement en ligne », passé de Tom Faure à Emma Roy, s'affiche chez Emma Roy (« Responsable : Tom Faure → Emma Roy »).</div></div>`;
 }
 document.addEventListener('click', (ev) => {
-  const x = ev.target.closest('[data-e],[data-c],[data-o],[data-f],[data-m]');
+  const x = ev.target.closest('[data-e],[data-c],[data-o],[data-f],[data-m],[data-bloc]');
   if (!x) return;
   const d = x.dataset;
-  if (d.e) { const f = E[d.e].ferme; f.has(d.n) ? f.delete(d.n) : f.add(d.n); }
+  if (d.bloc) { const b = E[d.bloc].blocs; b.has(d.id) ? b.delete(d.id) : b.add(d.id); }
+  else if (d.e) { const f = E[d.e].ferme; f.has(d.n) ? f.delete(d.n) : f.add(d.n); }
   else if (d.c) { const c = E[d.c].coches; c.has(d.n) ? c.delete(d.n) : c.add(d.n); }
   else if (d.o) { // un seul filtre par écran : ouvrir celui du bloc touché
     const f = E[d.o].filtres; f[d.b] = !f[d.b];

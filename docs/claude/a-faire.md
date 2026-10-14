@@ -15,8 +15,13 @@ Décidé par l'utilisateur :
   statut).
 - Élément sorti de la liste (passé à un autre membre, sorti du sprint) : visible seulement là où il est maintenant,
   avec son changement (pas de doublon grisé).
-Questions ouvertes : lot (tout d'un coup ou Daily d'abord) ; profondeur ouverte par réunion ; budgets et suivis
-dans l'arbre ou en blocs à part avec le même filtre.
+- Trois blocs à part, même composant et même filtre : Éléments (l'arbre), 💶 Budget, 📌 Suivis. Au Daily, le bloc
+  budget = seulement les demandes de budget faites au Daily.
+- Blocs et niveaux ouverts au départ, toujours refermables. Exception : réunion avec tour de table (Daily) : la
+  Situation arrive avec ses blocs fermés, le tour de table les montre ouverts. Sans tour de table : ouverts.
+- Tableau du périmètre par réunion validé (équipe, membre, train, portfolio, Simple, perso).
+- Maquette : docs/maquette-arbre.html.
+Questions ouvertes : lot (tout d'un coup ou Daily d'abord) ; remarques sur la maquette.
 
 ## Session 4 (14/10) : avancement visible dans toutes les réunions de la démo — FAIT
 Démo (src/demo.ts, photosSeries) : pour chaque série (équipes Mobile et Web, trains Clients et Paiements, portfolio
