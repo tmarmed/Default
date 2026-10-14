@@ -1204,7 +1204,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 « je travaille dessus aujourd'hui » (plan du jour, jamais le statut) */}
             <BlocArbre
               av={avancement}
-              titre={`Éléments de ${courant.nom} · ${sesElements.filter(dansPlan).length} coché${sesElements.filter(dansPlan).length > 1 ? 's' : ''}`}
+              titre={`Éléments de ${courant.nom}`}
               cles={sesElements.map((t) => `t:${t.id}`)}
               strict
               nom={nomDe}

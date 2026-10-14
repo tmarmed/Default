@@ -298,7 +298,8 @@ export function BlocArbre({
   const corps = racines.map((n, i) => rendre(n, 0, i === 0)).filter(Boolean);
   return (
     <SectionFiche
-      titre={`${ouvert ? '▾' : '›'} ${titre} · ${nTous}${av.lignes ? ` · ${nChanges} changé${nChanges > 1 ? 's' : ''}` : ''}`}
+      // Titre (14/10) : « Éléments du sprint (12) (5 changés) », pour tous les blocs de ce composant
+      titre={`${ouvert ? '▾' : '›'} ${titre} (${nTous})${av.lignes ? ` (${nChanges} changé${nChanges > 1 ? 's' : ''})` : ''}`}
       onTitre={() => setOuvert((o) => !o)}
       boite
       droite={
