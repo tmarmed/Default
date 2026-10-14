@@ -180,6 +180,15 @@ Information (concrétisées comme les autres), Risque et Dépendance au train ; 
 Ajuster ajoute une note à concrétiser) ; participants repris de l'Organisation ; Compte rendu visible de l'équipe.
 
 ## Reste à faire
+- CRA, compte rendu d'activité (14/10, demandé par l'utilisateur, à concevoir) : savoir sur quoi chacun a travaillé,
+  pour le budget (consommé réel). Sources possibles, à choisir : ce que la personne dit au Daily (« Hier »), ou le plan
+  du jour validé le soir (Bilan du soir) ou le matin (Point perso). Si le Daily ne l'a pas bien rempli : estimer à
+  partir des tâches et du sprint (méthodes d'estimation à proposer).
+- Jours passés sur une story (14/10) : saisir une estimation ou le nombre réel de jours d'une personne sur une user
+  story ; suivi avec le CRA et les estimations.
+- Calcul automatique des niveaux au-dessus (14/10) : les valeurs des features et des epics se calculent depuis le
+  dessous. Case « Calcul automatique » sur chaque feature et chaque epic, cochée par défaut ; décochée, la valeur mise
+  à la main est forcée (ex. epic à 60 jours). La dernière valeur mise à la main est gardée, pour la remettre sur demande.
 - Chapters (13/10, reporté par l'utilisateur) : regroupement transverse par métier (SAFe seulement, pas en mode Simple),
   Chapter lead ; décidé : réunion « Réunion du chapter » mensuelle (Situation · Pratiques avec vote étoiles · Compétences
   · Concrétisation · Compte rendu), animée par le Chapter lead. Ouvert : qui crée (proposé : RTE ou Epic Owner) et qui
