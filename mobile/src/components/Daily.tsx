@@ -951,59 +951,49 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         return (
           <>
             <TitreFiche icone="🏁" titre="Stories à accepter" vide="" sous={sous(`${it.nom} · terminées, cochez celles que vous accepterez aujourd’hui`)} />
-            <BlocBrique titre={`Terminées · ${aAccepter.length}`}>
-              {aAccepter.length ? (
-                aAccepter.map((t, i) => {
-                  const n = subs.get(t.id)?.length ?? 0;
-                  const resp = t.responsable ? org.personne.get(t.responsable) : undefined;
-                  const texte = `Accepter « ${t.titre} »`;
-                  return (
-                    <LigneCase
-                      key={t.id}
-                      premiere={i === 0}
-                      texte={`📖 ${t.titre}`}
-                      sous={[resp ? `👤 ${resp.nom}` : '', pointsOf(t) ? fmt(pointsOf(t)) : '', n ? pluriel(n, 'sous-tâche') : ''].filter(Boolean).join(' · ')}
-                      coche={coche('aujourdhui', t, texte)}
-                      onBasculer={() => basculer('aujourdhui', t, texte, 'po')}
-                      onOuvrir={ouvrir(t)}
-                      pastille={pastilleStatut(t.statut)}
-                      tache={t}
-                    />
-                  );
-                })
-              ) : (
-                <Vide texte="Aucune story terminée dans le sprint." />
-              )}
-            </BlocBrique>
+            {/* Arbre des éléments (14/10) : la case « accepter aujourd'hui » sur chaque story */}
+            {aAccepter.length ? (
+              <BlocArbre
+                key="arbre-accepter"
+                av={avancement}
+                titre="Terminées"
+                cles={aAccepter.map((t) => `t:${t.id}`)}
+                strict
+                nom={nomDe}
+                montrerResponsable
+                sousEnPlus={(t) => { const n = subs.get(t.id)?.length ?? 0; return n ? pluriel(n, 'sous-tâche') : ''; }}
+                cases={{ coche: (t) => coche('aujourdhui', t, `Accepter « ${t.titre} »`), basculer: (t) => basculer('aujourdhui', t, `Accepter « ${t.titre} »`, 'po'), fige: lecture }}
+                lecture={lecture}
+                onOuvrir={lecture ? undefined : onOpenTask}
+                onOuvrirEntite={lecture ? undefined : onOpenEntite}
+              />
+            ) : (
+              <Vide texte="Aucune story terminée dans le sprint." />
+            )}
           </>
         );
       case 'backlog':
         return (
           <>
             <TitreFiche icone="🪄" titre="Backlog à préparer" vide="" sous={sous(`Stories des features du PI sans estimation ou trop grosses (plus de ${fmt(8)})`)} />
-            <BlocBrique titre={`À préparer · ${aPreparer.length}`}>
-              {aPreparer.length ? (
-                aPreparer.map(({ story: t, raison }, i) => {
-                  const n = subs.get(t.id)?.length ?? 0;
-                  const texte = `Préparer « ${t.titre} »`;
-                  const f = h.features.get(t.feature);
-                  return (
-                    <LigneCase
-                      key={t.id}
-                      premiere={i === 0}
-                      texte={`📖 ${t.titre}`}
-                      sous={[f ? `📦 ${f.titre}` : '', raison === 'trop_grosse' ? `${fmt(pointsOf(t))}, à découper` : '', n ? pluriel(n, 'sous-tâche') : ''].filter(Boolean).join(' · ')}
-                      coche={coche('aujourdhui', t, texte)}
-                      onBasculer={() => basculer('aujourdhui', t, texte, 'po')}
-                      onOuvrir={ouvrir(t)}
-                      pastille={{ texte: raison === 'trop_grosse' ? 'trop grosse' : 'sans estimation', ton: 'orange' }}
-                    />
-                  );
-                })
-              ) : (
-                <Vide texte="✓ Backlog du PI prêt : toutes les stories sont estimées." />
-              )}
-            </BlocBrique>
+            {aPreparer.length ? (
+              <BlocArbre
+                key="arbre-backlog"
+                av={avancement}
+                titre="À préparer"
+                cles={aPreparer.map(({ story }) => `t:${story.id}`)}
+                strict
+                nom={nomDe}
+                sousEnPlus={(t) => { const x = aPreparer.find((y) => y.story.id === t.id); const n = subs.get(t.id)?.length ?? 0; return [x?.raison === 'trop_grosse' ? `${fmt(pointsOf(t))}, à découper` : '', n ? pluriel(n, 'sous-tâche') : ''].filter(Boolean).join(' · '); }}
+                pastilleDe={(t) => { const x = aPreparer.find((y) => y.story.id === t.id); return x ? { texte: x.raison === 'trop_grosse' ? 'trop grosse' : 'sans estimation', ton: 'orange' } : undefined; }}
+                cases={{ coche: (t) => coche('aujourdhui', t, `Préparer « ${t.titre} »`), basculer: (t) => basculer('aujourdhui', t, `Préparer « ${t.titre} »`, 'po'), fige: lecture }}
+                lecture={lecture}
+                onOuvrir={lecture ? undefined : onOpenTask}
+                onOuvrirEntite={lecture ? undefined : onOpenEntite}
+              />
+            ) : (
+              <Vide texte="✓ Backlog du PI prêt : toutes les stories sont estimées." />
+            )}
           </>
         );
       case 'questions': {
@@ -1085,7 +1075,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               n={nSuivisVus}
               nChanges={nbSuivisChanges(avancement, nouveauxSuivis)}
               fermeAuDepart
-              arborescence={{ valeur: arboSuivis, changer: setArboSuivis }}
+              arborescence={nouveauxSuivis.some((x) => !!cheminElement(x.element, h)) ? { valeur: arboSuivis, changer: setArboSuivis } : undefined}
               aValider={{ n: nValider, actif: aValider, onPress: () => setAValider((v) => !v) }}
               filtres={{
                 actif: !!filtreSuivi || vueSuivi !== 'tout' || avancement.filtre.mode !== 'elements',
@@ -1201,7 +1191,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               onOuvrirEntite={lecture ? undefined : onOpenEntite}
             />
             {sesSuivis.length > 0 && (
-              <BlocBrique titre={`📌 Suivis de ${courant.nom}`} n={sesSuivis.length} nChanges={nbSuivisChanges(avancement, sesSuivis)} arborescence={{ valeur: arboSuivis, changer: setArboSuivis }}>
+              <BlocBrique titre={`📌 Suivis de ${courant.nom}`} n={sesSuivis.length} nChanges={nbSuivisChanges(avancement, sesSuivis)} arborescence={sesSuivis.some((x) => !!cheminElement(x.element, h)) ? { valeur: arboSuivis, changer: setArboSuivis } : undefined}>
                 <LignesSuivi parElement={arboSuivis} points={sesSuivis} ctx={{ ...ctxSuivi, lecture }} />
               </BlocBrique>
             )}
@@ -1211,7 +1201,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               titre="Notes"
               n={notes.filter((y) => !filtreType || y.type === filtreType).length}
               suffixe={filtreType ? ` sur ${notes.length}` : ''}
-              arborescence={{ valeur: arboSuivis, changer: setArboSuivis }}
+              arborescence={notes.some((x) => !!cheminElement(x.element, h)) ? { valeur: arboSuivis, changer: setArboSuivis } : undefined}
               filtres={{ actif: !!filtreType, contenu: <FiltresType types={['information', 'blocage', 'decision', 'action']} value={filtreType} onChange={setFiltreType} /> }}
             >
               {(arboSuivis ? [...notes].sort((x, y) => cheminElement(x.element, h).localeCompare(cheminElement(y.element, h))) : notes).filter((y) => !filtreType || y.type === filtreType).map((y, i, l) => {

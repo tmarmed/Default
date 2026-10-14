@@ -20,8 +20,11 @@ spécialisées (enveloppes, répartition, écarts, dossiers) qui ont leurs saisi
 Affinage, Planification au catalogue (comme les réunions du train). FAIT en partie (14/10) : les 117 blocs de ces
 réunions, des réunions du train (Niveau), perso (Simple, Plan du jour) et de l'écran commun (Concrétisation,
 Compte rendu) passent par la coque BlocBrique (« Nom · n » affiché « Nom (n) ») ; PAS FAIT : écrire ces réunions
-comme une liste déclarative d'étapes (catalogue, comme Niveau.tsx), ni passer les listes à actions (stories à
-accepter, non terminées, backlog du PO, affinage) sur l'arbre.
+comme une liste déclarative d'étapes (catalogue, comme Niveau.tsx), (décidé de ne pas le faire, 14/10). Listes à
+actions passées sur l'arbre (14/10) : stories à accepter et backlog à préparer du PO (Daily), non terminées (Revue, SM
+et PO) ; BlocArbre accepte actions / sousEnPlus / pastilleDe. Pas sur l'arbre (l'ordre compte) : ordre des stories
+(Affinage), priorités du backlog (Planification) ; écrans un par un (stories de la Revue, de l'Affinage). Case 🌳
+seulement quand elle change quelque chose (un élément a un parent ; un suivi ou une note a un élément).
 
 ## Session 4 (14/10, suite) : arbre des éléments — CODÉ (validé « fais tout en même temps »)
 Code : src/components/reunion/Arbre.tsx (BlocArbre, construireArbre, clesDe, changementsSuivi, ModeAffichage) ;

@@ -6,7 +6,7 @@
  * On part des éléments de la réunion (`cles`) et on remonte (story › feature › epic) ; jamais toute l'arborescence.
  * Familles : « elements » (epics, features, stories, tâches, objectifs) et « budget » (enveloppes, demandes).
  */
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Chips } from '../Chips';
 import { estFiltre, focusDe, type LigneAv, type ModeAv, MODES_AV, phrase, statutFeature } from '../../avancement';
@@ -144,10 +144,19 @@ export function BlocArbre({
   montrerResponsable,
   cases,
   strict,
+  actions,
+  sousEnPlus,
+  pastilleDe: pastilleImposee,
   lecture,
   onOuvrir,
   onOuvrirEntite,
 }: {
+  /** Boutons sous la ligne d'un élément (accepter, décision…), 14/10 : listes à actions dans l'arbre */
+  actions?: (t: Item) => ReactNode;
+  /** Information ajoutée à la sous-ligne d'un élément */
+  sousEnPlus?: (t: Item) => string;
+  /** Pastille imposée pour un élément (ex. « trop grosse ») */
+  pastilleDe?: (t: Item) => { texte: string; ton: 'bleu' | 'vert' | 'rouge' | 'orange' | 'gris' } | undefined;
   /** Tour de table : les parents (feature, epic) ne sont que le contexte des éléments du membre */
   strict?: boolean;
   av: Avancement;
@@ -195,6 +204,7 @@ export function BlocArbre({
   }, [av.vues]);
   const change = (n: Noeud) => !n.contexte && (parCle.get(n.cle)?.length ?? 0) > 0;
   const garde = (n: Noeud): boolean => change(n) || n.enfants.some(garde);
+  const arboUtile = useMemo(() => construireArbre(lesCles, av, famille, strict, (t) => org.trains.find((x) => x.id === t)?.portfolio ?? '').some((n) => n.enfants.length > 0), [cleListe, av.sources, famille, strict]); // eslint-disable-line react-hooks/exhaustive-deps
   const dansBloc = useMemo(() => {
     const x = new Set<string>();
     const v = (n: Noeud) => {
@@ -215,7 +225,7 @@ export function BlocArbre({
       const t = src.items.find((x) => x.id === id);
       if (!t) return '';
       const genre = t.type === 'story' ? `${Number(t.points) || 0} points` : t.parent ? 'Sous-tâche' : t.points ? `Tâche · ${t.points} points` : 'Tâche';
-      return [genre, montrerResponsable && t.responsable ? nomComplet(t.responsable) : ''].filter(Boolean).join(' · ');
+      return [genre, montrerResponsable && t.responsable ? nomComplet(t.responsable) : '', sousEnPlus?.(t) ?? ''].filter(Boolean).join(' · ');
     }
     if (p === 'f') {
       const st2 = src.items.filter((x) => x.feature === id && !x.parent);
@@ -304,8 +314,9 @@ export function BlocArbre({
                     {phrase(l, nomComplet)}
                   </Text>
                 ))}
+              {t && !n.contexte && actions ? <View style={{ marginTop: 6 }}>{actions(t)}</View> : null}
             </View>
-            {t && !lecture ? <PastilleStatut t={t} /> : t ? <Pastille {...pastilleStatut(t.statut)} /> : p ? <Pastille {...p} /> : null}
+            {t && pastilleImposee?.(t) ? <Pastille {...pastilleImposee(t)!} /> : t && !lecture ? <PastilleStatut t={t} /> : t ? <Pastille {...pastilleStatut(t.statut)} /> : p ? <Pastille {...p} /> : null}
             {ouvrir && <Text style={st.chevron}>›</Text>}
           </Pressable>
         </View>
@@ -322,7 +333,8 @@ export function BlocArbre({
       n={nTous}
       nChanges={av.lignes ? nChanges : null}
       fermeAuDepart={fermeAuDepart}
-      arborescence={{ valeur: arbo, changer: setArbo }}
+      // Case 🌳 seulement quand elle change quelque chose (au moins un élément a un parent)
+      arborescence={arboUtile ? { valeur: arbo, changer: setArbo } : undefined}
       filtres={av.lignes && lignesBloc.length > 0 ? { actif: estFiltre(av.filtre), contenu: <FiltreAvancement av={av} lignes={lignesBloc} lecture={lecture} sansTypes /> } : undefined}
     >
       {corps.length ? corps : <Vide texte={mode === 'changes' ? (av.lignes ? 'Rien n’a changé.' : 'Les changements seront visibles à partir de la prochaine réunion.') : 'Rien à afficher.'} />}

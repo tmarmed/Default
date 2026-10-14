@@ -1,6 +1,7 @@
+import { BlocArbre } from './Arbre';
 import { BlocBrique } from './Brique';
 import { useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { LIBELLE_TYPE_POINT, libelleNote, pointsFinis } from '../../daily';
 import { fmtPoints, pointsOf, shiftIteration, nomSprintDe } from '../../pi';
 import type { CatalogueParcours, EtapeCatalogue, ParcoursRole } from '../../reunions';
@@ -177,16 +178,26 @@ export function FenetreRevue(p: PropsReunion) {
         return (
           <>
             <TitreFiche icone="⏳" titre={`Non terminées · ${nonTerminees.length}`} vide="" sous="Proposition du PO, décidée ensemble" />
-            {nonTerminees.map((t) => (
-              <BlocBrique key={t.id} titre={t.titre}>
-                <Ligne premiere texte={sortDe(t) ? `→ ${sortDe(t)}` : 'À décider'} sous={sortPO(t) ? `proposé par le PO : ${sortPO(t)}` : `${fmt(pointsOf(t))} · ${t.statut === 'en_cours' ? 'en cours' : 'pas commencée'}`} />
-                {!lecture && (
-                  <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
-                    <Pastilles petit options={SORT.map((y) => ({ value: y, label: y === 'Reporter' ? `Reporter en ${nomSprintDe(suivante)}` : y }))} value={sortDe(t)} onChange={(y) => setSorts((m) => ({ ...m, [t.id]: y }))} />
-                  </View>
+            {/* Arbre des éléments (14/10) : la décision sous chaque story non terminée */}
+            {nonTerminees.length > 0 && (
+              <BlocArbre
+                av={r.avancement}
+                titre="Non terminées"
+                cles={nonTerminees.map((t) => `t:${t.id}`)}
+                strict
+                nom={e.nomDe}
+                montrerResponsable
+                lecture={lecture}
+                onOuvrir={lecture ? undefined : r.ouvrirTache}
+                onOuvrirEntite={lecture ? undefined : r.ouvrirEntite}
+                actions={(t) => (
+                  <>
+                    <Text style={st.sous}>{sortDe(t) ? `→ ${sortDe(t)}` : 'À décider'}{sortPO(t) ? ` · proposé par le PO : ${sortPO(t)}` : ''}</Text>
+                    {!lecture && <Pastilles petit options={SORT.map((y) => ({ value: y, label: y === 'Reporter' ? `Reporter en ${nomSprintDe(suivante)}` : y }))} value={sortDe(t)} onChange={(y) => setSorts((m) => ({ ...m, [t.id]: y }))} />}
+                  </>
                 )}
-              </BlocBrique>
-            ))}
+              />
+            )}
             {!nonTerminees.length && <Vide texte="✓ Tout est terminé." />}
             <BlocPoints r={r} points={r.tous.filter((y) => r.ici(y) && nonTerminees.some((t) => t.id === y.element))} lecture={lecture} stories={nonTerminees} />
           </>
@@ -278,13 +289,18 @@ export function FenetreRevue(p: PropsReunion) {
         return (
           <>
             <TitreFiche icone="⏳" titre={`Non terminées · ${nonTerminees.length}`} vide="" sous="Votre proposition" />
-            {nonTerminees.map((t) => (
-              <BlocBrique key={t.id} titre={`${t.titre} · ${fmt(pointsOf(t))}`}>
-                <View style={{ padding: 12 }}>
-                  <Pastilles petit options={SORT.map((y) => ({ value: y, label: y === 'Reporter' ? `Reporter en ${nomSprintDe(suivante)}` : y }))} value={sortPO(t)} onChange={(y) => r.poserDonnee('sort', t.id, { v: y }, 'po', t.id)} />
-                </View>
-              </BlocBrique>
-            ))}
+            {nonTerminees.length > 0 && (
+              <BlocArbre
+                key="arbre-non-terminees-po"
+                av={r.avancement}
+                titre="Non terminées"
+                cles={nonTerminees.map((t) => `t:${t.id}`)}
+                strict
+                nom={e.nomDe}
+                montrerResponsable
+                actions={(t) => <Pastilles petit options={SORT.map((y) => ({ value: y, label: y === 'Reporter' ? `Reporter en ${nomSprintDe(suivante)}` : y }))} value={sortPO(t)} onChange={(y) => r.poserDonnee('sort', t.id, { v: y }, 'po', t.id)} />}
+              />
+            )}
             {!nonTerminees.length && <Vide texte="✓ Tout est terminé." />}
           </>
         );

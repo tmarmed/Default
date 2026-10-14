@@ -797,7 +797,7 @@ function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAj
       titre="📌 Suivis"
       n={nSuivisVus}
       nChanges={nbSuivisChanges(r.avancement, nouveaux)}
-      arborescence={{ valeur: arbo, changer: setArbo }}
+      arborescence={nouveaux.some((x) => !!cheminElement(x.element, e.h)) ? { valeur: arbo, changer: setArbo } : undefined}
       aValider={{ n: nValider, actif: aValider, onPress: () => setAValider((v) => !v) }}
       filtres={{
         actif: !!filtre || vue !== 'tout' || r.avancement.filtre.mode !== 'elements',
@@ -890,7 +890,7 @@ export function BlocPoints({
       titre={titre}
       n={vus.length}
       suffixe={filtre ? ` sur ${liste.length}` : ''}
-      arborescence={{ valeur: arbo, changer: setArbo }}
+      arborescence={liste.some((x) => !!cheminElement(x.element, e.h)) ? { valeur: arbo, changer: setArbo } : undefined}
       filtres={{ actif: !!filtre, contenu: <FiltresType types={typesNote(r)} value={filtre} onChange={setFiltre} /> }}
     >
       {vus.map((y, i) => {

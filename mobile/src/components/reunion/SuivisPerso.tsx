@@ -7,7 +7,7 @@ import { type Echange, estTechnique, type PointReunion, type Reunion, type SousT
 import { SectionFiche } from '../Choix';
 import type { ActionsDaily } from '../Daily';
 import { TitreFiche } from '../FormSheet';
-import { type CtxSuivi, LignesSuivi, pointsDeSuivi } from './Suivi';
+import { cheminElement, type CtxSuivi, LignesSuivi, pointsDeSuivi } from './Suivi';
 import { changementsSuivi, ModeAffichage, nbSuivisChanges } from './Arbre';
 import { BlocBrique } from './Brique';
 import type { Avancement } from './Avancement';
@@ -71,7 +71,7 @@ export function SuivisPerso({ reunion, moi, echanges, actions, onInfo, avancemen
         n={suivis.length}
         nChanges={avancement ? nbSuivisChanges(avancement, suivis) : null}
         suffixe={notes.length ? ` · Notes à concrétiser (${notes.length})` : ''}
-        arborescence={{ valeur: arbo, changer: setArbo }}
+        arborescence={suivis.some((x) => !!cheminElement(x.element, h)) ? { valeur: arbo, changer: setArbo } : undefined}
         filtres={avancement?.lignes ? { actif: avancement.filtre.mode !== 'elements', contenu: <ModeAffichage av={avancement} /> } : undefined}
       >
         <LignesSuivi parElement={arbo} points={suivis} notes={notes} ctx={ctx} />
