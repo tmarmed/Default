@@ -22,15 +22,16 @@ import {
   texteReponse,
 } from '../../daily';
 import { destinatairesTransfert, lireNiveau, personneParEmail } from '../../echange/hierarchieEchange';
-import { etatDe, lireDonnee, lireVote, texteDirect, type Vote } from '../../etatReunion';
+import { lireDonnee, lireVote, texteDirect, type Vote } from '../../etatReunion';
 import { useHierarchy } from '../../hierarchyContext';
 import { autresEquipesDuTrain, membresDe, nomPersonne, optionsPersonnes, type OrgValue, porteurs } from '../../organisation';
 import { iterationOf } from '../../pi';
 import { type CatalogueParcours, type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../../reunions';
 import { subtaskMap } from '../../subtasks';
 import { aReprendre, parEspace, pointsEscalade, titreEscalade } from '../../suiviEscalade';
-import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, estSuivi, LIBELLE_TYPE_CREE, patchConcretise, resumeChoix, resumePoint } from '../../concretisation';
+import { type ChoixConcret, concretisationDe, resumeChoix, resumePoint } from '../../concretisation';
 import { FeuilleConcretiser } from './Concretiser';
+import { choixAvecDefauts, creerConcretisations, dernierCompteRendu, ecrituresConcretisation, messagesSuivis, reponsesAuPO, soumettreDemandesBudget } from './moteur';
 import { useAvancement } from './Avancement';
 import { BlocArbre, changementsSuivi, clesDe, ModeAffichage, nbSuivisChanges } from './Arbre';
 import { BlocBrique, TitreGroupe } from './Brique';
@@ -44,10 +45,10 @@ import { BlocHorsReunion, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, 
 import { colors } from '../../theme';
 import { enfantsRepartition, gerantsBudget, niveauDessus, reunionDuNiveau, useBudget } from '../../budget';
 import { BlocDemandesBudget } from '../Budget';
-import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PeriodeDepense, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type TypePoint, TYPES_REUNION } from '../../types';
+import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type TypePoint, TYPES_REUNION } from '../../types';
 import { FeuilleChoix, SectionFiche } from '../Choix';
 import type { ActionsDaily } from '../Daily';
-import { estAutre, placeholderNote, reponsePrete } from '../EchangesView';
+import { estAutre, placeholderNote } from '../EchangesView';
 import { FenetreReunion, type OngletReunion } from '../FenetreReunion';
 import { TitreFiche } from '../FormSheet';
 import { useLive } from '../useLive';
@@ -286,14 +287,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
   // ---- Questions de l'équipe au PO (mêmes qu'au daily) ----
   const idsIteration = new Set(e.situation.elements.map((t) => t.id));
   const questions = estPO ? questionsEquipe(echanges, mail, e.personnes.map((x) => x.email), idsIteration) : [];
-  const reponseNotee = (q: Echange) => tous.some((x) => x.type === 'decision' && x.personne === mail && (x.tache === q.id || x.texte === texteReponse(q)));
-  const reponsesPO = questions.flatMap((q) => {
-    const r = reponses[q.id];
-    const icic = q.statut === 'envoye' && !!r && reponsePrete(r.c, r.note);
-    if (!icic && (q.statut !== 'repondu' || reponseNotee(q))) return [];
-    const ech = icic ? { ...q, reponse: r.c, note: r.note.trim() } : q;
-    return [{ q: ech, ici: icic, pt: { ...nouveau('decision', texteReponse(ech), q.element, 'po', q.id), id: `local-rep-${q.id}` } }];
-  });
+  const reponsesPO = reponsesAuPO(questions, reponses, tous, mail, (q) => ({ ...nouveau('decision', texteReponse(q), q.element, 'po', q.id), id: `local-rep-${q.id}` }));
   const preparation = [...prep, ...reponsesPO.map((r) => r.pt)];
 
   /** Envoi d'un onglet (Mon point, PO) : réponses aux échanges (un lot), puis points et données (un lot) */
@@ -342,15 +336,8 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
    * (action → créer une tâche, sinon suivre ; responsable = qui l'a noté ; validation = l'animateur ; échéance =
    * la prochaine réunion). Renvoie aussi la forme d'avant (c, resp, a) pour l'affichage et le compte rendu.
    */
-  const choixComplet = (pt: PointReunion): ChoixConcret => {
-    const base = choixParDefaut(pt, { animateur: reunion.organisateur || mail, echeance: echeanceParDefaut(reunion), h: e.h, moi: mail });
-    const x = { ...base, ...choix[pt.id] };
-    // Responsable hors de l'équipe (ex. point reçu d'ailleurs) : le PO, sinon vous
-    const dansEq = e.personnes.some((y) => y.email.toLowerCase() === x.resp);
-    if (choix[pt.id]?.resp === undefined && x.qui !== 'dessus' && !dansEq) x.resp = e.po?.email.toLowerCase() ?? mail;
-    if (x.qui === 'dessus' && !e.escalades.some((y) => y.email === x.resp)) x.resp = e.escalades[0]?.email ?? x.resp;
-    return x;
-  };
+  const choixComplet = (pt: PointReunion): ChoixConcret =>
+    choixAvecDefauts(pt, choix[pt.id], { animateur: reunion.organisateur || mail, echeance: echeanceParDefaut(reunion), h: e.h, mail, personnes: e.personnes, po: e.po?.email, escalades: e.escalades });
   const choixDe = (pt: PointReunion) => {
     const x = choixComplet(pt);
     const c = concretisationDe(x);
@@ -417,26 +404,12 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     if (o.stories?.length && actions.modifierItems) await actions.modifierItems(espace, o.stories);
     if (o.creerStories?.length) await actions.creerTaches(espace, o.creerStories);
     const decides = aDecider.map((pt) => ({ pt, ...choixDe(pt) }));
-    // Demandes de budget nées des notes (une par note) ; la note est close
-    for (const d of decides.filter((x) => x.que === 'budget' && !!budgetConcret))
-      await budgetCtx.soumettreDemande(espace, { motif: d.pt.texte, montant: String(d.montant ?? '').replace(',', '.'), periode: (d.periode || 'ponctuel') as PeriodeDepense, du: e.jour, au: '', pour: d.pour || budgetConcret!.pour[0].value, demandeur: niveauBudget, soumis_par: mail, origine: `${TYPES_REUNION[reunion.type].libelle} du ${dateCourte(e.jour)}` });
+    await soumettreDemandesBudget(decides, budgetConcret, budgetCtx, { espace, jour: e.jour, demandeur: niveauBudget, mail, origine: `${TYPES_REUNION[reunion.type].libelle} du ${dateCourte(e.jour)}` });
     // Concrétisation « Créer » (08/10) : tâches de tout type (un lot), features (un lot), réunions ponctuelles (un lot),
     // chacune rattachée à l'élément du dessus
     const idDe = (m: string) => personneParEmail(m, org)?.id ?? '';
     const ctxCreer = (pt: PointReunion) => ({ espace, iteration: o.iteration, equipe: e.equipe?.id ?? '', train: e.train?.id, idDe, description: `${libelleNote(pt)} noté ${opts.nomCourt} ${e.nomNiveau} du ${dateCourte(e.jour)} (${e.nomDe(pt.personne)}).`, h: e.h, moi: mail });
-    const aCreerTout = decides.filter((d) => d.que === 'creer' && d.qui !== 'dessus').map((d) => ({ d, x: elementACreer(d, d.pt, ctxCreer(d.pt)) }));
-    const aCreer = aCreerTout.map((a) => a.d);
-    const lots = { item: aCreerTout.filter((a) => a.x.kind === 'item'), feature: aCreerTout.filter((a) => a.x.kind === 'feature'), reunion: aCreerTout.filter((a) => a.x.kind === 'reunion') };
-    const creees = await actions.creerTaches(espace, lots.item.map((a) => (a.x as { input: ItemInput }).input));
-    const tacheDe = new Map(lots.item.map((a, i) => [a.d.pt.id, creees[i]?.id ?? '']));
-    if (lots.feature.length && actions.creerEntites) {
-      const fs = await actions.creerEntites(espace, 'feature', lots.feature.map((a) => (a.x as { input: Record<string, string> }).input));
-      lots.feature.forEach((a, i) => tacheDe.set(a.d.pt.id, fs[i]?.id ?? ''));
-    }
-    if (lots.reunion.length && actions.creerReunions) {
-      const ids = await actions.creerReunions(espace, lots.reunion.map((a) => ({ ...(a.x as Extract<typeof a.x, { kind: 'reunion' }>), niveau: reunion.niveau })));
-      lots.reunion.forEach((a, i) => tacheDe.set(a.d.pt.id, ids[i] ?? ''));
-    }
+    const { aCreer, creees, tacheDe } = await creerConcretisations(decides, { actions, espace, niveau: reunion.niveau, ctxCreer });
     const icic = reponsesPO.filter((r) => r.ici);
     if (icic.length) await actions.repondreEchanges(icic.map((r) => ({ e: r.q, reponse: r.q.reponse, note: r.q.note })));
     const escalades = decides.filter((d) => d.c === 'escalade');
@@ -444,23 +417,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     const synchros = decides.filter((d) => d.que !== 'rien' && d.qui !== 'dessus' && !!d.resp && d.resp !== mail && !e.personnes.some((y) => y.email.toLowerCase() === d.resp));
     const story = (id: string) => (id ? libelleElement(id, e.h) || undefined : undefined);
     const quand = `${opts.nomCourt} ${e.nomNiveau} du ${dateCourte(e.jour)}`;
-    const lot: EchangeInput[] = synchros.map((d) => ({
-      de: mail,
-      a: d.resp,
-      type: 'message' as const,
-      titre: `${estSuivi(d) ? '📌 Nouveau suivi' : `✓ ${LIBELLE_TYPE_CREE(d.type)} pour vous`} · ${d.pt.texte}`.slice(0, 200),
-      texte: `${libelleNote(d.pt)} noté ${quand} par ${e.nomDe(d.pt.personne)}${story(d.element) ? ` (${story(d.element)})` : ''}. Responsable : ${e.nomDe(d.resp)}${estSuivi(d) ? ` · Validation : ${e.nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}` : ' · sans suivi'}.`,
-      choix: '',
-      reponse: '',
-      note: '',
-      statut: 'envoye' as const,
-      element: d.element,
-      niveau: e.niveauIci ? `${e.niveauIci.kind}:${e.niveauIci.id}` : '',
-      transmis_par: '',
-      prive: '1',
-      pieces_jointes: '',
-      espace,
-    }));
+    const lot: EchangeInput[] = messagesSuivis(synchros, { mail, quand, nomDe: e.nomDe, h: e.h, niveau: e.niveauIci ? `${e.niveauIci.kind}:${e.niveauIci.id}` : '', espace });
     const escaladesEnvoyees = e.niveauSup ? escalades.filter((d) => !!d.a) : [];
     {
       const base = { de: mail, a: (e.destCR?.p.email ?? '').toLowerCase(), type: 'message' as const, choix: '', reponse: '', note: '', statut: 'envoye' as const, niveau: e.niveauSup ? `${e.niveauSup.kind}:${e.niveauSup.id}` : '', transmis_par: '', prive: '1', pieces_jointes: '', espace };
@@ -483,16 +440,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     }
     const envoyes = lot.length ? await actions.envoyerEchanges(espace, lot) : [];
     const echangeDuPoint = new Map(escaladesEnvoyees.map((d, i) => [d.pt.id, envoyes[synchros.length + i]?.id ?? '']));
-    const patch = (d: (typeof decides)[number]) => ({
-      ...patchConcretise(d, tacheDe.get(d.pt.id) || echangeDuPoint.get(d.pt.id) || (d.pt.type === 'decision' && d.c === 'rien' ? d.pt.tache : '') || (d.c === 'escalade' || d.c === 'suivi' ? d.pt.tache : '')),
-      ...(echangeDuPoint.get(d.pt.id) ? { echange: echangeDuPoint.get(d.pt.id) } : {}),
-    });
-    const parPoint = new Map(decides.map((d) => [d.pt.id, d]));
-    const creer = [...preparation, ...locaux].map((y) => {
-      const d = parPoint.get(y.id);
-      return d ? { ...aEcrire(y), ...patch(d) } : aEcrire(y);
-    });
-    const modifier = decides.filter((d) => !d.pt.id.startsWith('local-')).map((d) => ({ id: d.pt.id, ...patch(d) }));
+    const { creer, modifier } = ecrituresConcretisation(decides, tacheDe, echangeDuPoint, [...preparation, ...locaux], aEcrire);
     const recus = parEspace(
       escaladesEnvoyees.flatMap((d) => {
         const id = echangeDuPoint.get(d.pt.id);
@@ -524,12 +472,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
   };
 
   /** Dernier compte rendu de la série (aujourd'hui ou la réunion d'avant), pour l'onglet « Compte rendu · date » */
-  const dernierCR = useMemo(() => {
-    const ids = lus
-      .filter((x) => x.reunion.startsWith(prefixe) && x.reunion.slice(-10) <= e.jour && (x.type === 'etat' ? !!etatDe([x], x.reunion)?.fin : aConcretiser(x) && !!x.concretisation))
-      .map((x) => x.reunion);
-    return ids.sort().pop() ?? '';
-  }, [lus, prefixe, e.jour]);
+  const dernierCR = useMemo(() => dernierCompteRendu(lus, prefixe, e.jour), [lus, prefixe, e.jour]);
 
   /**
    * Avancement depuis la réunion précédente de la série (13/10, bloc 13) : périmètre de la réunion (règle A4) — ses

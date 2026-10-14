@@ -30,7 +30,15 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
    BarreFiltres.tsx : sous-bloc Filtres des onglets sorti d'App.tsx (tête 🔍 / ↺, FiltresSynchro, FiltresBacklog,
    FiltresReunions, FiltresDelivery, LigneFiltres) ; l'état des filtres reste dans App. App.tsx : 4481 → 4321 lignes.
    Vérifié : texte identique sur 16 écrans (dont recherche ouverte, élément du Chat, Mes suivis, Bilan du soir).
-5. Moteur de réunion unique : Daily et réunions perso sur useReunion.
+5. Moteur de réunion — FAIT en partie (14/10) : reunion/moteur.ts = règles que le Daily et useReunion (base.tsx)
+   faisaient chacun à l'identique : dernier compte rendu, choix de concrétisation par défaut (choixAvecDefauts),
+   réponses du PO, demandes de budget, créations à l'envoi (tâches, features, réunions : un lot chacun), messages de
+   suivi au Chat, points écrits avec leur concrétisation. Constats : les réunions perso (FenetreSimple) n'ont pas de
+   moteur à fusionner (lecture des points et photo seulement) ; le Daily garde ses textes (compte rendu au RTE,
+   messages), son tour de table, son plan du jour et sa lecture d'ouverture (remise à zéro différente). Pas fait
+   exprès : Daily entièrement sur useReunion (périmètre de l'avancement, onglets PO, textes différents : changement
+   fonctionnel). Vérifié : texte identique aux étapes du Daily et de la Revue de sprint, et après « Envoyer le compte
+   rendu » (Chat, Tâches) ; la création de tâches à l'envoi n'est pas passée par la démo (0 tâche créée).
 Pas fait exprès : réunions en liste déclarée, super-composant unique, écriture Sheets (déjà commune).
 
 ## Session 4 (14/10, suite) : briques de réunion — VALIDÉ, en cours

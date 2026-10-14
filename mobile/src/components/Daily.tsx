@@ -42,20 +42,21 @@ import { enfantsRepartition, gerantsBudget, niveauDessus, reunionDuNiveau, useBu
 import { useAvancement } from './reunion/Avancement';
 import { BlocArbre, changementsSuivi, ModeAffichage, nbSuivisChanges } from './reunion/Arbre';
 import { BlocBrique, TitreGroupe } from './reunion/Brique';
-import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PeriodeDepense, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type Statut, type TypePoint } from '../types';
-import { etatDe, texteDirect } from '../etatReunion';
+import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type Statut, type TypePoint } from '../types';
+import { texteDirect } from '../etatReunion';
 import { useLive } from './useLive';
 import { FeuilleChoix, SectionFiche } from './Choix';
-import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, estSuivi, LIBELLE_TYPE_CREE, patchConcretise, resumeChoix as resumeConcret, resumePoint } from '../concretisation';
+import { type ChoixConcret, concretisationDe, resumeChoix as resumeConcret, resumePoint } from '../concretisation';
 import { libelleElement } from '../elementConcerne';
 import { echeanceParDefaut, estFini, jourCourt, LIBELLE_STATUT, relierEscalades, validateurDe } from '../pointsSuivi';
 import { absentsLe, useConges } from '../conges';
 import { BlocHorsReunion, cheminElement, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, repartirSuivis, statutAffiche } from './reunion/Suivi';
 import { FeuilleConcretiser } from './reunion/Concretiser';
-import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
+import { estAutre, placeholderNote } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
 import { TitreFiche } from './FormSheet';
 import { Compteur, pluriel, Entonnoir, FiltresType, FiltresVue, Ligne, LigneCase, LigneStory, Pastille, PastilleFiltres, Pastilles, pastilleStatut, SaisiePoint, st, TITRE_TYPE, titreAjout, type Ton, TONS, tonType, Vide, type VueSuivi } from './reunion/ui';
+import { choixAvecDefauts, creerConcretisations, dernierCompteRendu, ecrituresConcretisation, messagesSuivis, reponsesAuPO, soumettreDemandesBudget } from './reunion/moteur';
 
 /**
  * Daily (lot 6, validé le 01/10 ; parcours séparés le 06/10) : contenu de la fenêtre de réunion. Chaque rôle de la
@@ -273,12 +274,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
    * Onglet « Compte rendu · date » (07/10) : le dernier compte rendu envoyé de la série (aujourd'hui, ou le daily
    * d'avant), visible jusqu'à la fin du daily suivant ; en lecture seule
    */
-  const dernierCR = useMemo(() => {
-    const ids = lus
-      .filter((x) => x.reunion.startsWith(prefixe) && x.reunion.slice(-10) <= jour && (x.type === 'etat' ? !!etatDe([x], x.reunion)?.fin : aConcretiser(x) && !!x.concretisation))
-      .map((x) => x.reunion);
-    return ids.sort().pop() ?? '';
-  }, [lus, prefixe, jour]);
+  const dernierCR = useMemo(() => dernierCompteRendu(lus, prefixe, jour), [lus, prefixe, jour]);
   /**
    * Avancement depuis le Daily précédent (13/10, bloc 13) : stories et tâches de l'équipe, plus les features et epics
    * rattachées ; une photo est écrite avec le compte rendu
@@ -539,20 +535,12 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const pi = piOf(jour);
   const aPreparer = backlogAPreparer(h.items.filter((t) => t.type === 'story' && !!t.feature && h.features.get(t.feature)?.pi === pi && e.dansEquipe(t)));
   const questions = estPO ? questionsEquipe(echanges, mail, personnes.map((x) => x.email), idsIteration) : [];
-  /** Réponse déjà notée en point de la réunion (décision du PO liée à l'échange) */
-  const reponseNotee = (q: Echange) => tous.some((x) => x.type === 'decision' && x.personne === mail && (x.tache === q.id || x.texte === texteReponse(q)));
   /**
    * Vos réponses : celles données ici (envoyées à l'échange avec votre point) et celles déjà données dans la Synchro.
    * Chacune est dupliquée en point « décision » de la réunion (rattaché à la story, avec la référence de l'échange) :
    * l'échange disparaît quand il est pris en compte, le SM la voit et la concrétise quand même.
    */
-  const reponsesPO = questions.flatMap((q) => {
-    const r = reponses[q.id];
-    const ici = q.statut === 'envoye' && !!r && reponsePrete(r.c, r.note);
-    if (!ici && (q.statut !== 'repondu' || reponseNotee(q))) return [];
-    const e = ici ? { ...q, reponse: r.c, note: r.note.trim() } : q;
-    return [{ q: e, ici, pt: { ...nouveau('decision', texteReponse(e), q.element, q.id, 'po'), id: `local-rep-${q.id}` } }];
-  });
+  const reponsesPO = reponsesAuPO(questions, reponses, tous, mail, (q) => ({ ...nouveau('decision', texteReponse(q), q.element, q.id, 'po'), id: `local-rep-${q.id}` }));
   const preparation = [...prep, ...reponsesPO.map((r) => r.pt)];
   /** Préparation d'un parcours (« Mon point » ou « PO ») */
   const preparationDe = (o: Prep) => preparation.filter((x) => (x.onglet ?? 'membre') === o);
@@ -647,11 +635,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     ...(pm?.email ? [{ email: pm.email.toLowerCase(), nom: pm.nom, meta: `PM du train ${e.train?.nom ?? ''} · contenu, priorité` }] : []),
   ];
   const choixDe = (pt: PointReunion) => {
-    const base = choixParDefaut(pt, { animateur: reunion.organisateur || mail, echeance: echeanceParDefaut(reunion), h, moi: mail });
-    const x = { ...base, ...choix[pt.id] };
-    const dansEq = personnes.some((y) => y.email.toLowerCase() === x.resp);
-    if (choix[pt.id]?.resp === undefined && x.qui !== 'dessus' && !dansEq) x.resp = po?.email.toLowerCase() ?? mail;
-    if (x.qui === 'dessus' && !escaladesDaily.some((y) => y.email === x.resp)) x.resp = escaladesDaily[0]?.email ?? x.resp;
+    const x = choixAvecDefauts(pt, choix[pt.id], { animateur: reunion.organisateur || mail, echeance: echeanceParDefaut(reunion), h, mail, personnes, po: po?.email, escalades: escaladesDaily });
     return { ...x, c: concretisationDe(x), a: x.resp };
   };
   /** Tâche née d'un point : sous-tâche de sa story ou tâche à part dans l'itération, avec son responsable */
@@ -687,27 +671,11 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   // ---- Envoi du compte rendu : tâches (un lot), échanges (un lot), points (un lot, votre préparation comprise) ----
   const envoyerCompteRendu = async () => {
     const decides = aDecider.map((pt) => ({ pt, ...choixDe(pt) }));
-    // Demandes de budget nées des notes (13/10) : une par note, soumises au niveau du dessus ; la note est close
-    for (const d of decides.filter((x) => x.que === 'budget' && !!budgetConcret))
-      await budgetCtx.soumettreDemande(espace, { motif: d.pt.texte, montant: String(d.montant ?? '').replace(',', '.'), periode: (d.periode || 'ponctuel') as PeriodeDepense, du: jour, au: '', pour: d.pour || budgetConcret!.pour[0].value, demandeur: niveauBudget, soumis_par: mail, origine: `Daily du ${dateCourte(jour)}` });
+    await soumettreDemandesBudget(decides, budgetConcret, budgetCtx, { espace, jour, demandeur: niveauBudget, mail, origine: `Daily du ${dateCourte(jour)}` });
     // « Créer » (08/10) : tâches de tout type, features, réunions ponctuelles, rattachées à l'élément du dessus
     const idDe = (m: string) => personneParEmail(m, org)?.id ?? '';
     const ctxCreer = (pt: PointReunion) => ({ espace, iteration: it.key, equipe: equipe?.id ?? '', train: e.train?.id, idDe, description: `${libelleNote(pt)} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} (${nomDe(pt.personne)}).`, h, moi: mail });
-    const aCreerTout = decides.filter((d) => d.que === 'creer' && d.qui !== 'dessus').map((d) => ({ d, x: elementACreer(d, d.pt, ctxCreer(d.pt)) }));
-    const aCreer = aCreerTout.map((a) => a.d);
-    const lotItems = aCreerTout.filter((a) => a.x.kind === 'item');
-    const creees = await actions.creerTaches(espace, lotItems.map((a) => (a.x as { input: ItemInput }).input));
-    const tacheDe = new Map(lotItems.map((a, i) => [a.d.pt.id, creees[i]?.id ?? '']));
-    const lotFeatures = aCreerTout.filter((a) => a.x.kind === 'feature');
-    if (lotFeatures.length && actions.creerEntites) {
-      const fs = await actions.creerEntites(espace, 'feature', lotFeatures.map((a) => (a.x as { input: Record<string, string> }).input));
-      lotFeatures.forEach((a, i) => tacheDe.set(a.d.pt.id, fs[i]?.id ?? ''));
-    }
-    const lotReunions = aCreerTout.filter((a) => a.x.kind === 'reunion');
-    if (lotReunions.length && actions.creerReunions) {
-      const ids = await actions.creerReunions(espace, lotReunions.map((a) => ({ ...(a.x as Extract<typeof a.x, { kind: 'reunion' }>), niveau: reunion.niveau })));
-      lotReunions.forEach((a, i) => tacheDe.set(a.d.pt.id, ids[i] ?? ''));
-    }
+    const { aCreer, creees, tacheDe } = await creerConcretisations(decides, { actions, espace, niveau: reunion.niveau, ctxCreer });
     // Vous êtes aussi le PO : vos réponses données ici partent dans leurs échanges (un lot)
     const ici = reponsesPO.filter((r) => r.ici);
     if (ici.length) await actions.repondreEchanges(ici.map((r) => ({ e: r.q, reponse: r.q.reponse, note: r.q.note })));
@@ -719,23 +687,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     const story = (id: string) => (id ? parId.get(id)?.titre : undefined);
     // Échanges en un seul lot : blocages passés en 🔄 Synchro (de la personne qui a le blocage, transmis par vous),
     // puis, s'il y a un RTE, escalades et compte rendu
-    const lot: EchangeInput[] = synchros.map((d) => ({
-      de: mail,
-      a: d.resp,
-      type: 'message' as const,
-      titre: `${estSuivi(d) ? '📌 Nouveau suivi' : `✓ ${LIBELLE_TYPE_CREE(d.type)} pour vous`} · ${d.pt.texte}`.slice(0, 200),
-      texte: `${libelleNote(d.pt)} noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} par ${nomDe(d.pt.personne)}${libelleElement(d.element, h) ? ` (${libelleElement(d.element, h)})` : ''}. Responsable : ${nomDe(d.resp)}${estSuivi(d) ? ` · Validation : ${nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}` : ' · sans suivi'}.`,
-      choix: '',
-      reponse: '',
-      note: '',
-      statut: 'envoye' as const,
-      element: d.element,
-      niveau: equipe ? `equipeagile:${equipe.id}` : '',
-      transmis_par: '',
-      prive: '1',
-      pieces_jointes: '',
-      espace,
-    }));
+    const lot: EchangeInput[] = messagesSuivis(synchros, { mail, quand: `au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)}`, nomDe, h, niveau: equipe ? `equipeagile:${equipe.id}` : '', espace });
     // Escalades : chacune à l'équipe choisie (SM du train → RTE ; PO du train → PM) ; compte rendu au RTE
     const escaladesEnvoyees = e.train ? escalades.filter((d) => !!d.a) : [];
     if (e.train) {
@@ -765,16 +717,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     const echangeDuPoint = new Map(escaladesEnvoyees.map((d, i) => [d.pt.id, envoyes[synchros.length + i]?.id ?? '']));
 
     // Une réponse du PO (décision) garde le lien vers sa question, sauf si elle devient une tâche
-    const patch = (d: (typeof decides)[number]) => ({
-      ...patchConcretise(d, tacheDe.get(d.pt.id) || echangeDuPoint.get(d.pt.id) || (d.pt.type === 'decision' && d.c === 'rien' ? d.pt.tache : '') || (d.c === 'escalade' || d.c === 'suivi' ? d.pt.tache : '')),
-      ...(echangeDuPoint.get(d.pt.id) ? { echange: echangeDuPoint.get(d.pt.id) } : {}),
-    });
-    const parPoint = new Map(decides.map((d) => [d.pt.id, d]));
-    const creer = [...preparation, ...locaux].map((y) => {
-      const d = parPoint.get(y.id);
-      return d ? { ...aEcrire(y), ...patch(d) } : aEcrire(y);
-    });
-    const modifier = decides.filter((d) => !d.pt.id.startsWith('local-')).map((d) => ({ id: d.pt.id, ...patch(d) }));
+    const { creer, modifier } = ecrituresConcretisation(decides, tacheDe, echangeDuPoint, [...preparation, ...locaux], aEcrire);
     // Cas d'usage 1 : chaque escalade crée un point de suivi « Escalade reçue » dans la réunion correspondante de
     // celui qui reçoit (ART sync du train) ; même Sheet que ce daily : dans la même écriture, sinon une par Sheet
     const recus = parEspace(
