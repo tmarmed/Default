@@ -1,6 +1,6 @@
 /**
  * Coque commune des briques de réunion (14/10, catalogue des briques, docs/regles-reunions.html bloc 13) : carte
- * blanche qui s'ouvre et se ferme en touchant le titre, titre « Nom (12) (5 changés) », case « Arborescence » (☐ 🌳)
+ * blanche qui s'ouvre (▾) et se ferme (▸) en touchant le titre, titre « Nom (12) (5 changés) », case « Arborescence » (☐ 🌳)
  * (blocs dont les lignes ont un rattachement), pastille « Filtres » et ses rangées. Toute brique (Éléments, Budget,
  * Suivis, Notes…) passe par ici : une correction se fait une seule fois.
  */
@@ -36,8 +36,8 @@ export function BlocBrique({
   aValider?: { n: number; actif: boolean; onPress: () => void };
   /** À droite du titre, avant la case et les filtres */
   droite?: ReactNode;
-  /** Pastille « Filtres » : réglage actif et rangées affichées quand elle est ouverte */
-  filtres?: { actif: boolean; contenu: ReactNode };
+  /** Pastille « Filtres » : nombre de filtres actifs et rangées affichées quand elle est ouverte */
+  filtres?: { nb: number; contenu: ReactNode };
   children?: ReactNode;
 }) {
   let titre = titreRecu;
@@ -61,7 +61,7 @@ export function BlocBrique({
   const nombres = `${n !== undefined ? ` (${n})` : ''}${nChanges != null ? ` (${nChanges} changé${nChanges > 1 ? 's' : ''})` : ''}`;
   return (
     <SectionFiche
-      titre={`${ouvert ? '▾' : '›'} ${titre}${nombres}${suffixe ?? ''}`}
+      titre={`${ouvert ? '▾' : '▸'} ${titre}${nombres}${suffixe ?? ''}`}
       onTitre={() => setOuvert((o) => !o)}
       boite
       // Boutons sur la ligne du titre ; s'il n'y a pas la place, ils passent dessous (le titre garde une largeur lisible)
@@ -85,7 +85,7 @@ export function BlocBrique({
                 <Text style={{ fontSize: 13 }}>🌳</Text>
               </Pressable>
             )}
-            {filtres && <PastilleFiltres compact actif={filtres.actif} ouvert={filtresOuverts} onPress={() => setFiltresOuverts((x) => !x)} onBulle={(m) => setBulle(m ? 'Filtres' : '')} />}
+            {filtres && <PastilleFiltres nb={filtres.nb} ouvert={filtresOuverts} onPress={() => setFiltresOuverts((x) => !x)} />}
           </View>
         ) : undefined
       }

@@ -72,7 +72,7 @@ export function SuivisPerso({ reunion, moi, echanges, actions, onInfo, avancemen
         nChanges={avancement ? nbSuivisChanges(avancement, suivis) : null}
         suffixe={notes.length ? ` · Notes à concrétiser (${notes.length})` : ''}
         arborescence={suivis.some((x) => !!cheminElement(x.element, h)) ? { valeur: arbo, changer: setArbo } : undefined}
-        filtres={avancement?.lignes ? { actif: avancement.filtre.mode !== 'elements', contenu: <ModeAffichage av={avancement} /> } : undefined}
+        filtres={avancement?.lignes ? { nb: avancement.filtre.mode !== 'elements' ? 1 : 0, contenu: <ModeAffichage av={avancement} /> } : undefined}
       >
         <LignesSuivi parElement={arbo} points={suivis} notes={notes} ctx={ctx} />
         {!suivis.length && !notes.length && <Vide texte="✓ Rien à suivre." />}

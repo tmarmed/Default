@@ -411,21 +411,6 @@ export function SaisiePoint({
   );
 }
 
-/** Pastille « Filtres ▾ / ▴ » à côté d'un titre de section, comme dans l'en-tête des écrans */
-/** `compact` (14/10, briques) : l'entonnoir seul, pour tenir sur la ligne du titre */
-export function PastilleFiltres({ actif, ouvert, onPress, compact, onBulle }: { actif: boolean; ouvert: boolean; onPress: () => void; compact?: boolean; onBulle?: (montrer: boolean) => void }) {
-  return (
-    <Pressable onPress={onPress} onLongPress={onBulle ? () => onBulle(true) : undefined} onHoverIn={onBulle ? () => onBulle(true) : undefined} onHoverOut={onBulle ? () => onBulle(false) : undefined} style={[st.pastilleFiltres, actif && st.pastilleFiltresActive]} accessibilityRole="button" accessibilityLabel={`${ouvert ? 'Replier' : 'Déplier'} les filtres`}>
-      <Entonnoir couleur={actif ? colors.primary : colors.text} />
-      {!compact && <Text style={[st.pastilleFiltresTexte, actif && { color: colors.primary }]}>Filtres {ouvert ? '▴' : '▾'}</Text>}
-      {actif && (
-        <View style={st.pastilleFiltresNb}>
-          <Text style={st.pastilleFiltresNbTexte}>1</Text>
-        </View>
-      )}
-    </Pressable>
-  );
-}
 
 /** Filtres dépliés : « Tous » puis un type à la fois, sans nombre */
 export function FiltresType({ types, value, onChange }: { types: TypePoint[]; value: TypePoint | ''; onChange: (v: TypePoint | '') => void }) {
@@ -454,15 +439,8 @@ export function FiltresVue({ value, onChange, nSuivis, nNotes, nFermees }: { val
   );
 }
 
-/** Entonnoir des filtres (même dessin que l'en-tête des écrans) */
-export function Entonnoir({ couleur }: { couleur: string }) {
-  return (
-    <View style={{ alignItems: 'center', width: 12 }}>
-      <View style={{ width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 6, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: couleur }} />
-      <View style={{ width: 2.5, height: 5, backgroundColor: couleur, marginTop: -1 }} />
-    </View>
-  );
-}
+export { Entonnoir, PastilleFiltres } from '../PastilleFiltres';
+
 
 export const st = StyleSheet.create({
   puceValider: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 12, backgroundColor: '#E8F5EC' },
@@ -470,11 +448,6 @@ export const st = StyleSheet.create({
   puceValiderTexte: { fontSize: 12, fontWeight: '700', color: '#1B7F3B' },
   puceValiderTexteOn: { color: '#fff' },
   filtresTete: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, marginHorizontal: 4 },
-  pastilleFiltres: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 28, paddingHorizontal: 8, borderRadius: 15, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
-  pastilleFiltresActive: { backgroundColor: '#EAF2FE', borderColor: '#CFE0FB' },
-  pastilleFiltresTexte: { fontSize: 12, fontWeight: '700', color: colors.text },
-  pastilleFiltresNb: { position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  pastilleFiltresNbTexte: { color: '#fff', fontSize: 10, fontWeight: '800' },
   filtresBloc: { marginBottom: 8, backgroundColor: colors.bg, borderRadius: 14, borderWidth: 1, borderColor: '#EEF1F5', padding: 9 },
   filtreLigne: { gap: 6, alignItems: 'center' },
   itChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 18, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.card },

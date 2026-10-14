@@ -800,7 +800,7 @@ function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAj
       arborescence={nouveaux.some((x) => !!cheminElement(x.element, e.h)) ? { valeur: arbo, changer: setArbo } : undefined}
       aValider={{ n: nValider, actif: aValider, onPress: () => setAValider((v) => !v) }}
       filtres={{
-        actif: !!filtre || vue !== 'tout' || r.avancement.filtre.mode !== 'elements',
+        nb: [!!filtre, vue !== 'tout', r.avancement.filtre.mode !== 'elements'].filter(Boolean).length,
         contenu: (
           <>
             <ModeAffichage av={r.avancement} lecture={lecture} />
@@ -891,7 +891,7 @@ export function BlocPoints({
       n={vus.length}
       suffixe={filtre ? ` sur ${liste.length}` : ''}
       arborescence={liste.some((x) => !!cheminElement(x.element, e.h)) ? { valeur: arbo, changer: setArbo } : undefined}
-      filtres={{ actif: !!filtre, contenu: <FiltresType types={typesNote(r)} value={filtre} onChange={setFiltre} /> }}
+      filtres={{ nb: filtre ? 1 : 0, contenu: <FiltresType types={typesNote(r)} value={filtre} onChange={setFiltre} /> }}
     >
       {vus.map((y, i) => {
         const par = y.auteur === r.mail && !pourPrep && r.anime ? 'par le SM' : `par ${e.nomDe(y.personne)}`;

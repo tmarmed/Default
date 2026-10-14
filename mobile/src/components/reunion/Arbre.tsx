@@ -10,7 +10,7 @@ import { eurosTexte } from '../../format';
 import { type ReactNode, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { RangeePastilles } from '../RangeePastilles';
-import { estFiltre, focusDe, type LigneAv, type ModeAv, MODES_AV, phrase, statutFeature } from '../../avancement';
+import { estFiltre, nbFiltresAv, focusDe, type LigneAv, type ModeAv, MODES_AV, phrase, statutFeature } from '../../avancement';
 import { ETATS_EPIC, type Item } from '../../types';
 import { useOrg } from '../../organisation';
 import { BlocBrique } from './Brique';
@@ -336,7 +336,7 @@ export function BlocArbre({
       fermeAuDepart={fermeAuDepart}
       // Case 🌳 seulement quand elle change quelque chose (au moins un élément a un parent)
       arborescence={arboUtile ? { valeur: arbo, changer: setArbo } : undefined}
-      filtres={av.lignes && lignesBloc.length > 0 ? { actif: estFiltre(av.filtre), contenu: <FiltreAvancement av={av} lignes={lignesBloc} lecture={lecture} sansTypes /> } : undefined}
+      filtres={av.lignes && lignesBloc.length > 0 ? { nb: nbFiltresAv(av.filtre), contenu: <FiltreAvancement av={av} lignes={lignesBloc} lecture={lecture} sansTypes /> } : undefined}
     >
       {corps.length ? corps : <Vide texte={mode === 'changes' ? (av.lignes ? 'Rien n’a changé.' : 'Les changements seront visibles à partir de la prochaine réunion.') : 'Rien à afficher.'} />}
     </BlocBrique>

@@ -24,6 +24,7 @@ import { IterationView } from './src/components/IterationView';
 import { ObjectifPIForm } from './src/components/ObjectifPIForm';
 import { PIView } from './src/components/PIView';
 import { Pastille } from './src/components/RangeePastilles';
+import { PastilleFiltres } from './src/components/PastilleFiltres';
 import { TypeFilter, TypeFiltre } from './src/components/TypeFilter';
 import { PIAddSheet } from './src/components/PIAddSheet';
 import { FeuilleChoix, FeuilleMulti } from './src/components/Choix';
@@ -2987,23 +2988,13 @@ function Main() {
           )}
           {/* Filtres repliés : pastille juste après le titre (bleue et chiffrée quand des filtres sont actifs) */}
           {ECRANS_FILTRES.includes(tab) && (
-            <Pressable
+            <PastilleFiltres
+              nb={nbFiltres}
+              ouvert={!filtresPlies}
               onPress={plierFiltres}
+              resume={resumeFiltres}
               onLayout={(e) => setTitreLargeurs((l) => ({ ...l, pastille: e.nativeEvent.layout.width }))}
-              hitSlop={6}
-              style={[styles.pastilleFiltres, !!nbFiltres && styles.pastilleFiltresActive]}
-              accessibilityRole="button"
-              accessibilityHint={resumeFiltres}
-              accessibilityLabel={`${filtresPlies ? 'Déplier' : 'Replier'} les filtres${nbFiltres ? ` (${nbFiltres} actif${nbFiltres > 1 ? 's' : ''})` : ''}`}
-            >
-              <Entonnoir couleur={nbFiltres ? colors.primary : colors.text} />
-              <Text style={[styles.pastilleFiltresTexte, !!nbFiltres && { color: colors.primary }]}>Filtres {filtresPlies ? '▾' : '▴'}</Text>
-              {!!nbFiltres && (
-                <View style={styles.pastilleFiltresNb}>
-                  <Text style={styles.reinitPastilleTexte}>{nbFiltres}</Text>
-                </View>
-              )}
-            </Pressable>
+            />
           )}
           </View>
           {/* Mode Simple / SAFe : pour tous les espaces affichés */}
@@ -4348,10 +4339,6 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 28, fontWeight: '700', color: colors.text, flexShrink: 1 },
   modeSwitch: { marginLeft: 'auto', alignSelf: 'center', flexShrink: 0 },
-  pastilleFiltres: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 28, paddingHorizontal: 8, borderRadius: 15, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, flexShrink: 0 },
-  pastilleFiltresActive: { backgroundColor: '#EAF2FE', borderColor: '#CFE0FB' },
-  pastilleFiltresTexte: { fontSize: 12, fontWeight: '700', color: colors.text },
-  pastilleFiltresNb: { position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   appBarFin: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end' },
   bloc2: { flex: 1, minHeight: 0, marginHorizontal: 12, backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   titreEcran: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8 },
@@ -4492,12 +4479,3 @@ const styles = StyleSheet.create({
   fabText: { color: '#fff', fontSize: 32, lineHeight: 34 },
 });
 
-/** Entonnoir des filtres (dessiné, sans image) */
-function Entonnoir({ couleur }: { couleur: string }) {
-  return (
-    <View style={{ alignItems: 'center', width: 12 }}>
-      <View style={{ width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 6, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: couleur }} />
-      <View style={{ width: 2.5, height: 5, backgroundColor: couleur, marginTop: -1 }} />
-    </View>
-  );
-}

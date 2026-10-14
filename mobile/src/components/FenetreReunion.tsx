@@ -302,7 +302,7 @@ export function FenetreReunion(p: Props) {
               <Text style={s.gras}>En direct · </Text>
               {p.direct.texte}
             </Text>
-            <Text style={s.directFleche}>{directOuvert ? '▾' : '▴'}</Text>
+            <Text style={s.directFleche}>{directOuvert ? '▴' : '▾'}</Text>
           </Pressable>
           {directOuvert && (
             <View style={[s.directPanneau, { maxHeight: Math.round(Dimensions.get('window').height * 0.45) }]}>

@@ -9,6 +9,7 @@ import {
   comparer,
   depuis,
   estFiltre,
+  nbFiltresAv,
   FILTRE_TOUT,
   type FiltreAv,
   filtrer,
@@ -221,7 +222,7 @@ export function BlocAvancement({
   return (
     <SectionFiche
       titre={`${titre ?? av.titre} · ${vues.length}`}
-      droite={lignes.length ? <PastilleFiltres actif={filtre} ouvert={ouvert} onPress={() => setOuvert((x) => !x)} /> : undefined}
+      droite={lignes.length ? <PastilleFiltres nb={nbFiltresAv(av.filtre)} ouvert={ouvert} onPress={() => setOuvert((x) => !x)} /> : undefined}
       entete={ouvert && lignes.length ? <FiltreAvancement av={av} lignes={lignes} lecture={lecture} /> : undefined}
     >
       {vues.length ? (

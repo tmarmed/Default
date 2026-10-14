@@ -1078,7 +1078,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               arborescence={nouveauxSuivis.some((x) => !!cheminElement(x.element, h)) ? { valeur: arboSuivis, changer: setArboSuivis } : undefined}
               aValider={{ n: nValider, actif: aValider, onPress: () => setAValider((v) => !v) }}
               filtres={{
-                actif: !!filtreSuivi || vueSuivi !== 'tout' || avancement.filtre.mode !== 'elements',
+                nb: [!!filtreSuivi, vueSuivi !== 'tout', avancement.filtre.mode !== 'elements'].filter(Boolean).length,
                 contenu: (
                   <>
                     <ModeAffichage av={avancement} lecture={lecture} />
@@ -1202,7 +1202,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               n={notes.filter((y) => !filtreType || y.type === filtreType).length}
               suffixe={filtreType ? ` sur ${notes.length}` : ''}
               arborescence={notes.some((x) => !!cheminElement(x.element, h)) ? { valeur: arboSuivis, changer: setArboSuivis } : undefined}
-              filtres={{ actif: !!filtreType, contenu: <FiltresType types={['information', 'blocage', 'decision', 'action']} value={filtreType} onChange={setFiltreType} /> }}
+              filtres={{ nb: filtreType ? 1 : 0, contenu: <FiltresType types={['information', 'blocage', 'decision', 'action']} value={filtreType} onChange={setFiltreType} /> }}
             >
               {(arboSuivis ? [...notes].sort((x, y) => cheminElement(x.element, h).localeCompare(cheminElement(y.element, h))) : notes).filter((y) => !filtreType || y.type === filtreType).map((y, i, l) => {
                 const q = echangeDe(y);

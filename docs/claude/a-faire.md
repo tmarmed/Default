@@ -21,6 +21,9 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
    (DeleteSection) et enregistrement automatique (useEnregistrementAuto) étaient déjà communs. Seul effet visible :
    le bouton 📝 des remarques de la démo apparaît aussi sur les fiches Epic et Tâche. Vérifié : texte identique sur
    8 fiches (tâche, démarche, 2 epics, feature, value stream, équipe, train).
+   Unifié ensuite (14/10, demandé) : une seule pastille « Filtres ▾ / ▴ » (components/PastilleFiltres.tsx), celle des
+   onglets, dans les blocs de réunion et l'avancement, rond rouge = vrai nombre de filtres actifs ; blocs : ▸ fermé
+   (au lieu de ›) ; bandeau « En direct » : ▾ fermé, ▴ ouvert (était inversé).
 4. Services invisibles : une seule lecture des notes de réunion (8 écrans) ; barre de filtres des onglets hors d'App.tsx.
 5. Moteur de réunion unique : Daily et réunions perso sur useReunion.
 Pas fait exprès : réunions en liste déclarée, super-composant unique, écriture Sheets (déjà commune).

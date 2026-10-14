@@ -62,7 +62,9 @@ export const MODES_AV: { v: ModeAv; l: string }[] = [
 ];
 export const FILTRE_TOUT: FiltreAv = { mode: 'elements', sorte: '', niveau: '', type: '', seuil: 0 };
 export const SEUILS_AV = [0, 1, 2, 5, 10, 20, 50];
-export const estFiltre = (f: FiltreAv) => f.mode !== 'elements' || !!f.sorte || !!f.niveau || !!f.type || f.seuil > 0;
+/** Nombre de réglages actifs du filtre (rond rouge de la pastille Filtres) */
+export const nbFiltresAv = (f: FiltreAv) => [f.mode !== 'elements', !!f.sorte, !!f.niveau, !!f.type, f.seuil > 0].filter(Boolean).length;
+export const estFiltre = (f: FiltreAv) => nbFiltresAv(f) > 0;
 /** Filtre enregistré avec une photo ; l'ancien format (listes décochées, 13/10) : une seule case cochée = ce choix */
 export function lireFiltre(f: unknown): FiltreAv {
   const x = (f ?? {}) as Record<string, unknown>;
