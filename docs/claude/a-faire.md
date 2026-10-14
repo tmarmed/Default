@@ -2,7 +2,13 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
-## Session 4 (14/10, suite) : arbre des éléments — EN CONCEPTION (pas encore validé pour coder)
+## Session 4 (14/10, suite) : arbre des éléments — CODÉ (validé « fais tout en même temps »)
+Code : src/components/reunion/Arbre.tsx (BlocArbre, construireArbre, clesDe, changementsSuivi, ModeAffichage) ;
+FiltreAv.mode (elements · avec · changes) ; branché : base.tsx (Situation de toutes les réunions + compte rendu),
+Daily (Situation fermée, tour de table, compte rendu), Simple (perso), SuivisPerso, LignesSuivi (point et ↳).
+Affichage choisi : trois pastilles « Éléments » (point bleu) · « Avec changements » · « Changés seulement ».
+Non fait / à voir : la démo de l'équipe Web n'a presque rien dans le sprint en cours (Rétrospective Web : 1 élément) ;
+réunions Budget et PI Planning non ouvertes à l'écran.
 Décidé par l'utilisateur :
 - Un seul composant (« arbre des éléments ») et son filtre, réutilisé partout : toutes les réunions (SAFe, mode
   Simple, Budget) et les trois familles : éléments, budgets (enveloppes, demandes), suivis.

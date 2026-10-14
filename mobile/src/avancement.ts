@@ -42,15 +42,26 @@ export type Photo = Record<string, string>;
  * valeur d'avant, les changements de valeur plus petits sont cachés (0 = tout changement, sinon 1 % au moins)
  */
 export interface FiltreAv {
+  /**
+   * Affichage (14/10) : « Éléments » (la liste, un point bleu sur ce qui a changé), « Avec changements » (la liste et
+   * les changements sous chaque élément), « Changés seulement »
+   */
+  mode: ModeAv;
   sorte: SorteAv | '';
   niveau: NiveauAv | '';
   /** Type de note des suivis (Risque, Blocage…) */
   type: string;
   seuil: number;
 }
-export const FILTRE_TOUT: FiltreAv = { sorte: '', niveau: '', type: '', seuil: 0 };
+export type ModeAv = 'elements' | 'avec' | 'changes';
+export const MODES_AV: { v: ModeAv; l: string }[] = [
+  { v: 'elements', l: 'Éléments' },
+  { v: 'avec', l: 'Avec changements' },
+  { v: 'changes', l: 'Changés seulement' },
+];
+export const FILTRE_TOUT: FiltreAv = { mode: 'elements', sorte: '', niveau: '', type: '', seuil: 0 };
 export const SEUILS_AV = [0, 1, 2, 5, 10, 20, 50];
-export const estFiltre = (f: FiltreAv) => !!f.sorte || !!f.niveau || !!f.type || f.seuil > 0;
+export const estFiltre = (f: FiltreAv) => f.mode !== 'elements' || !!f.sorte || !!f.niveau || !!f.type || f.seuil > 0;
 /** Filtre enregistré avec une photo ; l'ancien format (listes décochées, 13/10) : une seule case cochée = ce choix */
 export function lireFiltre(f: unknown): FiltreAv {
   const x = (f ?? {}) as Record<string, unknown>;
@@ -60,6 +71,7 @@ export function lireFiltre(f: unknown): FiltreAv {
   };
   const n = Number(x.seuil);
   return {
+    mode: x.mode === 'avec' || x.mode === 'changes' ? x.mode : 'elements',
     sorte: typeof x.sorte === 'string' ? (x.sorte as SorteAv) : seul(x.sortes, SORTES_AV.map((y) => y.v)),
     niveau: typeof x.niveau === 'string' ? (x.niveau as NiveauAv) : seul(x.niveaux, NIVEAUX_AV.map((y) => y.v)),
     type: typeof x.type === 'string' ? x.type : '',

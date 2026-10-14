@@ -25,7 +25,8 @@ import {
   phrase,
   pointsPhoto,
   SEUILS_AV,
-  type NiveauAv,
+  type ModeAv,
+  MODES_AV,
   type SorteAv,
   SORTES_AV,
 } from '../../avancement';
@@ -49,9 +50,12 @@ export interface Avancement {
   titreDe: (cle: string) => string;
   typeDe: (cle: string) => string;
   itemDe: (cle: string) => Item | undefined;
+  /** Situation actuelle (photo) et sources : pour l'arbre des éléments (14/10) */
+  actuelle: Record<string, string>;
+  sources: Sources;
 }
 
-interface Sources {
+export interface Sources {
   items: Item[];
   featureList?: Feature[];
   epicList?: Epic[];
@@ -133,6 +137,8 @@ export function useAvancement(o: {
     titreDe,
     typeDe,
     itemDe: (k) => (k.startsWith('t:') ? sources.items.find((x) => x.id === k.slice(2)) : undefined),
+    actuelle: apres,
+    sources,
   };
 }
 
@@ -145,22 +151,30 @@ function Rangee<T extends string>({ options, value, onChange, lecture, tous = ''
   );
 }
 
-/** Filtre (14/10) : une rangée par famille (Sorte, Niveau, Type de note), un seul choix, et le seuil des valeurs */
-function Filtre({ av, lignes, lecture }: { av: Avancement; lignes: LigneAv[]; lecture?: boolean }) {
-  const niveaux = NIVEAUX_AV.filter((n) => lignes.some((l) => l.niveau === n.v));
+/**
+ * Filtre (14/10) : l'affichage (Éléments · Avec changements · Changés seulement), puis, pour les changements, la sorte,
+ * le type de note des suivis et le seuil des valeurs ; un seul choix par rangée
+ */
+export function FiltreAvancement({ av, lignes, lecture, sansTypes }: { av: Avancement; lignes: LigneAv[]; lecture?: boolean; sansTypes?: boolean }) {
   // Type de note des points de suivi (Risque, Blocage, Demande d'action…), s'il y en a
   const suivis = lignes.filter((l) => l.niveau === 'suivi');
-  const types = [...new Set(suivis.map((l) => av.typeDe(l.cle)).filter(Boolean))];
+  const types = sansTypes ? [] : [...new Set(suivis.map((l) => av.typeDe(l.cle)).filter(Boolean))];
   const f = av.filtre;
   return (
     <View style={[st.filtresBloc, { gap: 6 }]}>
-      <Rangee<SorteAv | ''> lecture={lecture} options={SORTES_AV.filter((x) => lignes.some((l) => l.sorte === x.v)).map((x) => ({ value: x.v, label: `${x.l} · ${lignes.filter((l) => l.sorte === x.v).length}` }))} value={f.sorte} onChange={(v) => av.setFiltre({ ...f, sorte: v })} />
-      {niveaux.length > 1 && <Rangee<NiveauAv | ''> lecture={lecture} options={niveaux.map((n) => ({ value: n.v, label: `${n.l} · ${lignes.filter((l) => l.niveau === n.v).length}` }))} value={f.niveau} onChange={(v) => av.setFiltre({ ...f, niveau: v })} />}
-      {types.length > 0 && (
-        <Rangee lecture={lecture} options={types.map((t) => ({ value: t, label: `${LIBELLE_TYPE_POINT[t as keyof typeof LIBELLE_TYPE_POINT] ?? t} · ${suivis.filter((l) => av.typeDe(l.cle) === t).length}` }))} value={f.type} onChange={(v) => av.setFiltre({ ...f, type: v })} />
-      )}
-      {lignes.some((l) => l.sorte === 'valeur') && (
-        <Rangee lecture={lecture} tous="0" libelleTous="Seuil : tout changement" options={SEUILS_AV.filter((x) => x > 0).map((x) => ({ value: String(x), label: `≥ ${x} %` }))} value={String(f.seuil)} onChange={(v) => av.setFiltre({ ...f, seuil: Number(v) })} />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} pointerEvents={lecture ? 'none' : 'auto'}>
+        <Chips<ModeAv> options={MODES_AV.map((m) => ({ value: m.v, label: m.l }))} value={f.mode} onChange={(v) => av.setFiltre({ ...f, mode: v })} compact />
+      </ScrollView>
+      {f.mode !== 'elements' && (
+        <>
+          <Rangee<SorteAv | ''> lecture={lecture} options={SORTES_AV.filter((x) => lignes.some((l) => l.sorte === x.v)).map((x) => ({ value: x.v, label: `${x.l} · ${lignes.filter((l) => l.sorte === x.v).length}` }))} value={f.sorte} onChange={(v) => av.setFiltre({ ...f, sorte: v })} libelleTous="Tous les changements" />
+          {types.length > 0 && (
+            <Rangee lecture={lecture} options={types.map((t) => ({ value: t, label: `${LIBELLE_TYPE_POINT[t as keyof typeof LIBELLE_TYPE_POINT] ?? t} · ${suivis.filter((l) => av.typeDe(l.cle) === t).length}` }))} value={f.type} onChange={(v) => av.setFiltre({ ...f, type: v })} />
+          )}
+          {lignes.some((l) => l.sorte === 'valeur') && (
+            <Rangee lecture={lecture} tous="0" libelleTous="Seuil : tout changement" options={SEUILS_AV.filter((x) => x > 0).map((x) => ({ value: String(x), label: `≥ ${x} %` }))} value={String(f.seuil)} onChange={(v) => av.setFiltre({ ...f, seuil: Number(v) })} />
+          )}
+        </>
       )}
     </View>
   );
@@ -214,7 +228,7 @@ export function BlocAvancement({
     <SectionFiche
       titre={`${titre ?? av.titre} · ${vues.length}`}
       droite={lignes.length ? <PastilleFiltres actif={filtre} ouvert={ouvert} onPress={() => setOuvert((x) => !x)} /> : undefined}
-      entete={ouvert && lignes.length ? <Filtre av={av} lignes={lignes} lecture={lecture} /> : undefined}
+      entete={ouvert && lignes.length ? <FiltreAvancement av={av} lignes={lignes} lecture={lecture} /> : undefined}
     >
       {vues.length ? (
         vues.map((l, i) => {

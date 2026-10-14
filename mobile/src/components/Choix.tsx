@@ -56,7 +56,10 @@ export function SectionFiche({
   carte = true,
   droite,
   entete,
+  onTitre,
 }: {
+  /** Titre touchable (bloc qui s'ouvre et se ferme, 14/10) */
+  onTitre?: () => void;
   /** À côté du titre (ex. la pastille « Filtres ») */
   droite?: ReactNode;
   /** Entre le titre et la carte (ex. les filtres dépliés) */
@@ -77,7 +80,13 @@ export function SectionFiche({
   return (
     <View style={lectureSection && vide && s.masque}>
       <View style={s.titreSec}>
-        <Text style={s.titreSecTexte}>{vocab(titre)}</Text>
+        {onTitre ? (
+          <Pressable onPress={onTitre} hitSlop={6} style={{ flexShrink: 1 }} accessibilityRole="button" accessibilityLabel={`Ouvrir ou fermer : ${titre}`}>
+            <Text style={s.titreSecTexte}>{vocab(titre)}</Text>
+          </Pressable>
+        ) : (
+          <Text style={s.titreSecTexte}>{vocab(titre)}</Text>
+        )}
         {droite}
         {aDefinir > 0 && <Text style={s.aDefinir}>{aDefinir} à définir{auChoix ? ' (au choix)' : ''}</Text>}
         {onAjouter && !lectureSection && (

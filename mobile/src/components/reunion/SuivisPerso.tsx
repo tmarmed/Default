@@ -8,6 +8,8 @@ import { SectionFiche } from '../Choix';
 import type { ActionsDaily } from '../Daily';
 import { TitreFiche } from '../FormSheet';
 import { type CtxSuivi, LignesSuivi, pointsDeSuivi } from './Suivi';
+import { changementsSuivi, ModeAffichage } from './Arbre';
+import type { Avancement } from './Avancement';
 import { SaisiePoint, Vide } from './ui';
 
 /**
@@ -16,7 +18,7 @@ import { SaisiePoint, Vide } from './ui';
  * Seul : vous êtes responsable et validateur ; une note se concrétise tout de suite (pas de compte rendu). Les notes
  * venues du Chat (« 📌 Suivre en réunion », « 📌 Suivre à ») arrivent ici.
  */
-export function SuivisPerso({ reunion, moi, echanges, actions, onInfo }: { reunion: Reunion; moi: string; echanges: Echange[]; actions: ActionsDaily; onInfo?: (t: string) => void }) {
+export function SuivisPerso({ reunion, moi, echanges, actions, onInfo, avancement }: { reunion: Reunion; moi: string; echanges: Echange[]; actions: ActionsDaily; onInfo?: (t: string) => void; avancement?: Avancement }) {
   const h = useHierarchy();
   const espace = reunion.espace || 'moi';
   const jour = reunion.debut.slice(0, 10);
@@ -51,6 +53,8 @@ export function SuivisPerso({ reunion, moi, echanges, actions, onInfo }: { reuni
     echeance: echeanceParDefaut(reunion),
     ctxCreer: (pt) => ({ espace, iteration: '', equipe: '', idDe: () => '', description: `${libelleNote(pt)} noté au ${reunion.titre} du ${jour}.`, h, moi }),
     onInfo,
+    // 14/10 : changements des suivis depuis la réunion précédente (même affichage que l'arbre des éléments)
+    changements: avancement ? (p) => changementsSuivi(avancement, p.id, nomDe) : undefined,
   };
   const ajouter = async (type: TypePoint, texte: string, element: string, sous_type: SousType = '', partagee = false) => {
     const { crees } = await actions.ecrirePoints(espace, [{ reunion: reunion.id, personne: moi.toLowerCase(), auteur: moi.toLowerCase(), type, sous_type, texte, element, concretisation: partagee ? 'rien' : '', tache: '', responsable: '' }], [], []);
@@ -59,7 +63,7 @@ export function SuivisPerso({ reunion, moi, echanges, actions, onInfo }: { reuni
   return (
     <>
       <TitreFiche icone="📌" titre="Suivis et notes" vide="" sous="Vos suivis, et les notes venues du Chat ou d’un rituel précédent" />
-      <SectionFiche titre={`📌 Suivis · ${suivis.length}${notes.length ? ` · Notes à concrétiser · ${notes.length}` : ''}`}>
+      <SectionFiche titre={`📌 Suivis · ${suivis.length}${notes.length ? ` · Notes à concrétiser · ${notes.length}` : ''}`} entete={avancement ? <ModeAffichage av={avancement} /> : undefined}>
         <LignesSuivi points={suivis} notes={notes} ctx={ctx} />
         {!suivis.length && !notes.length && <Vide texte="✓ Rien à suivre." />}
         <SaisiePoint types={TYPES_NOTE} typeDefaut="information" jour={jour} placeholder="＋ Nouvelle note" onAjouter={(type, texte, element, c, sous) => void ajouter(type, texte, element, sous, c?.c === 'rien')} />

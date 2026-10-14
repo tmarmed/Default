@@ -17,7 +17,8 @@ import { AjoutElement, ChoixJour } from './Ajout';
 import { Compteurs } from './base';
 import { PlanDuJour } from './PlanDuJour';
 import { SuivisPerso } from './SuivisPerso';
-import { BlocAvancement, useAvancement } from './Avancement';
+import { useAvancement } from './Avancement';
+import { BlocArbre } from './Arbre';
 import type { PointReunion } from '../../types';
 import { usePlanJour } from './usePlanJour';
 import { useSafe } from '../../safe';
@@ -232,8 +233,8 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
       case 'suivis':
         return (
           <>
-            <BlocAvancement av={avancement} nom={(m) => (m.toLowerCase() === moi.toLowerCase() || m === moiId ? 'Vous' : org.personnes.find((x) => x.id === m || x.email.toLowerCase() === m.toLowerCase())?.nom ?? m)} onOuvrir={onOpenTask} onOuvrirEntite={onOpenEntite} />
-            <SuivisPerso reunion={reunion} moi={moi} echanges={echanges} actions={actions} onInfo={onInfo} />
+            <BlocArbre av={avancement} titre="Éléments" perso nom={(m) => (m.toLowerCase() === moi.toLowerCase() || m === moiId ? 'Vous' : org.personnes.find((x) => x.id === m || x.email.toLowerCase() === m.toLowerCase())?.nom ?? m)} onOuvrir={onOpenTask} onOuvrirEntite={onOpenEntite} />
+            <SuivisPerso reunion={reunion} moi={moi} echanges={echanges} actions={actions} onInfo={onInfo} avancement={avancement} />
           </>
         );
       case 'hier':

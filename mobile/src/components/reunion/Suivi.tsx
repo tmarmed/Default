@@ -49,6 +49,8 @@ export interface CtxSuivi {
   /** Ce que la re-concrétisation crée (espace, sprint, équipe…), voir elementACreer */
   ctxCreer: (pt: PointReunion) => Parameters<typeof elementACreer>[2];
   onInfo?: (t: string) => void;
+  /** Changements d'un suivi depuis la réunion précédente (14/10, même affichage que l'arbre des éléments) */
+  changements?: (p: PointReunion) => { point: boolean; lignes: string[]; garder: boolean };
 }
 
 /**
@@ -108,7 +110,8 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
   const [conc, setConc] = useState<PointReunion | null>(null);
   const liste = points
     .map((p) => ({ p, a: statutAffiche(p, ctx.items, ctx.jour) }))
-    .filter((x) => !aValider || (x.a.s === 'fait' && validateurDe(x.p, ctx.animateur) === ctx.moi.toLowerCase()));
+    .filter((x) => !aValider || (x.a.s === 'fait' && validateurDe(x.p, ctx.animateur) === ctx.moi.toLowerCase()))
+    .filter((x) => !ctx.changements || ctx.changements(x.p).garder);
   const ecrire = async (pt: PointReunion, action: ActionSuivi, note: string) => {
     const plan = planSuivi({ pt, espace: ctx.espace, action, note, moi: ctx.moi, animateur: ctx.animateur, nomDe: ctx.nomDe, echanges: ctx.echanges, niveau: ctx.niveau });
     const modifies = await appliquerPlan(plan, ctx.actions);
@@ -124,7 +127,7 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
   return (
     <>
       {liste.map(({ p, a }, i) => (
-        <Ligne key={p.id} premiere={premiere && i === 0} texte={p.texte} sous={sousSuivi(p, a.s, ctx.nomDe, ctx.echanges)} pastille={a.texte ? { texte: a.texte, ton: a.ton } : undefined} onOuvrir={ctx.lecture ? undefined : () => setOuvert(p)} />
+        <Ligne key={p.id} premiere={premiere && i === 0} texte={p.texte} sous={sousSuivi(p, a.s, ctx.nomDe, ctx.echanges)} pastille={a.texte ? { texte: a.texte, ton: a.ton } : undefined} onOuvrir={ctx.lecture ? undefined : () => setOuvert(p)} point={ctx.changements?.(p).point} changements={ctx.changements?.(p).lignes} />
       ))}
       {!aValider &&
         notes.map((p, i) => (

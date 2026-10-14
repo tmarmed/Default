@@ -31,10 +31,11 @@ import { subtaskMap } from '../../subtasks';
 import { aReprendre, parEspace, pointsEscalade, titreEscalade } from '../../suiviEscalade';
 import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, estSuivi, LIBELLE_TYPE_CREE, patchConcretise, resumeChoix, resumePoint } from '../../concretisation';
 import { FeuilleConcretiser } from './Concretiser';
-import { BlocAvancement, useAvancement } from './Avancement';
+import { useAvancement } from './Avancement';
+import { BlocArbre, changementsSuivi, clesDe, ModeAffichage } from './Arbre';
 import { peutAnimer } from '../../transverses';
 import { toDateString } from '../../dates';
-import type { Perimetre } from '../../avancement';
+import { focusDe, type Perimetre } from '../../avancement';
 import { libelleElement } from '../../elementConcerne';
 import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../../pointsSuivi';
 import { BlocHorsReunion, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, repartirSuivis, statutAffiche } from './Suivi';
@@ -593,6 +594,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
       moi: mail,
     }),
     onInfo,
+    changements: (p) => changementsSuivi(avancement, p.id, e.nomDe),
   };
   return {
     budgetConcret,
@@ -759,7 +761,9 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
   const { e } = r;
   return (
     <>
-      <BlocAvancement av={r.avancement} nom={e.nomDe} onOuvrir={lecture ? undefined : r.ouvrirTache} onOuvrirEntite={lecture ? undefined : r.ouvrirEntite} />
+      {/* Arbre des éléments (14/10) : même composant et même filtre dans toutes les réunions ; puis le budget et les suivis */}
+      <BlocArbre av={r.avancement} titre={focusDe(r.avancement.type) === 0 ? 'Éléments du sprint' : 'Éléments'} cles={focusDe(r.avancement.type) === 0 ? e.situation.elements.map((t) => `t:${t.id}`) : undefined} nom={e.nomDe} montrerResponsable lecture={lecture} onOuvrir={lecture ? undefined : r.ouvrirTache} onOuvrirEntite={lecture ? undefined : r.ouvrirEntite} />
+      {clesDe(r.avancement, 'budget').length > 0 && <BlocArbre av={r.avancement} famille="budget" titre="💶 Budget" nom={e.nomDe} lecture={lecture} />}
       <BlocSuiviSeul r={r} lecture={lecture} onAjouter={onAjouter} />
     </>
   );
@@ -802,6 +806,7 @@ function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAj
       entete={
         ouvert && (
           <>
+            <ModeAffichage av={r.avancement} lecture={lecture} />
             <FiltresVue value={vue} onChange={setVue} nSuivis={n - r.reportes.length} nNotes={r.reportes.length} nFermees={fermees.length} />
             <FiltresType types={typesNote(r)} value={filtre} onChange={setFiltre} />
           </>
@@ -1142,8 +1147,9 @@ export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode 
       <SectionFiche titre={`Clos · ${notes.length}`}>
         {notes.length ? notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`Rien (clos) · noté par ${e.nomDe(d.pt.personne)}`} pastille={{ texte: libelleNote(d.pt), ton: 'gris' }} />) : <Vide texte="Rien." />}
       </SectionFiche>
-      {/* Avancement (13/10) : même filtre qu'à la Situation ; compte rendu déjà envoyé : la photo et le filtre de l'envoi */}
-      <BlocAvancement av={reunionId ? r.avancementCR : r.avancement} nom={e.nomDe} compteRendu lecture={!!reunionId} onOuvrir={reunionId ? undefined : r.ouvrirTache} onOuvrirEntite={reunionId ? undefined : r.ouvrirEntite} />
+      {/* Arbre des éléments (14/10) : même filtre qu'à la Situation ; compte rendu déjà envoyé : la photo et le filtre de l'envoi */}
+      <BlocArbre av={reunionId ? r.avancementCR : r.avancement} titre={focusDe(r.avancement.type) === 0 ? 'Éléments du sprint' : 'Éléments'} cles={focusDe(r.avancement.type) === 0 ? e.situation.elements.map((t) => `t:${t.id}`) : undefined} nom={e.nomDe} montrerResponsable lecture={!!reunionId} onOuvrir={reunionId ? undefined : r.ouvrirTache} onOuvrirEntite={reunionId ? undefined : r.ouvrirEntite} />
+      {clesDe(r.avancement, 'budget').length > 0 && <BlocArbre av={reunionId ? r.avancementCR : r.avancement} famille="budget" titre="💶 Budget" nom={e.nomDe} lecture={!!reunionId} />}
     </>
   );
 }

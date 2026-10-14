@@ -39,9 +39,8 @@ import { useSafe } from '../safe';
 import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
 import { enfantsRepartition, gerantsBudget, niveauDessus, reunionDuNiveau, useBudget } from '../budget';
-import { BlocAvancement, useAvancement } from './reunion/Avancement';
-import { type LigneAv, messagePremiere } from '../avancement';
-import { Segmented } from './Segmented';
+import { useAvancement } from './reunion/Avancement';
+import { BlocArbre, changementsSuivi, ModeAffichage } from './reunion/Arbre';
 import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PeriodeDepense, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type Statut, type TypePoint } from '../types';
 import { etatDe, texteDirect } from '../etatReunion';
 import { useLive } from './useLive';
@@ -219,7 +218,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const [reponses, setReponses] = useState<Record<string, { c: string; note: string }>>({});
   const [membre, setMembre] = useState(0);
   /** Tour de table (14/10) : onglets « Situation » et « Avancement » du membre */
-  const [ongletTour, setOngletTour] = useState<'situation' | 'avancement'>('situation');
+  /** Situation (14/10) : le bloc des suivis arrive fermé (réunion avec tour de table) */
+  const [suivisOuverts, setSuivisOuverts] = useState(false);
   /** Étape affichée (clé), dans l'onglet ouvert */
   const [cle, setCle] = useState('');
   const relus = useRef(new Set<string>());
@@ -631,6 +631,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
       moi: mail,
     }),
     onInfo,
+    changements: (p) => changementsSuivi(avancement, p.id, nomDe),
   };
   // Ouverts, fermés (filtre « Fermées ») et décidés hors réunion (en tête, « Confirmer ») — validé le 09/10
   const { horsReunion: horsReunionD, fermees: fermeesD, ouverts: ouvertsD } = repartirSuivis(pointsDeSuivi(serveur, reunion.id));
@@ -1076,17 +1077,13 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               const noms = personnes.filter((y) => ab.fermeture || ab.personnes.includes(y.email.toLowerCase())).map((y) => y.nom);
               return noms.length ? <Text style={[st.sous, { marginHorizontal: 16, marginTop: 6 }]}>📅 Absents aujourd’hui : {noms.join(', ')}</Text> : null;
             })()}
-            {/* Avancement (14/10) : le détail par membre au tour de table ; ici, le nombre de changements */}
-            <SectionFiche titre="📈 Avancement">
-              <Ligne
-                premiere
-                texte={avancement.lignes ? (avancement.lignes.length ? `${pluriel(avancement.lignes.length, 'changement')} ${avancement.titre.replace(/^Avancement /, '')}` : `Rien n’a bougé ${avancement.titre.replace(/^Avancement /, '')}`) : messagePremiere(reunion.type)}
-                sous={avancement.lignes?.length ? 'Le détail de chacun au tour de table (onglet « Avancement »)' : undefined}
-              />
-            </SectionFiche>
+            {/* Arbre des éléments (14/10) : réunion avec tour de table, les blocs arrivent fermés (le détail au tour de table) */}
+            <BlocArbre av={avancement} titre="Éléments du sprint" cles={situation.elements.map((t) => `t:${t.id}`)} nom={nomDe} montrerResponsable fermeAuDepart lecture={lecture} onOuvrir={lecture ? undefined : onOpenTask} onOuvrirEntite={lecture ? undefined : onOpenEntite} />
             <SectionFiche
-              titre={`📌 Suivis · ${nSuivisVus}${reportesVus.length || vueSuivi === 'notes' ? ` · Notes à concrétiser · ${reportesVus.length}` : ''}`}
-              droite={
+              titre={`${suivisOuverts ? '▾' : '›'} 📌 Suivis · ${nSuivisVus}${reportesVus.length || vueSuivi === 'notes' ? ` · Notes à concrétiser · ${reportesVus.length}` : ''}`}
+              onTitre={() => setSuivisOuverts((o) => !o)}
+              carte={suivisOuverts}
+              droite={!suivisOuverts ? undefined :
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   {nValider > 0 && (
                     <Pressable onPress={() => setAValider((v) => !v)} style={[st.puceValider, aValider && st.puceValiderOn]} accessibilityRole="button" accessibilityState={{ selected: aValider }}>
@@ -1097,14 +1094,17 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 </View>
               }
               entete={
-                filtresSuiviOuverts && (
+                suivisOuverts && filtresSuiviOuverts && (
                   <>
+                    <ModeAffichage av={avancement} lecture={lecture} />
                     <FiltresVue value={vueSuivi} onChange={setVueSuivi} nSuivis={suivisEquipe.length + suivisEchanges.length + nouveauxSuivis.length} nNotes={reportes.length} nFermees={fermeesD.length} />
                     <FiltresType types={TYPES_NOTE} value={filtreSuivi} onChange={setFiltreSuivi} />
                   </>
                 )
               }
             >
+              {suivisOuverts && (
+              <>
               {vueSuivi !== 'fermees' && !aValider && <BlocHorsReunion points={horsReunionD} ctx={ctxSuivi} peutConfirmer={anime && !lecture} />}
               <LignesSuivi points={vueSuivi === 'notes' ? [] : nouveauxSuivis.filter((x) => !filtreSuivi || x.type === filtreSuivi)} premiere={!horsReunionD.length || vueSuivi === 'fermees'} ctx={{ ...ctxSuivi, lecture: lecture || vueSuivi === 'fermees' }} aValider={aValider && nValider > 0} />
               {!aValider && vueSuivi !== 'notes' && vueSuivi !== 'fermees' && suivisEquipe.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).map(({ point, tache }, i) => (
@@ -1158,6 +1158,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   }}
                 />
               )}
+              </>
+              )}
             </SectionFiche>
             <SectionFiche titre="Objectifs de la réunion">
               <Ligne premiere texte="🎯 Se synchroniser sur l’objectif de sprint" sous="Chacun dit ce qu’il a fait hier et ce qu’il fera aujourd’hui (15 min)" />
@@ -1178,15 +1180,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         const sonHier = planHierDe(m);
         // Lecture seule : les points du Sheet (ce que chacun a envoyé, ce que le SM a noté et concrétisé) ; Hier et
         // Aujourd'hui sont affichés à part (plan du jour)
-        // Avancement du membre (14/10) : ses éléments (responsable) et les suivis à son nom
-        const aLui = (l: LigneAv) => {
-          if (l.cle.startsWith('t:')) return avancement.itemDe(l.cle)?.responsable === courant.id;
-          if (l.cle.startsWith('s:')) {
-            const pt = tous.find((x) => x.id === l.cle.slice(2)) ?? serveur.find((x) => x.id === l.cle.slice(2));
-            return !!pt && (pt.responsable || pt.personne).toLowerCase() === m;
-          }
-          return false;
-        };
+        // Suivis du membre (14/10) : ceux dont il est responsable, avec leurs changements
+        const sesSuivis = nouveauxSuivis.filter((x) => (x.responsable || x.personne).toLowerCase() === m);
         const notes = (lecture ? serveur : tous).filter((y) => dela(y) && y.personne === m && y.type !== 'hier' && y.type !== 'aujourdhui').sort((a, b) => a.cree_le.localeCompare(b.cree_le));
         return (
           <>
@@ -1198,48 +1193,32 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               ))}
             </ScrollView>
             <TitreFiche icone="👤" titre={courant.nom} vide="" sous={sous(`${membre + 1} sur ${personnes.length} · ${e.role(courant.id)}`)} />
-            <View style={{ marginHorizontal: 16, marginBottom: 8 }}>
-              <Segmented
-                options={[
-                  { value: 'situation', label: 'Situation' },
-                  { value: 'avancement', label: `Avancement${avancement.lignes ? ` · ${avancement.vues.filter(aLui).length}` : ''}` },
-                ]}
-                value={ongletTour}
-                onChange={setOngletTour}
-              />
-            </View>
-            {ongletTour === 'avancement' && (
-              <BlocAvancement av={avancement} nom={nomDe} garder={aLui} titre={`Avancement de ${courant.nom}`} onOuvrir={lecture ? undefined : onOpenTask} onOuvrirEntite={lecture ? undefined : onOpenEntite} />
-            )}
-            {ongletTour === 'situation' && sonHier.elements.length > 0 && (
+            {sonHier.elements.length > 0 && (
               <SectionFiche titre={`⏪ Hier · plan du ${dateCourte(sonHier.reunion.slice(-10))}`}>
                 {sonHier.elements.map((t, i) => (
                   <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} pastille={pastilleStatut(t.statut)} tache={t} />
                 ))}
               </SectionFiche>
             )}
-            {ongletTour === 'situation' && (
+            {/* Arbre des éléments du membre (14/10) : ses stories et tâches, leur feature et leur epic en contexte ; la case =
+                « je travaille dessus aujourd'hui » (plan du jour, jamais le statut) */}
+            <BlocArbre
+              av={avancement}
+              titre={`Éléments de ${courant.nom} · ${sesElements.filter(dansPlan).length} coché${sesElements.filter(dansPlan).length > 1 ? 's' : ''}`}
+              cles={sesElements.map((t) => `t:${t.id}`)}
+              strict
+              nom={nomDe}
+              cases={{ coche: dansPlan, basculer: (t) => basculer('aujourdhui', t, t.titre, 'membre'), fige: !estMoi || lecture }}
+              lecture={lecture}
+              onOuvrir={lecture ? undefined : onOpenTask}
+              onOuvrirEntite={lecture ? undefined : onOpenEntite}
+            />
+            {sesSuivis.length > 0 && (
+              <SectionFiche titre={`📌 Suivis de ${courant.nom} · ${sesSuivis.length}`}>
+                <LignesSuivi points={sesSuivis} ctx={{ ...ctxSuivi, lecture }} />
+              </SectionFiche>
+            )}
             <>
-            <SectionFiche titre={`▶️ Aujourd’hui · ${sesElements.filter(dansPlan).length} coché${sesElements.filter(dansPlan).length > 1 ? 's' : ''} sur ${sesElements.length}`}>
-              {sesElements.length ? (
-                sesElements.map((t, i) => (
-                  <LigneCase
-                    key={t.id}
-                    premiere={i === 0}
-                    texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`}
-                    sous={[t.type === 'story' ? fmt(Number(t.points) || 0) : t.parent ? `Sous-tâche de ${parId.get(t.parent)?.titre ?? 'la story'}` : '', e.bloquees.has(t.id) ? 'bloquée' : '', enRetard(t, aujourdhui) ? 'en retard' : ''].filter(Boolean).join(' · ')}
-                    coche={dansPlan(t)}
-                    fige={!estMoi || lecture}
-                    onBasculer={() => basculer('aujourdhui', t, t.titre, 'membre')}
-                    onOuvrir={ouvrir(t)}
-                    pastille={pastilleStatut(t.statut)}
-                    tache={t}
-                  />
-                ))
-              ) : (
-                <Vide texte="Rien à son nom dans le sprint." />
-              )}
-            </SectionFiche>
             <SectionFiche
               titre={`Notes · ${filtreType ? `${notes.filter((y) => y.type === filtreType).length} sur ${notes.length}` : notes.length}`}
               droite={<PastilleFiltres actif={!!filtreType} ouvert={filtresOuverts} onPress={() => setFiltresOuverts((o) => !o)} />}
@@ -1278,7 +1257,6 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               )}
             </SectionFiche>
             </>
-            )}
           </>
         );
       }
@@ -1433,7 +1411,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               )}
             </SectionFiche>
             {/* Avancement (13/10) : même filtre qu'à la Situation ; compte rendu déjà envoyé : la photo et le filtre de l'envoi */}
-            <BlocAvancement av={x.cle === 'cr_lecture' ? avancementCR : avancement} nom={nomDe} compteRendu lecture={x.cle === 'cr_lecture'} onOuvrir={lecture ? undefined : onOpenTask} onOuvrirEntite={lecture ? undefined : onOpenEntite} />
+            <BlocArbre av={x.cle === 'cr_lecture' ? avancementCR : avancement} titre="Éléments du sprint" cles={situation.elements.map((t) => `t:${t.id}`)} montrerResponsable nom={nomDe} lecture={x.cle === 'cr_lecture'} onOuvrir={lecture ? undefined : onOpenTask} onOuvrirEntite={lecture ? undefined : onOpenEntite} />
           </>
         );
       }

@@ -104,6 +104,8 @@ export function Ligne({
   onRetirer,
   onOuvrir,
   tache,
+  point,
+  changements,
 }: {
   texte: string;
   sous?: string;
@@ -111,14 +113,25 @@ export function Ligne({
   premiere?: boolean;
   onRetirer?: () => void;
   onOuvrir?: () => void;
+  /** 14/10 : point bleu (a changé depuis la réunion précédente) et lignes de changement (↳) */
+  point?: boolean;
+  changements?: string[];
   /** Tâche de la ligne : sa pastille de statut devient touchable */
   tache?: Item;
 }) {
   const contenu = (
     <>
       <View style={st.corps}>
-        <Text style={st.texte}>{vocab(texte)}</Text>
+        <Text style={st.texte}>
+          {point ? <Text style={{ color: colors.primary }}>● </Text> : null}
+          {vocab(texte)}
+        </Text>
         {!!sous && <Text style={st.sous}>{vocab(sous)}</Text>}
+        {changements?.map((c) => (
+          <Text key={c} style={[st.sous, { color: colors.primary }]}>
+            ↳ {c}
+          </Text>
+        ))}
       </View>
       {tache ? <PastilleStatut t={tache} affiche={pastille} /> : pastille && <Pastille {...pastille} />}
       {onRetirer && (
