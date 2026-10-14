@@ -6,7 +6,7 @@ import { dateFr } from '../format';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useMoi } from '../droits';
-import { nomPersonne, type OrgValue } from '../organisation';
+import { nomPersonne, optionsPersonnes, type OrgValue } from '../organisation';
 import { colors } from '../theme';
 import { ecrireTransverses, libelleRole, lireTransverses, peutDonner, type RoleTransverse, ROLES_TRANSVERSES, type Transverse } from '../transverses';
 import { LigneChoix, LigneEnfant, SectionFiche } from './Choix';
@@ -28,7 +28,7 @@ export function SectionRolesTransverses({ niveau, value, onChange, org, safe }: 
   // Sans personne connue (pas d'Organisation chargée pour vous) : tous les droits
   const peut = (role: RoleTransverse, remplace = '') => !moi || !org.personne.has(moi) || (!!niveau && peutDonner(moi, role, niveau, org, remplace));
   const roles = ROLES_TRANSVERSES.filter((r) => safe || !r.safeSeulement);
-  const personnes = { groupes: [{ options: org.personnes.map((p) => ({ value: p.id, label: p.nom })) }] };
+  const personnes = { groupes: [{ options: optionsPersonnes(org.personnes) }] };
   const valider = () => {
     if (!ajout || !ajout.personne) return;
     onChange(ecrireTransverses([...l, ajout]));

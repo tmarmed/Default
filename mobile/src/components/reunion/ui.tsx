@@ -1,3 +1,4 @@
+import { RangeePastilles } from '../RangeePastilles';
 import { createContext, useContext, useState } from 'react';
 import { ChoiceSheet } from '../ChoiceSheet';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -430,16 +431,7 @@ export function PastilleFiltres({ actif, ouvert, onPress, compact, onBulle }: { 
 export function FiltresType({ types, value, onChange }: { types: TypePoint[]; value: TypePoint | ''; onChange: (v: TypePoint | '') => void }) {
   return (
     <View style={st.filtresBloc}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filtreLigne}>
-        {(['', ...types] as const).map((x) => {
-          const on = value === x;
-          return (
-            <Pressable key={x || 'tous'} onPress={() => onChange(x)} style={[st.itChip, on && st.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
-              <Text style={[st.itChipText, on && st.itChipTextOn]}>{x ? LIBELLE_TYPE_POINT[x] : 'Tous'}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <RangeePastilles<TypePoint | ''> options={(['', ...types] as const).map((x) => ({ value: x, label: x ? LIBELLE_TYPE_POINT[x] : 'Tous' }))} value={value} onChange={onChange} />
     </View>
   );
 }
@@ -457,16 +449,7 @@ export function FiltresVue({ value, onChange, nSuivis, nNotes, nFermees }: { val
   ];
   return (
     <View style={st.filtresBloc}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filtreLigne}>
-        {opts.map((o) => {
-          const on = value === o.v;
-          return (
-            <Pressable key={o.v} onPress={() => onChange(o.v)} style={[st.itChip, on && st.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
-              <Text style={[st.itChipText, on && st.itChipTextOn]}>{o.l}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <RangeePastilles<VueSuivi> options={opts.map((o) => ({ value: o.v, label: o.l }))} value={value} onChange={onChange} />
     </View>
   );
 }

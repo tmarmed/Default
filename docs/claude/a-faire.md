@@ -8,8 +8,12 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
    fonction, organisation.ts nomPersonne (identifiant ou adresse ; inconnue : « Lea Martin » tiré de l'adresse, ou rien
    pour un identifiant), utilisée par Daily, réunions, Backlog, Planification, Chat, fiche tâche. Vérifié : texte identique avant /
    après sur Réunions, Daily, Revue de sprint, ART sync, Pilotage.
-2. Composants visuels : une fenêtre de choix (remplace ChoiceSheet, ItemPicker, LinkPicker, Choix, DomaineChoix,
-   EspaceChoix, PIAddSheet), un choix de personne, une ligne « ＋ Ajouter », les rangées de pastilles sur Chips.
+2. Composants visuels — FAIT (14/10) : RangeePastilles.tsx (RangeePastilles + Pastille, style des filtres des onglets)
+   pour les rangées d'App (Chat, backlog, réunions, sprint en cours, delivery), Filtres des suivis et des notes, filtre
+   de l'avancement et de l'arbre ; useChoixDomaine (DomainFilter) commun au filtre et à DomaineChoix ;
+   optionsPersonnes (organisation.ts) ; ItemPicker.tsx supprimé (mort). Constat : les fenêtres de choix sont déjà
+   bâties sur ChoiceSheet, LigneChoix, FeuilleChoix ; les « ＋ Ajouter » ont des rôles différents (laissés).
+   Vérifié : texte identique sur 10 écrans.
 3. Fiches d'élément : squelette commun aux 9 fiches (fil d'Ariane, champs communs, parents et enfants, ajout d'un
    enfant, suppression, enregistrement automatique).
 4. Services invisibles : une seule lecture des notes de réunion (8 écrans) ; barre de filtres des onglets hors d'App.tsx.

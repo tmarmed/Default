@@ -177,6 +177,9 @@ export const useOrg = () => useContext(OrgContext);
  * Nom d'une personne (14/10, une seule règle pour toute l'application) : par son identifiant ou son adresse dans
  * l'Organisation ; inconnue, une adresse donne « Lea Martin » (tiré de l'adresse) et un identifiant ne donne rien
  */
+/** Personnes à choisir (14/10, refactoring lot 2) : « Nina Dupont », valeur = identifiant ou adresse en minuscules */
+export const optionsPersonnes = (personnes: Personne[], cle: 'id' | 'email' = 'id') => personnes.map((p) => ({ value: cle === 'id' ? p.id : p.email.toLowerCase(), label: p.nom }));
+
 export function nomPersonne(o: Pick<OrgValue, 'personne' | 'personnes'>, idOuMail: string | undefined): string {
   if (!idOuMail) return '';
   const p = o.personne.get(idOuMail) ?? o.personnes.find((y) => !!y.email && y.email.toLowerCase() === idOuMail.toLowerCase());

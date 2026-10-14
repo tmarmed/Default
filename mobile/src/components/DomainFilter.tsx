@@ -39,8 +39,17 @@ export function useRecherche(): (titre: string) => boolean {
  * choisi et s'il en a — ses sous-domaines. Un seul sous-domaine : choisi d'office (« Tout <domaine> » pour revenir).
  */
 export function useFiltreDomaine() {
-  const h = useHierarchy();
   const { value, set } = useDomainFilter();
+  return { ...useChoixDomaine(value, set), value, set };
+}
+
+/**
+ * Choix d'un domaine à deux niveaux (14/10, refactoring lot 2 : la même logique pour le filtre et les fiches) :
+ * domaines principaux ; une fois l'un choisi, ses sous-domaines ; un seul sous-domaine est choisi d'office.
+ * « tous » (filtre) et '' (aucun) ne désignent pas de domaine.
+ */
+export function useChoixDomaine(value: string, onChange: (v: string) => void) {
+  const h = useHierarchy();
   const principal = (d: Domaine) => !d.parent || !h.domaines.has(d.parent);
   // Un bouton par domaine et par espace (préfixe de l'espace quand plusieurs sont affichés)
   const principaux = h.domaineList.filter(principal);
@@ -51,18 +60,18 @@ export function useFiltreDomaine() {
   const choisir = (v: string) => {
     const p = v && v !== 'tous' ? h.domaines.get(v) : undefined;
     const s2 = p ? sousDe(p) : [];
-    set(s2.length === 1 ? s2[0].id : v);
+    onChange(s2.length === 1 ? s2[0].id : v);
   };
   return {
     vide: !h.domaineList.length,
     principaux: principaux.map((d) => ({ value: d.id, label: nomDomaine(d, h.domaines), color: d.couleur })),
+    /** Les mêmes, libellé simple (« 🏠 Perso ») */
+    principauxSimples: principaux.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })),
     valeurPrincipale: parent ? parent.id : value,
     choisir,
     sous: parent && sous.length
       ? { tout: { value: parent.id, label: `Tout ${parent.nom}` }, options: sous.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })) }
       : null,
-    value,
-    set,
   };
 }
 

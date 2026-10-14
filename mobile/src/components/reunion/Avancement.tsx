@@ -4,7 +4,7 @@
  */
 import { useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { Chips } from '../Chips';
+import { RangeePastilles } from '../RangeePastilles';
 import {
   comparer,
   depuis,
@@ -142,13 +142,9 @@ export function useAvancement(o: {
   };
 }
 
-/** Rangée du filtre : le composant des filtres des écrans (Chips), « Tous » puis un seul choix */
+/** Rangée du filtre : la rangée de pastilles commune (« Tous » puis un seul choix) */
 function Rangee<T extends string>({ options, value, onChange, lecture, tous = '' as T, libelleTous = 'Tous' }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void; lecture?: boolean; tous?: T; libelleTous?: string }) {
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} pointerEvents={lecture ? 'none' : 'auto'}>
-      <Chips options={[{ value: tous, label: libelleTous }, ...options]} value={value} onChange={onChange} compact />
-    </ScrollView>
-  );
+  return <RangeePastilles options={[{ value: tous, label: libelleTous }, ...options]} value={value} onChange={onChange} inactif={lecture} />;
 }
 
 /**
@@ -162,9 +158,7 @@ export function FiltreAvancement({ av, lignes, lecture, sansTypes }: { av: Avanc
   const f = av.filtre;
   return (
     <View style={[st.filtresBloc, { gap: 6 }]}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} pointerEvents={lecture ? 'none' : 'auto'}>
-        <Chips<ModeAv> options={MODES_AV.map((m) => ({ value: m.v, label: m.l }))} value={f.mode} onChange={(v) => av.setFiltre({ ...f, mode: v })} compact />
-      </ScrollView>
+      <RangeePastilles<ModeAv> options={MODES_AV.map((m) => ({ value: m.v, label: m.l }))} value={f.mode} onChange={(v) => av.setFiltre({ ...f, mode: v })} inactif={lecture} />
       {f.mode !== 'elements' && (
         <>
           <Rangee<SorteAv | ''> lecture={lecture} options={SORTES_AV.filter((x) => lignes.some((l) => l.sorte === x.v)).map((x) => ({ value: x.v, label: `${x.l} · ${lignes.filter((l) => l.sorte === x.v).length}` }))} value={f.sorte} onChange={(v) => av.setFiltre({ ...f, sorte: v })} libelleTous="Tous les changements" />

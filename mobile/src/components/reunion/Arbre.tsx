@@ -9,7 +9,7 @@
 import { eurosTexte } from '../../format';
 import { type ReactNode, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { Chips } from '../Chips';
+import { RangeePastilles } from '../RangeePastilles';
 import { estFiltre, focusDe, type LigneAv, type ModeAv, MODES_AV, phrase, statutFeature } from '../../avancement';
 import { ETATS_EPIC, type Item } from '../../types';
 import { useOrg } from '../../organisation';
@@ -354,9 +354,9 @@ export function changementsSuivi(av: Avancement, id: string, nom: (x: string) =>
 export function ModeAffichage({ av, lecture }: { av: Avancement; lecture?: boolean }) {
   if (!av.lignes) return null;
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} pointerEvents={lecture ? 'none' : 'auto'} style={{ marginBottom: 6 }}>
-      <Chips<ModeAv> options={MODES_AV.map((m) => ({ value: m.v, label: m.l }))} value={av.filtre.mode} onChange={(v) => av.setFiltre({ ...av.filtre, mode: v })} compact />
-    </ScrollView>
+    <View style={{ marginBottom: 6 }}>
+      <RangeePastilles<ModeAv> options={MODES_AV.map((m) => ({ value: m.v, label: m.l }))} value={av.filtre.mode} onChange={(v) => av.setFiltre({ ...av.filtre, mode: v })} inactif={lecture} />
+    </View>
   );
 }
 

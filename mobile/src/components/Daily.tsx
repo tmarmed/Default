@@ -29,7 +29,7 @@ import {
 import { destinatairesTransfert, lireNiveau, personneParEmail } from '../echange/hierarchieEchange';
 import { aReprendre, parEspace, pointsEscalade, titreEscalade, titreTransmis } from '../suiviEscalade';
 import { useHierarchy } from '../hierarchyContext';
-import { autresEquipesDuTrain, membresDe, nomPersonne, type OrgValue, porteurs } from '../organisation';
+import { autresEquipesDuTrain, membresDe, nomPersonne, optionsPersonnes, type OrgValue, porteurs } from '../organisation';
 import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
 import { type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../reunions';
 import { PARCOURS_DAILY as CATALOGUE, elementsDuPlan, type EvenementJour, planDe, reunionPrecedenteAvecPlan } from '../daily';
@@ -1126,7 +1126,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   jour={jour}
                   placeholder="＋ Suivi oublié"
                   stories={situation.cartes}
-                  concretiser={{ personnes: personnes.map((y) => ({ value: y.email.toLowerCase(), label: y.nom })), respDefaut: mail }}
+                  concretiser={{ personnes: optionsPersonnes(personnes, 'email'), respDefaut: mail }}
                   onAjouter={(type, texte, element, conc, sousType) => {
                     const pt = { ...nouveau(type, texte, element), personne: mail, sous_type: sousType ?? '' };
                     setLocaux((l) => [...l, pt]);

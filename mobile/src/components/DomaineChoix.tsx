@@ -1,5 +1,5 @@
 import { StyleSheet, Text } from 'react-native';
-import { useHierarchy } from '../hierarchyContext';
+import { useChoixDomaine } from './DomainFilter';
 import { colors } from '../theme';
 import { Chips } from './Chips';
 
@@ -9,35 +9,17 @@ import { Chips } from './Chips';
  * (« Tout <domaine> » pour revenir au domaine lui-même).
  */
 export function DomaineChoix({ value, onChange, label = 'Domaine' }: { value: string; onChange: (v: string) => void; label?: string }) {
-  const h = useHierarchy();
-  const courant = value ? h.domaines.get(value) : undefined;
-  const principaux = h.domaineList.filter((d) => !d.parent || !h.domaines.has(d.parent));
-  const principal = courant?.parent && h.domaines.has(courant.parent) ? h.domaines.get(courant.parent) : courant;
-  const sous = principal ? h.domaineList.filter((d) => d.parent === principal.id) : [];
-  const choisir = (v: string) => {
-    const s = h.domaineList.filter((d) => d.parent === v);
-    onChange(v && s.length === 1 ? s[0].id : v);
-  };
-  if (!h.domaineList.length) return null;
+  // Même logique que le filtre des domaines (useChoixDomaine)
+  const c = useChoixDomaine(value, onChange);
+  if (c.vide) return null;
   return (
     <>
       <Text style={styles.label}>{label}</Text>
-      <Chips
-        options={[{ value: '', label: 'Aucun' }, ...principaux.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur }))]}
-        value={principal ? principal.id : ''}
-        onChange={choisir}
-      />
-      {principal && sous.length > 0 && (
+      <Chips options={[{ value: '', label: 'Aucun' }, ...c.principauxSimples]} value={c.valeurPrincipale} onChange={c.choisir} />
+      {c.sous && (
         <>
           <Text style={styles.label}>Sous-domaine</Text>
-          <Chips
-            options={[
-              { value: principal.id, label: `Tout ${principal.nom}` },
-              ...sous.map((d) => ({ value: d.id, label: `${d.icone} ${d.nom}`, color: d.couleur })),
-            ]}
-            value={value}
-            onChange={onChange}
-          />
+          <Chips options={[c.sous.tout, ...c.sous.options]} value={value} onChange={onChange} />
         </>
       )}
     </>

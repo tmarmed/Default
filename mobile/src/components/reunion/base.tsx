@@ -24,7 +24,7 @@ import {
 import { destinatairesTransfert, lireNiveau, personneParEmail } from '../../echange/hierarchieEchange';
 import { etatDe, lireDonnee, lireVote, texteDirect, type Vote } from '../../etatReunion';
 import { useHierarchy } from '../../hierarchyContext';
-import { autresEquipesDuTrain, membresDe, nomPersonne, type OrgValue, porteurs } from '../../organisation';
+import { autresEquipesDuTrain, membresDe, nomPersonne, optionsPersonnes, type OrgValue, porteurs } from '../../organisation';
 import { iterationOf } from '../../pi';
 import { type CatalogueParcours, type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../../reunions';
 import { subtaskMap } from '../../subtasks';
@@ -839,7 +839,7 @@ function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAj
           jour={e.jour}
           placeholder="＋ Suivi oublié"
           stories={e.situation.cartes}
-          concretiser={{ personnes: e.personnes.map((y) => ({ value: y.email.toLowerCase(), label: y.nom })), respDefaut: r.mail }}
+          concretiser={{ personnes: optionsPersonnes(e.personnes, 'email'), respDefaut: r.mail }}
           onAjouter={(type, texte, element, conc, sous_type) => {
             const pt = r.noter({ personne: r.mail, type, texte, element, sous_type });
             if (conc) r.poserChoix(pt.id, { c: conc.c, resp: conc.resp });

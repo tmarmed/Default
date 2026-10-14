@@ -23,6 +23,7 @@ import { FeatureForm } from './src/components/FeatureForm';
 import { IterationView } from './src/components/IterationView';
 import { ObjectifPIForm } from './src/components/ObjectifPIForm';
 import { PIView } from './src/components/PIView';
+import { Pastille } from './src/components/RangeePastilles';
 import { TypeFilter, TypeFiltre } from './src/components/TypeFilter';
 import { PIAddSheet } from './src/components/PIAddSheet';
 import { FeuilleChoix, FeuilleMulti } from './src/components/Choix';
@@ -3070,32 +3071,22 @@ function Main() {
                         .filter((e) => visibles.includes(e.id))
                         .map((e) => ({ cle: e.id, label: `${ICONE_ESPACE[e.type]} ${e.nom}`, on: synchroFiltre.espace === e.id, press: () => setSynchroFiltre((f) => ({ ...f, espace: f.espace === e.id ? '' : e.id })) })),
                     ].map((c) => (
-                      <Pressable key={c.cle} onPress={c.press} style={[styles.itChip, c.on && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: c.on }}>
-                        <Text style={[styles.itChipText, c.on && styles.itChipTextOn]}>{c.label}</Text>
-                      </Pressable>
+                      <Pastille key={c.cle} label={c.label} on={c.on} onPress={c.press} />
                     ))}
                   </ScrollView>
                 )}
                 {surSynchro && (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                    <Pressable onPress={() => setChoixElementSynchro(true)} style={[styles.itChip, !!synchroFiltre.element && styles.itChipOn]} accessibilityRole="button">
-                      <Text style={[styles.itChipText, !!synchroFiltre.element && styles.itChipTextOn]} numberOfLines={1}>
-                        📍 {synchroFiltre.element ? filElement(synchroFiltre.element, hv, TYPE_ICONS).split(' › ').pop() : 'Élément'} ▾
-                      </Text>
-                    </Pressable>
+                    <Pastille label={`📍 ${synchroFiltre.element ? filElement(synchroFiltre.element, hv, TYPE_ICONS).split(' › ').pop() : 'Élément'} ▾`} on={!!synchroFiltre.element} onPress={() => setChoixElementSynchro(true)} />
                     {(
                       [
                         ['question', '❓ Questions'],
                         ['message', '✉️ Messages'],
                       ] as const
                     ).map(([v, label]) => (
-                      <Pressable key={v} onPress={() => setSynchroFiltre((f) => ({ ...f, type: f.type === v ? '' : v }))} style={[styles.itChip, synchroFiltre.type === v && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: synchroFiltre.type === v }}>
-                        <Text style={[styles.itChipText, synchroFiltre.type === v && styles.itChipTextOn]}>{label}</Text>
-                      </Pressable>
+                      <Pastille key={v} label={label} on={synchroFiltre.type === v} onPress={() => setSynchroFiltre((f) => ({ ...f, type: f.type === v ? '' : v }))} />
                     ))}
-                    <Pressable onPress={() => setSynchroFiltre((f) => ({ ...f, pj: !f.pj }))} style={[styles.itChip, synchroFiltre.pj && styles.itChipOn]} accessibilityRole="switch" accessibilityState={{ checked: synchroFiltre.pj }}>
-                      <Text style={[styles.itChipText, synchroFiltre.pj && styles.itChipTextOn]}>📎 Avec pièces jointes</Text>
-                    </Pressable>
+                    <Pastille label="📎 Avec pièces jointes" on={synchroFiltre.pj} onPress={() => setSynchroFiltre((f) => ({ ...f, pj: !f.pj }))} bascule />
                   </ScrollView>
                 )}
                 {surSynchro && choixElementSynchro && (
@@ -3127,9 +3118,7 @@ function Main() {
                     ).map(([v, label]) => {
                       const on = (backlogNiveau ?? niveauDuRole(moi, orgValue)) === v;
                       return (
-                        <Pressable key={v} onPress={() => setBacklogNiveau(v)} style={[styles.itChip, on && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                          <Text style={[styles.itChipText, on && styles.itChipTextOn]}>{label}</Text>
-                        </Pressable>
+                        <Pastille key={v} label={label} on={on} onPress={() => setBacklogNiveau(v)} />
                       );
                     })}
                   </ScrollView>
@@ -3139,9 +3128,7 @@ function Main() {
                     {[{ id: '', nom: '' }, ...hv.valueStreams].map((v) => {
                       const on = backlogVs === v.id;
                       return (
-                        <Pressable key={v.id || 'tous'} onPress={() => setBacklogVs(on ? '' : v.id)} style={[styles.itChip, on && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                          <Text style={[styles.itChipText, on && styles.itChipTextOn]}>{v.id ? `🌊 ${v.nom}` : 'Tous les value streams'}</Text>
-                        </Pressable>
+                        <Pastille key={v.id || 'tous'} label={v.id ? `🌊 ${v.nom}` : 'Tous les value streams'} on={on} onPress={() => setBacklogVs(on ? '' : v.id)} />
                       );
                     })}
                   </ScrollView>
@@ -3153,9 +3140,7 @@ function Main() {
                     {NIVEAUX_REUNION.map((n) => {
                       const on = reunionNiveau === n.value;
                       return (
-                        <Pressable key={n.value || 'tous'} onPress={() => setReunionNiveau(on ? '' : n.value)} style={[styles.itChip, on && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                          <Text style={[styles.itChipText, on && styles.itChipTextOn]}>{n.label}</Text>
-                        </Pressable>
+                        <Pastille key={n.value || 'tous'} label={n.label} on={on} onPress={() => setReunionNiveau(on ? '' : n.value)} />
                       );
                     })}
                   </ScrollView>
@@ -3164,14 +3149,7 @@ function Main() {
                   <>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
                       {tab === 'taches' && safe.actif && (
-                        <Pressable
-                          onPress={() => setItFilter((v) => !v)}
-                          style={[styles.itChip, itFilter && styles.itChipOn]}
-                          accessibilityRole="switch"
-                          accessibilityState={{ checked: itFilter }}
-                        >
-                          <Text style={[styles.itChipText, itFilter && styles.itChipTextOn]}>🏃 Sprint en cours</Text>
-                        </Pressable>
+                        <Pastille label="🏃 Sprint en cours" on={itFilter} onPress={() => setItFilter((v) => !v)} bascule />
                       )}
                       {domaines.length > 0 && <DomainesPrincipauxChips />}
                     </ScrollView>
@@ -3191,15 +3169,7 @@ function Main() {
                     ).map((c) => {
                       const on = c.kind ? orgFiltre?.kind === c.kind && orgFiltre.id === c.id : !orgFiltre;
                       return (
-                        <Pressable
-                          key={`${c.kind}-${c.id}`}
-                          onPress={() => setOrgFiltre(c.kind ? (on ? null : { kind: c.kind, id: c.id }) : null)}
-                          style={[styles.itChip, on && styles.itChipOn]}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: on }}
-                        >
-                          <Text style={[styles.itChipText, on && styles.itChipTextOn]}>{c.label}</Text>
-                        </Pressable>
+                        <Pastille key={`${c.kind}-${c.id}`} label={c.label} on={on} onPress={() => setOrgFiltre(c.kind ? (on ? null : { kind: c.kind, id: c.id }) : null)} />
                       );
                     })}
                   </ScrollView>
