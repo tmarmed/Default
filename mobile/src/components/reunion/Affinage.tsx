@@ -1,3 +1,4 @@
+import { BlocArbre } from './Arbre';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { dateCourte } from '../../daily';
@@ -156,13 +157,12 @@ export function MesTaches({ r }: { r: R }) {
   return (
     <>
       <TitreFiche icone="📋" titre="Mes tâches" vide="" sous={simple ? `${moiP?.nom ?? ''} · tâches ouvertes, celles des réunions comprises` : `${moiP?.nom ?? ''} · ${e.it.nom}, tâches des réunions comprises`} />
-      <SectionFiche titre={simple ? `Mes tâches · ${miens.length}` : `Mes stories et tâches · ${miens.length}`}>
-        {miens.length ? (
-          miens.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' && !simple ? '📖 ' : ''}${t.titre}`} sous={t.type === 'story' && !simple ? 'story' : 'tâche'} pastille={pastilleStatut(t.statut)} tache={t} />)
-        ) : (
-          <Vide texte={simple ? 'Rien à votre nom.' : 'Rien à votre nom dans le sprint.'} />
-        )}
-      </SectionFiche>
+      {/* Brique Éléments (14/10) : même composant que la Situation (arbre, changements, filtre) */}
+      {miens.length ? (
+        <BlocArbre av={r.avancement} titre={simple ? 'Mes tâches' : 'Mes stories et tâches'} cles={miens.map((t) => `t:${t.id}`)} strict nom={e.nomDe} onOuvrir={r.ouvrirTache} onOuvrirEntite={r.ouvrirEntite} />
+      ) : (
+        <Vide texte={simple ? 'Rien à votre nom.' : 'Rien à votre nom dans le sprint.'} />
+      )}
     </>
   );
 }

@@ -15,6 +15,7 @@ import { useBudget } from '../../budget';
 import { TitreFiche } from '../FormSheet';
 import { ListeEditable, MesTaches, Navigation } from './Affinage';
 import { AjoutElement } from './Ajout';
+import { BlocArbre } from './Arbre';
 import { BlocPoints, BlocSuivi, Compteurs, type Equipe, EtapeCompteRendu, EtapeConcretisation, FenetreEquipe, type PropsReunion, type R, useReunion } from './base';
 import { Ligne, Pastilles, st, Vide } from './ui';
 import { CARTES_CONFIANCE, type DecisionVote, VoteAnimateur, VoteEtoiles, VoteParticipant, votesDe } from './Vote';
@@ -28,6 +29,8 @@ import { CARTES_CONFIANCE, type DecisionVote, VoteAnimateur, VoteEtoiles, VotePa
  */
 interface Elem {
   id: string;
+  /** Clé de l'élément pour la brique Éléments (14/10) : « f:id », « e:id », « q:id », « o:id », « t:id » */
+  cle?: string;
   titre: string;
   sous?: string;
   pastille?: string;
@@ -88,20 +91,20 @@ const avancementFeature = (c: Ctx, f: Feature) => {
   return st_.length ? Math.round((100 * faits) / st_.length) : 0;
 };
 const featuresPI = (c: Ctx): Elem[] =>
-  c.features.map((f) => ({ id: f.id, titre: f.titre, sous: [f.equipe ? `👥 ${c.r.org.equipe.get(f.equipe)?.nom ?? ''}` : '', f.iteration ? nomSprintDe(f.iteration) : '', f.points ? c.fmt(Number(f.points) || 0) : ''].filter(Boolean).join(' · '), pastille: `${avancementFeature(c, f)} %` }));
+  c.features.map((f) => ({ id: f.id, cle: `f:${f.id}`, titre: f.titre, sous: [f.equipe ? `👥 ${c.r.org.equipe.get(f.equipe)?.nom ?? ''}` : '', f.iteration ? nomSprintDe(f.iteration) : '', f.points ? c.fmt(Number(f.points) || 0) : ''].filter(Boolean).join(' · '), pastille: `${avancementFeature(c, f)} %` }));
 const featuresPrep = (c: Ctx): Elem[] =>
   c.e.h.featureList
     .filter((f) => (f.train ?? '') === (c.e.train?.id ?? '') && (!f.pi || f.pi >= c.piSuivant))
-    .map((f) => ({ id: f.id, titre: f.titre, sous: [f.pi ? `PI ${f.pi}` : 'sans PI', f.points ? c.fmt(Number(f.points) || 0) : 'sans estimation'].join(' · '), pastille: f.points ? 'estimée' : 'à préparer' }));
-const epicsPortfolio = (c: Ctx): Elem[] => c.epics.map((x) => ({ id: x.id, titre: x.titre, sous: x.description.slice(0, 80), pastille: ETATS_EPIC.find((s) => s.value === x.etat)?.label ?? 'Idée' }));
+    .map((f) => ({ id: f.id, cle: `f:${f.id}`, titre: f.titre, sous: [f.pi ? `PI ${f.pi}` : 'sans PI', f.points ? c.fmt(Number(f.points) || 0) : 'sans estimation'].join(' · '), pastille: f.points ? 'estimée' : 'à préparer' }));
+const epicsPortfolio = (c: Ctx): Elem[] => c.epics.map((x) => ({ id: x.id, cle: `e:${x.id}`, titre: x.titre, sous: x.description.slice(0, 80), pastille: ETATS_EPIC.find((s) => s.value === x.etat)?.label ?? 'Idée' }));
 const objectifsPI = (c: Ctx): Elem[] =>
-  c.e.h.objectifsPI.filter((o) => o.pi === c.pi).map((o) => ({ id: o.id, titre: o.titre, sous: `${o.type === 'engage' ? 'engagé' : 'non engagé'} · valeur prévue ${o.valeur_prevue || '—'}${o.valeur_obtenue ? ` · obtenue ${o.valeur_obtenue}` : ''}`, pastille: o.type === 'engage' ? 'engagé' : 'bonus' }));
+  c.e.h.objectifsPI.filter((o) => o.pi === c.pi).map((o) => ({ id: o.id, cle: `q:${o.id}`, titre: o.titre, sous: `${o.type === 'engage' ? 'engagé' : 'non engagé'} · valeur prévue ${o.valeur_prevue || '—'}${o.valeur_obtenue ? ` · obtenue ${o.valeur_obtenue}` : ''}`, pastille: o.type === 'engage' ? 'engagé' : 'bonus' }));
 const okrs = (c: Ctx): Elem[] =>
   c.e.h.objectifList
     .filter((o) => c.e.h.resultats.some((k) => k.objectif === o.id))
     .map((o) => {
       const krs = c.e.h.resultats.filter((k) => k.objectif === o.id);
-      return { id: o.id, titre: `🎯 ${o.titre}`, sous: krs.map((k) => `${k.titre} : ${k.actuel || 0}/${k.cible || '?'} ${k.unite}`).join(' · '), pastille: `${krs.length} RC` };
+      return { id: o.id, cle: `o:${o.id}`, titre: `🎯 ${o.titre}`, sous: krs.map((k) => `${k.titre} : ${k.actuel || 0}/${k.cible || '?'} ${k.unite}`).join(' · '), pastille: `${krs.length} RC` };
     });
 // ---- Mode Simple à plusieurs (09/10) : tâches de l'équipe, en retard, objectifs (OKR) de l'espace ----
 const jourTache = (t: Item) => t.echeance || t.date_fin || t.date || '';
@@ -109,11 +112,11 @@ const tachesOuvertes = (c: Ctx) => c.e.h.items.filter((t) => !t.parent && t.stat
 const tachesDuJour = (c: Ctx): Elem[] =>
   tachesOuvertes(c)
     .filter((t) => t.statut === 'en_cours' || (!!jourTache(t) && jourTache(t) <= c.e.jour))
-    .map((t) => ({ id: t.id, titre: t.titre, sous: [t.responsable ? (c.r.org.personne.get(t.responsable)?.nom ?? '') : '', jourTache(t) ? `pour le ${jourTache(t).slice(8, 10)}/${jourTache(t).slice(5, 7)}` : ''].filter(Boolean).join(' · '), pastille: STATUT_LABELS[t.statut] }));
+    .map((t) => ({ id: t.id, cle: `t:${t.id}`, titre: t.titre, sous: [t.responsable ? (c.r.org.personne.get(t.responsable)?.nom ?? '') : '', jourTache(t) ? `pour le ${jourTache(t).slice(8, 10)}/${jourTache(t).slice(5, 7)}` : ''].filter(Boolean).join(' · '), pastille: STATUT_LABELS[t.statut] }));
 const tachesEnRetard = (c: Ctx): Elem[] =>
   tachesOuvertes(c)
     .filter((t) => !!jourTache(t) && jourTache(t) < c.e.jour)
-    .map((t) => ({ id: t.id, titre: t.titre, sous: [t.responsable ? (c.r.org.personne.get(t.responsable)?.nom ?? '') : '', `prévue le ${jourTache(t).slice(8, 10)}/${jourTache(t).slice(5, 7)}`].filter(Boolean).join(' · '), pastille: 'en retard' }));
+    .map((t) => ({ id: t.id, cle: `t:${t.id}`, titre: t.titre, sous: [t.responsable ? (c.r.org.personne.get(t.responsable)?.nom ?? '') : '', `prévue le ${jourTache(t).slice(8, 10)}/${jourTache(t).slice(5, 7)}`].filter(Boolean).join(' · '), pastille: 'en retard' }));
 /** Objectifs (OKR) : le même élément qu'en SAFe, avec ses résultats clés */
 const objectifsSimple = (c: Ctx): Elem[] =>
   c.e.h.objectifList
@@ -121,7 +124,7 @@ const objectifsSimple = (c: Ctx): Elem[] =>
     .map((o) => {
       const krs = c.e.h.resultats.filter((k) => k.objectif === o.id);
       const val = o.cible ? `${o.actuel || 0}/${o.cible} ${o.unite ?? ''}`.trim() : '';
-      return { id: o.id, titre: `🎯 ${o.titre}`, sous: [val, ...krs.map((k) => `${k.titre} : ${k.actuel || 0}/${k.cible || '?'} ${k.unite}`)].filter(Boolean).join(' · '), pastille: krs.length ? `${krs.length} résultat${krs.length > 1 ? 's' : ''}` : 'Objectif' };
+      return { id: o.id, cle: `o:${o.id}`, titre: `🎯 ${o.titre}`, sous: [val, ...krs.map((k) => `${k.titre} : ${k.actuel || 0}/${k.cible || '?'} ${k.unite}`)].filter(Boolean).join(' · '), pastille: krs.length ? `${krs.length} résultat${krs.length > 1 ? 's' : ''}` : 'Objectif' };
     });
 const previsibilite = (c: Ctx) => {
   const l = c.e.h.objectifsPI.filter((o) => o.pi === c.pi && o.type === 'engage');
@@ -551,7 +554,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
           feminin
           lecture={lecture}
           aide={`Feature du train ${e.nomNiveau || ''} · PI ${pi}`}
-          existants={e.h.featureList.filter((f) => f.pi !== pi && (!f.train || f.train === trainId)).map((f) => ({ id: f.id, titre: f.titre, sous: [f.pi ? `PI ${f.pi}` : 'sans PI', f.train ? '' : 'sans train'].filter(Boolean).join(' · ') }))}
+          existants={e.h.featureList.filter((f) => f.pi !== pi && (!f.train || f.train === trainId)).map((f) => ({ id: f.id, cle: `f:${f.id}`, titre: f.titre, sous: [f.pi ? `PI ${f.pi}` : 'sans PI', f.train ? '' : 'sans train'].filter(Boolean).join(' · ') }))}
           onNouveau={async (titre) => {
             const [f] = await act.creerEntites!(esp, 'feature', [{ titre, description: '', epic: '', pi, iteration: '', points: '', couleur: '', train: trainId, equipe: '', rang: '' }]);
             return async () => act.supprimer!('feature', f.id);
@@ -647,7 +650,12 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
         return (
           <>
             <TitreFiche icone={et.icone} titre={`${et.titre} · ${l.length}`} vide="" sous={et.sous} />
-            <SectionFiche titre={et.titre}>{l.length ? l.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.titre} sous={y.sous} pastille={y.pastille ? { texte: y.pastille, ton: 'bleu' } : undefined} />) : <Vide texte="Rien pour l’instant." />}</SectionFiche>
+            {/* Brique Éléments (14/10) : la même que la Situation (arbre, changements, filtre) quand la liste en est faite */}
+            {l.length > 0 && l.every((y) => !!y.cle) ? (
+              <BlocArbre av={r.avancement} titre={et.titre} cles={l.map((y) => y.cle!)} nom={e.nomDe} montrerResponsable lecture={lecture} onOuvrir={lecture ? undefined : r.ouvrirTache} onOuvrirEntite={lecture ? undefined : r.ouvrirEntite} />
+            ) : (
+              <SectionFiche titre={et.titre}>{l.length ? l.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.titre} sous={y.sous} pastille={y.pastille ? { texte: y.pastille, ton: 'bleu' } : undefined} />) : <Vide texte="Rien pour l’instant." />}</SectionFiche>
+            )}
             {et.k === 'liste' && ajoutDe(et.ajout, lecture || !r.anime)}
             {et.k === 'liste' && et.points && <BlocPoints r={r} points={r.tous.filter((y) => r.ici(y))} lecture={lecture} stories={[]} />}
             {et.k === 'mes_elements' && <BlocPoints r={r} titre="Mes notes" points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={[]} />}

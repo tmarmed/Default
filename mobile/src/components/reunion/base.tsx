@@ -787,17 +787,15 @@ function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAj
   const nouveaux = vue === 'fermees' ? fermees : ouverts;
 
   const nValider = nouveaux.filter((x) => statutAffiche(x, e.h.items, e.jour).s === 'fait' && validateurDe(x, r.ctxSuivi.animateur) === r.mail).length;
-  const n = suivisEquipe.length + suivisEch.length + r.reportes.length + pointsDeSuivi(r.serveur, r.reunionId).length;
-  const nf = suivisEquipe.filter((x) => passe(x.point.type)).length + suivisEch.filter((x) => passe(x.point.type)).length + r.reportes.filter((x) => passe(x.type)).length + nouveaux.length;
-  const notesVues = r.reportes.filter((x) => passe(x.type));
-  const nSuivisVus = nf - notesVues.length;
-  let k = (nouveaux.length || horsReunion.length) && vue !== 'notes' ? 1 : 0;
+  // Notes à concrétiser (14/10) : plus dans la Situation, elles sont à l'étape Concrétisation
+  const n = suivisEquipe.length + suivisEch.length + pointsDeSuivi(r.serveur, r.reunionId).length;
+  const nSuivisVus = suivisEquipe.filter((x) => passe(x.point.type)).length + suivisEch.filter((x) => passe(x.point.type)).length + nouveaux.length;
+  let k = nouveaux.length || horsReunion.length ? 1 : 0;
   return (
     <BlocBrique
       titre="📌 Suivis"
       n={nSuivisVus}
       nChanges={nbSuivisChanges(r.avancement, nouveaux)}
-      suffixe={notesVues.length || vue === 'notes' ? ` · Notes à concrétiser (${notesVues.length})` : ''}
       arborescence={{ valeur: arbo, changer: setArbo }}
       droite={
         nValider > 0 ? (
@@ -811,15 +809,15 @@ function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAj
         contenu: (
           <>
             <ModeAffichage av={r.avancement} lecture={lecture} />
-            <FiltresVue value={vue} onChange={setVue} nSuivis={n - r.reportes.length} nNotes={r.reportes.length} nFermees={fermees.length} />
+            <FiltresVue value={vue} onChange={setVue} nSuivis={n} nFermees={fermees.length} />
             <FiltresType types={typesNote(r)} value={filtre} onChange={setFiltre} />
           </>
         ),
       }}
     >
       {vue !== 'fermees' && !aValider && <BlocHorsReunion points={horsReunion} ctx={r.ctxSuivi} peutConfirmer={r.anime && !lecture} />}
-      <LignesSuivi parElement={arbo} points={vue === 'notes' ? [] : nouveaux} premiere={!horsReunion.length || vue === 'fermees'} ctx={{ ...r.ctxSuivi, lecture: lecture || vue === 'fermees' }} aValider={aValider && nValider > 0} />
-      {!aValider && vue !== 'notes' && vue !== 'fermees' && suivisEquipe.filter((x) => passe(x.point.type)).map(({ point, tache }) => (
+      <LignesSuivi parElement={arbo} points={nouveaux} premiere={!horsReunion.length || vue === 'fermees'} ctx={{ ...r.ctxSuivi, lecture: lecture || vue === 'fermees' }} aValider={aValider && nValider > 0} />
+      {!aValider && vue !== 'fermees' && suivisEquipe.filter((x) => passe(x.point.type)).map(({ point, tache }) => (
         <Ligne
           key={point.id}
           premiere={k++ === 0}
@@ -828,7 +826,7 @@ function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAj
           pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }}
         />
       ))}
-      {!aValider && vue !== 'notes' && vue !== 'fermees' && suivisEch.filter((x) => passe(x.point.type)).map(({ point, echange }) => (
+      {!aValider && vue !== 'fermees' && suivisEch.filter((x) => passe(x.point.type)).map(({ point, echange }) => (
         <Ligne
           key={point.id}
           premiere={k++ === 0}
@@ -836,9 +834,6 @@ function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAj
           sous={sousLigneSuivi(LIBELLE_CONCRETISATION[point.concretisation], e.nomDe(echange.a), echange.statut === 'repondu' ? 'répondu' : 'en attente')}
           pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }}
         />
-      ))}
-      {!aValider && vue !== 'suivis' && vue !== 'fermees' && notesVues.map((point) => (
-        <Ligne key={point.id} premiere={k++ === 0} texte={point.texte} sous={`📝 Note à concrétiser · notée le ${jourCourt(point.reunion.slice(-10))} par ${e.nomDe(point.personne)}${point.echange ? ` · ${lienPrive(point, r.echanges, e.nomDe)}` : ''}`} pastille={{ ...pastilleSuivi(point, e.jour), ton: tonType(point.type) }} />
       ))}
       {!n && <Vide texte="✓ Rien en attente des réunions précédentes." />}
       {onAjouter && r.anime && !lecture && (
