@@ -2,7 +2,6 @@
  * Mises en forme communes (14/10, refactoring lot 1) : dates, montants, pluriels, noms de personne. Une seule version
  * de chaque ; les anciens noms (dateCourte, jourCourt, euros…) restent dans leurs fichiers et pointent ici.
  */
-import type { OrgValue } from './organisation';
 
 const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
 const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
@@ -40,9 +39,11 @@ export function eurosTexte(s: string, siInvalide = ''): string {
 /** « 3 stories », « 1 story » (pluriel en « s ») */
 export const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 
-/** Nom d'une personne d'après son identifiant ou son adresse ; sinon le début de l'adresse */
-export function nomPersonne(org: Pick<OrgValue, 'personnes'>, idOuMail: string): string {
-  const x = idOuMail.toLowerCase();
-  const p = org.personnes.find((y) => y.id === idOuMail || (!!y.email && y.email.toLowerCase() === x));
-  return p?.nom ?? idOuMail.split('@')[0];
-}
+/** « lea.martin@… » → « Lea Martin » (personne absente de l'Organisation) */
+export const nomDepuisEmail = (e: string) =>
+  e
+    .split('@')[0]
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((m) => m[0].toUpperCase() + m.slice(1))
+    .join(' ') || e;

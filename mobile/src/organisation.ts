@@ -1,3 +1,4 @@
+import { nomDepuisEmail } from './format';
 import { createContext, useContext, useMemo } from 'react';
 import { useHierarchy } from './hierarchyContext';
 
@@ -172,8 +173,15 @@ export function makeOrgValue(o: Org): OrgValue {
 export const OrgContext = createContext<OrgValue>(makeOrgValue(ORG_VIDE));
 export const useOrg = () => useContext(OrgContext);
 
-/** Nom court d'une personne (vide si inconnue) */
-export const nomPersonne = (o: Pick<OrgValue, 'personne'>, id: string | undefined) => (id ? (o.personne.get(id)?.nom ?? '') : '');
+/**
+ * Nom d'une personne (14/10, une seule règle pour toute l'application) : par son identifiant ou son adresse dans
+ * l'Organisation ; inconnue, une adresse donne « Lea Martin » (tiré de l'adresse) et un identifiant ne donne rien
+ */
+export function nomPersonne(o: Pick<OrgValue, 'personne' | 'personnes'>, idOuMail: string | undefined): string {
+  if (!idOuMail) return '';
+  const p = o.personne.get(idOuMail) ?? o.personnes.find((y) => !!y.email && y.email.toLowerCase() === idOuMail.toLowerCase());
+  return p?.nom ?? (idOuMail.includes('@') ? nomDepuisEmail(idOuMail) : '');
+}
 
 // ---------------------------------------------------------------------------
 // Filtre Portfolio / Train / Équipe (bloc Filtres) et liaison organisation ↔ travail

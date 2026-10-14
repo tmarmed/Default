@@ -1,3 +1,4 @@
+import { nomPersonne } from '../../organisation';
 import { BlocBrique } from './Brique';
 import { useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
@@ -141,7 +142,7 @@ export function FenetrePlanification(p: PropsReunion) {
             <Compteurs l={[{ valeur: String(vp), libelle: `vélocité ${nomSprintDe(precedente)}` }, { valeur: String(v.moyenne), libelle: 'moyenne 3 sprints' }, { valeur: String(reportees.length), libelle: 'reportées', ton: reportees.length ? 'orange' : undefined }]} />
             <BlocSuivi r={r} lecture={lecture} onAjouter />
             <BlocBrique titre={`Reportées de ${nomSprintDe(precedente)} · ${reportees.length}`}>
-              {reportees.length ? reportees.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={`${fmt(pointsOf(t))}${t.responsable ? ` · 👤 ${r.org.personne.get(t.responsable)?.nom ?? ''}` : ''}`} pastille={{ texte: 'à reprendre', ton: 'orange' }} />) : <Vide texte="✓ Rien de reporté." />}
+              {reportees.length ? reportees.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={`${fmt(pointsOf(t))}${t.responsable ? ` · 👤 ${nomPersonne(r.org, t.responsable)}` : ''}`} pastille={{ texte: 'à reprendre', ton: 'orange' }} />) : <Vide texte="✓ Rien de reporté." />}
             </BlocBrique>
             <BlocBrique titre="Objectifs de la réunion">
               <Ligne premiere texte="🎯 S’engager sur le sprint" sous="Fixer la capacité, valider les objectifs du PO, s’engager sur les stories." />

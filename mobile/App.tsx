@@ -52,7 +52,7 @@ import { TexteAjuste } from './src/components/TexteAjuste';
 import type { Injection, PileProps } from './src/components/FormSheet';
 import { type Deplacement, OrganisationView, type VueOrg } from './src/components/OrganisationView';
 import { OrgForm } from './src/components/OrgForm';
-import { calendrierPersonne, CLE_ORG, dansOrgFiltre, type EntiteOrg, ICONE_ORG, type KindOrg, libelleOrgFiltre, makeOrgValue, membresDe, NOM_ORG, type Org, ORG_VIDE, OrgContext, type OrgFiltre, OrgFiltreContext } from './src/organisation';
+import { calendrierPersonne, CLE_ORG, dansOrgFiltre, type EntiteOrg, ICONE_ORG, type KindOrg, libelleOrgFiltre, makeOrgValue, membresDe, NOM_ORG, nomPersonne, type Org, ORG_VIDE, OrgContext, type OrgFiltre, OrgFiltreContext } from './src/organisation';
 import { type ActionStockage, StockagePanneau } from './src/components/Stockage';
 import { FormSheet } from './src/components/FormSheet';
 import { aPurger, copieCsv, moisAnnee, octetsLignes, type Plan, planifier, pourcent, type Quota, quotaSimule, SEUIL_ALERTE, SEUIL_CIBLE, type TestStockage } from './src/stockage';
@@ -1901,7 +1901,7 @@ function Main() {
     },
     [settings],
   );
-  const nomEchange = (email: string) => personneParEmail(email, orgEchanges)?.nom ?? nomDepuisEmail(email);
+  const nomEchange = (email: string) => nomPersonne(orgEchanges, email);
   /** Points de suivi des escalades (cas d'usage 1 et 2) : une écriture par Sheet concerné */
   const ecrireSuivis = async (l: PointAEcrire[]) => {
     const out: { espace: string; point: PointReunion }[] = [];

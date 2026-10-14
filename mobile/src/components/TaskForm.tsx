@@ -50,7 +50,7 @@ import { filTravail, listeIterations, listeTaches, metaTache } from '../choixTra
 import { LiaisonOrg } from './LiaisonOrg';
 import { useEspaceFil } from './EspaceChoix';
 import { AutoContext, BandeauAnnuler, useEnregistrementAuto } from './EnregistrementAuto';
-import { useOrg } from '../organisation';
+import { nomPersonne, useOrg } from '../organisation';
 import { droitsTache, useMoi } from '../droits';
 import { BlocLecture, BoutonRetour, CheminPile, TitreBarre, TitreFiche, type Injection, type PileProps } from './FormSheet';
 
@@ -395,7 +395,7 @@ export function TaskForm({
             : k === 'iteration'
               ? iterationNom(x)
               : k === 'responsable'
-                ? (org.personne.get(x)?.nom ?? x)
+                ? (nomPersonne(org, x) || x)
                 : k === 'equipe'
                   ? (org.equipe.get(x)?.nom ?? x)
                   : k === 'parent'

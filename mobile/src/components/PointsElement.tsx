@@ -1,9 +1,8 @@
-import { nomPersonne } from '../format';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { libelleNote } from '../daily';
 import { useHierarchy } from '../hierarchyContext';
 import { personneParEmail } from '../echange/hierarchieEchange';
-import { useOrg } from '../organisation';
+import { nomPersonne, useOrg } from '../organisation';
 import { jourCourt } from '../pointsSuivi';
 import { type PointReunion, TYPES_REUNION } from '../types';
 import { SectionFiche } from './Choix';

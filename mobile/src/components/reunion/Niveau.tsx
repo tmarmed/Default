@@ -1,3 +1,4 @@
+import { nomPersonne } from '../../organisation';
 import { BlocBrique } from './Brique';
 import { useEffect, useRef, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
@@ -113,11 +114,11 @@ const tachesOuvertes = (c: Ctx) => c.e.h.items.filter((t) => !t.parent && t.stat
 const tachesDuJour = (c: Ctx): Elem[] =>
   tachesOuvertes(c)
     .filter((t) => t.statut === 'en_cours' || (!!jourTache(t) && jourTache(t) <= c.e.jour))
-    .map((t) => ({ id: t.id, cle: `t:${t.id}`, titre: t.titre, sous: [t.responsable ? (c.r.org.personne.get(t.responsable)?.nom ?? '') : '', jourTache(t) ? `pour le ${jourTache(t).slice(8, 10)}/${jourTache(t).slice(5, 7)}` : ''].filter(Boolean).join(' · '), pastille: STATUT_LABELS[t.statut] }));
+    .map((t) => ({ id: t.id, cle: `t:${t.id}`, titre: t.titre, sous: [t.responsable ? nomPersonne(c.r.org, t.responsable) : '', jourTache(t) ? `pour le ${jourTache(t).slice(8, 10)}/${jourTache(t).slice(5, 7)}` : ''].filter(Boolean).join(' · '), pastille: STATUT_LABELS[t.statut] }));
 const tachesEnRetard = (c: Ctx): Elem[] =>
   tachesOuvertes(c)
     .filter((t) => !!jourTache(t) && jourTache(t) < c.e.jour)
-    .map((t) => ({ id: t.id, cle: `t:${t.id}`, titre: t.titre, sous: [t.responsable ? (c.r.org.personne.get(t.responsable)?.nom ?? '') : '', `prévue le ${jourTache(t).slice(8, 10)}/${jourTache(t).slice(5, 7)}`].filter(Boolean).join(' · '), pastille: 'en retard' }));
+    .map((t) => ({ id: t.id, cle: `t:${t.id}`, titre: t.titre, sous: [t.responsable ? nomPersonne(c.r.org, t.responsable) : '', `prévue le ${jourTache(t).slice(8, 10)}/${jourTache(t).slice(5, 7)}`].filter(Boolean).join(' · '), pastille: 'en retard' }));
 /** Objectifs (OKR) : le même élément qu'en SAFe, avec ses résultats clés */
 const objectifsSimple = (c: Ctx): Elem[] =>
   c.e.h.objectifList

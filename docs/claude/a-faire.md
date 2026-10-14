@@ -4,7 +4,9 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
 
 ## Session 4 (14/10, suite) : refactoring sans changement fonctionnel — VALIDÉ (5 lots, un à la fois, avec captures)
 1. Outils communs — FAIT : src/format.ts (jourMois, jourMoisAn, dateFr, jourSemaine, jourSemaineChiffres, euros,
-   eurosCourt, eurosTexte, pluriel, nomPersonne) ; les anciens noms pointent ici. Vérifié : texte identique avant /
+   eurosCourt, eurosTexte, pluriel, nomDepuisEmail) ; les anciens noms pointent ici. Nom d'une personne : une seule
+   fonction, organisation.ts nomPersonne (identifiant ou adresse ; inconnue : « Lea Martin » tiré de l'adresse, ou rien
+   pour un identifiant), utilisée par Daily, réunions, Backlog, Planification, Chat, fiche tâche. Vérifié : texte identique avant /
    après sur Réunions, Daily, Revue de sprint, ART sync, Pilotage.
 2. Composants visuels : une fenêtre de choix (remplace ChoiceSheet, ItemPicker, LinkPicker, Choix, DomaineChoix,
    EspaceChoix, PIAddSheet), un choix de personne, une ligne « ＋ Ajouter », les rangées de pastilles sur Chips.

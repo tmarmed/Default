@@ -1,3 +1,4 @@
+import { nomDepuisEmail } from '../format';
 import { Children, cloneElement, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { filElement } from '../choixTravail';
@@ -115,14 +116,7 @@ export interface Hierarchie {
 const ICONE_NATURE: Record<string, string> = { humain: '🧑', ia_chat: '💬', agent_ia: '🤖', application: '🏛️' };
 const LIBELLE_INTERLOCUTEUR: Record<string, string> = { humain: 'Humain', ia_chat: 'IA chat', agent_ia: 'Agent IA', application: 'Application' };
 
-/** « lea.martin@… » → « Lea Martin » (personne absente de l'Organisation) */
-export const nomDepuisEmail = (e: string) =>
-  e
-    .split('@')[0]
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .map((m) => m[0].toUpperCase() + m.slice(1))
-    .join(' ') || e;
+export { nomDepuisEmail };
 
 /** Fil d'Ariane de l'élément concerné par un échange (epic, feature, tâche…), en tête de sa carte */
 export function FilEchange({ id }: { id: string }) {

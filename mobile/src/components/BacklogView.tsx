@@ -2,7 +2,7 @@ import { type ReactElement, useEffect, useMemo, useRef, useState } from 'react';
 import { PanResponder, Pressable, type RefreshControlProps, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { toDateString } from '../dates';
 import { useHierarchy } from '../hierarchyContext';
-import { membresDe, type OrgValue, useFiltreOrg, useOrg } from '../organisation';
+import { membresDe, nomPersonne, type OrgValue, useFiltreOrg, useOrg } from '../organisation';
 import { fmtPoints, iterationNom } from '../pi';
 import { etatEpic, useSafe } from '../safe';
 import { colors } from '../theme';
@@ -120,7 +120,7 @@ export function BacklogView({ niveau, onNiveau, vs, onOpenEpic, onOpenFeature, o
     return {
       id: t.id,
       titre: `${t.type === 'story' ? '📖' : '✓'} ${t.titre}`,
-      meta: [t.points ? fmtPoints(+t.points, safe.pointsJours) : '', t.iteration ? iterationNom(t.iteration).split(' · ')[0] : '', t.responsable ? (org.personne.get(t.responsable)?.nom ?? '').split(' ')[0] : ''].filter(Boolean).join(' · '),
+      meta: [t.points ? fmtPoints(+t.points, safe.pointsJours) : '', t.iteration ? iterationNom(t.iteration).split(' · ')[0] : '', t.responsable ? nomPersonne(org, t.responsable).split(' ')[0] : ''].filter(Boolean).join(' · '),
       couleur: h.epics.get(h.features.get(t.feature)?.epic ?? '')?.couleur ?? '#8A94A6',
       ouvrir: () => onOpenTask(t),
       toucher: () => onOpenTask(t),

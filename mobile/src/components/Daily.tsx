@@ -1,4 +1,3 @@
-import { nomPersonne } from '../format';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
@@ -30,7 +29,7 @@ import {
 import { destinatairesTransfert, lireNiveau, personneParEmail } from '../echange/hierarchieEchange';
 import { aReprendre, parEspace, pointsEscalade, titreEscalade, titreTransmis } from '../suiviEscalade';
 import { useHierarchy } from '../hierarchyContext';
-import { autresEquipesDuTrain, membresDe, type OrgValue, porteurs } from '../organisation';
+import { autresEquipesDuTrain, membresDe, nomPersonne, type OrgValue, porteurs } from '../organisation';
 import { fmtPoints, iterationOf, piOf, pointsOf } from '../pi';
 import { type EtapeCatalogue, etapesParcours, ongletParcours, type ParcoursRole, parcoursParDefaut, participantsReunion } from '../reunions';
 import { PARCOURS_DAILY as CATALOGUE, elementsDuPlan, type EvenementJour, planDe, reunionPrecedenteAvecPlan } from '../daily';
