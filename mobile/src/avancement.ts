@@ -37,14 +37,43 @@ const CHAMPS: SorteAv[] = ['statut', 'valeur', 'echeance', 'planning', 'responsa
  * (enveloppe), « d:id » (demande de budget), « o:id » (objectif), « r:id » (résultat clé d'un OKR), « s:id » (point de suivi) → « statut|valeur|échéance|
  * sprint ou PI|responsable » */
 export type Photo = Record<string, string>;
+/**
+ * Filtre (14/10, même format que les autres filtres) : une valeur par famille, vide = « Tous » ; `seuil` : en % de la
+ * valeur d'avant, les changements de valeur plus petits sont cachés (0 = tout changement, sinon 1 % au moins)
+ */
 export interface FiltreAv {
-  /** Sortes, niveaux et types de note (points de suivi : Risque, Blocage…) décochés (vide = tout coché) */
-  sortes: SorteAv[];
-  niveaux: NiveauAv[];
-  types?: string[];
+  sorte: SorteAv | '';
+  niveau: NiveauAv | '';
+  /** Type de note des suivis (Risque, Blocage…) */
+  type: string;
+  seuil: number;
 }
-export const FILTRE_TOUT: FiltreAv = { sortes: [], niveaux: [], types: [] };
-export const estFiltre = (f: FiltreAv) => f.sortes.length > 0 || f.niveaux.length > 0 || (f.types?.length ?? 0) > 0;
+export const FILTRE_TOUT: FiltreAv = { sorte: '', niveau: '', type: '', seuil: 0 };
+export const SEUILS_AV = [0, 1, 2, 5, 10, 20, 50];
+export const estFiltre = (f: FiltreAv) => !!f.sorte || !!f.niveau || !!f.type || f.seuil > 0;
+/** Filtre enregistré avec une photo ; l'ancien format (listes décochées, 13/10) : une seule case cochée = ce choix */
+export function lireFiltre(f: unknown): FiltreAv {
+  const x = (f ?? {}) as Record<string, unknown>;
+  const seul = <T extends string>(decoches: unknown, tous: T[]): T | '' => {
+    if (!Array.isArray(decoches) || decoches.length !== tous.length - 1) return '';
+    return tous.find((v) => !decoches.includes(v)) ?? '';
+  };
+  const n = Number(x.seuil);
+  return {
+    sorte: typeof x.sorte === 'string' ? (x.sorte as SorteAv) : seul(x.sortes, SORTES_AV.map((y) => y.v)),
+    niveau: typeof x.niveau === 'string' ? (x.niveau as NiveauAv) : seul(x.niveaux, NIVEAUX_AV.map((y) => y.v)),
+    type: typeof x.type === 'string' ? x.type : '',
+    seuil: Number.isFinite(n) && n >= 1 ? Math.round(n) : 0,
+  };
+}
+/** Changement de valeur sous le seuil (en % de la valeur d'avant ; une valeur partie de 0 compte toujours) */
+export function sousSeuil(l: Pick<LigneAv, 'sorte' | 'de' | 'a'>, seuil: number): boolean {
+  if (seuil <= 0 || l.sorte !== 'valeur') return false;
+  const d = Number(String(l.de).replace(',', '.'));
+  const a = Number(String(l.a).replace(',', '.'));
+  if (l.de === '' || l.a === '' || !Number.isFinite(d) || !Number.isFinite(a) || d === 0) return false;
+  return (Math.abs(a - d) / Math.abs(d)) * 100 < seuil;
+}
 
 const NIVEAU_DE: Record<string, NiveauAv> = { t: 'element', f: 'feature', q: 'feature', e: 'epic', v: 'budget', d: 'budget', o: 'objectif', r: 'objectif', s: 'suivi' };
 export const niveauDe = (cle: string): NiveauAv => NIVEAU_DE[cle.split(':')[0]] ?? 'element';
@@ -141,7 +170,7 @@ export function comparer(avant: Photo, apres: Photo, focus: number): LigneAv[] {
 
 /** `typeDe` : type de note d'un point de suivi (clé « s: »), pour la rangée « Type de note » */
 export const filtrer = (lignes: LigneAv[], f: FiltreAv, typeDe?: (cle: string) => string) =>
-  lignes.filter((l) => !f.sortes.includes(l.sorte) && !f.niveaux.includes(l.niveau) && !(l.niveau === 'suivi' && typeDe && f.types?.includes(typeDe(l.cle))));
+  lignes.filter((l) => (!f.sorte || l.sorte === f.sorte) && (!f.niveau || l.niveau === f.niveau) && !(f.type && (l.niveau !== 'suivi' || (typeDe && typeDe(l.cle) !== f.type))) && !sousSeuil(l, f.seuil));
 
 // ---------- Enregistrement (lignes `donnee` de PointsReunion) ----------
 
@@ -170,7 +199,7 @@ export function textesPhoto(photo: Photo, filtre: FiltreAv): string[] {
 interface MorceauPhoto {
   k: string;
   n: number;
-  f?: FiltreAv;
+  f?: unknown;
   e: Photo;
 }
 function morceau(p: PointReunion): MorceauPhoto | null {
@@ -201,7 +230,7 @@ export function photos(points: PointReunion[]): PhotoLue[] {
     if (!m) continue;
     const x = par.get(p.reunion) ?? { reunion: p.reunion, photo: {}, filtre: FILTRE_TOUT, le: '', ids: [] };
     Object.assign(x.photo, m.e);
-    if (m.f) x.filtre = { sortes: m.f.sortes ?? [], niveaux: m.f.niveaux ?? [], types: m.f.types ?? [] };
+    if (m.f) x.filtre = lireFiltre(m.f);
     if ((p.cree_le ?? '') > x.le) x.le = p.cree_le ?? '';
     x.ids.push(p.id);
     par.set(p.reunion, x);

@@ -3,7 +3,8 @@
  * « 📌 Suivis ») et dans le compte rendu, avec le même filtre (sorte, niveau).
  */
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { View } from 'react-native';
+import { RangeeFiltre } from '../RangeeFiltre';
 import {
   comparer,
   depuis,
@@ -23,6 +24,9 @@ import {
   photoPrecedenteAvec,
   phrase,
   pointsPhoto,
+  SEUILS_AV,
+  type NiveauAv,
+  type SorteAv,
   SORTES_AV,
 } from '../../avancement';
 import type { DemandeBudget, Enveloppe, Epic, Feature, Item, Objectif, ObjectifPI, PointReunion, ResultatCle, TypeReunion } from '../../types';
@@ -132,30 +136,32 @@ export function useAvancement(o: {
   };
 }
 
-const bascule = <T,>(liste: T[], v: T) => (liste.includes(v) ? liste.filter((x) => x !== v) : [...liste, v]);
-
-/** Rangées du filtre : sorte puis niveau, avec leur nombre (seuls les niveaux présents) */
-function Filtre({ av, lecture }: { av: Avancement; lecture?: boolean }) {
-  const toutes = av.lignes ?? [];
-  const niveaux = NIVEAUX_AV.filter((n) => toutes.some((l) => l.niveau === n.v));
+/** Filtre standard (14/10) : une rangée par famille (Sorte, Niveau, Type de note), un seul choix, et le seuil des valeurs */
+function Filtre({ av, lignes, lecture }: { av: Avancement; lignes: LigneAv[]; lecture?: boolean }) {
+  const niveaux = NIVEAUX_AV.filter((n) => lignes.some((l) => l.niveau === n.v));
   // Type de note des points de suivi (Risque, Blocage, Demande d'action…), s'il y en a
-  const suivis = toutes.filter((l) => l.niveau === 'suivi');
+  const suivis = lignes.filter((l) => l.niveau === 'suivi');
   const types = [...new Set(suivis.map((l) => av.typeDe(l.cle)).filter(Boolean))];
-  const rangee = (cles: { v: string; l: string; n: number; off: boolean; onPress: () => void }[]) => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filtreLigne}>
-      {cles.map((c) => (
-        <Pressable key={c.v} disabled={lecture} onPress={c.onPress} style={[st.itChip, !c.off && st.itChipOn]} accessibilityRole="checkbox" accessibilityState={{ checked: !c.off }}>
-          <Text style={[st.itChipText, !c.off && st.itChipTextOn]}>{`${c.l} · ${c.n}`}</Text>
-        </Pressable>
-      ))}
-    </ScrollView>
-  );
+  const f = av.filtre;
   return (
     <View style={[st.filtresBloc, { gap: 6 }]}>
-      {rangee(SORTES_AV.map((s) => ({ v: s.v, l: s.l, n: toutes.filter((l) => l.sorte === s.v).length, off: av.filtre.sortes.includes(s.v), onPress: () => av.setFiltre({ ...av.filtre, sortes: bascule(av.filtre.sortes, s.v) }) })))}
-      {niveaux.length > 1 && rangee(niveaux.map((n) => ({ v: n.v, l: n.l, n: toutes.filter((l) => l.niveau === n.v).length, off: av.filtre.niveaux.includes(n.v), onPress: () => av.setFiltre({ ...av.filtre, niveaux: bascule(av.filtre.niveaux, n.v) }) })))}
-      {types.length > 0 &&
-        rangee(types.map((t) => ({ v: t, l: LIBELLE_TYPE_POINT[t as keyof typeof LIBELLE_TYPE_POINT] ?? t, n: suivis.filter((l) => av.typeDe(l.cle) === t).length, off: !!av.filtre.types?.includes(t), onPress: () => av.setFiltre({ ...av.filtre, types: bascule(av.filtre.types ?? [], t) }) })))}
+      <RangeeFiltre<SorteAv | ''> famille="Sorte" disabled={lecture} options={SORTES_AV.filter((x) => lignes.some((l) => l.sorte === x.v)).map((x) => ({ value: x.v, label: `${x.l} · ${lignes.filter((l) => l.sorte === x.v).length}` }))} value={f.sorte} onChange={(v) => av.setFiltre({ ...f, sorte: v })} />
+      {niveaux.length > 1 && <RangeeFiltre<NiveauAv | ''> famille="Niveau" disabled={lecture} options={niveaux.map((n) => ({ value: n.v, label: `${n.l} · ${lignes.filter((l) => l.niveau === n.v).length}` }))} value={f.niveau} onChange={(v) => av.setFiltre({ ...f, niveau: v })} />}
+      {types.length > 0 && (
+        <RangeeFiltre famille="Type de note" disabled={lecture} options={types.map((t) => ({ value: t, label: `${LIBELLE_TYPE_POINT[t as keyof typeof LIBELLE_TYPE_POINT] ?? t} · ${suivis.filter((l) => av.typeDe(l.cle) === t).length}` }))} value={f.type} onChange={(v) => av.setFiltre({ ...f, type: v })} />
+      )}
+      {lignes.some((l) => l.sorte === 'valeur') && (
+        <RangeeFiltre
+          famille="Seuil des valeurs"
+          liste
+          disabled={lecture}
+          tous="0"
+          libelleTous="Tout changement"
+          options={SEUILS_AV.filter((x) => x > 0).map((x) => ({ value: String(x), label: `Au moins ${x} %` }))}
+          value={String(f.seuil)}
+          onChange={(v) => av.setFiltre({ ...f, seuil: Number(v) })}
+        />
+      )}
     </View>
   );
 }
@@ -171,6 +177,8 @@ export function BlocAvancement({
   lecture,
   onOuvrir,
   onOuvrirEntite,
+  garder,
+  titre,
 }: {
   av: Avancement;
   nom: (idOuMail: string) => string;
@@ -178,6 +186,9 @@ export function BlocAvancement({
   lecture?: boolean;
   onOuvrir?: (t: Item) => void;
   onOuvrirEntite?: (kind: 'feature' | 'epic' | 'objectif', id: string) => void;
+  /** Tour de table (14/10) : seulement les lignes d'un membre, sans le titre de la section */
+  garder?: (l: LigneAv) => boolean;
+  titre?: string;
 }) {
   // Responsable d'un élément : id de personne (Organisation) ; d'un suivi : adresse e-mail
   const org = useOrg();
@@ -192,19 +203,21 @@ export function BlocAvancement({
   const [ouvert, setOuvert] = useState(compteRendu ? filtre : false);
   if (!av.lignes) {
     return (
-      <SectionFiche titre="Avancement">
+      <SectionFiche titre={titre ?? 'Avancement'}>
         <Vide texte={messagePremiere(av.type)} />
       </SectionFiche>
     );
   }
+  const lignes = garder ? av.lignes.filter(garder) : av.lignes;
+  const vues = garder ? av.vues.filter(garder) : av.vues;
   return (
     <SectionFiche
-      titre={`${av.titre} · ${av.vues.length}`}
-      droite={av.lignes.length ? <PastilleFiltres actif={filtre} ouvert={ouvert} onPress={() => setOuvert((x) => !x)} /> : undefined}
-      entete={ouvert && av.lignes.length ? <Filtre av={av} lecture={lecture} /> : undefined}
+      titre={`${titre ?? av.titre} · ${vues.length}`}
+      droite={lignes.length ? <PastilleFiltres actif={filtre} ouvert={ouvert} onPress={() => setOuvert((x) => !x)} /> : undefined}
+      entete={ouvert && lignes.length ? <Filtre av={av} lignes={lignes} lecture={lecture} /> : undefined}
     >
-      {av.vues.length ? (
-        av.vues.map((l, i) => {
+      {vues.length ? (
+        vues.map((l, i) => {
           const t = av.itemDe(l.cle);
           return (
             <Ligne
@@ -218,7 +231,7 @@ export function BlocAvancement({
           );
         })
       ) : (
-        <Vide texte={av.lignes.length ? 'Rien à afficher avec ce filtre.' : 'Rien n’a bougé.'} />
+        <Vide texte={lignes.length ? 'Rien à afficher avec ce filtre.' : 'Rien n’a bougé.'} />
       )}
     </SectionFiche>
   );

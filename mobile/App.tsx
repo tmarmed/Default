@@ -23,6 +23,7 @@ import { FeatureForm } from './src/components/FeatureForm';
 import { IterationView } from './src/components/IterationView';
 import { ObjectifPIForm } from './src/components/ObjectifPIForm';
 import { PIView } from './src/components/PIView';
+import { RangeeFiltre } from './src/components/RangeeFiltre';
 import { TypeFilter, TypeFiltre } from './src/components/TypeFilter';
 import { PIAddSheet } from './src/components/PIAddSheet';
 import { FeuilleChoix, FeuilleMulti } from './src/components/Choix';
@@ -3063,18 +3064,15 @@ function Main() {
             <View style={styles.filtresCorps}>
                 {/* Synchro (lot 25) : espace, élément concerné, type, avec pièces jointes */}
                 {surSynchro && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                    {[
-                      { cle: 'tous', label: 'Tous les espaces', on: !synchroFiltre.espace, press: () => setSynchroFiltre((f) => ({ ...f, espace: '' })) },
-                      ...espaces
-                        .filter((e) => visibles.includes(e.id))
-                        .map((e) => ({ cle: e.id, label: `${ICONE_ESPACE[e.type]} ${e.nom}`, on: synchroFiltre.espace === e.id, press: () => setSynchroFiltre((f) => ({ ...f, espace: f.espace === e.id ? '' : e.id })) })),
-                    ].map((c) => (
-                      <Pressable key={c.cle} onPress={c.press} style={[styles.itChip, c.on && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: c.on }}>
-                        <Text style={[styles.itChipText, c.on && styles.itChipTextOn]}>{c.label}</Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
+                  <View style={styles.filterLine}>
+                    <RangeeFiltre
+                      famille="Espace"
+                      libelleTous="Tous les espaces"
+                      options={espaces.filter((e) => visibles.includes(e.id)).map((e) => ({ value: e.id, label: `${ICONE_ESPACE[e.type]} ${e.nom}` }))}
+                      value={synchroFiltre.espace}
+                      onChange={(v) => setSynchroFiltre((f) => ({ ...f, espace: v }))}
+                    />
+                  </View>
                 )}
                 {surSynchro && (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
@@ -3083,16 +3081,15 @@ function Main() {
                         📍 {synchroFiltre.element ? filElement(synchroFiltre.element, hv, TYPE_ICONS).split(' › ').pop() : 'Élément'} ▾
                       </Text>
                     </Pressable>
-                    {(
-                      [
-                        ['question', '❓ Questions'],
-                        ['message', '✉️ Messages'],
-                      ] as const
-                    ).map(([v, label]) => (
-                      <Pressable key={v} onPress={() => setSynchroFiltre((f) => ({ ...f, type: f.type === v ? '' : v }))} style={[styles.itChip, synchroFiltre.type === v && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: synchroFiltre.type === v }}>
-                        <Text style={[styles.itChipText, synchroFiltre.type === v && styles.itChipTextOn]}>{label}</Text>
-                      </Pressable>
-                    ))}
+                    <RangeeFiltre<'' | 'question' | 'message'>
+                      famille="Type"
+                      options={[
+                        { value: 'question', label: '❓ Questions' },
+                        { value: 'message', label: '✉️ Messages' },
+                      ]}
+                      value={synchroFiltre.type}
+                      onChange={(v) => setSynchroFiltre((f) => ({ ...f, type: v }))}
+                    />
                     <Pressable onPress={() => setSynchroFiltre((f) => ({ ...f, pj: !f.pj }))} style={[styles.itChip, synchroFiltre.pj && styles.itChipOn]} accessibilityRole="switch" accessibilityState={{ checked: synchroFiltre.pj }}>
                       <Text style={[styles.itChipText, synchroFiltre.pj && styles.itChipTextOn]}>📎 Avec pièces jointes</Text>
                     </Pressable>
@@ -3117,48 +3114,31 @@ function Main() {
                   />
                 )}
                 {surBacklog && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                    {(
-                      [
-                        ['epic', '🗂️ Epics'],
-                        ['feature', '🧩 Features'],
-                        ['tache', '📖 Stories'],
-                      ] as const
-                    ).map(([v, label]) => {
-                      const on = (backlogNiveau ?? niveauDuRole(moi, orgValue)) === v;
-                      return (
-                        <Pressable key={v} onPress={() => setBacklogNiveau(v)} style={[styles.itChip, on && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                          <Text style={[styles.itChipText, on && styles.itChipTextOn]}>{label}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
+                  <View style={styles.filterLine}>
+                    <RangeeFiltre<'epic' | 'feature' | 'tache'>
+                      famille="Niveau"
+                      sansTous
+                      options={[
+                        { value: 'epic', label: '🗂️ Epics' },
+                        { value: 'feature', label: '🧩 Features' },
+                        { value: 'tache', label: '📖 Stories' },
+                      ]}
+                      value={backlogNiveau ?? niveauDuRole(moi, orgValue)}
+                      onChange={setBacklogNiveau}
+                    />
+                  </View>
                 )}
                 {surBacklog && hv.valueStreams.length > 0 && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                    {[{ id: '', nom: '' }, ...hv.valueStreams].map((v) => {
-                      const on = backlogVs === v.id;
-                      return (
-                        <Pressable key={v.id || 'tous'} onPress={() => setBacklogVs(on ? '' : v.id)} style={[styles.itChip, on && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                          <Text style={[styles.itChipText, on && styles.itChipTextOn]}>{v.id ? `🌊 ${v.nom}` : 'Tous les value streams'}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
+                  <View style={styles.filterLine}>
+                    <RangeeFiltre famille="Value stream" libelleTous="Tous les value streams" options={hv.valueStreams.map((v) => ({ value: v.id, label: `🌊 ${v.nom}` }))} value={backlogVs} onChange={setBacklogVs} />
+                  </View>
                 )}
                 {!surSynchro && tab === 'taches' && <TypeFilter value={filter} onChange={setFilter} />}
                 {/* Réunions (lot 6) : niveau Équipe / Train / Portfolio (en SAFe) */}
                 {surReunions && safe.actif && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                    {NIVEAUX_REUNION.map((n) => {
-                      const on = reunionNiveau === n.value;
-                      return (
-                        <Pressable key={n.value || 'tous'} onPress={() => setReunionNiveau(on ? '' : n.value)} style={[styles.itChip, on && styles.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                          <Text style={[styles.itChipText, on && styles.itChipTextOn]}>{n.label}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
+                  <View style={styles.filterLine}>
+                    <RangeeFiltre<NiveauReunion | ''> famille="Niveau" libelleTous="Tous les niveaux" options={NIVEAUX_REUNION} value={reunionNiveau} onChange={setReunionNiveau} />
+                  </View>
                 )}
                 {!surSynchro && !surBacklog && !surReunions && (domaines.length > 0 || (tab === 'taches' && safe.actif)) && (
                   <>
@@ -3180,29 +3160,22 @@ function Main() {
                 )}
                 {/* Portfolio / Train / Équipe (delivery SAFe d'une entreprise) : liaison entre l'organisation et le travail */}
                 {!surSynchro && safe.actif && orgValue.delivery && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                    {(
-                      [
-                        { kind: null, id: '', label: 'Tout le delivery' },
-                        ...orgValue.portfolios.map((x) => ({ kind: 'portfolio' as const, id: x.id, label: `💼 ${x.nom}` })),
-                        ...orgValue.trains.map((x) => ({ kind: 'train' as const, id: x.id, label: `🚆 ${x.nom}` })),
-                        ...orgValue.equipes.map((x) => ({ kind: 'equipeagile' as const, id: x.id, label: `👥 ${x.nom}` })),
-                      ]
-                    ).map((c) => {
-                      const on = c.kind ? orgFiltre?.kind === c.kind && orgFiltre.id === c.id : !orgFiltre;
-                      return (
-                        <Pressable
-                          key={`${c.kind}-${c.id}`}
-                          onPress={() => setOrgFiltre(c.kind ? (on ? null : { kind: c.kind, id: c.id }) : null)}
-                          style={[styles.itChip, on && styles.itChipOn]}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: on }}
-                        >
-                          <Text style={[styles.itChipText, on && styles.itChipTextOn]}>{c.label}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
+                  <View style={styles.filterLine}>
+                    <RangeeFiltre
+                      famille="Delivery"
+                      libelleTous="Tout le delivery"
+                      options={[
+                        ...orgValue.portfolios.map((x) => ({ value: `portfolio:${x.id}`, label: `💼 ${x.nom}` })),
+                        ...orgValue.trains.map((x) => ({ value: `train:${x.id}`, label: `🚆 ${x.nom}` })),
+                        ...orgValue.equipes.map((x) => ({ value: `equipeagile:${x.id}`, label: `👥 ${x.nom}` })),
+                      ]}
+                      value={orgFiltre ? `${orgFiltre.kind}:${orgFiltre.id}` : ''}
+                      onChange={(v) => {
+                        const [kind, id] = v.split(':');
+                        setOrgFiltre(v ? { kind: kind as 'portfolio' | 'train' | 'equipeagile', id } : null);
+                      }}
+                    />
+                  </View>
                 )}
               </View>
           </View>

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from 'react';
+import { RangeeFiltre } from '../RangeeFiltre';
 import { ChoiceSheet } from '../ChoiceSheet';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { dateCourte, LIBELLE_TYPE_POINT } from '../../daily';
@@ -415,16 +416,7 @@ export function PastilleFiltres({ actif, ouvert, onPress }: { actif: boolean; ou
 export function FiltresType({ types, value, onChange }: { types: TypePoint[]; value: TypePoint | ''; onChange: (v: TypePoint | '') => void }) {
   return (
     <View style={st.filtresBloc}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filtreLigne}>
-        {(['', ...types] as const).map((x) => {
-          const on = value === x;
-          return (
-            <Pressable key={x || 'tous'} onPress={() => onChange(x)} style={[st.itChip, on && st.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
-              <Text style={[st.itChipText, on && st.itChipTextOn]}>{x ? LIBELLE_TYPE_POINT[x] : 'Tous'}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <RangeeFiltre<TypePoint | ''> famille="Type de note" options={types.map((x) => ({ value: x, label: LIBELLE_TYPE_POINT[x] }))} value={value} onChange={onChange} />
     </View>
   );
 }
@@ -441,16 +433,7 @@ export function FiltresVue({ value, onChange, nSuivis, nNotes, nFermees }: { val
   ];
   return (
     <View style={st.filtresBloc}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filtreLigne}>
-        {opts.map((o) => {
-          const on = value === o.v;
-          return (
-            <Pressable key={o.v} onPress={() => onChange(o.v)} style={[st.itChip, on && st.itChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
-              <Text style={[st.itChipText, on && st.itChipTextOn]}>{o.l}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <RangeeFiltre<VueSuivi> famille="Afficher" tous="tout" libelleTous="Tout" options={opts.filter((o) => o.v !== 'tout').map((o) => ({ value: o.v, label: o.l }))} value={value} onChange={onChange} />
     </View>
   );
 }

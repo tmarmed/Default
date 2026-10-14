@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { RangeeFiltre } from './RangeeFiltre';
 import { createContext, useCallback, useContext } from 'react';
 import { ScrollView, StyleProp, ViewStyle } from 'react-native';
 import { inDomain, useHierarchy } from '../hierarchyContext';
 import { nomDomaine } from '../nomsEspaces';
 import type { Domaine } from '../types';
-import { Chips } from './Chips';
 
 /**
  * Filtre de domaine partagé par tous les écrans (Tâches, Itération, PI, Roadmap, Portefeuille)
@@ -72,7 +72,7 @@ export function SousDomaineChips({ style }: { style?: StyleProp<ViewStyle> }) {
   if (!f.sous) return null;
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={style}>
-      <Chips options={[f.sous.tout, ...f.sous.options]} value={f.value} onChange={f.set} compact />
+      <RangeeFiltre famille={f.sous.tout.label.replace(/^Tout /, '')} tous={f.sous.tout.value} libelleTous={f.sous.tout.label} options={f.sous.options} value={f.value} onChange={f.set} />
     </ScrollView>
   );
 }
@@ -81,7 +81,7 @@ export function SousDomaineChips({ style }: { style?: StyleProp<ViewStyle> }) {
 export function DomainesPrincipauxChips({ label = 'Tous les domaines' }: { label?: string }) {
   const f = useFiltreDomaine();
   if (f.vide) return null;
-  return <Chips options={[{ value: 'tous', label }, ...f.principaux, { value: '', label: 'Sans domaine' }]} value={f.valeurPrincipale} onChange={f.choisir} compact />;
+  return <RangeeFiltre famille="Domaine" tous="tous" libelleTous={label} options={[...f.principaux, { value: '', label: 'Sans domaine' }]} value={f.valeurPrincipale} onChange={f.choisir} />;
 }
 
 /** Puces du filtre (rien si aucun domaine n'existe). */
@@ -91,7 +91,7 @@ export function DomainChips({ style, label = 'Tous les domaines' }: { style?: St
   return (
     <>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={style}>
-        <Chips options={[{ value: 'tous', label }, ...f.principaux, { value: '', label: 'Sans domaine' }]} value={f.valeurPrincipale} onChange={f.choisir} compact />
+        <RangeeFiltre famille="Domaine" tous="tous" libelleTous={label} options={[...f.principaux, { value: '', label: 'Sans domaine' }]} value={f.valeurPrincipale} onChange={f.choisir} />
       </ScrollView>
       <SousDomaineChips style={[style, { paddingTop: 0 }]} />
     </>

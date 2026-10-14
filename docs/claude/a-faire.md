@@ -17,12 +17,13 @@ Décidé (14/10, par l'utilisateur) :
 - Seuil : par défaut tout changement compte ; réglable dans le filtre en le touchant ; minimum 1, jamais 0.
 - Calcul automatique (Reste à faire) : du plus bas vers le haut (sous-tâche, tâche, story, feature, epic), proposé
   de s'arrêter à l'epic (règle SAFe ; train et portfolio comparés à leur enveloppe), réponse attendue.
-Questions ouvertes (à reprendre avec l'utilisateur, une à la fois) :
-1. Filtre de l'avancement : par famille (Sorte, Niveau, Type de note) garder tout, enlever, ou en garder certaines.
-2. Avancement au tour de table du Daily : déplacer (recommandé : chaque membre voit l'avancement de ses éléments ; la
-   Situation garde features, epics, suivis et un compteur) ou dupliquer. Bilan de la 1re étape de chaque réunion
-   fait en séance (seul le Daily a un tour de table).
-3. Seuil réglable des changements de valeur.
+CODÉ (14/10, lot « avancement et filtres ») : src/components/RangeeFiltre.tsx (rangée standard « Tous » + un choix,
+liste « Famille ▾ » au-delà de 4 choix) appliquée à Type (Tâches), Domaine, Delivery, Niveau des réunions, Niveau et
+Value stream du backlog, Espace et Type du Chat, Type de note et Afficher des suivis, filtre de l'avancement ;
+FiltreAv = un choix par famille + seuil en % (lireFiltre relit l'ancien format) ; Daily : Situation = une ligne
+« n changements depuis… », tour de table à deux onglets (Situation · Avancement du membre). Règles : bloc 13 (A2,
+A5b, A6, F1). Vérifié à l'écran (texte) : Daily Mobile, Revue de sprint, Synchronisation du portfolio (seuil).
+Calcul automatique : jusqu'à l'epic (validé), reste dans « Reste à faire ».
 
 ## Prochaine session (préparée le 13/10, fin de session 3)
 Skills chargés (`.claude/skills/`, copie dans `tmarmed/mes-skills`, branche main) : les appliquer dès la première

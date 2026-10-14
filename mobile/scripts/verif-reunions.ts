@@ -11,7 +11,7 @@ import { creerMagasin, nettoyerDepense, nettoyerPoint } from '../src/magasin';
 import { creneauxLibres, elementsDuPlan, finMax, JOURNEE_DEFAUT, momentsLibres, mesSuivis, planDe, reunionDeNote, reunionPrecedenteAvecPlan } from '../src/daily';
 import { reglerVocabulaire, vocab } from '../src/vocabulaire';
 import { aDroit, ecrireTransverses, lireTransverses, peutAnimer, peutDonner, remplaces } from '../src/transverses';
-import { photoPrecedenteAvec, comparer, depuis, filtrer, messagePremiere, photoDe, photoPrecedente, phrase, pointsPhoto, statutFeature, textesPhoto } from '../src/avancement';
+import { photoPrecedenteAvec, comparer, depuis, FILTRE_TOUT, filtrer, lireFiltre, sousSeuil, messagePremiere, photoDe, photoPrecedente, phrase, pointsPhoto, statutFeature, textesPhoto } from '../src/avancement';
 import type { Conge, Depense, Item, PointReunion } from '../src/types';
 import { lieAObjectif } from '../src/types';
 import { progressObjectif } from '../src/hierarchy';
@@ -631,8 +631,11 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   ok(!l.some((x) => x.cle === 't:b'), 'avancement : revenu à son statut de départ (ou inchangé) = aucune ligne (A1)');
   ok(l.some((x) => x.cle === 't:c' && x.sorte === 'responsable') && l.some((x) => x.cle === 't:c' && x.sorte === 'planning'), 'avancement : changement de responsable et de sprint (A2)');
   ok(l.some((x) => x.cle === 't:d' && x.sorte === 'ajoute'), 'avancement : élément entré dans le périmètre = ajouté en cours de route (A2)');
-  ok(filtrer(l, { sortes: ['responsable'], niveaux: [] }).every((x) => x.sorte !== 'responsable'), 'avancement : filtre par sorte (A6)');
+  ok(filtrer(l, { ...FILTRE_TOUT, sorte: 'statut' }).every((x) => x.sorte === 'statut'), 'avancement : filtre par sorte (A6)');
   ok(phrase(l.find((x) => x.cle === 't:a')!, (m) => m) === 'Statut : À faire → Terminé', 'avancement : phrase lisible');
+  // Filtre standard (14/10) : un choix par famille, seuil en % (0 = tout changement, sinon 1 % au moins)
+  ok(sousSeuil({ sorte: 'valeur', de: '100000', a: '100500' }, 1) && !sousSeuil({ sorte: 'valeur', de: '100000', a: '102000' }, 1) && !sousSeuil({ sorte: 'valeur', de: '0', a: '5' }, 50) && !sousSeuil({ sorte: 'statut', de: 'a', a: 'b' }, 50), 'avancement : seuil des valeurs en % de la valeur d’avant');
+  ok(lireFiltre({ sortes: ['valeur', 'echeance', 'planning', 'responsable', 'ajoute'], niveaux: [] }).sorte === 'statut' && lireFiltre({ sortes: ['valeur'], niveaux: [] }).sorte === '' && lireFiltre({ seuil: 0.5 }).seuil === 0 && lireFiltre({ seuil: 5 }).seuil === 5, 'avancement : filtre enregistré relu (ancien format, seuil au moins 1 %)');
   // Focus : l'ART sync ne voit pas les stories, seulement features et au-dessus (A3)
   const f = { id: 'f1', titre: 'Paiement', pi: '2026-T4' } as never;
   const train = photoDe({ items: [it('a', {})], features: [f], tousItems: [it('a', {})] }, 1);
@@ -641,15 +644,15 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   // Photo : découpée sous 1000 caractères, relue, précédente trouvée (même jour compris en perso)
   const grosse: Record<string, string> = {};
   for (let i = 0; i < 80; i++) grosse[`t:element${i}`] = 'en_cours||2026-10-20|2026-T4-IT3|acmp9';
-  const textes = textesPhoto(grosse, { sortes: ['valeur'], niveaux: [] });
+  const textes = textesPhoto(grosse, { ...FILTRE_TOUT, sorte: 'valeur' });
   ok(textes.length > 1 && textes.every((t) => t.length < 1000), 'avancement : photo découpée sous la limite d’une cellule (1000 caractères)');
-  const pts = (reunion: string, le: string) => pointsPhoto(reunion, 'nina@x.fr', grosse, { sortes: [], niveaux: [] }).map((x, i) => ({ ...x, id: `${reunion}-${i}`, cree_le: le }) as PointReunion);
+  const pts = (reunion: string, le: string) => pointsPhoto(reunion, 'nina@x.fr', grosse, FILTRE_TOUT).map((x, i) => ({ ...x, id: `${reunion}-${i}`, cree_le: le }) as PointReunion);
   const tous = [...pts('point_perso-perso-2026-10-13', '2026-10-13T08:00'), ...pts('bilan_soir-perso-2026-10-12', '2026-10-12T18:00'), ...pts('daily-equipeagile:x-2026-10-13', '2026-10-13T09:00')];
   const prec = photoPrecedente(tous, 'bilan_soir-perso-2026-10-13', ['point_perso-', 'bilan_soir-']);
   ok(prec?.reunion === 'point_perso-perso-2026-10-13' && Object.keys(prec.photo).length === 80, 'avancement : Bilan du soir comparé au Point perso du matin (photo relue en entier)');
   ok(photoPrecedente(tous, 'point_perso-perso-2026-10-11', ['point_perso-', 'bilan_soir-']) === null, 'avancement : pas de photo avant = première réunion');
   {
-    const ph = (reunion: string, le: string, photo: Record<string, string>) => pointsPhoto(reunion, 'nina@x.fr', photo, { sortes: [], niveaux: [] }).map((x, i) => ({ ...x, id: `${reunion}-${i}`, cree_le: le }) as PointReunion);
+    const ph = (reunion: string, le: string, photo: Record<string, string>) => pointsPhoto(reunion, 'nina@x.fr', photo, FILTRE_TOUT).map((x, i) => ({ ...x, id: `${reunion}-${i}`, cree_le: le }) as PointReunion);
     const perso = ph('point_perso-perso-2026-10-13', '2026-10-13T08:00', { 't:a': 'a_faire||||', 't:moi': 'a_faire||||' });
     const daily = ph('daily-equipeagile:x-2026-10-13', '2026-10-13T09:45', { 't:a': 'en_cours||||', 't:autre': 'a_faire||||' });
     const p2 = photoPrecedenteAvec(perso, 'bilan_soir-perso-2026-10-13', ['point_perso-', 'bilan_soir-'], daily);
@@ -657,7 +660,7 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   }
   ok(messagePremiere('daily') === 'L’avancement sera visible à partir du prochain Daily.' && messagePremiere('art_sync') === 'L’avancement sera visible à partir de la prochaine ART sync.', 'avancement : message de la première réunion (A8)');
   ok(depuis('daily-equipeagile:x-2026-10-12') === 'depuis le Daily du 12/10' && depuis('art_sync-train:t-2026-10-06') === 'depuis l’ART sync du 06/10', 'avancement : titre « depuis le Daily du 12/10 »');
-  ok(textes.every((t) => { try { nettoyerPoint({ ...pointsPhoto('daily-equipeagile:x-2026-10-13', 'n@x.fr', {}, { sortes: [], niveaux: [] })[0], texte: t }); return true; } catch { return false; } }), 'avancement : lignes de photo acceptées par le Sheet');
+  ok(textes.every((t) => { try { nettoyerPoint({ ...pointsPhoto('daily-equipeagile:x-2026-10-13', 'n@x.fr', {}, FILTRE_TOUT)[0], texte: t }); return true; } catch { return false; } }), 'avancement : lignes de photo acceptées par le Sheet');
 }
 // Enveloppes des trains (13/10, session 3) : portfolio → trains → epics
 {

@@ -2,7 +2,7 @@ import type { Conge, CoutPersonne, DemandeBudget, Depense, DossierInvestissement
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
 import { iterationOf, piOf, piStart, shiftIteration, shiftPi } from './pi';
-import { photoDe, pointsPhoto } from './avancement';
+import { FILTRE_TOUT, photoDe, pointsPhoto } from './avancement';
 import { estOuvre } from './series';
 import { creerMagasin, type Kind, type Persistance, type Table, TABLES, TABLES_ORG } from './magasin';
 import { CLE_ORG, type KindOrg, type Org } from './organisation';
@@ -560,7 +560,7 @@ const SEEDS_ENTREPRISE: Seeds = {
     const photo = photoDe({ items: etatHier, features, epics: (ent.epic as Epic[]).filter((x) => eIds.has(x.id)), suivis: suivisHier, tousItems: items.map((t) => etatHier.find((a) => a.id === t.id) ?? t) }, 0);
     // L'epic de l'application mobile était « Analyse » hier
     for (const k of Object.keys(photo).filter((x) => x.startsWith('e:')).slice(0, 1)) photo[k] = ['analyse', ...photo[k].split('|').slice(1)].join('|');
-    const photoHier = pointsPhoto(reunion(veille), nina, photo, { sortes: [], niveaux: [] }).map((x, k) => ({ ...x, id: `acmav${k + 1}`, cree_le: `${veille}T09:55:00.000Z` }));
+    const photoHier = pointsPhoto(reunion(veille), nina, photo, FILTRE_TOUT).map((x, k) => ({ ...x, id: `acmav${k + 1}`, cree_le: `${veille}T09:55:00.000Z` }));
     // Avancement au niveau du train et du portfolio : photos d'hier de l'ART sync et de la Revue du portfolio, avec
     // tout le delivery tel qu'hier (seuls les éléments de la réunion comptent) ; une feature avancée d'un PI, une epic
     // dont le budget a grandi, une demande accordée en partie, une demande nouvelle ; au portfolio, une epic passée
@@ -588,7 +588,7 @@ const SEEDS_ENTREPRISE: Seeds = {
     changer(portfolio, 'e:acme1', 0, 'analyse');
     changer(portfolio, `v:portfolio:acmpf1|${new Date().getFullYear()}`, 1, '230000');
     changer(portfolio, 'r:acmr1', 1, '78');
-    const sans = { sortes: [], niveaux: [] };
+    const sans = FILTRE_TOUT;
     const photosNiveaux = [
       ...pointsPhoto(`art_sync-train:acmtr1-${veille}`, 'paul.leroy@acme.example', train, sans).map((x, k) => ({ ...x, id: `acmavt${k + 1}`, cree_le: `${veille}T11:30:00.000Z` })),
       ...pointsPhoto(`revue_portfolio-portfolio:acmpf1-${veille}`, 'marc.petit@acme.example', portfolio, sans).map((x, k) => ({ ...x, id: `acmavp${k + 1}`, cree_le: `${veille}T11:30:00.000Z` })),
@@ -995,7 +995,7 @@ function photosSeries(series: SerieAv[], actuel: Record<string, string>, personn
       element: '', concretisation: 'suivi', tache: '', responsable: s.qui, statut: 'fait', validateur: s.qui, echeance: s.jour, note: 'Fait', cree_le: `${s.jour}T10:00:00.000Z`,
     };
     photo[`s:${suivi.id}`] = ['en_cours', '', s.jour, '', s.qui].join('|');
-    out.push(suivi, ...pointsPhoto(reunion, s.qui, photo, { sortes: [], niveaux: [] }).map((x, k) => ({ ...x, id: `${prefixeId}sav${n + 1}p${k + 1}`, cree_le: `${s.jour}T10:30:00.000Z` })));
+    out.push(suivi, ...pointsPhoto(reunion, s.qui, photo, FILTRE_TOUT).map((x, k) => ({ ...x, id: `${prefixeId}sav${n + 1}p${k + 1}`, cree_le: `${s.jour}T10:30:00.000Z` })));
   });
   return out;
 }
@@ -1007,7 +1007,7 @@ function pointsMoi(): PointReunion[] {
   const avant = toDateString(addDays(new Date(), -30));
   const photo = photoDe({ objectifs: sampleEntities().objectif }, 3);
   photo['o:o1'] = ['', '5', ...photo['o:o1'].split('|').slice(2)].join('|');
-  const revue = pointsPhoto(`revue_objectifs-perso-${avant}`, MOI_DEMO, photo, { sortes: [], niveaux: [] }).map((x, k) => ({ ...x, id: `moiav${k + 1}`, cree_le: `${avant}T18:00:00.000Z` }));
+  const revue = pointsPhoto(`revue_objectifs-perso-${avant}`, MOI_DEMO, photo, FILTRE_TOUT).map((x, k) => ({ ...x, id: `moiav${k + 1}`, cree_le: `${avant}T18:00:00.000Z` }));
   // Avancement des autres réunions perso (14/10) : Bilan du soir d'hier (d'où le Point perso et le Bilan du soir
   // d'aujourd'hui), Revue de la semaine, Revue du trimestre, Point annuel
   const items = sample();

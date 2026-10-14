@@ -40,6 +40,8 @@ import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
 import { enfantsRepartition, gerantsBudget, niveauDessus, reunionDuNiveau, useBudget } from '../budget';
 import { BlocAvancement, useAvancement } from './reunion/Avancement';
+import { type LigneAv, messagePremiere } from '../avancement';
+import { Segmented } from './Segmented';
 import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PeriodeDepense, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type Statut, type TypePoint } from '../types';
 import { etatDe, texteDirect } from '../etatReunion';
 import { useLive } from './useLive';
@@ -216,6 +218,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** PO : ses réponses aux questions de l'équipe (par échange), envoyées avec son point */
   const [reponses, setReponses] = useState<Record<string, { c: string; note: string }>>({});
   const [membre, setMembre] = useState(0);
+  /** Tour de table (14/10) : onglets « Situation » et « Avancement » du membre */
+  const [ongletTour, setOngletTour] = useState<'situation' | 'avancement'>('situation');
   /** Étape affichée (clé), dans l'onglet ouvert */
   const [cle, setCle] = useState('');
   const relus = useRef(new Set<string>());
@@ -1072,7 +1076,14 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               const noms = personnes.filter((y) => ab.fermeture || ab.personnes.includes(y.email.toLowerCase())).map((y) => y.nom);
               return noms.length ? <Text style={[st.sous, { marginHorizontal: 16, marginTop: 6 }]}>📅 Absents aujourd’hui : {noms.join(', ')}</Text> : null;
             })()}
-            <BlocAvancement av={avancement} nom={nomDe} onOuvrir={lecture ? undefined : onOpenTask} onOuvrirEntite={lecture ? undefined : onOpenEntite} />
+            {/* Avancement (14/10) : le détail par membre au tour de table ; ici, le nombre de changements */}
+            <SectionFiche titre="📈 Avancement">
+              <Ligne
+                premiere
+                texte={avancement.lignes ? (avancement.lignes.length ? `${pluriel(avancement.lignes.length, 'changement')} ${avancement.titre.replace(/^Avancement /, '')}` : `Rien n’a bougé ${avancement.titre.replace(/^Avancement /, '')}`) : messagePremiere(reunion.type)}
+                sous={avancement.lignes?.length ? 'Le détail de chacun au tour de table (onglet « Avancement »)' : undefined}
+              />
+            </SectionFiche>
             <SectionFiche
               titre={`📌 Suivis · ${nSuivisVus}${reportesVus.length || vueSuivi === 'notes' ? ` · Notes à concrétiser · ${reportesVus.length}` : ''}`}
               droite={
@@ -1167,6 +1178,15 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         const sonHier = planHierDe(m);
         // Lecture seule : les points du Sheet (ce que chacun a envoyé, ce que le SM a noté et concrétisé) ; Hier et
         // Aujourd'hui sont affichés à part (plan du jour)
+        // Avancement du membre (14/10) : ses éléments (responsable) et les suivis à son nom
+        const aLui = (l: LigneAv) => {
+          if (l.cle.startsWith('t:')) return avancement.itemDe(l.cle)?.responsable === courant.id;
+          if (l.cle.startsWith('s:')) {
+            const pt = tous.find((x) => x.id === l.cle.slice(2)) ?? serveur.find((x) => x.id === l.cle.slice(2));
+            return !!pt && (pt.responsable || pt.personne).toLowerCase() === m;
+          }
+          return false;
+        };
         const notes = (lecture ? serveur : tous).filter((y) => dela(y) && y.personne === m && y.type !== 'hier' && y.type !== 'aujourdhui').sort((a, b) => a.cree_le.localeCompare(b.cree_le));
         return (
           <>
@@ -1178,13 +1198,28 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               ))}
             </ScrollView>
             <TitreFiche icone="👤" titre={courant.nom} vide="" sous={sous(`${membre + 1} sur ${personnes.length} · ${e.role(courant.id)}`)} />
-            {sonHier.elements.length > 0 && (
+            <View style={{ marginHorizontal: 16, marginBottom: 8 }}>
+              <Segmented
+                options={[
+                  { value: 'situation', label: 'Situation' },
+                  { value: 'avancement', label: `Avancement${avancement.lignes ? ` · ${avancement.vues.filter(aLui).length}` : ''}` },
+                ]}
+                value={ongletTour}
+                onChange={setOngletTour}
+              />
+            </View>
+            {ongletTour === 'avancement' && (
+              <BlocAvancement av={avancement} nom={nomDe} garder={aLui} titre={`Avancement de ${courant.nom}`} onOuvrir={lecture ? undefined : onOpenTask} onOuvrirEntite={lecture ? undefined : onOpenEntite} />
+            )}
+            {ongletTour === 'situation' && sonHier.elements.length > 0 && (
               <SectionFiche titre={`⏪ Hier · plan du ${dateCourte(sonHier.reunion.slice(-10))}`}>
                 {sonHier.elements.map((t, i) => (
                   <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} pastille={pastilleStatut(t.statut)} tache={t} />
                 ))}
               </SectionFiche>
             )}
+            {ongletTour === 'situation' && (
+            <>
             <SectionFiche titre={`▶️ Aujourd’hui · ${sesElements.filter(dansPlan).length} coché${sesElements.filter(dansPlan).length > 1 ? 's' : ''} sur ${sesElements.length}`}>
               {sesElements.length ? (
                 sesElements.map((t, i) => (
@@ -1242,6 +1277,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 />
               )}
             </SectionFiche>
+            </>
+            )}
           </>
         );
       }
