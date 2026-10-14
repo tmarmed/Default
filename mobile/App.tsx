@@ -25,9 +25,10 @@ import { ObjectifPIForm } from './src/components/ObjectifPIForm';
 import { PIView } from './src/components/PIView';
 import { Pastille } from './src/components/RangeePastilles';
 import { PastilleFiltres } from './src/components/PastilleFiltres';
+import { BarreFiltres, FiltresBacklog, FiltresDelivery, FiltresReunions, FiltresSynchro, LigneFiltres, NIVEAUX_REUNION } from './src/components/BarreFiltres';
 import { TypeFilter, TypeFiltre } from './src/components/TypeFilter';
 import { PIAddSheet } from './src/components/PIAddSheet';
-import { FeuilleChoix, FeuilleMulti } from './src/components/Choix';
+import { FeuilleMulti } from './src/components/Choix';
 import { filElement, grouper } from './src/choixTravail';
 import { BandeauAnnuler, useBandeau } from './src/components/EnregistrementAuto';
 import { inDomain, RechercheContext } from './src/components/DomainFilter';
@@ -177,12 +178,6 @@ const TEST_STOCKAGE_KEY = 'president:stockage-test';
 const TEST_LIMITE_KEY = 'president:stockage-test-limite';
 /** Alerte de stockage repliée en une ligne */
 const STOCKAGE_PLIE_KEY = 'president:stockage-plie';
-/** Filtre de niveau des réunions */
-const NIVEAUX_REUNION: { value: NiveauReunion; label: string }[] = [
-  { value: 'equipeagile', label: '👥 Équipe' },
-  { value: 'train', label: '🚆 Train' },
-  { value: 'portfolio', label: '💼 Portfolio' },
-];
 /** Écrans avec le sous-bloc Filtres (juste sous leur titre) */
 const ECRANS_FILTRES: Tab[] = ['taches', 'iteration', 'pi', 'roadmap', 'portefeuille', 'backlog', 'reunions', 'echange'];
 const MODES: { value: Mode; label: string }[] = [
@@ -558,7 +553,6 @@ function Main() {
   const [recherche, setRecherche] = useState<string | null>(null);
   /** Filtres de la Synchro (lot 25) : espace, élément concerné, type, avec pièces jointes ; la recherche est commune */
   const [synchroFiltre, setSynchroFiltre] = useState<{ espace: string; element: string; type: '' | 'question' | 'message'; pj: boolean }>({ espace: '', element: '', type: '', pj: false });
-  const [choixElementSynchro, setChoixElementSynchro] = useState(false);
   /** Backlog : niveau (null = selon le rôle) et value stream choisis dans les filtres */
   const [backlogNiveau, setBacklogNiveau] = useState<NiveauBacklog | null>(null);
   /** 📅 Réunions (lot 6) : niveau choisi dans les filtres (Équipe / Train / Portfolio), vide = tous */
@@ -3011,162 +3005,23 @@ function Main() {
           </View>
         </View>
         {ECRANS_FILTRES.includes(tab) && !filtresPlies && (
-          <View style={styles.filtresBloc}>
-            <View style={styles.filtresTete}>
-              {recherche === null ? (
-                <>
-                  <Pressable onPress={() => setRecherche('')} style={styles.rond} hitSlop={6} accessibilityRole="button" accessibilityLabel="Rechercher">
-                    <Text style={styles.rondIcone}>🔍</Text>
-                  </Pressable>
-                </>
-              ) : (
-                <View style={styles.champRecherche}>
-                  <Text style={styles.rondIcone}>🔍</Text>
-                  <TextInput
-                    autoFocus
-                    value={recherche}
-                    onChangeText={setRecherche}
-                    placeholder={surSynchro ? 'Rechercher (titre, texte, personne)…' : 'Rechercher un titre…'}
-                    placeholderTextColor={colors.muted}
-                    style={styles.champRechercheTexte}
-                    returnKeyType="search"
-                  />
-                  <Pressable onPress={() => setRecherche(null)} hitSlop={8} style={styles.fermerRecherche} accessibilityRole="button" accessibilityLabel="Fermer la recherche">
-                    <Text style={styles.fermerRechercheTexte}>✕</Text>
-                  </Pressable>
-                </View>
-              )}
-              <Pressable
-                onPress={reinitialiserFiltres}
-                disabled={!nbFiltres}
-                style={[styles.rond, !!nbFiltres && styles.rondActif]}
-                hitSlop={6}
-                accessibilityRole="button"
-                accessibilityLabel={`Réinitialiser les filtres (${nbFiltres} actif${nbFiltres > 1 ? 's' : ''})`}
-              >
-                <Text style={[styles.reinitIcone, !!nbFiltres && styles.reinitIconeActif]}>↺</Text>
-                {!!nbFiltres && (
-                  <View style={styles.reinitPastille}>
-                    <Text style={styles.reinitPastilleTexte}>{nbFiltres}</Text>
-                  </View>
-                )}
-              </Pressable>
-            </View>
-            <View style={styles.filtresCorps}>
-                {/* Synchro (lot 25) : espace, élément concerné, type, avec pièces jointes */}
-                {surSynchro && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                    {[
-                      { cle: 'tous', label: 'Tous les espaces', on: !synchroFiltre.espace, press: () => setSynchroFiltre((f) => ({ ...f, espace: '' })) },
-                      ...espaces
-                        .filter((e) => visibles.includes(e.id))
-                        .map((e) => ({ cle: e.id, label: `${ICONE_ESPACE[e.type]} ${e.nom}`, on: synchroFiltre.espace === e.id, press: () => setSynchroFiltre((f) => ({ ...f, espace: f.espace === e.id ? '' : e.id })) })),
-                    ].map((c) => (
-                      <Pastille key={c.cle} label={c.label} on={c.on} onPress={c.press} />
-                    ))}
-                  </ScrollView>
-                )}
-                {surSynchro && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                    <Pastille label={`📍 ${synchroFiltre.element ? filElement(synchroFiltre.element, hv, TYPE_ICONS).split(' › ').pop() : 'Élément'} ▾`} on={!!synchroFiltre.element} onPress={() => setChoixElementSynchro(true)} />
-                    {(
-                      [
-                        ['question', '❓ Questions'],
-                        ['message', '✉️ Messages'],
-                      ] as const
-                    ).map(([v, label]) => (
-                      <Pastille key={v} label={label} on={synchroFiltre.type === v} onPress={() => setSynchroFiltre((f) => ({ ...f, type: f.type === v ? '' : v }))} />
-                    ))}
-                    <Pastille label="📎 Avec pièces jointes" on={synchroFiltre.pj} onPress={() => setSynchroFiltre((f) => ({ ...f, pj: !f.pj }))} bascule />
-                  </ScrollView>
-                )}
-                {surSynchro && choixElementSynchro && (
-                  <FeuilleChoix
-                    titre="Élément concerné"
-                    value={synchroFiltre.element}
-                    fixe
-                    groupes={[
-                      {
-                        options: [...new Set((tousHier.echanges ?? []).map((e) => e.element).filter(Boolean))].map((id) => ({ value: id, label: filElement(id, hv, TYPE_ICONS) || id })),
-                      },
-                    ]}
-                    sans={synchroFiltre.element ? 'Tous les éléments' : undefined}
-                    onChoisir={(v) => {
-                      setChoixElementSynchro(false);
-                      setSynchroFiltre((f) => ({ ...f, element: v }));
-                    }}
-                    onFermer={() => setChoixElementSynchro(false)}
-                  />
-                )}
-                {surBacklog && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                    {(
-                      [
-                        ['epic', '🗂️ Epics'],
-                        ['feature', '🧩 Features'],
-                        ['tache', '📖 Stories'],
-                      ] as const
-                    ).map(([v, label]) => {
-                      const on = (backlogNiveau ?? niveauDuRole(moi, orgValue)) === v;
-                      return (
-                        <Pastille key={v} label={label} on={on} onPress={() => setBacklogNiveau(v)} />
-                      );
-                    })}
-                  </ScrollView>
-                )}
-                {surBacklog && hv.valueStreams.length > 0 && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                    {[{ id: '', nom: '' }, ...hv.valueStreams].map((v) => {
-                      const on = backlogVs === v.id;
-                      return (
-                        <Pastille key={v.id || 'tous'} label={v.id ? `🌊 ${v.nom}` : 'Tous les value streams'} on={on} onPress={() => setBacklogVs(on ? '' : v.id)} />
-                      );
-                    })}
-                  </ScrollView>
-                )}
-                {!surSynchro && tab === 'taches' && <TypeFilter value={filter} onChange={setFilter} />}
-                {/* Réunions (lot 6) : niveau Équipe / Train / Portfolio (en SAFe) */}
-                {surReunions && safe.actif && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                    {NIVEAUX_REUNION.map((n) => {
-                      const on = reunionNiveau === n.value;
-                      return (
-                        <Pastille key={n.value || 'tous'} label={n.label} on={on} onPress={() => setReunionNiveau(on ? '' : n.value)} />
-                      );
-                    })}
-                  </ScrollView>
-                )}
-                {!surSynchro && !surBacklog && !surReunions && (domaines.length > 0 || (tab === 'taches' && safe.actif)) && (
-                  <>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                      {tab === 'taches' && safe.actif && (
-                        <Pastille label="🏃 Sprint en cours" on={itFilter} onPress={() => setItFilter((v) => !v)} bascule />
-                      )}
-                      {domaines.length > 0 && <DomainesPrincipauxChips />}
-                    </ScrollView>
-                    <SousDomaineChips style={styles.sousDomaines} />
-                  </>
-                )}
-                {/* Portfolio / Train / Équipe (delivery SAFe d'une entreprise) : liaison entre l'organisation et le travail */}
-                {!surSynchro && safe.actif && orgValue.delivery && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterLine}>
-                    {(
-                      [
-                        { kind: null, id: '', label: 'Tout le delivery' },
-                        ...orgValue.portfolios.map((x) => ({ kind: 'portfolio' as const, id: x.id, label: `💼 ${x.nom}` })),
-                        ...orgValue.trains.map((x) => ({ kind: 'train' as const, id: x.id, label: `🚆 ${x.nom}` })),
-                        ...orgValue.equipes.map((x) => ({ kind: 'equipeagile' as const, id: x.id, label: `👥 ${x.nom}` })),
-                      ]
-                    ).map((c) => {
-                      const on = c.kind ? orgFiltre?.kind === c.kind && orgFiltre.id === c.id : !orgFiltre;
-                      return (
-                        <Pastille key={`${c.kind}-${c.id}`} label={c.label} on={on} onPress={() => setOrgFiltre(c.kind ? (on ? null : { kind: c.kind, id: c.id }) : null)} />
-                      );
-                    })}
-                  </ScrollView>
-                )}
-              </View>
-          </View>
+          <BarreFiltres recherche={recherche} setRecherche={setRecherche} placeholder={surSynchro ? 'Rechercher (titre, texte, personne)…' : 'Rechercher un titre…'} nb={nbFiltres} onReinitialiser={reinitialiserFiltres}>
+            {surSynchro && <FiltresSynchro filtre={synchroFiltre} setFiltre={setSynchroFiltre} espaces={espaces.filter((e) => visibles.includes(e.id))} elements={[...new Set((tousHier.echanges ?? []).map((e) => e.element).filter(Boolean))]} hv={hv} />}
+            {surBacklog && <FiltresBacklog niveau={backlogNiveau ?? niveauDuRole(moi, orgValue)} setNiveau={setBacklogNiveau} vs={backlogVs} setVs={setBacklogVs} hv={hv} />}
+            {!surSynchro && tab === 'taches' && <TypeFilter value={filter} onChange={setFilter} />}
+            {/* Réunions (lot 6) : niveau Équipe / Train / Portfolio (en SAFe) */}
+            {surReunions && safe.actif && <FiltresReunions niveau={reunionNiveau} setNiveau={setReunionNiveau} />}
+            {!surSynchro && !surBacklog && !surReunions && (domaines.length > 0 || (tab === 'taches' && safe.actif)) && (
+              <>
+                <LigneFiltres>
+                  {tab === 'taches' && safe.actif && <Pastille label="🏃 Sprint en cours" on={itFilter} onPress={() => setItFilter((v) => !v)} bascule />}
+                  {domaines.length > 0 && <DomainesPrincipauxChips />}
+                </LigneFiltres>
+                <SousDomaineChips style={styles.sousDomaines} />
+              </>
+            )}
+            {!surSynchro && safe.actif && orgValue.delivery && <FiltresDelivery org={orgValue} filtre={orgFiltre} setFiltre={setOrgFiltre} />}
+          </BarreFiltres>
         )}
         {tab === 'taches' && (
           <View style={styles.barrette}>
@@ -4346,21 +4201,7 @@ const styles = StyleSheet.create({
   titreTexte: { fontSize: 18, fontWeight: '800', color: colors.text },
   titreNb: { fontSize: 12, fontWeight: '700', color: colors.muted, flexShrink: 0 },
   barrette: { paddingHorizontal: 10, paddingBottom: 8 },
-  filtresBloc: { marginHorizontal: 10, marginBottom: 10, backgroundColor: colors.bg, borderRadius: 14, borderWidth: 1, borderColor: '#EEF1F5', padding: 9 },
-  filtresTete: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 30 },
-  rond: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  rondActif: { borderColor: '#B9D2F8' },
-  rondIcone: { fontSize: 13 },
-  reinitIcone: { fontSize: 15, color: '#A5AEBB', fontWeight: '700' },
-  reinitIconeActif: { color: colors.primary },
-  reinitPastille: { position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  reinitPastilleTexte: { color: '#fff', fontSize: 10, fontWeight: '800' },
   chevron: { fontSize: 12, color: colors.muted },
-  champRecherche: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, borderRadius: 10, borderWidth: 1.5, borderColor: colors.primary, backgroundColor: colors.card, paddingLeft: 8, paddingRight: 4 },
-  champRechercheTexte: { flex: 1, minWidth: 0, fontSize: 14, color: colors.text, paddingVertical: 0, outlineStyle: 'none' } as never,
-  fermerRecherche: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#E6EAF0', alignItems: 'center', justifyContent: 'center' },
-  fermerRechercheTexte: { fontSize: 10, color: colors.muted, fontWeight: '800' },
-  filtresCorps: { marginTop: 8, gap: 8 },
   contenu: { flex: 1, minHeight: 0 },
   filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   appBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 14, paddingTop: 10, height: 50 },
@@ -4409,7 +4250,6 @@ const styles = StyleSheet.create({
   doneToggleText: { color: colors.primary, fontSize: 15 },
   spacer: { height: 12 },
   sousDomaines: { gap: 6 },
-  filterLine: { gap: 6, alignItems: 'center' },
   itChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 18, borderWidth: 1, borderColor: colors.primary },
   itChipOn: { backgroundColor: colors.primary },
   itChipText: { fontSize: 13, color: colors.primary, fontWeight: '600' },

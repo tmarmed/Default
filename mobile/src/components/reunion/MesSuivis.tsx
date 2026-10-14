@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { lirePlusieurs, usePointsLus } from './usePointsLus';
 import { Text } from 'react-native';
 import { libelleNote, estFermee, mesSuivis, reunionDeNote } from '../../daily';
 import { useHierarchy } from '../../hierarchyContext';
@@ -20,21 +21,9 @@ import { colors } from '../../theme';
 
 export function MesSuivis({ visible, espaces, moi, nomDe, aujourdhui, lirePoints, onFermer }: { visible: boolean; espaces: string[]; moi: string; nomDe: (m: string) => string; aujourdhui: string; lirePoints: (espace: string, prefixe: string) => Promise<PointReunion[]>; onFermer: () => void }) {
   const h = useHierarchy();
-  const [points, setPoints] = useState<PointReunion[] | null>(null);
   const [vue, setVue] = useState<'ouvertes' | 'fermees'>('ouvertes');
   const cle = espaces.join('|');
-  useEffect(() => {
-    if (!visible) return;
-    let vivant = true;
-    setPoints(null);
-    Promise.allSettled(espaces.map((e) => lirePoints(e, '').then((l) => l.map((p) => ({ ...p, espace: p.espace || e })))))
-      .then((r) => vivant && setPoints(r.flatMap((x) => (x.status === 'fulfilled' ? x.value : []))))
-      .catch(() => vivant && setPoints([]));
-    return () => {
-      vivant = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, cle, lirePoints]);
+  const { points } = usePointsLus(visible ? () => lirePlusieurs(espaces.map((e) => () => lirePoints(e, '').then((l) => l.map((p) => ({ ...p, espace: p.espace || e }))))) : null, `${visible}|${cle}`);
   const { ouvertes, fermees } = useMemo(() => mesSuivis(points ?? [], moi), [points, moi]);
   const nom = (m: string) => (m.toLowerCase() === moi.toLowerCase() ? 'Vous' : nomDe(m));
   const sous = (p: PointReunion) =>

@@ -1,6 +1,7 @@
 import { BlocArbre } from './Arbre';
 import { BlocBrique } from './Brique';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { usePointsLus } from './usePointsLus';
 import { Text, View } from 'react-native';
 import { LIBELLE_TYPE_POINT, libelleNote, pointsFinis } from '../../daily';
 import { fmtPoints, pointsOf, shiftIteration, nomSprintDe } from '../../pi';
@@ -9,7 +10,7 @@ import { criteresDe, velocite } from '../../reunionsEquipe';
 import { lireNiveau, personneParEmail } from '../../echange/hierarchieEchange';
 import { membresDe } from '../../organisation';
 import { useSafe } from '../../safe';
-import type { Item, PointReunion } from '../../types';
+import type { Item } from '../../types';
 import { SectionFiche } from '../Choix';
 import { TitreFiche } from '../FormSheet';
 import { MesTaches, Navigation } from './Affinage';
@@ -79,12 +80,7 @@ export function FenetreRevue(p: PropsReunion) {
   const [decisions, setDecisions] = useState<Record<string, string>>({});
   const [sorts, setSorts] = useState<Record<string, string>>({});
   // « Réglé pendant l'itération » : points de toutes les réunions de l'équipe (une lecture à l'ouverture)
-  const [equipePts, setEquipePts] = useState<PointReunion[]>([]);
-  useEffect(() => {
-    if (!p.visible || !r.anime) return;
-    p.actions.lirePoints(r.espace, '').then(setEquipePts).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.visible, r.anime]);
+  const equipePts = usePointsLus(p.visible && r.anime ? () => p.actions.lirePoints(r.espace, '') : null, r.espace).points ?? [];
   const suivante = shiftIteration(e.it.key, 1);
   const terminees = e.situation.cartes.filter((t) => t.type === 'story' && t.statut === 'termine');
   const nonTerminees = e.situation.cartes.filter((t) => t.statut !== 'termine');

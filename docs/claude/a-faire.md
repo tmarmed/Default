@@ -24,7 +24,12 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
    Unifié ensuite (14/10, demandé) : une seule pastille « Filtres ▾ / ▴ » (components/PastilleFiltres.tsx), celle des
    onglets, dans les blocs de réunion et l'avancement, rond rouge = vrai nombre de filtres actifs ; blocs : ▸ fermé
    (au lieu de ›) ; bandeau « En direct » : ▾ fermé, ▴ ouvert (était inversé).
-4. Services invisibles : une seule lecture des notes de réunion (8 écrans) ; barre de filtres des onglets hors d'App.tsx.
+4. Services invisibles — FAIT (14/10) : reunion/usePointsLus.ts (lecture des points annulable, relire, modifier ;
+   lirePlusieurs pour plusieurs espaces) remplace 6 lectures écrites à la main (Revue, Mes suivis, Pilotage, Suivis
+   perso, réunions perso ×2) ; Daily et réunions de base gardent la leur (remise à zéro complète : lot 5).
+   BarreFiltres.tsx : sous-bloc Filtres des onglets sorti d'App.tsx (tête 🔍 / ↺, FiltresSynchro, FiltresBacklog,
+   FiltresReunions, FiltresDelivery, LigneFiltres) ; l'état des filtres reste dans App. App.tsx : 4481 → 4321 lignes.
+   Vérifié : texte identique sur 16 écrans (dont recherche ouverte, élément du Chat, Mes suivis, Bilan du soir).
 5. Moteur de réunion unique : Daily et réunions perso sur useReunion.
 Pas fait exprès : réunions en liste déclarée, super-composant unique, écriture Sheets (déjà commune).
 

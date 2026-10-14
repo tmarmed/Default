@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { usePointsLus } from './usePointsLus';
 import { aConcretiser, libelleNote, TYPES_NOTE } from '../../daily';
 import { useHierarchy } from '../../hierarchyContext';
 import { echeanceParDefaut } from '../../pointsSuivi';
 import { aReprendre } from '../../suiviEscalade';
-import { type Echange, estTechnique, type PointReunion, type Reunion, type SousType, type TypePoint } from '../../types';
+import { type Echange, estTechnique, type Reunion, type SousType, type TypePoint } from '../../types';
 import { SectionFiche } from '../Choix';
 import type { ActionsDaily } from '../Daily';
 import { TitreFiche } from '../FormSheet';
@@ -24,15 +25,10 @@ export function SuivisPerso({ reunion, moi, echanges, actions, onInfo, avancemen
   const espace = reunion.espace || 'moi';
   const jour = reunion.debut.slice(0, 10);
   const prefixe = reunion.id.slice(0, -10);
-  const [points, setPoints] = useState<PointReunion[]>([]);
+  const lus = usePointsLus(() => actions.lirePoints(espace, prefixe), `${espace}|${prefixe}`);
+  const points = useMemo(() => (lus.points ?? []).filter((p) => !estTechnique(p)), [lus.points]);
+  const setPoints = lus.modifier;
   const [arbo, setArbo] = useState(false);
-  const lire = useCallback(() => {
-    actions
-      .lirePoints(espace, prefixe)
-      .then((l) => setPoints(l.filter((p) => !estTechnique(p))))
-      .catch(() => {});
-  }, [actions, espace, prefixe]);
-  useEffect(lire, [lire]);
   const suivis = pointsDeSuivi(points, reunion.id);
   // Notes pas encore concrétisées : celles du jour et celles reportées des rituels précédents
   const notes = useMemo(() => [...points.filter((p) => p.reunion === reunion.id && aConcretiser(p) && !p.concretisation), ...aReprendre(points, reunion.id).filter(aConcretiser)], [points, reunion.id]);

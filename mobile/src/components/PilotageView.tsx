@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { usePointsLus } from './reunion/usePointsLus';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { libelleNote } from '../daily';
 import { BlocBudgetSimple, LigneEnveloppe, LignesEnveloppesTrains } from './Budget';
@@ -60,17 +61,7 @@ export function PilotageView({
   const [choisi, setChoisi] = useState('');
   const n: NiveauPilotage | undefined = niveaux.find((x) => `${x.kind}:${x.id}` === choisi) ?? niveaux[0];
   // Notes et suivis des réunions du niveau : une lecture du Sheet de l'espace (groupée par l'application)
-  const [points, setPoints] = useState<PointReunion[]>([]);
-  useEffect(() => {
-    if (!n) return;
-    let vivant = true;
-    lirePoints(n.espace)
-      .then((l) => vivant && setPoints(l))
-      .catch(() => {});
-    return () => {
-      vivant = false;
-    };
-  }, [n?.espace, lirePoints]);
+  const points = usePointsLus(n ? () => lirePoints(n.espace) : null, n?.espace ?? '').points ?? [];
   if (!n)
     return (
       <ScrollView contentContainerStyle={s.page}>

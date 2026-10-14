@@ -1,6 +1,7 @@
 import { BlocBrique } from './Brique';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useMemo, useState } from 'react';
+import { lirePlusieurs, usePointsLus } from './usePointsLus';
 import { Pressable, Text, View } from 'react-native';
 import { addDays, toDateString } from '../../dates';
 import { dateCourte, enHeure, enMinutes } from '../../daily';
@@ -20,7 +21,6 @@ import { PlanDuJour } from './PlanDuJour';
 import { SuivisPerso } from './SuivisPerso';
 import { useAvancement } from './Avancement';
 import { BlocArbre } from './Arbre';
-import type { PointReunion } from '../../types';
 import { usePlanJour } from './usePlanJour';
 import { useSafe } from '../../safe';
 import { Ligne, Pastilles, pastilleStatut, st, Vide } from './ui';
@@ -115,32 +115,11 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
    * Bilan du soir se suivent (le même jour compris), les autres rituels regardent leur propre série ; mes éléments
    * (🔒 Moi, ou dont je suis responsable) et mes objectifs ; une photo est écrite à « Terminer »
    */
-  const [pointsMoi, setPointsMoi] = useState<PointReunion[]>([]);
-  useEffect(() => {
-    let actif = true;
-    actions
-      .lirePoints(reunion.espace || 'moi', '')
-      .then((l) => actif && setPointsMoi(l))
-      .catch(() => {});
-    return () => {
-      actif = false;
-    };
-  }, [actions, reunion.espace]);
+  const pointsMoi = usePointsLus(() => actions.lirePoints(reunion.espace || 'moi', ''), reunion.espace || 'moi').points ?? [];
   const jourPerso = reunion.type === 'point_perso' || reunion.type === 'bilan_soir';
   // Dailies de mes équipes aujourd'hui : leur photo complète ma réunion précédente (« depuis le Daily du … »)
-  const [pointsDailies, setPointsDailies] = useState<PointReunion[]>([]);
   const cleDailies = pj.dailiesDuJour.map((r) => r.id).join(',');
-  useEffect(() => {
-    if (!jourPerso || !pj.dailiesDuJour.length) return;
-    let actif = true;
-    Promise.all(pj.dailiesDuJour.map((r) => actions.lirePoints(r.espace || 'moi', r.id).catch(() => [] as PointReunion[])))
-      .then((l) => actif && setPointsDailies(l.flat()))
-      .catch(() => {});
-    return () => {
-      actif = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cleDailies, jourPerso]);
+  const pointsDailies = usePointsLus(jourPerso && pj.dailiesDuJour.length ? () => lirePlusieurs(pj.dailiesDuJour.map((r) => () => actions.lirePoints(r.espace || 'moi', r.id))) : null, `${jourPerso}|${cleDailies}`).points ?? [];
   const prefixesAv = jourPerso ? ['point_perso-', 'bilan_soir-'] : [reunion.id.slice(0, -10)];
   const miens = useMemo(() => taches.filter((t) => (t.espace || 'moi') === 'moi' || (!!moiId && t.responsable === moiId)), [taches, moiId]);
   const avancement = useAvancement({
