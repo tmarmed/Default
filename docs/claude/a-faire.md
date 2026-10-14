@@ -15,8 +15,8 @@ Décidé par l'utilisateur :
   statut).
 - Élément sorti de la liste (passé à un autre membre, sorti du sprint) : visible seulement là où il est maintenant,
   avec son changement (pas de doublon grisé).
-- Trois blocs à part, même composant et même filtre : Éléments (l'arbre), 💶 Budget, 📌 Suivis. Au Daily, le bloc
-  budget = seulement les demandes de budget faites au Daily.
+- Trois blocs à part, même composant et même filtre : Éléments (l'arbre), 💶 Budget, 📌 Suivis. Au Daily, pas de
+  bloc budget (14/10) : une demande de budget à suivre l'est par un suivi (📌), sinon on ne la suit pas.
 - Blocs et niveaux ouverts au départ, toujours refermables. Exception : réunion avec tour de table (Daily) : la
   Situation arrive avec ses blocs fermés, le tour de table les montre ouverts. Sans tour de table : ouverts.
 - Tableau du périmètre par réunion validé (équipe, membre, train, portfolio, Simple, perso).

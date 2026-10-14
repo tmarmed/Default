@@ -51,7 +51,7 @@ h1{font-size:21px;margin:0 0 4px}.intro{color:var(--doux);margin:0 0 18px;max-wi
 <div class="ecrans">
   <div>
     <div class="tel" id="sit"></div>
-    <p class="legende"><b>Daily · Situation</b> : toute l'équipe ; trois blocs fermés au départ (tour de table ensuite) : Éléments, 💶 Demandes de budget du Daily, 📌 Suivis.</p>
+    <p class="legende"><b>Daily · Situation</b> : toute l'équipe ; deux blocs fermés au départ (tour de table ensuite) : Éléments et 📌 Suivis. Pas de bloc budget au Daily : une demande de budget à suivre l’est par un suivi.</p>
   </div>
   <div>
     <div class="tel" id="tour"></div>
@@ -102,7 +102,7 @@ function etat() { return { mode: 'tout', sorte: '', seuil: 0, ferme: new Set(), 
 const E = { sit: etat(), tour: etat() };
 E.tour.coches = new Set(['t1', 's6']);
 // Réunion avec tour de table : la Situation s'ouvre avec ses blocs fermés (le détail vient au tour de table)
-E.sit.blocs = new Set(['el', 'bu', 'su']);
+E.sit.blocs = new Set(['el', 'su']);
 E.tour.membre = 'Tom Faure';
 
 const changes = (n, f) => (n.ch || []).filter(([s, , pct]) => (!f.sorte || s === f.sorte) && !(s === 'valeur' && f.seuil && pct !== undefined && pct < f.seuil));
@@ -145,8 +145,8 @@ function rendre() {
   document.getElementById('sit').innerHTML = `<div class="haut"><div class="t">☀️ Daily · Situation</div><div class="st">Mobile · Sprint 1 · depuis le Daily du 13/10</div></div><div class="corps">
     <div class="tuiles"><div class="tuile"><b>13 / 21</b><span>pts faits / prévus</span></div><div class="tuile"><b class="r" style="color:var(--rouge)">1</b><span>story bloquée</span></div><div class="tuile"><b>0</b><span>en retard</span></div></div>
     <div style="font-size:12.5px;color:var(--doux);margin:4px 4px 0">📅 Absents aujourd’hui : Léa Roux</div>
-    ${bloc('sit', 'el', 'Éléments', ARBRE, false, false)}${bloc('sit', 'bu', '💶 Demandes de budget du Daily', BUDGET, false, true)}${bloc('sit', 'su', '📌 Suivis', SUIVIS, false, false)}
-    <div class="note">Le Daily a un tour de table : les trois blocs arrivent fermés (touchez leur titre pour les ouvrir). Une réunion sans tour de table (Revue de sprint, ART sync…) les montre ouverts. Le filtre est partagé par les trois blocs (un seul réglage par écran). Mode « Changés seulement » : les éléments sans changement disparaissent ; une epic ou une feature reste en gris si un élément en dessous a changé.</div></div>`;
+    ${bloc('sit', 'el', 'Éléments', ARBRE, false, false)}${bloc('sit', 'su', '📌 Suivis', SUIVIS, false, false)}
+    <div class="note">Le Daily a un tour de table : les deux blocs arrivent fermés (touchez leur titre pour les ouvrir). Une réunion sans tour de table (Revue de sprint, ART sync…) les montre ouverts. Le filtre est partagé par les blocs (un seul réglage par écran). Mode « Changés seulement » : les éléments sans changement disparaissent ; une epic ou une feature reste en gris si un élément en dessous a changé.</div></div>`;
   const t = E.tour;
   const mien = pourMembre(ARBRE, t.membre);
   const suivis = SUIVIS.filter((x) => x.qui === t.membre);
