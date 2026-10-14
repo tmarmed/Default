@@ -39,6 +39,10 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
    exprès : Daily entièrement sur useReunion (périmètre de l'avancement, onglets PO, textes différents : changement
    fonctionnel). Vérifié : texte identique aux étapes du Daily et de la Revue de sprint, et après « Envoyer le compte
    rendu » (Chat, Tâches) ; la création de tâches à l'envoi n'est pas passée par la démo (0 tâche créée).
+   Aligné ensuite (14/10, validé) : compte rendu du Daily au format commun (Créé · Suivis · Transmis · Clos,
+   texteCompteRenduReunion dans concretisation.ts) et messages de transmission avec le vrai type de la note
+   (messagesEscalade). Gardé exprès : Situation du Daily sans objectifs ni budget. Pas d'écart en mode Simple (le
+   Daily est SAFe seulement ; le Point d'équipe est déjà sur le socle commun).
 Pas fait exprès : réunions en liste déclarée, super-composant unique, écriture Sheets (déjà commune).
 
 ## Session 4 (14/10, suite) : briques de réunion — VALIDÉ, en cours

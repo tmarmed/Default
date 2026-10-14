@@ -288,28 +288,6 @@ export function situationIteration(items: Item[], dansEquipe: (t: Item) => boole
   };
 }
 
-/** Texte du compte rendu envoyé au RTE : décisions, actions créées, blocages escaladés */
-export function texteCompteRendu(o: {
-  equipe: string;
-  jour: string;
-  decisions: string[];
-  creees: { titre: string; sous: string }[];
-  escalades: string[];
-  /** Blocages passés en échange 🔄 Synchro (« texte (Tom → Paul) ») */
-  synchros?: string[];
-  notes: number;
-}): string {
-  const l: string[] = [`Daily ${o.equipe} du ${dateCourte(o.jour)}.`];
-  const bloc = (titre: string, lignes: string[]) => lignes.length && l.push('', `${titre} · ${lignes.length}`, ...lignes.map((x) => `• ${x}`));
-  bloc('Décisions', o.decisions);
-  bloc('Actions créées', o.creees.map((c) => `${c.titre} (${c.sous})`));
-  bloc('Blocages escaladés', o.escalades);
-  bloc('Blocages transmis', o.synchros ?? []);
-  if (!o.decisions.length && !o.creees.length && !o.escalades.length && !o.synchros?.length) l.push('', 'Rien à signaler : ni décision, ni action, ni blocage.');
-  if (o.notes) l.push('', `${o.notes} autre${o.notes > 1 ? 's' : ''} point${o.notes > 1 ? 's' : ''} noté${o.notes > 1 ? 's' : ''} seulement.`);
-  return l.join('\n');
-}
-
 // ---------------------------------------------------------------------------
 // 📌 Mes suivis (lot 5, 09/10) : écran de l'onglet Réunions (src/components/reunion/MesSuivis.tsx)
 // ---------------------------------------------------------------------------

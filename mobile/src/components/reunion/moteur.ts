@@ -6,6 +6,8 @@
  */
 import type { BudgetValue } from '../../budget';
 import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, estSuivi, LIBELLE_TYPE_CREE, patchConcretise } from '../../concretisation';
+export { texteCompteRenduReunion } from '../../concretisation';
+import { titreEscalade } from '../../suiviEscalade';
 import { aConcretiser, dateCourte, libelleNote, texteReponse } from '../../daily';
 import { libelleElement } from '../../elementConcerne';
 import { etatDe } from '../../etatReunion';
@@ -133,4 +135,17 @@ export function ecrituresConcretisation<L extends { id: string }>(decides: Decid
   });
   const modifier = decides.filter((d) => !d.pt.id.startsWith('local-')).map((d) => ({ id: d.pt.id, ...patch(d) }));
   return { creer, modifier };
+}
+
+
+/** Notes transmises au-dessus (escalades) : un message chacune, avec le vrai type de la note (« Risque noté… », 14/10) */
+export function messagesEscalade(escalades: Decide[], base: Omit<EchangeInput, 'a' | 'titre' | 'texte' | 'element'>, o: { quand: string; nomDe: (m: string) => string; h: H }): EchangeInput[] {
+  const story = (id: string) => (id ? libelleElement(id, o.h) || undefined : undefined);
+  return escalades.map((d) => ({
+    ...base,
+    a: d.a,
+    titre: titreEscalade(`${libelleNote(d.pt)} · ${d.pt.texte}`),
+    texte: `${libelleNote(d.pt)} noté ${o.quand} pour ${o.nomDe(d.pt.personne)}${story(d.pt.element) ? ` (story « ${story(d.pt.element)} »)` : ''} : l'équipe ne peut pas le lever seule.`,
+    element: d.pt.element,
+  }));
 }

@@ -22,7 +22,6 @@ import {
   storiesBloquees,
   suivis as calculerSuivis,
   suivisSynchro,
-  texteCompteRendu,
   texteReponse,
   veilleOuvree,
 } from '../daily';
@@ -56,7 +55,7 @@ import { estAutre, placeholderNote } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
 import { TitreFiche } from './FormSheet';
 import { Compteur, pluriel, Entonnoir, FiltresType, FiltresVue, Ligne, LigneCase, LigneStory, Pastille, PastilleFiltres, Pastilles, pastilleStatut, SaisiePoint, st, TITRE_TYPE, titreAjout, type Ton, TONS, tonType, Vide, type VueSuivi } from './reunion/ui';
-import { choixAvecDefauts, creerConcretisations, dernierCompteRendu, ecrituresConcretisation, messagesSuivis, reponsesAuPO, soumettreDemandesBudget } from './reunion/moteur';
+import { choixAvecDefauts, creerConcretisations, dernierCompteRendu, ecrituresConcretisation, messagesEscalade, messagesSuivis, reponsesAuPO, soumettreDemandesBudget, texteCompteRenduReunion } from './reunion/moteur';
 
 /**
  * Daily (lot 6, validé le 01/10 ; parcours séparés le 06/10) : contenu de la fenêtre de réunion. Chaque rôle de la
@@ -683,32 +682,18 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     const escalades = decides.filter((d) => d.c === 'escalade');
     // Point de suivi confié à quelqu'un qui n'est pas du daily : prévenu dans le Chat (08/10)
     const synchros = decides.filter((d) => d.que !== 'rien' && d.qui !== 'dessus' && !!d.resp && d.resp !== mail && !personnes.some((y) => y.email.toLowerCase() === d.resp));
-    const decisions = decides.filter((d) => d.pt.type === 'decision');
-    const story = (id: string) => (id ? parId.get(id)?.titre : undefined);
     // Échanges en un seul lot : blocages passés en 🔄 Synchro (de la personne qui a le blocage, transmis par vous),
     // puis, s'il y a un RTE, escalades et compte rendu
-    const lot: EchangeInput[] = messagesSuivis(synchros, { mail, quand: `au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)}`, nomDe, h, niveau: equipe ? `equipeagile:${equipe.id}` : '', espace });
+    const quand = `au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)}`;
+    const lot: EchangeInput[] = messagesSuivis(synchros, { mail, quand, nomDe, h, niveau: equipe ? `equipeagile:${equipe.id}` : '', espace });
     // Escalades : chacune à l'équipe choisie (SM du train → RTE ; PO du train → PM) ; compte rendu au RTE
     const escaladesEnvoyees = e.train ? escalades.filter((d) => !!d.a) : [];
     if (e.train) {
       const base = { de: mail, a: (rte?.email ?? '').toLowerCase(), type: 'message' as const, choix: '', reponse: '', note: '', statut: 'envoye' as const, niveau: `train:${e.train.id}`, transmis_par: '', prive: '1', pieces_jointes: '', espace };
-      const texte = texteCompteRendu({
-        equipe: equipe?.nom ?? '',
-        jour,
-        decisions: decisions.map((d) => d.pt.texte),
-        creees: aCreer.map((d) => ({ titre: d.titre, sous: resumeConcret(d, nomDe, h) })),
-        escalades: escalades.map((d) => `${d.pt.texte} (${nomDe(d.pt.personne)}${story(d.pt.element) ? `, « ${story(d.pt.element)} »` : ''})`),
-        synchros: decides.filter((d) => d.c === 'suivi').map((d) => `${d.pt.texte} (${resumeConcret(d, nomDe, h)})`),
-        notes: decides.filter((d) => d.c === 'rien' && d.pt.type !== 'decision').length,
-      });
+      // Même compte rendu et mêmes messages de transmission que les autres réunions (14/10)
+      const texte = texteCompteRenduReunion({ entete: `Daily ${equipe?.nom ?? ''} du ${dateCourte(jour)}.`, lignes: [], aCreer, decides, nomDe, h });
       lot.push(
-        ...escaladesEnvoyees.map((d) => ({
-          ...base,
-          a: d.a,
-          titre: titreEscalade(`Blocage · ${d.pt.texte}`),
-          texte: `Blocage noté au daily ${equipe?.nom ?? ''} du ${dateCourte(jour)} pour ${nomDe(d.pt.personne)}${story(d.pt.element) ? ` (story « ${story(d.pt.element)} »)` : ''} : l'équipe ne peut pas le lever seule.`,
-          element: d.pt.element,
-        })),
+        ...messagesEscalade(escaladesEnvoyees, base, { quand, nomDe, h }),
         ...(rte?.email ? [{ ...base, titre: `Compte rendu · Daily ${equipe?.nom ?? ''} du ${dateCourte(jour)}`, texte, element: '' }] : []),
       );
     }

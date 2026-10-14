@@ -250,3 +250,17 @@ export function resumePoint(pt: PointReunion, nomDe: (email: string) => string, 
   if (!c.valid && c.suivi) return resumeChoix({ ...c, valid: c.resp }, nomDe, h).replace(/ · Validation : [^·]+/, '');
   return resumeChoix(c, nomDe, h);
 }
+
+/**
+ * Texte du compte rendu envoyé au niveau du dessus (RTE, Epic Owner, Responsable de l'entreprise) : le même pour
+ * toutes les réunions, Daily compris (14/10) — en-tête, résumé propre à la réunion, puis Créé · Suivis · Transmis · Clos.
+ */
+export function texteCompteRenduReunion(o: { entete: string; lignes: string[]; aCreer: (ChoixConcret & { pt: Pick<PointReunion, 'texte'> })[]; decides: (ChoixConcret & { pt: Pick<PointReunion, 'texte'>; c: string })[]; nomDe: (m: string) => string; h: HierarchyValue }): string {
+  const l: string[] = [o.entete, ...(o.lignes.length ? ['', ...o.lignes] : [])];
+  const bloc = (titre: string, x: string[]) => x.length && l.push('', `${titre} · ${x.length}`, ...x.map((y) => `• ${y}`));
+  bloc('Créé', o.aCreer.map((d) => `${d.titre} (${resumeChoix(d, o.nomDe, o.h)})`));
+  bloc('Suivis', o.decides.filter((d) => d.c === 'suivi').map((d) => `${d.pt.texte} (${resumeChoix(d, o.nomDe, o.h)})`));
+  bloc('Transmis', o.decides.filter((d) => d.c === 'escalade').map((d) => `${d.pt.texte} (${resumeChoix(d, o.nomDe, o.h)})`));
+  bloc('Clos', o.decides.filter((d) => d.c === 'rien').map((d) => d.pt.texte));
+  return l.join('\n');
+}

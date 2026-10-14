@@ -17,7 +17,7 @@ import { lieAObjectif } from '../src/types';
 import { progressObjectif } from '../src/hierarchy';
 import { consommeReel } from '../src/consomme';
 import { capaciteEquipePI, coutJour, joursOuvresAnnee, niveauxDeRoles, piloteEquipe, pilotePortfolio, piloteTrain, suivisDuNiveau } from '../src/pilotage';
-import { pointsFinis, backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteCompteRendu, texteReponse, veilleOuvree } from '../src/daily';
+import { pointsFinis, backlogAPreparer, dateCourte, dateRelative, PARCOURS_DAILY, pastillePoint, pastilleSuivi, questionsEquipe, storiesAAccepter, storiesBloquees, suivis, suivisSynchro, texteReponse, veilleOuvree } from '../src/daily';
 import { toDateString } from '../src/dates';
 import { ciblesEscalade, destinatairesTransfert, equipesDePersonne } from '../src/echange/hierarchieEchange';
 import { makeOrgValue } from '../src/organisation';
@@ -28,7 +28,7 @@ import { seriesACreer, serieParDefaut, serieVide, etapesParcours, ongletParcours
 import { type Echange, type Reunion, TYPES_REUNION } from '../src/types';
 import { depuisPoints, iterationOf, iterationsOf, lireCalendrier, piOf, pointsOf, reglerConversion, versPoints } from '../src/pi';
 import { checkParent } from '../src/subtasks';
-import { choixParDefaut, concretisationDe, elementACreer, estSuivi, patchConcretise, rattachementPour, resumeChoix } from '../src/concretisation';
+import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, estSuivi, patchConcretise, rattachementPour, resumeChoix, texteCompteRenduReunion } from '../src/concretisation';
 import { actionDuChoix, lireRef, planSuivi, roleEscalade, statutEffectif } from '../src/pointsSuivi';
 import { avecCriteres, capacite, criteresDe, etatPrete, feriesFrance, joursOuvres, lireNombre, nombreFr } from '../src/reunionsEquipe';
 
@@ -187,9 +187,14 @@ const mobile = dEnt.filter((t) => t.equipe === 'acmeqmob');
 ok(storiesAAccepter(mobile.filter((t) => t.iteration === iterationOf(new Date()).key)).map((t) => t.titre).join() === 'Inscription par e-mail', 'démo : 1 story à accepter');
 ok(backlogAPreparer(mobile).map((x) => x.raison).sort().join() === 'sans_estimation,trop_grosse', 'démo : backlog à préparer (une story sans estimation, une de plus de 8 pts)');
 ok(suivis(pts, dEnt).some((x) => x.tache.responsable === 'acmp6'), 'démo : une action d’un daily précédent à suivre pour Paul');
-ok(texteCompteRendu({ equipe: 'Mobile', jour: '2026-10-02', decisions: [], creees: [], escalades: [], synchros: ['Mot de passe (Tom → Paul)'], notes: 0 }).includes('Blocages transmis · 1'), 'compte rendu : blocages transmis');
-const cr = texteCompteRendu({ equipe: 'Mobile', jour: '2026-10-02', decisions: ['Livrer en deux fois'], creees: [{ titre: 'Accès API', sous: 'sous-tâche · Tom' }], escalades: [], notes: 1 });
-ok(cr.includes('Décisions · 1') && cr.includes('Actions créées · 1') && !cr.includes('escaladés') && cr.includes('1 autre point noté seulement'), 'compte rendu : décisions, actions créées, blocages escaladés (s’il y en a)');
+// Compte rendu (14/10) : le même format pour toutes les réunions, Daily compris (Créé · Suivis · Transmis · Clos)
+{
+  const hVide = { items: [], featureList: [], epicList: [], objectifList: [], objectifsPI: [], resultats: [] } as never;
+  const ch = (x: Partial<ChoixConcret> & { texte: string; c: string }) => ({ ...choixParDefaut({ type: 'action', texte: x.texte, element: '', personne: 'tom@x', responsable: '', sous_type: '' }, { animateur: 'nina@x', echeance: '', h: hVide, moi: 'nina@x' }), ...x, pt: { texte: x.texte } });
+  const d = [ch({ texte: 'Accès API', c: 'creer', que: 'creer' }), ch({ texte: 'Serveur de test', c: 'suivi' }), ch({ texte: 'Mot de passe', c: 'escalade' }), ch({ texte: 'Info', c: 'rien' })];
+  const cr = texteCompteRenduReunion({ entete: 'Daily Mobile du 2/10.', lignes: [], aCreer: [d[0]], decides: d, nomDe: (m) => m, h: hVide });
+  ok(cr.startsWith('Daily Mobile du 2/10.') && cr.includes('Créé · 1') && cr.includes('Suivis · 1') && cr.includes('Transmis · 1') && cr.includes('Clos · 1\n• Info'), 'compte rendu : Créé, Suivis, Transmis, Clos (toutes les réunions)');
+}
 
 // Équipes, Transmettre à, Escalader (décidé 06/10) : SM → son équipe + SM du train ; PO → son équipe + PO du train
 const qui = (nom: string) => o.personnes.find((x) => x.nom.startsWith(nom))!;

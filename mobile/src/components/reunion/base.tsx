@@ -31,7 +31,7 @@ import { subtaskMap } from '../../subtasks';
 import { aReprendre, parEspace, pointsEscalade, titreEscalade } from '../../suiviEscalade';
 import { type ChoixConcret, concretisationDe, resumeChoix, resumePoint } from '../../concretisation';
 import { FeuilleConcretiser } from './Concretiser';
-import { choixAvecDefauts, creerConcretisations, dernierCompteRendu, ecrituresConcretisation, messagesSuivis, reponsesAuPO, soumettreDemandesBudget } from './moteur';
+import { choixAvecDefauts, creerConcretisations, dernierCompteRendu, ecrituresConcretisation, messagesEscalade, messagesSuivis, reponsesAuPO, soumettreDemandesBudget, texteCompteRenduReunion } from './moteur';
 import { useAvancement } from './Avancement';
 import { BlocArbre, changementsSuivi, clesDe, ModeAffichage, nbSuivisChanges } from './Arbre';
 import { BlocBrique, TitreGroupe } from './Brique';
@@ -415,27 +415,15 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     const escalades = decides.filter((d) => d.c === 'escalade');
     // Point de suivi confié à quelqu'un qui n'est pas de la réunion : prévenu dans le Chat (règle du 08/10)
     const synchros = decides.filter((d) => d.que !== 'rien' && d.qui !== 'dessus' && !!d.resp && d.resp !== mail && !e.personnes.some((y) => y.email.toLowerCase() === d.resp));
-    const story = (id: string) => (id ? libelleElement(id, e.h) || undefined : undefined);
     const quand = `${opts.nomCourt} ${e.nomNiveau} du ${dateCourte(e.jour)}`;
     const lot: EchangeInput[] = messagesSuivis(synchros, { mail, quand, nomDe: e.nomDe, h: e.h, niveau: e.niveauIci ? `${e.niveauIci.kind}:${e.niveauIci.id}` : '', espace });
     const escaladesEnvoyees = e.niveauSup ? escalades.filter((d) => !!d.a) : [];
     {
       const base = { de: mail, a: (e.destCR?.p.email ?? '').toLowerCase(), type: 'message' as const, choix: '', reponse: '', note: '', statut: 'envoye' as const, niveau: e.niveauSup ? `${e.niveauSup.kind}:${e.niveauSup.id}` : '', transmis_par: '', prive: '1', pieces_jointes: '', espace };
-      const l: string[] = [`${TYPES_REUNION[reunion.type].libelle} ${e.nomNiveau} du ${dateCourte(e.jour)}.`, '', ...o.lignes];
-      const bloc = (titre: string, x: string[]) => x.length && l.push('', `${titre} · ${x.length}`, ...x.map((y) => `• ${y}`));
-      bloc('Créé', aCreer.map((d) => `${d.titre} (${resumeChoix(d, e.nomDe, e.h)})`));
-      bloc('Suivis', decides.filter((d) => d.c === 'suivi').map((d) => `${d.pt.texte} (${resumeChoix(d, e.nomDe, e.h)})`));
-      bloc('Transmis', escalades.map((d) => `${d.pt.texte} (${resumeChoix(d, e.nomDe, e.h)})`));
-      bloc('Clos', decides.filter((d) => d.c === 'rien').map((d) => d.pt.texte));
+      const texte = texteCompteRenduReunion({ entete: `${TYPES_REUNION[reunion.type].libelle} ${e.nomNiveau} du ${dateCourte(e.jour)}.`, lignes: o.lignes, aCreer, decides, nomDe: e.nomDe, h: e.h });
       lot.push(
-        ...escaladesEnvoyees.map((d) => ({
-          ...base,
-          a: d.a,
-          titre: titreEscalade(`${libelleNote(d.pt)} · ${d.pt.texte}`),
-          texte: `${libelleNote(d.pt)} noté ${quand} pour ${e.nomDe(d.pt.personne)}${story(d.pt.element) ? ` (story « ${story(d.pt.element)} »)` : ''} : l'équipe ne peut pas le lever seule.`,
-          element: d.pt.element,
-        })),
-        ...(e.destCR?.p.email ? [{ ...base, titre: `Compte rendu · ${TYPES_REUNION[reunion.type].libelle} ${e.nomNiveau} du ${dateCourte(e.jour)}`, texte: l.join('\n'), element: '' }] : []),
+        ...messagesEscalade(escaladesEnvoyees, base, { quand, nomDe: e.nomDe, h: e.h }),
+        ...(e.destCR?.p.email ? [{ ...base, titre: `Compte rendu · ${TYPES_REUNION[reunion.type].libelle} ${e.nomNiveau} du ${dateCourte(e.jour)}`, texte, element: '' }] : []),
       );
     }
     const envoyes = lot.length ? await actions.envoyerEchanges(espace, lot) : [];
