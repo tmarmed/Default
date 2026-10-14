@@ -1082,7 +1082,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             <SectionFiche
               titre={`${suivisOuverts ? '▾' : '›'} 📌 Suivis · ${nSuivisVus}${reportesVus.length || vueSuivi === 'notes' ? ` · Notes à concrétiser · ${reportesVus.length}` : ''}`}
               onTitre={() => setSuivisOuverts((o) => !o)}
-              carte={suivisOuverts}
+              boite
               droite={!suivisOuverts ? undefined :
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   {nValider > 0 && (

@@ -154,9 +154,23 @@ export function BlocArbre({
   const [ouvert, setOuvert] = useState(!fermeAuDepart);
   const [filtresOuverts, setFiltresOuverts] = useState(false);
   const [fermes, setFermes] = useState<Set<string>>(new Set());
+  /** Case « Arborescence » (14/10) : cochée par défaut ; décochée, seulement la liste des éléments du bloc, à plat */
+  const [arbo, setArbo] = useState(true);
   const lesCles = cles ?? clesDe(av, famille, perso);
   const cleListe = lesCles.join(',');
-  const racines = useMemo(() => construireArbre(lesCles, av, famille, strict), [cleListe, av.sources, famille, strict]); // eslint-disable-line react-hooks/exhaustive-deps
+  const racines = useMemo(() => {
+    const arbre = construireArbre(lesCles, av, famille, strict);
+    if (arbo) return arbre;
+    const propres = new Set(lesCles);
+    // À plat : les éléments du bloc seulement (sans leurs parents : feature, epic), dans l'ordre de l'arbre
+    const plats: Noeud[] = [];
+    const v = (n: Noeud) => {
+      if (propres.has(n.cle)) plats.push({ ...n, enfants: [] });
+      n.enfants.forEach(v);
+    };
+    arbre.forEach(v);
+    return plats;
+  }, [cleListe, av.sources, famille, strict, arbo]); // eslint-disable-line react-hooks/exhaustive-deps
   const mode = av.filtre.mode;
   // Changements visibles (filtre de sorte, type, seuil) par élément
   const parCle = useMemo(() => {
@@ -286,7 +300,20 @@ export function BlocArbre({
     <SectionFiche
       titre={`${ouvert ? '▾' : '›'} ${titre} · ${nTous}${av.lignes ? ` · ${nChanges} changé${nChanges > 1 ? 's' : ''}` : ''}`}
       onTitre={() => setOuvert((o) => !o)}
-      droite={ouvert && av.lignes && lignesBloc.length ? <PastilleFiltres actif={estFiltre(av.filtre)} ouvert={filtresOuverts} onPress={() => setFiltresOuverts((x) => !x)} /> : undefined}
+      boite
+      droite={
+        ouvert ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {famille === 'elements' && (
+              <Pressable onPress={() => setArbo((x) => !x)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }} accessibilityRole="checkbox" accessibilityState={{ checked: arbo }} accessibilityLabel="Arborescence">
+                <Text style={[st.caseACocher, { width: 18, height: 18, lineHeight: 16, fontSize: 12 }, arbo && st.caseCochee]}>{arbo ? '✓' : ''}</Text>
+                <Text style={{ fontSize: 12.5, color: colors.text }}>Arborescence</Text>
+              </Pressable>
+            )}
+            {av.lignes && lignesBloc.length > 0 && <PastilleFiltres actif={estFiltre(av.filtre)} ouvert={filtresOuverts} onPress={() => setFiltresOuverts((x) => !x)} />}
+          </View>
+        ) : undefined
+      }
       entete={ouvert && filtresOuverts && av.lignes ? <FiltreAvancement av={av} lignes={lignesBloc} lecture={lecture} sansTypes /> : undefined}
       carte={ouvert}
     >

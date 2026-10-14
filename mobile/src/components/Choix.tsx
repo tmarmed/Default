@@ -57,9 +57,12 @@ export function SectionFiche({
   droite,
   entete,
   onTitre,
+  boite,
 }: {
   /** Titre touchable (bloc qui s'ouvre et se ferme, 14/10) */
   onTitre?: () => void;
+  /** Tout le bloc (titre, filtres, lignes) dans une carte blanche, comme les autres éléments (14/10) */
+  boite?: boolean;
   /** À côté du titre (ex. la pastille « Filtres ») */
   droite?: ReactNode;
   /** Entre le titre et la carte (ex. les filtres dépliés) */
@@ -78,8 +81,8 @@ export function SectionFiche({
   // Lecture seule : les lignes vides sont masquées ; une section dont rien ne reste est masquée en entier
   const [vide, setVide] = useState(false);
   return (
-    <View style={lectureSection && vide && s.masque}>
-      <View style={s.titreSec}>
+    <View style={[lectureSection && vide && s.masque, boite && s.boite]}>
+      <View style={[s.titreSec, boite && s.titreBoite]}>
         {onTitre ? (
           <Pressable onPress={onTitre} hitSlop={6} style={{ flexShrink: 1 }} accessibilityRole="button" accessibilityLabel={`Ouvrir ou fermer : ${titre}`}>
             <Text style={s.titreSecTexte}>{vocab(titre)}</Text>
@@ -95,8 +98,8 @@ export function SectionFiche({
           </Pressable>
         )}
       </View>
-      {entete}
-      {children != null && (carte ? <View style={s.carte} onLayout={lectureSection ? (ev) => setVide(ev.nativeEvent.layout.height < 2) : undefined}>{children}</View> : children)}
+      {boite ? <View style={{ paddingHorizontal: 8 }}>{entete}</View> : entete}
+      {children != null && (boite ? <View style={s.corpsBoite}>{children}</View> : carte ? <View style={s.carte} onLayout={lectureSection ? (ev) => setVide(ev.nativeEvent.layout.height < 2) : undefined}>{children}</View> : children)}
     </View>
   );
 }
@@ -857,6 +860,9 @@ const s = StyleSheet.create({
   rond: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   rondTexte: { color: '#fff', fontSize: 16, fontWeight: '800', lineHeight: 18 },
   carte: { backgroundColor: colors.card, borderRadius: 12, overflow: 'hidden' },
+  boite: { backgroundColor: colors.card, borderRadius: 12, overflow: 'hidden', marginTop: 14 },
+  titreBoite: { marginTop: 0, marginBottom: 0, paddingHorizontal: 14, paddingVertical: 11 },
+  corpsBoite: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   ligneBloc: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   ligne: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 12, minHeight: 46 },
   champColonne: { flexDirection: 'column', alignItems: 'stretch', gap: 4 },
