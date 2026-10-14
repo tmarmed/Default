@@ -526,12 +526,12 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const blocMesNotes = (stories: Item[], onglet: Prep = 'membre') => {
     const notes = prep.filter((y) => (TYPES_NOTE as string[]).includes(y.type));
     return (
-      <SectionFiche titre={`Mes notes · ${notes.length}`}>
+      <BlocBrique titre={`Mes notes · ${notes.length}`}>
         {notes.map((y, i) => (
           <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={surStory(y) || 'sans story'} pastille={{ texte: libelleNote(y), ton: tonType(y.type) }} onRetirer={() => retirerPrep(y.id)} />
         ))}
         <SaisiePoint premiere={!notes.length} types={TYPES_NOTE} typeDefaut="information" jour={jour} placeholder="＋ Note (information, blocage, décision, action)" stories={stories} onAjouter={(type, texte, element, c, sous_type) => setPrep((l) => [...l, { ...nouveau(type, texte, element, '', onglet), sous_type, ...(c?.c === 'rien' ? { concretisation: 'rien' as const } : {}) }])} />
-      </SectionFiche>
+      </BlocBrique>
     );
   };
   // PO : stories à accepter, backlog à préparer, questions de l'équipe
@@ -844,46 +844,46 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             <TitreFiche icone={hier ? '⏪' : '▶️'} titre={hier ? 'Hier' : 'Aujourd’hui'} vide="" sous={sous(hier ? 'Le plan d’hier et son statut (modifiable), ce dont vous parlerez' : 'Cochez ce que vous ferez aujourd’hui : le statut ne change pas')} />
             {pr === 'membre' && choixEspaces}
             {hier && monPlanHier.elements.length > 0 && (
-              <SectionFiche titre={`Plan du ${dateCourte(monPlanHier.reunion.slice(-10))} · ${monPlanHier.elements.length}`}>
+              <BlocBrique titre={`Plan du ${dateCourte(monPlanHier.reunion.slice(-10))} · ${monPlanHier.elements.length}`}>
                 {monPlanHier.elements.map((t, i) => (
                   <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} pastille={pastilleStatut(t.statut)} tache={t} />
                 ))}
-              </SectionFiche>
+              </BlocBrique>
             )}
             {(() => {
               // Hier : ce qui n'était pas au plan ; Aujourd'hui : cocher = plan du jour, le statut ne change pas (13/10)
               const liste = hier ? hierListe.filter((t) => !monPlanHier.elements.some((y) => y.id === t.id)) : aujListe;
               return (
-                <SectionFiche titre={hier ? `${monPlanHier.elements.length ? 'Hors plan' : 'Mes stories et tâches'} · ${liste.length}` : `Mon plan du jour · ${aujListe.filter((t) => coche('aujourdhui', t, t.titre)).length} sur ${aujListe.length}`}>
+                <BlocBrique titre={hier ? `${monPlanHier.elements.length ? 'Hors plan' : 'Mes stories et tâches'} · ${liste.length}` : `Mon plan du jour · ${aujListe.filter((t) => coche('aujourdhui', t, t.titre)).length} sur ${aujListe.length}`}>
                   {hier ? listeTaches('hier', liste, 'Rien en cours ni terminé hier.', pr) : listeTaches('aujourdhui', liste, 'Rien à votre nom dans le sprint.', pr)}
                   {listeLibres(hier ? 'hier' : 'aujourdhui', liste)}
-                </SectionFiche>
+                </BlocBrique>
               );
             })()}
             {hier &&
               pr === 'membre' &&
               montres.filter((a) => a.planHier.length > 0).map((a) => (
-                <SectionFiche key={`h-${a.r.id}`} titre={`👥 ${a.nom} · plan du ${dateCourte(a.hierDu.slice(-10))}`}>
+                <BlocBrique key={`h-${a.r.id}`} titre={`👥 ${a.nom} · plan du ${dateCourte(a.hierDu.slice(-10))}`}>
                   {a.planHier.map((t, i) => (
                     <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} pastille={pastilleStatut(t.statut)} tache={t} />
                   ))}
-                </SectionFiche>
+                </BlocBrique>
               ))}
             {!hier &&
               pr === 'membre' &&
               montres.filter((a) => a.elements.length > 0).map((a) => (
-                <SectionFiche key={a.r.id} titre={`👥 ${a.nom} · Daily ${a.r.debut.slice(11, 16).replace(/^0/, '')} · ${a.elements.filter((t) => cocheAutre(a.r.id, t.id)).length} sur ${a.elements.length}`}>
+                <BlocBrique key={a.r.id} titre={`👥 ${a.nom} · Daily ${a.r.debut.slice(11, 16).replace(/^0/, '')} · ${a.elements.filter((t) => cocheAutre(a.r.id, t.id)).length} sur ${a.elements.length}`}>
                   {a.elements.map((t, i) => (
                     <LigneCase key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} sous={`envoyé au Daily ${a.nom}`} coche={cocheAutre(a.r.id, t.id)} onBasculer={() => basculerAutre(a.r.id, t.id)} pastille={pastilleStatut(t.statut)} tache={t} />
                   ))}
-                </SectionFiche>
+                </BlocBrique>
               ))}
             {!hier && blocagesOuverts.length > 0 && (
-              <SectionFiche titre={`Blocages toujours ouverts · ${blocagesOuverts.length}`}>
+              <BlocBrique titre={`Blocages toujours ouverts · ${blocagesOuverts.length}`}>
                 {blocagesOuverts.map((y, i) => (
                   <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`noté le ${dateCourte(y.reunion.slice(-10))}${y.statut ? ` · ${LIBELLE_STATUT[y.statut]}` : y.concretisation ? '' : ' · pas encore concrétisé'}`} pastille={{ texte: 'Blocage', ton: 'rouge' }} />
                 ))}
-              </SectionFiche>
+              </BlocBrique>
             )}
             {blocMesNotes(mesStories, pr)}
           </>
@@ -934,16 +934,16 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         return (
           <>
             <TitreFiche icone="📋" titre="Résumé" vide="" sous={sous('Ce que vous direz au tour de table')} />
-            <SectionFiche titre="Tâches">
+            <BlocBrique titre="Tâches">
               <Ligne premiere texte={`⏪ Hier · ${nHier} élément${nHier > 1 ? 's' : ''}`} />
               <Ligne texte={`▶️ Aujourd’hui · ${nAuj} élément${nAuj > 1 ? 's' : ''}`} />
-            </SectionFiche>
-            <SectionFiche titre={`Mes notes · ${notes.length}`}>
+            </BlocBrique>
+            <BlocBrique titre={`Mes notes · ${notes.length}`}>
               {TYPES_NOTE.flatMap((ty) => notes.filter((y) => y.type === ty)).map((y, i) => (
                 <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={surStory(y) || 'sans story'} pastille={{ texte: libelleNote(y), ton: tonType(y.type) }} onRetirer={() => retirerPrep(y.id)} />
               ))}
               {!notes.length && <Vide texte="Aucune note." />}
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       }
@@ -951,7 +951,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         return (
           <>
             <TitreFiche icone="🏁" titre="Stories à accepter" vide="" sous={sous(`${it.nom} · terminées, cochez celles que vous accepterez aujourd’hui`)} />
-            <SectionFiche titre={`Terminées · ${aAccepter.length}`}>
+            <BlocBrique titre={`Terminées · ${aAccepter.length}`}>
               {aAccepter.length ? (
                 aAccepter.map((t, i) => {
                   const n = subs.get(t.id)?.length ?? 0;
@@ -974,14 +974,14 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               ) : (
                 <Vide texte="Aucune story terminée dans le sprint." />
               )}
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       case 'backlog':
         return (
           <>
             <TitreFiche icone="🪄" titre="Backlog à préparer" vide="" sous={sous(`Stories des features du PI sans estimation ou trop grosses (plus de ${fmt(8)})`)} />
-            <SectionFiche titre={`À préparer · ${aPreparer.length}`}>
+            <BlocBrique titre={`À préparer · ${aPreparer.length}`}>
               {aPreparer.length ? (
                 aPreparer.map(({ story: t, raison }, i) => {
                   const n = subs.get(t.id)?.length ?? 0;
@@ -1003,7 +1003,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               ) : (
                 <Vide texte="✓ Backlog du PI prêt : toutes les stories sont estimées." />
               )}
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       case 'questions': {
@@ -1012,9 +1012,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
           <>
             <TitreFiche icone="❓" titre="Questions de l’équipe" vide="" sous={sous('Questions des membres (💬 Chat) sur les stories du sprint ; votre réponse part dans leur message et rejoint votre point')} />
             {!questions.length && (
-              <SectionFiche titre="Questions · 0">
+              <BlocBrique titre="Questions · 0">
                 <Vide texte="✓ Aucune question de l’équipe en attente." />
-              </SectionFiche>
+              </BlocBrique>
             )}
             {questions.map((q) => {
               const repondu = q.statut === 'repondu';
@@ -1146,10 +1146,10 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               )}
               </>
             </BlocBrique>
-            <SectionFiche titre="Objectifs de la réunion">
+            <BlocBrique titre="Objectifs de la réunion">
               <Ligne premiere texte="🎯 Se synchroniser sur l’objectif de sprint" sous="Chacun dit ce qu’il a fait hier et ce qu’il fera aujourd’hui (15 min)" />
               <Ligne texte="🧱 Lever les blocages" sous="Les noter pendant le tour de table, les concrétiser ensuite" />
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       }
@@ -1179,11 +1179,11 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             </ScrollView>
             <TitreFiche icone="👤" titre={courant.nom} vide="" sous={sous(`${membre + 1} sur ${personnes.length} · ${e.role(courant.id)}`)} />
             {sonHier.elements.length > 0 && (
-              <SectionFiche titre={`⏪ Hier · plan du ${dateCourte(sonHier.reunion.slice(-10))}`}>
+              <BlocBrique titre={`⏪ Hier · plan du ${dateCourte(sonHier.reunion.slice(-10))}`}>
                 {sonHier.elements.map((t, i) => (
                   <Ligne key={t.id} premiere={i === 0} texte={`${t.type === 'story' ? '📖 ' : ''}${t.titre}`} pastille={pastilleStatut(t.statut)} tache={t} />
                 ))}
-              </SectionFiche>
+              </BlocBrique>
             )}
             {/* Arbre des éléments du membre (14/10) : ses stories et tâches, leur feature et leur epic en contexte ; la case =
                 « je travaille dessus aujourd'hui » (plan du jour, jamais le statut) */}
@@ -1330,9 +1330,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   />
                 );
               })()}
-            <SectionFiche titre="Note oubliée">
+            <BlocBrique titre="Note oubliée">
               <SaisiePoint premiere types={TYPES_NOTE} typeDefaut="information" titre="Nouvelle note oubliée" jour={jour} placeholder="＋ Note oubliée" stories={situation.cartes} onAjouter={(type, texte, element, c, sous_type) => ajouter({ personne: mail, type, texte, element, sous_type, ...(c?.c === 'rien' ? { concretisation: 'rien' as const } : {}) })} />
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       }
@@ -1365,13 +1365,13 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               }
             />
             {restants.length > 0 && (
-              <SectionFiche titre={`À décider · ${restants.length}`}>
+              <BlocBrique titre={`À décider · ${restants.length}`}>
                 {restants.map((pt, i) => (
                   <Ligne key={pt.id} premiere={i === 0} texte={pt.texte} sous={`par ${nomDe(pt.personne)} · à décider par le SM`} pastille={{ texte: libelleNote(pt), ton: tonType(pt.type) }} />
                 ))}
-              </SectionFiche>
+              </BlocBrique>
             )}
-            <SectionFiche titre={`Créé · ${crees.length}`}>
+            <BlocBrique titre={`Créé · ${crees.length}`}>
               {crees.length ? (
                 crees.map((d, i) => (
                   <Ligne
@@ -1385,23 +1385,23 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               ) : (
                 <Vide texte="Rien à créer." />
               )}
-            </SectionFiche>
-            <SectionFiche titre={`Suivis · ${suivis.length}`}>
+            </BlocBrique>
+            <BlocBrique titre={`Suivis · ${suivis.length}`}>
               {suivis.length ? suivis.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }} />) : <Vide texte="Rien à suivre." />}
-            </SectionFiche>
+            </BlocBrique>
             {/* Transmis (validation du 08/10) : l'ancienne escalade et la transmission, une seule section */}
-            <SectionFiche titre={`Transmis · ${escalades.length + synchros.length}`}>
+            <BlocBrique titre={`Transmis · ${escalades.length + synchros.length}`}>
               {escalades.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }} />)}
               {synchros.map((d, i) => <Ligne key={d.pt.id} premiere={!escalades.length && i === 0} texte={d.pt.texte} sous={`${nomDe(d.pt.personne)} → ${nomDe(d.a)} · message envoyé`} pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }} />)}
               {!escalades.length && !synchros.length && <Vide texte="Rien de transmis." />}
-            </SectionFiche>
-            <SectionFiche titre={`Clos · ${notes.length}`}>
+            </BlocBrique>
+            <BlocBrique titre={`Clos · ${notes.length}`}>
               {notes.length ? (
                 notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`Rien (clos) · noté par ${nomDe(d.pt.personne)}`} pastille={{ texte: libelleNote(d.pt), ton: 'gris' }} />)
               ) : (
                 <Vide texte="Rien." />
               )}
-            </SectionFiche>
+            </BlocBrique>
             {/* Avancement (13/10) : même filtre qu'à la Situation ; compte rendu déjà envoyé : la photo et le filtre de l'envoi */}
             <BlocArbre av={x.cle === 'cr_lecture' ? avancementCR : avancement} titre="Éléments du sprint" cles={situation.elements.map((t) => `t:${t.id}`)} montrerResponsable nom={nomDe} lecture={x.cle === 'cr_lecture'} onOuvrir={lecture ? undefined : onOpenTask} onOuvrirEntite={lecture ? undefined : onOpenEntite} />
           </>

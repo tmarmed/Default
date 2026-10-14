@@ -1,3 +1,4 @@
+import { BlocBrique } from './Brique';
 import { useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { dateCourte } from '../../daily';
@@ -139,12 +140,12 @@ export function FenetrePlanification(p: PropsReunion) {
             <TitreFiche icone="📊" titre="Situation" vide="" sous={`${nomSprintDe(precedente)} terminé · ${e.it.nom} du ${dateCourte(e.it.start)} au ${dateCourte(e.it.end)}`} />
             <Compteurs l={[{ valeur: String(vp), libelle: `vélocité ${nomSprintDe(precedente)}` }, { valeur: String(v.moyenne), libelle: 'moyenne 3 sprints' }, { valeur: String(reportees.length), libelle: 'reportées', ton: reportees.length ? 'orange' : undefined }]} />
             <BlocSuivi r={r} lecture={lecture} onAjouter />
-            <SectionFiche titre={`Reportées de ${nomSprintDe(precedente)} · ${reportees.length}`}>
+            <BlocBrique titre={`Reportées de ${nomSprintDe(precedente)} · ${reportees.length}`}>
               {reportees.length ? reportees.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={`${fmt(pointsOf(t))}${t.responsable ? ` · 👤 ${r.org.personne.get(t.responsable)?.nom ?? ''}` : ''}`} pastille={{ texte: 'à reprendre', ton: 'orange' }} />) : <Vide texte="✓ Rien de reporté." />}
-            </SectionFiche>
-            <SectionFiche titre="Objectifs de la réunion">
+            </BlocBrique>
+            <BlocBrique titre="Objectifs de la réunion">
               <Ligne premiere texte="🎯 S’engager sur le sprint" sous="Fixer la capacité, valider les objectifs du PO, s’engager sur les stories." />
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       }
@@ -152,7 +153,7 @@ export function FenetrePlanification(p: PropsReunion) {
         return (
           <>
             <TitreFiche icone="👥" titre={`Capacité · ${capaTotale} pts`} vide="" sous="Déduite des jours travaillés · points par jour modifiables" />
-            <SectionFiche titre="Par membre · jours × pts/jour">
+            <BlocBrique titre="Par membre · jours × pts/jour">
               {e.personnes.map((y, i) => {
                 const m = y.email.toLowerCase();
                 const d = dispo(m);
@@ -170,10 +171,10 @@ export function FenetrePlanification(p: PropsReunion) {
                   </View>
                 );
               })}
-            </SectionFiche>
-            <SectionFiche titre="Repère">
+            </BlocBrique>
+            <BlocBrique titre="Repère">
               <Ligne premiere texte="Vélocité moyenne (3 sprints)" pastille={{ texte: `${v.moyenne} pts`, ton: 'bleu' }} />
-            </SectionFiche>
+            </BlocBrique>
             <Text style={[st.sous, { marginHorizontal: 16, marginTop: 8 }]}>Les absences viennent des congés déclarés et du point de chacun, jours fériés et fermetures compris. Les points par jour se saisissent (ex. 1,1). Engagement conseillé : {Math.min(capaTotale, v.moyenne || capaTotale)} pts au plus.</Text>
           </>
         );
@@ -191,7 +192,7 @@ export function FenetrePlanification(p: PropsReunion) {
           <>
             <TitreFiche icone="📖" titre="Stories à prendre" vide="" sous="Choix de chacun · vous validez l’affectation" />
             <Compteurs l={[{ valeur: `${pris}`, libelle: 'pts pris' }, { valeur: String(capaTotale), libelle: 'capacité' }, { valeur: String(v.moyenne), libelle: 'vélocité' }]} />
-            <SectionFiche titre={`Stories · ${candidates.length}`}>{candidates.length ? candidates.map((y, i) => ligneStory(y, i, lecture)) : <Vide texte="Aucune story prête dans le backlog." />}</SectionFiche>
+            <BlocBrique titre={`Stories · ${candidates.length}`}>{candidates.length ? candidates.map((y, i) => ligneStory(y, i, lecture)) : <Vide texte="Aucune story prête dans le backlog." />}</BlocBrique>
             <AjoutElement
               mot="story"
               feminin
@@ -211,7 +212,7 @@ export function FenetrePlanification(p: PropsReunion) {
                 return async () => void (await p.actions.modifierItems?.(t.espace || 'moi', [{ id, ...avant }]));
               }}
             />
-            <SectionFiche titre="Charge par membre · pris / capacité">
+            <BlocBrique titre="Charge par membre · pris / capacité">
               {noms.map((m, i) => {
                 const c = charge(m);
                 const cap = capa(m);
@@ -246,7 +247,7 @@ export function FenetrePlanification(p: PropsReunion) {
                   </View>
                 );
               })}
-            </SectionFiche>
+            </BlocBrique>
             {/* Poker rapide : les stories non estimées qu'on veut prendre, un tour */}
             {candidates
               .filter((y) => !pointsOf(y) && (assigne(y) || choisiPar(y).length))
@@ -289,12 +290,12 @@ export function FenetrePlanification(p: PropsReunion) {
             lecture={lecture}
             iterationCode={e.it.nom}
             entete={
-              <SectionFiche titre="Engagé">
+              <BlocBrique titre="Engagé">
                 <Ligne premiere texte={`${engagees.length} stor${engagees.length > 1 ? 'ies' : 'y'} · ${fmt(pris)}`} sous={engagees.map((t) => t.titre).join(' · ')} pastille={{ texte: e.it.nom, ton: 'bleu' }} />
                 {objectifs.map((o, i) => (
                   <Ligne key={o} texte={o} sous={`objectif ${i + 1}`} />
                 ))}
-              </SectionFiche>
+              </BlocBrique>
             }
           />
         );
@@ -306,11 +307,11 @@ export function FenetrePlanification(p: PropsReunion) {
           <>
             <MesTaches r={r} />
             {pasFinies.map((t) => (
-              <SectionFiche key={t.id} titre={`${t.titre} · non terminée`}>
+              <BlocBrique key={t.id} titre={`${t.titre} · non terminée`}>
                 <View style={{ padding: 12 }}>
                   <Pastilles petit options={[{ value: 'continuer', label: `Continuer en ${e.it.nom}` }, { value: 'backlog', label: 'Rendre au backlog' }]} value={reports.find((y) => y.d.c === t.id)?.d.v ?? 'continuer'} onChange={(y) => r.poserDonnee('report', t.id, { v: y }, 'membre', t.id)} />
                 </View>
-              </SectionFiche>
+              </BlocBrique>
             ))}
           </>
         );
@@ -328,7 +329,7 @@ export function FenetrePlanification(p: PropsReunion) {
         return (
           <>
             <TitreFiche icone="📅" titre="Mes disponibilités" vide="" sous={`${e.it.nom} du ${dateCourte(e.it.start)} au ${dateCourte(e.it.end)}`} />
-            <SectionFiche titre="Mes absences · description et jours">
+            <BlocBrique titre="Mes absences · description et jours">
               <Ligne premiere texte="Jours fériés" sous={d.feries.length ? d.feries.map((f) => dateCourte(f)).join(', ') : 'aucun pendant le sprint'} pastille={{ texte: 'Auto', ton: 'bleu' }} />
               {congesDe(congesCtx.conges, r.mail, e.it.start, e.it.end).map((c) => (
                 <Ligne key={c.id} texte={`${NATURES_CONGE.find((n) => n.value === c.nature)?.icone ?? '📅'} ${NATURES_CONGE.find((n) => n.value === c.nature)?.label ?? ''} du ${dateCourte(c.du)} au ${dateCourte(c.au)}`} sous="Déclaré dans « Mes congés »" pastille={{ texte: `${joursAbsence([c], r.mail, e.it.start, e.it.end).length} j`, ton: 'orange' }} />
@@ -343,10 +344,10 @@ export function FenetrePlanification(p: PropsReunion) {
                   <Text style={st.ajouterTexte}>Ajouter</Text>
                 </Pressable>
               </View>
-            </SectionFiche>
-            <SectionFiche titre="Ma capacité · informative">
+            </BlocBrique>
+            <BlocBrique titre="Ma capacité · informative">
               <Ligne premiere texte={`${nombreFr(d.jours)} j travaillés × ${nombreFr(PTS_JOUR_DEFAUT)} pt/j`} sous="jours fériés et absences déduits · points par jour fixés par le SM" pastille={{ texte: fmt(capa(r.mail)), ton: 'bleu' }} />
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       }
@@ -354,7 +355,7 @@ export function FenetrePlanification(p: PropsReunion) {
         return (
           <>
             <TitreFiche icone="📖" titre="Stories que je prends" vide="" sous="Backlog prêt · cochez · le SM valide l’affectation" />
-            <SectionFiche titre={`Backlog prêt · ${backlog.length}`}>
+            <BlocBrique titre={`Backlog prêt · ${backlog.length}`}>
               {backlog.length ? (
                 backlog.map((t, i) => {
                   const coche = prises.some((y) => y.d.c === t.id && y.p.personne === r.mail);
@@ -372,7 +373,7 @@ export function FenetrePlanification(p: PropsReunion) {
               ) : (
                 <Vide texte="Aucune story prête : voir l’affinage." />
               )}
-            </SectionFiche>
+            </BlocBrique>
             <BlocPoints r={r} titre="Mes notes" points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={candidates} />
           </>
         );
@@ -398,7 +399,7 @@ export function FenetrePlanification(p: PropsReunion) {
         return (
           <>
             <TitreFiche icone="📖" titre="Priorités du backlog" vide="" sous="Stories prêtes, les plus importantes d’abord" />
-            <SectionFiche titre={`Stories prêtes · ${l.length}`}>
+            <BlocBrique titre={`Stories prêtes · ${l.length}`}>
               {l.map((t, i) => (
                 <View key={t.id} style={[st.ligne, i > 0 && st.bord]}>
                   <Text style={[st.texte, { width: 22, color: colors.muted }]}>{i + 1}</Text>
@@ -415,7 +416,7 @@ export function FenetrePlanification(p: PropsReunion) {
                 </View>
               ))}
               {!l.length && <Vide texte="Aucune story prête : voir l’affinage." />}
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       }

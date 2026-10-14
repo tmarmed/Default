@@ -1,3 +1,4 @@
+import { BlocBrique } from './Brique';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { joursOuvres } from '../../budget';
@@ -137,7 +138,7 @@ export function FenetreRetro(p: PropsReunion) {
     return (
       <>
         <TitreFiche icone="📅" titre="Jours réels" vide="" sous={`${e.it.nom} · ${joursOuvres(e.it.start, e.it.end)} jours ouvrés · ${valides ? `validés pour ${valides} sur ${e.personnes.length}` : 'à valider'}`} />
-        <SectionFiche titre={`Par personne · ${nombreFr(totalJours)} j`}>
+        <BlocBrique titre={`Par personne · ${nombreFr(totalJours)} j`}>
           {e.personnes.map((y, i) => {
             const m = y.email.toLowerCase();
             const abs = joursAbsence(congesCtx.conges, m, e.it.start, e.it.end).length;
@@ -156,7 +157,7 @@ export function FenetreRetro(p: PropsReunion) {
               </View>
             );
           })}
-        </SectionFiche>
+        </BlocBrique>
         <Text style={[st.sous, { marginHorizontal: 16, marginTop: 6 }]}>Par défaut : jours ouvrés − fermetures de l’entreprise − congés déclarés. Corrigez les imprévus (maladie…), puis validez.</Text>
         {r.anime && !lecture && (
           <Pressable
@@ -178,7 +179,7 @@ export function FenetreRetro(p: PropsReunion) {
         {!!msgJours && <Text style={[st.sous, { textAlign: 'center', marginTop: 6 }]}>{msgJours}</Text>}
         {/* Proposition seulement une fois les jours réels validés (fin de sprint) */}
         {valides === e.personnes.length && e.personnes.length > 0 && jppVu !== null && jppVu !== jppActuel && (
-          <SectionFiche titre="Point ↔ jour">
+          <BlocBrique titre="Point ↔ jour">
             <Ligne premiere texte={`Ce sprint : 1 point a pris ${nombreFr(jppVu)} jour${jppVu > 1 ? 's' : ''} réel${jppVu > 1 ? 's' : ''} (réglé à ${nombreFr(jppActuel)} j)`} sous={`${nombreFr(totalJours)} jours réels pour ${nombreFr(e.situation.faits)} points réalisés. Les stories ne changent pas.`} pastille={{ texte: `${nombreFr(jppVu)} j`, ton: 'orange' }} />
             {r.anime && !lecture && (
               <View style={[st.ligne, st.bord, { gap: 8 }]}>
@@ -190,7 +191,7 @@ export function FenetreRetro(p: PropsReunion) {
                 </Pressable>
               </View>
             )}
-          </SectionFiche>
+          </BlocBrique>
         )}
       </>
     );
@@ -207,9 +208,9 @@ export function FenetreRetro(p: PropsReunion) {
             <TitreFiche icone="📊" titre="Situation" vide="" sous={`${e.it.nom} · ${auteurs.size} participant${auteurs.size > 1 ? 's' : ''} sur ${e.personnes.length} ont envoyé leurs idées`} />
             <Compteurs l={[{ valeur: String(idees.length), libelle: 'idées reçues' }, { valeur: String(idees.filter((y) => y.anonyme).length), libelle: 'anonymes' }, { valeur: String(actionsPrec.length), libelle: 'actions suivies', ton: 'orange' }]} />
             <BlocSuivi r={r} lecture={lecture} onAjouter />
-            <SectionFiche titre="Objectifs de la réunion">
+            <BlocBrique titre="Objectifs de la réunion">
               <Ligne premiere texte="🎯 Regarder le sprint sans chercher de coupable" sous="Choisir 1 ou 2 améliorations concrètes, avec un responsable, pour le sprint suivante." />
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       case 'indicateurs': {
@@ -218,10 +219,10 @@ export function FenetreRetro(p: PropsReunion) {
           <>
             <TitreFiche icone="📈" titre="Indicateurs" vide="" sous={`Calculés · ${v.iterations.map((y) => nomSprintDe(y.key)).join(' à ')}`} />
             <Compteurs l={[{ valeur: String(v.iterations[v.iterations.length - 1]?.points ?? 0), libelle: 'vélocité' }, { valeur: `${prev} %`, libelle: 'prévisibilité', ton: prev < 80 ? 'orange' : 'vert' }, { valeur: String(e.situation.bloquees), libelle: 'stories bloquées', ton: e.situation.bloquees ? 'rouge' : undefined }]} />
-            <SectionFiche titre="Vélocité">
+            <BlocBrique titre="Vélocité">
               <Ligne premiere texte={v.iterations.map((y) => nomSprintDe(y.key)).join(' → ')} sous={`moyenne ${v.moyenne} pts`} pastille={{ texte: v.iterations.map((y) => y.points).join(' · '), ton: 'bleu' }} />
-            </SectionFiche>
-            <SectionFiche titre={`Actions des rétros précédentes · ${actionsPrec.length}`}>
+            </BlocBrique>
+            <BlocBrique titre={`Actions des rétros précédentes · ${actionsPrec.length}`}>
               {actionsPrec.length ? (
                 actionsPrec.map((y, i) => {
                   const t = e.parId.get(y.tache);
@@ -230,7 +231,7 @@ export function FenetreRetro(p: PropsReunion) {
               ) : (
                 <Vide texte="Aucune action suivie." />
               )}
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       }
@@ -238,7 +239,7 @@ export function FenetreRetro(p: PropsReunion) {
         return (
           <>
             <TitreFiche icone="👍" titre={`Ce qui va · ${va.length}`} vide="" sous="Idées envoyées par l’équipe" />
-            <SectionFiche titre="Idées">{va.length ? va.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={sousIdee(y)} />) : <Vide texte="Aucune idée pour l’instant." />}</SectionFiche>
+            <BlocBrique titre="Idées">{va.length ? va.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={sousIdee(y)} />) : <Vide texte="Aucune idée pour l’instant." />}</BlocBrique>
           </>
         );
       case 'ameliorer': {
@@ -249,7 +250,7 @@ export function FenetreRetro(p: PropsReunion) {
           <>
             <TitreFiche icone="🔧" titre={`À améliorer · ${ameliorer.length}`} vide="" sous={revele ? 'Votes révélés, triés : les idées retenues vont en atelier' : `Idées reçues : ${auteurs.size} sur ${e.personnes.length}`} />
             {!revele && (
-              <SectionFiche titre={ouvert ? `🗳️ Vote ouvert · ${votants.size} sur ${e.personnes.length} ont voté` : '🗳️ Vote'}>
+              <BlocBrique titre={ouvert ? `🗳️ Vote ouvert · ${votants.size} sur ${e.personnes.length} ont voté` : '🗳️ Vote'}>
                 {ameliorer.map((y, i) => (
                   <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`${sousIdee(y)}${ouvert ? ' · votes cachés' : ''}`} />
                 ))}
@@ -270,10 +271,10 @@ export function FenetreRetro(p: PropsReunion) {
                     )}
                   </View>
                 )}
-              </SectionFiche>
+              </BlocBrique>
             )}
             {revele && (
-              <SectionFiche titre="Votes révélés · 3 choix par idée">
+              <BlocBrique titre="Votes révélés · 3 choix par idée">
                 {triees.map((y, i) => {
                   const c = choixIdee[y.id] ?? (i < NB_ATELIER && nbVotes(y.id) > 0 ? 'retenir' : 'reporter');
                   return (
@@ -304,7 +305,7 @@ export function FenetreRetro(p: PropsReunion) {
                     </View>
                   );
                 })}
-              </SectionFiche>
+              </BlocBrique>
             )}
           </>
         );
@@ -327,7 +328,7 @@ export function FenetreRetro(p: PropsReunion) {
             entete={
               <>
                 <Compteurs l={[{ valeur: String(idees.length), libelle: 'idées' }, { valeur: String(retenues.length), libelle: 'en atelier', ton: 'vert' }, { valeur: `${auteurs.size}/${e.personnes.length}`, libelle: 'participants' }]} />
-                <SectionFiche titre={`En atelier · ${retenues.length}`}>{retenues.length ? retenues.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} />) : <Vide texte="Aucune." />}</SectionFiche>
+                <BlocBrique titre={`En atelier · ${retenues.length}`}>{retenues.length ? retenues.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} />) : <Vide texte="Aucune." />}</BlocBrique>
                 <Text style={[st.sous, { marginHorizontal: 16, marginTop: 8 }]}>À l’envoi, les points réglés du sprint (daily, planification, affinage, revue, rétro) sont supprimés du Sheet : la trace reste dans les comptes rendus.</Text>
               </>
             }
@@ -342,11 +343,11 @@ export function FenetreRetro(p: PropsReunion) {
             <TitreFiche icone="💡" titre="Mes idées" vide="" sous="Avant la rétro, quand vous voulez" />
             {listeIdees('va', 'Ce qui va')}
             {listeIdees('ameliorer', 'À améliorer')}
-            <SectionFiche titre="Affichage de mes idées">
+            <BlocBrique titre="Affichage de mes idées">
               <View style={st.ligne}>
                 <Pastilles options={[{ value: 'nom', label: 'Avec mon nom' }, { value: 'anonyme', label: 'Anonyme' }]} value={anonyme ? 'anonyme' : 'nom'} onChange={(v2) => setAnonyme(v2 === 'anonyme')} />
               </View>
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       case 'voter':

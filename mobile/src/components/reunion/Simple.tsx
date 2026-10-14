@@ -1,3 +1,4 @@
+import { BlocBrique } from './Brique';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -241,7 +242,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
         return (
           <>
             <TitreFiche icone="🌅" titre="Hier" vide="" sous={`${hier.length} tâche${hier.length > 1 ? 's' : ''} pas finie${hier.length > 1 ? 's' : ''}`} />
-            <SectionFiche titre="Pas finies">{hier.length ? hier.map((t, i) => ligneChoix(t, i, ['auj', 'reporter', 'abandon'], 'auj')) : <Vide texte="✓ Tout est fait." />}</SectionFiche>
+            <BlocBrique titre="Pas finies">{hier.length ? hier.map((t, i) => ligneChoix(t, i, ['auj', 'reporter', 'abandon'], 'auj')) : <Vide texte="✓ Tout est fait." />}</BlocBrique>
           </>
         );
       case 'aujourdhui':
@@ -249,7 +250,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
           <>
             <TitreFiche icone="☀️" titre="Aujourd’hui" vide="" sous={dateCourte(jour)} />
             <Compteurs l={[{ valeur: heures(hPlan), libelle: 'prévues' }, { valeur: '7 h', libelle: 'disponibles' }, { valeur: String(planifie.length), libelle: 'tâches', ton: hPlan > 7 ? 'orange' : undefined }]} />
-            <SectionFiche titre="Cochez votre plan">
+            <BlocBrique titre="Cochez votre plan">
               {auj.length ? (
                 auj.map((t, i) => {
                   const on = dansPlan.includes(t.id);
@@ -266,7 +267,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
               ) : (
                 <Vide texte="Rien de prévu aujourd’hui." />
               )}
-            </SectionFiche>
+            </BlocBrique>
             <AjoutElement mot="tâche" feminin aide="Ajoutée au plan d’aujourd’hui" {...ajoutTache(jour, true)} />
           </>
         );
@@ -305,7 +306,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
           <>
             <TitreFiche icone="📊" titre="Prévu / fait" vide="" sous={prevus.length ? `Prévu ce matin · statut à mettre à jour si besoin` : 'Rien de prévu ce matin (Point perso ou Daily)'} />
             <Compteurs l={[{ valeur: `${faits.length}/${prevus.length}`, libelle: 'du plan fait', ton: 'vert' }, { valeur: heures(faits.reduce((s, t) => s + duree(t), 0)), libelle: 'faites' }, { valeur: String(prevus.length - faits.length), libelle: 'pas fini', ton: prevus.length - faits.length ? 'orange' : undefined }]} />
-            <SectionFiche titre="Prévu ce matin">{prevus.length ? prevus.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={pastilleStatut(t.statut)} tache={t} />) : <Vide texte="Pas de plan : faites le point perso le matin." />}</SectionFiche>
+            <BlocBrique titre="Prévu ce matin">{prevus.length ? prevus.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={pastilleStatut(t.statut)} tache={t} />) : <Vide texte="Pas de plan : faites le point perso le matin." />}</BlocBrique>
             {/* 13/10 : ce qui a changé de statut aujourd'hui (ou a été créé) sans être prévu ce matin */}
           </>
         );
@@ -313,7 +314,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
         return (
           <>
             <TitreFiche icone="⏳" titre={`Pas fini · ${pasFinis.length}`} vide="" sous="Le reste part à demain par défaut" />
-            <SectionFiche titre="Pas fini">{pasFinis.length ? pasFinis.map((t, i) => ligneChoix(t, i, ['demain', 'reporter', 'abandon'], 'demain')) : <Vide texte="✓ Tout le plan est fait." />}</SectionFiche>
+            <BlocBrique titre="Pas fini">{pasFinis.length ? pasFinis.map((t, i) => ligneChoix(t, i, ['demain', 'reporter', 'abandon'], 'demain')) : <Vide texte="✓ Tout le plan est fait." />}</BlocBrique>
             <AjoutElement mot="tâche" feminin aide={`Pour demain (${dateCourte(demain)})`} {...ajoutTache(demain)} />
           </>
         );
@@ -322,7 +323,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
           <>
             <TitreFiche icone="📊" titre={annuel ? "Bilan de l'année" : 'Trimestre écoulé'} vide="" sous={`${dateCourte(debutPeriode)} → ${dateCourte(jour)}`} />
             <Compteurs l={[{ valeur: String(faitesPeriode.length), libelle: 'tâches faites', ton: 'vert' }, { valeur: String(objectifsFinis.length), libelle: 'objectifs échus' }, { valeur: String(enRetard.length), libelle: 'en retard', ton: enRetard.length ? 'rouge' : undefined }]} />
-            <SectionFiche titre={`Tâches faites · ${faitesPeriode.length}`}>
+            <BlocBrique titre={`Tâches faites · ${faitesPeriode.length}`}>
               {faitesPeriode.length ? (
                 [...faitesPeriode]
                   .sort((a, b) => (b.termine_le ?? '').localeCompare(a.termine_le ?? ''))
@@ -336,12 +337,12 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
                   <Text style={{ color: colors.primary, fontWeight: '600' }}>{voirFaites ? 'Voir moins' : `Voir les ${faitesPeriode.length}`}</Text>
                 </Pressable>
               )}
-            </SectionFiche>
-            <SectionFiche titre={`Par domaine · ${parDomaine.length}`}>
+            </BlocBrique>
+            <BlocBrique titre={`Par domaine · ${parDomaine.length}`}>
               {parDomaine.length ? parDomaine.map((x, i) => <Ligne key={x.d.id} premiere={i === 0} texte={`${x.d.icone} ${x.d.nom}`} pastille={{ texte: `${x.n} faite${x.n > 1 ? 's' : ''}`, ton: 'bleu' }} />) : <Vide texte="Aucune tâche terminée sur la période." />}
-            </SectionFiche>
+            </BlocBrique>
             {objectifsFinis.length > 0 && (
-              <SectionFiche titre={`Objectifs échus · ${objectifsFinis.length}`}>{objectifsFinis.map((o, i) => <Ligne key={o.id} premiere={i === 0} texte={o.titre} sous={o.fin ? `échéance ${dateCourte(o.fin)}` : undefined} />)}</SectionFiche>
+              <BlocBrique titre={`Objectifs échus · ${objectifsFinis.length}`}>{objectifsFinis.map((o, i) => <Ligne key={o.id} premiere={i === 0} texte={o.titre} sous={o.fin ? `échéance ${dateCourte(o.fin)}` : undefined} />)}</BlocBrique>
             )}
           </>
         );
@@ -350,9 +351,9 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
           <>
             <TitreFiche icone="🔁" titre="Garder · arrêter · commencer" vide="" sous="Une idée par ligne ; gardé dans l'appareil jusqu'au prochain point annuel" />
             {(['garder', 'arreter', 'commencer'] as const).map((k) => (
-              <SectionFiche key={k} titre={k === 'garder' ? '✅ Garder' : k === 'arreter' ? '⛔ Arrêter' : '🌱 Commencer'}>
+              <BlocBrique key={k} titre={k === 'garder' ? '✅ Garder' : k === 'arreter' ? '⛔ Arrêter' : '🌱 Commencer'}>
                 <SaisieFiche multiline value={gac[k]} onChangeText={(v) => setGac((g) => ({ ...g, [k]: v }))} placeholder={k === 'garder' ? 'Ce qui marche' : k === 'arreter' ? 'Ce qui ne sert plus' : 'Ce que je veux essayer'} style={{ margin: 12 }} />
-              </SectionFiche>
+              </BlocBrique>
             ))}
           </>
         );
@@ -361,27 +362,27 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
           <>
             <TitreFiche icone="📊" titre="Semaine écoulée" vide="" sous={`${dateCourte(ilYa7)} → ${dateCourte(jour)}`} />
             <Compteurs l={[{ valeur: String(faitesSemaine.length), libelle: 'faites', ton: 'vert' }, { valeur: String(enRetard.length), libelle: 'en retard', ton: enRetard.length ? 'rouge' : undefined }, { valeur: String(priorites.length), libelle: 'priorités' }]} />
-            <SectionFiche titre={`Priorités de la semaine · ${priorites.length}`}>
+            <BlocBrique titre={`Priorités de la semaine · ${priorites.length}`}>
               {priorites.length ? priorites.map((id, i) => {
                 const t = taches.find((x) => x.id === id);
                 return <Ligne key={id} premiere={i === 0} texte={t?.titre ?? 'supprimée'} pastille={t?.statut === 'termine' ? { texte: 'fait', ton: 'vert' } : { texte: 'pas fait', ton: 'rouge' }} />;
               }) : <Vide texte="Pas de priorités choisies la semaine dernière." />}
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       case 'retard':
         return (
           <>
             <TitreFiche icone="⏳" titre={`En retard · ${enRetard.length}`} vide="" sous="" />
-            <SectionFiche titre="En retard">{enRetard.length ? enRetard.map((t, i) => ligneChoix(t, i, ['semaine', 'plustard', 'abandon'], 'semaine')) : <Vide texte="✓ Rien en retard." />}</SectionFiche>
+            <BlocBrique titre="En retard">{enRetard.length ? enRetard.map((t, i) => ligneChoix(t, i, ['semaine', 'plustard', 'abandon'], 'semaine')) : <Vide texte="✓ Rien en retard." />}</BlocBrique>
           </>
         );
       case 'avenir':
         return (
           <>
             <TitreFiche icone="📅" titre="Semaine à venir" vide="" sous={`Du ${dateCourte(jour)} au ${dateCourte(dansSemaine)}`} />
-            <SectionFiche titre={`Rendez-vous · ${rdv.length}`}>{rdv.length ? rdv.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={`📅 ${t.titre}`} sous={`${dateCourte(t.date)}${t.heure ? ` · ${t.heure}` : ''}`} pastille={{ texte: heures(duree(t)), ton: 'bleu' }} />) : <Vide texte="Aucun rendez-vous." />}</SectionFiche>
-            <SectionFiche titre={`Tâches prévues · ${aVenir.length - rdv.length}`}>{aVenir.filter((t) => t.type !== 'rendez-vous').map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={dateCourte(t.date)} tache={t} />)}</SectionFiche>
+            <BlocBrique titre={`Rendez-vous · ${rdv.length}`}>{rdv.length ? rdv.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={`📅 ${t.titre}`} sous={`${dateCourte(t.date)}${t.heure ? ` · ${t.heure}` : ''}`} pastille={{ texte: heures(duree(t)), ton: 'bleu' }} />) : <Vide texte="Aucun rendez-vous." />}</BlocBrique>
+            <BlocBrique titre={`Tâches prévues · ${aVenir.length - rdv.length}`}>{aVenir.filter((t) => t.type !== 'rendez-vous').map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={dateCourte(t.date)} tache={t} />)}</BlocBrique>
             <AjoutElement mot="tâche" feminin aide={`Prévue le ${dateCourte(jourAjout)}`} options={<ChoixJour jours={joursSemaine} value={jourAjout} onChange={setJourAjout} />} {...ajoutTache(jourAjout)} />
           </>
         );
@@ -389,7 +390,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
         return (
           <>
             <TitreFiche icone="🎯" titre={`Priorités · ${priorites.length} sur 3`} vide="" sous="Proposées en premier à chaque point perso du matin" />
-            <SectionFiche titre="Choisissez 3 priorités">
+            <BlocBrique titre="Choisissez 3 priorités">
               {candidatsPrio.slice(0, 30).map((t, i) => {
                 const on = priorites.includes(t.id);
                 return (
@@ -403,7 +404,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
                 );
               })}
               {!candidatsPrio.length && <Vide texte="Aucune tâche." />}
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       case 'objectifs': {
@@ -423,7 +424,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
             <Navigation n={objectifs.length} cur={i} onChoisir={setIdxObj} />
             <TitreFiche icone="🎯" titre={o.titre} vide="" sous={`objectif ${i + 1} sur ${objectifs.length}${o.fin ? ` · échéance ${dateCourte(o.fin)}` : ''}`} />
             <Compteurs l={[{ valeur: `${pct} %`, libelle: 'avancement' }, { valeur: String(h.epicList.filter((x) => lieAObjectif(x, o.id)).length), libelle: 'projets' }, { valeur: String(h.items.filter((t) => t.objectif === o.id && t.statut !== 'termine').length), libelle: 'tâches ouvertes' }]} />
-            <SectionFiche titre="Objectif">
+            <BlocBrique titre="Objectif">
               <View style={{ padding: 12 }}>
                 <Pastilles petit options={['Garder', REPOUSSER, 'Abandonner'].map((x) => ({ value: x, label: x }))} value={decObj[o.id] ?? 'Garder'} onChange={(x) => setDecObj((m) => ({ ...m, [o.id]: x }))} />
                 <Text style={[st.sous, { marginTop: 8 }]}>
@@ -432,7 +433,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
                     : `Pas d'échéance (date à laquelle l'objectif doit être atteint). ${REPOUSSER} : la fixe au ${dateCourte(toDateString(addDays(new Date(`${jour}T12:00`), 91)))}.`}
                 </Text>
               </View>
-            </SectionFiche>
+            </BlocBrique>
             {plusObjectif}
           </>
         );
@@ -441,7 +442,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
         return (
           <>
             <TitreFiche icone="🌱" titre="Domaines délaissés" vide="" sous="Aucune tâche faite ni prévue depuis 30 jours. « Créer une tâche » : une tâche « À planifier » pour demain, dans ce domaine ; « Garder tel quel » : rien ne change." />
-            <SectionFiche titre={`Domaines · ${delaisses.length}`}>
+            <BlocBrique titre={`Domaines · ${delaisses.length}`}>
               {delaisses.length ? (
                 delaisses.map((d, i) => (
                   <View key={d.id} style={[st.ligne, { flexDirection: 'column', alignItems: 'stretch' }, i > 0 && st.bord]}>
@@ -452,7 +453,7 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
               ) : (
                 <Vide texte="✓ Aucun domaine délaissé." />
               )}
-            </SectionFiche>
+            </BlocBrique>
             {annuel && <AjoutElement mot="domaine" aide="Un nouveau domaine de votre vie ou de votre travail (🌱, modifiable ensuite)" {...ajoutDomaine} />}
           </>
         );
@@ -468,13 +469,13 @@ export function FenetreSimple({ reunion, actions, onFermer, onFini, onInfo, fil,
         return (
           <>
             <TitreFiche icone="✓" titre="Revue terminée" vide="" sous={`${objectifs.length} objectif${objectifs.length > 1 ? 's' : ''} revu${objectifs.length > 1 ? 's' : ''}`} />
-            <SectionFiche titre="Décisions">{objectifs.map((o, i) => <Ligne key={o.id} premiere={i === 0} texte={o.titre} pastille={{ texte: decObj[o.id] ?? 'Gardé', ton: (decObj[o.id] ?? 'Garder') === 'Garder' ? 'vert' : 'orange' }} />)}</SectionFiche>
+            <BlocBrique titre="Décisions">{objectifs.map((o, i) => <Ligne key={o.id} premiere={i === 0} texte={o.titre} pastille={{ texte: decObj[o.id] ?? 'Gardé', ton: (decObj[o.id] ?? 'Garder') === 'Garder' ? 'vert' : 'orange' }} />)}</BlocBrique>
             {delaisses.length > 0 && (
-              <SectionFiche titre="Domaines délaissés">
+              <BlocBrique titre="Domaines délaissés">
                 {delaisses.map((d, i) => (
                   <Ligne key={d.id} premiere={i === 0} texte={`${d.icone} ${d.nom}`} pastille={decDom[d.id] === CREER_TACHE ? { texte: 'tâche créée demain', ton: 'bleu' } : { texte: 'gardé', ton: 'vert' }} />
                 ))}
-              </SectionFiche>
+              </BlocBrique>
             )}
             {Object.values(decDom).some((x) => x === CREER_TACHE) && <Text style={[st.sous, { marginHorizontal: 16, marginTop: 8, color: colors.primary }]}>Une tâche « À planifier · domaine » sera créée pour demain pour chaque domaine choisi.</Text>}
           </>

@@ -937,9 +937,9 @@ export function QuestionsEquipe({ r }: { r: R }) {
     <>
       <TitreFiche icone="❓" titre={`Questions de l’équipe · ${r.questions.length}`} vide="" sous="Questions de l’équipe (💬 Chat), encore sans réponse ; votre réponse part dans leur message et devient une décision" />
       {!r.questions.length && (
-        <SectionFiche titre="Questions · 0">
+        <BlocBrique titre="Questions · 0">
           <Vide texte="✓ Aucune question de l’équipe en attente." />
-        </SectionFiche>
+        </BlocBrique>
       )}
       {r.questions.map((q) => {
         const repondu = q.statut === 'repondu';
@@ -1076,7 +1076,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
           );
         })()}
       {!lecture && (
-        <SectionFiche titre="Note oubliée">
+        <BlocBrique titre="Note oubliée">
           <SaisiePoint
             premiere
             types={typesNote(r)}
@@ -1087,7 +1087,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
             stories={e.situation.cartes}
             onAjouter={(type, texte, element, c, sous_type) => void r.noter({ personne: r.mail, type, texte, element, sous_type, ...(c?.c === 'rien' ? { concretisation: 'rien' as const } : {}) })}
           />
-        </SectionFiche>
+        </BlocBrique>
       )}
     </>
   );
@@ -1121,7 +1121,7 @@ export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode 
         sous={lecture ? `Lecture seule${dest ? ` · envoyé à ${dest}` : ''}` : dest ? `Envoyé à ${dest}` : 'Pas de destinataire : les tâches sont créées, le compte rendu n’est envoyé à personne.'}
       />
       {entete}
-      <SectionFiche titre={`Créé · ${crees.length}`}>
+      <BlocBrique titre={`Créé · ${crees.length}`}>
         {crees.length ? (
           crees.map((d, i) => (
             <Ligne
@@ -1135,19 +1135,19 @@ export function EtapeCompteRendu({ r, lecture, reunionId, entete, iterationCode 
         ) : (
           <Vide texte="Rien à créer." />
         )}
-      </SectionFiche>
-      <SectionFiche titre={`Suivis · ${suivis.length}`}>
+      </BlocBrique>
+      <BlocBrique titre={`Suivis · ${suivis.length}`}>
         {suivis.length ? suivis.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }} />) : <Vide texte="Rien à suivre." />}
-      </SectionFiche>
+      </BlocBrique>
       {/* Transmis (validation du 08/10) : l'ancienne escalade et la transmission, une seule section */}
-      <SectionFiche titre={`Transmis · ${escalades.length + synchros.length}`}>
+      <BlocBrique titre={`Transmis · ${escalades.length + synchros.length}`}>
         {escalades.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={resumeD(d)} pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }} />)}
         {synchros.map((d, i) => <Ligne key={d.pt.id} premiere={!escalades.length && i === 0} texte={d.pt.texte} sous={`${e.nomDe(d.pt.personne)} → ${e.nomDe(d.a)} · message envoyé`} pastille={{ texte: libelleNote(d.pt), ton: tonType(d.pt.type) }} />)}
         {!escalades.length && !synchros.length && <Vide texte="Rien de transmis." />}
-      </SectionFiche>
-      <SectionFiche titre={`Clos · ${notes.length}`}>
+      </BlocBrique>
+      <BlocBrique titre={`Clos · ${notes.length}`}>
         {notes.length ? notes.map((d, i) => <Ligne key={d.pt.id} premiere={i === 0} texte={d.pt.texte} sous={`Rien (clos) · noté par ${e.nomDe(d.pt.personne)}`} pastille={{ texte: libelleNote(d.pt), ton: 'gris' }} />) : <Vide texte="Rien." />}
-      </SectionFiche>
+      </BlocBrique>
       {/* Arbre des éléments (14/10) : même filtre qu'à la Situation ; compte rendu déjà envoyé : la photo et le filtre de l'envoi */}
       <BlocArbre av={reunionId ? r.avancementCR : r.avancement} titre={focusDe(r.avancement.type) === 0 ? 'Éléments du sprint' : 'Éléments'} cles={focusDe(r.avancement.type) === 0 ? e.situation.elements.map((t) => `t:${t.id}`) : undefined} nom={e.nomDe} montrerResponsable lecture={!!reunionId} onOuvrir={reunionId ? undefined : r.ouvrirTache} onOuvrirEntite={reunionId ? undefined : r.ouvrirEntite} />
       {clesDe(r.avancement, 'budget').length > 0 && <BlocArbre av={reunionId ? r.avancementCR : r.avancement} famille="budget" titre="💶 Budget" nom={e.nomDe} lecture={!!reunionId} />}

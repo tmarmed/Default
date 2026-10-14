@@ -1,3 +1,4 @@
+import { BlocBrique } from './Brique';
 import { useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { demiDe, enHeure, enMinutes, type EvenementJour, finDe, finMax, type Journee, momentsLibres, type PlaceJour } from '../../daily';
@@ -237,7 +238,7 @@ export function PlanDuJour({
         ))}
       </View>
 
-      <SectionFiche titre={`À placer · ${aPlacer.length}`}>
+      <BlocBrique titre={`À placer · ${aPlacer.length}`}>
         {aPlacer.length ? (
           aPlacer.map((t, i) =>
             vue === 'demi' ? (
@@ -256,12 +257,12 @@ export function PlanDuJour({
             <Text style={[st.sous, { color: colors.primary }]}>↩ Remettre « {parId.get(deplace)?.titre} » à placer</Text>
           </Pressable>
         )}
-      </SectionFiche>
+      </BlocBrique>
 
       {vue === 'demi' ? (
-        <SectionFiche titre={`Placés · ${elements.length - aPlacer.length}`}>
+        <BlocBrique titre={`Placés · ${elements.length - aPlacer.length}`}>
           {avecHeure.length ? avecHeure.map((t, i) => ligneElement(t, i)) : <Vide texte="Aucun élément dans l’emploi du temps." />}
-        </SectionFiche>
+        </BlocBrique>
       ) : (
         <>
           <Text style={[st.sous, { marginHorizontal: 20, marginBottom: 6 }]}>Glissez un élément dans la journée, sur un autre pour échanger, ou tout en haut pour le remettre à placer. Touchez un moment libre pour y placer un élément.</Text>
@@ -275,11 +276,11 @@ export function PlanDuJour({
             onElement={(id) => setRegle(regle === id ? '' : id)}
             onLacher={deposer}
           />
-          {!!regle && parId.get(regle) && aHeure(regle) && <SectionFiche titre={titreDe(parId.get(regle)!)}>{blocEdt(blocs.find((b) => b.id === regle)!, 0)}</SectionFiche>}
+          {!!regle && parId.get(regle) && aHeure(regle) && <BlocBrique titre={titreDe(parId.get(regle)!)}>{blocEdt(blocs.find((b) => b.id === regle)!, 0)}</BlocBrique>}
         </>
       )}
 
-      <SectionFiche titre="Ma journée">
+      <BlocBrique titre="Ma journée">
         {reglage ? (
           <View style={st.saisieBloc}>
             <View style={st.saisieLigne}>
@@ -331,7 +332,7 @@ export function PlanDuJour({
             <Text style={st.ajouterLien}>＋ Événement perso</Text>
           </Pressable>
         )}
-      </SectionFiche>
+      </BlocBrique>
 
       {moment && (
         <ChoiceSheet

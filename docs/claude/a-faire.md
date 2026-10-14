@@ -17,7 +17,11 @@ mode Simple via Elem.cle ; « Mes tâches » ; reste l'étape « elements » un 
 de la Revue, de l'Affinage, de la Planification : lot 5) · 3 Notes · 4 Vote et Budget (FAIT 14/10 : Vote.tsx (tous les écrans de vote) dans la coque ; bloc 💶 Budget avec 🌳 cochée :
 enveloppe du portfolio › enveloppe du train › demandes, « Enveloppe 2026 · train Clients ». Reste : étapes budget
 spécialisées (enveloppes, répartition, écarts, dossiers) qui ont leurs saisies propres) · 5 Daily, Revue, Rétrospective,
-Affinage, Planification au catalogue (comme les réunions du train).
+Affinage, Planification au catalogue (comme les réunions du train). FAIT en partie (14/10) : les 117 blocs de ces
+réunions, des réunions du train (Niveau), perso (Simple, Plan du jour) et de l'écran commun (Concrétisation,
+Compte rendu) passent par la coque BlocBrique (« Nom · n » affiché « Nom (n) ») ; PAS FAIT : écrire ces réunions
+comme une liste déclarative d'étapes (catalogue, comme Niveau.tsx), ni passer les listes à actions (stories à
+accepter, non terminées, backlog du PO, affinage) sur l'arbre.
 
 ## Session 4 (14/10, suite) : arbre des éléments — CODÉ (validé « fais tout en même temps »)
 Code : src/components/reunion/Arbre.tsx (BlocArbre, construireArbre, clesDe, changementsSuivi, ModeAffichage) ;

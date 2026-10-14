@@ -1,3 +1,4 @@
+import { BlocBrique } from './Brique';
 import { BlocArbre } from './Arbre';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
@@ -91,7 +92,7 @@ export function ListeEditable({ titre, l, onChange, placeholder, lecture }: { ti
     setSaisie('');
   };
   return (
-    <SectionFiche titre={`${titre} · ${l.length}`}>
+    <BlocBrique titre={`${titre} · ${l.length}`}>
       {l.map((x, i) => (
         <Ligne key={`${i}-${x}`} premiere={i === 0} texte={x} onRetirer={lecture ? undefined : () => onChange(l.filter((_, k) => k !== i))} />
       ))}
@@ -106,7 +107,7 @@ export function ListeEditable({ titre, l, onChange, placeholder, lecture }: { ti
           )}
         </View>
       )}
-    </SectionFiche>
+    </BlocBrique>
   );
 }
 
@@ -114,7 +115,7 @@ export function ListeEditable({ titre, l, onChange, placeholder, lecture }: { ti
 export function BlocPrete({ ok, manque, motif, lecture, onForcer }: { ok: boolean; manque: string[]; motif?: string; lecture?: boolean; onForcer: (m: string | undefined) => void }) {
   const [saisie, setSaisie] = useState<string | null>(null);
   return (
-    <SectionFiche titre="✅ Prête pour la planification ?">
+    <BlocBrique titre="✅ Prête pour la planification ?">
       {ok ? (
         <Ligne premiere texte="✓ Prête" sous="estimée · critères écrits · 8 pts au plus · rattachée à une feature" pastille={{ texte: 'Prête', ton: 'vert' }} />
       ) : motif ? (
@@ -143,7 +144,7 @@ export function BlocPrete({ ok, manque, motif, lecture, onForcer }: { ok: boolea
             ))}
         </>
       )}
-    </SectionFiche>
+    </BlocBrique>
   );
 }
 
@@ -219,20 +220,20 @@ export function FenetreAffinage(p: PropsReunion) {
   const blocCriteres = (t: Item) => {
     const l = criteres(t);
     return (
-      <SectionFiche titre={`Critères d’acceptation · ${l.length}`}>
+      <BlocBrique titre={`Critères d’acceptation · ${l.length}`}>
         {l.length ? l.map((c, i) => <Ligne key={i} premiere={i === 0} texte={c} />) : <Vide texte="Pas encore de critères." />}
-      </SectionFiche>
+      </BlocBrique>
     );
   };
   const blocDecoupe = (t: Item) => {
     const d = decoupe(t);
     if (!d?.faire || !d.l.length) return null;
     return (
-      <SectionFiche titre={`✂️ Découpage proposé · ${d.l.length}`}>
+      <BlocBrique titre={`✂️ Découpage proposé · ${d.l.length}`}>
         {d.l.map((x, i) => (
           <Ligne key={i} premiere={i === 0} texte={x.titre} sous={x.criteres ? `critères : ${x.criteres}` : ''} />
         ))}
-      </SectionFiche>
+      </BlocBrique>
     );
   };
   const pointsStory = (t: Item, lecture: boolean, prep = false) => (
@@ -259,22 +260,22 @@ export function FenetreAffinage(p: PropsReunion) {
     return (
       <>
         <Compteurs l={[{ valeur: String(b.pretes.length), libelle: 'prêtes', ton: 'vert' }, { valeur: String(b.votees.length), libelle: 'votées, pas prêtes', ton: 'orange' }, { valeur: String(b.reprendre.length), libelle: 'à reprendre', ton: b.reprendre.length ? 'rouge' : undefined }]} />
-        <SectionFiche titre={`✓ Prêtes · ${b.pretes.length}`}>
+        <BlocBrique titre={`✓ Prêtes · ${b.pretes.length}`}>
           {b.pretes.length ? b.pretes.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} pastille={{ texte: fmt(pointsDe(t)), ton: 'vert' }} />) : <Vide texte="Aucune." />}
-        </SectionFiche>
+        </BlocBrique>
         {b.votees.length > 0 && (
-          <SectionFiche titre={`⚠ Votées, pas prêtes · ${b.votees.length}`}>
+          <BlocBrique titre={`⚠ Votées, pas prêtes · ${b.votees.length}`}>
             {b.votees.map((t, i) => (
               <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={`${forcees[t.id] ? `forcée · motif : ${forcees[t.id]} · ` : ''}manque : ${prete(t).manque.join(', ')}`} pastille={{ texte: fmt(pointsDe(t)), ton: 'orange' }} />
             ))}
-          </SectionFiche>
+          </BlocBrique>
         )}
         {b.reprendre.length > 0 && (
-          <SectionFiche titre={`⏭ Pas estimées · à reprendre · ${b.reprendre.length}`}>
+          <BlocBrique titre={`⏭ Pas estimées · à reprendre · ${b.reprendre.length}`}>
             {b.reprendre.map((t, i) => (
               <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={`manque : ${prete(t).manque.join(', ')}`} onOuvrir={lecture ? undefined : () => setIdx(stories.indexOf(t))} />
             ))}
-          </SectionFiche>
+          </BlocBrique>
         )}
       </>
     );
@@ -297,9 +298,9 @@ export function FenetreAffinage(p: PropsReunion) {
               ]}
             />
             <BlocSuivi r={r} lecture={lecture} onAjouter />
-            <SectionFiche titre="Objectifs de la réunion">
+            <BlocBrique titre="Objectifs de la réunion">
               <Ligne premiere texte="🎯 Deux sprints de stories prêtes" sous="Estimées, critères écrits, 8 pts au plus, rattachées à une feature." />
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       }
@@ -307,7 +308,7 @@ export function FenetreAffinage(p: PropsReunion) {
         return (
           <>
             <TitreFiche icone="🧹" titre={`À préparer · ${stories.length}`} vide="" sous={`Ordre du PO · ${ordre.length ? 'ordonnées' : 'pas encore ordonnées'}`} />
-            <SectionFiche titre="Stories">
+            <BlocBrique titre="Stories">
               {stories.length ? (
                 stories.map((t, i) => {
                   const nbv = votesDe(r, t.id, 1).size;
@@ -317,7 +318,7 @@ export function FenetreAffinage(p: PropsReunion) {
               ) : (
                 <Vide texte="✓ Rien à préparer : le backlog est prêt." />
               )}
-            </SectionFiche>
+            </BlocBrique>
             <AjoutElement
               mot="story"
               feminin
@@ -334,9 +335,9 @@ export function FenetreAffinage(p: PropsReunion) {
                 return async () => void (await p.actions.modifierItems?.(t.espace || 'moi', [{ id, equipe: '' }]));
               }}
             />
-            <SectionFiche titre="Prête, c’est">
+            <BlocBrique titre="Prête, c’est">
               <Ligne premiere texte="Estimée par l’équipe · critères d’acceptation écrits · 8 pts au plus · rattachée à une feature" />
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       case 'stories': {
@@ -413,13 +414,13 @@ export function FenetreAffinage(p: PropsReunion) {
                 <VoteParticipant r={r} el={t.id} valeurs={CARTES_POKER} vote={r.live.etat?.vote} animateur={animateur} />
               </>
             ) : (
-              <SectionFiche titre="🗳️ Vote">
+              <BlocBrique titre="🗳️ Vote">
                 <Vide texte={`Aucun vote ouvert : ${animateur} ouvre le vote de chaque story après sa présentation (↻ Actualiser).`} />
-              </SectionFiche>
+              </BlocBrique>
             )}
-            <SectionFiche titre="Mes notes">
+            <BlocBrique titre="Mes notes">
               <Vide texte={`${pluriel(r.prep.filter((y) => y.type !== 'donnee').length, 'note')} à envoyer avec « Envoyer mes notes ».`} />
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       }
@@ -438,7 +439,7 @@ export function FenetreAffinage(p: PropsReunion) {
         return (
           <>
             <TitreFiche icone="🧹" titre="Ordre des stories" vide="" sous="Les plus importantes d’abord : l’équipe les affine dans cet ordre" />
-            <SectionFiche titre={`Stories · ${l.length}`}>
+            <BlocBrique titre={`Stories · ${l.length}`}>
               {l.map((t, i) => (
                 <View key={t.id} style={[st.ligne, i > 0 && st.bord]}>
                   <Text style={[st.texte, { width: 22, color: colors.muted }]}>{i + 1}</Text>
@@ -455,7 +456,7 @@ export function FenetreAffinage(p: PropsReunion) {
                 </View>
               ))}
               {!l.length && <Vide texte="✓ Rien à préparer." />}
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       }
@@ -470,11 +471,11 @@ export function FenetreAffinage(p: PropsReunion) {
             <Navigation n={n} cur={k} onChoisir={setIdxPo} />
             {enTete(t, k, n)}
             <ListeEditable titre="Critères d’acceptation" l={criteres(t)} onChange={(l) => r.poserDonnee('criteres', t.id, { l }, 'po', t.id)} placeholder="Critère" />
-            <SectionFiche titre={`✂️ Découpage${pointsOf(t) > MAX_POINTS_PRETE ? ' · proposé car plus de 8 pts' : ''}`}>
+            <BlocBrique titre={`✂️ Découpage${pointsOf(t) > MAX_POINTS_PRETE ? ' · proposé car plus de 8 pts' : ''}`}>
               <View style={[st.ligne, { flexWrap: 'wrap' }]}>
                 <Pastilles options={[{ value: 'non', label: 'Ne pas découper' }, { value: 'oui', label: 'Découper' }]} value={d.faire ? 'oui' : 'non'} onChange={(v) => poserDecoupe({ faire: v === 'oui' })} />
               </View>
-            </SectionFiche>
+            </BlocBrique>
             {d.faire && <ListeEditable titre="Nouvelles stories" l={d.l.map((x) => x.titre)} onChange={(l) => poserDecoupe({ l: l.map((titre) => ({ titre, criteres: d.l.find((x) => x.titre === titre)?.criteres ?? '' })) })} placeholder="Story" />}
             {d.faire && <Text style={[st.sous, { marginHorizontal: 16, marginTop: 6 }]}>Estimées en séance ; créées au compte rendu à la place de « {t.titre} », sous la même feature.</Text>}
           </>

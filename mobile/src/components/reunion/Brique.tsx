@@ -11,8 +11,8 @@ import { colors } from '../../theme';
 import { PastilleFiltres, st } from './ui';
 
 export function BlocBrique({
-  titre,
-  n,
+  titre: titreRecu,
+  n: nRecu,
   nChanges,
   suffixe,
   fermeAuDepart,
@@ -40,6 +40,8 @@ export function BlocBrique({
   filtres?: { actif: boolean; contenu: ReactNode };
   children?: ReactNode;
 }) {
+  let titre = titreRecu;
+  let n = nRecu;
   const [ouvert, setOuvert] = useState(!fermeAuDepart);
   const [filtresOuverts, setFiltresOuverts] = useState(false);
   // Bulle (14/10) : le nom complet d'une icône, au doigt (appui long) ou au survol, effacée après 1,5 s
@@ -50,6 +52,12 @@ export function BlocBrique({
     return () => clearTimeout(t);
   }, [bulle]);
   const avecBulle = (texte: string) => ({ onLongPress: () => setBulle(texte), onHoverIn: () => setBulle(texte), onHoverOut: () => setBulle('') });
+  // Titre « Nom · 3 » (blocs repris tels quels) : « Nom (3) », comme les autres briques
+  const m = n === undefined ? /^(.*) · (\d+)$/.exec(titre) : null;
+  if (m) {
+    titre = m[1];
+    n = Number(m[2]);
+  }
   const nombres = `${n !== undefined ? ` (${n})` : ''}${nChanges != null ? ` (${nChanges} changé${nChanges > 1 ? 's' : ''})` : ''}`;
   return (
     <SectionFiche

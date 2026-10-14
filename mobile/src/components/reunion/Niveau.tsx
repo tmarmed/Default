@@ -1,3 +1,4 @@
+import { BlocBrique } from './Brique';
 import { useEffect, useRef, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import type { VoteEtat } from '../../etatReunion';
@@ -639,9 +640,9 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
             <TitreFiche icone="📊" titre="Situation" vide="" sous={`${TYPES_REUNION[p.reunion.type].libelle} · ${e.nomNiveau}${simple ? '' : ` · PI ${pi}`}`} />
             <Compteurs l={et.compteurs(c)} />
             <BlocSuivi r={r} lecture={lecture} onAjouter />
-            <SectionFiche titre="Objectifs de la réunion">
+            <BlocBrique titre="Objectifs de la réunion">
               <Ligne premiere texte={`🎯 ${et.objectif}`} sous={et.sousObjectif} />
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       case 'liste':
@@ -654,7 +655,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
             {l.length > 0 && l.every((y) => !!y.cle) ? (
               <BlocArbre av={r.avancement} titre={et.titre} cles={l.map((y) => y.cle!)} nom={e.nomDe} montrerResponsable lecture={lecture} onOuvrir={lecture ? undefined : r.ouvrirTache} onOuvrirEntite={lecture ? undefined : r.ouvrirEntite} />
             ) : (
-              <SectionFiche titre={et.titre}>{l.length ? l.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.titre} sous={y.sous} pastille={y.pastille ? { texte: y.pastille, ton: 'bleu' } : undefined} />) : <Vide texte="Rien pour l’instant." />}</SectionFiche>
+              <BlocBrique titre={et.titre}>{l.length ? l.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.titre} sous={y.sous} pastille={y.pastille ? { texte: y.pastille, ton: 'bleu' } : undefined} />) : <Vide texte="Rien pour l’instant." />}</BlocBrique>
             )}
             {et.k === 'liste' && ajoutDe(et.ajout, lecture || !r.anime)}
             {et.k === 'liste' && et.points && <BlocPoints r={r} points={r.tous.filter((y) => r.ici(y))} lecture={lecture} stories={[]} />}
@@ -672,14 +673,14 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
             <Navigation n={l.length} cur={k} onChoisir={lecture ? undefined : (i) => setIdx((m) => ({ ...m, [x.cle]: i }))} aReprendre={new Set(l.map((z, i) => (et.choix && !choix[z.id] && i < k ? i : -1)).filter((i) => i >= 0))} />
             <TitreFiche icone={et.icone} titre={y.titre} vide="" sous={`${et.mot} ${k + 1} sur ${l.length}${y.pastille ? ` · ${y.pastille}` : ''}`} />
             {!!y.sous && (
-              <SectionFiche titre="Où en est-on">
+              <BlocBrique titre="Où en est-on">
                 <Ligne premiere texte={y.sous} />
-              </SectionFiche>
+              </BlocBrique>
             )}
             {et.choix && (
-              <SectionFiche titre="Décision">
+              <BlocBrique titre="Décision">
                 <View style={{ padding: 12 }}>{lecture ? <Text style={st.texte}>{choix[y.id] || 'À décider'}</Text> : <Pastilles petit options={et.choix.map((z) => ({ value: z, label: z }))} value={choix[y.id] ?? ''} onChange={(z) => decider(y, z)} />}</View>
-              </SectionFiche>
+              </BlocBrique>
             )}
             {ajoutDe(et.ajout, lecture || !r.anime, y.id)}
             <BlocPoints r={r} points={r.tous.filter((z) => r.ici(z) && z.element === y.id)} lecture={lecture} stories={[]} />
@@ -707,7 +708,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
               equipesCapa.map((eq) => {
                 const l2 = capaciteEquipePI(eq.id, r.org, congesCtx.conges, pi);
                 return (
-                  <SectionFiche key={eq.id} titre={`👥 ${eq.nom} · ${fmt(l2.filter((y) => !y.ip).reduce((x, y) => x + y.points, 0))} sur le PI`}>
+                  <BlocBrique key={eq.id} titre={`👥 ${eq.nom} · ${fmt(l2.filter((y) => !y.ip).reduce((x, y) => x + y.points, 0))} sur le PI`}>
                     {l2.map((y, i) => (
                       <Ligne
                         key={y.sprint}
@@ -717,10 +718,10 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
                         pastille={{ texte: y.ip ? `${y.jours} j` : fmt(y.points), ton: y.absences ? 'orange' : 'bleu' }}
                       />
                     ))}
-                  </SectionFiche>
+                  </BlocBrique>
                 );
               })}
-            <SectionFiche titre={et.vote ? (revele ? 'Votes révélés' : ouvert ? '🗳️ Vote ouvert · votes cachés' : 'Reçues') : 'Reçues'}>
+            <BlocBrique titre={et.vote ? (revele ? 'Votes révélés' : ouvert ? '🗳️ Vote ouvert · votes cachés' : 'Reçues') : 'Reçues'}>
               {tri.length ? tri.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`par ${e.nomDe(y.par)}`} pastille={revele ? { texte: `★ ${nbv(y.id)}`, ton: 'orange' } : undefined} />) : <Vide texte="Rien reçu pour l’instant." />}
               {et.vote && !lecture && r.anime && !!l.length && (
                 <View style={{ padding: 12 }}>
@@ -731,7 +732,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
                   />
                 </View>
               )}
-            </SectionFiche>
+            </BlocBrique>
             <BlocPoints r={r} points={r.tous.filter((y) => r.ici(y))} lecture={lecture} stories={[]} />
             {ajoutDe(et.ajout, lecture || !r.anime)}
           </>
@@ -751,7 +752,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
         return (
           <>
             <TitreFiche icone="🗳️" titre="Vote" vide="" sous={`100 points par participant · ${votants} sur ${e.personnes.length} ont voté`} />
-            <SectionFiche titre="Total des points">{l.length ? l.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`par ${e.nomDe(y.par)}`} pastille={{ texte: `${y.pts} pts`, ton: i === 0 ? 'vert' : 'bleu' }} />) : <Vide texte="Aucune demande." />}</SectionFiche>
+            <BlocBrique titre="Total des points">{l.length ? l.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`par ${e.nomDe(y.par)}`} pastille={{ texte: `${y.pts} pts`, ton: i === 0 ? 'vert' : 'bleu' }} />) : <Vide texte="Aucune demande." />}</BlocBrique>
           </>
         );
       }
@@ -829,12 +830,12 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
             iterationCode={`PI ${pi}`}
             entete={
               dec.length || decision ? (
-                <SectionFiche titre={`Décisions · ${dec.length + (decision ? 1 : 0)}`}>
+                <BlocBrique titre={`Décisions · ${dec.length + (decision ? 1 : 0)}`}>
                   {decision && <Ligne premiere texte={`Vote de confiance : ${decision.choix === 'retenir' ? decision.val || '—' : 'reporté'}`} />}
                   {dec.map(([id, v], i) => (
                     <Ligne key={id} premiere={!decision && i === 0} texte={[...etapes.values()].map((z) => (z.et.k === 'elements' ? z.et.liste(c).find((q) => q.id === id)?.titre : undefined)).find(Boolean) ?? id} pastille={{ texte: v, ton: 'bleu' }} />
                   ))}
-                </SectionFiche>
+                </BlocBrique>
               ) : undefined
             }
           />
@@ -996,7 +997,7 @@ function VoteBudget({ r, demandes }: { r: R; demandes: { id: string; texte: stri
   return (
     <>
       <TitreFiche icone="🗳️" titre="Mon vote" vide="" sous="100 points à répartir · envoyé avec « Envoyer »" />
-      <SectionFiche titre={`Reste : ${100 - somme} point${Math.abs(100 - somme) > 1 ? 's' : ''}`}>
+      <BlocBrique titre={`Reste : ${100 - somme} point${Math.abs(100 - somme) > 1 ? 's' : ''}`}>
         {demandes.map((d, i) => (
           <View key={d.id} style={[st.ligne, i > 0 && st.bord]}>
             <View style={st.corps}>
@@ -1006,7 +1007,7 @@ function VoteBudget({ r, demandes }: { r: R; demandes: { id: string; texte: stri
           </View>
         ))}
         {!demandes.length && <Vide texte="Aucune demande pour l’instant." />}
-      </SectionFiche>
+      </BlocBrique>
       {somme > 100 && <Text style={[st.sous, { color: colors.danger, marginHorizontal: 16 }]}>Plus de 100 points : retirez-en {somme - 100}.</Text>}
     </>
   );

@@ -1,3 +1,4 @@
+import { BlocBrique } from './Brique';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { LIBELLE_TYPE_POINT, libelleNote, pointsFinis } from '../../daily';
@@ -107,7 +108,7 @@ export function FenetreRevue(p: PropsReunion) {
   const blocDecision = (t: Item, lecture: boolean, po = false) => {
     const val = po ? accPO(t) : decision(t);
     return (
-      <SectionFiche titre={po ? 'Votre décision' : `Décision du PO${accPO(t) ? ' · préparée' : ''}`}>
+      <BlocBrique titre={po ? 'Votre décision' : `Décision du PO${accPO(t) ? ' · préparée' : ''}`}>
         <Ligne
           premiere
           texte={val || 'À décider'}
@@ -118,7 +119,7 @@ export function FenetreRevue(p: PropsReunion) {
             <Pastilles petit options={ACCEPTATION.map((x) => ({ value: x, label: x }))} value={val} onChange={(x) => (po ? r.poserDonnee('acceptation', t.id, { v: x }, 'po', t.id) : setDecisions((m) => ({ ...m, [t.id]: x })))} />
           </View>
         )}
-      </SectionFiche>
+      </BlocBrique>
     );
   };
 
@@ -130,9 +131,9 @@ export function FenetreRevue(p: PropsReunion) {
             <TitreFiche icone="📊" titre="Situation" vide="" sous={`${e.it.nom} · du ${e.it.start.slice(8)}/${e.it.start.slice(5, 7)} au ${e.it.end.slice(8)}/${e.it.end.slice(5, 7)}`} />
             <Compteurs l={[{ valeur: String(terminees.length), libelle: 'stories à revoir' }, { valeur: String(nonTerminees.length), libelle: 'non terminées', ton: nonTerminees.length ? 'orange' : undefined }, { valeur: String(r.reponsesPO.length), libelle: 'réponses du PO' }]} />
             <BlocSuivi r={r} lecture={lecture} onAjouter />
-            <SectionFiche titre="Objectifs de la réunion">
+            <BlocBrique titre="Objectifs de la réunion">
               <Ligne premiere texte="🎯 Montrer ce qui est fini" sous="Faire accepter chaque story par le PO, décider du sort des non terminées, recueillir les retours." />
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       case 'bilan': {
@@ -141,12 +142,12 @@ export function FenetreRevue(p: PropsReunion) {
           <>
             <TitreFiche icone="📈" titre="Bilan du sprint" vide="" sous={`Calculé · ${e.it.nom}`} />
             <Compteurs l={[{ valeur: `${Math.round(e.situation.faits)}/${Math.round(e.situation.prevus)}`, libelle: 'pts faits' }, { valeur: `${prev} %`, libelle: 'prévisibilité', ton: prev < 80 ? 'orange' : 'vert' }, { valeur: String(v.moyenne), libelle: 'vélocité moyenne' }]} />
-            <SectionFiche titre="Vélocité · 3 dernières">
+            <BlocBrique titre="Vélocité · 3 dernières">
               <Ligne premiere texte={v.iterations.map((y) => nomSprintDe(y.key)).join(' · ')} sous={`moyenne ${v.moyenne} pts`} pastille={{ texte: v.iterations.map((y) => y.points).join(' · '), ton: 'bleu' }} />
-            </SectionFiche>
-            <SectionFiche titre={`✓ Réglé pendant le sprint · ${regles.length}`}>
+            </BlocBrique>
+            <BlocBrique titre={`✓ Réglé pendant le sprint · ${regles.length}`}>
               {regles.length ? regles.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`${y.concretisation === 'rien' ? 'noté' : y.concretisation === 'escalade' ? 'escaladé, réglé' : 'fait'} · ${y.reunion.split('-')[0]} du ${y.reunion.slice(-2)}/${y.reunion.slice(-5, -3)}`} pastille={{ texte: libelleNote(y), ton: tonType(y.type) }} />) : <Vide texte={lecture ? 'Vu par l’animateur.' : 'Rien de réglé pour l’instant.'} />}
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       }
@@ -161,11 +162,11 @@ export function FenetreRevue(p: PropsReunion) {
           <>
             <Navigation n={n} cur={k} onChoisir={lecture ? undefined : setIdx} aReprendre={new Set(terminees.map((y, i) => (!decision(y) ? i : -1)).filter((i) => i >= 0 && i < k))} />
             <TitreFiche icone="📖" titre={t.titre} vide="" sous={`Terminée${resp ? ` par ${resp.nom}` : ''} · ${fmt(pointsOf(t))} · story ${k + 1} sur ${n}`} />
-            <SectionFiche titre={`Critères d’acceptation · ${crit.length}`}>{crit.length ? crit.map((c, i) => <Ligne key={i} premiere={i === 0} texte={c} />) : <Vide texte="Pas de critères écrits." />}</SectionFiche>
+            <BlocBrique titre={`Critères d’acceptation · ${crit.length}`}>{crit.length ? crit.map((c, i) => <Ligne key={i} premiere={i === 0} texte={c} />) : <Vide texte="Pas de critères écrits." />}</BlocBrique>
             {d && (
-              <SectionFiche titre="Démo">
+              <BlocBrique titre="Démo">
                 <Ligne premiere texte={d.d.v} sous={`par ${e.nomDe(d.p.personne)}`} />
-              </SectionFiche>
+              </BlocBrique>
             )}
             {blocDecision(t, lecture)}
             {pointsDe(t, lecture)}
@@ -177,14 +178,14 @@ export function FenetreRevue(p: PropsReunion) {
           <>
             <TitreFiche icone="⏳" titre={`Non terminées · ${nonTerminees.length}`} vide="" sous="Proposition du PO, décidée ensemble" />
             {nonTerminees.map((t) => (
-              <SectionFiche key={t.id} titre={t.titre}>
+              <BlocBrique key={t.id} titre={t.titre}>
                 <Ligne premiere texte={sortDe(t) ? `→ ${sortDe(t)}` : 'À décider'} sous={sortPO(t) ? `proposé par le PO : ${sortPO(t)}` : `${fmt(pointsOf(t))} · ${t.statut === 'en_cours' ? 'en cours' : 'pas commencée'}`} />
                 {!lecture && (
                   <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
                     <Pastilles petit options={SORT.map((y) => ({ value: y, label: y === 'Reporter' ? `Reporter en ${nomSprintDe(suivante)}` : y }))} value={sortDe(t)} onChange={(y) => setSorts((m) => ({ ...m, [t.id]: y }))} />
                   </View>
                 )}
-              </SectionFiche>
+              </BlocBrique>
             ))}
             {!nonTerminees.length && <Vide texte="✓ Tout est terminé." />}
             <BlocPoints r={r} points={r.tous.filter((y) => r.ici(y) && nonTerminees.some((t) => t.id === y.element))} lecture={lecture} stories={nonTerminees} />
@@ -220,16 +221,16 @@ export function FenetreRevue(p: PropsReunion) {
           <>
             <TitreFiche icone="🖥️" titre="Ma démo" vide="" sous="Ce que je montre, et comment" />
             {mes.map((t) => (
-              <SectionFiche key={t.id} titre={t.titre}>
+              <BlocBrique key={t.id} titre={t.titre}>
                 <View style={{ padding: 12 }}>
                   <Pastilles petit options={MODES_DEMO.map((y) => ({ value: y, label: y }))} value={demoDe(t)?.d.v ?? ''} onChange={(y) => r.poserDonnee('demo', t.id, { v: y }, 'membre', t.id)} />
                 </View>
-              </SectionFiche>
+              </BlocBrique>
             ))}
             {!mes.length && (
-              <SectionFiche titre="Démo">
+              <BlocBrique titre="Démo">
                 <Vide texte="Aucune story terminée à votre nom." />
-              </SectionFiche>
+              </BlocBrique>
             )}
             <BlocPoints r={r} titre="Mes notes" points={r.prep.filter((y) => y.type !== 'donnee')} pourPrep stories={e.situation.cartes} />
           </>
@@ -240,12 +241,12 @@ export function FenetreRevue(p: PropsReunion) {
         return (
           <>
             <TitreFiche icone="👀" titre={`À voir · ${terminees.length + nonTerminees.length} stories`} vide="" sous={`${e.nomNiveau} · ${e.it.nom}`} />
-            <SectionFiche titre="Stories">
+            <BlocBrique titre="Stories">
               {[...terminees, ...nonTerminees].map((t, i) => (
                 <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={t.feature ? `🧩 ${e.h.features.get(t.feature)?.titre ?? ''}` : ''} pastille={t.statut === 'termine' ? { texte: demoDe(t)?.d.v ?? 'terminée', ton: 'bleu' } : { texte: 'non terminée', ton: 'orange' }} />
               ))}
               {!terminees.length && !nonTerminees.length && <Vide texte="Rien à voir." />}
-            </SectionFiche>
+            </BlocBrique>
           </>
         );
       case 'mes_retours':
@@ -267,7 +268,7 @@ export function FenetreRevue(p: PropsReunion) {
           <>
             <Navigation n={n} cur={k} onChoisir={setIdxPo} />
             <TitreFiche icone="✅" titre={t.titre} vide="" sous={`Story ${k + 1} sur ${n} · ${crit.length} critère${crit.length > 1 ? 's' : ''}`} />
-            <SectionFiche titre={`Critères d’acceptation · ${crit.length}`}>{crit.length ? crit.map((c, i) => <Ligne key={i} premiere={i === 0} texte={c} />) : <Vide texte="Pas de critères écrits." />}</SectionFiche>
+            <BlocBrique titre={`Critères d’acceptation · ${crit.length}`}>{crit.length ? crit.map((c, i) => <Ligne key={i} premiere={i === 0} texte={c} />) : <Vide texte="Pas de critères écrits." />}</BlocBrique>
             {blocDecision(t, false, true)}
             <BlocPoints r={r} titre="Mes notes" points={r.prep.filter((y) => y.type !== 'donnee' && y.element === t.id)} pourPrep onglet="po" element={t.id} stories={terminees} />
           </>
@@ -278,11 +279,11 @@ export function FenetreRevue(p: PropsReunion) {
           <>
             <TitreFiche icone="⏳" titre={`Non terminées · ${nonTerminees.length}`} vide="" sous="Votre proposition" />
             {nonTerminees.map((t) => (
-              <SectionFiche key={t.id} titre={`${t.titre} · ${fmt(pointsOf(t))}`}>
+              <BlocBrique key={t.id} titre={`${t.titre} · ${fmt(pointsOf(t))}`}>
                 <View style={{ padding: 12 }}>
                   <Pastilles petit options={SORT.map((y) => ({ value: y, label: y === 'Reporter' ? `Reporter en ${nomSprintDe(suivante)}` : y }))} value={sortPO(t)} onChange={(y) => r.poserDonnee('sort', t.id, { v: y }, 'po', t.id)} />
                 </View>
-              </SectionFiche>
+              </BlocBrique>
             ))}
             {!nonTerminees.length && <Vide texte="✓ Tout est terminé." />}
           </>
