@@ -2,6 +2,18 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
+## Session 4 (14/10, suite) : refactoring sans changement fonctionnel — VALIDÉ (5 lots, un à la fois, avec captures)
+1. Outils communs — FAIT : src/format.ts (jourMois, jourMoisAn, dateFr, jourSemaine, jourSemaineChiffres, euros,
+   eurosCourt, eurosTexte, pluriel, nomPersonne) ; les anciens noms pointent ici. Vérifié : texte identique avant /
+   après sur Réunions, Daily, Revue de sprint, ART sync, Pilotage.
+2. Composants visuels : une fenêtre de choix (remplace ChoiceSheet, ItemPicker, LinkPicker, Choix, DomaineChoix,
+   EspaceChoix, PIAddSheet), un choix de personne, une ligne « ＋ Ajouter », les rangées de pastilles sur Chips.
+3. Fiches d'élément : squelette commun aux 9 fiches (fil d'Ariane, champs communs, parents et enfants, ajout d'un
+   enfant, suppression, enregistrement automatique).
+4. Services invisibles : une seule lecture des notes de réunion (8 écrans) ; barre de filtres des onglets hors d'App.tsx.
+5. Moteur de réunion unique : Daily et réunions perso sur useReunion.
+Pas fait exprès : réunions en liste déclarée, super-composant unique, écriture Sheets (déjà commune).
+
 ## Session 4 (14/10, suite) : briques de réunion — VALIDÉ, en cours
 Notes à concrétiser : retirées de la Situation (14/10), elles sont à l'étape Concrétisation.
 Catalogue de 7 briques (validé) : 1 Situation · 2 Éléments (arbre) · 3 Notes (FAIT 14/10 : BlocPoints de base.tsx = toutes les étapes « points »/« notes » des réunions ; Notes du

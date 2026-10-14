@@ -6,6 +6,7 @@
  * situation actuelle à cette photo. Une ligne par élément et par sorte, du départ à l'arrivée : les allers-retours se
  * compensent. Aucune colonne ajoutée dans le Sheet.
  */
+import { dateFr as dateFrCommun, eurosTexte } from './format';
 import type { DemandeBudget, Enveloppe, Epic, Feature, Item, Objectif, ObjectifPI, PointReunion, ResultatCle, StatutSuivi, TypeReunion } from './types';
 import { ETATS_EPIC, STATUT_LABELS, TYPES_REUNION } from './types';
 
@@ -308,11 +309,8 @@ const LIB_SUIVI: Record<StatutSuivi | 'ouvert', string> = {
   plus_suivi: 'Plus suivi',
 };
 const LIB_DEMANDE: Record<string, string> = { soumise: 'Soumise', accordee: 'Accordée', a_reprendre: 'À reprendre', refusee: 'Refusée' };
-const euros = (s: string) => {
-  const n = Number(String(s).replace(',', '.').replace(/\s/g, ''));
-  return Number.isFinite(n) && s !== '' ? `${n.toLocaleString('fr-FR')} €` : s;
-};
-const dateFr = (s: string) => (/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}` : s);
+const euros = (s: string) => eurosTexte(s, s);
+const dateFr = (s: string) => (/^\d{4}-\d{2}-\d{2}$/.test(s) ? dateFrCommun(s) : s);
 
 /** Valeur lisible d'un champ, selon le niveau et la sorte */
 export function valeurLisible(l: Pick<LigneAv, 'cle' | 'sorte'>, v: string, nom: (idOuMail: string) => string): string {

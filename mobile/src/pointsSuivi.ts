@@ -1,3 +1,4 @@
+import { jourMois } from './format';
 import { addDays, toDateString } from './dates';
 import type { Echange, EchangeInput, Item, PointReunion, Reunion, StatutSuivi } from './types';
 
@@ -58,7 +59,7 @@ export function echeanceParDefaut(r: Pick<Reunion, 'debut' | 'repetition'>): str
 }
 
 /** « 14/10 » */
-export const jourCourt = (j: string) => (j ? `${Number(j.slice(8, 10))}/${j.slice(5, 7)}` : '');
+export const jourCourt = jourMois;
 
 // ---------------------------------------------------------------------------
 // Actions sur un point de suivi (feuille du Suivi, ou réponse « Valider ? » du Chat : le même point)

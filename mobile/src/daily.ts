@@ -1,3 +1,4 @@
+import { jourMois } from './format';
 import { addDays, toDateString } from './dates';
 import { iterationOf, iterationOfItem, pointsOf } from './pi';
 import { chargeOf, subtaskMap } from './subtasks';
@@ -27,7 +28,7 @@ export function veilleOuvree(jour: string): string {
   return toDateString(d);
 }
 /** « 30/09 », « 1/10 » */
-export const dateCourte = (jour: string) => `${Number(jour.slice(8, 10))}/${jour.slice(5, 7)}`;
+export const dateCourte = jourMois;
 /** Préfixe de toutes les réunions du même type et du même niveau (ex. tous les dailies d'une équipe) */
 export const prefixeReunion = (r: Pick<Reunion, 'id'>) => r.id.slice(0, -10);
 

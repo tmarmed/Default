@@ -1,3 +1,4 @@
+import { euros as eurosFmt, eurosCourt as eurosCourtFmt } from './format';
 import { addDays, toDateString } from './dates';
 import { joursOuvres } from './budget';
 import { joursPrevus } from './conges';
@@ -188,10 +189,10 @@ const nombre = (v?: string) => Number(String(v ?? '').replace(/\s/g, '').replace
 export const coutJour = (coutAnnuel?: string, annee = new Date().getFullYear()) => Math.round(nombre(coutAnnuel) / joursOuvresAnnee(annee));
 
 /** « 12 300 € » */
-export const euros = (n: number) => `${Math.round(n).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ')} €`;
+export const euros = eurosFmt;
 
 /** Compteur court : « 200 k€ » à partir de 10 000 € */
-export const eurosCourt = (n: number) => (Math.abs(n) >= 10000 ? `${Math.round(n / 1000).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ')} k€` : euros(n));
+export const eurosCourt = eurosCourtFmt;
 
 /** Mode Simple (🔒 Moi) : la semaine (heures planifiées / 35 h disponibles), retards, objectifs, domaines délaissés */
 export function pilotePerso(h: H, today: string) {

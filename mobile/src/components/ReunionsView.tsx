@@ -1,3 +1,4 @@
+import { jourSemaine } from '../format';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDays, startOfWeek, toDateString } from '../dates';
@@ -57,14 +58,8 @@ interface Props {
   onModifier?: (r: Reunion) => void;
 }
 
-const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
-const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 /** « jeu. 8 oct. » */
-const jourCourt = (jour: string) => {
-  const [y, m, d] = jour.split('-').map(Number);
-  const x = new Date(y, m - 1, d);
-  return `${JOURS[x.getDay()]} ${d === 1 ? '1er' : d} ${MOIS[m - 1]}`;
-};
+const jourCourt = jourSemaine;
 
 /** La réunion passe-t-elle le filtre Portfolio / Train / Équipe ? (son niveau, ou un niveau au-dessus) */
 function dansDelivery(r: Reunion, f: OrgFiltre, org: OrgValue): boolean {

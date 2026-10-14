@@ -1,3 +1,4 @@
+import { nomPersonne } from '../format';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
@@ -183,7 +184,7 @@ function useEquipeDaily(reunion: Reunion, org: OrgValue, aujourdhui: string, poi
     .map((id) => org.personne.get(id))
     .filter((x): x is NonNullable<typeof x> => !!x && !!x.email);
   const role = (id: string) => (id === equipe?.sm ? 'Scrum Master' : id === equipe?.po ? 'Product Owner' : 'Membre');
-  const nomDe = (email: string) => personneParEmail(email, org)?.nom ?? email.split('@')[0];
+  const nomDe = (email: string) => nomPersonne(org, email);
   const train = equipe?.train ? org.train.get(equipe.train) : undefined;
   const rte = train?.rte ? org.personne.get(train.rte) : undefined;
   const pm = train?.pm ? org.personne.get(train.pm) : undefined;

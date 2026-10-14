@@ -1,3 +1,4 @@
+import { jourSemaineChiffres } from '../format';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { addDays, toDateString } from '../dates';
@@ -32,10 +33,7 @@ export const LIBELLE_PORTEE: Record<PorteeSerie, string> = { une: 'Cette réunio
 
 /** « Tous les mois », « tous les 2 sprints » */
 const PLURIEL: Record<UniteSerie, string> = { jour: 'jours', semaine: 'semaines', mois: 'mois', trimestre: 'trimestres', annee: 'ans', sprint: 'sprints', pi: 'PI' };
-const jourCourt = (j: string) => {
-  const d = new Date(`${j}T12:00`);
-  return `${['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'][d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`;
-};
+const jourCourt = jourSemaineChiffres;
 const nouvelIdSerie = () => `r-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 /**

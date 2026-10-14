@@ -1,3 +1,4 @@
+import { nomPersonne } from '../format';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { libelleNote } from '../daily';
 import { useHierarchy } from '../hierarchyContext';
@@ -28,7 +29,7 @@ export function SectionPointsReunion({ id, espace }: { id?: string; espace?: str
   const lire = useContext(LirePointsContext);
   const h = useHierarchy();
   const org = useOrg();
-  const nomDe = (m: string) => personneParEmail(m, org)?.nom ?? m.split('@')[0];
+  const nomDe = (m: string) => nomPersonne(org, m);
   const [points, setPoints] = useState<PointReunion[]>([]);
   useEffect(() => {
     let vivant = true;

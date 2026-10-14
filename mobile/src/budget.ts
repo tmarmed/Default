@@ -1,3 +1,4 @@
+import { euros as eurosFmt, jourMoisAn } from './format';
 import { createContext, useContext } from 'react';
 import { addDays, toDateString } from './dates';
 import { estOuvre } from './series';
@@ -169,8 +170,8 @@ export const depensesDe = (depenses: Depense[], porteur: string) => depenses.fil
 const nombre = (v?: string) => Number(String(v ?? '').replace(/\s/g, '').replace(',', '.')) || 0;
 export const iconeCategorie = (c: string) => CATEGORIES_DEPENSE.find((x) => x.value === c)?.icone ?? '📦';
 export const libellePeriode = (p: string) => PERIODES_DEPENSE.find((x) => x.value === p)?.label ?? p;
-const jourCourt = (j: string) => (j ? `${Number(j.slice(8, 10))}/${j.slice(5, 7)}/${j.slice(0, 4)}` : '');
-const eurosTxt = (n: number) => `${Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' ')} €`;
+const jourCourt = jourMoisAn;
+const eurosTxt = eurosFmt;
 
 /** « 300 € par mois · 1/09/2026 → 30/06/2027 », « 4 000 € ponctuel · 15/11/2026 », « 15 % » */
 export function resumeDepense(d: Depense): string {

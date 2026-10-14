@@ -2,6 +2,7 @@
  * Rôles transverses (13/10, session 3 ; docs/regles-reunions.html bloc 15) : section de la fiche d'un niveau (équipe,
  * train, portfolio, entreprise) — saisie — et de la fiche d'une personne — lecture.
  */
+import { dateFr } from '../format';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useMoi } from '../droits';
@@ -14,7 +15,6 @@ import { Pastilles } from './reunion/ui';
 
 type Niv = { kind: 'equipeagile' | 'train' | 'portfolio' | 'unite'; id: string };
 
-const dateFr = (d: string) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : '');
 const detail = (t: Transverse, org: OrgValue) =>
   [libelleRole(t.role), t.role === 'suppleant' && t.remplace ? `de ${nomPersonne(org, t.remplace)}` : '', t.du || t.au ? `${t.du ? `du ${dateFr(t.du)}` : ''}${t.au ? ` au ${dateFr(t.au)}` : ''}`.trim() : '']
     .filter(Boolean)

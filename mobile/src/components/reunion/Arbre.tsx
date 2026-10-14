@@ -6,6 +6,7 @@
  * On part des éléments de la réunion (`cles`) et on remonte (story › feature › epic) ; jamais toute l'arborescence.
  * Familles : « elements » (epics, features, stories, tâches, objectifs) et « budget » (enveloppes, demandes).
  */
+import { eurosTexte } from '../../format';
 import { type ReactNode, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Chips } from '../Chips';
@@ -31,7 +32,7 @@ interface Noeud {
   contexte: boolean;
 }
 
-const euros = (v: string) => (v && Number.isFinite(Number(v)) ? `${Number(v).toLocaleString('fr-FR')} €` : '');
+const euros = (v: string) => eurosTexte(v);
 
 /**
  * Parent d'un nœud (clé), d'après les sources ; '' s'il n'en a pas. Budget (14/10) : une enveloppe de train sous celle

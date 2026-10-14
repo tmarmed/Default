@@ -14,7 +14,8 @@ import { vocab } from '../../vocabulaire';
  * Éléments d'affichage communs des réunions (sortis du Daily le 07/10) : pastilles, lignes, compteurs, saisie d'un
  * point en une fenêtre, filtres par type. Toutes les réunions s'en servent : même apparence partout.
  */
-export const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+import { pluriel } from '../../format';
+export { pluriel };
 
 export type Ton = 'bleu' | 'vert' | 'rouge' | 'orange' | 'gris';
 export const TONS: Record<Ton, { fond: string; texte: string }> = {

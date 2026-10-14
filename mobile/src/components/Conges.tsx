@@ -1,3 +1,4 @@
+import { jourMois } from '../format';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { joursOuvres } from '../budget';
@@ -13,7 +14,7 @@ import { FormSheet } from './FormSheet';
  * fermetures. Ils remplissent d'avance la capacité (Planification, Pilotage, « Absents aujourd'hui » au Daily) ;
  * le Scrum Master affine et valide les jours réels en Rétrospective.
  */
-const jourCourt = (j: string) => `${Number(j.slice(8, 10))}/${j.slice(5, 7)}`;
+const jourCourt = jourMois;
 const icone = (n: string) => NATURES_CONGE.find((x) => x.value === n)?.icone ?? '📅';
 const libelle = (n: string) => NATURES_CONGE.find((x) => x.value === n)?.label ?? n;
 
