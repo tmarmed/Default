@@ -1,7 +1,7 @@
 import type { Conge, CoutPersonne, DemandeBudget, Depense, DossierInvestissement, Enveloppe } from './types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
-import { iterationOf, piOf, piStart, shiftPi } from './pi';
+import { iterationOf, piOf, piStart, shiftIteration, shiftPi } from './pi';
 import { photoDe, pointsPhoto } from './avancement';
 import { estOuvre } from './series';
 import { creerMagasin, type Kind, type Persistance, type Table, TABLES, TABLES_ORG } from './magasin';
@@ -124,7 +124,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '53';
+const DEMO_DATA_VERSION = '57';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -612,7 +612,40 @@ const SEEDS_ENTREPRISE: Seeds = {
       donnee('acmbp5', marc, { k: 'budget', c: 'budget', o: 'membre', l: { dm1: 20, dm2: 50, dm3: 10, dm4: 20 } }),
       donnee('acmbp7', 'leo.bernard@acme.example', { k: 'budget', c: 'budget', o: 'membre', l: { dm1: 10, dm2: 20, dm4: 70 } }),
     ];
-    return [...photoHier, ...photosNiveaux, ...liste, ...budgetParticipatif];
+    // Avancement dans toutes les autres réunions (14/10) : la photo de la réunion précédente de chaque série
+    const actuel = photoDe({ items, features: ent.feature as Feature[], epics: ent.epic as Epic[], objectifs: ent.objectif, resultats: ent.resultat, objectifsPI: ent.objectifpi, enveloppes: bud.enveloppe, demandes: bud.demande, tousItems: items }, 0);
+    const equipeDe = (t: Item) => t.equipe || (ent.feature as Feature[]).find((f) => f.id === t.feature)?.equipe || '';
+    const trainDe = (eq: string) => ({ acmeqmob: 'acmtr1', acmeqweb: 'acmtr1' })[eq] ?? '';
+    const epicsDe = (fs: Feature[], its: Item[]) => new Set([...fs.map((f) => f.epic), ...its.map((t) => t.epic)].filter(Boolean));
+    const seriesAv: SerieAv[] = [];
+    const deja = new Set(['daily-equipeagile:acmeqmob-', 'art_sync-train:acmtr1-', 'revue_portfolio-portfolio:acmpf1-']);
+    const ajouterSerie = (prefixe: string, focus: number, recul: number, cles: string[], qui: string) => {
+      if (!deja.has(prefixe)) seriesAv.push({ prefixe, focus, jour: joursOuvresAvant(jour, recul), cles, qui });
+    };
+    for (const eq of ['acmeqmob', 'acmeqweb']) {
+      const its = items.filter((t) => equipeDe(t) === eq);
+      const fs = (ent.feature as Feature[]).filter((f) => its.some((t) => t.feature === f.id));
+      const es = epicsDe(fs, its);
+      const cles = [...its.map((t) => `t:${t.id}`), ...fs.map((f) => `f:${f.id}`), ...[...es].map((x) => `e:${x}`)];
+      const sm = eq === 'acmeqmob' ? nina : 'hugo.blanc@acme.example';
+      for (const [t, recul] of [['daily', 1], ['planification', 10], ['affinage', 10], ['revue', 10], ['retro', 10]] as const) ajouterSerie(`${t}-equipeagile:${eq}-`, 0, recul, cles, sm);
+    }
+    for (const tr of ['acmtr1', 'acmtr2']) {
+      const fs = (ent.feature as Feature[]).filter((f) => f.train === tr || items.some((t) => t.feature === f.id && trainDe(equipeDe(t)) === tr));
+      const its = items.filter((t) => trainDe(equipeDe(t)) === tr);
+      const es = epicsDe(fs, its);
+      const cles = [...fs.map((f) => `f:${f.id}`), ...(ent.objectifpi as ObjectifPI[]).map((o) => `q:${o.id}`), ...[...es].map((x) => `e:${x}`), ...bud.enveloppe.filter((v) => v.niveau === `train:${tr}`).map((v) => `v:${v.id}`), ...bud.demande.filter((d) => d.demandeur === `train:${tr}` || d.destination === `train:${tr}`).map((d) => `d:${d.id}`)];
+      const rte = tr === 'acmtr1' ? sara : 'leo.bernard@acme.example';
+      for (const [t, recul] of [['art_sync', 5], ['pi_planning', 60], ['system_demo', 10], ['inspect_adapt', 60], ['iteration_ip', 60], ['affinage_train', 10], ['prepa_pi', 60]] as const) ajouterSerie(`${t}-train:${tr}-`, 1, recul, cles, rte);
+    }
+    {
+      const es = (ent.epic as Epic[]).filter((x) => x.portfolio === 'acmpf1');
+      const cles = [...es.map((x) => `e:${x.id}`), ...bud.enveloppe.filter((v) => v.niveau === 'portfolio:acmpf1').map((v) => `v:${v.id}`), ...bud.demande.filter((d) => d.destination === 'portfolio:acmpf1').map((d) => `d:${d.id}`), ...(ent.objectif as Objectif[]).map((o) => `o:${o.id}`), ...(ent.resultat as ResultatCle[]).map((r) => `r:${r.id}`)];
+      for (const [t, recul, focus] of [['sync_portfolio', 10, 2], ['budget', 120, 2], ['revue_okr', 60, 3]] as const) ajouterSerie(`${t}-portfolio:acmpf1-`, focus, recul, cles, marc);
+      ajouterSerie('comite_budget-unite:acmu1-', 2, 120, cles, 'claire.vidal@acme.example');
+    }
+    const avancementsSeries = photosSeries(seriesAv, actuel, ['acmp6', 'acmp7', 'acmp8', 'acmp9', 'acmp10', 'acmp11'], 'acm');
+    return [...photoHier, ...photosNiveaux, ...liste, ...budgetParticipatif, ...avancementsSeries];
   },
   entities: () => {
     const e = vide();
@@ -882,6 +915,90 @@ export async function effacerDemo(espace: string): Promise<void> {
     // Stockage indisponible : rien à effacer
   }
 }
+/** Série de réunions dont la démo a une réunion précédente (photo) : `cles`, ce que la réunion montre */
+interface SerieAv {
+  prefixe: string;
+  focus: number;
+  /** Jour de la réunion précédente */
+  jour: string;
+  cles: string[];
+  /** Animateur (auteur de la photo et du suivi) */
+  qui: string;
+}
+/** Statut d'avant (le chemin parcouru depuis) */
+const STATUT_EPIC_AVANT: Record<string, string> = { termine: 'en_cours', en_cours: 'pret', pret: 'analyse', analyse: 'idee' };
+const STATUT_AVANT: Record<string, string> = { termine: 'en_cours', en_cours: 'a_faire', bloque: 'en_cours', pret: 'analyse', analyse: 'idee', accordee: 'soumise', a_reprendre: 'soumise', refusee: 'soumise' };
+/** Sortes changées par niveau (clé) : au niveau de la réunion, toutes ; au-dessus, la première seulement */
+const SORTES_DEMO: Record<string, (keyof typeof CHAMP_DEMO | 'ajoute')[]> = {
+  t: ['statut', 'responsable', 'echeance', 'planning', 'ajoute'],
+  f: ['statut', 'planning', 'ajoute'],
+  q: ['valeur'],
+  e: ['statut', 'valeur', 'echeance', 'ajoute'],
+  v: ['valeur'],
+  d: ['statut', 'valeur'],
+  o: ['valeur', 'echeance'],
+  r: ['valeur'],
+};
+const CHAMP_DEMO = { statut: 0, valeur: 1, echeance: 2, planning: 3, responsable: 4 } as const;
+const RANG_DEMO: Record<string, number> = { t: 0, f: 1, q: 1, e: 2, v: 2, d: 2, o: 3, r: 3 };
+/** Valeur d'avant d'un champ, ou '' si on ne peut pas la changer */
+function avantDe(sorte: keyof typeof CHAMP_DEMO, v: string, k: number, personnes: string[], epic = false): string {
+  if (sorte === 'statut') return (epic ? STATUT_EPIC_AVANT : STATUT_AVANT)[v] ?? '';
+  if (sorte === 'valeur') {
+    const n = Number(v);
+    if (v === '' || !Number.isFinite(n) || n <= 0) return '';
+    return String(n <= 10 ? Math.max(0, Math.round((n - 2) * 10) / 10) : n < 5000 ? Math.round(n * 0.8) : Math.round((n * 0.8) / 1000) * 1000);
+  }
+  if (sorte === 'echeance') return /^\d{4}-\d{2}-\d{2}$/.test(v) ? toDateString(addDays(new Date(`${v}T12:00`), -7 - (k % 3) * 7)) : '';
+  if (sorte === 'planning') return /-IT\d+$/.test(v) ? shiftIteration(v, -1) : /^\d{4}-T\d$/.test(v) ? shiftPi(v, -1) : '';
+  return personnes.filter((x) => x && x !== v)[k % Math.max(1, personnes.length - 1)] ?? '';
+}
+/**
+ * Avancement dans toutes les réunions de la démo (14/10) : pour chaque série, la photo de sa réunion précédente diffère
+ * de la situation actuelle d'un changement de chaque sorte au niveau de la réunion (statut, valeur, échéance, sprint ou
+ * PI, responsable, ajouté en cours de route), d'un changement par niveau au-dessus, et d'un suivi passé à « Fait »
+ */
+function photosSeries(series: SerieAv[], actuel: Record<string, string>, personnes: string[], prefixeId: string): PointReunion[] {
+  const out: PointReunion[] = [];
+  series.forEach((s, n) => {
+    const photo = { ...actuel };
+    const prises = new Set<string>();
+    for (const [g, sortes] of Object.entries(SORTES_DEMO)) {
+      if (RANG_DEMO[g] < s.focus) continue;
+      const cles = s.cles.filter((c) => c.startsWith(`${g}:`) && photo[c] !== undefined);
+      if (!cles.length) continue;
+      const aFaire = RANG_DEMO[g] === s.focus || (s.focus === 0 && g === 'f') ? sortes : sortes.slice(0, 1);
+      aFaire.forEach((sorte, i) => {
+        // Une clé différente par sorte, décalée d'une série à l'autre
+        for (let j = 0; j < cles.length; j++) {
+          const cle = cles[(n + i + j) % cles.length];
+          if (prises.has(cle)) continue;
+          if (sorte === 'ajoute') {
+            delete photo[cle];
+            prises.add(cle);
+            return;
+          }
+          const c = photo[cle].split('|');
+          const avant = avantDe(sorte, c[CHAMP_DEMO[sorte]] ?? '', n + i, personnes, g === 'e');
+          if (!avant || avant === c[CHAMP_DEMO[sorte]]) continue;
+          c[CHAMP_DEMO[sorte]] = avant;
+          photo[cle] = c.join('|');
+          prises.add(cle);
+          return;
+        }
+      });
+    }
+    const reunion = `${s.prefixe}${s.jour}`;
+    // Suivi noté à la réunion précédente : « En cours » à la photo, « Fait » depuis
+    const suivi: PointReunion = {
+      id: `${prefixeId}sav${n + 1}`, reunion, personne: s.qui, auteur: s.qui, type: n % 2 ? 'risque' : 'action', texte: n % 2 ? 'Risque de retard sur les tests de charge' : 'Partager le plan de la prochaine période',
+      element: '', concretisation: 'suivi', tache: '', responsable: s.qui, statut: 'fait', validateur: s.qui, echeance: s.jour, note: 'Fait', cree_le: `${s.jour}T10:00:00.000Z`,
+    };
+    photo[`s:${suivi.id}`] = ['en_cours', '', s.jour, '', s.qui].join('|');
+    out.push(suivi, ...pointsPhoto(reunion, s.qui, photo, { sortes: [], niveaux: [] }).map((x, k) => ({ ...x, id: `${prefixeId}sav${n + 1}p${k + 1}`, cree_le: `${s.jour}T10:30:00.000Z` })));
+  });
+  return out;
+}
 /**
  * 🔒 Moi (13/10) : photo de la Revue des objectifs du mois dernier, d'où « Avancement depuis la Revue des objectifs du … » :
  * « Doubler le nombre de clients » est passé de 5 à 8 clients
@@ -890,7 +1007,16 @@ function pointsMoi(): PointReunion[] {
   const avant = toDateString(addDays(new Date(), -30));
   const photo = photoDe({ objectifs: sampleEntities().objectif }, 3);
   photo['o:o1'] = ['', '5', ...photo['o:o1'].split('|').slice(2)].join('|');
-  return pointsPhoto(`revue_objectifs-perso-${avant}`, MOI_DEMO, photo, { sortes: [], niveaux: [] }).map((x, k) => ({ ...x, id: `moiav${k + 1}`, cree_le: `${avant}T18:00:00.000Z` }));
+  const revue = pointsPhoto(`revue_objectifs-perso-${avant}`, MOI_DEMO, photo, { sortes: [], niveaux: [] }).map((x, k) => ({ ...x, id: `moiav${k + 1}`, cree_le: `${avant}T18:00:00.000Z` }));
+  // Avancement des autres réunions perso (14/10) : Bilan du soir d'hier (d'où le Point perso et le Bilan du soir
+  // d'aujourd'hui), Revue de la semaine, Revue du trimestre, Point annuel
+  const items = sample();
+  const ent = sampleEntities();
+  const actuel = photoDe({ items, objectifs: ent.objectif }, 0);
+  const jour = toDateString(new Date());
+  const cles = [...items.filter((t) => !t.parent).map((t) => `t:${t.id}`), ...ent.objectif.map((o) => `o:${o.id}`)];
+  const serie = (type: string, recul: number, focus: number): SerieAv => ({ prefixe: `${type}-perso-`, focus, jour: joursOuvresAvant(jour, recul), cles, qui: MOI_DEMO });
+  return [...revue, ...photosSeries([serie('bilan_soir', 1, 0), serie('revue_semaine', 5, 0), serie('revue_trimestre', 63, 3), serie('point_annuel', 250, 3)], actuel, [], 'moi')];
 }
 /** Données d'exemple d'un espace de la démo (sans stockage) : pour les vérifications automatiques */
 export function donneesDemo(espace = 'moi') {

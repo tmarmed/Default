@@ -2,6 +2,20 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
+## Session 4 (14/10) : avancement visible dans toutes les réunions de la démo — FAIT
+Démo (src/demo.ts, photosSeries) : pour chaque série (équipes Mobile et Web, trains Clients et Paiements, portfolio
+Digital, Comité budgétaire, réunions perso), une photo de la réunion précédente avec un changement de chaque sorte au
+niveau de la réunion, un par niveau au-dessus, et un suivi « En cours → Fait ». Vérifié à l'écran (texte) : Daily
+Mobile et Web, Revue de sprint, Rétrospective, Planification, Affinage, System demo, ART sync, Affinage du train,
+Semaine IP, Préparation du PI, Synchronisation et Revue du portfolio, Point perso, Bilan du soir, Revue de la semaine,
+Revue des objectifs, Point annuel. Lien republié.
+Questions ouvertes (à reprendre avec l'utilisateur, une à la fois) :
+1. Filtre de l'avancement : par famille (Sorte, Niveau, Type de note) garder tout, enlever, ou en garder certaines.
+2. Avancement au tour de table du Daily : déplacer (recommandé : chaque membre voit l'avancement de ses éléments ; la
+   Situation garde features, epics, suivis et un compteur) ou dupliquer. Bilan de la 1re étape de chaque réunion
+   fait en séance (seul le Daily a un tour de table).
+3. Seuil réglable des changements de valeur.
+
 ## Prochaine session (préparée le 13/10, fin de session 3)
 Skills chargés (`.claude/skills/`, copie dans `tmarmed/mes-skills`, branche main) : les appliquer dès la première
 réponse ; fenêtre à cocher, un point à la fois, jamais de choix par défaut ; **pendant une tâche : « ⏱ temps passé /
