@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { VoteEtat } from '../../etatReunion';
 import { colors } from '../../theme';
-import { SectionFiche } from '../Choix';
+import { BlocBrique } from './Brique';
 import { type R } from './base';
 import { Pastilles, st as stUi, Vide } from './ui';
 
@@ -96,7 +96,7 @@ export function VoteAnimateur({
   const [valeur, setValeur] = useState(decision?.val ?? '');
   if (decision?.choix === 'retenir')
     return (
-      <SectionFiche titre={titre}>
+      <BlocBrique titre={titre}>
         <View style={stUi.ligne}>
           <View style={stUi.corps}>
             <Text style={stUi.texte}>✓ Retenu : {decision.val || 'sans valeur'}</Text>
@@ -104,22 +104,22 @@ export function VoteAnimateur({
           </View>
           {!lecture && <Bt texte="Modifier" onPress={() => onDecision(undefined)} />}
         </View>
-      </SectionFiche>
+      </BlocBrique>
     );
   if (decision?.choix === 'reporter')
     return (
-      <SectionFiche titre={titre}>
+      <BlocBrique titre={titre}>
         <View style={stUi.ligne}>
           <View style={stUi.corps}>
             <Text style={stUi.texte}>⏭ Reportée : à reprendre</Text>
           </View>
           {!lecture && <Bt texte="↩ Revenir" onPress={() => onDecision(undefined)} />}
         </View>
-      </SectionFiche>
+      </BlocBrique>
     );
   if (!ouvert && !revele)
     return (
-      <SectionFiche titre={titre}>
+      <BlocBrique titre={titre}>
         <View style={stUi.ligne}>
           <View style={stUi.corps}>
             <Text style={stUi.texte}>{nb === votants.length && nb > 0 ? 'Tout le monde a déjà voté en préparation' : 'Pas encore ouvert'}</Text>
@@ -136,11 +136,11 @@ export function VoteAnimateur({
             <Bt texte="✓ Retenir sans voter" onPress={() => onDecision({ choix: 'retenir', val: '' })} />
           </View>
         )}
-      </SectionFiche>
+      </BlocBrique>
     );
   if (ouvert)
     return (
-      <SectionFiche titre={titre}>
+      <BlocBrique titre={titre}>
         <View style={stUi.ligne}>
           <View style={stUi.corps}>
             <Text style={stUi.texte}>{`${nb} sur ${votants.length} ont voté`}</Text>
@@ -156,12 +156,12 @@ export function VoteAnimateur({
             <Bt texte="🔁 Relancer le vote" onPress={() => onVote({ ...vote!, tour: vote!.tour + 1 })} />
           </View>
         )}
-      </SectionFiche>
+      </BlocBrique>
     );
   // Révélé : toujours le même écran, 3 choix
   const preselection = lecteur.accord ? (lecteur.valeur ?? '') : '';
   return (
-    <SectionFiche titre={titre}>
+    <BlocBrique titre={titre}>
       <View style={stUi.ligne}>
         <View style={stUi.corps}>
           <Text style={stUi.texte}>Votes révélés · tour {tour}</Text>
@@ -184,7 +184,7 @@ export function VoteAnimateur({
           </View>
         </>
       )}
-    </SectionFiche>
+    </BlocBrique>
   );
 }
 
@@ -206,18 +206,18 @@ export function VoteParticipant({ r, el, titre = '🃏 Votre vote', valeurs, vot
   if (revele) {
     const tous = votesDe(r, el, tour);
     return (
-      <SectionFiche titre={titre}>
+      <BlocBrique titre={titre}>
         <View style={stUi.ligne}>
           <View style={stUi.corps}>
             <Text style={stUi.texte}>Votes révélés</Text>
             <Text style={stUi.sous}>{[...tous.entries()].map(([m, v]) => `${r.e.nomDe(m)} ${v}`).join(' · ')}</Text>
           </View>
         </View>
-      </SectionFiche>
+      </BlocBrique>
     );
   }
   return (
-    <SectionFiche titre={titre}>
+    <BlocBrique titre={titre}>
       <View style={s.choix3}>
         <Text style={stUi.sous}>
           {ouvert
@@ -229,7 +229,7 @@ export function VoteParticipant({ r, el, titre = '🃏 Votre vote', valeurs, vot
         <Cartes valeurs={valeurs} value={mien} onChange={(v) => !envoi && poser(v)} disabled={envoi} />
         {envoi && <Text style={stUi.sous}>Envoi…</Text>}
       </View>
-    </SectionFiche>
+    </BlocBrique>
   );
 }
 
@@ -244,9 +244,9 @@ export function VoteEtoiles({ r, elements, vote, animateur, total = 3 }: { r: R;
   const [envoi, setEnvoi] = useState(false);
   if (!ouvert)
     return (
-      <SectionFiche titre="🗳️ Vote">
+      <BlocBrique titre="🗳️ Vote">
         <Vide texte={vote?.revele ? 'Votes révélés : voir l’écran de l’animateur.' : `Aucun vote ouvert : ${animateur} l’ouvre en séance.`} />
-      </SectionFiche>
+      </BlocBrique>
     );
   const basculer = (id: string) => {
     const n = new Set(sel);
@@ -264,7 +264,7 @@ export function VoteEtoiles({ r, elements, vote, animateur, total = 3 }: { r: R;
     }
   };
   return (
-    <SectionFiche titre={`Touchez ☆ pour voter · ★ ${reste} restante${reste > 1 ? 's' : ''}`}>
+    <BlocBrique titre={`Touchez ☆ pour voter · ★ ${reste} restante${reste > 1 ? 's' : ''}`}>
       {elements.map((x, i) => (
         <Pressable key={x.id} onPress={() => basculer(x.id)} style={[stUi.ligne, i > 0 && stUi.bord]} accessibilityRole="checkbox" accessibilityState={{ checked: sel.has(x.id) }}>
           <View style={stUi.corps}>
@@ -277,7 +277,7 @@ export function VoteEtoiles({ r, elements, vote, animateur, total = 3 }: { r: R;
       <View style={s.boutons}>
         <Bt texte={envoi ? 'Envoi…' : choix ? 'Envoyer mes votes' : mes.size ? '✓ Votes envoyés' : 'Envoyer mes votes'} onPress={() => !envoi && envoyer()} />
       </View>
-    </SectionFiche>
+    </BlocBrique>
   );
 }
 

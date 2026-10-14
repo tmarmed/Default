@@ -33,10 +33,27 @@ interface Noeud {
 
 const euros = (v: string) => (v && Number.isFinite(Number(v)) ? `${Number(v).toLocaleString('fr-FR')} €` : '');
 
-/** Parent d'un nœud (clé), d'après les sources ; '' s'il n'en a pas */
-function parentDe(cle: string, av: Avancement): string {
+/**
+ * Parent d'un nœud (clé), d'après les sources ; '' s'il n'en a pas. Budget (14/10) : une enveloppe de train sous celle
+ * de son portfolio (même année), une demande sous l'enveloppe de sa destination (année de la demande, sinon la plus récente)
+ */
+function parentDe(cle: string, av: Avancement, portfolioDuTrain?: (train: string) => string): string {
   const [p, id] = [cle.slice(0, 1), cle.slice(2)];
   const src = av.sources;
+  if (p === 'v') {
+    const v = src.enveloppes?.find((x) => x.id === id);
+    const pf = v?.niveau.startsWith('train:') && portfolioDuTrain ? portfolioDuTrain(v.niveau.slice(6)) : '';
+    const haut = pf ? src.enveloppes?.find((x) => x.niveau === `portfolio:${pf}` && x.annee === v!.annee) : undefined;
+    return haut ? `v:${haut.id}` : '';
+  }
+  if (p === 'd') {
+    const d = src.demandes?.find((x) => x.id === id);
+    if (!d) return '';
+    const annee = (d.du || '').slice(0, 4);
+    const env = (src.enveloppes ?? []).filter((x) => x.niveau === d.destination).sort((a, b) => b.annee.localeCompare(a.annee));
+    const e = env.find((x) => x.annee === annee) ?? env[0];
+    return e ? `v:${e.id}` : '';
+  }
   if (p === 't') {
     const t = src.items.find((x) => x.id === id);
     if (!t) return '';
@@ -58,7 +75,7 @@ function parentDe(cle: string, av: Avancement): string {
 }
 
 /** Arbre à partir des clés de la réunion, en remontant vers les parents (contexte) */
-export function construireArbre(cles: string[], av: Avancement, famille: FamilleArbre, strict?: boolean): Noeud[] {
+export function construireArbre(cles: string[], av: Avancement, famille: FamilleArbre, strict?: boolean, portfolioDuTrain?: (train: string) => string): Noeud[] {
   const ok = (k: string) => PREFIXES[famille].includes(k.slice(0, 1));
   const propres = new Set(cles.filter(ok));
   const noeuds = new Map<string, Noeud>();
@@ -71,7 +88,7 @@ export function construireArbre(cles: string[], av: Avancement, famille: Famille
     }
     const n: Noeud = { cle: k, enfants: [], contexte };
     noeuds.set(k, n);
-    const p = parentDe(k, av);
+    const p = parentDe(k, av, portfolioDuTrain);
     if (p) {
       parent.set(k, p);
       // Parent dans la photo de la réunion : un élément de la réunion (ses changements comptent) ; au tour de table
@@ -157,7 +174,7 @@ export function BlocArbre({
   const lesCles = cles ?? clesDe(av, famille, perso);
   const cleListe = lesCles.join(',');
   const racines = useMemo(() => {
-    const arbre = construireArbre(lesCles, av, famille, strict);
+    const arbre = construireArbre(lesCles, av, famille, strict, (t) => org.trains.find((x) => x.id === t)?.portfolio ?? '');
     if (arbo) return arbre;
     const propres = new Set(lesCles);
     // À plat : les éléments du bloc seulement (sans leurs parents : feature, epic), dans l'ordre de l'arbre
@@ -253,7 +270,11 @@ export function BlocArbre({
     const aEnfants = n.enfants.some((x) => mode !== 'changes' || garde(x));
     const k = KIND[n.cle[0]];
     const ouvrir = lecture ? undefined : t && onOuvrir ? () => onOuvrir(t) : k && onOuvrirEntite ? () => onOuvrirEntite(k, n.cle.slice(2)) : undefined;
-    const texte = `${ICONE[n.cle[0]] ?? (t?.type === 'story' ? '📖 ' : '')}${av.titreDe(n.cle)}`;
+    // Enveloppe : son niveau après l'année (« Enveloppe 2026 · train Clients »)
+    const niveauV = n.cle[0] === 'v' ? av.sources.enveloppes?.find((x) => x.id === n.cle.slice(2))?.niveau ?? '' : '';
+    const [kindV, idV] = niveauV.split(':');
+    const nomV = kindV === 'train' ? `train ${org.trains.find((x) => x.id === idV)?.nom ?? ''}` : kindV === 'portfolio' ? `portfolio ${org.portfolios.find((x) => x.id === idV)?.nom ?? ''}` : kindV === 'equipeagile' ? `équipe ${org.equipes.find((x) => x.id === idV)?.nom ?? ''}` : kindV === 'entreprise' ? 'entreprise' : '';
+    const texte = `${ICONE[n.cle[0]] ?? (t?.type === 'story' ? '📖 ' : '')}${av.titreDe(n.cle)}${nomV ? ` · ${nomV}` : ''}`;
     const p = pastilleDe(n.cle);
     const avecCase = !!cases && !!t && !n.contexte;
     const enfants = n.enfants.map((x) => rendre(x, profondeur + 1, false));
@@ -301,7 +322,7 @@ export function BlocArbre({
       n={nTous}
       nChanges={av.lignes ? nChanges : null}
       fermeAuDepart={fermeAuDepart}
-      arborescence={famille === 'elements' ? { valeur: arbo, changer: setArbo } : undefined}
+      arborescence={{ valeur: arbo, changer: setArbo }}
       filtres={av.lignes && lignesBloc.length > 0 ? { actif: estFiltre(av.filtre), contenu: <FiltreAvancement av={av} lignes={lignesBloc} lecture={lecture} sansTypes /> } : undefined}
     >
       {corps.length ? corps : <Vide texte={mode === 'changes' ? (av.lignes ? 'Rien n’a changé.' : 'Les changements seront visibles à partir de la prochaine réunion.') : 'Rien à afficher.'} />}

@@ -14,7 +14,9 @@ Lots : 1 Suivis alignés (FAIT 14/10 : reunion/Brique.tsx = coque commune, utili
 du Daily (Situation, tour de table) et de SuivisPerso ; LignesSuivi parElement = groupes « Epic › Feature › Story »
 et « Sans élément » ; boutons sur une ligne sous le titre) · 2 Éléments partout (FAIT 14/10 : étapes « liste » et « mes éléments » des réunions du train, du portfolio et du
 mode Simple via Elem.cle ; « Mes tâches » ; reste l'étape « elements » un par un avec décision, et les listes du Daily,
-de la Revue, de l'Affinage, de la Planification : lot 5) · 3 Notes · 4 Vote et Budget · 5 Daily, Revue, Rétrospective,
+de la Revue, de l'Affinage, de la Planification : lot 5) · 3 Notes · 4 Vote et Budget (FAIT 14/10 : Vote.tsx (tous les écrans de vote) dans la coque ; bloc 💶 Budget avec 🌳 cochée :
+enveloppe du portfolio › enveloppe du train › demandes, « Enveloppe 2026 · train Clients ». Reste : étapes budget
+spécialisées (enveloppes, répartition, écarts, dossiers) qui ont leurs saisies propres) · 5 Daily, Revue, Rétrospective,
 Affinage, Planification au catalogue (comme les réunions du train).
 
 ## Session 4 (14/10, suite) : arbre des éléments — CODÉ (validé « fais tout en même temps »)
