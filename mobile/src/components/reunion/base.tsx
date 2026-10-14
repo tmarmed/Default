@@ -799,8 +799,8 @@ function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAj
       arborescence={{ valeur: arbo, changer: setArbo }}
       droite={
         nValider > 0 ? (
-          <Pressable onPress={() => setAValider((v) => !v)} style={[st.puceValider, aValider && st.puceValiderOn]} accessibilityRole="button" accessibilityState={{ selected: aValider }}>
-            <Text style={[st.puceValiderTexte, aValider && st.puceValiderTexteOn]}>À valider · {nValider}</Text>
+          <Pressable onPress={() => setAValider((v) => !v)} style={[st.puceValider, aValider && st.puceValiderOn]} accessibilityRole="button" accessibilityState={{ selected: aValider }} accessibilityLabel={`À valider : ${nValider}`}>
+            <Text style={[st.puceValiderTexte, aValider && st.puceValiderTexteOn]}>✓ {nValider}</Text>
           </Pressable>
         ) : undefined
       }

@@ -84,7 +84,7 @@ export function SectionFiche({
     <View style={[lectureSection && vide && s.masque, boite && s.boite]}>
       <View style={[s.titreSec, boite && s.titreBoite]}>
         {onTitre ? (
-          <Pressable onPress={onTitre} hitSlop={6} style={{ flexShrink: 1 }} accessibilityRole="button" accessibilityLabel={`Ouvrir ou fermer : ${titre}`}>
+          <Pressable onPress={onTitre} hitSlop={6} style={[{ flexShrink: 1 }, boite && { flexGrow: 1, flexBasis: 0, minWidth: 150 }]} accessibilityRole="button" accessibilityLabel={`Ouvrir ou fermer : ${titre}`}>
             <Text style={s.titreSecTexte}>{vocab(titre)}</Text>
           </Pressable>
         ) : (
@@ -861,7 +861,7 @@ const s = StyleSheet.create({
   rondTexte: { color: '#fff', fontSize: 16, fontWeight: '800', lineHeight: 18 },
   carte: { backgroundColor: colors.card, borderRadius: 12, overflow: 'hidden' },
   boite: { backgroundColor: colors.card, borderRadius: 12, overflow: 'hidden', marginTop: 14 },
-  titreBoite: { marginTop: 0, marginBottom: 0, paddingHorizontal: 14, paddingVertical: 11 },
+  titreBoite: { marginTop: 0, marginBottom: 0, paddingHorizontal: 14, paddingVertical: 11, flexWrap: 'wrap', rowGap: 8 },
   corpsBoite: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   ligneBloc: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   ligne: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 12, minHeight: 46 },

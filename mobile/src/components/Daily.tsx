@@ -1087,8 +1087,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               arborescence={{ valeur: arboSuivis, changer: setArboSuivis }}
               droite={
                 nValider > 0 ? (
-                  <Pressable onPress={() => setAValider((v) => !v)} style={[st.puceValider, aValider && st.puceValiderOn]} accessibilityRole="button" accessibilityState={{ selected: aValider }}>
-                    <Text style={[st.puceValiderTexte, aValider && st.puceValiderTexteOn]}>À valider · {nValider}</Text>
+                  <Pressable onPress={() => setAValider((v) => !v)} style={[st.puceValider, aValider && st.puceValiderOn]} accessibilityRole="button" accessibilityState={{ selected: aValider }} accessibilityLabel={`À valider : ${nValider}`}>
+                    <Text style={[st.puceValiderTexte, aValider && st.puceValiderTexteOn]}>✓ {nValider}</Text>
                   </Pressable>
                 ) : undefined
               }

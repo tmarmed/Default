@@ -410,11 +410,12 @@ export function SaisiePoint({
 }
 
 /** Pastille « Filtres ▾ / ▴ » à côté d'un titre de section, comme dans l'en-tête des écrans */
-export function PastilleFiltres({ actif, ouvert, onPress }: { actif: boolean; ouvert: boolean; onPress: () => void }) {
+/** `compact` (14/10, briques) : l'entonnoir seul, pour tenir sur la ligne du titre */
+export function PastilleFiltres({ actif, ouvert, onPress, compact }: { actif: boolean; ouvert: boolean; onPress: () => void; compact?: boolean }) {
   return (
     <Pressable onPress={onPress} style={[st.pastilleFiltres, actif && st.pastilleFiltresActive]} accessibilityRole="button" accessibilityLabel={`${ouvert ? 'Replier' : 'Déplier'} les filtres`}>
       <Entonnoir couleur={actif ? colors.primary : colors.text} />
-      <Text style={[st.pastilleFiltresTexte, actif && { color: colors.primary }]}>Filtres {ouvert ? '▴' : '▾'}</Text>
+      {!compact && <Text style={[st.pastilleFiltresTexte, actif && { color: colors.primary }]}>Filtres {ouvert ? '▴' : '▾'}</Text>}
       {actif && (
         <View style={st.pastilleFiltresNb}>
           <Text style={st.pastilleFiltresNbTexte}>1</Text>
