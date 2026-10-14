@@ -23,6 +23,7 @@ import type { Echange, Item, PointReunion, StatutSuivi } from '../../types';
 import type { ActionsDaily } from '../Daily';
 import { FeuilleConcretiser, stylesFeuille as s } from './Concretiser';
 import { Ligne, type Ton } from './ui';
+import { TitreGroupe } from './Brique';
 
 type H = Pick<HierarchyValue, 'items' | 'featureList' | 'epicList' | 'objectifList' | 'objectifsPI' | 'resultats'>;
 
@@ -144,7 +145,7 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
         <View key={p.id}>
           {/* Arborescence (14/10) : un titre de groupe par élément concerné, puis ses suivis */}
           {parElement && (i === 0 || cheminElement(l[i - 1].p.element, ctx.h) !== cheminElement(p.element, ctx.h)) && (
-            <Text style={{ fontSize: 12.5, fontWeight: '600', color: colors.muted, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 2 }}>{cheminElement(p.element, ctx.h) || 'Sans élément'}</Text>
+            <TitreGroupe texte={cheminElement(p.element, ctx.h)} />
           )}
         <Ligne premiere={premiere && i === 0 && !parElement} texte={p.texte} sous={sousSuivi(p, a.s, ctx.nomDe, ctx.echanges)} pastille={a.texte ? { texte: a.texte, ton: a.ton } : undefined} onOuvrir={ctx.lecture ? undefined : () => setOuvert(p)} point={ctx.changements?.(p).point} changements={ctx.changements?.(p).lignes} />
         </View>

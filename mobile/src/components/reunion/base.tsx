@@ -33,12 +33,13 @@ import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, est
 import { FeuilleConcretiser } from './Concretiser';
 import { useAvancement } from './Avancement';
 import { BlocArbre, changementsSuivi, clesDe, ModeAffichage, nbSuivisChanges } from './Arbre';
-import { BlocBrique } from './Brique';
+import { BlocBrique, TitreGroupe } from './Brique';
 import { peutAnimer } from '../../transverses';
 import { toDateString } from '../../dates';
 import { focusDe, type Perimetre } from '../../avancement';
 import { libelleElement } from '../../elementConcerne';
 import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../../pointsSuivi';
+import { cheminElement } from './Suivi';
 import { BlocHorsReunion, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, repartirSuivis, statutAffiche } from './Suivi';
 import { colors } from '../../theme';
 import { enfantsRepartition, gerantsBudget, niveauDessus, reunionDuNiveau, useBudget } from '../../budget';
@@ -797,13 +798,7 @@ function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAj
       n={nSuivisVus}
       nChanges={nbSuivisChanges(r.avancement, nouveaux)}
       arborescence={{ valeur: arbo, changer: setArbo }}
-      droite={
-        nValider > 0 ? (
-          <Pressable onPress={() => setAValider((v) => !v)} style={[st.puceValider, aValider && st.puceValiderOn]} accessibilityRole="button" accessibilityState={{ selected: aValider }} accessibilityLabel={`À valider : ${nValider}`}>
-            <Text style={[st.puceValiderTexte, aValider && st.puceValiderTexteOn]}>✓ {nValider}</Text>
-          </Pressable>
-        ) : undefined
-      }
+      aValider={{ n: nValider, actif: aValider, onPress: () => setAValider((v) => !v) }}
       filtres={{
         actif: !!filtre || vue !== 'tout' || r.avancement.filtre.mode !== 'elements',
         contenu: (
@@ -884,27 +879,34 @@ export function BlocPoints({
 }) {
   const { e } = r;
   const [filtre, setFiltre] = useState<TypePoint | ''>('');
-  const [ouvert, setOuvert] = useState(false);
+  /** Arborescence (14/10) : décochée par défaut ; cochée, les notes rangées sous leur élément */
+  const [arbo, setArbo] = useState(false);
   const liste = points.filter((y) => !estTechnique(y) && y.type !== 'hier' && y.type !== 'aujourdhui');
-  const vus = liste.filter((y) => !filtre || y.type === filtre);
+  const filtres = liste.filter((y) => !filtre || y.type === filtre);
+  const vus = arbo ? [...filtres].sort((x, y) => cheminElement(x.element, e.h).localeCompare(cheminElement(y.element, e.h))) : filtres;
+  // Brique Notes (14/10) : coque commune (carte blanche, titre « Notes (3) », 🌳, filtre par type)
   return (
-    <SectionFiche
-      titre={`${titre} · ${filtre ? `${vus.length} sur ${liste.length}` : liste.length}`}
-      droite={<PastilleFiltres actif={!!filtre} ouvert={ouvert} onPress={() => setOuvert((o) => !o)} />}
-      entete={ouvert && <FiltresType types={typesNote(r)} value={filtre} onChange={setFiltre} />}
+    <BlocBrique
+      titre={titre}
+      n={vus.length}
+      suffixe={filtre ? ` sur ${liste.length}` : ''}
+      arborescence={{ valeur: arbo, changer: setArbo }}
+      filtres={{ actif: !!filtre, contenu: <FiltresType types={typesNote(r)} value={filtre} onChange={setFiltre} /> }}
     >
       {vus.map((y, i) => {
         const par = y.auteur === r.mail && !pourPrep && r.anime ? 'par le SM' : `par ${e.nomDe(y.personne)}`;
         const s = y.element ? e.parId.get(y.element)?.titre : '';
         return (
-          <Ligne
-            key={y.id}
-            premiere={i === 0}
-            texte={y.texte}
-            sous={[par, s ? `sur 📖 ${s}` : ''].filter(Boolean).join(' · ')}
-            pastille={{ texte: libelleNote(y), ton: tonType(y.type) }}
-            onRetirer={!lecture && y.id.startsWith('local-') ? () => r.retirerNote(y.id) : undefined}
-          />
+          <View key={y.id}>
+            {arbo && (i === 0 || cheminElement(vus[i - 1].element, e.h) !== cheminElement(y.element, e.h)) && <TitreGroupe texte={cheminElement(y.element, e.h)} />}
+            <Ligne
+              premiere={i === 0 && !arbo}
+              texte={y.texte}
+              sous={[par, s && !arbo ? `sur 📖 ${s}` : ''].filter(Boolean).join(' · ')}
+              pastille={{ texte: libelleNote(y), ton: tonType(y.type) }}
+              onRetirer={!lecture && y.id.startsWith('local-') ? () => r.retirerNote(y.id) : undefined}
+            />
+          </View>
         );
       })}
       {lecture ? (
@@ -923,7 +925,7 @@ export function BlocPoints({
           onAjouter={(type, texte, el, _c, sous_type) => (pourPrep ? r.ajouterPrep(type, texte, el, onglet, sous_type) : void r.noter({ personne: r.mail, type, texte, element: el, sous_type }))}
         />
       )}
-    </SectionFiche>
+    </BlocBrique>
   );
 }
 

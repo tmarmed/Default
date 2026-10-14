@@ -411,9 +411,9 @@ export function SaisiePoint({
 
 /** Pastille « Filtres ▾ / ▴ » à côté d'un titre de section, comme dans l'en-tête des écrans */
 /** `compact` (14/10, briques) : l'entonnoir seul, pour tenir sur la ligne du titre */
-export function PastilleFiltres({ actif, ouvert, onPress, compact }: { actif: boolean; ouvert: boolean; onPress: () => void; compact?: boolean }) {
+export function PastilleFiltres({ actif, ouvert, onPress, compact, onBulle }: { actif: boolean; ouvert: boolean; onPress: () => void; compact?: boolean; onBulle?: (montrer: boolean) => void }) {
   return (
-    <Pressable onPress={onPress} style={[st.pastilleFiltres, actif && st.pastilleFiltresActive]} accessibilityRole="button" accessibilityLabel={`${ouvert ? 'Replier' : 'Déplier'} les filtres`}>
+    <Pressable onPress={onPress} onLongPress={onBulle ? () => onBulle(true) : undefined} onHoverIn={onBulle ? () => onBulle(true) : undefined} onHoverOut={onBulle ? () => onBulle(false) : undefined} style={[st.pastilleFiltres, actif && st.pastilleFiltresActive]} accessibilityRole="button" accessibilityLabel={`${ouvert ? 'Replier' : 'Déplier'} les filtres`}>
       <Entonnoir couleur={actif ? colors.primary : colors.text} />
       {!compact && <Text style={[st.pastilleFiltresTexte, actif && { color: colors.primary }]}>Filtres {ouvert ? '▴' : '▾'}</Text>}
       {actif && (

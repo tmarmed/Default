@@ -4,7 +4,9 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
 
 ## Session 4 (14/10, suite) : briques de réunion — VALIDÉ, en cours
 Notes à concrétiser : retirées de la Situation (14/10), elles sont à l'étape Concrétisation.
-Catalogue de 7 briques (validé) : 1 Situation · 2 Éléments (arbre) · 3 Notes · 4 Vote · 5 Budget · 6 Par personne ·
+Catalogue de 7 briques (validé) : 1 Situation · 2 Éléments (arbre) · 3 Notes (FAIT 14/10 : BlocPoints de base.tsx = toutes les étapes « points »/« notes » des réunions ; Notes du
+tour de table du Daily ; 🌳 décochée par défaut, groupes par élément ; bulle au doigt ou au survol sur ✓ n, 🌳,
+entonnoir. Reste : idées de la Rétrospective, retours de la Revue : lot 5) · 4 Vote · 5 Budget · 6 Par personne ·
 7 Concrétisation et Compte rendu. Chaque brique : carte blanche qui s'ouvre et se ferme, titre « Nom (12) (5 changés) »,
 filtre standard, trois affichages, case « Arborescence » (dans les blocs dont les lignes ont un rattachement :
 Éléments et Budget cochée par défaut ; Suivis et Notes décochée par défaut ; pas de case pour Vote).

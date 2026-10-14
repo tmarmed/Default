@@ -41,7 +41,7 @@ import { colors } from '../theme';
 import { enfantsRepartition, gerantsBudget, niveauDessus, reunionDuNiveau, useBudget } from '../budget';
 import { useAvancement } from './reunion/Avancement';
 import { BlocArbre, changementsSuivi, ModeAffichage, nbSuivisChanges } from './reunion/Arbre';
-import { BlocBrique } from './reunion/Brique';
+import { BlocBrique, TitreGroupe } from './reunion/Brique';
 import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PeriodeDepense, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type Statut, type TypePoint } from '../types';
 import { etatDe, texteDirect } from '../etatReunion';
 import { useLive } from './useLive';
@@ -50,7 +50,7 @@ import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, est
 import { libelleElement } from '../elementConcerne';
 import { echeanceParDefaut, estFini, jourCourt, LIBELLE_STATUT, relierEscalades, validateurDe } from '../pointsSuivi';
 import { absentsLe, useConges } from '../conges';
-import { BlocHorsReunion, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, repartirSuivis, statutAffiche } from './reunion/Suivi';
+import { BlocHorsReunion, cheminElement, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, repartirSuivis, statutAffiche } from './reunion/Suivi';
 import { FeuilleConcretiser } from './reunion/Concretiser';
 import { estAutre, placeholderNote, reponsePrete } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
@@ -1085,13 +1085,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               nChanges={nbSuivisChanges(avancement, nouveauxSuivis)}
               fermeAuDepart
               arborescence={{ valeur: arboSuivis, changer: setArboSuivis }}
-              droite={
-                nValider > 0 ? (
-                  <Pressable onPress={() => setAValider((v) => !v)} style={[st.puceValider, aValider && st.puceValiderOn]} accessibilityRole="button" accessibilityState={{ selected: aValider }} accessibilityLabel={`À valider : ${nValider}`}>
-                    <Text style={[st.puceValiderTexte, aValider && st.puceValiderTexteOn]}>✓ {nValider}</Text>
-                  </Pressable>
-                ) : undefined
-              }
+              aValider={{ n: nValider, actif: aValider, onPress: () => setAValider((v) => !v) }}
               filtres={{
                 actif: !!filtreSuivi || vueSuivi !== 'tout' || avancement.filtre.mode !== 'elements',
                 contenu: (
@@ -1209,25 +1203,30 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               </BlocBrique>
             )}
             <>
-            <SectionFiche
-              titre={`Notes · ${filtreType ? `${notes.filter((y) => y.type === filtreType).length} sur ${notes.length}` : notes.length}`}
-              droite={<PastilleFiltres actif={!!filtreType} ouvert={filtresOuverts} onPress={() => setFiltresOuverts((o) => !o)} />}
-              entete={filtresOuverts && <FiltresType types={['information', 'blocage', 'decision', 'action']} value={filtreType} onChange={setFiltreType} />}
+            {/* Brique Notes (14/10) : coque commune, 🌳 décochée par défaut (rangées sous leur élément si cochée) */}
+            <BlocBrique
+              titre="Notes"
+              n={notes.filter((y) => !filtreType || y.type === filtreType).length}
+              suffixe={filtreType ? ` sur ${notes.length}` : ''}
+              arborescence={{ valeur: arboSuivis, changer: setArboSuivis }}
+              filtres={{ actif: !!filtreType, contenu: <FiltresType types={['information', 'blocage', 'decision', 'action']} value={filtreType} onChange={setFiltreType} /> }}
             >
-              {notes.filter((y) => !filtreType || y.type === filtreType).map((y, i) => {
+              {(arboSuivis ? [...notes].sort((x, y) => cheminElement(x.element, h).localeCompare(cheminElement(y.element, h))) : notes).filter((y) => !filtreType || y.type === filtreType).map((y, i, l) => {
                 const q = echangeDe(y);
                 const par =
                   y.auteur === y.personne ? `par ${courant.nom}` : y.auteur === sm?.email.toLowerCase() || (anime && y.auteur === mail) ? 'par le SM' : `par ${nomDe(y.auteur)}`;
                 const story = surStory(y);
                 return (
-                  <Ligne
-                    key={y.id}
-                    premiere={i === 0}
-                    texte={y.texte}
-                    sous={[par, q ? `réponse à ${nomDe(q.de)}` : '', concretise(y), story].filter(Boolean).join(' · ')}
-                    pastille={{ texte: libelleNote(y), ton: tonType(y.type) }}
-                    onRetirer={!lecture && y.id.startsWith('local-') ? () => (setLocaux((l) => l.filter((z) => z.id !== y.id)), retirerPrep(y.id)) : undefined}
-                  />
+                  <View key={y.id}>
+                    {arboSuivis && (i === 0 || cheminElement(l[i - 1].element, h) !== cheminElement(y.element, h)) && <TitreGroupe texte={cheminElement(y.element, h)} />}
+                    <Ligne
+                      premiere={i === 0 && !arboSuivis}
+                      texte={y.texte}
+                      sous={[par, q ? `réponse à ${nomDe(q.de)}` : '', concretise(y), arboSuivis ? '' : story].filter(Boolean).join(' · ')}
+                      pastille={{ texte: libelleNote(y), ton: tonType(y.type) }}
+                      onRetirer={!lecture && y.id.startsWith('local-') ? () => (setLocaux((ll) => ll.filter((z) => z.id !== y.id)), retirerPrep(y.id)) : undefined}
+                    />
+                  </View>
                 );
               })}
               {lecture ? (
@@ -1245,7 +1244,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   onAjouter={(type, texte, element, c, sous_type) => ajouter({ personne: m, type, texte, element, sous_type, ...(c?.c === 'rien' ? { concretisation: 'rien' as const } : {}) })}
                 />
               )}
-            </SectionFiche>
+            </BlocBrique>
             </>
           </>
         );
