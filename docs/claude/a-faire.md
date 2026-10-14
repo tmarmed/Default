@@ -2,6 +2,22 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
+## Session 4 (14/10, suite) : arbre des éléments — EN CONCEPTION (pas encore validé pour coder)
+Décidé par l'utilisateur :
+- Un seul composant (« arbre des éléments ») et son filtre, réutilisé partout : toutes les réunions (SAFe, mode
+  Simple, Budget) et les trois familles : éléments, budgets (enveloppes, demandes), suivis.
+- Arbre : Epic › Feature › Story › Tâche ; chaque ligne = état (statut modifiable, progression) + ses changements
+  juste en dessous. Situation du Daily : features et epics (stories dedans), bloc OUVERT. Tour de table : les
+  éléments du membre (même composant). Autres réunions : même composant, périmètre et profondeur selon la réunion.
+- Plus de mot « Avancement » : les blocs reprennent leur titre d'avant ; filtre « Tout » au départ, option
+  « Changés seulement ».
+- Tour de table : la coche Hier / Aujourd'hui reste sur chaque ligne (= j'y ai travaillé / j'y travaille, jamais le
+  statut).
+- Élément sorti de la liste (passé à un autre membre, sorti du sprint) : visible seulement là où il est maintenant,
+  avec son changement (pas de doublon grisé).
+Questions ouvertes : lot (tout d'un coup ou Daily d'abord) ; profondeur ouverte par réunion ; budgets et suivis
+dans l'arbre ou en blocs à part avec le même filtre.
+
 ## Session 4 (14/10) : avancement visible dans toutes les réunions de la démo — FAIT
 Démo (src/demo.ts, photosSeries) : pour chaque série (équipes Mobile et Web, trains Clients et Paiements, portfolio
 Digital, Comité budgétaire, réunions perso), une photo de la réunion précédente avec un changement de chaque sorte au
