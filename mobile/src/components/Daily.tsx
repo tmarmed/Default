@@ -1077,9 +1077,10 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               return noms.length ? <Text style={[st.sous, { marginHorizontal: 16, marginTop: 6 }]}>📅 Absents aujourd’hui : {noms.join(', ')}</Text> : null;
             })()}
             {/* Arbre des éléments (14/10) : réunion avec tour de table, les blocs arrivent fermés (le détail au tour de table) */}
-            <BlocArbre av={avancement} titre="Éléments du sprint" cles={situation.elements.map((t) => `t:${t.id}`)} nom={nomDe} montrerResponsable fermeAuDepart lecture={lecture} onOuvrir={lecture ? undefined : onOpenTask} onOuvrirEntite={lecture ? undefined : onOpenEntite} />
+            <BlocArbre key="arbre-situation" av={avancement} titre="Éléments du sprint" cles={situation.elements.map((t) => `t:${t.id}`)} nom={nomDe} montrerResponsable fermeAuDepart lecture={lecture} onOuvrir={lecture ? undefined : onOpenTask} onOuvrirEntite={lecture ? undefined : onOpenEntite} />
             {/* Suivis (14/10) : coque commune des briques, fermée au départ (réunion avec tour de table) */}
             <BlocBrique
+              key="suivis-situation"
               titre="📌 Suivis"
               n={nSuivisVus}
               nChanges={nbSuivisChanges(avancement, nouveauxSuivis)}
@@ -1186,7 +1187,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             )}
             {/* Arbre des éléments du membre (14/10) : ses stories et tâches, leur feature et leur epic en contexte ; la case =
                 « je travaille dessus aujourd'hui » (plan du jour, jamais le statut) */}
+            {/* Clé propre : ne reprend pas l'état (fermé) du bloc de la Situation */}
             <BlocArbre
+              key={`arbre-tour-${m}`}
               av={avancement}
               titre={`Éléments de ${courant.nom}`}
               cles={sesElements.map((t) => `t:${t.id}`)}
