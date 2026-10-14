@@ -3,8 +3,8 @@
  * « 📌 Suivis ») et dans le compte rendu, avec le même filtre (sorte, niveau).
  */
 import { useMemo, useState } from 'react';
-import { View } from 'react-native';
-import { RangeeFiltre } from '../RangeeFiltre';
+import { ScrollView, View } from 'react-native';
+import { Chips } from '../Chips';
 import {
   comparer,
   depuis,
@@ -136,7 +136,16 @@ export function useAvancement(o: {
   };
 }
 
-/** Filtre standard (14/10) : une rangée par famille (Sorte, Niveau, Type de note), un seul choix, et le seuil des valeurs */
+/** Rangée du filtre : le composant des filtres des écrans (Chips), « Tous » puis un seul choix */
+function Rangee<T extends string>({ options, value, onChange, lecture, tous = '' as T, libelleTous = 'Tous' }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void; lecture?: boolean; tous?: T; libelleTous?: string }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} pointerEvents={lecture ? 'none' : 'auto'}>
+      <Chips options={[{ value: tous, label: libelleTous }, ...options]} value={value} onChange={onChange} compact />
+    </ScrollView>
+  );
+}
+
+/** Filtre (14/10) : une rangée par famille (Sorte, Niveau, Type de note), un seul choix, et le seuil des valeurs */
 function Filtre({ av, lignes, lecture }: { av: Avancement; lignes: LigneAv[]; lecture?: boolean }) {
   const niveaux = NIVEAUX_AV.filter((n) => lignes.some((l) => l.niveau === n.v));
   // Type de note des points de suivi (Risque, Blocage, Demande d'action…), s'il y en a
@@ -145,22 +154,13 @@ function Filtre({ av, lignes, lecture }: { av: Avancement; lignes: LigneAv[]; le
   const f = av.filtre;
   return (
     <View style={[st.filtresBloc, { gap: 6 }]}>
-      <RangeeFiltre<SorteAv | ''> famille="Sorte" disabled={lecture} options={SORTES_AV.filter((x) => lignes.some((l) => l.sorte === x.v)).map((x) => ({ value: x.v, label: `${x.l} · ${lignes.filter((l) => l.sorte === x.v).length}` }))} value={f.sorte} onChange={(v) => av.setFiltre({ ...f, sorte: v })} />
-      {niveaux.length > 1 && <RangeeFiltre<NiveauAv | ''> famille="Niveau" disabled={lecture} options={niveaux.map((n) => ({ value: n.v, label: `${n.l} · ${lignes.filter((l) => l.niveau === n.v).length}` }))} value={f.niveau} onChange={(v) => av.setFiltre({ ...f, niveau: v })} />}
+      <Rangee<SorteAv | ''> lecture={lecture} options={SORTES_AV.filter((x) => lignes.some((l) => l.sorte === x.v)).map((x) => ({ value: x.v, label: `${x.l} · ${lignes.filter((l) => l.sorte === x.v).length}` }))} value={f.sorte} onChange={(v) => av.setFiltre({ ...f, sorte: v })} />
+      {niveaux.length > 1 && <Rangee<NiveauAv | ''> lecture={lecture} options={niveaux.map((n) => ({ value: n.v, label: `${n.l} · ${lignes.filter((l) => l.niveau === n.v).length}` }))} value={f.niveau} onChange={(v) => av.setFiltre({ ...f, niveau: v })} />}
       {types.length > 0 && (
-        <RangeeFiltre famille="Type de note" disabled={lecture} options={types.map((t) => ({ value: t, label: `${LIBELLE_TYPE_POINT[t as keyof typeof LIBELLE_TYPE_POINT] ?? t} · ${suivis.filter((l) => av.typeDe(l.cle) === t).length}` }))} value={f.type} onChange={(v) => av.setFiltre({ ...f, type: v })} />
+        <Rangee lecture={lecture} options={types.map((t) => ({ value: t, label: `${LIBELLE_TYPE_POINT[t as keyof typeof LIBELLE_TYPE_POINT] ?? t} · ${suivis.filter((l) => av.typeDe(l.cle) === t).length}` }))} value={f.type} onChange={(v) => av.setFiltre({ ...f, type: v })} />
       )}
       {lignes.some((l) => l.sorte === 'valeur') && (
-        <RangeeFiltre
-          famille="Seuil des valeurs"
-          liste
-          disabled={lecture}
-          tous="0"
-          libelleTous="Tout changement"
-          options={SEUILS_AV.filter((x) => x > 0).map((x) => ({ value: String(x), label: `Au moins ${x} %` }))}
-          value={String(f.seuil)}
-          onChange={(v) => av.setFiltre({ ...f, seuil: Number(v) })}
-        />
+        <Rangee lecture={lecture} tous="0" libelleTous="Seuil : tout changement" options={SEUILS_AV.filter((x) => x > 0).map((x) => ({ value: String(x), label: `≥ ${x} %` }))} value={String(f.seuil)} onChange={(v) => av.setFiltre({ ...f, seuil: Number(v) })} />
       )}
     </View>
   );

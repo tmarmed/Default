@@ -17,12 +17,11 @@ Décidé (14/10, par l'utilisateur) :
 - Seuil : par défaut tout changement compte ; réglable dans le filtre en le touchant ; minimum 1, jamais 0.
 - Calcul automatique (Reste à faire) : du plus bas vers le haut (sous-tâche, tâche, story, feature, epic), proposé
   de s'arrêter à l'epic (règle SAFe ; train et portfolio comparés à leur enveloppe), réponse attendue.
-CODÉ (14/10, lot « avancement et filtres ») : src/components/RangeeFiltre.tsx (rangée standard « Tous » + un choix,
-liste « Famille ▾ » au-delà de 4 choix) appliquée à Type (Tâches), Domaine, Delivery, Niveau des réunions, Niveau et
-Value stream du backlog, Espace et Type du Chat, Type de note et Afficher des suivis, filtre de l'avancement ;
-FiltreAv = un choix par famille + seuil en % (lireFiltre relit l'ancien format) ; Daily : Situation = une ligne
-« n changements depuis… », tour de table à deux onglets (Situation · Avancement du membre). Règles : bloc 13 (A2,
-A5b, A6, F1). Vérifié à l'écran (texte) : Daily Mobile, Revue de sprint, Synchronisation du portfolio (seuil).
+CODÉ (14/10, lot « avancement et filtres ») : FiltreAv = un choix par famille + seuil en % (lireFiltre relit
+l'ancien format) ; filtre de l'avancement avec le composant Chips des écrans (« Tous » + un choix). Correction de
+l'utilisateur (14/10) : les filtres des écrans Tâches, Roadmap… sont la base, on ne les change pas (retour en arrière
+fait, RangeeFiltre supprimé). Daily : Situation = une ligne « n changements depuis… », tour de table à deux onglets
+(Situation · Avancement du membre). Règles : bloc 13 (A2, A5b, A6, F1).
 Calcul automatique : jusqu'à l'epic (validé), reste dans « Reste à faire ».
 
 ## Prochaine session (préparée le 13/10, fin de session 3)
@@ -189,6 +188,14 @@ Information (concrétisées comme les autres), Risque et Dépendance au train ; 
 Ajuster ajoute une note à concrétiser) ; participants repris de l'Organisation ; Compte rendu visible de l'équipe.
 
 ## Reste à faire
+- Avancement (14/10) : dans le Daily, les changements des features et des epics (qui n'appartiennent à aucun membre)
+  ne sont plus visibles que par le nombre de la Situation et dans le compte rendu ; à décider : les montrer sous la
+  ligne de la Situation ? Au tour de table, l'avancement d'un membre = ses éléments et ses suivis seulement.
+- Avancement (14/10) : non vérifié à l'écran : PI Planning, Inspect & Adapt, Budget participatif, Revue des OKR,
+  Comité budgétaire (données de démo prêtes) ; « Revue du trimestre » absente de la liste des réunions perso (à voir).
+- Avancement : filtre pré-rempli gardé d'une réunion à l'autre (plus tard, règle du bloc 13).
+- Indicateur de temps « ⏱ » : l'appliquer vraiment d'après l'horloge (`date` à chaque indicateur), pas au jugé
+  (raté deux fois le 14/10).
 - CRA, compte rendu d'activité (14/10, demandé par l'utilisateur, à concevoir) : savoir sur quoi chacun a travaillé,
   pour le budget (consommé réel). Sources possibles, à choisir : ce que la personne dit au Daily (« Hier »), ou le plan
   du jour validé le soir (Bilan du soir) ou le matin (Point perso). Si le Daily ne l'a pas bien rempli : estimer à
