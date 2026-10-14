@@ -225,6 +225,8 @@ Information (concrétisées comme les autres), Risque et Dépendance au train ; 
 Ajuster ajoute une note à concrétiser) ; participants repris de l'Organisation ; Compte rendu visible de l'équipe.
 
 ## Reste à faire
+- Skill travail-ensemble (14/10) : la règle « Comment ne pas rater » de l'indicateur ⏱ est dans la copie du dépôt ;
+  à reporter dans tmarmed/mes-skills (dépôt pas accessible depuis cette session).
 - Avancement (14/10) : dans le Daily, les changements des features et des epics (qui n'appartiennent à aucun membre)
   ne sont plus visibles que par le nombre de la Situation et dans le compte rendu ; à décider : les montrer sous la
   ligne de la Situation ? Au tour de table, l'avancement d'un membre = ses éléments et ses suivis seulement.

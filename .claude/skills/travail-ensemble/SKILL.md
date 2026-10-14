@@ -35,3 +35,6 @@ description: Façon de travailler avec l’utilisateur (famille « travail », v
 - **À chaque indicateur, tout recalculer** (13/10) : temps passé = l'horloge (`date`) moins l'heure de début, jamais
   au jugé ; pourcentage = le travail réellement fait ; estimation révisée = temps passé ÷ pourcentage (ex. 12 min à
   40 % → environ 30 min au total), en gardant l'estimation de départ à côté : « ⏱ 12 min / ≈ 30 min (prévu 2 h) · 40 % ».
+- **Comment ne pas rater** (14/10, raté 4 fois) : lancer `date` dans la même commande que le travail, juste avant
+  d'écrire l'indicateur, et recopier le calcul ; ne jamais écrire l'estimation de départ à la place de l'estimation
+  révisée (« 10 min / 1 h · 40 % » est faux : c'est « 10 min / ≈ 25 min (prévu 1 h) · 40 % »).
