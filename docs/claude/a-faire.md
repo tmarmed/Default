@@ -2,6 +2,14 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
+## Session 4 (14/10, suite) : briques de réunion — VALIDÉ, en cours
+Catalogue de 7 briques (validé) : 1 Situation · 2 Éléments (arbre) · 3 Notes · 4 Vote · 5 Budget · 6 Par personne ·
+7 Concrétisation et Compte rendu. Chaque brique : carte blanche qui s'ouvre et se ferme, titre « Nom (12) (5 changés) »,
+filtre standard, trois affichages, case « Arborescence » (dans les blocs dont les lignes ont un rattachement :
+Éléments et Budget cochée par défaut ; Suivis et Notes décochée par défaut ; pas de case pour Vote).
+Lots : 1 Suivis alignés · 2 Éléments partout · 3 Notes · 4 Vote et Budget · 5 Daily, Revue, Rétrospective,
+Affinage, Planification au catalogue (comme les réunions du train).
+
 ## Session 4 (14/10, suite) : arbre des éléments — CODÉ (validé « fais tout en même temps »)
 Code : src/components/reunion/Arbre.tsx (BlocArbre, construireArbre, clesDe, changementsSuivi, ModeAffichage) ;
 FiltreAv.mode (elements · avec · changes) ; branché : base.tsx (Situation de toutes les réunions + compte rendu),
