@@ -9,6 +9,14 @@ niveau de la réunion, un par niveau au-dessus, et un suivi « En cours → Fait
 Mobile et Web, Revue de sprint, Rétrospective, Planification, Affinage, System demo, ART sync, Affinage du train,
 Semaine IP, Préparation du PI, Synchronisation et Revue du portfolio, Point perso, Bilan du soir, Revue de la semaine,
 Revue des objectifs, Point annuel. Lien republié.
+Décidé (14/10, par l'utilisateur) :
+- Tour de table du Daily : pour chaque membre, deux onglets à toucher « Situation » et « Avancement » (ses éléments).
+  L'écran Situation revient à l'ancienne vue + une ligne « n changements depuis le Daily du … ».
+- Filtre de l'avancement : on garde les trois familles (Sorte, Niveau, Type de note) ; standardiser TOUS les filtres
+  de l'application sur le format de l'écran Tâches (pastille « Tous » + pastille liste déroulante, un seul choix).
+- Seuil : par défaut tout changement compte ; réglable dans le filtre en le touchant ; minimum 1, jamais 0.
+- Calcul automatique (Reste à faire) : du plus bas vers le haut (sous-tâche, tâche, story, feature, epic), proposé
+  de s'arrêter à l'epic (règle SAFe ; train et portfolio comparés à leur enveloppe), réponse attendue.
 Questions ouvertes (à reprendre avec l'utilisateur, une à la fois) :
 1. Filtre de l'avancement : par famille (Sorte, Niveau, Type de note) garder tout, enlever, ou en garder certaines.
 2. Avancement au tour de table du Daily : déplacer (recommandé : chaque membre voit l'avancement de ses éléments ; la
