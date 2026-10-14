@@ -32,7 +32,8 @@ import { aReprendre, parEspace, pointsEscalade, titreEscalade } from '../../suiv
 import { type ChoixConcret, choixParDefaut, concretisationDe, elementACreer, estSuivi, LIBELLE_TYPE_CREE, patchConcretise, resumeChoix, resumePoint } from '../../concretisation';
 import { FeuilleConcretiser } from './Concretiser';
 import { useAvancement } from './Avancement';
-import { BlocArbre, changementsSuivi, clesDe, ModeAffichage } from './Arbre';
+import { BlocArbre, changementsSuivi, clesDe, ModeAffichage, nbSuivisChanges } from './Arbre';
+import { BlocBrique } from './Brique';
 import { peutAnimer } from '../../transverses';
 import { toDateString } from '../../dates';
 import { focusDe, type Perimetre } from '../../avancement';
@@ -772,9 +773,10 @@ export function BlocSuivi({ r, lecture, onAjouter }: { r: R; lecture: boolean; o
 function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAjouter?: boolean }) {
   const { e } = r;
   const [filtre, setFiltre] = useState<TypePoint | ''>('');
-  const [ouvert, setOuvert] = useState(false);
   const [aValider, setAValider] = useState(false);
   const [vue, setVue] = useState<VueSuivi>('tout');
+  /** Arborescence (14/10) : décochée par défaut pour les suivis ; cochée, rangés sous leur élément */
+  const [arbo, setArbo] = useState(false);
   // Points de suivi (08/10, avec un statut) à part ; les anciens points (sans statut) gardent leur suivi d'avant
   const anciensPts = r.serveur.filter((x) => !x.statut);
   const suivisEquipe = calculerSuivis(anciensPts, e.h.items);
@@ -791,30 +793,32 @@ function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAj
   const nSuivisVus = nf - notesVues.length;
   let k = (nouveaux.length || horsReunion.length) && vue !== 'notes' ? 1 : 0;
   return (
-    <SectionFiche
-      titre={`📌 Suivis · ${nSuivisVus}${notesVues.length || vue === 'notes' ? ` · Notes à concrétiser · ${notesVues.length}` : ''}`}
+    <BlocBrique
+      titre="📌 Suivis"
+      n={nSuivisVus}
+      nChanges={nbSuivisChanges(r.avancement, nouveaux)}
+      suffixe={notesVues.length || vue === 'notes' ? ` · Notes à concrétiser (${notesVues.length})` : ''}
+      arborescence={{ valeur: arbo, changer: setArbo }}
       droite={
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          {nValider > 0 && (
-            <Pressable onPress={() => setAValider((v) => !v)} style={[st.puceValider, aValider && st.puceValiderOn]} accessibilityRole="button" accessibilityState={{ selected: aValider }}>
-              <Text style={[st.puceValiderTexte, aValider && st.puceValiderTexteOn]}>À valider · {nValider}</Text>
-            </Pressable>
-          )}
-          <PastilleFiltres actif={!!filtre || vue !== 'tout'} ouvert={ouvert} onPress={() => setOuvert((o) => !o)} />
-        </View>
+        nValider > 0 ? (
+          <Pressable onPress={() => setAValider((v) => !v)} style={[st.puceValider, aValider && st.puceValiderOn]} accessibilityRole="button" accessibilityState={{ selected: aValider }}>
+            <Text style={[st.puceValiderTexte, aValider && st.puceValiderTexteOn]}>À valider · {nValider}</Text>
+          </Pressable>
+        ) : undefined
       }
-      entete={
-        ouvert && (
+      filtres={{
+        actif: !!filtre || vue !== 'tout' || r.avancement.filtre.mode !== 'elements',
+        contenu: (
           <>
             <ModeAffichage av={r.avancement} lecture={lecture} />
             <FiltresVue value={vue} onChange={setVue} nSuivis={n - r.reportes.length} nNotes={r.reportes.length} nFermees={fermees.length} />
             <FiltresType types={typesNote(r)} value={filtre} onChange={setFiltre} />
           </>
-        )
-      }
+        ),
+      }}
     >
       {vue !== 'fermees' && !aValider && <BlocHorsReunion points={horsReunion} ctx={r.ctxSuivi} peutConfirmer={r.anime && !lecture} />}
-      <LignesSuivi points={vue === 'notes' ? [] : nouveaux} premiere={!horsReunion.length || vue === 'fermees'} ctx={{ ...r.ctxSuivi, lecture: lecture || vue === 'fermees' }} aValider={aValider && nValider > 0} />
+      <LignesSuivi parElement={arbo} points={vue === 'notes' ? [] : nouveaux} premiere={!horsReunion.length || vue === 'fermees'} ctx={{ ...r.ctxSuivi, lecture: lecture || vue === 'fermees' }} aValider={aValider && nValider > 0} />
       {!aValider && vue !== 'notes' && vue !== 'fermees' && suivisEquipe.filter((x) => passe(x.point.type)).map(({ point, tache }) => (
         <Ligne
           key={point.id}
@@ -852,7 +856,7 @@ function BlocSuiviSeul({ r, lecture, onAjouter }: { r: R; lecture: boolean; onAj
           }}
         />
       )}
-    </SectionFiche>
+    </BlocBrique>
   );
 }
 

@@ -8,7 +8,8 @@ import { SectionFiche } from '../Choix';
 import type { ActionsDaily } from '../Daily';
 import { TitreFiche } from '../FormSheet';
 import { type CtxSuivi, LignesSuivi, pointsDeSuivi } from './Suivi';
-import { changementsSuivi, ModeAffichage } from './Arbre';
+import { changementsSuivi, ModeAffichage, nbSuivisChanges } from './Arbre';
+import { BlocBrique } from './Brique';
 import type { Avancement } from './Avancement';
 import { SaisiePoint, Vide } from './ui';
 
@@ -24,6 +25,7 @@ export function SuivisPerso({ reunion, moi, echanges, actions, onInfo, avancemen
   const jour = reunion.debut.slice(0, 10);
   const prefixe = reunion.id.slice(0, -10);
   const [points, setPoints] = useState<PointReunion[]>([]);
+  const [arbo, setArbo] = useState(false);
   const lire = useCallback(() => {
     actions
       .lirePoints(espace, prefixe)
@@ -63,11 +65,19 @@ export function SuivisPerso({ reunion, moi, echanges, actions, onInfo, avancemen
   return (
     <>
       <TitreFiche icone="📌" titre="Suivis et notes" vide="" sous="Vos suivis, et les notes venues du Chat ou d’un rituel précédent" />
-      <SectionFiche titre={`📌 Suivis · ${suivis.length}${notes.length ? ` · Notes à concrétiser · ${notes.length}` : ''}`} entete={avancement ? <ModeAffichage av={avancement} /> : undefined}>
-        <LignesSuivi points={suivis} notes={notes} ctx={ctx} />
+      {/* Coque commune des briques (14/10) : carte blanche, titre « Suivis (n) (m changés) », Arborescence décochée */}
+      <BlocBrique
+        titre="📌 Suivis"
+        n={suivis.length}
+        nChanges={avancement ? nbSuivisChanges(avancement, suivis) : null}
+        suffixe={notes.length ? ` · Notes à concrétiser (${notes.length})` : ''}
+        arborescence={{ valeur: arbo, changer: setArbo }}
+        filtres={avancement?.lignes ? { actif: avancement.filtre.mode !== 'elements', contenu: <ModeAffichage av={avancement} /> } : undefined}
+      >
+        <LignesSuivi parElement={arbo} points={suivis} notes={notes} ctx={ctx} />
         {!suivis.length && !notes.length && <Vide texte="✓ Rien à suivre." />}
         <SaisiePoint types={TYPES_NOTE} typeDefaut="information" jour={jour} placeholder="＋ Nouvelle note" onAjouter={(type, texte, element, c, sous) => void ajouter(type, texte, element, sous, c?.c === 'rien')} />
-      </SectionFiche>
+      </BlocBrique>
     </>
   );
 }

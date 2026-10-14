@@ -40,7 +40,8 @@ import { subtaskMap } from '../subtasks';
 import { colors } from '../theme';
 import { enfantsRepartition, gerantsBudget, niveauDessus, reunionDuNiveau, useBudget } from '../budget';
 import { useAvancement } from './reunion/Avancement';
-import { BlocArbre, changementsSuivi, ModeAffichage } from './reunion/Arbre';
+import { BlocArbre, changementsSuivi, ModeAffichage, nbSuivisChanges } from './reunion/Arbre';
+import { BlocBrique } from './reunion/Brique';
 import { type Concretisation, type Echange, type EchangeInput, estTechnique, type Item, type ItemInput, type PeriodeDepense, type PointReunion, RECURRENCE_DEFAUTS, type Reunion, type SousType, type Statut, type TypePoint } from '../types';
 import { etatDe, texteDirect } from '../etatReunion';
 import { useLive } from './useLive';
@@ -217,9 +218,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** PO : ses réponses aux questions de l'équipe (par échange), envoyées avec son point */
   const [reponses, setReponses] = useState<Record<string, { c: string; note: string }>>({});
   const [membre, setMembre] = useState(0);
-  /** Tour de table (14/10) : onglets « Situation » et « Avancement » du membre */
-  /** Situation (14/10) : le bloc des suivis arrive fermé (réunion avec tour de table) */
-  const [suivisOuverts, setSuivisOuverts] = useState(false);
+  /** Suivis (14/10) : case « Arborescence » décochée par défaut */
+  const [arboSuivis, setArboSuivis] = useState(false);
   /** Étape affichée (clé), dans l'onglet ouvert */
   const [cle, setCle] = useState('');
   const relus = useRef(new Set<string>());
@@ -1079,34 +1079,35 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             })()}
             {/* Arbre des éléments (14/10) : réunion avec tour de table, les blocs arrivent fermés (le détail au tour de table) */}
             <BlocArbre av={avancement} titre="Éléments du sprint" cles={situation.elements.map((t) => `t:${t.id}`)} nom={nomDe} montrerResponsable fermeAuDepart lecture={lecture} onOuvrir={lecture ? undefined : onOpenTask} onOuvrirEntite={lecture ? undefined : onOpenEntite} />
-            <SectionFiche
-              titre={`${suivisOuverts ? '▾' : '›'} 📌 Suivis · ${nSuivisVus}${reportesVus.length || vueSuivi === 'notes' ? ` · Notes à concrétiser · ${reportesVus.length}` : ''}`}
-              onTitre={() => setSuivisOuverts((o) => !o)}
-              boite
-              droite={!suivisOuverts ? undefined :
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  {nValider > 0 && (
-                    <Pressable onPress={() => setAValider((v) => !v)} style={[st.puceValider, aValider && st.puceValiderOn]} accessibilityRole="button" accessibilityState={{ selected: aValider }}>
-                      <Text style={[st.puceValiderTexte, aValider && st.puceValiderTexteOn]}>À valider · {nValider}</Text>
-                    </Pressable>
-                  )}
-                  <PastilleFiltres actif={!!filtreSuivi || vueSuivi !== 'tout'} ouvert={filtresSuiviOuverts} onPress={() => setFiltresSuiviOuverts((o) => !o)} />
-                </View>
+            {/* Suivis (14/10) : coque commune des briques, fermée au départ (réunion avec tour de table) */}
+            <BlocBrique
+              titre="📌 Suivis"
+              n={nSuivisVus}
+              nChanges={nbSuivisChanges(avancement, nouveauxSuivis)}
+              suffixe={reportesVus.length || vueSuivi === 'notes' ? ` · Notes à concrétiser (${reportesVus.length})` : ''}
+              fermeAuDepart
+              arborescence={{ valeur: arboSuivis, changer: setArboSuivis }}
+              droite={
+                nValider > 0 ? (
+                  <Pressable onPress={() => setAValider((v) => !v)} style={[st.puceValider, aValider && st.puceValiderOn]} accessibilityRole="button" accessibilityState={{ selected: aValider }}>
+                    <Text style={[st.puceValiderTexte, aValider && st.puceValiderTexteOn]}>À valider · {nValider}</Text>
+                  </Pressable>
+                ) : undefined
               }
-              entete={
-                suivisOuverts && filtresSuiviOuverts && (
+              filtres={{
+                actif: !!filtreSuivi || vueSuivi !== 'tout' || avancement.filtre.mode !== 'elements',
+                contenu: (
                   <>
                     <ModeAffichage av={avancement} lecture={lecture} />
                     <FiltresVue value={vueSuivi} onChange={setVueSuivi} nSuivis={suivisEquipe.length + suivisEchanges.length + nouveauxSuivis.length} nNotes={reportes.length} nFermees={fermeesD.length} />
                     <FiltresType types={TYPES_NOTE} value={filtreSuivi} onChange={setFiltreSuivi} />
                   </>
-                )
-              }
+                ),
+              }}
             >
-              {suivisOuverts && (
               <>
               {vueSuivi !== 'fermees' && !aValider && <BlocHorsReunion points={horsReunionD} ctx={ctxSuivi} peutConfirmer={anime && !lecture} />}
-              <LignesSuivi points={vueSuivi === 'notes' ? [] : nouveauxSuivis.filter((x) => !filtreSuivi || x.type === filtreSuivi)} premiere={!horsReunionD.length || vueSuivi === 'fermees'} ctx={{ ...ctxSuivi, lecture: lecture || vueSuivi === 'fermees' }} aValider={aValider && nValider > 0} />
+              <LignesSuivi parElement={arboSuivis} points={vueSuivi === 'notes' ? [] : nouveauxSuivis.filter((x) => !filtreSuivi || x.type === filtreSuivi)} premiere={!horsReunionD.length || vueSuivi === 'fermees'} ctx={{ ...ctxSuivi, lecture: lecture || vueSuivi === 'fermees' }} aValider={aValider && nValider > 0} />
               {!aValider && vueSuivi !== 'notes' && vueSuivi !== 'fermees' && suivisEquipe.filter((x) => !filtreSuivi || x.point.type === filtreSuivi).map(({ point, tache }, i) => (
                 <Ligne
                   key={point.id}
@@ -1159,8 +1160,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                 />
               )}
               </>
-              )}
-            </SectionFiche>
+            </BlocBrique>
             <SectionFiche titre="Objectifs de la réunion">
               <Ligne premiere texte="🎯 Se synchroniser sur l’objectif de sprint" sous="Chacun dit ce qu’il a fait hier et ce qu’il fera aujourd’hui (15 min)" />
               <Ligne texte="🧱 Lever les blocages" sous="Les noter pendant le tour de table, les concrétiser ensuite" />
@@ -1214,9 +1214,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
               onOuvrirEntite={lecture ? undefined : onOpenEntite}
             />
             {sesSuivis.length > 0 && (
-              <SectionFiche titre={`📌 Suivis de ${courant.nom} · ${sesSuivis.length}`}>
-                <LignesSuivi points={sesSuivis} ctx={{ ...ctxSuivi, lecture }} />
-              </SectionFiche>
+              <BlocBrique titre={`📌 Suivis de ${courant.nom}`} n={sesSuivis.length} nChanges={nbSuivisChanges(avancement, sesSuivis)} arborescence={{ valeur: arboSuivis, changer: setArboSuivis }}>
+                <LignesSuivi parElement={arboSuivis} points={sesSuivis} ctx={{ ...ctxSuivi, lecture }} />
+              </BlocBrique>
             )}
             <>
             <SectionFiche

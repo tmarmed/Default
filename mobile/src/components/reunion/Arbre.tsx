@@ -12,10 +12,10 @@ import { Chips } from '../Chips';
 import { estFiltre, focusDe, type LigneAv, type ModeAv, MODES_AV, phrase, statutFeature } from '../../avancement';
 import { ETATS_EPIC, type Item } from '../../types';
 import { useOrg } from '../../organisation';
-import { SectionFiche } from '../Choix';
+import { BlocBrique } from './Brique';
 import { colors } from '../../theme';
 import { type Avancement, FiltreAvancement } from './Avancement';
-import { PastilleFiltres, PastilleStatut, Pastille, pastilleStatut, st, Vide } from './ui';
+import { PastilleStatut, Pastille, pastilleStatut, st, Vide } from './ui';
 
 export type FamilleArbre = 'elements' | 'budget';
 const PREFIXES: Record<FamilleArbre, string[]> = { elements: ['e', 'f', 'q', 'o', 'r', 't'], budget: ['v', 'd'] };
@@ -151,8 +151,6 @@ export function BlocArbre({
   const org = useOrg();
   // Responsable : id de personne (Organisation) ou adresse ; un identifiant inconnu n'est pas affiché
   const nomComplet = (x: string) => org.personnes.find((y) => y.id === x)?.nom ?? (x.includes('@') ? nom(x) : '');
-  const [ouvert, setOuvert] = useState(!fermeAuDepart);
-  const [filtresOuverts, setFiltresOuverts] = useState(false);
   const [fermes, setFermes] = useState<Set<string>>(new Set());
   /** Case « Arborescence » (14/10) : cochée par défaut ; décochée, seulement la liste des éléments du bloc, à plat */
   const [arbo, setArbo] = useState(true);
@@ -296,34 +294,18 @@ export function BlocArbre({
   };
 
   const corps = racines.map((n, i) => rendre(n, 0, i === 0)).filter(Boolean);
+  // Coque commune des briques : titre « Éléments du sprint (12) (5 changés) », carte blanche, ouverture, case, filtres
   return (
-    <SectionFiche
-      // Titre (14/10) : « Éléments du sprint (12) (5 changés) », pour tous les blocs de ce composant
-      titre={`${ouvert ? '▾' : '›'} ${titre} (${nTous})${av.lignes ? ` (${nChanges} changé${nChanges > 1 ? 's' : ''})` : ''}`}
-      onTitre={() => setOuvert((o) => !o)}
-      boite
-      droite={
-        ouvert ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {famille === 'elements' && (
-              <Pressable onPress={() => setArbo((x) => !x)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }} accessibilityRole="checkbox" accessibilityState={{ checked: arbo }} accessibilityLabel="Arborescence">
-                <Text style={[st.caseACocher, { width: 18, height: 18, lineHeight: 16, fontSize: 12 }, arbo && st.caseCochee]}>{arbo ? '✓' : ''}</Text>
-                <Text style={{ fontSize: 12.5, color: colors.text }}>Arborescence</Text>
-              </Pressable>
-            )}
-            {av.lignes && lignesBloc.length > 0 && <PastilleFiltres actif={estFiltre(av.filtre)} ouvert={filtresOuverts} onPress={() => setFiltresOuverts((x) => !x)} />}
-          </View>
-        ) : undefined
-      }
-      entete={ouvert && filtresOuverts && av.lignes ? <FiltreAvancement av={av} lignes={lignesBloc} lecture={lecture} sansTypes /> : undefined}
-      carte={ouvert}
+    <BlocBrique
+      titre={titre}
+      n={nTous}
+      nChanges={av.lignes ? nChanges : null}
+      fermeAuDepart={fermeAuDepart}
+      arborescence={famille === 'elements' ? { valeur: arbo, changer: setArbo } : undefined}
+      filtres={av.lignes && lignesBloc.length > 0 ? { actif: estFiltre(av.filtre), contenu: <FiltreAvancement av={av} lignes={lignesBloc} lecture={lecture} sansTypes /> } : undefined}
     >
-      {!ouvert ? null : corps.length ? (
-        corps
-      ) : (
-        <Vide texte={mode === 'changes' ? (av.lignes ? 'Rien n’a changé.' : 'Les changements seront visibles à partir de la prochaine réunion.') : 'Rien à afficher.'} />
-      )}
-    </SectionFiche>
+      {corps.length ? corps : <Vide texte={mode === 'changes' ? (av.lignes ? 'Rien n’a changé.' : 'Les changements seront visibles à partir de la prochaine réunion.') : 'Rien à afficher.'} />}
+    </BlocBrique>
   );
 }
 
@@ -343,3 +325,6 @@ export function ModeAffichage({ av, lecture }: { av: Avancement; lecture?: boole
     </ScrollView>
   );
 }
+
+/** Nombre de suivis qui ont changé depuis la réunion précédente (titre de la brique Suivis) ; null : première réunion */
+export const nbSuivisChanges = (av: Avancement, points: { id: string }[]): number | null => (av.lignes ? points.filter((p) => av.lignes!.some((l) => l.cle === `s:${p.id}`)).length : null);

@@ -7,7 +7,9 @@ Catalogue de 7 briques (validé) : 1 Situation · 2 Éléments (arbre) · 3 Note
 7 Concrétisation et Compte rendu. Chaque brique : carte blanche qui s'ouvre et se ferme, titre « Nom (12) (5 changés) »,
 filtre standard, trois affichages, case « Arborescence » (dans les blocs dont les lignes ont un rattachement :
 Éléments et Budget cochée par défaut ; Suivis et Notes décochée par défaut ; pas de case pour Vote).
-Lots : 1 Suivis alignés · 2 Éléments partout · 3 Notes · 4 Vote et Budget · 5 Daily, Revue, Rétrospective,
+Lots : 1 Suivis alignés (FAIT 14/10 : reunion/Brique.tsx = coque commune, utilisée par BlocArbre, les Suivis de base.tsx,
+du Daily (Situation, tour de table) et de SuivisPerso ; LignesSuivi parElement = groupes « Epic › Feature › Story »
+et « Sans élément » ; boutons sur une ligne sous le titre) · 2 Éléments partout · 3 Notes · 4 Vote et Budget · 5 Daily, Revue, Rétrospective,
 Affinage, Planification au catalogue (comme les réunions du train).
 
 ## Session 4 (14/10, suite) : arbre des éléments — CODÉ (validé « fais tout en même temps »)

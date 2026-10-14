@@ -103,7 +103,21 @@ async function creerUn(a: ActionsDaily, espace: string, x: ACreer, niveau: strin
  * feuille (Fait pour le responsable ou l'animateur ; Valider · Re-concrétiser · À reprendre · Abandonner pour le
  * validateur). `aValider` : seulement ceux à valider par vous.
  */
-export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = [] }: { points: PointReunion[]; ctx: CtxSuivi; aValider?: boolean; premiere?: boolean; notes?: PointReunion[] }) {
+/**
+ * Chemin d'un élément pour la case « Arborescence » des suivis (14/10) : « 🗂️ Epic › 🧩 Feature › 📖 Story » ;
+ * '' si le suivi n'est rattaché à rien
+ */
+export function cheminElement(id: string, h: H): string {
+  if (!id) return '';
+  const t = h.items.find((x) => x.id === id);
+  const f = h.featureList.find((x) => x.id === (t ? t.feature : id));
+  const e = h.epicList.find((x) => x.id === (t ? t.epic || f?.epic : f ? f.epic : id));
+  const parent = t?.parent ? h.items.find((x) => x.id === t.parent) : undefined;
+  const morceaux = [e && `🗂️ ${e.titre}`, f && `🧩 ${f.titre}`, parent && `📖 ${parent.titre}`, t && `${t.type === 'story' ? '📖 ' : ''}${t.titre}`].filter(Boolean);
+  return morceaux.join(' › ');
+}
+
+export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = [], parElement }: { points: PointReunion[]; ctx: CtxSuivi; aValider?: boolean; premiere?: boolean; notes?: PointReunion[]; parElement?: boolean }) {
   const [ouvert, setOuvert] = useState<PointReunion | null>(null);
   const [reconc, setReconc] = useState<PointReunion | null>(null);
   // Notes pas encore concrétisées (mode Simple : même feuille, écrite tout de suite)
@@ -126,8 +140,14 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
   };
   return (
     <>
-      {liste.map(({ p, a }, i) => (
-        <Ligne key={p.id} premiere={premiere && i === 0} texte={p.texte} sous={sousSuivi(p, a.s, ctx.nomDe, ctx.echanges)} pastille={a.texte ? { texte: a.texte, ton: a.ton } : undefined} onOuvrir={ctx.lecture ? undefined : () => setOuvert(p)} point={ctx.changements?.(p).point} changements={ctx.changements?.(p).lignes} />
+      {(parElement ? [...liste].sort((x, y) => cheminElement(x.p.element, ctx.h).localeCompare(cheminElement(y.p.element, ctx.h)) || 0) : liste).map(({ p, a }, i, l) => (
+        <View key={p.id}>
+          {/* Arborescence (14/10) : un titre de groupe par élément concerné, puis ses suivis */}
+          {parElement && (i === 0 || cheminElement(l[i - 1].p.element, ctx.h) !== cheminElement(p.element, ctx.h)) && (
+            <Text style={{ fontSize: 12.5, fontWeight: '600', color: colors.muted, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 2 }}>{cheminElement(p.element, ctx.h) || 'Sans élément'}</Text>
+          )}
+        <Ligne premiere={premiere && i === 0 && !parElement} texte={p.texte} sous={sousSuivi(p, a.s, ctx.nomDe, ctx.echanges)} pastille={a.texte ? { texte: a.texte, ton: a.ton } : undefined} onOuvrir={ctx.lecture ? undefined : () => setOuvert(p)} point={ctx.changements?.(p).point} changements={ctx.changements?.(p).lignes} />
+        </View>
       ))}
       {!aValider &&
         notes.map((p, i) => (
