@@ -1,16 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { alertesEpic, type Alignement } from '../alerts';
 import { addMonths, toDateString } from '../dates';
 import { childrenOf, describeCounts, tasksOfEpic } from '../hierarchy';
@@ -21,8 +10,8 @@ import { etatEpic, useSafe } from '../safe';
 import { ETATS_EPIC } from '../types';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
-import { AutoContext, BandeauAnnuler, decrireChangement, useEnregistrementAuto } from './EnregistrementAuto';
-import { TitreBarre, TitreFiche, BoutonRetour, ChildActions, CheminPile, formStyles as f, type Injection, type PileProps } from './FormSheet';
+import { BandeauAnnuler, decrireChangement, useEnregistrementAuto } from './EnregistrementAuto';
+import { AlertList, FormSheet, useEtatFiche, TitreFiche, formStyles as f, type Injection, type PileProps } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { HierarchyContext } from '../hierarchyContext';
 import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
@@ -109,8 +98,7 @@ export function EpicForm({
   onNouveauOrg,
 }: Props) {
   const [form, setForm] = useState<EpicInput>(empty());
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, setError, essayer } = useEtatFiche();
   /** Tâches existantes rangées dans l'epic (« Ranger une tâche existante ») : faites à l'enregistrement */
   const [ranger, setRanger] = useState<string[]>([]);
   const [rangerF, setRangerF] = useState<string[]>([]);
@@ -182,20 +170,14 @@ export function EpicForm({
     if (!form.debut) return void setError('Choisissez une date de début.');
     if (form.fin && form.fin < form.debut) return void setError('La date de fin est avant la date de début.');
     setError(null);
-    setBusy(true);
-    try {
+    return essayer(async () => {
       const saved = (await onSave({ ...form, espace, titre: form.titre.trim() }, rester, ranger, rangerF)) || undefined;
       if (rester) {
         setRanger([]);
         setRangerF([]);
       }
       return saved;
-    } catch (e) {
-      setError(`Échec de l'enregistrement : ${(e as Error).message}`);
-      return undefined;
-    } finally {
-      setBusy(false);
-    }
+    }, "Échec de l'enregistrement");
   };
   /** Ce qui empêche d'enregistrer (null : tout va bien) */
   const verifier = (f: EpicInput): string | null =>
@@ -268,14 +250,7 @@ export function EpicForm({
 
   const doDelete = async (cascade: boolean) => {
     if (!epic) return;
-    setBusy(true);
-    try {
-      await onDelete(epic, cascade);
-    } catch (e) {
-      setError(`Échec de la suppression : ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+    await essayer(() => onDelete(epic, cascade), 'Échec de la suppression');
   };
 
   // Fil d'Ariane en haut : où est rangée l'epic
@@ -292,46 +267,23 @@ export function EpicForm({
 
   return (
     <HierarchyContext.Provider value={h}>
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={[styles.header, (!!pile?.chemin || !!fil || !!espaceFil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
-          <BoutonRetour pile={pile} onPress={epic ? fermer : onClose} disabled={busy} style={styles.headerBtn} fermer={!!epic} />
-          <TitreBarre texte={safe.actif ? (epic ? 'Epic' : 'Nouvelle epic') : epic ? 'Projet' : 'Nouveau projet'} couleur={form.couleur} avecFil={!!pile?.chemin || !!fil || !!espaceFil} />
-          {/* Nouvelle epic : « Enregistrer » ; epic existante : enregistrée au fil de l'eau */}
-          {epic ? (
-            <View style={{ width: 60 }} />
-          ) : (
-            <Pressable onPress={() => save()} hitSlop={10} disabled={busy}>
-              {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>}
-            </Pressable>
-          )}
-        </View>
-        <CheminPile pile={pile} fil={fil} espace={espaceFil} />
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" onTouchStart={auto.fermerBandeau} onScrollBeginDrag={auto.fermerBandeau}>
-            <AutoContext.Provider value={!!epic}>
-            {(error || auto.erreur) && <Text style={styles.error}>{error ?? auto.erreur}</Text>}
-            {!!epic && erreurForm && !error && <Text style={styles.error}>{erreurForm}</Text>}
+    <FormSheet
+      visible={visible}
+      title={safe.actif ? (epic ? 'Epic' : 'Nouvelle epic') : epic ? 'Projet' : 'Nouveau projet'}
+      couleurTitre={form.couleur}
+      busy={busy}
+      error={error ?? auto.erreur ?? (epic ? erreurForm : null)}
+      onClose={epic ? fermer : onClose}
+      onSave={() => void save()}
+      auto={!!epic}
+      {...pile}
+      fil={fil}
+      espaceFil={espaceFil}
+      bandeau={<BandeauAnnuler bandeau={auto.bandeau} fermer={auto.fermerBandeau} />}
+      onToucher={auto.fermerBandeau}
+    >
 
-            {alertes.map((a) => (
-              <View key={a.key} style={styles.alert}>
-                <Text style={styles.alertText}>⚠ {a.message}</Text>
-                <View style={styles.alertBtns}>
-                  <Pressable
-                    style={styles.alertBtn}
-                    onPress={() => setForm((f) => ({ ...f, ...a.patch }))}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.alertBtnText}>{a.bouton}</Text>
-                  </Pressable>
-                  {a.aligner && onAlign && (
-                    <Pressable style={[styles.alertBtn, styles.alertBtn2]} onPress={() => onAlign(a.aligner!)} accessibilityRole="button">
-                      <Text style={[styles.alertBtnText, styles.alertBtnText2]}>{a.aligner.bouton}</Text>
-                    </Pressable>
-                  )}
-                </View>
-              </View>
-            ))}
+            <AlertList alertes={alertes} onFix={(a) => setForm((f) => ({ ...f, ...a.patch }))} onAlign={onAlign} />
 
             <TitreFiche
               icone="🗂️"
@@ -616,82 +568,17 @@ export function EpicForm({
                 />
               </>
             )}
-            </AutoContext.Provider>
-          </ScrollView>
-        </KeyboardAvoidingView>
-        <BandeauAnnuler bandeau={auto.bandeau} fermer={auto.fermerBandeau} />
-      </SafeAreaView>
-    </Modal>
+    </FormSheet>
     </HierarchyContext.Provider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.card,
-  },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: colors.text },
-  headerBtn: { fontSize: 16, color: colors.primary },
-  bold: { fontWeight: '600' },
-  content: { padding: 16, paddingBottom: 48 },
-  error: {
-    color: colors.danger,
-    backgroundColor: '#FCE8E6',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 12,
-    fontSize: 14,
-  },
-  preview: { borderRadius: 12, padding: 14, marginBottom: 16 },
-  previewTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  previewDates: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 4 },
-  label: { marginTop: 18, marginBottom: 8, fontSize: 13, fontWeight: '600', color: colors.muted },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.card,
-  },
-  titleInput: { fontSize: 18, fontWeight: '500' },
-  notes: { minHeight: 90 },
-  alert: { marginBottom: 10, padding: 10, borderRadius: 10, backgroundColor: '#FCE8E6', gap: 8 },
-  alertText: { color: '#A50E0E', fontSize: 13.5, lineHeight: 19 },
-  alertBtn: { maxWidth: '100%', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, backgroundColor: colors.danger },
-  alertBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  // Boutons l'un sous l'autre : leur texte (avec les noms) peut passer à la ligne
-  alertBtns: { gap: 8, alignItems: 'flex-start' },
-  alertBtn2: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.danger },
-  alertBtnText2: { color: colors.danger },
   hint: { marginTop: 6, fontSize: 12, lineHeight: 17, color: colors.muted },
   swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   swatch: { width: 34, height: 34, borderRadius: 17 },
   swatchOn: { borderWidth: 3, borderColor: colors.text },
   progressTrack: { height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: 'hidden', marginBottom: 10 },
   progressFill: { height: 8, borderRadius: 4 },
-  task: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.card,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    marginBottom: 6,
-  },
-  taskCheck: { fontSize: 16, color: colors.muted, width: 22, textAlign: 'center' },
-  taskTitle: { flex: 1, fontSize: 15, color: colors.text },
-  taskDone: { textDecorationLine: 'line-through', color: colors.muted },
   muted: { fontSize: 13, color: colors.muted },
 });

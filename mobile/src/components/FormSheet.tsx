@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -123,6 +123,27 @@ export function BoutonRetour({ pile, onPress, disabled, style, fermer }: { pile?
   );
 }
 
+/**
+ * État commun d'une fiche (14/10, refactoring lot 3) : « en cours » (sablier, boutons grisés), message d'erreur, et
+ * `essayer` qui lance une action (enregistrer, supprimer) et affiche « Échec de … : raison » si elle échoue.
+ */
+export function useEtatFiche() {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const essayer = async <T,>(action: () => Promise<T>, echec: string): Promise<T | undefined> => {
+    setBusy(true);
+    try {
+      return await action();
+    } catch (e) {
+      setError(`${echec} : ${(e as Error).message}`);
+      return undefined;
+    } finally {
+      setBusy(false);
+    }
+  };
+  return { busy, error, setError, essayer };
+}
+
 /** Fenêtre de formulaire : Annuler / titre / Enregistrer, message d'erreur, contenu défilant. */
 export function FormSheet({ visible, title, busy, error, onClose, onSave, children, retour, chemin, onFermerTout, fil, couleurTitre, espaceFil, auto, bandeau, onToucher, libelleEnregistrer = 'Enregistrer', superpose, haut, droite, contexte = '' }: Props) {
   // Remarques de la démo : la fenêtre visible s'ajoute à la pile du contexte (titre, puis étape)
@@ -159,15 +180,7 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
   return cadre(
     <>
         <View style={[styles.header, (!!chemin || !!fil || !!espaceFil) && styles.headerAvecFil]}>
-          <Pressable
-            onPress={onClose}
-            hitSlop={10}
-            disabled={busy}
-            accessibilityRole="button"
-            accessibilityLabel={retour ? `Annuler et revenir à ${nomRetour(retour)}` : undefined}
-          >
-            <Text style={styles.headerBtn}>{onSave && !auto ? 'Annuler' : 'Fermer'}</Text>
-          </Pressable>
+<BoutonRetour pile={retour ? { retour } : undefined} onPress={onClose} disabled={busy} style={styles.headerBtn} fermer={!(onSave && !auto)} />
           {/* Jamais coupé « … » : le titre rapetisse s'il est long */}
           <TitreBarre texte={title} couleur={couleurTitre} avecFil={!!chemin || !!fil || !!espaceFil} />
           {onSave && !auto ? (

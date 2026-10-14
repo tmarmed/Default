@@ -8,7 +8,7 @@ import { EspaceChoix, useEspaceFiche, useEspaceFil } from './EspaceChoix';
 import { colors } from '../theme';
 import { DOMAINE_ICONES, Domaine, DomaineInput, EPIC_COULEURS, Objectif } from '../types';
 import { DeleteSection } from './DeleteSection';
-import { ColorPicker, TitreFiche, FormSheet, formStyles as f, type PileProps } from './FormSheet';
+import { ColorPicker, TitreFiche, FormSheet, useEtatFiche, formStyles as f, type PileProps } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -34,8 +34,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onDep
   const { espace, setEspace, h } = useEspaceFiche(visible, domaine, defaultEspace ? { espace: defaultEspace } : undefined);
   const espaceFil = useEspaceFil(espace);
   const [form, setForm] = useState<DomaineInput>({ nom: '', icone: DOMAINE_ICONES[0], couleur: EPIC_COULEURS[0], parent: '' });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, setError, essayer } = useEtatFiche();
   /** Objectifs existants rangés dans le domaine : faits à l'enregistrement */
   const [ranger, setRanger] = useState<string[]>([]);
 
@@ -63,17 +62,11 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onDep
   const save = async (rester = false): Promise<Domaine | undefined> => {
     if (!form.nom.trim()) return void setError('Donnez un nom au domaine.');
     setError(null);
-    setBusy(true);
-    try {
+    return essayer(async () => {
       const saved = (await onSave({ ...form, espace, nom: form.nom.trim() }, rester, ranger)) || undefined;
       if (rester) setRanger([]);
       return saved;
-    } catch (e) {
-      setError(`Échec de l'enregistrement : ${(e as Error).message}`);
-      return undefined;
-    } finally {
-      setBusy(false);
-    }
+    }, "Échec de l'enregistrement");
   };
   const erreurForm = form.nom.trim() ? null : 'Donnez un nom au domaine.';
   // Le domaine tel qu'il est enregistré, à l'ouverture (même forme que le formulaire)
@@ -219,14 +212,7 @@ export function DomaineForm({ visible, domaine, onClose, onSave, onDelete, onDep
             keepText={keepText}
             disabled={busy}
             onDelete={async (cascade) => {
-              setBusy(true);
-              try {
-                await onDelete(domaine, cascade);
-              } catch (e) {
-                setError(`Échec de la suppression : ${(e as Error).message}`);
-              } finally {
-                setBusy(false);
-              }
+              await essayer(() => onDelete(domaine, cascade), 'Échec de la suppression');
             }}
           />
         </>

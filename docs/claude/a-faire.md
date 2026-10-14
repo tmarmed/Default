@@ -14,8 +14,13 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
    optionsPersonnes (organisation.ts) ; ItemPicker.tsx supprimé (mort). Constat : les fenêtres de choix sont déjà
    bâties sur ChoiceSheet, LigneChoix, FeuilleChoix ; les « ＋ Ajouter » ont des rôles différents (laissés).
    Vérifié : texte identique sur 10 écrans.
-3. Fiches d'élément : squelette commun aux 9 fiches (fil d'Ariane, champs communs, parents et enfants, ajout d'un
-   enfant, suppression, enregistrement automatique).
+3. Fiches d'élément — FAIT (14/10) : les fiches Epic et Tâche, qui refaisaient leur fenêtre à la main (en-tête, fil
+   d'Ariane, erreurs, alertes de dates), passent par FormSheet comme les 7 autres (alertes : AlertList) ; useEtatFiche
+   (FormSheet.tsx : en cours, erreur, `essayer` « Échec de … ») remplace les 18 blocs try/catch d'enregistrement et de
+   suppression. Constat : fil d'Ariane, champs (SectionFiche, ChampFiche), enfants (ListeEnfants), suppression
+   (DeleteSection) et enregistrement automatique (useEnregistrementAuto) étaient déjà communs. Seul effet visible :
+   le bouton 📝 des remarques de la démo apparaît aussi sur les fiches Epic et Tâche. Vérifié : texte identique sur
+   8 fiches (tâche, démarche, 2 epics, feature, value stream, équipe, train).
 4. Services invisibles : une seule lecture des notes de réunion (8 écrans) ; barre de filtres des onglets hors d'App.tsx.
 5. Moteur de réunion unique : Daily et réunions perso sur useReunion.
 Pas fait exprès : réunions en liste déclarée, super-composant unique, écriture Sheets (déjà commune).

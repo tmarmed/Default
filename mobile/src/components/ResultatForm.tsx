@@ -6,7 +6,7 @@ import { avancementResultat, texteResultat } from '../strategie';
 import type { ResultatCle, ResultatCleInput } from '../types';
 import { ChampFiche, SaisieFiche, SectionFiche } from './Choix';
 import { DeleteSection } from './DeleteSection';
-import { FormSheet, formStyles as f, Progress, TitreFiche } from './FormSheet';
+import { FormSheet, useEtatFiche, formStyles as f, Progress, TitreFiche } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -25,8 +25,7 @@ export function ResultatForm({ visible, resultat, okr, onClose, onSave, onDelete
   const h = useHierarchy();
   const vide = (): ResultatCleInput => ({ objectif: okr, titre: '', actuel: '', cible: '', unite: '' });
   const [form, setForm] = useState<ResultatCleInput>(vide());
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, setError, essayer } = useEtatFiche();
 
   useEffect(() => {
     if (!visible) return;
@@ -62,14 +61,7 @@ export function ResultatForm({ visible, resultat, okr, onClose, onSave, onDelete
   });
   const save = async () => {
     if (erreurForm) return setError(erreurForm);
-    setBusy(true);
-    try {
-      await onSave({ ...form, titre: form.titre.trim() });
-    } catch (e) {
-      setError(`Échec de l'enregistrement : ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+    await essayer(() => onSave({ ...form, titre: form.titre.trim() }), "Échec de l'enregistrement");
   };
   const fermer = async () => {
     if (!resultat) return onClose();
@@ -121,14 +113,7 @@ export function ResultatForm({ visible, resultat, okr, onClose, onSave, onDelete
           name={resultat.titre}
           disabled={busy}
           onDelete={async () => {
-            setBusy(true);
-            try {
-              await onDelete(resultat);
-            } catch (e) {
-              setError(`Échec de la suppression : ${(e as Error).message}`);
-            } finally {
-              setBusy(false);
-            }
+            await essayer(() => onDelete(resultat), 'Échec de la suppression');
           }}
         />
       )}

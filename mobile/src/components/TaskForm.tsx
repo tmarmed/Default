@@ -1,18 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, prioriteColors, typeColors } from '../theme';
 import {
   aDateFin,
@@ -36,7 +23,7 @@ import { LinkPicker } from './LinkPicker';
 import { filtrerEspace, HierarchyContext, useHierarchy } from '../hierarchyContext';
 import { espaceParId, ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces';
 import { useSafe } from '../safe';
-import { iterationByKey, iterationNom, iterationOf, facteurJours } from '../pi';
+import { iterationNom, iterationOf, facteurJours } from '../pi';
 import { callNumber } from '../phone';
 import { fmtPoints } from '../pi';
 import { canHaveSubtasks, PARENT_TYPES, pointsCheck, subtaskMap } from '../subtasks';
@@ -49,10 +36,10 @@ import { SectionPointsReunion } from './PointsElement';
 import { filTravail, listeIterations, listeTaches, metaTache } from '../choixTravail';
 import { LiaisonOrg } from './LiaisonOrg';
 import { useEspaceFil } from './EspaceChoix';
-import { AutoContext, BandeauAnnuler, useEnregistrementAuto } from './EnregistrementAuto';
+import { BandeauAnnuler, useEnregistrementAuto } from './EnregistrementAuto';
 import { nomPersonne, useOrg } from '../organisation';
 import { droitsTache, useMoi } from '../droits';
-import { BlocLecture, BoutonRetour, CheminPile, TitreBarre, TitreFiche, type Injection, type PileProps } from './FormSheet';
+import { BlocLecture, FormSheet, useEtatFiche, TitreFiche, type Injection, type PileProps } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -223,8 +210,7 @@ export function TaskForm({
   onDeplacer,
 }: Props) {
   const [form, setForm] = useState<ItemInput>(empty(defaultType, defaultDate, defaultIteration));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, setError, essayer } = useEtatFiche();
   const safe = useSafe();
   const org = useOrg();
   const moi = useMoi();
@@ -443,52 +429,33 @@ export function TaskForm({
       return;
     }
     setError(null);
-    setBusy(true);
-    try {
-      await onSave(preparer(form), peutAvoir ? nouvelles : [], { terminerSousTaches: passeTermine && !!terminerSous, rangerSous: peutAvoir ? rangees : [] });
-    } catch (e) {
-      setError(`Échec de l'enregistrement : ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+    await essayer(() => onSave(preparer(form), peutAvoir ? nouvelles : [], { terminerSousTaches: passeTermine && !!terminerSous, rangerSous: peutAvoir ? rangees : [] }), "Échec de l'enregistrement");
   };
 
   const doDelete = async (cascade: boolean) => {
     if (!item) return;
-    setBusy(true);
-    try {
-      await onDelete(item, cascade);
-    } catch (e) {
-      setError(`Échec de la suppression : ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+    await essayer(() => onDelete(item, cascade), 'Échec de la suppression');
   };
 
 
 
   return (
     <HierarchyContext.Provider value={h}>
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={[styles.header, (!!pile?.chemin || !!fil || !!espaceFil) && { borderBottomWidth: 0, paddingBottom: 6 }]}>
-          <BoutonRetour pile={pile} onPress={item ? fermer : onClose} disabled={busy} style={styles.headerBtn} fermer={!!item} />
-          <TitreBarre texte={item ? TYPE_LABELS[form.type] : NOUVEAU[form.type]} couleur={typeColors[form.type]} avecFil={!!pile?.chemin || !!fil || !!espaceFil} />
-          {/* Nouvelle tâche : « Enregistrer » ; tâche existante : enregistrée au fil de l'eau */}
-          {item ? (
-            <View style={{ width: 60 }} />
-          ) : (
-            <Pressable onPress={save} hitSlop={10} disabled={busy}>
-              {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>Enregistrer</Text>}
-            </Pressable>
-          )}
-        </View>
-        <CheminPile pile={pile} fil={fil} espace={espaceFil} />
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" onTouchStart={auto.fermerBandeau} onScrollBeginDrag={auto.fermerBandeau}>
-            <AutoContext.Provider value={!!item}>
-            {(error || auto.erreur) && <Text style={styles.error}>{error ?? auto.erreur}</Text>}
-            {!!item && erreurForm && !error && <Text style={styles.error}>{erreurForm}</Text>}
+    <FormSheet
+      visible={visible}
+      title={item ? TYPE_LABELS[form.type] : NOUVEAU[form.type]}
+      couleurTitre={typeColors[form.type]}
+      busy={busy}
+      error={error ?? auto.erreur ?? (item ? erreurForm : null)}
+      onClose={item ? fermer : onClose}
+      onSave={() => void save()}
+      auto={!!item}
+      {...pile}
+      fil={fil}
+      espaceFil={espaceFil}
+      bandeau={<BandeauAnnuler bandeau={auto.bandeau} fermer={auto.fermerBandeau} />}
+      onToucher={auto.fermerBandeau}
+    >
             <TitreFiche icone={TYPE_ICONS[form.type]} titre={form.titre} vide={`Titre de ${TYPE_ARTICLE[form.type]}`.replace('de le ', 'du ')} couleur={typeColors[form.type]} />
             <BlocLecture raison={droits.raison}>
 
@@ -853,12 +820,7 @@ export function TaskForm({
               />
             )}
             </BlocLecture>
-            </AutoContext.Provider>
-          </ScrollView>
-        </KeyboardAvoidingView>
-        <BandeauAnnuler bandeau={auto.bandeau} fermer={auto.fermerBandeau} />
-      </SafeAreaView>
-    </Modal>
+    </FormSheet>
     </HierarchyContext.Provider>
   );
 }
@@ -881,51 +843,11 @@ const styles = StyleSheet.create({
   saisieRapide: { fontSize: 15, color: colors.text, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   entree: { fontSize: 11.5, color: colors.muted, paddingHorizontal: 12, paddingBottom: 10 },
   rien: { fontSize: 13.5, color: colors.muted, padding: 12 },
-  unite: { fontSize: 15, fontWeight: '600', color: colors.muted },
   lien: { color: colors.primary, fontWeight: '700' },
-  parentBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#EEF4FE', borderRadius: 10, padding: 10, marginTop: 12 },
-  parentText: { fontSize: 14.5, fontWeight: '600', color: colors.primary },
-  subPoints: { width: 52, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 6, textAlign: 'center', fontSize: 14, color: colors.text },
   finish: { marginTop: 10, backgroundColor: '#E6F4EA', borderRadius: 10, padding: 12 },
   finishText: { color: colors.success, fontWeight: '700', fontSize: 14 },
   phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  phoneInput: { flex: 1, minWidth: 0 },
   callBtn: { backgroundColor: '#00897B', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12 },
   callText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  container: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.card,
-  },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: colors.text },
-  headerBtn: { fontSize: 16, color: colors.primary },
-  bold: { fontWeight: '600' },
-  content: { padding: 16, paddingBottom: 48 },
-  label: { marginTop: 18, marginBottom: 8, fontSize: 13, fontWeight: '600', color: colors.muted },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.card,
-  },
-  notes: { minHeight: 110 },
   hint: { marginTop: 10, fontSize: 13, color: colors.muted },
-  error: {
-    color: colors.danger,
-    backgroundColor: '#FCE8E6',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 12,
-    fontSize: 14,
-  },
 });

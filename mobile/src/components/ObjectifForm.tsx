@@ -13,7 +13,7 @@ import { useOrg } from '../organisation';
 import { droitsStrategie, epicsDeValueStream, epicsDirectesDeOkr, resultatsDeOkr, sansValueStream, texteResultat, valueStreamsDeOkr } from '../strategie';
 import { DateField } from './DateField';
 import { DeleteSection } from './DeleteSection';
-import { AlertList, BlocLecture, ColorPicker, TitreFiche, FormSheet, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
+import { AlertList, BlocLecture, ColorPicker, TitreFiche, FormSheet, useEtatFiche, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
 import { LinkPicker } from './LinkPicker';
 import { ChampFiche, FeuilleMulti, LigneEnfant, ListeEnfants, SaisieFiche, SectionFiche } from './Choix';
 import { SectionPointsReunion } from './PointsElement';
@@ -72,8 +72,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
   const { espace, setEspace, h } = useEspaceFiche(visible, objectif, defaults);
   const espaceFil = useEspaceFil(espace);
   const [form, setForm] = useState<ObjectifInput>(empty());
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, setError, essayer } = useEtatFiche();
   /** Epics existantes rangées dans l'objectif : faites à l'enregistrement */
   const [ranger, setRanger] = useState<string[]>([]);
   const safe = useSafe();
@@ -112,17 +111,11 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
       return void setError("L'indicateur doit être un nombre.");
     }
     setError(null);
-    setBusy(true);
-    try {
+    return essayer(async () => {
       const saved = (await onSave({ ...form, espace, titre: form.titre.trim() }, rester, ranger)) || undefined;
       if (rester) setRanger([]);
       return saved;
-    } catch (e) {
-      setError(`Échec de l'enregistrement : ${(e as Error).message}`);
-      return undefined;
-    } finally {
-      setBusy(false);
-    }
+    }, "Échec de l'enregistrement");
   };
   /** Nouvel objectif : enregistré d'abord, puis l'epic s'ouvre par-dessus */
   const enregistrerPuis = async (suite: (o: Objectif) => void) => {
@@ -369,14 +362,7 @@ export function ObjectifForm({ visible, objectif, onClose, onSave, onDelete, onD
             keepText={dom ? `rattaché(e)s au domaine ${dom.icone} ${dom.nom}` : 'sans rattachement'}
             disabled={busy}
             onDelete={async (cascade) => {
-              setBusy(true);
-              try {
-                await onDelete(objectif, cascade);
-              } catch (e) {
-                setError(`Échec de la suppression : ${(e as Error).message}`);
-              } finally {
-                setBusy(false);
-              }
+              await essayer(() => onDelete(objectif, cascade), 'Échec de la suppression');
             }}
           />
         </>

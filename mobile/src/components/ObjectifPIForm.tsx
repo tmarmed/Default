@@ -9,7 +9,7 @@ import { colors } from '../theme';
 import { ChampFiche, LigneChoix, SaisieFiche, SectionFiche } from './Choix';
 import { listeDomaines, listeEpics } from '../choixTravail';
 import { DeleteSection } from './DeleteSection';
-import { FormSheet, formStyles as f, TitreFiche } from './FormSheet';
+import { FormSheet, useEtatFiche, formStyles as f, TitreFiche } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -32,8 +32,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
   const espaceFil = useEspaceFil(espace);
   const empty = (): ObjectifPIInput => ({ titre: '', pi: defaultPi, type: 'engage', valeur_prevue: '', valeur_obtenue: '', domaine: defaultDomaine, epic: '' });
   const [form, setForm] = useState<ObjectifPIInput>(empty());
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, setError, essayer } = useEtatFiche();
 
   useEffect(() => {
     if (visible) {
@@ -90,14 +89,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
     if (!form.titre.trim()) return setError("Donnez un titre à l'objectif du PI.");
     if (!form.pi) return setError('Choisissez le PI.');
     setError(null);
-    setBusy(true);
-    try {
-      await onSave({ ...form, espace, titre: form.titre.trim() });
-    } catch (e) {
-      setError(`Échec de l'enregistrement : ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+    await essayer(() => onSave({ ...form, espace, titre: form.titre.trim() }), "Échec de l'enregistrement");
   };
 
   return (
@@ -206,14 +198,7 @@ export function ObjectifPIForm({ visible, objectif, defaultPi, defaultDomaine, o
           name={objectif.titre}
           disabled={busy}
           onDelete={async (cascade) => {
-            setBusy(true);
-            try {
-              await onDelete(objectif, cascade);
-            } catch (e) {
-              setError(`Échec de la suppression : ${(e as Error).message}`);
-            } finally {
-              setBusy(false);
-            }
+            await essayer(() => onDelete(objectif, cascade), 'Échec de la suppression');
           }}
         />
       )}

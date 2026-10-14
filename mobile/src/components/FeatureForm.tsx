@@ -12,7 +12,7 @@ import { chargeOf, subtaskMap } from '../subtasks';
 import { DeleteSection } from './DeleteSection';
 import { droitsFeature, useMoi } from '../droits';
 import { useOrg } from '../organisation';
-import { BlocLecture, ChildActions, FormSheet, TitreFiche, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
+import { BlocLecture, ChildActions, FormSheet, useEtatFiche, TitreFiche, formStyles as f, type Injection, type PileProps, Progress } from './FormSheet';
 import { LiaisonOrg } from './LiaisonOrg';
 import { ChoiceSheet } from './ChoiceSheet';
 import { ChampEstimation, ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, SaisieFiche, SectionFiche } from './Choix';
@@ -81,8 +81,7 @@ export function FeatureForm({
   const droitsF = feature ? droitsFeature(moi, feature as { train?: string; equipe?: string }, org) : { modifier: true, raison: undefined };
   const empty = (): FeatureInput => ({ titre: '', description: '', epic: '', pi: defaultPi, iteration: '', points: '', couleur: '' });
   const [form, setForm] = useState<FeatureInput>(empty());
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, setError, essayer } = useEtatFiche();
   const [quick, setQuick] = useState('');
   const [adding, setAdding] = useState(false);
   /** Nouvelle feature : tâches à créer / à rattacher à l'enregistrement */
@@ -132,8 +131,7 @@ export function FeatureForm({
   const save = async (rester = false): Promise<Feature | undefined> => {
     if (!form.titre.trim()) return void setError('Donnez un titre à la feature.');
     setError(null);
-    setBusy(true);
-    try {
+    return essayer(async () => {
       // L'itération doit appartenir au PI choisi
       const iteration = form.iteration && form.pi && form.iteration.startsWith(form.pi) ? form.iteration : '';
       const saved = await onSave({ ...form, espace, iteration, titre: form.titre.trim() }, { nouvelles, existantes }, rester);
@@ -142,12 +140,7 @@ export function FeatureForm({
         setExistantes([]);
       }
       return saved || undefined;
-    } catch (e) {
-      setError(`Échec de l'enregistrement : ${(e as Error).message}`);
-      return undefined;
-    } finally {
-      setBusy(false);
-    }
+    }, "Échec de l'enregistrement");
   };
   /** Nouvelle feature : enregistrée d'abord, puis la tâche s'ouvre par-dessus */
   const enregistrerPuis = async (suite: (x: Feature) => void) => {
@@ -437,14 +430,7 @@ export function FeatureForm({
             keepText={epic ? `rattachées à l'epic « ${epic.titre} »` : 'sans rattachement'}
             disabled={busy}
             onDelete={async (cascade) => {
-              setBusy(true);
-              try {
-                await onDelete(feature, cascade);
-              } catch (e) {
-                setError(`Échec de la suppression : ${(e as Error).message}`);
-              } finally {
-                setBusy(false);
-              }
+              await essayer(() => onDelete(feature, cascade), 'Échec de la suppression');
             }}
           />
         </>

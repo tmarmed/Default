@@ -9,7 +9,7 @@ import { droitsStrategie, epicsDeValueStream, libelleTypeVs, TYPES_VS } from '..
 import { type Epic, idsDe, joindreIds, type Objectif, type ValueStream, type ValueStreamInput } from '../types';
 import { ChampFiche, FeuilleMulti, LigneChoix, LigneEnfant, SaisieFiche, SectionFiche } from './Choix';
 import { DeleteSection } from './DeleteSection';
-import { BlocLecture, FormSheet, formStyles as f, TitreFiche } from './FormSheet';
+import { BlocLecture, FormSheet, useEtatFiche, formStyles as f, TitreFiche } from './FormSheet';
 
 interface Props {
   visible: boolean;
@@ -42,8 +42,7 @@ export function ValueStreamForm({ visible, vs, defaults, onClose, onSave, onDele
   const org = useOrg();
   const moi = useMoi();
   const [form, setForm] = useState<ValueStreamInput>(vide());
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, setError, essayer } = useEtatFiche();
   const [choix, setChoix] = useState<'okr' | 'epic' | 'train' | null>(null);
 
   useEffect(() => {
@@ -88,14 +87,7 @@ export function ValueStreamForm({ visible, vs, defaults, onClose, onSave, onDele
 
   const save = async () => {
     if (erreurForm) return setError(erreurForm);
-    setBusy(true);
-    try {
-      await onSave({ ...form, nom: form.nom.trim() });
-    } catch (e) {
-      setError(`Échec de l'enregistrement : ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+    await essayer(() => onSave({ ...form, nom: form.nom.trim() }), "Échec de l'enregistrement");
   };
   const fermer = async () => {
     if (!vs) return onClose();
@@ -216,14 +208,7 @@ export function ValueStreamForm({ visible, vs, defaults, onClose, onSave, onDele
             name={vs.nom}
             disabled={busy}
             onDelete={async () => {
-              setBusy(true);
-              try {
-                await onDelete(vs);
-              } catch (e) {
-                setError(`Échec de la suppression : ${(e as Error).message}`);
-              } finally {
-                setBusy(false);
-              }
+              await essayer(() => onDelete(vs), 'Échec de la suppression');
             }}
           />
         )}

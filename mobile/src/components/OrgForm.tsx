@@ -15,7 +15,7 @@ import { ChampFiche, LigneChoix, LigneEnfant, LigneMulti, ListeEnfants, SaisieFi
 import { DeleteSection } from './DeleteSection';
 import { SectionCalendrier } from './CalendrierAgile';
 import { RolesDeLaPersonne, SectionRolesTransverses } from './RolesTransverses';
-import { FormSheet, formStyles as f, TitreFiche } from './FormSheet';
+import { FormSheet, useEtatFiche, formStyles as f, TitreFiche } from './FormSheet';
 
 type Donnees = Record<string, string>;
 /** Éléments existants rangés dans la fiche : leur champ `champ` prendra l'id de la fiche */
@@ -106,8 +106,7 @@ export function OrgForm({
 }) {
   const [form, setForm] = useState<Donnees>(VIDES[kind]);
   const [initial, setInitial] = useState<Donnees>(VIDES[kind]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, setError, essayer } = useEtatFiche();
   const safe = useSafe();
   // Plusieurs espaces affichés : l'entreprise en tête du fil d'Ariane
   const esp = useEspaces();
@@ -245,8 +244,7 @@ export function OrgForm({
       return undefined;
     }
     setError(null);
-    setBusy(true);
-    try {
+    return essayer(async () => {
       const liste = Object.entries(ranger)
         .filter(([, ids]) => ids.length)
         .map(([cle, ids]) => ({ kind: cle.split(':')[0] as KindOrg, champ: cle.split(':')[1], ids }));
@@ -256,12 +254,7 @@ export function OrgForm({
         setRangerTout({});
       }
       return o;
-    } catch (e) {
-      setError(`Échec de l'enregistrement : ${(e as Error).message}`);
-      return undefined;
-    } finally {
-      setBusy(false);
-    }
+    }, "Échec de l'enregistrement");
   };
 
   /**
@@ -651,10 +644,7 @@ export function OrgForm({
           label={SUPPRIMER[kind === 'unite' ? (form.type === 'direction' ? 'direction' : 'service') : kind]}
           name={entite.nom}
           onDelete={() => {
-            setBusy(true);
-            onDelete()
-              .catch((e) => setError(`Échec de la suppression : ${(e as Error).message}`))
-              .finally(() => setBusy(false));
+            void essayer(onDelete, 'Échec de la suppression');
           }}
         />
       )}
