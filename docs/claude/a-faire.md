@@ -45,6 +45,19 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
    Daily est SAFe seulement ; le Point d'équipe est déjà sur le socle commun).
 Pas fait exprès : réunions en liste déclarée, super-composant unique, écriture Sheets (déjà commune).
 
+## Vérification des écrans non vus (14/10, captures dans la démo) — constats, rien corrigé
+Aucune erreur technique. À décider avec l'utilisateur :
+1. Budget participatif : « 3 votants · 1 participants » et « 3 sur 1 ont voté » (participants = Epic Owner seul ; les
+   PM et RTE qui présentent les demandes n'en font pas partie) ; « 1 participants » sans accord.
+2. Préparation du PI Planning (24/12) : Situation et Capacité sur le PI en cours (T4 2026, sprints dès le 01/10) au
+   lieu du PI suivant ; « Features du PI · 0 ».
+3. Titres d'étape « Capacité par équipe · 0 » alors que la capacité est affichée (le nombre ne compte pas les équipes).
+4. PI Planning (T1 2027) presque vide dans la démo : Contexte 0, Plans d'équipe 0, 0 feature du PI.
+5. Revue des OKR : icône en double « 🎯 🎯 Fidéliser les clients ».
+6. En-tête « Préparation du PI Planning » collé à « ↻ Actualiser ».
+7. Comité budgétaire : vu seulement en participant (animateur Claire Vidal) ; « Mes tâches · Sprint 1 » au niveau
+   direction n'a pas de sens.
+
 ## Session 4 (14/10, suite) : briques de réunion — VALIDÉ, en cours
 Notes à concrétiser : retirées de la Situation (14/10), elles sont à l'étape Concrétisation.
 Catalogue de 7 briques (validé) : 1 Situation · 2 Éléments (arbre) · 3 Notes (FAIT 14/10 : BlocPoints de base.tsx = toutes les étapes « points »/« notes » des réunions ; Notes du
