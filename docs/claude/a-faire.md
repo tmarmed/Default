@@ -62,6 +62,12 @@ Lacunes à reprendre UNE PAR UNE au retour de l'utilisateur : 1 note « En prép
 4 communication à plusieurs équipes (une note par équipe, « Mobile ✓ · Web ⏳ ») ; 5 « Déplacer » (vers quelles
 réunions ; note déplacée vers un autre élément) ; 6 (challenge) communication officielle par n'importe qui ? ;
 7 (challenge) à l'équipe, PO ou SM : qui confirme quoi.
+Lacune 1 décidée (15/10) : note « En préparation » non partagée à la réunion suivante de sa série → rappel 🟡 (une
+seule réunion). « ⏰ Me le rappeler » (règle générale de temporisation : échange du Chat, alerte, rappel, note) :
+Demain · Dans X jours · Prochaine réunion · Date ; l'élément sort de mes listes et revient le jour venu ; l'autre voit
+« Pris en compte · réponse prévue le 18/10 » ; liste « ⏰ Temporisés » consultable pour répondre avant ; action sans
+estimation liée possible (répondre termine l'action, terminer l'action propose de répondre). Reste à choisir : où
+revient un élément temporisé (à sa place habituelle ou dans un groupe « ⏰ C'est le moment »).
 Décidé (15/10) : cas limites de la chaîne : le niveau le plus haut n'a pas « Escalader », le plus bas (équipe) n'a pas
 « Communiquer » (boutons absents).
 À discuter aussi :
