@@ -4,6 +4,7 @@ import { addDays, toDateString } from './dates';
 import { iterationOf, piOf, piStart, shiftIteration, shiftPi } from './pi';
 import { FILTRE_TOUT, photoDe, pointsPhoto } from './avancement';
 import { estOuvre, occurrences } from './series';
+import { clePlanPerso } from './daily';
 import { serieParDefaut, serieVide } from './reunions';
 import { PIECES_DEMO } from './demoPieces';
 import { controleMorceau, creerMagasin, type Kind, type Persistance, type Table, TABLES, TABLES_ORG } from './magasin';
@@ -128,7 +129,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '63';
+const DEMO_DATA_VERSION = '65';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -140,6 +141,14 @@ function checkVersion(): Promise<void> {
       const cles = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(KEY) && k !== VERSION_KEY);
       await AsyncStorage.multiRemove(cles);
       await AsyncStorage.setItem(VERSION_KEY, DEMO_DATA_VERSION);
+    } catch {
+      // Stockage indisponible : la démo repart des exemples en mémoire.
+    }
+    // Démo complète (15/10) : plan du Point perso de ce matin (gardé sur l'appareil), s'il n'a pas encore été fait —
+    // le Bilan du soir montre « Prévu ce matin »
+    try {
+      const cleP = clePlanPerso(toDateString(new Date()));
+      if (!(await AsyncStorage.getItem(cleP))) await AsyncStorage.setItem(cleP, JSON.stringify(['d3', 'd18', 'd2']));
     } catch {
       // Stockage indisponible : la démo repart des exemples en mémoire.
     }
@@ -438,7 +447,7 @@ const SEEDS_EQUIPE: Seeds = {
       pt('mobpt3', { reunion: prochain, type: 'blocage', texte: 'Compte développeur Apple pas encore validé', element: 'mobe1', cree_le: new Date().toISOString() }),
     ];
   },
-  // Membres de l'équipe Mobile (espace Équipe, hors entreprise)
+  // Membres de l'équipe Studio (espace Équipe, hors entreprise)
   org: () => {
     const stamp = new Date().toISOString();
     const base = { cree_le: stamp, modifie_le: stamp, unite: '', manager: '', capacite: '' };
@@ -452,7 +461,7 @@ const SEEDS_EQUIPE: Seeds = {
       unites: [],
       portfolios: [],
       trains: [],
-      equipes: [{ id: 'mobeq', nom: 'Mobile', train: '', po: 'mobp1', sm: 'mobp2', membres: 'mobp1;mobp2;mobp3;mobp4', cree_le: stamp, modifie_le: stamp }],
+      equipes: [{ id: 'mobeq', nom: 'Studio', train: '', po: 'mobp1', sm: 'mobp2', membres: 'mobp1;mobp2;mobp3;mobp4', cree_le: stamp, modifie_le: stamp }],
     };
   },
 };
@@ -638,6 +647,13 @@ const SEEDS_ENTREPRISE: Seeds = {
       // Revue des OKR Digital : une décision à prendre sur l'OKR des coûts
       liste.push(note(occurrenceDemo('revue_okr', pfD), marc, 'decision', 'Le coût par commande ne baisse pas : revoir la cible de 8 €', { sous_type: 'a_prendre', element: 'acmo2' }));
     }
+    // Live (15/10) : l'Atelier des maquettes du jour lancé par Nina (réunion libre r-demo2), à l'étape « Notes »
+    {
+      const auj = toDateString(new Date());
+      const e = { v: 3, lance: new Date(Date.now() - 10 * 60_000).toISOString(), anim: nina, etape: 'notes', libelle: 'Notes', detail: 'Écran de connexion' };
+      liste.push(pt('acmlive1', { reunion: `reunion-r-demo2-${auj}`, personne: nina, auteur: nina, type: 'etat', texte: JSON.stringify(e), cree_le: new Date().toISOString() }));
+      liste.push(pt('acmlive2', { reunion: `reunion-r-demo2-${auj}`, personne: nina, auteur: nina, type: 'information', texte: 'Les maquettes du panier sont validées par le PO', element: 'acm4', cree_le: new Date().toISOString() }));
+    }
     // Suivis tels qu'hier : les maquettes du panier étaient encore « en cours » (passées à « fait » depuis)
     const suivisHier = liste.filter((x) => !!x.statut).map((x) => (x.id === 'acmpt8' ? { ...x, statut: 'en_cours' as const } : x));
     const photo = photoDe({ items: etatHier, features, epics: (ent.epic as Epic[]).filter((x) => eIds.has(x.id)), suivis: suivisHier, tousItems: items.map((t) => etatHier.find((a) => a.id === t.id) ?? t) }, 0);
@@ -818,6 +834,9 @@ const SEEDS_ENTREPRISE: Seeds = {
       const revueW = serieParDefaut('revue', 'equipeagile:acmeqweb');
       const rOcc = occurrences(revueW, auj, loin)[0];
       (e as unknown as Record<string, unknown>).serie = [
+        // Live (15/10) : atelier animé par Nina chaque jour ouvré, Vous y participe ; celui d'aujourd'hui est lancé
+        // (ligne d'état) : bandeau « En direct » et écran de l'animatrice en lecture seule
+        serieVide({ id: 'r-demo2', titre: 'Atelier des maquettes', unite: 'jour', jours: 'ouvres', heure: '08:30', duree: '30', animateur: 'nina.dupont@acme.example', participants: `${MOI_DEMO};tom.faure@acme.example;emma.roy@acme.example`, debut: auj, cree_le: stamp, modifie_le: stamp }),
         serieVide({ id: 'r-demo1', titre: 'Point avec le prestataire de paiement', unite: 'semaine', jours: '4', heure: '14:00', duree: '45', animateur: MOI_DEMO, participants: 'nina.dupont@acme.example;sara.martin@acme.example', debut: auj, cree_le: stamp, modifie_le: stamp }),
         ...(dOcc ? [{ ...daily, exceptions: JSON.stringify([{ d: dOcc.origine, a: `${dOcc.origine}T10:30` }]), cree_le: stamp, modifie_le: stamp }] : []),
         ...(rOcc ? [{ ...revueW, exceptions: JSON.stringify([{ d: rOcc.origine, annulee: true }]), cree_le: stamp, modifie_le: stamp }] : []),
@@ -1084,7 +1103,8 @@ export function budgetDemoEntreprise(): { depense: Depense[]; cout: CoutPersonne
 }
 
 export const ESPACES_DEMO = [
-  { id: 'demo-equipe', type: 'equipe' as const, nom: 'Mobile' },
+  // Espace Équipe « Studio » (15/10 : renommé, il se confondait avec l'équipe Mobile d'ACME)
+  { id: 'demo-equipe', type: 'equipe' as const, nom: 'Studio' },
   { id: 'demo-entreprise', type: 'entreprise' as const, nom: 'ACME' },
 ];
 
@@ -1241,7 +1261,7 @@ function pointsMoi(): PointReunion[] {
   const perso = [
     pt('moipl1', { reunion: plan, element: 'acm13', texte: JSON.stringify({ k: 'place', h: '14:00', f: '16:00' }) }),
     pt('moipl2', { reunion: plan, element: 'acm15', texte: JSON.stringify({ k: 'place', d: 'Matin' }) }),
-    pt('moipl3', { reunion: plan, texte: JSON.stringify({ k: 'evt', h: '18:30', f: '19:30', t: 'Sport' }) }),
+    pt('moipl3', { reunion: plan, texte: JSON.stringify({ k: 'evt', h: '17:00', f: '17:45', t: 'Rendez-vous chez le dentiste' }) }),
     pt('moisp1', { reunion: `point_perso-perso-${hier}`, type: 'action', texte: 'Relancer l’assurance pour le devis', concretisation: 'suivi', responsable: MOI_DEMO, statut: 'en_cours', validateur: MOI_DEMO, echeance: jour, cree_le: `${hier}T07:40:00.000Z` }),
     pt('moisp2', { reunion: `point_perso-perso-${hier}`, type: 'blocage', texte: 'Devis du plombier toujours pas reçu', cree_le: `${hier}T07:42:00.000Z` }),
   ];

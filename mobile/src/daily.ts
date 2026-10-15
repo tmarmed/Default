@@ -335,6 +335,8 @@ export function reunionPrecedenteAvecPlan(points: Pick<PointReunion, 'reunion' |
 // Créneaux (13/10, R5, R6) : facultatifs, rangés dans 🔒 Moi (privés), autour des événements de la journée
 /** Réunion technique du plan d'une journée dans 🔒 Moi : créneaux et événements perso (points « donnee ») */
 export const reunionPlanJour = (jour: string) => `plan_jour-moi-${jour}`;
+/** Plan du Point perso du matin (gardé sur l'appareil) : clé du stockage local, lue par le Bilan du soir */
+export const clePlanPerso = (jour: string) => `president:plan-${jour}`;
 export interface EvenementJour {
   /** HH:MM */
   heure: string;

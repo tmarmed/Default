@@ -12,7 +12,7 @@ import { iterationOf, shiftIteration, shiftPi } from '../src/pi';
 import type { Domaine, Epic, Feature, Item, Objectif, ObjectifPI } from '../src/types';
 
 const espaces = ['moi', ...ESPACES_DEMO.map((e) => e.id)];
-const noms = { moi: '🔒 Moi', 'demo-equipe': '👥 Mobile', 'demo-entreprise': '🏢 ACME' };
+const noms = { moi: '🔒 Moi', 'demo-equipe': '👥 Studio', 'demo-entreprise': '🏢 ACME' };
 
 // Données de la démo, chaque élément marqué de son espace
 const items: Item[] = [];

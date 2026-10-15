@@ -110,7 +110,7 @@ const p = (id: string, email: string) => ({ id, nom: id, email, unite: '', manag
 const seule = makeOrgValue({
   ...orgDemo('demo-entreprise'),
   personnes: [...orgDemo('demo-entreprise').personnes, p('mobp1', 'po@mobile.example'), p('mobp3', mail('acmp8'))],
-  equipes: [...orgDemo('demo-entreprise').equipes, { id: 'mobeq', nom: 'Mobile', train: '', po: 'mobp1', sm: '', membres: 'mobp1;mobp3', cree_le: '', modifie_le: '' }],
+  equipes: [...orgDemo('demo-entreprise').equipes, { id: 'mobeq', nom: 'Studio', train: '', po: 'mobp1', sm: '', membres: 'mobp1;mobp3', cree_le: '', modifie_le: '' }],
 });
 const tom2 = reunionsAVenir(seule, mail('acmp8'), '2026-10-01', true, 30);
 ok(du(tom2, '2026-10-01').some((r) => r.type === 'planification' && r.niveau === 'equipeagile:mobeq'), 'équipe hors train : planification de l’IT1 le 1er oct.');

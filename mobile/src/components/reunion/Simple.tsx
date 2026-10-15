@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { lirePlusieurs, usePointsLus } from './usePointsLus';
 import { Pressable, Text, View } from 'react-native';
 import { addDays, toDateString } from '../../dates';
-import { dateCourte, enHeure, enMinutes } from '../../daily';
+import { dateCourte, enHeure, enMinutes, clePlanPerso } from '../../daily';
 import { useHierarchy } from '../../hierarchyContext';
 import { useOrg } from '../../organisation';
 import { BlocBudgetSimple } from '../Budget';
@@ -35,7 +35,7 @@ import { Ligne, Pastilles, pastilleStatut, st, Vide } from './ui';
  * Le plan du jour et les priorités de la semaine restent dans l'appareil (pas dans un Sheet).
  */
 const TYPES_TACHE = new Set(['tache', 'rendez-vous', 'appel', 'demarche', 'mission']);
-const CLE_PLAN = (jour: string) => `president:plan-${jour}`;
+const CLE_PLAN = clePlanPerso;
 const CLE_PRIORITES = 'president:priorites-semaine';
 const REPOUSSER = 'Repousser de 3 mois';
 const CREER_TACHE = 'Créer une tâche';

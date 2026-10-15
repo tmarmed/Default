@@ -16,9 +16,12 @@ acme6 « Abandonner » ; note concrétisée en 💶 ; Inès Garnier Contrôleuse
 Hugo Blanc Suppléant de Nina cette semaine ; MVP dépassé déjà couvert par acme2 ; DEMO_DATA_VERSION 62) · 5 Mode Simple, Moi et séries — FAIT (plan du jour : créneau 14:00 → 16:00 de la démo du sprint, page d'accueil le
 matin, événement perso ; suivi perso et note à concrétiser au Point perso ; Point d'équipe Mobile du mode Simple avec
 suivi, décision et note préparée ; budget simple de l'espace Mobile (budgetDemoEquipe) ; séries enregistrées : réunion
-libre du jeudi, Daily déplacé à 10:30, Revue de sprint Web annulée ; DEMO_DATA_VERSION 63). PAS FAIT : live « En direct »
-(ligne d'état éphémère, à voir avec « Voir en tant que ») ; plan du Point perso du matin (gardé sur l'appareil, pas
-dans les données) ; l'événement perso n'apparaît pas dans la vue par défaut du plan.
+libre du jeudi, Daily déplacé à 10:30, Revue de sprint Web annulée ; DEMO_DATA_VERSION 63). Complété ensuite (15/10) : live « En direct » (Atelier des
+maquettes, réunion libre animée par Nina chaque jour ouvré, lancée aujourd'hui : ligne d'état acmlive1) ; plan du Point
+perso du matin posé sur l'appareil par la démo s'il manque (clePlanPerso, daily.ts) → « Prévu ce matin » au Bilan du
+soir ; événement perso à 17:00 (la journée affichée va de 9:00 à 18:00) ; espace Équipe et son équipe renommés
+« Studio » (confusion avec Mobile d'ACME) ; rôles transverses vus dans la fiche de l'équipe Mobile ; DEMO_DATA_VERSION 65.
+Reste à faire ensuite : CRA, jours passés par story, calcul automatique jusqu'à l'epic (à décider avec l'utilisateur).
 
 ## Session 4 (14/10, suite) : refactoring sans changement fonctionnel — VALIDÉ (5 lots, un à la fois, avec captures)
 1. Outils communs — FAIT : src/format.ts (jourMois, jourMoisAn, dateFr, jourSemaine, jourSemaineChiffres, euros,
