@@ -101,6 +101,11 @@ chacun ; chaque équipe voit « Rassemblée avec d'autres · envoyée au portfol
 un élément tant que le haut n'a rien décidé ; plusieurs parents peuvent attendre le même enfant.
 Note sur plusieurs éléments (validé) : éléments de MON équipe seulement ; un élément d'une autre équipe passe par
 l'escalade : le niveau du dessus crée le suivi parent et demande un suivi enfant à l'autre équipe (reçu au Chat).
+Transmettre = canal de collaboration (validé) : un point de suivi peut être transmis à n'importe quelle équipe, même
+transverse, sans escalade ; il arrive au Chat et le receveur le transforme en point de suivi enfant (lié) dans sa réunion.
+Lacune 6 décidée : communiquer = le responsable (chef) du niveau du dessus + la personne de liaison entre l'équipe du
+dessus et celle du dessous, pas les autres ; s'il n'y a pas de personne de liaison, n'importe qui du niveau du dessus.
+(Reste à définir : comment l'application connaît la personne de liaison.)
 Fin de vie des liens (validé 15/10) : PARENT = niveau du dessus (décide, valide, communique : information, ordre,
 demande d'information pour contrôle) ; ENFANT = dessous (demande, fait, confirme la prise en compte). Boutons actuels
 gardés. Ajouts : abandonner / plus suivi / détacher un point lié = demande au parent (OK · Refuser) ; tous les enfants
