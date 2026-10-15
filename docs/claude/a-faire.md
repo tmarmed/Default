@@ -62,6 +62,8 @@ Lacunes à reprendre UNE PAR UNE au retour de l'utilisateur : 1 note « En prép
 4 communication à plusieurs équipes (une note par équipe, « Mobile ✓ · Web ⏳ ») ; 5 « Déplacer » (vers quelles
 réunions ; note déplacée vers un autre élément) ; 6 (challenge) communication officielle par n'importe qui ? ;
 7 (challenge) à l'équipe, PO ou SM : qui confirme quoi.
+Décidé (15/10) : cas limites de la chaîne : le niveau le plus haut n'a pas « Escalader », le plus bas (équipe) n'a pas
+« Communiquer » (boutons absents).
 À discuter aussi :
 ligne 5 et suivantes du tableau ; changement de périmètre au train (feature dans le PI) ; « stabilité du sprint » ; CRA.
 
