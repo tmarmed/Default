@@ -11,8 +11,12 @@
 - **Affecter** : donner la responsabilité à moi ou à une personne de mon équipe.
 - **Remplacer** : affecter à une autre personne de l'équipe quand le responsable est absent (13/10 : c'est une
   affectation, pas une transmission).
-- **Transmettre** : passer hors de mon équipe : autre équipe ou niveau du dessus. Englobe l'ancienne « escalade »
-  (vers le haut). Toujours suivi.
+- **Transmettre** (revu le 15/10) : canal de collaboration informel, au Chat, vers n'importe qui (↑ ↓ →, même
+  transverse). Pas de suivi d'office. **Escalader** (↑) et **Communiquer** (↓) : versions officielles (bloc 16 des
+  règles). **Parent** = niveau du dessus (décide, valide, communique) ; **enfant** = dessous (demande, fait, confirme).
+- **En préparation** (15/10) : note écrite, pas encore partagée. **⏰ Me le rappeler** : temporiser jusqu'à une date.
+- **Déplacer** (15/10) : changer un point de réunion parmi les miennes ; changer d'élément = modifier la note.
+- **Rassembler / Répartir** (15/10) : plusieurs éléments reçus → un seul vers le haut / un parent → plusieurs enfants.
 - **Maillon** : chaque niveau (équipe, train, portfolio, entreprise) par lequel passe une transmission ou une demande ;
   chacun décide ou transmet plus haut, jamais automatiquement.
 - **Hors réunion** : décision prise dans le Chat ; elle est confirmée ensuite en réunion.

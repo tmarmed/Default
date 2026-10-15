@@ -19,6 +19,8 @@
   li { font-size:13px; line-height:1.5; color:#3A4556; margin:2px 0; }
   li b { color:#18202C; }
   .exc { margin-top:8px; font-size:12.5px; background:#FFF1D6; color:#8A4B00; border-radius:8px; padding:6px 10px; }
+  .large { grid-column:1/-1; }
+  h3 { font-size:13.5px; margin:12px 0 4px; color:#1A73E8; }
   .pied { margin-top:16px; font-size:12.5px; color:#6B7686; }
 </style>
 </head>
@@ -102,7 +104,7 @@
       <li>Où : le responsable dans ses suivis (pastille touchable) ; le validateur dans le Suivi de la réunion suivante (filtre « <b>À valider · n</b> ») <b>ou</b> dans le Chat — c'est le même point, répondre à un endroit met l'autre à jour. Rituels Simple : vous êtes responsable et validateur ; étape « Suivis » toujours affichée dans chaque rituel (08/10). Participants : repris de l'Organisation, non modifiables ; onglet « Compte rendu » visible de toute l'équipe.</li>
     </ul></div>
 
-    <div class="bloc"><h2><i>8</i>Transmettre en chaîne et Chat (08/10 : plus d'« escalader »)</h2><ul>
+    <div class="bloc"><h2><i>8</i>Transmettre en chaîne et Chat (08/10 : plus d'« escalader »)</h2><div class="exc">⚠ Revu le 15/10 : escalader et communiquer redeviennent des actions officielles, tout ce qui vient d'ailleurs arrive au Chat ; voir le bloc 16 (il prime en cas de différence).</div><ul>
       <li><b>Un seul verbe : ↪ Transmettre</b>, vers le haut, sur le côté, en parallèle (plusieurs destinataires : un maillon chacun). Diagramme d'états : <b>docs/cycles-de-vie.html</b>.</li>
       <li><b>Chat = privé, jamais suivi ; Note = devant tout le monde, suivie en réunion.</b> Aucune note créée d'office : « 📌 Suivre à &lt;réunion&gt; » (précoché, décochable) ou « 📌 Suivre en réunion ». <b>Reformuler</b> à chaque passage (transmettre, faire redescendre, lier à la réunion) ; les pièces jointes ne suivent jamais ; la note garde un lien « 🔒 Échange privé · Tom Faure → Vous » (noms, pas le contenu), « Échange privé terminé » quand le message a disparu.</li>
       <li><b>Dans le Chat</b> : ✓ Accepter / ↩ À reprendre une réponse (accord 1 à 1) ; maillon « Je reste dans la boucle » : ✓ Accepter et renvoyer (reformulé) · ↩ À reprendre · ↪ Re-transmettre ; « Je me retire » : la réponse va directement à l'expéditeur. Rappel « 📌 À valider » (sans « Lu ») : ✅ Valider depuis le Chat ou laisser la validation à la réunion (c'est le même suivi, la réunion l'affiche validé). Pièces jointes : seules celles cochées partent. Plusieurs destinataires : « n réponses sur m », 🔔 Relancer, ⊘ Clôturer chez tous. Message retiré par l'expéditeur : la note liée passe à « Clos par l'expéditeur ». <b>Mode Simple</b> : les mêmes suivis et le même Chat (étape « Suivis » de chaque rituel, « Suivre à » point perso).</li>
@@ -198,8 +200,90 @@
       <li><b>F1 · Filtres</b> (14/10, corrigé par l'utilisateur) : les filtres des écrans (Tâches, Roadmap…) sont la base et ne changent pas ; les filtres des réunions réutilisent leur composant (pastilles « Tous » puis un seul choix).</li>
     </ul></div>
 
+    <div class="bloc large"><h2><i>16</i>Notes, suivis et liens entre niveaux (15/10, décidé, pas encore codé)</h2>
+      <h3>But</h3><ul>
+      <li>Faire circuler une information ou une demande <b>entre personnes, équipes et niveaux</b> sans rien perdre, en gardant chaque réunion <b>gérée par son équipe</b> et les informations d'une réunion <b>confidentielles</b>.</li></ul>
+      <h3>Mots</h3><ul>
+      <li><b>Note</b> : ce qu'on écrit (en réunion ou depuis le Chat : « 📝 Ajouter une note à une réunion »). Tout entre par une note.</li>
+      <li><b>En préparation</b> : note écrite mais pas encore partagée ; visible par son auteur seul, retrouvée à sa préparation suivante.</li>
+      <li><b>Suivre et concrétiser</b> (l'écran, ancien « Concrétiser ») : deux décisions <b>indépendantes</b> : concrétiser (Rien · Créer un élément · Action rapide · Demande de budget · Escalader · Communiquer) et suivre (point de suivi : responsable, validation, échéance). On peut l'un sans l'autre.</li>
+      <li><b>Transmettre</b> (↑ ↓ →) : canal de <b>collaboration</b>, informel, au Chat, par n'importe qui, vers n'importe quelle équipe, même transverse.</li>
+      <li><b>Escalader</b> (↑) : demande <b>officielle</b> au niveau du dessus. <b>Communiquer</b> (↓) : information, ordre ou demande d'information pour contrôle, <b>officielle</b>, vers le niveau du dessous.</li>
+      <li><b>Dépendance</b> : la version officielle « sur le côté » (ART sync).</li>
+      <li><b>Parent / enfant</b> : le <b>parent</b> est au niveau du dessus (il décide, valide, communique) ; l'<b>enfant</b> est au niveau du dessous (il demande, fait, confirme la prise en compte). Une seule relation pour toute l'application : maillons du Chat, escalade, communication, demande de budget, suivis. Sur plusieurs niveaux, de la direction au membre d'une équipe.</li>
+      <li><b>Rassembler</b> : plusieurs éléments reçus deviennent un seul vers le haut (le nouveau parent). <b>Répartir</b> : un parent crée plusieurs enfants.</li>
+      <li><b>Déplacer</b> : changer un point de réunion, <b>parmi les miennes</b>. <b>Modifier la note</b> : changer le ou les éléments concernés (ce n'est pas un déplacement).</li>
+      <li><b>Responsables d'un niveau</b> : équipe PO + Scrum Master ; train PM + RTE ; portfolio Epic Owner ; direction son responsable. <b>Personne de liaison</b> : quelqu'un qui fait partie des deux niveaux (reconnue automatiquement, ex. SM de Mobile participant à l'ART sync).</li>
+      <li><b>⏰ Me le rappeler</b> : temporiser un élément reçu ou une note jusqu'à une date.</li></ul>
+      <h3>Règles de gestion</h3><ul>
+      <li><b>N1 · Une note peut rester « En préparation »</b>. Non partagée à la réunion suivante de sa série → rappel 🟡 (une seule réunion d'attente).</li>
+      <li><b>N2 · Perso ou équipe</b> : ce qui reste dans mon périmètre (sous-tâche pour ne pas oublier, décision qui ne touche que moi) se concrétise librement, suivi facultatif. Ce qui touche le périmètre du sprint, l'estimation totale d'une story, le planning, la capacité ou le travail d'un autre → <b>point de suivi obligatoire</b> (case cochée d'office, non décochable), confirmé par le Scrum Master ; le PO valide quand c'est le périmètre. L'application détecte ces cas quand elle le peut.</li>
+      <li><b>N3 · Une note concerne un ou plusieurs éléments de mon équipe.</b> Un élément d'une autre équipe passe par l'escalade (le dessus crée le parent et demande un enfant à l'autre équipe) ou par Transmettre.</li>
+      <li><b>R1 · Règle unique : tout ce qui vient d'une autre réunion arrive au Chat</b> (escalade, communication, suivi enfant, suivi transmis, demande de budget). Celui qui reçoit choisit : <b>« 📌 Mettre en réunion »</b> (réunion régulière de son équipe proposée en premier ; note et suivi créés, liés au parent) · <b>« ⏰ Me le rappeler »</b> · <b>répondre directement</b> (la réponse redescend, le point de l'envoyeur passe à « Fait »). Rien n'est déposé dans une réunion de l'extérieur. Le message actuel « 📌 Nouveau suivi » devient ce message reçu.</li>
+      <li><b>R2 · D'office seulement chez l'envoyeur</b> : escalader ou communiquer crée la note et son point de suivi dans <b>sa</b> réunion, « déjà confirmé » (c'est un responsable qui l'a fait, aussi depuis le Chat).</li>
+      <li><b>R3 · Ce que voit l'envoyeur</b> : « Reçu · pas encore traité » → « Pris en compte, prévu le 18/10 » → « Suivi au Daily Mobile ». Chez un parent à plusieurs enfants : une seule ligne « 2 / 3 · Mobile ✓ · Web ⏳ », un enfant bloqué en couleur, un seul fil d'allers-retours.</li>
+      <li><b>Q1 · Qui peut quoi</b> : écrire une note : tout participant ; Transmettre : tout le monde ; <b>Escalader</b> : PO ou Scrum Master (PM ou RTE au train…) ; <b>Communiquer</b> : le responsable du dessus et la personne de liaison ; sans personne de liaison, n'importe qui du dessus ; communication à plusieurs équipes : par leurs Scrum Masters ; <b>Déplacer</b> : responsables de la réunion ou du point ; <b>Modifier la note</b> : son responsable ou celui qui l'a initiée ; valider un suivi : la personne en Validation.</li>
+      <li><b>Q2 · Cas limites de la chaîne</b> : le niveau le plus haut n'a pas « Escalader » ; le plus bas n'a pas « Communiquer » ni « Répartir » (boutons absents).</li>
+      <li><b>Q3 · PO et Scrum Master</b> : PO (PM) = contenu (périmètre, priorités, acceptation, réponses ; escalade d'exigence, de priorité, de budget) ; SM (RTE) = déroulement (confirmer, mettre en réunion, temporiser, organiser ; escalade de blocage, de dépendance, de capacité). Les deux voient tout et peuvent agir : le partage dit à qui l'application envoie en premier.</li>
+      <li><b>Q4 · Absent</b> : reçu aussi par son suppléant, sinon par l'autre responsable du niveau ; portfolio et direction : suppléant, sinon le responsable du dessus. Le premier qui traite le fait disparaître chez l'autre.</li>
+      <li><b>L1 · Le lien est posé dès la création</b> ; le Chat n'est qu'une salle d'attente. Un enfant peut à son tour avoir des enfants.</li>
+      <li><b>L2 · Visibilité</b> : je vois les liens que j'ai créés, et le niveau du dessus voit les éléments liés du dessous ; <b>jamais l'inverse</b>. Chez l'enfant : « lié » sans dire à quoi.</li>
+      <li><b>L3 · Rassembler</b> (demande de budget, escalade, question du Chat, risque, dépendance) : par celui qui les a reçus ; les originaux restent ; la réponse redescend vers chacun ; chaque équipe voit « Rassemblée avec d'autres · envoyée au portfolio ». On sort un élément tant que le haut n'a rien décidé. Réponse partielle : celui qui a rassemblé répartit <b>en montant</b> ; chaque équipe ne reçoit que son chiffre.</li>
+      <li><b>L4 · Fin de vie, boutons actuels gardés</b> : l'enfant fait « Fait » → « 📌 À valider » au parent → Valider · À reprendre. Concrétiser chez l'enfant : simple information au parent. <b>Abandonner, Plus suivi, Détacher un point lié = une demande au parent</b> (OK · Refuser). Tous les enfants finis → l'application propose au parent « Valider » (ou « Ne plus suivre » si certains sont abandonnés). Enfant à reprendre alors que les autres sont validés → « Demande de suivre de nouveau » au parent. Parent abandonné → ses enfants sont prévenus et passent à « Plus suivi ».</li>
+      <li><b>L5 · Supprimer un élément rattaché</b> : jamais seul ; « Demander à détacher » au responsable du rattachement (niveau N+1), qui accepte ou refuse.</li>
+      <li><b>D1 · Déplacer</b> : vers une réunion où le responsable du point participe ; historique « Déplacé de la Revue de sprint du 14/10 par Sara Martin » ; responsable, validation, échéance et statut inchangés ; jamais en double.</li>
+      <li><b>T1 · ⏰ Me le rappeler</b> (échange du Chat, alerte, rappel, note) : Demain · Dans X jours · Prochaine réunion · Date. L'élément sort de mes listes et revient le jour venu à toutes ses places habituelles, « ⏰ prévu aujourd'hui », en haut ; traité à un endroit, il disparaît des autres. L'autre voit « Pris en compte · réponse prévue le 18/10 ». Liste « ⏰ Temporisés » pour répondre avant. On peut aussi créer une action sans estimation liée : répondre la termine, la terminer propose de répondre.</li></ul>
+      <h3>Cycle de vie d'un élément reçu</h3><ul>
+      <li>Envoyé (point d'office chez l'envoyeur) → <b>Reçu au Chat</b> (« pas encore traité ») → ⏰ Temporisé (revient le jour venu) ou <b>Mis en réunion</b> (note + suivi enfant, lié) ou <b>Répondu directement</b> → suivi : En cours → Fait → À valider chez le parent → Validé (ou À reprendre, Abandonné, Plus suivi sur demande au parent) → fin de vie habituelle (bloc 8).</li></ul>
+      <h3>Cas d'usage</h3><ul>
+      <li><b>C1</b> · Tom Faure ne peut pas répondre à Marc tout de suite : « ⏰ Dans 3 jours » et sous-tâche « Répondre à Marc » ; Marc voit « réponse prévue le 18/10 ».</li>
+      <li><b>C2</b> · Au Daily Mobile, Nina Dupont (SM) escalade « Serveur de test en panne » : point d'office dans son Daily ; le RTE le reçoit au Chat, « 📌 Mettre en réunion » → ART sync.</li>
+      <li><b>C3</b> · Mobile et Web escaladent le même blocage : le RTE rassemble les deux en une escalade au portfolio ; la réponse redescend aux deux.</li>
+      <li><b>C4</b> · À l'ART sync, le RTE communique « Gel des mises en production du 20 au 24/10 » aux SM de Mobile, Web et Studio ; ligne « 1 / 3 · Mobile ✓ · Web ⏳ · Studio ⏳ ».</li>
+      <li><b>C5</b> · Le RTE répartit un suivi entre trois SM ; chacun le reçoit au Chat et le met dans son Daily ; tous validés → « Valider » proposé au RTE.</li>
+      <li><b>C6</b> · Trois demandes de budget reçues, deux rassemblées vers le portfolio ; accordé en partie : le RTE répartit en montant, chaque équipe voit son chiffre.</li>
+      <li><b>C7</b> · Sara Martin (Mobile) transmet un suivi à l'équipe Données (transverse), qui le transforme en suivi enfant dans sa réunion.</li>
+      <li><b>C8</b> · Nina est en congé : l'escalade reçue arrive aussi chez Hugo Blanc (suppléant) ; il la traite, elle disparaît chez Nina.</li></ul>
+      <h3>Critères d'acceptation</h3><ul>
+      <li>Quand une escalade est envoyée, alors aucun point n'apparaît dans une réunion du receveur avant « Mettre en réunion ».</li>
+      <li>Quand le receveur temporise au 18/10, alors l'envoyeur voit « Pris en compte · réponse prévue le 18/10 » et l'élément revient le 18/10.</li>
+      <li>Quand un enfant passe « Fait », alors le parent reçoit « 📌 À valider » ; quand tous sont validés, « Valider » est proposé au parent.</li>
+      <li>Quand un enfant demande « Abandonner » sur un point lié, alors le statut ne change qu'après l'OK du parent.</li>
+      <li>Quand je suis enfant, alors je vois « lié » sans voir à quoi.</li>
+      <li>Au niveau le plus haut, pas de bouton « Escalader » ; au plus bas, pas de « Communiquer ».</li>
+      <li>Quand une note est en préparation à la réunion suivante de sa série, alors un rappel 🟡.</li></ul>
+      <h3>Hors périmètre (pour l'instant) et vigilance</h3><ul>
+      <li>Les éléments reçus ne s'affichent pas en réunion avant « Mettre en réunion ».</li>
+      <li>⚠ <b>Changements à vérifier (non-régression)</b> : les demandes de budget passent par le Chat (aujourd'hui directement dans le bloc de la réunion du dessus) ; « 📌 Suivre à &lt;réunion&gt; » n'est plus précoché ; « Concrétiser » devient « Suivre et concrétiser ». Tout nouveau cas d'usage découvert en appliquant la relation parent / enfant est validé avec l'utilisateur.</li></ul>
+    </div>
+
+    <div class="bloc large"><h2><i>17</i>Calcul automatique, bruit, retouche, changement de périmètre, réimputation (15/10, décidé, pas encore codé)</h2>
+      <h3>But</h3><ul>
+      <li>Que les chiffres (points, dates, jours, budget) se tiennent du bas en haut sans ressaisie, que le travail perdu ou refait se voie, et que le périmètre d'un sprint ne bouge pas sans décision.</li></ul>
+      <h3>Mots</h3><ul>
+      <li><b>Bruit</b> : travail commencé (jours réels &gt; 0) puis supprimé, déplacé ou abandonné. <b>Retouche</b> : travail refait sur une story terminée (réouverture, refus, tout Bug). <b>Changement de périmètre</b> : un élément qui entre dans le sprint ou en sort. <b>Réimputation</b> : changer un élément de budget.</li></ul>
+      <h3>Règles de gestion</h3><ul>
+      <li><b>K1 · Vers le bas, seulement les dates</b> : enfant vide → date du parent en gris, qui la suit ; enfant rempli → garde la sienne, alerte s'il sort. Priorité : sa date &gt; son sprint ou PI &gt; son parent.</li>
+      <li><b>K2 · Vers le haut, points et budget</b> : parent vide → calculé sans rien dire ; parent qui a une valeur (même calculée) → alerte « Passer à n · Garder » à son responsable (PO, PM, Epic Owner ; sinon le niveau du dessus) ; « Garder » se souvient. Dates : parent vide → plus tôt / plus tard des enfants. Arrêt à l'epic.</li>
+      <li><b>K3 · Jours réels</b> : toujours calculés, jamais saisis sur story, feature, epic ; corrigés sur la tâche ou dans le CRA.</li>
+      <li><b>K4 · Sous-tâches</b> (un seul niveau) : organisation perso ; somme ≤ estimation de la story → rien ; au-delà → alerte « Passer à n · Garder » au responsable de la story.</li>
+      <li><b>K5 · Consommé avec CRA</b> : consommé = jours CRA × coût jour + dépenses (estimé pour les jours sans CRA) ; reste à faire = points restants × jours par point observés ; estimation à la fin = somme ; couverture CRA en %.</li>
+      <li><b>B1 · Bruit</b> : tâche « 🧹 Bruit » sous le parent le plus proche (feature, sinon epic), sinon orpheline par équipe et par sprint (fermée à la fin du sprint) ; une sous-tâche par élément, cause obligatoire (choix rapides + commentaire) ; points = jours ÷ jours par point. Déplacé : les jours restent en bruit, l'élément part sans estimation. Pas commencé : pas de bruit.</li>
+      <li><b>B2 · Retouche</b> : réouverture ou refus d'une story terminée → sous-tâche « 🔧 Retouche » automatique avec estimation et cause ; « ＋ Retouche » à la main ; tout Bug est une retouche. La story reste terminée dans son sprint (vélocité gardée) ; seule la retouche se planifie (sprint en cours par changement de périmètre, suivant, plus tard). Budget : epic en cours → epic ; sinon TMA du train.</li>
+      <li><b>B3 · Trois indicateurs</b> (Rétrospective, Revue, Planification, I&amp;A, Pilotage ; écart aussi à l'Affinage) : Bruit (vert &lt; 5 %, orange &lt; 15 %), Écart d'estimation hors bruit et retouche (±15 / ±30 %), Retouche (&lt; 5 / 10 %).</li>
+      <li><b>P1 · Changement de périmètre</b> : seulement un élément qui entre ou sort (story, tâche à part, bug, retouche estimée &gt; 0) ; détail (sous-tâche, réestimation, réaffectation) = pas de fenêtre. N'importe qui propose, le PO valide, le SM confirme (Chat ou réunion) ; la demande est un point de suivi. Ajout : entre après la confirmation ; confirmé au Chat → « décidé hors réunion · déjà confirmé ». « Retirer du sprint » → backlog ; « Déplacer » vers un autre sprint ou PI = aussi un changement de périmètre ; travail commencé → bruit.</li>
+      <li><b>M1 · Réimputation</b> : ligne « Payé par » dans la fiche (automatique par défaut, « ↺ Revenir à la règle automatique »), aussi en groupe au Pilotage et à la Revue du portfolio ; tout l'élément bouge (jours et dépenses) ; trace datée avec raison. Seuls ceux qui gèrent le budget du niveau réimputent ; les autres écrivent une note, dont le SM ou le responsable peut faire un suivi transmis au gestionnaire.</li></ul>
+      <h3>Critères d'acceptation</h3><ul>
+      <li>Quand la somme des sous-tâches dépasse l'estimation de la story, alors « Passer à n · Garder » au responsable de la story.</li>
+      <li>Quand un élément commencé est supprimé, alors une sous-tâche de bruit avec ses jours est créée, cause obligatoire.</li>
+      <li>Quand une story terminée est rouverte, alors elle reste terminée dans son sprint et une « 🔧 Retouche » est créée.</li>
+      <li>Quand une story entre dans le sprint, alors elle n'y entre qu'après la confirmation du SM.</li></ul>
+      <h3>Reste à décider</h3><ul>
+      <li>Lignes 5 et suivantes du tableau du changement de périmètre ; changement de périmètre au train (feature dans le PI) ; « stabilité du sprint » ; CRA et jours par story ; tableau « qui peut faire quoi » complet.</li></ul>
+    </div>
+
   </div>
-  <div class="pied">Détail et historique des décisions : docs/mission.html (lot 6). Mis à jour le 13/10 (plan du jour, remplacer = affecter, coche « À concrétiser » des Informations).</div>
+  <div class="pied">Détail et historique des décisions : docs/mission.html (lot 6). Mis à jour le 15/10 (blocs 16 et 17 : notes, suivis et liens entre niveaux ; calcul automatique, bruit, retouche, périmètre, réimputation).</div>
 </div>
 </body>
 </html>
