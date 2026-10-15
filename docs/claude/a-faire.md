@@ -52,7 +52,17 @@ Décidé :
   (un seul niveau, règle du 08/10) = organisation perso ; somme des sous-tâches ≤ estimation de la story → rien ;
   au-delà → alerte « Passer à n · Garder » au responsable de la story (backlog et sprint propres).
 - Mot validé : une note gardée non partagée est « En préparation ».
-À discuter : la section « quatre mouvements » (l'utilisateur ne l'a pas encore lue) ; mot pour la note gardée ;
+- Diagramme d'ensemble validé (note → En préparation ou partagée → Suivre et concrétiser → point de suivi ; escalade et
+  communication créent note + suivi chez qui reçoit ; Transmettre à côté, sans suivi). Escalader et communiquer
+  possibles depuis le Chat par un responsable : la note arrive à sa réunion (Daily…) « déjà confirmée ».
+- Responsables par niveau (règle générale) : équipe PO + Scrum Master ; train RTE + PM ; portfolio Epic Owner ;
+  direction son responsable. Tableau « qui peut faire quoi » proposé le 15/10 (à valider).
+Lacunes à reprendre UNE PAR UNE au retour de l'utilisateur : 1 note « En préparation » oubliée (compteur + rappel
+5 jours ouvrés) ; 2 escalader depuis le Chat (réglé : oui pour un responsable) ; 3 receveur absent → suppléant ;
+4 communication à plusieurs équipes (une note par équipe, « Mobile ✓ · Web ⏳ ») ; 5 « Déplacer » (vers quelles
+réunions ; note déplacée vers un autre élément) ; 6 (challenge) communication officielle par n'importe qui ? ;
+7 (challenge) à l'équipe, PO ou SM : qui confirme quoi.
+À discuter aussi :
 ligne 5 et suivantes du tableau ; changement de périmètre au train (feature dans le PI) ; « stabilité du sprint » ; CRA.
 
 ## Démo complète : simulation de tous les cas d'usage (15/10, validé : 5 lots dans l'ordre)
