@@ -106,6 +106,10 @@ transverse, sans escalade ; il arrive au Chat et le receveur le transforme en po
 Lacune 6 décidée : communiquer = le responsable (chef) du niveau du dessus + la personne de liaison entre l'équipe du
 dessus et celle du dessous, pas les autres ; s'il n'y a pas de personne de liaison, n'importe qui du niveau du dessus.
 Personne de liaison : reconnue automatiquement (quelqu'un qui fait partie des deux : ex. SM de Mobile participant à l'ART sync).
+Lacune 7 décidée : PO (PM au train) = contenu (périmètre, priorités, acceptation, réponses ; escalade de contenu :
+exigence, priorité, budget) ; SM (RTE au train) = déroulement (confirmer, mettre en réunion, temporiser, organiser ;
+escalade de déroulement : blocage, dépendance, capacité). Les deux voient tout et peuvent agir : le partage dit à qui
+l'application envoie en premier. Absent → l'autre. TOUTES LES LACUNES (1 à 7) SONT DÉCIDÉES.
 Fin de vie des liens (validé 15/10) : PARENT = niveau du dessus (décide, valide, communique : information, ordre,
 demande d'information pour contrôle) ; ENFANT = dessous (demande, fait, confirme la prise en compte). Boutons actuels
 gardés. Ajouts : abandonner / plus suivi / détacher un point lié = demande au parent (OK · Refuser) ; tous les enfants
