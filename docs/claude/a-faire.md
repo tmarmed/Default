@@ -71,6 +71,12 @@ estimation liée possible (répondre termine l'action, terminer l'action propose
 Lacune 3 décidée : receveur absent → aussi chez son suppléant, sinon chez l'autre responsable du niveau (tous les
 niveaux) ; le premier qui traite la fait disparaître chez l'autre. Portfolio et direction (un seul responsable) :
 suppléant, sinon elle attend son retour.
+Lacune 3 corrigée : portfolio et direction sans suppléant → au responsable du niveau du dessus.
+Lacune 4 décidée : communication à plusieurs équipes = seulement par les Scrum Masters ; nouveau concept générique
+« suivi parent et suivis enfants » (validé) : sur PLUSIEURS niveaux, du haut (direction) vers le bas (jusqu'au membre
+d'une équipe) ; le plus bas ne peut pas répartir (personne en dessous) ; une ligne chez le parent (« 2 / 3 · Mobile ✓
+· Web ⏳ »), fait quand tous les enfants sont validés, un enfant bloqué remonte en couleur, un seul fil d'allers-retours.
+Proposé (à valider) : unifier avec les maillons du Chat et l'escalade : « le parent attend, les enfants font ».
 Décidé (15/10) : cas limites de la chaîne : le niveau le plus haut n'a pas « Escalader », le plus bas (équipe) n'a pas
 « Communiquer » (boutons absents).
 À discuter aussi :
