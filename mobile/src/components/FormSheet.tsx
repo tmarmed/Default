@@ -182,7 +182,7 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
         <View style={[styles.header, (!!chemin || !!fil || !!espaceFil) && styles.headerAvecFil]}>
 <BoutonRetour pile={retour ? { retour } : undefined} onPress={onClose} disabled={busy} style={styles.headerBtn} fermer={!(onSave && !auto)} />
           {/* Jamais coupé « … » : le titre rapetisse s'il est long */}
-          <TitreBarre texte={title} couleur={couleurTitre} avecFil={!!chemin || !!fil || !!espaceFil} />
+          <TitreBarre texte={title} couleur={couleurTitre} avecFil={!!chemin || !!fil || !!espaceFil} entre={!!droite && !(onSave && !auto)} />
           {onSave && !auto ? (
             <Pressable onPress={onSave} hitSlop={10} disabled={busy}>
               {busy ? <ActivityIndicator color={colors.primary} /> : <Text style={[styles.headerBtn, styles.bold]}>{libelleEnregistrer}</Text>}
@@ -208,8 +208,16 @@ export function FormSheet({ visible, title, busy, error, onClose, onSave, childr
 /**
  * Titre de la barre du haut (le type : « Epic », « Équipe agile »…), en noir, toujours au centre exact de la barre
  * (quelle que soit la largeur d'« Annuler » et d'« Enregistrer »). `couleur` : gardée pour les appels, non utilisée.
+ * `entre` (15/10) : bouton large à droite (« ↻ Actualiser » d'une réunion) : le titre se centre entre les deux boutons,
+ * pour ne jamais les toucher (« Préparation du PI Planning »).
  */
-export function TitreBarre({ texte, avecFil }: { texte: string; couleur?: string; avecFil?: boolean }) {
+export function TitreBarre({ texte, avecFil, entre }: { texte: string; couleur?: string; avecFil?: boolean; entre?: boolean }) {
+  if (entre)
+    return (
+      <View pointerEvents="none" style={{ flex: 1, minWidth: 0, alignItems: 'center', paddingHorizontal: 8 }}>
+        <TexteAjuste variantes={[vocab(texte)]} taille={17} min={12} dispo={Math.min(Dimensions.get('window').width, 480) - 32 - 60 - 120 - 16} style={styles.headerTitle} />
+      </View>
+    );
   return (
     // Avec le fil d'Ariane, la barre a moins de marge en bas : le titre reste aligné sur Annuler / Enregistrer
     <View pointerEvents="none" style={[styles.titreBarre, avecFil && { top: 6 }]}>

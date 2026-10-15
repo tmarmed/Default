@@ -468,6 +468,8 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
     ? e.h.epicList.filter((x) => (n?.kind === 'equipeagile' ? epicsEquipe.has(x.id) : (x.espace || 'moi') === (p.reunion.espace || 'moi')))
     : e.h.epicList.filter((x) => (n?.kind === 'portfolio' ? x.portfolio === n.id : e.portfolio ? x.portfolio === e.portfolio.id : true));
   const c: Ctx = { r, e, pi, piSuivant: shiftPi(pi, 1), features, epics, fmt };
+  /** PI dont parle la réunion (15/10) : la Préparation du PI Planning prépare le PI suivant (capacité, Situation) */
+  const piVise = p.reunion.type === 'prepa_pi' ? c.piSuivant : pi;
   // Capacité par sprint du PI (lot 2, 09/10) : équipes du train, avec les congés déclarés
   const congesCtx = useConges();
   const equipesCapa = n?.kind === 'train' ? r.org.equipes.filter((x) => x.train === n.id) : e.equipe ? [e.equipe] : [];
@@ -638,7 +640,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
       case 'situation':
         return (
           <>
-            <TitreFiche icone="📊" titre="Situation" vide="" sous={`${TYPES_REUNION[p.reunion.type].libelle} · ${e.nomNiveau}${simple ? '' : ` · PI ${pi}`}`} />
+            <TitreFiche icone="📊" titre="Situation" vide="" sous={`${TYPES_REUNION[p.reunion.type].libelle} · ${e.nomNiveau}${simple ? '' : ` · PI ${piVise}`}`} />
             <Compteurs l={et.compteurs(c)} />
             <BlocSuivi r={r} lecture={lecture} onAjouter />
             <BlocBrique titre="Objectifs de la réunion">
@@ -672,7 +674,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
         return (
           <>
             <Navigation n={l.length} cur={k} onChoisir={lecture ? undefined : (i) => setIdx((m) => ({ ...m, [x.cle]: i }))} aReprendre={new Set(l.map((z, i) => (et.choix && !choix[z.id] && i < k ? i : -1)).filter((i) => i >= 0))} />
-            <TitreFiche icone={et.icone} titre={y.titre} vide="" sous={`${et.mot} ${k + 1} sur ${l.length}${y.pastille ? ` · ${y.pastille}` : ''}`} />
+            <TitreFiche icone={et.icone} titre={y.titre.startsWith(`${et.icone} `) ? y.titre.slice(et.icone.length + 1) : y.titre} vide="" sous={`${et.mot} ${k + 1} sur ${l.length}${y.pastille ? ` · ${y.pastille}` : ''}`} />
             {!!y.sous && (
               <BlocBrique titre="Où en est-on">
                 <Ligne premiere texte={y.sous} />
@@ -704,10 +706,11 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
         const tri = revele ? [...l].sort((a, b) => nbv(b.id) - nbv(a.id)) : l;
         return (
           <>
-            <TitreFiche icone={et.icone} titre={`${et.titre} · ${l.length}`} vide="" sous={et.sous} />
+            {/* Capacité du PI (15/10) : le nombre compte les équipes affichées, pas les précisions reçues */}
+            <TitreFiche icone={et.icone} titre={`${et.titre} · ${et.capacitePI ? equipesCapa.length : l.length}`} vide="" sous={et.sous} />
             {et.capacitePI &&
               equipesCapa.map((eq) => {
-                const l2 = capaciteEquipePI(eq.id, r.org, congesCtx.conges, pi);
+                const l2 = capaciteEquipePI(eq.id, r.org, congesCtx.conges, piVise);
                 return (
                   <BlocBrique key={eq.id} titre={`👥 ${eq.nom} · ${fmt(l2.filter((y) => !y.ip).reduce((x, y) => x + y.points, 0))} sur le PI`}>
                     {l2.map((y, i) => (
@@ -752,7 +755,7 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
         const votants = new Set(r.donneesDe('budget').map((y) => y.p.personne)).size;
         return (
           <>
-            <TitreFiche icone="🗳️" titre="Vote" vide="" sous={`100 points par participant · ${votants} sur ${e.personnes.length} ont voté`} />
+            <TitreFiche icone="🗳️" titre="Vote" vide="" sous={`100 points par participant · ${votants} ${votants > e.personnes.length ? '' : `sur ${e.personnes.length} `}${votants > 1 ? 'ont' : 'a'} voté`} />
             <BlocBrique titre="Total des points">{l.length ? l.map((y, i) => <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={`par ${e.nomDe(y.par)}`} pastille={{ texte: `${y.pts} pts`, ton: i === 0 ? 'vert' : 'bleu' }} />) : <Vide texte="Aucune demande." />}</BlocBrique>
           </>
         );

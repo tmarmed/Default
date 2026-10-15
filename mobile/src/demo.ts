@@ -124,7 +124,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '57';
+const DEMO_DATA_VERSION = '58';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -669,6 +669,18 @@ const SEEDS_ENTREPRISE: Seeds = {
       { id: 'acmf3', titre: 'Nouveau site vitrine', description: '', epic: 'acme2', pi: piOf(now), iteration: '', points: '5', couleur: '', train: 'acmtr1', equipe: 'acmeqweb', ...base },
       // Train Paiements (13/10) : l'Application client est payée à 13/26 par Clients et 13/26 par Paiements
       { id: 'acmf4', titre: 'Paiement sécurisé', description: '', epic: 'acme2', pi: piOf(now), iteration: '', points: '13', couleur: '', train: 'acmtr2', equipe: '', ...base },
+      // PI suivant (15/10) : features du train Clients pour la Préparation du PI Planning et le PI Planning (plans
+      // d'équipe par sprint) ; une candidate pas encore estimée ni placée
+      ...(() => {
+        const piS = shiftPi(piOf(now), 1);
+        const sprint = (k: number) => shiftIteration(iterationOf(toDateString(piStart(piS))).key, k);
+        return [
+          { id: 'acmf5', titre: 'Paiement en un clic dans l’application', epic: 'acme3', iteration: sprint(0), points: '13', equipe: 'acmeqmob' },
+          { id: 'acmf6', titre: 'Notifications de livraison', epic: 'acme2', iteration: sprint(1), points: '8', equipe: 'acmeqmob' },
+          { id: 'acmf7', titre: 'Fiches produits enrichies', epic: 'acme2', iteration: sprint(0), points: '5', equipe: 'acmeqweb' },
+          { id: 'acmf8', titre: 'Avis clients sur le site', epic: 'acme2', iteration: '', points: '', equipe: '' },
+        ].map((f) => ({ ...f, description: '', pi: piS, couleur: '', train: 'acmtr1', ...base }));
+      })(),
     ];
     // Lot 4 : OKR, résultats clés et value streams d'ACME
     e.objectif.push({ id: 'acmo2', titre: 'Réduire les coûts d’exploitation', domaine: 'acmdpro', debut: m(-1), fin: m(11), couleur: '#E37400', description: '', cible: '', actuel: '', unite: '', ...base });

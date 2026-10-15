@@ -83,13 +83,26 @@ export function Pastille({ texte, ton, age: date, avant }: { texte: string; ton:
   );
 }
 
+/** Mots qui finissent par « s » au singulier */
+const INVARIABLES = new Set(['transmis', 'pris', 'pas', 'mois', 'PI']);
+/**
+ * Libellé accordé au nombre (15/10) : 0 ou 1 → singulier (« 1 participant », « 0 risque », « 1 story bloquée ») ; à
+ * partir d'une parenthèse ou d'un chiffre (« moyenne 3 sprints »), rien ne change.
+ */
+export function accorder(valeur: string, libelle: string): string {
+  if (valeur !== '0' && valeur !== '1') return libelle;
+  const i = libelle.search(/[(\d]/);
+  const tete = i < 0 ? libelle : libelle.slice(0, i);
+  const sing = tete.replace(/[\p{L}]+/gu, (m) => (INVARIABLES.has(m) ? m : m === 'stories' ? 'story' : m.length > 3 && m.endsWith('s') ? m.slice(0, -1) : m === 'pts' ? 'pt' : m));
+  return sing + (i < 0 ? '' : libelle.slice(i));
+}
 export function Compteur({ valeur, libelle, ton }: { valeur: string; libelle: string; ton?: Ton }) {
   return (
     <View style={st.compteur}>
       <Text style={[st.compteurValeur, ton && { color: TONS[ton].texte }]} numberOfLines={1} adjustsFontSizeToFit>
         {valeur}
       </Text>
-      <Text style={st.compteurLibelle}>{libelle}</Text>
+      <Text style={st.compteurLibelle}>{accorder(valeur, libelle)}</Text>
     </View>
   );
 }

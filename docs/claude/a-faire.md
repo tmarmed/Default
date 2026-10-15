@@ -45,7 +45,7 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
    Daily est SAFe seulement ; le Point d'équipe est déjà sur le socle commun).
 Pas fait exprès : réunions en liste déclarée, super-composant unique, écriture Sheets (déjà commune).
 
-## Vérification des écrans non vus (14/10, captures dans la démo) — constats, rien corrigé
+## Vérification des écrans non vus (14/10, captures dans la démo) — 1 à 6 CORRIGÉS le 15/10, 7 à discuter
 Aucune erreur technique. À décider avec l'utilisateur :
 1. Budget participatif : « 3 votants · 1 participants » et « 3 sur 1 ont voté » (participants = Epic Owner seul ; les
    PM et RTE qui présentent les demandes n'en font pas partie) ; « 1 participants » sans accord.
@@ -55,6 +55,11 @@ Aucune erreur technique. À décider avec l'utilisateur :
 4. PI Planning (T1 2027) presque vide dans la démo : Contexte 0, Plans d'équipe 0, 0 feature du PI.
 5. Revue des OKR : icône en double « 🎯 🎯 Fidéliser les clients ».
 6. En-tête « Préparation du PI Planning » collé à « ↻ Actualiser ».
+Corrigé (15/10) : compteurs accordés partout (« 1 participant », « 0 risque » ; Compteur, ui.tsx accorder) ; vote
+   « 3 ont voté » quand les votants dépassent les participants (démo « tous les rôles » : RTE, PM, Epic Owner = Vous) ;
+   Préparation du PI Planning sur le PI suivant (piVise : Situation, capacité) ; titre de la capacité = nombre
+   d'équipes ; icône simple ; titre de la barre centré entre « Fermer » et « ↻ Actualiser » (TitreBarre entre) ; démo :
+   4 features du train Clients au PI suivant (DEMO_DATA_VERSION 58).
 7. Comité budgétaire : vu seulement en participant (animateur Claire Vidal) ; « Mes tâches · Sprint 1 » au niveau
    direction n'a pas de sens.
 
