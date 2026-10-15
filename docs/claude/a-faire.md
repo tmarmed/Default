@@ -9,8 +9,9 @@ Synchronisation du portfolio avec acmx4 / acmx10, question de l'équipe au PO «
 2 Contenu des réunions SAFe — FAIT (idées, étoiles et proposition reportée de la Rétrospective ; problèmes de l'I&A ;
 votes de poker de l'Affinage ; votes de confiance et risques du PI Planning ; retours de la System demo ; idées et
 formation de la Semaine IP ; décision à prendre à la Revue des OKR ; Vous responsable de la direction, anime le
-Comité ; occurrenceDemo() place les données à la prochaine réunion de chaque série ; DEMO_DATA_VERSION 60) · 3 Chat avancé (pièces jointes, plusieurs destinataires, Je me retire, Clos par
-l'expéditeur) · 4 Budget et rôles (demandes refusée, à reprendre, plus haut ; dossiers Pas maintenant, Abandonner ;
+Comité ; occurrenceDemo() place les données à la prochaine réunion de chaque série ; DEMO_DATA_VERSION 60) · 3 Chat avancé — FAIT (capture et journal joints au blocage de Tom, seule la capture transmise : demoPieces.ts ;
+question de Marc transmise à trois personnes, une réponse sur trois, Relancer / Clôturer ; « Je me retire » Paul →
+Sara ; note liée à un échange clos « 🔒 Échange privé terminé » ; DEMO_DATA_VERSION 61) · 4 Budget et rôles (demandes refusée, à reprendre, plus haut ; dossiers Pas maintenant, Abandonner ;
 MVP dépassé ; Contrôleur de gestion, Partie prenante, Suppléant) · 5 Mode Simple, Moi et séries (rituels perso avec
 plan et suivis, réunions d'équipe Simple avec budget simple, réunion libre, réunion déplacée ou annulée, live).
 

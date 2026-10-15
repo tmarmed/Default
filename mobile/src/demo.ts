@@ -5,7 +5,8 @@ import { iterationOf, piOf, piStart, shiftIteration, shiftPi } from './pi';
 import { FILTRE_TOUT, photoDe, pointsPhoto } from './avancement';
 import { estOuvre, occurrences } from './series';
 import { serieParDefaut } from './reunions';
-import { creerMagasin, type Kind, type Persistance, type Table, TABLES, TABLES_ORG } from './magasin';
+import { PIECES_DEMO } from './demoPieces';
+import { controleMorceau, creerMagasin, type Kind, type Persistance, type Table, TABLES, TABLES_ORG } from './magasin';
 import { CLE_ORG, type KindOrg, type Org } from './organisation';
 import { type TypeReunion, RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, type ValueStream, type Echange } from './types';
 
@@ -127,7 +128,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '60';
+const DEMO_DATA_VERSION = '61';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -652,6 +653,8 @@ const SEEDS_ENTREPRISE: Seeds = {
       // transmis au portfolio (Julie Morel, Epic Owner) ; suivi à la Synchronisation du portfolio, fait
       pt('acmpt31', { reunion: `art_sync-train:acmtr1-${avant}`, personne: sara, auteur: sara, type: 'blocage', texte: 'API de paiement bloquée (équipe Mobile)', element: 'acm4', concretisation: 'escalade', tache: 'acmx10', echange: 'acmx4', responsable: julieEO, statut: 'fait', validateur: sara, note: 'Réponse de Julie Morel : contrat du prestataire prolongé, accès rétabli', cree_le: `${avant}T11:25:00.000Z` }),
       pt('acmpt32', { reunion: `sync_portfolio-portfolio:acmpf1-${avant}`, personne: julieEO, auteur: julieEO, type: 'blocage', texte: 'Accès du prestataire de paiement à prolonger', element: 'acm4', concretisation: 'suivi', tache: 'acmx10', echange: 'acmx10', responsable: julieEO, statut: 'fait', validateur: julieEO, echeance: veille, note: 'Contrat prolongé d’un an', cree_le: `${avant}T14:10:00.000Z` }),
+      // Note liée à un message du Chat déjà clos (lot 3) : « 🔒 Échange privé terminé »
+      pt('acmpt27', { reunion: reunion(avant), personne: tom, auteur: MOI_DEMO, type: 'blocage', texte: 'Droits d’accès au dépôt de code', concretisation: 'suivi', tache: 'acmx-clos', echange: 'acmx-clos', responsable: paul, statut: 'fait', validateur: MOI_DEMO, echeance: veille, note: 'Accès donné', cree_le: `${avant}T09:53:00.000Z` }),
       // Dépendance notée à l'ART sync, à concrétiser : l'équipe Web attend une feature du train Paiements
       // (lot 2 plus bas : contenu préparé des réunions SAFe)
       pt('acmpt33', { reunion: `art_sync-train:acmtr1-${avant}`, personne: nina, auteur: nina, type: 'dependance', texte: 'L’équipe Web attend le « Paiement sécurisé » du train Paiements', element: 'acmf4', cree_le: `${avant}T11:30:00.000Z` }),
@@ -777,6 +780,7 @@ const SEEDS_ENTREPRISE: Seeds = {
     e.epic = e.epic.map((x) => (x.id === 'acme2' ? { ...x, value_streams: 'acmvs1', objectif: '' } : x.id === 'acme1' ? { ...x, okrs: 'acmo1', value_streams: '', objectif: '' } : x));
     // Échanges privés à deux dans l'équipe Mobile (« Voir en tant que » Nina Dupont pour les voir)
     const ech = (id: string, x: Partial<Echange>): Echange => ({ id, de: '', a: '', type: 'message', titre: '', texte: '', choix: '', reponse: '', note: '', statut: 'envoye', element: '', niveau: 'equipeagile:acmeqmob', transmis_par: '', prive: '1', cree_le: new Date().toISOString(), modifie_le: new Date().toISOString(), ...x });
+    (e as unknown as Record<string, unknown>).piecejointe = PIECES_DEMO.map((x) => ({ id: `${x.piece}-0`, piece: x.piece, nom: x.nom, type: x.type, taille: String(Math.floor((x.donnees.length * 3) / 4)), partie: '0', total: '1', donnees: x.donnees, cree_le: new Date().toISOString(), controle: controleMorceau(x.donnees) }));
     e.echange = [
       ech('acmx1', { de: 'paul.leroy@acme.example', a: 'nina.dupont@acme.example', type: 'question', titre: 'Découper la story de connexion ?', texte: 'Elle fait 8 points : on la coupe en deux pour ce sprint ?', choix: 'Oui, en deux;Non, on la garde' }),
       ech('acmx2', { de: 'tom.faure@acme.example', a: 'nina.dupont@acme.example', titre: 'Budget des licences', texte: 'Il faut valider l’achat des licences de test : ça dépasse l’équipe.' }),
@@ -859,6 +863,8 @@ const SEEDS_ENTREPRISE: Seeds = {
         choix: 'Résolu;Pas résolu (motif)',
         statut: 'transmis',
         element: 'acm4',
+        // Lot 3 : capture et journal joints ; seule la capture a été cochée en transmettant à Sara
+        pieces_jointes: 'acmpj1;acmpj2',
       }),
       ech('acmx7', {
         de: MOI_DEMO,
@@ -875,7 +881,16 @@ const SEEDS_ENTREPRISE: Seeds = {
         parent: 'acmx6',
         niveau: 'train:acmtr1',
         element: 'acm4',
+        pieces_jointes: 'acmpj1',
       }),
+      // Lot 3 de la démo complète (15/10) : transmis à trois personnes en parallèle (un maillon chacun, une réponse sur
+      // trois : « 🔔 Relancer », « ⊘ Clôturer chez tous ») ; « Je me retire » (Paul → Sara au nom de Paul, transmis par
+      // Vous : « Voir en tant que » Paul ou Sara)
+      ech('acmx12', { de: 'marc.petit@acme.example', a: MOI_DEMO, type: 'question', nature: 'question', titre: 'Qui présente le paiement à la System demo ?', texte: 'Il faut une personne de l’équipe Mobile pour la démo de vendredi.', choix: 'Moi;Pas disponible', statut: 'transmis', niveau: 'train:acmtr1', element: 'acmf2' }),
+      ech('acmx13', { de: MOI_DEMO, a: 'tom.faure@acme.example', type: 'question', nature: 'question', titre: 'Qui présente le paiement à la System demo ?', texte: 'Marc cherche quelqu’un pour la démo de vendredi : tu peux ?', choix: 'Moi;Pas disponible', parent: 'acmx12', transmis_par: MOI_DEMO, element: 'acmf2' }),
+      ech('acmx14', { de: MOI_DEMO, a: 'emma.roy@acme.example', type: 'question', nature: 'question', titre: 'Qui présente le paiement à la System demo ?', texte: 'Marc cherche quelqu’un pour la démo de vendredi : tu peux ?', choix: 'Moi;Pas disponible', statut: 'repondu', reponse: 'Moi', note: 'Je montre le paiement en un clic', parent: 'acmx12', transmis_par: MOI_DEMO, element: 'acmf2' }),
+      ech('acmx15', { de: MOI_DEMO, a: 'nina.dupont@acme.example', type: 'question', nature: 'question', titre: 'Qui présente le paiement à la System demo ?', texte: 'Marc cherche quelqu’un pour la démo de vendredi : tu peux ?', choix: 'Moi;Pas disponible', parent: 'acmx12', transmis_par: MOI_DEMO, element: 'acmf2' }),
+      ech('acmx16', { de: 'paul.leroy@acme.example', a: 'sara.martin@acme.example', type: 'question', nature: 'action', titre: 'Accès au tableau de bord du train', texte: 'Paul a besoin d’un accès en lecture au tableau de bord du train.', choix: 'Fait;Pas possible (motif)', transmis_par: MOI_DEMO, niveau: 'train:acmtr1' }),
       // 💶 Lot 4 : une demande de budget à décider (Chat) et une information reçue (disparaît à la lecture)
       ech('acmx8', {
         de: 'nina.dupont@acme.example',
