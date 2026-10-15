@@ -128,7 +128,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '61';
+const DEMO_DATA_VERSION = '62';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -653,6 +653,8 @@ const SEEDS_ENTREPRISE: Seeds = {
       // transmis au portfolio (Julie Morel, Epic Owner) ; suivi à la Synchronisation du portfolio, fait
       pt('acmpt31', { reunion: `art_sync-train:acmtr1-${avant}`, personne: sara, auteur: sara, type: 'blocage', texte: 'API de paiement bloquée (équipe Mobile)', element: 'acm4', concretisation: 'escalade', tache: 'acmx10', echange: 'acmx4', responsable: julieEO, statut: 'fait', validateur: sara, note: 'Réponse de Julie Morel : contrat du prestataire prolongé, accès rétabli', cree_le: `${avant}T11:25:00.000Z` }),
       pt('acmpt32', { reunion: `sync_portfolio-portfolio:acmpf1-${avant}`, personne: julieEO, auteur: julieEO, type: 'blocage', texte: 'Accès du prestataire de paiement à prolonger', element: 'acm4', concretisation: 'suivi', tache: 'acmx10', echange: 'acmx10', responsable: julieEO, statut: 'fait', validateur: julieEO, echeance: veille, note: 'Contrat prolongé d’un an', cree_le: `${avant}T14:10:00.000Z` }),
+      // Demande de budget née d'une note (lot 4) : concrétisée en 💶 à la rétro du 9/10 (demande acmdb1)
+      pt('acmpt28', { reunion: occurrenceDemo('retro', 'equipeagile:acmeqmob', -1), personne: nina, auteur: nina, type: 'action', texte: 'Licence de l’outil de test', concretisation: 'budget', tache: 'acmdb1', responsable: nina, cree_le: `${avant}T15:00:00.000Z` }),
       // Note liée à un message du Chat déjà clos (lot 3) : « 🔒 Échange privé terminé »
       pt('acmpt27', { reunion: reunion(avant), personne: tom, auteur: MOI_DEMO, type: 'blocage', texte: 'Droits d’accès au dépôt de code', concretisation: 'suivi', tache: 'acmx-clos', echange: 'acmx-clos', responsable: paul, statut: 'fait', validateur: MOI_DEMO, echeance: veille, note: 'Accès donné', cree_le: `${avant}T09:53:00.000Z` }),
       // Dépendance notée à l'ART sync, à concrétiser : l'équipe Web attend une feature du train Paiements
@@ -742,6 +744,9 @@ const SEEDS_ENTREPRISE: Seeds = {
       { id: 'acme2', titre: 'Application client', description: '', debut: m(-1), fin: m(8), couleur: '#C2185B', objectif: 'acmo1', domaine: '', etat: 'en_cours', portfolio: 'acmpf1', budget: '100000', ...base },
       // Lot 5 : idée en analyse, dossier d'investissement à compléter puis à décider à la Revue du portfolio
       { id: 'acme3', titre: 'Paiement en un clic', description: '', debut: m(2), fin: m(9), couleur: '#5E35B1', objectif: 'acmo1', domaine: '', etat: 'analyse', portfolio: 'acmpf1', ...base },
+      // Lot 4 de la démo complète (15/10) : une idée remise à plus tard et une abandonnée (Revue du portfolio)
+      { id: 'acme5', titre: 'Borne de commande en magasin', description: '', debut: m(6), fin: m(14), couleur: '#00897B', objectif: '', domaine: '', etat: 'idee', portfolio: 'acmpf1', ...base },
+      { id: 'acme6', titre: 'Programme de parrainage', description: '', debut: m(3), fin: m(8), couleur: '#8E24AA', objectif: '', domaine: '', etat: 'idee', portfolio: 'acmpf1', ...base },
       // Epic terminée (13/10) : le travail des équipes de janvier à l'été, avant l'Application client
       { id: 'acme4', titre: 'Site e-commerce v1', description: '', debut: `${new Date().getFullYear()}-01-01`, fin: toDateString(addDays(new Date(), -14 * 4)), couleur: '#6D4C41', objectif: 'acmo1', domaine: '', etat: 'termine', portfolio: 'acmpf1', budget: '230000', ...base },
     ];
@@ -936,6 +941,9 @@ const SEEDS_ENTREPRISE: Seeds = {
         p('acmp11', 'Hugo Blanc', 'acmu3', 'acmp2', '8', 'dev'),
         // Deuxième train du portfolio Digital (13/10) : son RTE
         p('acmp12', 'Léo Bernard', 'acmu2', 'acmp2'),
+        // Lot 4 de la démo complète (15/10) : Contrôleur de gestion (portfolio) et Partie prenante (équipe Mobile)
+        p('acmp13', 'Inès Garnier', 'acmu1', 'acmp1'),
+        p('acmp14', 'Antoine Lefèvre', 'acmu4', 'acmp3'),
       ],
       unites: [
         { id: 'acmu1', nom: 'Direction générale', type: 'direction' as const, parent: '', responsable: 'acmp1', ...base },
@@ -944,7 +952,7 @@ const SEEDS_ENTREPRISE: Seeds = {
         { id: 'acmu4', nom: 'Direction commerciale', type: 'direction' as const, parent: 'acmu1', responsable: 'acmp3', ...base },
       ],
       // Rôles transverses (13/10) : Claire Vidal (direction générale) voit tout le portfolio
-      portfolios: [{ id: 'acmpf1', nom: 'Digital', epic_owner: 'acmp3', transverses: 'acmp1|direction', ...base }],
+      portfolios: [{ id: 'acmpf1', nom: 'Digital', epic_owner: 'acmp3', transverses: 'acmp1|direction;acmp13|controleur', ...base }],
       trains: [
         // Rôles transverses (13/10) : Karim Haddad (direction technique) coach agile du train et de ses équipes
         { id: 'acmtr1', nom: 'Clients', portfolio: 'acmpf1', rte: 'acmp4', pm: 'acmp5', transverses: 'acmp2|coach', ...base },
@@ -952,7 +960,8 @@ const SEEDS_ENTREPRISE: Seeds = {
         { id: 'acmtr2', nom: 'Paiements', portfolio: 'acmpf1', rte: 'acmp12', pm: '', ...base },
       ],
       equipes: [
-        { id: 'acmeqmob', nom: 'Mobile', train: 'acmtr1', po: 'acmp6', sm: 'acmp7', membres: 'acmp6;acmp7;acmp8;acmp9', ...base },
+        // Lot 4 : Partie prenante (invitée aux revues) ; Hugo Blanc suppléant de Nina Dupont cette semaine
+        { id: 'acmeqmob', nom: 'Mobile', train: 'acmtr1', po: 'acmp6', sm: 'acmp7', membres: 'acmp6;acmp7;acmp8;acmp9', transverses: `acmp14|partie_prenante;acmp11|suppleant|${toDateString(new Date())}|${toDateString(addDays(new Date(), 5))}|acmp7`, ...base },
         { id: 'acmeqweb', nom: 'Web', train: 'acmtr1', po: 'acmp10', sm: 'acmp11', membres: 'acmp10;acmp11', ...base },
       ],
     };
@@ -1012,12 +1021,19 @@ export function budgetDemoEntreprise(): { depense: Depense[]; cout: CoutPersonne
       dos('acme1', { hypothese: 'Un seul CRM fait gagner une demi-journée par semaine aux commerciaux', estimation: '60', budget_prevu: '80000', budget_mvp: '12000', decision: 'lancer', decide_le: dans(-30), decide_par: 'marc.petit@acme.example', decide_a: 'Revue du portfolio' }),
       dos('acme2', { hypothese: 'Les clients commandent plus depuis l’application', estimation: '90', budget_prevu: '100000', budget_mvp: '15000', decision: 'lancer', decide_le: dans(-40), decide_par: 'marc.petit@acme.example', decide_a: 'Revue du portfolio' }),
       dos('acme3', { hypothese: 'Payer en un clic double les achats répétés', estimation: '40', budget_prevu: '60000' }),
+      // Lot 4 : remise à plus tard (revient à décider) et abandonnée
+      dos('acme5', { hypothese: 'Une borne réduit l’attente en magasin', estimation: '30', budget_prevu: '120000', decision: 'pas_maintenant', decide_le: dans(-12), decide_par: 'julie.morel@acme.example', decide_a: 'Revue du portfolio' }),
+      dos('acme6', { hypothese: 'Le parrainage apporte 10 % de nouveaux clients', estimation: '15', budget_prevu: '40000', decision: 'abandonner', decide_le: dans(-12), decide_par: 'julie.morel@acme.example', decide_a: 'Revue du portfolio' }),
     ],
     cout: couts.map(([id, cout_annuel]) => ({ id, cout_annuel, cree_le: stamp, modifie_le: stamp })),
     // 💶 Lot 4 : demandes de budget (une à décider à l'ART sync, une accordée, une décidée hors réunion à revoir)
     demande: [
       dem('acmdb1', { motif: 'Licence de l’outil de test', montant: '1200', periode: 'an', du: dans(20), pour: 'epic:acme2', demandeur: 'equipeagile:acmeqmob', soumis_par: 'nina.dupont@acme.example', origine: 'Rétrospective du 9/10' }),
       dem('acmdb2', { motif: 'Écrans de test', montant: '900', periode: 'ponctuel', du: dans(-7), pour: 'epic:acme2', demandeur: 'equipeagile:acmeqweb', soumis_par: MOI_DEMO, origine: 'Planification de sprint du 1/10', statut: 'accordee', montant_accorde: '900', decide_par: 'sara.martin@acme.example', decide_le: stamp }),
+      // Lot 4 : refusée (motif), à reprendre (motif), soumise plus haut (du train au portfolio)
+      dem('acmdb4', { motif: 'Salon professionnel à Lyon', montant: '6000', periode: 'ponctuel', du: dans(40), pour: 'equipeagile:acmeqweb', demandeur: 'equipeagile:acmeqweb', soumis_par: 'lea.roux@acme.example', origine: 'Revue de sprint du 1/10', statut: 'refusee', motif_decision: 'Hors des priorités du PI', decide_par: 'sara.martin@acme.example', decide_le: stamp }),
+      dem('acmdb5', { motif: 'Deuxième serveur de test', montant: '3500', periode: 'an', du: dans(15), pour: 'epic:acme2', demandeur: 'equipeagile:acmeqmob', soumis_par: 'nina.dupont@acme.example', origine: 'Rétrospective du 9/10', statut: 'a_reprendre', motif_decision: 'Comparer avec une offre en ligne', decide_par: 'sara.martin@acme.example', decide_le: stamp }),
+      dem('acmdb6', { motif: 'Audit d’accessibilité du site', montant: '18000', periode: 'ponctuel', du: dans(45), pour: 'epic:acme2', demandeur: 'train:acmtr1', destination: 'portfolio:acmpf1', soumis_par: 'sara.martin@acme.example', origine: 'ART sync du 8/10' }),
       dem('acmdb3', { motif: 'Formation à l’accessibilité', montant: '2400', periode: 'ponctuel', du: dans(30), pour: 'equipeagile:acmeqmob', demandeur: 'equipeagile:acmeqmob', soumis_par: 'nina.dupont@acme.example', origine: 'Rétrospective du 25/09', statut: 'accordee', montant_accorde: '2000', decide_par: 'marc.petit@acme.example', decide_le: stamp, hors_reunion: '1' }),
     ],
     depense: [

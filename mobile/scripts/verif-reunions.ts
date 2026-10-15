@@ -99,9 +99,11 @@ ok(reunionsAVenir(o, mail('acmp1'), '2026-10-01', true, 92).length === 0, 'perso
 
 // Participants
 const daily = du(paul, '2026-10-13').find((r) => r.type === 'daily')!;
-ok(participantsReunion(daily, o).length === 5 && participantsReunion(daily, o).includes('acmp2'), 'daily de Mobile : 4 participants + le Coach agile du train (rôle transverse)');
+// Démo complète (15/10) : Hugo Blanc suppléant de Nina cette semaine
+ok(participantsReunion(daily, o).length === 6 && participantsReunion(daily, o).includes('acmp2') && participantsReunion(daily, o).includes('acmp11'), 'daily de Mobile : 4 participants + le Coach agile du train + le Suppléant de Nina (rôles transverses)');
 const sync = du(paul, '2026-10-07').find((r) => r.type === 'art_sync')!;
-ok(participantsReunion(sync, o).length === 7, 'ART sync : RTE, PM, SM et PO des 2 équipes (6) + le Coach agile du train');
+// Démo complète (15/10) : + la Contrôleuse de gestion (l'ART sync décide des demandes de budget)
+ok(participantsReunion(sync, o).length === 8 && participantsReunion(sync, o).includes('acmp13'), 'ART sync : RTE, PM, SM et PO des 2 équipes (6) + le Coach agile du train + la Contrôleuse de gestion');
 
 // Équipe hors train (espace Équipe) : pas de PI Planning, la planification de l'IT1 a lieu ; vous dans deux espaces
 const p = (id: string, email: string) => ({ id, nom: id, email, unite: '', manager: '', capacite: '', cree_le: '', modifie_le: '' });
@@ -450,7 +452,8 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   // Responsable de la direction : « Vous » dans la démo « tous les rôles » (15/10)
   ok(partU.includes(oE.unite.get('acmu1')?.responsable ?? '-') && oE.equipes.filter((e) => (e.espace || 'moi') === 'demo-entreprise').every((e) => !e.sm || partU.includes(e.sm)), 'Simple : revue de l’entreprise = son responsable et les responsables des équipes');
   ok(niveauDessus('equipeagile:acmeqmob', oE, true) === 'entreprise:demo-entreprise' && niveauDessus('entreprise:demo-entreprise', oE, true) === null && reunionDuNiveau('entreprise:x', true) === 'Revue du mois', 'Simple : demande de l’équipe → entreprise, à la Revue du mois, rien au-dessus');
-  ok(gerantsBudget('entreprise:demo-entreprise', oE, true).length === 1 && gerantsBudget('equipeagile:acmeqmob', oE, true).length === 1, 'Simple : décide le responsable de l’entreprise ; demande le responsable de l’équipe');
+  // + la Contrôleuse de gestion du portfolio (démo complète, 15/10) quand le niveau en dépend
+  ok(gerantsBudget('entreprise:demo-entreprise', oE, true).length >= 1 && gerantsBudget('equipeagile:acmeqmob', oE, true).filter((x) => x !== 'ines.garnier@acme.example').length === 1, 'Simple : décide le responsable de l’entreprise ; demande le responsable de l’équipe');
   const d = donneesDemo('demo-entreprise');
   const hP = { items: d.items, featureList: d.entities.feature ?? [], epicList: d.entities.epic ?? [], objectifList: d.entities.objectif ?? [], objectifsPI: d.entities.objectifpi ?? [], resultats: d.entities.resultat ?? [], domaineList: d.entities.domaine ?? [] } as never;
   const jourP = toDateString(new Date());
@@ -521,7 +524,7 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const oD = makeOrgValue(orgTousLesRoles(orgDemo('demo-entreprise')));
   ok(niveauDessus('equipeagile:acmeqmob', oD) === 'train:acmtr1' && niveauDessus('train:acmtr1', oD) === 'portfolio:acmpf1' && niveauDessus('portfolio:acmpf1', oD)!.startsWith('entreprise:') && niveauDessus('entreprise:x', oD) === null, 'demande de budget : équipe → train → portfolio → entreprise');
   ok(reunionDuNiveau('train:x') === 'ART sync' && reunionDuNiveau('portfolio:x') === 'Synchronisation du portfolio' && reunionDuNiveau('entreprise:x') === 'Comité budgétaire', 'réunions qui reçoivent les demandes');
-  ok(gerantsBudget('train:acmtr1', oD).includes('vous@demo') && gerantsBudget('equipeagile:acmeqmob', oD).length === 1, 'droit « Gérer le budget » : RTE et PM du train, Scrum Master de l’équipe');
+  ok(gerantsBudget('train:acmtr1', oD).includes('vous@demo') && gerantsBudget('equipeagile:acmeqmob', oD).filter((x) => x !== 'ines.garnier@acme.example').length === 1, 'droit « Gérer le budget » : RTE et PM du train, Scrum Master de l’équipe');
   testsAsync.push((async () => {
     const mem: Record<string, unknown[]> = {};
     const mag = creerMagasin({ lire: async (t) => [...((mem[t] ?? []) as never[])], ecrire: async (t, rows) => void (mem[t] = rows) });
