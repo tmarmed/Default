@@ -68,6 +68,9 @@ Demain · Dans X jours · Prochaine réunion · Date ; l'élément sort de mes l
 « Pris en compte · réponse prévue le 18/10 » ; liste « ⏰ Temporisés » consultable pour répondre avant ; action sans
 estimation liée possible (répondre termine l'action, terminer l'action propose de répondre). Le jour venu, il revient
 à sa (ses) place(s) habituelle(s), « ⏰ prévu aujourd'hui », en haut ; traité à un endroit, il disparaît des autres.
+Lacune 3 décidée : receveur absent → aussi chez son suppléant, sinon chez l'autre responsable du niveau (tous les
+niveaux) ; le premier qui traite la fait disparaître chez l'autre. Portfolio et direction (un seul responsable) :
+suppléant, sinon elle attend son retour.
 Décidé (15/10) : cas limites de la chaîne : le niveau le plus haut n'a pas « Escalader », le plus bas (équipe) n'a pas
 « Communiquer » (boutons absents).
 À discuter aussi :
