@@ -118,9 +118,11 @@ if (DEMO) {
   a.setItem = ((k: string, v: string) => o.setItem(cle(k), v)) as never;
   a.removeItem = ((k: string) => o.removeItem(cle(k))) as never;
   a.mergeItem = ((k: string, v: string) => o.mergeItem(cle(k), v)) as never;
-  a.multiGet = (async (ks: string[]) => ((await o.multiGet(ks.map(cle))) as [string, string | null][]).map(([, v], i) => [ks[i], v])) as never;
-  a.multiSet = ((l: [string, string][]) => o.multiSet(l.map(([k, v]) => [cle(k), v]))) as never;
-  a.multiRemove = ((ks: string[]) => o.multiRemove(ks.map(cle))) as never;
+  // Opérations groupées (15/10) : une par clé, avec les fonctions d'origine — celles du navigateur rappellent
+  // getItem / setItem / removeItem, déjà préfixés ici : le préfixe était ajouté deux fois (rien n'était effacé)
+  a.multiGet = (async (ks: string[]) => Promise.all(ks.map(async (k) => [k, (await o.getItem(cle(k))) as string | null]))) as never;
+  a.multiSet = (async (l: [string, string][]) => void (await Promise.all(l.map(([k, v]) => o.setItem(cle(k), v))))) as never;
+  a.multiRemove = (async (ks: string[]) => void (await Promise.all(ks.map((k) => o.removeItem(cle(k)))))) as never;
   a.getAllKeys = (async () => ((await o.getAllKeys()) as string[]).flatMap((k) => (k.startsWith(P) ? [k.slice(P.length)] : commune(k) ? [k] : []))) as never;
 }
 
@@ -136,11 +138,16 @@ let versionChecked: Promise<void> | null = null;
 function checkVersion(): Promise<void> {
   versionChecked ??= (async () => {
     try {
-      if ((await AsyncStorage.getItem(VERSION_KEY)) === DEMO_DATA_VERSION) return;
-      // Données de tous les espaces de la démo (clés « mes-taches:demo… »)
-      const cles = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(KEY) && k !== VERSION_KEY);
+      // Règle (15/10) : les données de la démo sont celles du jour ; créées un autre jour (ou par une autre version),
+      // elles sont recréées à l'ouverture (ce qui a été modifié la veille est effacé ; un onglet resté ouvert garde les
+      // siennes jusqu'au prochain chargement)
+      const marque = `${DEMO_DATA_VERSION}|${toDateString(new Date())}`;
+      if ((await AsyncStorage.getItem(VERSION_KEY)) === marque) return;
+      // Données de tous les espaces de la démo (clés « mes-taches:demo… ») et copies d'affichage de la démo (rangées à
+      // part, « demo~ ») : rien de la veille ne s'affiche
+      const cles = (await AsyncStorage.getAllKeys()).filter((k) => (k.startsWith(KEY) || ['mes-taches:cache', 'mes-taches:cache-epics', 'president:org-cache'].includes(k)) && k !== VERSION_KEY);
       await AsyncStorage.multiRemove(cles);
-      await AsyncStorage.setItem(VERSION_KEY, DEMO_DATA_VERSION);
+      await AsyncStorage.setItem(VERSION_KEY, marque);
     } catch {
       // Stockage indisponible : la démo repart des exemples en mémoire.
     }
