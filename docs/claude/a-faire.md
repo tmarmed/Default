@@ -99,6 +99,8 @@ qu'il a créés lui-même (il sait que c'est lié, pas avec quoi) ; les informat
 Chat, risque, dépendance) ; par celui qui les a reçus ; les originaux restent et attendent ; la réponse redescend vers
 chacun ; chaque équipe voit « Rassemblée avec d'autres · envoyée au portfolio » (sans savoir avec qui) ; on peut sortir
 un élément tant que le haut n'a rien décidé ; plusieurs parents peuvent attendre le même enfant.
+Note sur plusieurs éléments (validé) : éléments de MON équipe seulement ; un élément d'une autre équipe passe par
+l'escalade : le niveau du dessus crée le suivi parent et demande un suivi enfant à l'autre équipe (reçu au Chat).
 Fin de vie des liens (validé 15/10) : PARENT = niveau du dessus (décide, valide, communique : information, ordre,
 demande d'information pour contrôle) ; ENFANT = dessous (demande, fait, confirme la prise en compte). Boutons actuels
 gardés. Ajouts : abandonner / plus suivi / détacher un point lié = demande au parent (OK · Refuser) ; tous les enfants
