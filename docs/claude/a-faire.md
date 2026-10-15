@@ -83,6 +83,15 @@ Lacune 5 décidée : « Déplacer » = seulement changer de réunion (responsabl
 réunion où le responsable du point participe ; historique gardé ; jamais en double). Changer l'élément concerné n'est
 PAS un déplacement : c'est « Modifier la note » (ou le suivi), par son responsable ou celui qui l'a initiée ; NOUVEAU :
 une note ou un suivi peut concerner plusieurs éléments (cas d'usage à valider : réunion d'une note multi-éléments).
+RÈGLE UNIQUE validée (15/10) : tout ce qui vient d'une autre réunion (escalade, communication, suivi enfant, demande de
+budget) arrive au CHAT de celui qui reçoit ; il choisit « 📌 Mettre en réunion » (réunion régulière proposée en
+premier ; note + suivi créés liés au parent), « ⏰ Me le rappeler » ou répondre directement (la réponse redescend, le
+point de l'envoyeur passe à « Fait »). Une réunion est gérée par son équipe : rien n'y est déposé de l'extérieur. Le
+« d'office » ne reste que chez l'envoyeur. Plus de liste « En préparation » pour le reçu (le Chat la remplace).
+L'envoyeur voit « Reçu · pas encore traité » → « Pris en compte, prévu le … » → « Suivi au Daily Mobile » ; la ligne
+du parent montre où chaque enfant est suivi. « Déplacer » = seulement entre mes propres réunions. Le message actuel
+« 📌 Nouveau suivi » devient ce message reçu avec ses trois choix. ⚠ Changement : les demandes de budget apparaissent
+aujourd'hui directement dans le bloc de la réunion du dessus (vérifier la non-régression).
 Décidé (15/10) : cas limites de la chaîne : le niveau le plus haut n'a pas « Escalader », le plus bas (équipe) n'a pas
 « Communiquer » (boutons absents).
 À discuter aussi :
