@@ -26,7 +26,17 @@ description: Liste de contrôle de cohérence (famille « conception », génér
    la démo vit dans son propre fichier et son propre stockage) ; chaque donnée nouvelle est rangée dans l'espace de
    son niveau (équipe, train, perso…) et n'est lue que par ceux qui y ont accès.
 
+10. **Pièces communes** (15/10) : avant de coder un écran ou un bloc, chercher la pièce commune qui existe déjà
+    (carte du code du projet) et la réutiliser ; si le même morceau existe déjà ailleurs ou va exister deux fois,
+    **créer la pièce commune** et y brancher les deux endroits (pas une copie de plus) ; une variante passe par une
+    option de la pièce commune, pas par une copie modifiée.
+
 ## Après le code
+- Le code nouveau n'a recréé à la main aucune pièce commune (chercher les anciens motifs : style ancien, copie d'une
+  fonction, bloc refait) ; sinon le brancher sur la pièce commune, ou dire pourquoi pas.
+- Une pièce commune a changé : vérifier **tous** les écrans qui l'utilisent (lister ses appels, parcours avec
+  captures), pas seulement celui qu'on regardait.
+- Carte du code à jour : pièce commune nouvelle ajoutée, pièce supprimée retirée.
 - Un test par règle de gestion nouvelle.
 - Documents du projet à jour (règles, mission, bilan, liste à faire).
 - Dire ce que la vérification a trouvé, même « rien ».

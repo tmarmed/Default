@@ -19,3 +19,7 @@ Dans `mobile/` :
   (le tour de table passe chaque personne) ; rituels perso (Point perso, Bilan du soir, Revue des objectifs) : mode
   « Simple ». Bouton ＋ d'une section : `getByRole('button', { name: '<ajouterLabel>' })`.
 - Augmenter `DEMO_DATA_VERSION` de 1 à chaque changement des données de démo (sinon le navigateur garde les anciennes).
+- **Parcours de toutes les réunions** (15/10) : `node scripts/parcours-reunions.mjs http://localhost:88NN <dossier> [safe|simple] [filtre]`
+  (version démo construite et servie) : chaque étape de chaque réunion en capture + texte, et `bilan.txt` (nombre
+  d'étapes, erreurs de la page, valeurs suspectes). À lancer dès qu'une pièce commune change (carte du code), en
+  SAFe puis en Simple ; comparer avec un parcours de la version d'avant (`diff` des .txt).
