@@ -92,6 +92,10 @@ L'envoyeur voit « Reçu · pas encore traité » → « Pris en compte, prévu 
 du parent montre où chaque enfant est suivi. « Déplacer » = seulement entre mes propres réunions. Le message actuel
 « 📌 Nouveau suivi » devient ce message reçu avec ses trois choix. ⚠ Changement : les demandes de budget apparaissent
 aujourd'hui directement dans le bloc de la réunion du dessus (vérifier la non-régression).
+Précisions validées : le lien parent → enfant est posé dès la création (le Chat n'est qu'une salle d'attente) ; un point
+reçu peut à son tour avoir des enfants (chaîne continue). PAS de « Voir la chaîne » : chacun ne voit que les liens
+qu'il a créés lui-même (il sait que c'est lié, pas avec quoi) ; les informations d'une réunion ne partent pas ailleurs.
+En brainstorm : « Rassembler » plusieurs éléments reçus en un seul vers le haut (ex. RTE : 2 demandes de budget → 1).
 Décidé (15/10) : cas limites de la chaîne : le niveau le plus haut n'a pas « Escalader », le plus bas (équipe) n'a pas
 « Communiquer » (boutons absents).
 À discuter aussi :
