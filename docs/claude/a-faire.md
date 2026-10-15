@@ -48,8 +48,10 @@ Décidé :
   note peut rester dans ma préparation (non partagée) et je la retrouve au Point perso suivant (mot à choisir). Seuls
   l'escalade et la communication officielles créent un point de suivi d'office.
 - Règle « perso ou équipe » proposée : impact sur périmètre, estimation totale de la story, planning, capacité ou
-  travail d'un autre → point de suivi obligatoire, confirmé par le SM ; sinon facultatif. Ligne 4 : sous-tâche estimée
-  = cas équipe (à valider).
+  travail d'un autre → point de suivi obligatoire, confirmé par le SM ; sinon facultatif. Ligne 4 (décidé) : sous-tâche
+  (un seul niveau, règle du 08/10) = organisation perso ; somme des sous-tâches ≤ estimation de la story → rien ;
+  au-delà → alerte « Passer à n · Garder » au responsable de la story (backlog et sprint propres).
+- Mot validé : une note gardée non partagée est « En préparation ».
 À discuter : la section « quatre mouvements » (l'utilisateur ne l'a pas encore lue) ; mot pour la note gardée ;
 ligne 5 et suivantes du tableau ; changement de périmètre au train (feature dans le PI) ; « stabilité du sprint » ; CRA.
 
