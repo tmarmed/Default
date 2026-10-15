@@ -1,29 +1,24 @@
 /**
- * Bloc « Avancement depuis … » (13/10, docs/regles-reunions.html bloc 13) : en première étape (entre les éléments et
- * « 📌 Suivis ») et dans le compte rendu, avec le même filtre (sorte, niveau).
+ * Avancement depuis la réunion précédente (13/10, docs/regles-reunions.html bloc 13) : photos et comparaison
+ * (useAvancement) et rangées du filtre (FiltreAvancement). L'affichage passe par l'arbre des éléments (Arbre.tsx) ;
+ * l'ancien bloc « Avancement » a été retiré le 15/10 (plus utilisé).
  */
 import { useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { RangeePastilles } from '../RangeePastilles';
 import {
   comparer,
   depuis,
-  estFiltre,
-  nbFiltresAv,
   FILTRE_TOUT,
   type FiltreAv,
   filtrer,
   focusDe,
-  iconeNiveau,
   type LigneAv,
-  messagePremiere,
-  NIVEAUX_AV,
   type Perimetre,
   photoDe,
   photoDeLaReunion,
   photoPrecedente,
   photoPrecedenteAvec,
-  phrase,
   pointsPhoto,
   SEUILS_AV,
   type ModeAv,
@@ -32,10 +27,8 @@ import {
   SORTES_AV,
 } from '../../avancement';
 import type { DemandeBudget, Enveloppe, Epic, Feature, Item, Objectif, ObjectifPI, PointReunion, ResultatCle, TypeReunion } from '../../types';
-import { useOrg } from '../../organisation';
 import { LIBELLE_TYPE_POINT, libelleNote } from '../../daily';
-import { SectionFiche } from '../Choix';
-import { Ligne, PastilleFiltres, st, Vide } from './ui';
+import { st } from './ui';
 
 export interface Avancement {
   type: TypeReunion;
@@ -175,73 +168,3 @@ export function FiltreAvancement({ av, lignes, lecture, sansTypes }: { av: Avanc
   );
 }
 
-/**
- * Bloc Avancement. `compteRendu` : section du compte rendu (filtre fermé, ouvert d'office si filtré, règle A6).
- * Toucher une ligne ouvre la fiche de l'élément ; la pastille de statut se change sur place (règle A7).
- */
-export function BlocAvancement({
-  av,
-  nom,
-  compteRendu,
-  lecture,
-  onOuvrir,
-  onOuvrirEntite,
-  garder,
-  titre,
-}: {
-  av: Avancement;
-  nom: (idOuMail: string) => string;
-  compteRendu?: boolean;
-  lecture?: boolean;
-  onOuvrir?: (t: Item) => void;
-  onOuvrirEntite?: (kind: 'feature' | 'epic' | 'objectif', id: string) => void;
-  /** Tour de table (14/10) : seulement les lignes d'un membre, sans le titre de la section */
-  garder?: (l: LigneAv) => boolean;
-  titre?: string;
-}) {
-  // Responsable d'un élément : id de personne (Organisation) ; d'un suivi : adresse e-mail
-  const org = useOrg();
-  const nomComplet = (x: string) => org.personnes.find((y) => y.id === x)?.nom ?? nom(x);
-  // Feature, epic, objectif : leur fiche (un objectif du PI, une enveloppe, une demande ou un suivi n'en ont pas ici)
-  const KIND: Record<string, 'feature' | 'epic' | 'objectif'> = { f: 'feature', e: 'epic', o: 'objectif' };
-  const ouvrirEntite = (cle: string) => {
-    const k = KIND[cle.slice(0, 1)];
-    return k && onOuvrirEntite ? () => onOuvrirEntite(k, cle.slice(2)) : undefined;
-  };
-  const filtre = estFiltre(av.filtre);
-  const [ouvert, setOuvert] = useState(compteRendu ? filtre : false);
-  if (!av.lignes) {
-    return (
-      <SectionFiche titre={titre ?? 'Avancement'}>
-        <Vide texte={messagePremiere(av.type)} />
-      </SectionFiche>
-    );
-  }
-  const lignes = garder ? av.lignes.filter(garder) : av.lignes;
-  const vues = garder ? av.vues.filter(garder) : av.vues;
-  return (
-    <SectionFiche
-      titre={`${titre ?? av.titre} · ${vues.length}`}
-      droite={lignes.length ? <PastilleFiltres nb={nbFiltresAv(av.filtre)} ouvert={ouvert} onPress={() => setOuvert((x) => !x)} /> : undefined}
-      entete={ouvert && lignes.length ? <FiltreAvancement av={av} lignes={lignes} lecture={lecture} /> : undefined}
-    >
-      {vues.length ? (
-        vues.map((l, i) => {
-          const t = av.itemDe(l.cle);
-          return (
-            <Ligne
-              key={`${l.cle}-${l.sorte}`}
-              premiere={i === 0}
-              texte={`${l.cle.startsWith('q:') ? '🎯 ' : iconeNiveau(l.niveau)}${av.titreDe(l.cle)}`}
-              sous={phrase(l, nomComplet)}
-              tache={!lecture && t ? t : undefined}
-              onOuvrir={lecture ? undefined : t && onOuvrir ? () => onOuvrir(t) : ouvrirEntite(l.cle)}
-            />
-          );
-        })
-      ) : (
-        <Vide texte={lignes.length ? 'Rien à afficher avec ce filtre.' : 'Rien n’a bougé.'} />
-      )}
-    </SectionFiche>
-  );
-}

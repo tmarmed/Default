@@ -6,6 +6,8 @@ import { colors } from '../theme';
 import { useSafe } from '../safe';
 import { CATEGORIES_DEPENSE, type CleRepartition, type DemandeBudget, type Depense, DECISIONS_DOSSIER, type DecisionDossier, type DossierInvestissement, type Epic, PERIODES_DEPENSE, type PeriodeDepense } from '../types';
 import { ChampFiche, SaisieFiche, SectionFiche } from './Choix';
+// Blocs des réunions (15/10) : la coque commune des briques (carte blanche, ▸ / ▾) ; les sections des fiches restent SectionFiche
+import { BlocBrique } from './reunion/Brique';
 import { DateField } from './DateField';
 import { useHierarchy } from '../hierarchyContext';
 import { useOrg } from '../organisation';
@@ -303,7 +305,7 @@ export function BlocDemandesBudget({ niveau, espace, reunion, moi, anime, lectur
   if (!droit && !recues.length && !nos.length && !horsReunion.length) return null;
   const agir = (p: Promise<void>) => p.then(() => setErr('')).catch((e: Error) => setErr(e.message));
   return (
-    <SectionFiche titre={`💶 Demandes de budget · ${recues.length} à décider`}>
+    <BlocBrique titre={`💶 Demandes de budget · ${recues.length} à décider`}>
       {horsReunion.map((d, i) => (
         <View key={`h${d.id}`} style={[s.ligne, i > 0 && s.bord, { flexWrap: 'wrap' }]}>
           <View style={{ flex: 1, minWidth: 200 }}>
@@ -349,7 +351,7 @@ export function BlocDemandesBudget({ niveau, espace, reunion, moi, anime, lectur
         />
       )}
       {!!err && <Text style={s.err}>{err}</Text>}
-    </SectionFiche>
+    </BlocBrique>
   );
 }
 const eurosTxtC = (m: string) => euros(Number(m) || 0);
@@ -505,7 +507,7 @@ export function BlocDossiers({ epics, h, org, espace, reunion, moi, peutDecider,
   return (
     <>
       {horsReunion.length > 0 && (
-        <SectionFiche titre={`Décidé hors réunion · ${horsReunion.length}`}>
+        <BlocBrique titre={`Décidé hors réunion · ${horsReunion.length}`}>
           {horsReunion.map((e, i) => (
             <View key={e.id} style={[s.pad, i > 0 && s.bord]}>
               <Text style={s.texte}>🗂️ {e.titre}</Text>
@@ -517,9 +519,9 @@ export function BlocDossiers({ epics, h, org, espace, reunion, moi, peutDecider,
               )}
             </View>
           ))}
-        </SectionFiche>
+        </BlocBrique>
       )}
-      <SectionFiche titre={`💼 Dossiers d'investissement · ${aDecider.length} à décider`}>
+      <BlocBrique titre={`💼 Dossiers d'investissement · ${aDecider.length} à décider`}>
         {aDecider.map((e, i) => {
           const d = b.dossiers.get(e.id);
           const manques = manquesDossier(d, e);
@@ -534,9 +536,9 @@ export function BlocDossiers({ epics, h, org, espace, reunion, moi, peutDecider,
           );
         })}
         {!aDecider.length && <Text style={[s.sous, s.pad]}>Aucune epic à décider.</Text>}
-      </SectionFiche>
+      </BlocBrique>
       {mvp.length > 0 && (
-        <SectionFiche titre={`🎯 Budget du MVP atteint · ${mvp.length}`}>
+        <BlocBrique titre={`🎯 Budget du MVP atteint · ${mvp.length}`}>
           {mvp.map((e, i) => (
             <View key={e.id} style={[s.pad, i > 0 && s.bord]}>
               <Text style={s.texte}>🗂️ {e.titre} · MVP atteint</Text>
@@ -544,17 +546,17 @@ export function BlocDossiers({ epics, h, org, espace, reunion, moi, peutDecider,
               {boutons(e, true, [])}
             </View>
           ))}
-        </SectionFiche>
+        </BlocBrique>
       )}
       {decides.length > 0 && (
-        <SectionFiche titre={`Décidés · ${decides.length}`}>
+        <BlocBrique titre={`Décidés · ${decides.length}`}>
           {decides.map((e, i) => (
             <View key={e.id} style={[s.pad, i > 0 && s.bord]}>
               <Text style={s.texte}>🗂️ {e.titre}</Text>
               <Text style={s.sous}>{libelleDecisionDossier(b.dossiers.get(e.id))}{b.dossiers.get(e.id)?.decide_par ? ` · par ${nomDe(b.dossiers.get(e.id)!.decide_par)}` : ''}</Text>
             </View>
           ))}
-        </SectionFiche>
+        </BlocBrique>
       )}
       {!!err && <Text style={s.err}>{err}</Text>}
     </>
@@ -567,7 +569,9 @@ export function BlocDossiers({ epics, h, org, espace, reunion, moi, peutDecider,
  * la main (facultative ; saisie, elle passe avant le calcul). Dépensé = dépenses + coût des personnes s'il y a un coût
  * annuel. Revue du mois : suivi ; trimestre : révision du budget prévu ; année : budget de l'année.
  */
-export function BlocBudgetSimple({ epics, h, org, espace, mode, peutModifier }: { epics: Epic[]; h: CtxConsomme['h']; org: OrgValue; espace: string; mode: 'suivi' | 'revision' | 'annee'; peutModifier: boolean }) {
+/** `fiche` : hors réunion (Pilotage), en sections de fiche plutôt qu'en briques */
+export function BlocBudgetSimple({ epics, h, org, espace, mode, peutModifier, fiche }: { epics: Epic[]; h: CtxConsomme['h']; org: OrgValue; espace: string; mode: 'suivi' | 'revision' | 'annee'; peutModifier: boolean; fiche?: boolean }) {
+  const Bloc = fiche ? SectionFiche : BlocBrique;
   const simpleB = !useSafe().actif;
   const b = useBudget();
   const [err, setErr] = useState('');
@@ -607,16 +611,16 @@ export function BlocBudgetSimple({ epics, h, org, espace, mode, peutModifier }: 
   if (b.parEspace[espace]?.accessible === false && !lignes.some((x) => x.prevu)) return <Text style={[s.sous, s.pad]}>Pas d’accès au Sheet « Budget » de cet espace : aucun montant n’est montré.</Text>;
   return (
     <>
-      <SectionFiche titre={`💶 Budget · ${mode === 'annee' ? 'budget de l’année' : mode === 'revision' ? 'révision du trimestre' : 'suivi du mois'}`}>
+      <Bloc titre={`💶 Budget · ${mode === 'annee' ? 'budget de l’année' : mode === 'revision' ? 'révision du trimestre' : 'suivi du mois'}`}>
         <View style={s.pad}>
           <Text style={s.texte}>
             Prévu {euros(tot((x) => x.prevu))} · Dépensé {euros(tot((x) => x.d.consomme))} · Reste {euros(tot((x) => x.prevu - x.d.consomme))}
           </Text>
           {lignes.length > 0 && (lignes.every((x) => x.fin) ? <Text style={s.sous}>Estimation à la fin : {euros(tot((x) => x.fin))}</Text> : <Text style={s.sous}>Estimation à la fin : {lignes.filter((x) => !x.fin).length} projet{lignes.filter((x) => !x.fin).length > 1 ? 's' : ''} sans estimation</Text>)}
         </View>
-      </SectionFiche>
+      </Bloc>
       {lignes.map(({ e, d, dos, prevu, fin, calculable, manuelle }) => (
-        <SectionFiche key={e.id} titre={`🗂️ ${simpleB ? 'Projet' : 'Epic'} · ${e.titre}`}>
+        <Bloc key={e.id} titre={`🗂️ ${simpleB ? 'Projet' : 'Epic'} · ${e.titre}`}>
           <View style={s.pad}>
             <Text style={[s.texte, prevu && d.consomme > prevu ? { color: '#B3261E' } : null]}>
               Prévu {prevu ? euros(prevu) : 'non renseigné'} · Dépensé {euros(d.consomme)} · Reste {prevu ? euros(prevu - d.consomme) : '—'}
@@ -630,7 +634,7 @@ export function BlocBudgetSimple({ epics, h, org, espace, mode, peutModifier }: 
           </View>
           {peutModifier && mode !== 'suivi' && champ(e.id, 'budget_prevu', dos?.budget_prevu || e.budget || '', mode === 'annee' ? 'Budget de l’année (€)' : 'Budget prévu révisé (€)')}
           {peutModifier && (!calculable || !!manuelle) && champ(e.id, 'estimation_fin', dos?.estimation_fin ?? '', calculable ? 'Estimation à la fin saisie (€)' : 'Estimation à la fin (€) · à saisir, le reste n’est pas estimé')}
-        </SectionFiche>
+        </Bloc>
       ))}
       {!lignes.length && <Text style={[s.sous, s.pad]}>Aucun projet ici.</Text>}
       <Text style={[s.sous, s.pad]}>Réglé par le mode Simple : dépenses ponctuelles ou par mois, sur un seul élément, sans répartition ; coût des personnes compté seulement si un coût annuel est saisi.</Text>
@@ -647,7 +651,7 @@ export function BlocPrepDossiers({ epics }: { epics: Epic[] }) {
   const b = useBudget();
   const l = epics.filter((e) => e.etat !== 'termine' && (!b.dossiers.get(e.id)?.decision || b.dossiers.get(e.id)?.decision === 'pas_maintenant'));
   return (
-    <SectionFiche titre={`💼 Mes dossiers d'investissement · ${l.length}`}>
+    <BlocBrique titre={`💼 Mes dossiers d'investissement · ${l.length}`}>
       {l.map((e, i) => {
         const m = manquesDossier(b.dossiers.get(e.id), e);
         return (
@@ -658,7 +662,7 @@ export function BlocPrepDossiers({ epics }: { epics: Epic[] }) {
         );
       })}
       {!l.length && <Text style={[s.sous, s.pad]}>Aucun dossier à préparer.</Text>}
-    </SectionFiche>
+    </BlocBrique>
   );
 }
 
@@ -756,7 +760,7 @@ export function RepartitionTrains({
   const total = trains.reduce((x, t) => x + (Number(valeur(t.id).replace(',', '.')) || 0), 0);
   const sansTrain = dem.filter((d) => !d.train);
   return (
-    <SectionFiche titre={`💶 Enveloppes des trains ${annee}`}>
+    <BlocBrique titre={`💶 Enveloppes des trains ${annee}`}>
       {!env.defini && <Text style={[s.sous, s.pad]}>Le portfolio n’a pas d’enveloppe pour {annee} : à fixer d’abord au Comité budgétaire.</Text>}
       {trains.map((t, i) => {
         const l = dem.filter((d) => d.train === t.id);
@@ -783,7 +787,7 @@ export function RepartitionTrains({
         {`Total réparti ${euros(total)} sur ${euros(aRepartir)} à répartir${total > aRepartir ? ` · dépasse de ${euros(total - aRepartir)}` : ''}. À répartir = enveloppe du portfolio ${euros(env.enveloppe)} − epics sans train − demandes accordées au portfolio. Enregistré à l’envoi du compte rendu.`}
       </Text>
       {!!sansTrain.length && <Text style={[s.sous, s.pad]}>{`${sansTrain.length} demande${sansTrain.length > 1 ? 's' : ''} sans train (auteur hors des trains du portfolio) : non comptée${sansTrain.length > 1 ? 's' : ''}.`}</Text>}
-    </SectionFiche>
+    </BlocBrique>
   );
 }
 
@@ -805,7 +809,7 @@ export function BlocEnveloppes({ espace, portfolios, peutModifier }: { espace: s
     b.ecrireEnveloppe(espace, n, annee, v).catch((x: Error) => setErr(`Non enregistré : ${x.message}`));
   };
   return (
-    <SectionFiche titre={`💶 Enveloppes ${annee}`}>
+    <BlocBrique titre={`💶 Enveloppes ${annee}`}>
       {niveaux.map((x, i) => (
         <View key={x.niveau} style={i > 0 ? s.bord : undefined}>
           <ChampFiche label={x.nom}>
@@ -825,7 +829,7 @@ export function BlocEnveloppes({ espace, portfolios, peutModifier }: { espace: s
       ))}
       <Text style={[s.sous, s.pad]}>Engagé : budgets prévus des epics lancées + demandes accordées ; pour l’entreprise, les enveloppes données aux portfolios ; pour un portfolio, celles données à ses trains (les epics qu’ils réalisent sont alors payées par eux). Disponible = Enveloppe − Engagé.</Text>
       {!!err && <Text style={s.err}>{err}</Text>}
-    </SectionFiche>
+    </BlocBrique>
   );
 }
 
@@ -870,7 +874,7 @@ export function BlocEcarts({ epics, h, org, espace, peutDecider, onDecision, onR
     }
   };
   return (
-    <SectionFiche titre={`📈 Écarts budgétaires · ${lignes.length}`}>
+    <BlocBrique titre={`📈 Écarts budgétaires · ${lignes.length}`}>
       {lignes.map((x, i) => {
         const c = choix[x.e.id];
         return (
@@ -917,6 +921,6 @@ export function BlocEcarts({ epics, h, org, espace, peutDecider, onDecision, onR
       })}
       {!lignes.length && <Text style={[s.sous, s.pad]}>✓ Aucun écart : toutes les estimations à la fin tiennent dans le prévu.</Text>}
       {!!err && <Text style={s.err}>{err}</Text>}
-    </SectionFiche>
+    </BlocBrique>
   );
 }

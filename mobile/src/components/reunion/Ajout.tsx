@@ -2,7 +2,7 @@ import { type ReactNode, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors } from '../../theme';
 import { type ItemInput, RECURRENCE_DEFAUTS } from '../../types';
-import { SectionFiche } from '../Choix';
+import { BlocBrique } from './Brique';
 
 /** Élément proposé à « Choisir un existant » */
 export interface Ajoutable {
@@ -72,7 +72,7 @@ export function AjoutElement({
   return (
     <>
       {ajoutes.length > 0 && (
-        <SectionFiche titre={`Ajouté pendant la réunion · ${ajoutes.length}`}>
+        <BlocBrique titre={`Ajouté pendant la réunion · ${ajoutes.length}`}>
           {ajoutes.map((a, i) => (
             <View key={a.cle} style={[s.ligne, i > 0 && s.bord]}>
               <Text style={s.texte}>{a.texte}</Text>
@@ -91,7 +91,7 @@ export function AjoutElement({
               </Pressable>
             </View>
           ))}
-        </SectionFiche>
+        </BlocBrique>
       )}
       <Pressable onPress={() => setOuvert(true)} style={s.plus} accessibilityRole="button">
         <Text style={s.plusTexte}>

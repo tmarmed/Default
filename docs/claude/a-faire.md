@@ -46,6 +46,10 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
 Pas fait exprès : réunions en liste déclarée, super-composant unique, écriture Sheets (déjà commune).
 
 ## Vérification des écrans non vus (14/10, captures dans la démo) — tout CORRIGÉ le 15/10
+Cohérence avec le refactoring (15/10) : les 11 blocs du budget des réunions (Budget.tsx : demandes, enveloppes, écarts,
+enveloppes des trains, dossiers, MVP, décidés, hors réunion, budget simple, mes dossiers) et « Ajouté pendant la
+réunion » passent par BlocBrique (Pilotage garde ses sections : BlocBudgetSimple fiche) ; ancien BlocAvancement
+supprimé (mort). Vérifié : seuls les titres changent (▾, « (1) »).
 Aucune erreur technique. À décider avec l'utilisateur :
 1. Budget participatif : « 3 votants · 1 participants » et « 3 sur 1 ont voté » (participants = Epic Owner seul ; les
    PM et RTE qui présentent les demandes n'en font pas partie) ; « 1 participants » sans accord.

@@ -155,7 +155,7 @@ export function PilotageView({
             <Compteur valeur={String(epicsIci.length)} libelle="projets" />
           </View>
         </SectionFiche>
-        <BlocBudgetSimple epics={epicsIci} h={h} org={org} espace={n.espace} mode="suivi" peutModifier={false} />
+        <BlocBudgetSimple epics={epicsIci} h={h} org={org} espace={n.espace} mode="suivi" peutModifier={false} fiche />
       </>
     );
   } else if (n.kind === 'equipeagile') {
@@ -312,7 +312,7 @@ export function PilotageView({
           ))}
           {!x.objectifs.length && !x.delaisses.length && <Vide texte="Aucun objectif en cours." />}
         </SectionFiche>
-        {h.epicList.some((e) => (e.espace || 'moi') === 'moi') && <BlocBudgetSimple epics={h.epicList.filter((e) => (e.espace || 'moi') === 'moi')} h={h} org={org} espace="moi" mode="suivi" peutModifier={false} />}
+        {h.epicList.some((e) => (e.espace || 'moi') === 'moi') && <BlocBudgetSimple epics={h.epicList.filter((e) => (e.espace || 'moi') === 'moi')} h={h} org={org} espace="moi" mode="suivi" peutModifier={false} fiche />}
       </>
     );
   }
