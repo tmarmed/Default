@@ -104,8 +104,8 @@ demande d'information pour contrôle) ; ENFANT = dessous (demande, fait, confirm
 gardés. Ajouts : abandonner / plus suivi / détacher un point lié = demande au parent (OK · Refuser) ; tous les enfants
 finis → l'application propose au parent « Valider » (ou « Ne plus suivre » si certains abandonnés). Cas : enfant à
 reprendre alors que les autres sont validés → « Demande de suivre de nouveau » au parent ; parent abandonné → enfants
-prévenus, passent à « Plus suivi » ; Rassembler puis réponse partielle (ex. 60 %) → celui qui a rassemblé répartit en
-% ou en montant, chaque équipe ne reçoit que son chiffre. (Remplace « le parent attend, les enfants font ».)
+prévenus, passent à « Plus suivi » ; Rassembler puis réponse partielle → celui qui a rassemblé répartit en montant
+(pas de pourcentage), chaque équipe ne reçoit que son chiffre. (Remplace « le parent attend, les enfants font ».)
 Visibilité et suppression des liens (validé) : le niveau du dessus voit les éléments liés du dessous, jamais l'inverse.
 Un élément rattaché ne se supprime pas seul : « Demander à détacher » → au Chat du niveau N+1 / du responsable du
 rattachement, qui donne son accord (OK) ou refuse.
