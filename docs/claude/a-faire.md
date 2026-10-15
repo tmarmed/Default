@@ -76,7 +76,9 @@ Lacune 4 décidée : communication à plusieurs équipes = seulement par les Scr
 « suivi parent et suivis enfants » (validé) : sur PLUSIEURS niveaux, du haut (direction) vers le bas (jusqu'au membre
 d'une équipe) ; le plus bas ne peut pas répartir (personne en dessous) ; une ligne chez le parent (« 2 / 3 · Mobile ✓
 · Web ⏳ »), fait quand tous les enfants sont validés, un enfant bloqué remonte en couleur, un seul fil d'allers-retours.
-Proposé (à valider) : unifier avec les maillons du Chat et l'escalade : « le parent attend, les enfants font ».
+Validé : une seule relation « parent → enfants » dans toute l'application (maillons du Chat, escalade, demande de
+budget, suivis), quel que soit le sens et l'objet : « le parent attend, les enfants font ». CONDITION de l'utilisateur :
+vérifier les régressions fonctionnelles, et faire valider tout nouveau cas d'usage qui apparaît en l'appliquant.
 Décidé (15/10) : cas limites de la chaîne : le niveau le plus haut n'a pas « Escalader », le plus bas (équipe) n'a pas
 « Communiquer » (boutons absents).
 À discuter aussi :
