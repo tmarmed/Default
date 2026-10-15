@@ -176,11 +176,13 @@ ok(qs.length === 1 && qs[0].de === mail('acmp8') && qs[0].element === 'acm4', 'd
 ok(questionsEquipe(echDemo, mail('acmp7'), membresMobile, itMobile).length === 0, 'questions de l’équipe : seulement celles adressées au PO');
 ok(questionsEquipe(echDemo, mail('acmp6'), membresMobile, new Set()).length === 0, 'questions de l’équipe : seulement sur les stories de l’itération');
 ok(questionsEquipe(echDemo.map((e) => ({ ...e, statut: 'pris_en_compte' as const })), mail('acmp6'), membresMobile, itMobile).length === 0, 'questions de l’équipe : une réponse prise en compte n’y est plus');
-const sy = suivisSynchro(pts, echDemo);
+// Comme les réunions : les points de suivi (avec un statut) ont leur propre suivi
+const ptsSansStatut = pts.filter((x) => !x.statut);
+const sy = suivisSynchro(ptsSansStatut, echDemo);
 ok(sy.length === 1 && sy[0].echange.a === mail('acmp6') && suivisSynchro(pts, []).length === 0, 'suivi : le blocage passé en Synchro est suivi tant que son échange existe');
 ok(storiesBloquees(pts.filter((x) => x.concretisation === 'synchro'), dEnt, echDemo).has('acm4') && !storiesBloquees(pts.filter((x) => x.concretisation === 'synchro'), dEnt, echDemo.map((e) => ({ ...e, statut: 'repondu' as const }))).has('acm4'), 'story bloquée tant que l’échange Synchro attend sa réponse');
 const decPaul = { ...sy[0].point, id: 'd1', type: 'decision' as const, personne: mail('acmp6'), auteur: mail('acmp6'), concretisation: 'rien' as const, tache: 'acmx3' };
-ok(suivisSynchro([decPaul], echDemo).length === 1 && suivisSynchro([...pts, decPaul], echDemo).length === 1, 'suivi : réponse du PO notée « rien » suivie tant que l’échange existe, sans doublon avec le blocage');
+ok(suivisSynchro([decPaul], echDemo).length === 1 && suivisSynchro([...ptsSansStatut, decPaul], echDemo).length === 1, 'suivi : réponse du PO notée « rien » suivie tant que l’échange existe, sans doublon avec le blocage');
 ok(texteReponse({ titre: 'Blocage · Règles du mot de passe', reponse: 'Autre', note: 'Je vois avec la sécurité' }) === '« Règles du mot de passe » : Je vois avec la sécurité', 'réponse du PO notée comme décision (« Autre » : la remarque)');
 const mobile = dEnt.filter((t) => t.equipe === 'acmeqmob');
 // Stories à accepter : celles du sprint en cours (l'historique des sprints précédents n'en fait pas partie)

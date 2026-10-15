@@ -124,7 +124,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '58';
+const DEMO_DATA_VERSION = '59';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -577,6 +577,25 @@ const SEEDS_ENTREPRISE: Seeds = {
     // Risque noté à une ART sync, suivi (ROAM : Owned par Paul) : « En cours » hier, « Fait » depuis
     const risque = pt('acmpt30', { reunion: `art_sync-train:acmtr1-${avant}`, personne: paul, auteur: paul, type: 'risque', texte: 'Retard du fournisseur de paiement', concretisation: 'suivi', responsable: paul, statut: 'fait', validateur: MOI_DEMO, echeance: jour, note: 'Contrat signé avec un second fournisseur', cree_le: `${avant}T11:20:00.000Z` });
     liste.push(risque);
+    // Lot 1 de la démo complète (15/10) : notes et suivis manquants
+    const julieEO = 'julie.morel@acme.example';
+    liste.push(
+      // Information fermée d'office (case « À concrétiser » décochée) et Information à concrétiser (cochée)
+      pt('acmpt22', { reunion: reunion(veille), personne: emma, auteur: emma, type: 'information', texte: 'Nouvelle version de l’outil de test disponible', concretisation: 'rien', cree_le: `${veille}T09:43:00.000Z` }),
+      pt('acmpt23', { personne: emma, auteur: emma, type: 'information', texte: 'Le prestataire change de contact au 1er novembre', element: 'acm4' }),
+      // Décision prise en séance : rien à concrétiser, partagée au compte rendu (Clos)
+      pt('acmpt24', { reunion: reunion(veille), personne: nina, auteur: nina, type: 'decision', sous_type: 'prise', texte: 'Garder la connexion Google pour la v1', element: 'acm4', concretisation: 'rien', cree_le: `${veille}T09:45:00.000Z` }),
+      // Suivi « À reprendre » : fait par Tom, refusé par Vous avec le motif
+      pt('acmpt25', { reunion: reunion(avant), personne: tom, auteur: MOI_DEMO, type: 'action', texte: 'Refaire le test de charge de la connexion', element: 'acm4', concretisation: 'suivi', responsable: tom, statut: 'a_reprendre', validateur: MOI_DEMO, echeance: veille, note: 'À reprendre : le test a été fait sur 10 utilisateurs, il en faut 500', cree_le: `${avant}T09:51:00.000Z` }),
+      // « Plus suivi » : plus suivi en réunion, la story liée continue sa vie au backlog
+      pt('acmpt26', { reunion: reunion(avant), personne: paul, auteur: MOI_DEMO, type: 'action', texte: 'Préparer la story du parrainage', concretisation: 'suivi', tache: 'acm11', responsable: paul, statut: 'plus_suivi', validateur: MOI_DEMO, note: 'Suivie au backlog (story)', cree_le: `${avant}T09:52:00.000Z` }),
+      // Escalade sur trois niveaux : le blocage du Daily (acmpt10) transmis à Sara Martin (RTE) ; suivi à l'ART sync et
+      // transmis au portfolio (Julie Morel, Epic Owner) ; suivi à la Synchronisation du portfolio, fait
+      pt('acmpt31', { reunion: `art_sync-train:acmtr1-${avant}`, personne: sara, auteur: sara, type: 'blocage', texte: 'API de paiement bloquée (équipe Mobile)', element: 'acm4', concretisation: 'escalade', tache: 'acmx10', echange: 'acmx4', responsable: julieEO, statut: 'fait', validateur: sara, note: 'Réponse de Julie Morel : contrat du prestataire prolongé, accès rétabli', cree_le: `${avant}T11:25:00.000Z` }),
+      pt('acmpt32', { reunion: `sync_portfolio-portfolio:acmpf1-${avant}`, personne: julieEO, auteur: julieEO, type: 'blocage', texte: 'Accès du prestataire de paiement à prolonger', element: 'acm4', concretisation: 'suivi', tache: 'acmx10', echange: 'acmx10', responsable: julieEO, statut: 'fait', validateur: julieEO, echeance: veille, note: 'Contrat prolongé d’un an', cree_le: `${avant}T14:10:00.000Z` }),
+      // Dépendance notée à l'ART sync, à concrétiser : l'équipe Web attend une feature du train Paiements
+      pt('acmpt33', { reunion: `art_sync-train:acmtr1-${avant}`, personne: nina, auteur: nina, type: 'dependance', texte: 'L’équipe Web attend le « Paiement sécurisé » du train Paiements', element: 'acmf4', cree_le: `${avant}T11:30:00.000Z` }),
+    );
     const train = { ...tout, ...photoDe({ suivis: [{ ...risque, statut: 'en_cours' }] }, 0) };
     changer(train, 'f:acmf1', 3, shiftPi(pi, 1));
     changer(train, 'q:acmopi1', 1, '4');
@@ -712,6 +731,51 @@ const SEEDS_ENTREPRISE: Seeds = {
         element: 'acm4',
         transmis_par: 'nina.dupont@acme.example',
         cree_le: `${joursOuvresAvant(prochainDaily(new Date()), 1)}T09:45:00.000Z`,
+      }),
+      // Escalade sur trois niveaux (lot 1 de la démo complète, 15/10) : Vous → Sara Martin (train), puis Sara → Julie
+      // Morel (portfolio) ; les réponses sont redescendues
+      ech('acmx4', {
+        de: MOI_DEMO,
+        a: 'sara.martin@acme.example',
+        type: 'question',
+        nature: 'blocage',
+        titre: '⤴ Blocage · API de paiement bloquée',
+        texte: 'Blocage noté au daily Mobile pour Tom Faure (story « Écran de connexion ») : l’équipe ne peut pas le lever seule.',
+        choix: 'Résolu;Pas résolu (motif)',
+        statut: 'repondu',
+        reponse: 'Résolu',
+        note: 'Accès donné par le prestataire (clé dans le coffre)',
+        niveau: 'train:acmtr1',
+        element: 'acm4',
+        cree_le: `${joursOuvresAvant(prochainDaily(new Date()), 2)}T09:55:00.000Z`,
+      }),
+      ech('acmx10', {
+        de: 'sara.martin@acme.example',
+        a: 'julie.morel@acme.example',
+        type: 'question',
+        nature: 'blocage',
+        titre: '⤴ Blocage · Accès du prestataire de paiement à prolonger',
+        texte: 'Noté à l’ART sync Clients : le contrat du prestataire bloque l’équipe Mobile.',
+        choix: 'Résolu;Pas résolu (motif)',
+        statut: 'repondu',
+        reponse: 'Résolu',
+        note: 'Contrat prolongé d’un an',
+        parent: 'acmx4',
+        transmis_par: 'sara.martin@acme.example',
+        niveau: 'portfolio:acmpf1',
+        element: 'acm4',
+        cree_le: `${joursOuvresAvant(prochainDaily(new Date()), 2)}T11:40:00.000Z`,
+      }),
+      // Question de l'équipe au PO (Vous dans la démo) : dans « Questions de l'équipe » du parcours PO du Daily
+      ech('acmx11', {
+        de: 'emma.roy@acme.example',
+        a: MOI_DEMO,
+        type: 'question',
+        titre: 'Connexion Google : obligatoire ou facultative ?',
+        texte: 'Pour l’écran de connexion, on propose aussi l’e-mail ou seulement Google ?',
+        choix: 'Les deux;Google seulement;Autre',
+        element: 'acm4',
+        cree_le: `${joursOuvresAvant(prochainDaily(new Date()), 1)}T16:00:00.000Z`,
       }),
       // Rappel d'un suivi à valider (08/10) : la réponse de la transmission est redescendue ; « Valider » se fait en
       // réunion (Situation, « À valider »), le Chat ne reçoit qu'un rappel

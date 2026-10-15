@@ -2,6 +2,16 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
+## Démo complète : simulation de tous les cas d'usage (15/10, validé : 5 lots dans l'ordre)
+Matrice de couverture faite (règles × demo.ts). Lots : 1 Notes et suivis — FAIT (Information fermée et à concrétiser,
+Décision prise, suivi À reprendre, Plus suivi, Dépendance à l'ART sync, escalade sur trois niveaux Daily → ART sync →
+Synchronisation du portfolio avec acmx4 / acmx10, question de l'équipe au PO « Vous » ; DEMO_DATA_VERSION 59) ·
+2 Contenu des réunions SAFe (Rétrospective, I&A, Affinage, PI Planning, System demo, Semaine IP, Revue des OKR,
+Comité animable par Vous) · 3 Chat avancé (pièces jointes, plusieurs destinataires, Je me retire, Clos par
+l'expéditeur) · 4 Budget et rôles (demandes refusée, à reprendre, plus haut ; dossiers Pas maintenant, Abandonner ;
+MVP dépassé ; Contrôleur de gestion, Partie prenante, Suppléant) · 5 Mode Simple, Moi et séries (rituels perso avec
+plan et suivis, réunions d'équipe Simple avec budget simple, réunion libre, réunion déplacée ou annulée, live).
+
 ## Session 4 (14/10, suite) : refactoring sans changement fonctionnel — VALIDÉ (5 lots, un à la fois, avec captures)
 1. Outils communs — FAIT : src/format.ts (jourMois, jourMoisAn, dateFr, jourSemaine, jourSemaineChiffres, euros,
    eurosCourt, eurosTexte, pluriel, nomDepuisEmail) ; les anciens noms pointent ici. Nom d'une personne : une seule
