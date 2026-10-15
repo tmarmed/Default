@@ -99,6 +99,13 @@ qu'il a créés lui-même (il sait que c'est lié, pas avec quoi) ; les informat
 Chat, risque, dépendance) ; par celui qui les a reçus ; les originaux restent et attendent ; la réponse redescend vers
 chacun ; chaque équipe voit « Rassemblée avec d'autres · envoyée au portfolio » (sans savoir avec qui) ; on peut sortir
 un élément tant que le haut n'a rien décidé ; plusieurs parents peuvent attendre le même enfant.
+Fin de vie des liens (validé 15/10) : PARENT = niveau du dessus (décide, valide, communique : information, ordre,
+demande d'information pour contrôle) ; ENFANT = dessous (demande, fait, confirme la prise en compte). Boutons actuels
+gardés. Ajouts : abandonner / plus suivi / détacher un point lié = demande au parent (OK · Refuser) ; tous les enfants
+finis → l'application propose au parent « Valider » (ou « Ne plus suivre » si certains abandonnés). Cas : enfant à
+reprendre alors que les autres sont validés → « Demande de suivre de nouveau » au parent ; parent abandonné → enfants
+prévenus, passent à « Plus suivi » ; Rassembler puis réponse partielle (ex. 60 %) → celui qui a rassemblé répartit en
+% ou en montant, chaque équipe ne reçoit que son chiffre. (Remplace « le parent attend, les enfants font ».)
 Visibilité et suppression des liens (validé) : le niveau du dessus voit les éléments liés du dessous, jamais l'inverse.
 Un élément rattaché ne se supprime pas seul : « Demander à détacher » → au Chat du niveau N+1 / du responsable du
 rattachement, qui donne son accord (OK) ou refuse.
