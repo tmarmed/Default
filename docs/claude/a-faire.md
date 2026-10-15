@@ -79,6 +79,10 @@ d'une équipe) ; le plus bas ne peut pas répartir (personne en dessous) ; une l
 Validé : une seule relation « parent → enfants » dans toute l'application (maillons du Chat, escalade, demande de
 budget, suivis), quel que soit le sens et l'objet : « le parent attend, les enfants font ». CONDITION de l'utilisateur :
 vérifier les régressions fonctionnelles, et faire valider tout nouveau cas d'usage qui apparaît en l'appliquant.
+Lacune 5 décidée : « Déplacer » = seulement changer de réunion (responsables de la réunion ou du point ; vers une
+réunion où le responsable du point participe ; historique gardé ; jamais en double). Changer l'élément concerné n'est
+PAS un déplacement : c'est « Modifier la note » (ou le suivi), par son responsable ou celui qui l'a initiée ; NOUVEAU :
+une note ou un suivi peut concerner plusieurs éléments (cas d'usage à valider : réunion d'une note multi-éléments).
 Décidé (15/10) : cas limites de la chaîne : le niveau le plus haut n'a pas « Escalader », le plus bas (équipe) n'a pas
 « Communiquer » (boutons absents).
 À discuter aussi :
