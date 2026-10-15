@@ -66,8 +66,8 @@ Lacune 1 décidée (15/10) : note « En préparation » non partagée à la réu
 seule réunion). « ⏰ Me le rappeler » (règle générale de temporisation : échange du Chat, alerte, rappel, note) :
 Demain · Dans X jours · Prochaine réunion · Date ; l'élément sort de mes listes et revient le jour venu ; l'autre voit
 « Pris en compte · réponse prévue le 18/10 » ; liste « ⏰ Temporisés » consultable pour répondre avant ; action sans
-estimation liée possible (répondre termine l'action, terminer l'action propose de répondre). Reste à choisir : où
-revient un élément temporisé (à sa place habituelle ou dans un groupe « ⏰ C'est le moment »).
+estimation liée possible (répondre termine l'action, terminer l'action propose de répondre). Le jour venu, il revient
+à sa (ses) place(s) habituelle(s), « ⏰ prévu aujourd'hui », en haut ; traité à un endroit, il disparaît des autres.
 Décidé (15/10) : cas limites de la chaîne : le niveau le plus haut n'a pas « Escalader », le plus bas (équipe) n'a pas
 « Communiquer » (boutons absents).
 À discuter aussi :
