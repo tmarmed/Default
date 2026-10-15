@@ -12,8 +12,9 @@ import { capaciteEquipePI } from '../../pilotage';
 import { colors } from '../../theme';
 import { type Epic, ETATS_EPIC, type Feature, type Item, STATUT_LABELS, type TypeReunion, TYPES_REUNION } from '../../types';
 import { SectionFiche } from '../Choix';
-import { BlocBudgetSimple, BlocDossiers, BlocEcarts, BlocEnveloppes, BlocPrepDossiers, RepartitionTrains } from '../Budget';
-import { useBudget } from '../../budget';
+import { BlocBudgetSimple, BlocDemandesBudget, BlocDossiers, BlocEcarts, BlocEnveloppes, BlocPrepDossiers, RepartitionTrains } from '../Budget';
+import { gerantsBudget, niveauDessus, useBudget } from '../../budget';
+import { jourMois } from '../../format';
 import { TitreFiche } from '../FormSheet';
 import { ListeEditable, MesTaches, Navigation } from './Affinage';
 import { AjoutElement } from './Ajout';
@@ -60,6 +61,8 @@ type Etape =
   | { k: 'dossiers' }
   | { k: 'dossiers_prep' }
   | { k: 'enveloppes' }
+  /** Préparation d'un Epic Owner au Comité budgétaire (15/10) : son portfolio (enveloppe, écarts, demandes) */
+  | { k: 'mon_portfolio' }
   | { k: 'ecarts' }
   | { k: 'budget_simple'; mode: 'suivi' | 'revision' | 'annee' }
   | { k: 'compte_rendu' }
@@ -163,8 +166,9 @@ export const CONFIGS: Partial<Record<TypeReunion, Config>> = {
       ['concretisation', 'Concrétisation', CONC],
       ['compte_rendu', 'Compte rendu', CR],
     ],
+    // Préparation (15/10) : ce que l'Epic Owner vient défendre, puis ses notes
     membre: [
-      ['taches', 'Mes tâches', TACHES],
+      ['mon_portfolio', 'Mon portfolio', { k: 'mon_portfolio' }],
       ['notes', 'Mes notes', { k: 'notes' }],
     ],
   },
@@ -794,6 +798,39 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
           <>
             <TitreFiche icone="💶" titre="Enveloppes" vide="" sous="Enveloppe · Engagé · Disponible, pour l’entreprise et chaque portfolio" />
             <BlocEnveloppes espace={esp} portfolios={r.org.portfolios.filter((x) => (x.espace || 'moi') === esp)} peutModifier={r.anime && !lecture} />
+          </>
+        );
+      }
+      case 'mon_portfolio': {
+        const esp = p.reunion.espace || 'moi';
+        const miens = r.org.portfolios.filter((x) => (x.espace || 'moi') === esp && (r.org.personne.get(x.epic_owner)?.email ?? '').toLowerCase() === r.mail);
+        const epicsMiens = e.h.epicList.filter((x) => miens.some((y) => y.id === x.portfolio));
+        return (
+          <>
+            <TitreFiche icone="💼" titre="Mon portfolio" vide="" sous="Ce que vous venez défendre : enveloppe de l’année, écarts de vos epics, demandes de budget" />
+            {miens.length ? (
+              <>
+                <BlocEnveloppes espace={esp} portfolios={miens} peutModifier={false} />
+                <BlocEcarts epics={epicsMiens} h={e.h} org={r.org} espace={esp} peutDecider={false} onDecision={() => undefined} onReduire={() => undefined} />
+                {miens.map((y) => (
+                  <BlocDemandesBudget
+                    key={y.id}
+                    niveau={`portfolio:${y.id}`}
+                    espace={esp}
+                    reunion={`${TYPES_REUNION[p.reunion.type].libelle} du ${jourMois(e.jour)}`}
+                    moi={r.mail}
+                    anime={false}
+                    lecture={lecture}
+                    gerants={gerantsBudget(`portfolio:${y.id}`, r.org)}
+                    gerantsDessus={!!niveauDessus(`portfolio:${y.id}`, r.org)}
+                    nomDe={e.nomDe}
+                    epics={epicsMiens.filter((x) => x.portfolio === y.id).map((x) => ({ id: x.id, titre: x.titre }))}
+                  />
+                ))}
+              </>
+            ) : (
+              <Vide texte="Vous n’êtes Epic Owner d’aucun portfolio de cette entreprise." />
+            )}
           </>
         );
       }

@@ -45,7 +45,7 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
    Daily est SAFe seulement ; le Point d'équipe est déjà sur le socle commun).
 Pas fait exprès : réunions en liste déclarée, super-composant unique, écriture Sheets (déjà commune).
 
-## Vérification des écrans non vus (14/10, captures dans la démo) — 1 à 6 CORRIGÉS le 15/10, 7 à discuter
+## Vérification des écrans non vus (14/10, captures dans la démo) — tout CORRIGÉ le 15/10
 Aucune erreur technique. À décider avec l'utilisateur :
 1. Budget participatif : « 3 votants · 1 participants » et « 3 sur 1 ont voté » (participants = Epic Owner seul ; les
    PM et RTE qui présentent les demandes n'en font pas partie) ; « 1 participants » sans accord.
@@ -60,7 +60,8 @@ Corrigé (15/10) : compteurs accordés partout (« 1 participant », « 0 risque
    Préparation du PI Planning sur le PI suivant (piVise : Situation, capacité) ; titre de la capacité = nombre
    d'équipes ; icône simple ; titre de la barre centré entre « Fermer » et « ↻ Actualiser » (TitreBarre entre) ; démo :
    4 features du train Clients au PI suivant (DEMO_DATA_VERSION 58).
-7. Comité budgétaire : vu seulement en participant (animateur Claire Vidal) ; « Mes tâches · Sprint 1 » au niveau
+7. FAIT (15/10) : préparation du Comité = « Mon portfolio » (enveloppe de l'année, écarts de ses epics, demandes de
+   budget du portfolio) puis « Mes notes ». Constat d'origine — Comité budgétaire : vu seulement en participant (animateur Claire Vidal) ; « Mes tâches · Sprint 1 » au niveau
    direction n'a pas de sens.
 
 ## Session 4 (14/10, suite) : briques de réunion — VALIDÉ, en cours
