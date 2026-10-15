@@ -447,7 +447,8 @@ ok(finis.join() === 'a,b', 'fin de suivi : « Rien » et tâche terminée suppri
   const sS = seriesDe(oE, 'vous@demo', false).map((v) => `${v.type}|${v.serie.niveau}`);
   ok(['point_equipe|equipeagile:acmeqmob', 'revue_mois|equipeagile:acmeqmob', 'bilan_annuel|equipeagile:acmeqmob', 'revue_mois|unite:acmu1', 'annuel_entreprise|unite:acmu1', 'point_perso|'].every((x) => sS.includes(x)) && !sS.some((x) => x.startsWith('daily|') || x.startsWith('pi_planning|')), 'Simple : réunions de l’équipe (Point d’équipe… Bilan annuel) et de l’entreprise (Revue du mois, Point annuel), sans réunions SAFe');
   const partU = participantsReunion({ type: 'revue_mois', niveau: 'unite:acmu1' }, oE);
-  ok(partU.includes('acmp1') && oE.equipes.filter((e) => (e.espace || 'moi') === 'demo-entreprise').every((e) => !e.sm || partU.includes(e.sm)), 'Simple : revue de l’entreprise = son responsable et les responsables des équipes');
+  // Responsable de la direction : « Vous » dans la démo « tous les rôles » (15/10)
+  ok(partU.includes(oE.unite.get('acmu1')?.responsable ?? '-') && oE.equipes.filter((e) => (e.espace || 'moi') === 'demo-entreprise').every((e) => !e.sm || partU.includes(e.sm)), 'Simple : revue de l’entreprise = son responsable et les responsables des équipes');
   ok(niveauDessus('equipeagile:acmeqmob', oE, true) === 'entreprise:demo-entreprise' && niveauDessus('entreprise:demo-entreprise', oE, true) === null && reunionDuNiveau('entreprise:x', true) === 'Revue du mois', 'Simple : demande de l’équipe → entreprise, à la Revue du mois, rien au-dessus');
   ok(gerantsBudget('entreprise:demo-entreprise', oE, true).length === 1 && gerantsBudget('equipeagile:acmeqmob', oE, true).length === 1, 'Simple : décide le responsable de l’entreprise ; demande le responsable de l’équipe');
   const d = donneesDemo('demo-entreprise');

@@ -6,8 +6,10 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
 Matrice de couverture faite (règles × demo.ts). Lots : 1 Notes et suivis — FAIT (Information fermée et à concrétiser,
 Décision prise, suivi À reprendre, Plus suivi, Dépendance à l'ART sync, escalade sur trois niveaux Daily → ART sync →
 Synchronisation du portfolio avec acmx4 / acmx10, question de l'équipe au PO « Vous » ; DEMO_DATA_VERSION 59) ·
-2 Contenu des réunions SAFe (Rétrospective, I&A, Affinage, PI Planning, System demo, Semaine IP, Revue des OKR,
-Comité animable par Vous) · 3 Chat avancé (pièces jointes, plusieurs destinataires, Je me retire, Clos par
+2 Contenu des réunions SAFe — FAIT (idées, étoiles et proposition reportée de la Rétrospective ; problèmes de l'I&A ;
+votes de poker de l'Affinage ; votes de confiance et risques du PI Planning ; retours de la System demo ; idées et
+formation de la Semaine IP ; décision à prendre à la Revue des OKR ; Vous responsable de la direction, anime le
+Comité ; occurrenceDemo() place les données à la prochaine réunion de chaque série ; DEMO_DATA_VERSION 60) · 3 Chat avancé (pièces jointes, plusieurs destinataires, Je me retire, Clos par
 l'expéditeur) · 4 Budget et rôles (demandes refusée, à reprendre, plus haut ; dossiers Pas maintenant, Abandonner ;
 MVP dépassé ; Contrôleur de gestion, Partie prenante, Suppléant) · 5 Mode Simple, Moi et séries (rituels perso avec
 plan et suivis, réunions d'équipe Simple avec budget simple, réunion libre, réunion déplacée ou annulée, live).

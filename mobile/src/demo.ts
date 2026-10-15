@@ -3,10 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
 import { iterationOf, piOf, piStart, shiftIteration, shiftPi } from './pi';
 import { FILTRE_TOUT, photoDe, pointsPhoto } from './avancement';
-import { estOuvre } from './series';
+import { estOuvre, occurrences } from './series';
+import { serieParDefaut } from './reunions';
 import { creerMagasin, type Kind, type Persistance, type Table, TABLES, TABLES_ORG } from './magasin';
 import { CLE_ORG, type KindOrg, type Org } from './organisation';
-import { RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, type ValueStream, type Echange } from './types';
+import { type TypeReunion, RECURRENCE_DEFAUTS, type Domaine, type Epic, type Feature, type Ignoree, type Item, type Objectif, type ObjectifPI, type PointReunion, type ResultatCle, type ValueStream, type Echange } from './types';
 
 /**
  * Mode démo : données d'exemple enregistrées sur l'appareil, sans Google Sheet. Sert à essayer l'application.
@@ -43,7 +44,7 @@ export const MOI_DEMO = 'vous@demo';
 export const ID_VOUS_DEMO = 'vous-demo';
 /**
  * Organisation vue par « Vous » dans la démo : SM et PO de chaque équipe, RTE et PM de chaque train, Epic Owner de
- * chaque portfolio (toutes les réunions en animateur). Les anciens SM et PO restent membres de leur équipe.
+ * chaque portfolio, responsable de la direction (toutes les réunions en animateur). Les anciens SM et PO restent membres de leur équipe.
  */
 export function orgTousLesRoles(o: Org): Org {
   const espaces = [...new Set([...o.equipes, ...o.trains, ...o.portfolios].map((x) => x.espace || 'moi'))];
@@ -61,6 +62,8 @@ export function orgTousLesRoles(o: Org): Org {
     }),
     trains: o.trains.map((t) => ({ ...t, rte: idDe(t.espace || 'moi'), pm: idDe(t.espace || 'moi') })),
     portfolios: o.portfolios.map((p) => ({ ...p, epic_owner: idDe(p.espace || 'moi') })),
+    // Démo complète (15/10) : aussi responsable de la direction de premier niveau (anime le Comité budgétaire)
+    unites: o.unites.map((u) => (u.parent ? u : { ...u, responsable: idDe(u.espace || 'moi') })),
   };
 }
 /** Boutons « 🧪 Essayer la démo » / « Quitter la démo » : dans le navigateur, hors version démo compilée */
@@ -124,7 +127,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '59';
+const DEMO_DATA_VERSION = '60';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -555,6 +558,62 @@ const SEEDS_ENTREPRISE: Seeds = {
       pt('acmpt15', { reunion: reunion(avant), personne: paul, auteur: MOI_DEMO, type: 'action', texte: 'Mettre à jour le guide d’installation', concretisation: 'suivi', responsable: paul, statut: 'valide', validateur: MOI_DEMO, note: 'Guide relu', hors_reunion: '1', cree_le: `${avant}T09:50:00.000Z` }),
       pt('acmpt14', { reunion: reunion(avant), personne: MOI_DEMO, auteur: MOI_DEMO, type: 'action', texte: 'Réserver la salle de démo du vendredi', concretisation: 'suivi', responsable: MOI_DEMO, statut: 'abandonne', validateur: nina, note: 'Démo faite à distance', cree_le: `${avant}T09:49:00.000Z` }),
     ];
+    // Lot 2 de la démo complète (15/10) : contenu préparé des réunions SAFe, aux prochaines réunions des séries
+    {
+      const eqM = 'equipeagile:acmeqmob';
+      const trC = 'train:acmtr1';
+      const pfD = 'portfolio:acmpf1';
+      const marc = 'marc.petit@acme.example';
+      const julieM = 'julie.morel@acme.example';
+      let n = 0;
+      const don = (reunionId: string, par: string, d: Record<string, unknown>) => pt(`acmd2-${++n}`, { reunion: reunionId, personne: par, auteur: par, type: 'donnee', texte: JSON.stringify({ o: 'membre', ...d }) });
+      const vote = (reunionId: string, par: string, el: string, val: string) => pt(`acmv2-${++n}`, { reunion: reunionId, personne: par, auteur: par, type: 'vote', texte: JSON.stringify({ el, val, tour: 1 }) });
+      const note = (reunionId: string, par: string, type: PointReunion['type'], texte: string, x: Partial<PointReunion> = {}) => pt(`acmn2-${++n}`, { reunion: reunionId, personne: par, auteur: par, type, texte, ...x });
+      // Rétrospective Mobile : idées des deux colonnes (une anonyme), étoiles déjà données, et une proposition
+      // reportée de la rétro précédente
+      const retro = occurrenceDemo('retro', eqM);
+      liste.push(
+        don(retro, nina, { k: 'idee', c: 'ri1', col: 'va', texte: 'Le daily tient en 15 minutes' }),
+        don(retro, tom, { k: 'idee', c: 'ri2', col: 'va', texte: 'Bonne entraide sur l’API de paiement' }),
+        don(retro, emma, { k: 'idee', c: 'ri3', col: 'va', texte: 'Démo appréciée par les clients' }),
+        don(retro, tom, { k: 'idee', c: 'ri4', col: 'ameliorer', texte: 'Trop de réunions le lundi' }),
+        don(retro, emma, { k: 'idee', c: 'ri5', col: 'ameliorer', texte: 'Stories pas assez découpées à l’affinage', anonyme: true }),
+        don(retro, paul, { k: 'idee', c: 'ri6', col: 'ameliorer', texte: 'Environnement de test instable' }),
+        vote(retro, nina, 'ri5', '1'), vote(retro, tom, 'ri5', '1'), vote(retro, paul, 'ri5', '1'), vote(retro, tom, 'ri4', '1'), vote(retro, emma, 'ri6', '1'),
+        note(occurrenceDemo('retro', eqM, -1), nina, 'proposition', 'Faire relire le code à deux avant la démo', { sous_type: 'reportee' }),
+      );
+      // Inspect & Adapt Clients : problèmes proposés par le train et premières étoiles
+      const ia = occurrenceDemo('inspect_adapt', trC);
+      liste.push(
+        don(ia, sara, { k: 'probleme', c: 'ip1', texte: 'Les features arrivent non estimées au PI Planning' }),
+        don(ia, paul, { k: 'probleme', c: 'ip2', texte: 'Dépendances avec le train Paiements découvertes trop tard' }),
+        don(ia, nina, { k: 'probleme', c: 'ip3', texte: 'Environnement de test partagé saturé' }),
+        vote(ia, sara, 'ip2', '1'), vote(ia, nina, 'ip2', '1'), vote(ia, paul, 'ip1', '1'),
+      );
+      // Affinage Mobile : votes de poker préparés (désaccord sur une story, accord sur l'autre)
+      const aff = occurrenceDemo('affinage', eqM);
+      liste.push(vote(aff, tom, 'acm10', '5'), vote(aff, emma, 'acm10', '8'), vote(aff, nina, 'acm10', '13'), vote(aff, tom, 'acm11', '3'), vote(aff, emma, 'acm11', '3'), vote(aff, nina, 'acm11', '3'));
+      // PI Planning Clients : votes de confiance préparés (un « 2 » à expliquer) et deux risques notés
+      const pip = occurrenceDemo('pi_planning', trC);
+      liste.push(
+        vote(pip, tom, 'confiance', '4'), vote(pip, emma, 'confiance', '3'), vote(pip, nina, 'confiance', '4'), vote(pip, paul, 'confiance', '2'), vote(pip, sara, 'confiance', '4'),
+        note(pip, sara, 'risque', 'Le prestataire de paiement change d’API en février'),
+        note(pip, nina, 'risque', 'Équipe Web à mi-temps en janvier (formation)'),
+      );
+      // System demo Clients : retours des parties prenantes
+      const sd = occurrenceDemo('system_demo', trC);
+      liste.push(note(sd, marc, 'information', 'Le parcours d’inscription est clair pour les clients testeurs'), note(sd, julieM, 'action', 'Ajouter le paiement par carte enregistrée', { element: 'acmf2' }));
+      // Semaine IP Clients : idées de hackathon et inscriptions à la formation
+      const ip = occurrenceDemo('iteration_ip', trC);
+      liste.push(
+        don(ip, tom, { k: 'idee_ip', c: 'ii1', texte: 'Connexion par empreinte digitale' }),
+        don(ip, emma, { k: 'idee_ip', c: 'ii2', texte: 'Tableau de bord des erreurs en temps réel' }),
+        don(ip, nina, { k: 'formation', c: 'if1', texte: 'Formation accessibilité (2 jours)' }),
+        don(ip, paul, { k: 'formation', c: 'if2', texte: 'Dette : migrer les tests vers la nouvelle API' }),
+      );
+      // Revue des OKR Digital : une décision à prendre sur l'OKR des coûts
+      liste.push(note(occurrenceDemo('revue_okr', pfD), marc, 'decision', 'Le coût par commande ne baisse pas : revoir la cible de 8 €', { sous_type: 'a_prendre', element: 'acmo2' }));
+    }
     // Suivis tels qu'hier : les maquettes du panier étaient encore « en cours » (passées à « fait » depuis)
     const suivisHier = liste.filter((x) => !!x.statut).map((x) => (x.id === 'acmpt8' ? { ...x, statut: 'en_cours' as const } : x));
     const photo = photoDe({ items: etatHier, features, epics: (ent.epic as Epic[]).filter((x) => eIds.has(x.id)), suivis: suivisHier, tousItems: items.map((t) => etatHier.find((a) => a.id === t.id) ?? t) }, 0);
@@ -594,6 +653,7 @@ const SEEDS_ENTREPRISE: Seeds = {
       pt('acmpt31', { reunion: `art_sync-train:acmtr1-${avant}`, personne: sara, auteur: sara, type: 'blocage', texte: 'API de paiement bloquée (équipe Mobile)', element: 'acm4', concretisation: 'escalade', tache: 'acmx10', echange: 'acmx4', responsable: julieEO, statut: 'fait', validateur: sara, note: 'Réponse de Julie Morel : contrat du prestataire prolongé, accès rétabli', cree_le: `${avant}T11:25:00.000Z` }),
       pt('acmpt32', { reunion: `sync_portfolio-portfolio:acmpf1-${avant}`, personne: julieEO, auteur: julieEO, type: 'blocage', texte: 'Accès du prestataire de paiement à prolonger', element: 'acm4', concretisation: 'suivi', tache: 'acmx10', echange: 'acmx10', responsable: julieEO, statut: 'fait', validateur: julieEO, echeance: veille, note: 'Contrat prolongé d’un an', cree_le: `${avant}T14:10:00.000Z` }),
       // Dépendance notée à l'ART sync, à concrétiser : l'équipe Web attend une feature du train Paiements
+      // (lot 2 plus bas : contenu préparé des réunions SAFe)
       pt('acmpt33', { reunion: `art_sync-train:acmtr1-${avant}`, personne: nina, auteur: nina, type: 'dependance', texte: 'L’équipe Web attend le « Paiement sécurisé » du train Paiements', element: 'acmf4', cree_le: `${avant}T11:30:00.000Z` }),
     );
     const train = { ...tout, ...photoDe({ suivis: [{ ...risque, statut: 'en_cours' }] }, 0) };
@@ -1034,6 +1094,17 @@ function avantDe(sorte: keyof typeof CHAMP_DEMO, v: string, k: number, personnes
  * de la situation actuelle d'un changement de chaque sorte au niveau de la réunion (statut, valeur, échéance, sprint ou
  * PI, responsable, ajouté en cours de route), d'un changement par niveau au-dessus, et d'un suivi passé à « Fait »
  */
+/**
+ * Démo complète (15/10) : identifiant de la prochaine réunion d'une série par défaut (`sens` -1 : la précédente),
+ * pour y préparer des données (idées, votes, problèmes…) visibles à l'ouverture
+ */
+function occurrenceDemo(type: TypeReunion, niveau: string, sens: 1 | -1 = 1): string {
+  const auj = toDateString(new Date());
+  const s = serieParDefaut(type, niveau);
+  const l = sens > 0 ? occurrences(s, auj, toDateString(addDays(new Date(), 200))) : occurrences(s, toDateString(addDays(new Date(), -150)), toDateString(addDays(new Date(), -1)));
+  const o = (sens > 0 ? l : [...l].reverse()).find((x) => !x.annulee);
+  return `${type}-${niveau}-${o?.origine ?? auj}`;
+}
 function photosSeries(series: SerieAv[], actuel: Record<string, string>, personnes: string[], prefixeId: string): PointReunion[] {
   const out: PointReunion[] = [];
   series.forEach((s, n) => {
