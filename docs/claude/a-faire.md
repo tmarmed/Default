@@ -2,6 +2,35 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
+## Brainstorm en cours (15/10) : calcul automatique, bruit, retouche, changement de périmètre — PAS ENCORE CODÉ
+Décidé :
+- Vers le bas : seulement les dates (enfant vide → affiche la date du parent en gris et la suit ; enfant rempli → garde
+  la sienne, alerte s'il sort). Priorité : sa date > son sprint ou PI > son parent.
+- Vers le haut : points et budget (si l'info existe) : parent vide → calculé sans rien dire ; parent qui a une valeur
+  (même calculée) → alerte « Passer à n · Garder » au responsable du parent (PO, PM, Epic Owner ; sans responsable :
+  niveau au-dessus). « Garder » se souvient. Dates vers le haut : parent vide → plus tôt / plus tard des enfants.
+  Arrêt à l'epic. Jours réels : toujours calculés, jamais saisis sur story / feature / epic ; le développeur corrige
+  ses jours sur la tâche ou dans son CRA.
+- Consommé avec CRA : consommé à date = jours CRA × coût jour + dépenses, estimé (règle actuelle) pour les jours sans
+  CRA ; reste à faire = points restants × jours par point observés ; estimation à la fin = somme ; couverture CRA en %.
+- Bruit : travail commencé (jours réels > 0) puis supprimé, déplacé ou abandonné. Tâche « 🧹 Bruit » sous le parent le
+  plus proche (feature, sinon epic), sinon orpheline par équipe ET par sprint (fermée à la fin du sprint) ; une
+  sous-tâche par élément, avec cause (choix rapides + commentaire, obligatoire) ; points = jours ÷ jours par point.
+  Déplacé : les jours restent en bruit dans l'ancien parent, l'élément part sans estimation (réestimé par l'équipe
+  qui le reçoit). Pas commencé : pas de bruit, seulement le calcul automatique.
+- Trois indicateurs (même endroits : Rétrospective, Revue, Planification, I&A, Pilotage ; écart aussi à l'Affinage) :
+  Bruit (< 5 / 15 %), Écart d'estimation hors bruit et retouche (±15 / ±30 %), Retouche (< 5 / 10 %).
+- Retouche : réouverture ou refus d'une story terminée → sous-tâche « 🔧 Retouche » créée automatiquement avec son
+  estimation et sa cause ; « ＋ Retouche » à la main ; tout Bug = retouche ; placée n'importe quand (sprint en cours par
+  changement de périmètre, suivant, plus tard). Budget : epic en cours → budget de l'epic ; epic terminée ou bug
+  orphelin → enveloppe TMA (maintenance) du train.
+- Changement de périmètre : seulement un élément qui entre dans le sprint ou en sort (story, tâche à part, bug,
+  retouche estimée > 0) ; détail (sous-tâche ~0, réestimation, réaffectation) = pas de fenêtre. N'importe qui propose,
+  le PO valide, le SM confirme (Chat ou réunion, ex. Daily) : la demande est directement un point de suivi.
+- Note ou suivi déplacé vers un autre élément : n'existe pas encore (pas une régression) ; il part à la réunion du
+  nouvel élément avec son historique.
+À discuter : les lignes du tableau du changement de périmètre une par une ; indicateur « stabilité du sprint » ; CRA.
+
 ## Démo complète : simulation de tous les cas d'usage (15/10, validé : 5 lots dans l'ordre)
 Matrice de couverture faite (règles × demo.ts). Lots : 1 Notes et suivis — FAIT (Information fermée et à concrétiser,
 Décision prise, suivi À reprendre, Plus suivi, Dépendance à l'ART sync, escalade sur trois niveaux Daily → ART sync →
