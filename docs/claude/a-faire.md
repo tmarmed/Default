@@ -95,7 +95,13 @@ aujourd'hui directement dans le bloc de la réunion du dessus (vérifier la non-
 Précisions validées : le lien parent → enfant est posé dès la création (le Chat n'est qu'une salle d'attente) ; un point
 reçu peut à son tour avoir des enfants (chaîne continue). PAS de « Voir la chaîne » : chacun ne voit que les liens
 qu'il a créés lui-même (il sait que c'est lié, pas avec quoi) ; les informations d'une réunion ne partent pas ailleurs.
-En brainstorm : « Rassembler » plusieurs éléments reçus en un seul vers le haut (ex. RTE : 2 demandes de budget → 1).
+« Rassembler » validé : plusieurs éléments reçus → un seul vers le haut (demande de budget, escalade, question du
+Chat, risque, dépendance) ; par celui qui les a reçus ; les originaux restent et attendent ; la réponse redescend vers
+chacun ; chaque équipe voit « Rassemblée avec d'autres · envoyée au portfolio » (sans savoir avec qui) ; on peut sortir
+un élément tant que le haut n'a rien décidé ; plusieurs parents peuvent attendre le même enfant.
+Visibilité et suppression des liens (validé) : le niveau du dessus voit les éléments liés du dessous, jamais l'inverse.
+Un élément rattaché ne se supprime pas seul : « Demander à détacher » → au Chat du niveau N+1 / du responsable du
+rattachement, qui donne son accord (OK) ou refuse.
 Décidé (15/10) : cas limites de la chaîne : le niveau le plus haut n'a pas « Escalader », le plus bas (équipe) n'a pas
 « Communiquer » (boutons absents).
 À discuter aussi :
