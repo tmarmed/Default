@@ -29,7 +29,18 @@ Décidé :
   le PO valide, le SM confirme (Chat ou réunion, ex. Daily) : la demande est directement un point de suivi.
 - Note ou suivi déplacé vers un autre élément : n'existe pas encore (pas une régression) ; il part à la réunion du
   nouvel élément avec son historique.
-À discuter : les lignes du tableau du changement de périmètre une par une ; indicateur « stabilité du sprint » ; CRA.
+- Tableau du changement de périmètre (15/10) : ligne 1 (ajout au sprint) : l'élément entre après la confirmation du
+  SM (Chat ou réunion) ; confirmé dans le Chat → à la réunion « décidé hors réunion · déjà confirmé », disparaît avec la
+  règle de fin habituelle ; « Ne plus suivre » possible. Ligne 2 : « Retirer du sprint » → backlog ; « Déplacer » vers
+  un autre sprint ou PI = aussi un changement de périmètre (même fenêtre) ; travail commencé → bruit. Ligne 3
+  (réouverture) : la story reste terminée dans son sprint (vélocité gardée), seule la retouche se planifie ; budget
+  automatique : epic en cours → budget de l'epic, sinon TMA du train.
+- Réimputation (changer un élément de budget) : ligne « Payé par » dans la fiche (automatique par défaut, « ↺ Revenir à
+  la règle automatique »), aussi en groupe au Pilotage et à la Revue du portfolio ; tout l'élément bouge (jours et
+  dépenses) ; trace datée avec raison. Seuls ceux qui gèrent le budget du niveau réimputent. Les autres ne proposent
+  pas : ils écrivent une note ; le SM ou le responsable peut en faire un point de suivi et le transmettre au
+  gestionnaire du budget (circuit actuel des notes).
+À discuter : ligne 4 et suivantes du tableau ; indicateur « stabilité du sprint » ; CRA.
 
 ## Démo complète : simulation de tous les cas d'usage (15/10, validé : 5 lots dans l'ordre)
 Matrice de couverture faite (règles × demo.ts). Lots : 1 Notes et suivis — FAIT (Information fermée et à concrétiser,
