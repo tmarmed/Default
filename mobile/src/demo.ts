@@ -4,7 +4,7 @@ import { addDays, toDateString } from './dates';
 import { iterationOf, piOf, piStart, shiftIteration, shiftPi } from './pi';
 import { FILTRE_TOUT, photoDe, pointsPhoto } from './avancement';
 import { estOuvre, occurrences } from './series';
-import { serieParDefaut } from './reunions';
+import { serieParDefaut, serieVide } from './reunions';
 import { PIECES_DEMO } from './demoPieces';
 import { controleMorceau, creerMagasin, type Kind, type Persistance, type Table, TABLES, TABLES_ORG } from './magasin';
 import { CLE_ORG, type KindOrg, type Org } from './organisation';
@@ -128,7 +128,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '62';
+const DEMO_DATA_VERSION = '63';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -423,6 +423,21 @@ const SEEDS_EQUIPE: Seeds = {
     ];
     return e;
   },
+  // Lot 5 de la démo complète (15/10) : Point d'équipe du mode Simple (le précédent : notes concrétisées et suivies ;
+  // le prochain : une note préparée par Lea)
+  points: () => {
+    const avant = occurrenceDemo('point_equipe', 'equipeagile:mobeq', -1);
+    const prochain = occurrenceDemo('point_equipe', 'equipeagile:mobeq');
+    const jourAvant = avant.slice(-10);
+    const lea = 'lea.martin@mobile.example';
+    const hugo = 'hugo.petit@mobile.example';
+    const pt = (id: string, x: Partial<PointReunion>): PointReunion => ({ id, reunion: avant, personne: lea, auteur: lea, type: 'information', texte: '', element: '', concretisation: '', tache: '', responsable: '', cree_le: `${jourAvant}T09:20:00.000Z`, ...x });
+    return [
+      pt('mobpt1', { personne: hugo, auteur: MOI_DEMO, type: 'action', texte: 'Corriger le plantage sur Android 12', element: 'mob3', concretisation: 'suivi', responsable: hugo, statut: 'en_cours', validateur: MOI_DEMO, echeance: toDateString(addDays(new Date(), 2)) }),
+      pt('mobpt2', { type: 'decision', sous_type: 'prise', texte: 'Livrer la v2 en deux fois', element: 'mobe1', concretisation: 'rien' }),
+      pt('mobpt3', { reunion: prochain, type: 'blocage', texte: 'Compte développeur Apple pas encore validé', element: 'mobe1', cree_le: new Date().toISOString() }),
+    ];
+  },
   // Membres de l'équipe Mobile (espace Équipe, hors entreprise)
   org: () => {
     const stamp = new Date().toISOString();
@@ -612,6 +627,14 @@ const SEEDS_ENTREPRISE: Seeds = {
         don(ip, nina, { k: 'formation', c: 'if1', texte: 'Formation accessibilité (2 jours)' }),
         don(ip, paul, { k: 'formation', c: 'if2', texte: 'Dette : migrer les tests vers la nouvelle API' }),
       );
+      // Lot 5 : Point d'équipe Mobile du mode Simple (le précédent : suivi et décision ; le prochain : une note d'Emma)
+      const peAvant = occurrenceDemo('point_equipe', eqM, -1);
+      const peProchain = occurrenceDemo('point_equipe', eqM);
+      liste.push(
+        note(peAvant, tom, 'action', 'Corriger le plantage de l’écran de connexion', { auteur: MOI_DEMO, element: 'acm4', concretisation: 'suivi', responsable: tom, statut: 'en_cours', validateur: MOI_DEMO, echeance: toDateString(addDays(new Date(), 2)), cree_le: `${peAvant.slice(-10)}T09:20:00.000Z` }),
+        note(peAvant, nina, 'decision', 'Livrer l’application en deux fois', { sous_type: 'prise', element: 'acme2', concretisation: 'rien', cree_le: `${peAvant.slice(-10)}T09:22:00.000Z` }),
+        note(peProchain, emma, 'blocage', 'Compte développeur Apple pas encore validé', { element: 'acm4' }),
+      );
       // Revue des OKR Digital : une décision à prendre sur l'OKR des coûts
       liste.push(note(occurrenceDemo('revue_okr', pfD), marc, 'decision', 'Le coût par commande ne baisse pas : revoir la cible de 8 €', { sous_type: 'a_prendre', element: 'acmo2' }));
     }
@@ -785,6 +808,21 @@ const SEEDS_ENTREPRISE: Seeds = {
     e.epic = e.epic.map((x) => (x.id === 'acme2' ? { ...x, value_streams: 'acmvs1', objectif: '' } : x.id === 'acme1' ? { ...x, okrs: 'acmo1', value_streams: '', objectif: '' } : x));
     // Échanges privés à deux dans l'équipe Mobile (« Voir en tant que » Nina Dupont pour les voir)
     const ech = (id: string, x: Partial<Echange>): Echange => ({ id, de: '', a: '', type: 'message', titre: '', texte: '', choix: '', reponse: '', note: '', statut: 'envoye', element: '', niveau: 'equipeagile:acmeqmob', transmis_par: '', prive: '1', cree_le: new Date().toISOString(), modifie_le: new Date().toISOString(), ...x });
+    // Lot 5 de la démo complète (15/10) : séries enregistrées (onglet Reunions) — une réunion libre chaque jeudi, le
+    // Daily Mobile d'après-demain déplacé à 10:30, la prochaine Revue de sprint Web annulée
+    {
+      const auj = toDateString(new Date());
+      const loin = toDateString(addDays(new Date(), 60));
+      const daily = serieParDefaut('daily', 'equipeagile:acmeqmob');
+      const dOcc = occurrences(daily, auj, loin)[2];
+      const revueW = serieParDefaut('revue', 'equipeagile:acmeqweb');
+      const rOcc = occurrences(revueW, auj, loin)[0];
+      (e as unknown as Record<string, unknown>).serie = [
+        serieVide({ id: 'r-demo1', titre: 'Point avec le prestataire de paiement', unite: 'semaine', jours: '4', heure: '14:00', duree: '45', animateur: MOI_DEMO, participants: 'nina.dupont@acme.example;sara.martin@acme.example', debut: auj, cree_le: stamp, modifie_le: stamp }),
+        ...(dOcc ? [{ ...daily, exceptions: JSON.stringify([{ d: dOcc.origine, a: `${dOcc.origine}T10:30` }]), cree_le: stamp, modifie_le: stamp }] : []),
+        ...(rOcc ? [{ ...revueW, exceptions: JSON.stringify([{ d: rOcc.origine, annulee: true }]), cree_le: stamp, modifie_le: stamp }] : []),
+      ];
+    }
     (e as unknown as Record<string, unknown>).piecejointe = PIECES_DEMO.map((x) => ({ id: `${x.piece}-0`, piece: x.piece, nom: x.nom, type: x.type, taille: String(Math.floor((x.donnees.length * 3) / 4)), partie: '0', total: '1', donnees: x.donnees, cree_le: new Date().toISOString(), controle: controleMorceau(x.donnees) }));
     e.echange = [
       ech('acmx1', { de: 'paul.leroy@acme.example', a: 'nina.dupont@acme.example', type: 'question', titre: 'Découper la story de connexion ?', texte: 'Elle fait 8 points : on la coupe en deux pour ce sprint ?', choix: 'Oui, en deux;Non, on la garde' }),
@@ -1063,7 +1101,7 @@ export function demoApiFor(espace = 'moi') {
           : espace === 'demo-entreprise'
             ? SEEDS_ENTREPRISE
             : espace.startsWith('budget@')
-              ? { items: () => [], entities: vide, budget: espace === 'budget@demo-entreprise' ? budgetDemoEntreprise : undefined }
+              ? { items: () => [], entities: vide, budget: espace === 'budget@demo-entreprise' ? budgetDemoEntreprise : espace === 'budget@demo-equipe' ? budgetDemoEquipe : undefined }
               : { items: () => [], entities: vide };
     st = creerStore(espace, seeds);
     stores.set(espace, st);
@@ -1194,7 +1232,34 @@ function pointsMoi(): PointReunion[] {
   const jour = toDateString(new Date());
   const cles = [...items.filter((t) => !t.parent).map((t) => `t:${t.id}`), ...ent.objectif.map((o) => `o:${o.id}`)];
   const serie = (type: string, recul: number, focus: number): SerieAv => ({ prefixe: `${type}-perso-`, focus, jour: joursOuvresAvant(jour, recul), cles, qui: MOI_DEMO });
-  return [...revue, ...photosSeries([serie('bilan_soir', 1, 0), serie('revue_semaine', 5, 0), serie('revue_trimestre', 63, 3), serie('point_annuel', 250, 3)], actuel, [], 'moi')];
+  // Lot 5 de la démo complète (15/10) : plan du jour (créneaux des éléments cochés à mes Dailies d'aujourd'hui : la
+  // démo du sprint de 14:00 à 16:00, la page d'accueil le matin ; un événement perso), un suivi perso et une note à
+  // concrétiser du Point perso d'hier
+  const pt = (id: string, x: Partial<PointReunion>): PointReunion => ({ id, reunion: '', personne: MOI_DEMO, auteur: MOI_DEMO, type: 'donnee', texte: '', element: '', concretisation: '', tache: '', responsable: '', cree_le: `${jour}T07:30:00.000Z`, ...x });
+  const plan = `plan_jour-moi-${jour}`;
+  const hier = joursOuvresAvant(jour, 1);
+  const perso = [
+    pt('moipl1', { reunion: plan, element: 'acm13', texte: JSON.stringify({ k: 'place', h: '14:00', f: '16:00' }) }),
+    pt('moipl2', { reunion: plan, element: 'acm15', texte: JSON.stringify({ k: 'place', d: 'Matin' }) }),
+    pt('moipl3', { reunion: plan, texte: JSON.stringify({ k: 'evt', h: '18:30', f: '19:30', t: 'Sport' }) }),
+    pt('moisp1', { reunion: `point_perso-perso-${hier}`, type: 'action', texte: 'Relancer l’assurance pour le devis', concretisation: 'suivi', responsable: MOI_DEMO, statut: 'en_cours', validateur: MOI_DEMO, echeance: jour, cree_le: `${hier}T07:40:00.000Z` }),
+    pt('moisp2', { reunion: `point_perso-perso-${hier}`, type: 'blocage', texte: 'Devis du plombier toujours pas reçu', cree_le: `${hier}T07:42:00.000Z` }),
+  ];
+  return [...revue, ...photosSeries([serie('bilan_soir', 1, 0), serie('revue_semaine', 5, 0), serie('revue_trimestre', 63, 3), serie('point_annuel', 250, 3)], actuel, [], 'moi'), ...perso];
+}
+/** Budget de l'équipe Mobile en mode Simple (lot 5, 15/10) : budget prévu du projet, dépenses */
+function budgetDemoEquipe() {
+  const stamp = new Date().toISOString();
+  const dans = (j: number) => toDateString(addDays(new Date(), j));
+  return {
+    dossier: [{ id: 'mobe1', hypothese: '', estimation: '', budget_prevu: '30000', budget_mvp: '', decision: '', decide_le: '', decide_par: '', decide_a: '', estimation_fin: '', modifie_le: stamp } as DossierInvestissement],
+    depense: [
+      { id: 'mobd1', motif: 'Comptes développeur des magasins d’applications', categorie: 'licence', montant: '120', periode: 'an', du: dans(-60), au: '', porteur: 'epic:mobe1', cle: '', parts: '', cree_le: stamp, modifie_le: stamp } as Depense,
+      { id: 'mobd2', motif: 'Graphiste (icônes)', categorie: 'prestataire', montant: '450', periode: 'jour', du: dans(-20), au: dans(-14), porteur: 'epic:mobe1', cle: '', parts: '', cree_le: stamp, modifie_le: stamp } as Depense,
+    ],
+    cout: [],
+    demande: [],
+  };
 }
 /** Données d'exemple d'un espace de la démo (sans stockage) : pour les vérifications automatiques */
 export function donneesDemo(espace = 'moi') {

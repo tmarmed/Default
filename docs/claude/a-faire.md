@@ -13,8 +13,12 @@ Comité ; occurrenceDemo() place les données à la prochaine réunion de chaque
 question de Marc transmise à trois personnes, une réponse sur trois, Relancer / Clôturer ; « Je me retire » Paul →
 Sara ; note liée à un échange clos « 🔒 Échange privé terminé » ; DEMO_DATA_VERSION 61) · 4 Budget et rôles — FAIT (demandes refusée, à reprendre, soumise au portfolio ; epics acme5 « Pas maintenant » et
 acme6 « Abandonner » ; note concrétisée en 💶 ; Inès Garnier Contrôleuse de gestion, Antoine Lefèvre Partie prenante,
-Hugo Blanc Suppléant de Nina cette semaine ; MVP dépassé déjà couvert par acme2 ; DEMO_DATA_VERSION 62) · 5 Mode Simple, Moi et séries (rituels perso avec
-plan et suivis, réunions d'équipe Simple avec budget simple, réunion libre, réunion déplacée ou annulée, live).
+Hugo Blanc Suppléant de Nina cette semaine ; MVP dépassé déjà couvert par acme2 ; DEMO_DATA_VERSION 62) · 5 Mode Simple, Moi et séries — FAIT (plan du jour : créneau 14:00 → 16:00 de la démo du sprint, page d'accueil le
+matin, événement perso ; suivi perso et note à concrétiser au Point perso ; Point d'équipe Mobile du mode Simple avec
+suivi, décision et note préparée ; budget simple de l'espace Mobile (budgetDemoEquipe) ; séries enregistrées : réunion
+libre du jeudi, Daily déplacé à 10:30, Revue de sprint Web annulée ; DEMO_DATA_VERSION 63). PAS FAIT : live « En direct »
+(ligne d'état éphémère, à voir avec « Voir en tant que ») ; plan du Point perso du matin (gardé sur l'appareil, pas
+dans les données) ; l'événement perso n'apparaît pas dans la vue par défaut du plan.
 
 ## Session 4 (14/10, suite) : refactoring sans changement fonctionnel — VALIDÉ (5 lots, un à la fois, avec captures)
 1. Outils communs — FAIT : src/format.ts (jourMois, jourMoisAn, dateFr, jourSemaine, jourSemaineChiffres, euros,
