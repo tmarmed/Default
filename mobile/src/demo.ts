@@ -105,6 +105,18 @@ export async function purgerRestesDemo(): Promise<boolean> {
   }
 }
 
+// Démo (15/10) : onglet resté ouvert, la date change (minuit passé, retour sur un onglet de la veille) → la page se
+// recharge, et les données sont recréées pour le jour (règle de l'ouverture, checkVersion). Seulement en démo.
+if (DEMO && typeof window !== 'undefined' && typeof document !== 'undefined' && typeof window.addEventListener === 'function') {
+  const jourCharge = toDateString(new Date());
+  const verifierJour = () => {
+    if (toDateString(new Date()) !== jourCharge) window.location.reload();
+  };
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && verifierJour());
+  window.addEventListener('focus', verifierJour);
+  setInterval(verifierJour, 60_000);
+}
+
 // Démo : clés de l'appareil rangées à part (sauf celles du fil d'échange, communes aux deux modes)
 if (DEMO) {
   const P = 'demo~';
@@ -140,7 +152,7 @@ function checkVersion(): Promise<void> {
     try {
       // Règle (15/10) : les données de la démo sont celles du jour ; créées un autre jour (ou par une autre version),
       // elles sont recréées à l'ouverture (ce qui a été modifié la veille est effacé ; un onglet resté ouvert garde les
-      // siennes jusqu'au prochain chargement)
+      // siennes jusqu'au rechargement automatique au changement de date, plus haut)
       const marque = `${DEMO_DATA_VERSION}|${toDateString(new Date())}`;
       if ((await AsyncStorage.getItem(VERSION_KEY)) === marque) return;
       // Données de tous les espaces de la démo (clés « mes-taches:demo… ») et copies d'affichage de la démo (rangées à

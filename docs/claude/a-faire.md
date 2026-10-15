@@ -21,8 +21,8 @@ maquettes, réunion libre animée par Nina chaque jour ouvré, lancée aujourd'h
 perso du matin posé sur l'appareil par la démo s'il manque (clePlanPerso, daily.ts) → « Prévu ce matin » au Bilan du
 soir ; événement perso à 17:00 (la journée affichée va de 9:00 à 18:00) ; espace Équipe et son équipe renommés
 « Studio » (confusion avec Mobile d'ACME) ; rôles transverses vus dans la fiche de l'équipe Mobile ; DEMO_DATA_VERSION 65.
-Règle ajoutée (15/10, choix « à l'ouverture seulement ») : données de la démo recréées à l'ouverture si elles ne sont pas
-du jour ; corrigé au passage : en démo, les opérations groupées du stockage (multiGet, multiSet, multiRemove) ajoutaient
+Règle ajoutée (15/10) : données de la démo recréées à l'ouverture si elles ne sont pas du jour, et onglet resté ouvert
+rechargé quand la date change (demandé ensuite) ; corrigé au passage : en démo, les opérations groupées du stockage (multiGet, multiSet, multiRemove) ajoutaient
 le préfixe « demo~ » deux fois (rien n'était effacé au changement de version, et deux réglages d'App n'étaient pas relus).
 Reste à faire ensuite : CRA, jours passés par story, calcul automatique jusqu'à l'epic (à décider avec l'utilisateur).
 
