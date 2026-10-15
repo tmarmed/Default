@@ -40,7 +40,18 @@ Décidé :
   dépenses) ; trace datée avec raison. Seuls ceux qui gèrent le budget du niveau réimputent. Les autres ne proposent
   pas : ils écrivent une note ; le SM ou le responsable peut en faire un point de suivi et le transmettre au
   gestionnaire du budget (circuit actuel des notes).
-À discuter : ligne 4 et suivantes du tableau ; indicateur « stabilité du sprint » ; CRA.
+- Notions (15/10, en cours de validation) : Transmettre (↑ ↓ →, informel, Chat, n'importe qui) ; Escalader (↑, officiel,
+  Scrum Master ou PO seulement) ; Communiquer (↓, officiel, n'importe qui du dessus) ; Déplacer un suivi (d'une réunion
+  à une autre, pas une transmission). Dépendance = la version officielle « sur le côté » (ART sync).
+- Suivre et concrétiser sont indépendants (on peut l'un sans l'autre) : l'écran devient « Suivre et concrétiser ».
+  Tout entre par une **note** (y compris depuis le Chat : « Ajouter une note à une réunion »), puis ce chemin. Une
+  note peut rester dans ma préparation (non partagée) et je la retrouve au Point perso suivant (mot à choisir). Seuls
+  l'escalade et la communication officielles créent un point de suivi d'office.
+- Règle « perso ou équipe » proposée : impact sur périmètre, estimation totale de la story, planning, capacité ou
+  travail d'un autre → point de suivi obligatoire, confirmé par le SM ; sinon facultatif. Ligne 4 : sous-tâche estimée
+  = cas équipe (à valider).
+À discuter : la section « quatre mouvements » (l'utilisateur ne l'a pas encore lue) ; mot pour la note gardée ;
+ligne 5 et suivantes du tableau ; changement de périmètre au train (feature dans le PI) ; « stabilité du sprint » ; CRA.
 
 ## Démo complète : simulation de tous les cas d'usage (15/10, validé : 5 lots dans l'ordre)
 Matrice de couverture faite (règles × demo.ts). Lots : 1 Notes et suivis — FAIT (Information fermée et à concrétiser,
