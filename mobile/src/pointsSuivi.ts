@@ -1,3 +1,4 @@
+import { CHOIX_DEMANDE_PARENT, enfantsDe, parentDe, titreDemandeParent } from './parentEnfants';
 import { jourMois } from './format';
 import { addDays, toDateString } from './dates';
 import type { Echange, EchangeInput, Item, PointReunion, Reunion, StatutSuivi } from './types';
@@ -123,6 +124,8 @@ export function planSuivi(o: {
   question?: Echange;
   /** Décidé depuis le Chat : marqué « hors réunion », mis en avant à la réunion suivante */
   horsReunion?: boolean;
+  /** L4 (16/10) : le parent a dit OK à la demande de l'enfant (abandonner, ne plus suivre, détacher) */
+  depuisParent?: boolean;
 }): PlanSuivi {
   const { pt, espace, action, moi } = o;
   const m = moi.toLowerCase();
@@ -155,6 +158,15 @@ export function planSuivi(o: {
   const statut = action === 'en_cours' ? 'en_cours' : action === 'fait' ? 'fait' : action === 'valider' ? 'valide' : action === 'reprendre' ? 'a_reprendre' : action === 'abandonner' ? 'abandonne' : action === 'plus_suivre' ? 'plus_suivi' : '';
   if (!statut) return plan;
   const role = roleEscalade(pt);
+  // Lot 3 (16/10) · enfant d'une communication (⤵) : abandonner ou ne plus suivre = une demande au parent (L4)
+  const parent = parentDe(pt, o.echanges);
+  if (parent && !o.depuisParent && (action === 'abandonner' || action === 'plus_suivre')) {
+    plan.envoyer.push({
+      ...msg(parent.de, 'question', titreDemandeParent(action, pt.texte), `${o.nomDe(m)} demande : ${action === 'abandonner' ? 'abandonner' : 'ne plus suivre'} ce suivi${note ? ` — ${note}` : ''}. OK : le statut change ; Refuser : il reste suivi.`, ref),
+      choix: CHOIX_DEMANDE_PARENT.join(';'),
+    });
+    return plan;
+  }
   const haut = lireRef(question?.point ?? '')?.haut;
   // Niveau du bas qui refuse la réponse : il attend de nouveau (En cours), le niveau du dessus est rouvert
   const refusEscalade = action === 'reprendre' && role === 'bas' && !!haut;
@@ -174,8 +186,17 @@ export function planSuivi(o: {
     plan.points.push({ espace: haut.espace, patch: { id: haut.id, statut: 'a_reprendre', note: `Refusé par ${o.nomDe(m)} : ${note}` } });
     if (question?.de && question.de !== m) plan.envoyer.push(msg(question.de, 'message', `↩ À reprendre · ${pt.texte}`, `${o.nomDe(m)} (niveau du dessous) : ${note}`));
   }
+  // Lot 3 · enfant d'une communication : « Fait » (ou validé, abandonné sur accord) remonte au parent par l'échange ⤵
+  if (parent && (action === 'fait' || action === 'valider' || action === 'abandonner' || action === 'plus_suivre') && parent.statut === 'envoye')
+    plan.echanges.push({ e: parent, patch: { statut: 'repondu', reponse: action === 'abandonner' ? 'Abandonné' : action === 'plus_suivre' ? 'Plus suivi' : 'Fait', note } });
+  // Lot 3 · parent abandonné : ses enfants sont prévenus (ils passent leur suivi à « Plus suivi »)
+  if (action === 'abandonner')
+    for (const en of enfantsDe(ref, o.echanges)) {
+      plan.envoyer.push(msg(en.a, 'message', `ℹ️ Pour information · Parent abandonné · ${pt.texte}`, `${o.nomDe(m)} a abandonné le suivi du niveau du dessus${note ? ` : ${note}` : '.'} Passez votre suivi lié à « Plus suivi ».`));
+      if (en.statut === 'envoye') plan.echanges.push({ e: en, patch: { statut: 'pris_en_compte', reponse: 'Parent abandonné', note } });
+    }
   // Niveau du dessus qui valide ou abandonne : la réponse redescend par l'échange ⤴
-  if (role === 'haut' && (action === 'valider' || action === 'abandonner')) {
+  if (role === 'haut' && !parent && (action === 'valider' || action === 'abandonner')) {
     const ech = o.echanges.find((e) => e.id === pt.echange);
     const bas = lireRef(ech?.point ?? '');
     const reponse = action === 'valider' ? `Réponse de ${o.nomDe(m)} : ${note || 'réglé'}` : `Abandonné au niveau du dessus par ${o.nomDe(m)} : ${note}`;

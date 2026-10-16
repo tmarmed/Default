@@ -3,6 +3,8 @@ import { membresDe, type OrgValue } from './organisation';
 import { participantsReunion } from './reunions';
 import { reunionDeNiveau } from './suiviEscalade';
 import { remplaces } from './transverses';
+import { estCommunication, LIBELLE_LIE } from './parentEnfants';
+import type { Echange, PointReunion } from './types';
 
 /**
  * Liens entre niveaux (docs/regles-reunions.html bloc 16, lots 2 à 5 du 16/10) : pièce commune des droits et des
@@ -99,4 +101,17 @@ export function etatChezReceveur(e: { statut: string; suivi_a?: string; rappel_l
   if (e.suivi_a) return `Suivi à ${e.suivi_a}`;
   if (e.rappel_le) return `Pris en compte · réponse prévue le ${Number(e.rappel_le.slice(8, 10))}/${e.rappel_le.slice(5, 7)}`;
   return 'Reçu · pas encore traité';
+}
+
+/**
+ * Note liée à un message du Chat (validation du 08/10) : les noms sont visibles, pas le contenu ; le message disparu,
+ * la note reste avec « 🔒 Échange privé terminé »
+ */
+export function lienPrive(p: Pick<PointReunion, 'echange'>, echanges: Echange[], nomDe: (e: string) => string): string {
+  if (!p.echange) return '';
+  const e = echanges.find((x) => x.id === p.echange);
+  // L2 (16/10) : chez l'enfant d'une communication, « lié » sans dire à quoi
+  if (e && estCommunication(e)) return LIBELLE_LIE;
+  // R3 (16/10) : chez l'envoyeur, où en est celui qui l'a reçu (Reçu · pas encore traité, Pris en compte, Suivi à …)
+  return e ? [`🔒 Échange privé · ${nomDe(e.de)} → ${nomDe(e.a)}`, etatChezReceveur(e)].filter(Boolean).join(' · ') : '🔒 Échange privé terminé';
 }

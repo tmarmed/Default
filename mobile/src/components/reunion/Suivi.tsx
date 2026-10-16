@@ -24,9 +24,10 @@ import type { ActionsDaily } from '../Daily';
 import { FeuilleConcretiser, stylesFeuille as s } from './Concretiser';
 import { Ligne, type Ton } from './ui';
 import { TitreGroupe } from './Brique';
-import { etatChezReceveur } from '../../liens';
+import { lienPrive } from '../../liens';
 import { type CibleDeplacement, deplacement, lignesHistorique } from '../../notes';
-import { FeuilleChoix } from '../Choix';
+import { type CibleCommunication, enfantsDe, estCommunication, estDemandeParent, LIBELLE_LIE, ligneParent, messagesCommunication, parentDe, propositionParent } from '../../parentEnfants';
+import { FeuilleChoix, FeuilleMulti } from '../Choix';
 
 type H = Pick<HierarchyValue, 'items' | 'featureList' | 'epicList' | 'objectifList' | 'objectifsPI' | 'resultats'>;
 
@@ -53,6 +54,8 @@ export interface CtxSuivi {
   /** Ce que la re-concrétisation crée (espace, sprint, équipe…), voir elementACreer */
   ctxCreer: (pt: PointReunion) => Parameters<typeof elementACreer>[2];
   onInfo?: (t: string) => void;
+  /** Lot 3 (16/10) : « ⤵ Communiquer » aux niveaux du dessous (Q1 : par leurs Scrum Masters), et le nom d'un niveau */
+  communiquer?: { cibles: CibleCommunication[]; nomNiveau: (niveau: string) => string };
   /** D1 (16/10) : « Déplacer » vers une autre de mes réunions (responsables de la réunion ou du point) */
   deplacer?: { cibles: (pt: PointReunion) => CibleDeplacement[]; par: string };
   /** Changements d'un suivi depuis la réunion précédente (14/10, même affichage que l'arbre des éléments) */
@@ -83,16 +86,7 @@ export function sousSuivi(p: PointReunion, st: StatutSuivi, nomDe: (e: string) =
   const base = sousSuiviSansLien(p, st, nomDe);
   return echanges && p.echange ? [base, lienPrive(p, echanges, nomDe)].filter(Boolean).join(' · ') : base;
 }
-/**
- * Note liée à un message du Chat (validation du 08/10) : les noms sont visibles, pas le contenu ; le message disparu,
- * la note reste avec « 🔒 Échange privé terminé »
- */
-export function lienPrive(p: Pick<PointReunion, 'echange'>, echanges: Echange[], nomDe: (e: string) => string): string {
-  if (!p.echange) return '';
-  const e = echanges.find((x) => x.id === p.echange);
-  // R3 (16/10) : chez l'envoyeur, où en est celui qui l'a reçu (Reçu · pas encore traité, Pris en compte, Suivi à …)
-  return e ? [`🔒 Échange privé · ${nomDe(e.de)} → ${nomDe(e.a)}`, etatChezReceveur(e)].filter(Boolean).join(' · ') : '🔒 Échange privé terminé';
-}
+export { lienPrive };
 function sousSuiviSansLien(p: PointReunion, st: StatutSuivi, nomDe: (e: string) => string): string {
   const resp = p.responsable || p.personne;
   if (st === 'valide') return `${quoiSuivi(p)} · validé par ${nomDe(p.validateur || resp)}`;
@@ -136,6 +130,8 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
   const [conc, setConc] = useState<PointReunion | null>(null);
   /** D1 : point à déplacer (choix de la réunion) */
   const [deplace, setDeplace] = useState<PointReunion | null>(null);
+  /** Lot 3 : point à communiquer aux niveaux du dessous */
+  const [communique, setCommunique] = useState<PointReunion | null>(null);
   const liste = points
     .map((p) => ({ p, a: statutAffiche(p, ctx.items, ctx.jour) }))
     .filter((x) => !aValider || (x.a.s === 'fait' && validateurDe(x.p, ctx.animateur) === ctx.moi.toLowerCase()))
@@ -146,6 +142,7 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
     ctx.onPoints(modifies.filter((x) => x.espace === ctx.espace));
     const autres = plan.points.filter((x) => x.espace !== ctx.espace).length;
     ctx.onInfo?.(
+      plan.envoyer.some(estDemandeParent) ? `« ${pt.texte} » : demande envoyée au parent (OK · Refuser).` :
       `« ${pt.texte} » : ${action === 'valider' ? 'validé' : action === 'reprendre' ? 'à reprendre' : action === 'abandonner' ? 'abandonné' : action === 'plus_suivre' ? 'plus suivi (l’élément lié continue)' : action === 'fait' ? 'fait' : 'en cours'}` +
         (plan.envoyer.length ? ` · ${plan.envoyer.length} message${plan.envoyer.length > 1 ? 's' : ''} dans le Chat` : '') +
         (autres ? ' · l’autre maillon de la transmission est mis à jour' : '') +
@@ -160,7 +157,7 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
           {parElement && (i === 0 || cheminElement(l[i - 1].p.element, ctx.h) !== cheminElement(p.element, ctx.h)) && (
             <TitreGroupe texte={cheminElement(p.element, ctx.h)} />
           )}
-        <Ligne premiere={premiere && i === 0 && !parElement} texte={p.texte} sous={sousSuivi(p, a.s, ctx.nomDe, ctx.echanges)} pastille={a.texte ? { texte: a.texte, ton: a.ton } : undefined} onOuvrir={ctx.lecture ? undefined : () => setOuvert(p)} point={ctx.changements?.(p).point} changements={ctx.changements?.(p).lignes} />
+        <Ligne premiere={premiere && i === 0 && !parElement} texte={p.texte} sous={[sousSuivi(p, a.s, ctx.nomDe, ctx.echanges), ligneParent(enfantsDe(refPoint(ctx.espace, p.id), ctx.echanges), ctx.communiquer?.nomNiveau ?? (() => ''))].filter(Boolean).join(' · ')} pastille={a.texte ? { texte: a.texte, ton: a.ton } : undefined} onOuvrir={ctx.lecture ? undefined : () => setOuvert(p)} point={ctx.changements?.(p).point} changements={ctx.changements?.(p).lignes} />
         </View>
       ))}
       {!aValider &&
@@ -187,6 +184,14 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
             setReconc(ouvert);
             setOuvert(null);
           }}
+          onCommuniquer={
+            ctx.communiquer?.cibles.length && !ctx.lecture && !estFini(statutEffectif(ouvert, ctx.items))
+              ? () => {
+                  setCommunique(ouvert);
+                  setOuvert(null);
+                }
+              : undefined
+          }
           onDeplacer={
             ctx.deplacer && peutDeplacer(ouvert, ctx)
               ? () => {
@@ -195,6 +200,29 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
                 }
               : undefined
           }
+        />
+      )}
+      {communique && ctx.communiquer && (
+        <FeuilleMulti
+          titre={`Communiquer « ${communique.texte} »`}
+          groupes={[{ titre: 'Niveaux du dessous (reçu au Chat de leur Scrum Master)', options: ctx.communiquer.cibles.map((c) => ({ value: c.niveau, label: c.libelle })) }]}
+          selection={ctx.communiquer.cibles.map((c) => c.niveau)}
+          libelleValider={(n) => (n ? `Communiquer à ${n} niveau${n > 1 ? 'x' : ''}` : 'Choisissez')}
+          onFermer={() => setCommunique(null)}
+          onValider={async (l) => {
+            const pt = communique;
+            setCommunique(null);
+            const cibles = ctx.communiquer?.cibles.filter((c) => l.includes(c.niveau)) ?? [];
+            if (!cibles.length) return;
+            try {
+              const deja = new Set(enfantsDe(refPoint(ctx.espace, pt.id), ctx.echanges).map((x) => x.niveau));
+              const inputs = messagesCommunication({ pt, ref: refPoint(ctx.espace, pt.id), de: ctx.moi, cibles: cibles.filter((c) => !deja.has(c.niveau)), texte: pt.texte, espace: ctx.espace, quoi: 'communiquer' });
+              if (inputs.length) await ctx.actions.envoyerEchanges(ctx.espace, inputs);
+              ctx.onInfo?.(`« ${pt.texte} » communiqué à ${inputs.length} niveau${inputs.length > 1 ? 'x' : ''} : reçu au Chat, chacun le met dans sa réunion.`);
+            } catch (e) {
+              ctx.onInfo?.((e as Error).message);
+            }
+          }}
         />
       )}
       {deplace && ctx.deplacer && (
@@ -267,13 +295,18 @@ const peutDeplacer = (pt: PointReunion, ctx: CtxSuivi) => {
   return !ctx.lecture && !estFini(statutEffectif(pt, ctx.items)) && [ctx.animateur, pt.responsable || pt.personne, pt.validateur ?? ''].map((x) => x.toLowerCase()).includes(moi);
 };
 
-function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onDeplacer, onFermer }: { pt: PointReunion; ctx: CtxSuivi; onEnregistrer: (a: ActionSuivi, note: string) => Promise<void>; onReconcretiser: () => void; onDeplacer?: () => void; onFermer: () => void }) {
+function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onDeplacer, onCommuniquer, onFermer }: { pt: PointReunion; ctx: CtxSuivi; onEnregistrer: (a: ActionSuivi, note: string) => Promise<void>; onReconcretiser: () => void; onDeplacer?: () => void; onCommuniquer?: () => void; onFermer: () => void }) {
+  // Lot 3 (L4) : tous les enfants finis → l'application propose au parent « Valider » (ou « Ne plus suivre »)
+  const enfants = enfantsDe(refPoint(ctx.espace, pt.id), ctx.echanges);
+  const proposition = propositionParent(enfants);
+  // L4 : chez un enfant, abandonner ou ne plus suivre devient une demande au parent
+  const lie = !!parentDe(pt, ctx.echanges);
   const st = statutEffectif(pt, ctx.items);
   const fini = estFini(st);
   const faire = peutFaire(pt, ctx.moi, ctx.animateur) && !fini;
   const valideur = validateurDe(pt, ctx.animateur) === ctx.moi.toLowerCase();
   const [statut, setStatut] = useState<'en_cours' | 'fait'>(st === 'fait' ? 'fait' : 'en_cours');
-  const [decision, setDecision] = useState<ActionSuivi | ''>('');
+  const [decision, setDecision] = useState<ActionSuivi | ''>(proposition && validateurDe(pt, ctx.animateur) === ctx.moi.toLowerCase() ? proposition : '');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [erreur, setErreur] = useState('');
@@ -388,6 +421,24 @@ function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onDeplacer, onF
                   ))}
                 </View>
               </>
+            )}
+            {!!enfants.length && (
+              <>
+                <Text style={s.section}>ENFANTS</Text>
+                <View style={[s.carte, s.ligne]}>
+                  <Text style={{ flex: 1, fontSize: 13.5, color: colors.text }}>
+                    {ligneParent(enfants, ctx.communiquer?.nomNiveau ?? (() => ''))}
+                    {proposition ? `\nTous ont répondu : ${proposition === 'valider' ? '✅ Valider est proposé' : '👁 Ne plus suivre est proposé (certains abandonnés)'}.` : ''}
+                  </Text>
+                </View>
+              </>
+            )}
+            {lie && <Text style={[s.sousTitre, { paddingTop: 6 }]}>{`${LIBELLE_LIE} : abandonner ou ne plus suivre part en demande au parent (OK · Refuser).`}</Text>}
+            {!!onCommuniquer && (
+              <Pressable onPress={onCommuniquer} style={[s.carte, s.ligne, { marginTop: 14 }]} accessibilityRole="button">
+                <Text style={s.lien}>⤵ Communiquer aux équipes</Text>
+                <Text style={[s.aide, { flex: 1 }]}>une ligne par équipe ici, « 1 / 3 · Mobile ✓ »</Text>
+              </Pressable>
             )}
             {!!onDeplacer && (
               <Pressable onPress={onDeplacer} style={[s.carte, s.ligne, { marginTop: 14 }]} accessibilityRole="button">

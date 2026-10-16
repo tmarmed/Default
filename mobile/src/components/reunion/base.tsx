@@ -54,7 +54,7 @@ import { TitreFiche } from '../FormSheet';
 import { useLive } from '../useLive';
 import { estPerso } from '../../notes';
 import { peutEscalader } from '../../liens';
-import { LigneNote, optionsDeplacement, patchPartage, usePreparationMoi, useCtxImpact } from './Notes';
+import { LigneNote, optionsCommuniquer, optionsDeplacement, patchPartage, usePreparationMoi, useCtxImpact } from './Notes';
 import { Compteur, FiltresType, FiltresVue, Ligne, Pastille, PastilleFiltres, Pastilles, pluriel, SaisiePoint, st, TITRE_TYPE, tonType, Vide, type VueSuivi, type PlusNote } from './ui';
 
 /**
@@ -529,6 +529,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
   };
   const ctxSuivi: CtxSuivi = {
     deplacer: optionsDeplacement({ reunion, org, actions, aujourdhui, par: nomPersonne(org, mail) }),
+    communiquer: optionsCommuniquer({ reunion, org, mail, jour: aujourdhui }),
     espace,
     jour: e.jour,
     moi: mail,

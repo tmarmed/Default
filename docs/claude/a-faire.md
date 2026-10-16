@@ -19,6 +19,10 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
   état chez le receveur) ; « 📌 Mettre en réunion » (note liée, `suivi_a` sur l'échange, demande de budget
   `en_reunion`) ; bloc 💶 seulement pour les demandes mises en réunion ; escalade réservée aux responsables ; démo 67 ;
   `npm run verif:liens`.
+- Lot 3 Parent et enfants (L1, L2, L4, L5, Q2) — FAIT (16/10) : `src/parentEnfants.ts` ; « ⤵ Communiquer aux équipes »
+  dans la fiche d'un suivi (train, portfolio, direction) ; ligne « 1 / 2 · Mobile ✓ · Web 🔵 » ; demandes au parent
+  (planSuivi, App.repondreEchange) ; `lienPrive` déplacé dans `src/liens.ts` ; démo 68 (Gel des mises en production).
+  Reste : bouton « Détacher », suppression d'un élément rattaché (L5), « Demande de suivre de nouveau ».
 - Décisions prises en l'absence de l'utilisateur : `docs/claude/decisions-lots.md` (à valider à son retour).
 - Lots 3 à 9 : en cours, dans l'ordre (voir plus bas).
 - À DISCUTER (demandé le 16/10) : **historique de l'application** — garder ou pas l'historique des éléments, notes,

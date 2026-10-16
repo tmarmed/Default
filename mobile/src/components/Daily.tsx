@@ -51,7 +51,7 @@ import { echeanceParDefaut, estFini, jourCourt, LIBELLE_STATUT, relierEscalades,
 import { absentsLe, useConges } from '../conges';
 import { BlocHorsReunion, cheminElement, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, repartirSuivis, statutAffiche } from './reunion/Suivi';
 import { FeuilleConcretiser } from './reunion/Concretiser';
-import { LigneNote, optionsDeplacement, patchPartage, useCtxImpact, usePreparationMoi } from './reunion/Notes';
+import { LigneNote, optionsCommuniquer, optionsDeplacement, patchPartage, useCtxImpact, usePreparationMoi } from './reunion/Notes';
 import { estPerso } from '../notes';
 import { peutEscalader } from '../liens';
 import { estAutre, placeholderNote } from './EchangesView';
@@ -630,6 +630,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const [aValider, setAValider] = useState(false);
   const ctxSuivi: CtxSuivi = {
     deplacer: optionsDeplacement({ reunion, org, actions, aujourdhui, par: nomPersonne(org, mail) }),
+    communiquer: optionsCommuniquer({ reunion, org, mail, jour: aujourdhui }),
     espace,
     jour,
     moi: mail,

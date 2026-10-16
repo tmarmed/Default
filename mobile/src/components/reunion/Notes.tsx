@@ -6,6 +6,8 @@ import { useHierarchy } from '../../hierarchyContext';
 import { ajouterHistorique, type CibleDeplacement, type CtxImpact, estNote, estPerso, lignePartage, lignesHistorique, rappelPreparation, reunionsCibles } from '../../notes';
 import { nomPersonne, type OrgValue, useOrg } from '../../organisation';
 import { participantsReunion } from '../../reunions';
+import { niveauxDessous, peutCommuniquer, responsablesNiveau } from '../../liens';
+import type { CibleCommunication } from '../../parentEnfants';
 import { libelleNiveau, lireNiveau, personneParEmail } from '../../echange/hierarchieEchange';
 import { iterationOf } from '../../pi';
 import type { PointReunion, Reunion } from '../../types';
@@ -161,3 +163,18 @@ export function optionsDeplacement(o: { reunion: Pick<Reunion, 'id' | 'espace'>;
 
 /** V3 · Changement d'une note perso partagée : plus perso, une ligne d'historique */
 export const patchPartage = (y: Pick<PointReunion, 'historique'>, par: string, jour: string) => ({ perso: '', historique: ajouterHistorique(y.historique, lignePartage(par, jour)) });
+
+/**
+ * Lot 3 · « ⤵ Communiquer » d'une réunion (train, portfolio, direction) : les niveaux du dessous à qui vous pouvez
+ * communiquer (Q1 : responsable du dessus, personne de liaison), reçu au Chat de leur Scrum Master (ou responsable)
+ */
+export function optionsCommuniquer(o: { reunion: Pick<Reunion, 'niveau'>; org: OrgValue; mail: string; jour: string }): { cibles: CibleCommunication[]; nomNiveau: (n: string) => string } | undefined {
+  const dessus = lireNiveau(o.reunion.niveau);
+  const pid = personneParEmail(o.mail, o.org)?.id ?? '';
+  const nomNiveau = (n: string) => libelleNiveau(lireNiveau(n), o.org);
+  const cibles = niveauxDessous(dessus, o.org)
+    .filter((n) => peutCommuniquer(pid, dessus, n, o.org, o.jour))
+    .map((n) => ({ niveau: `${n.kind}:${n.id}`, libelle: libelleNiveau(n, o.org), a: o.org.personne.get(responsablesNiveau(n, o.org).deroulement)?.email ?? '' }))
+    .filter((c) => !!c.a);
+  return { cibles, nomNiveau };
+}

@@ -144,7 +144,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '67';
+const DEMO_DATA_VERSION = '68';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -696,6 +696,11 @@ const SEEDS_ENTREPRISE: Seeds = {
     // Risque noté à une ART sync, suivi (ROAM : Owned par Paul) : « En cours » hier, « Fait » depuis
     const risque = pt('acmpt30', { reunion: `art_sync-train:acmtr1-${avant}`, personne: paul, auteur: paul, type: 'risque', texte: 'Retard du fournisseur de paiement', concretisation: 'suivi', responsable: paul, statut: 'fait', validateur: MOI_DEMO, echeance: jour, note: 'Contrat signé avec un second fournisseur', cree_le: `${avant}T11:20:00.000Z` });
     liste.push(risque);
+    // Lot 3 (16/10) : le suivi parent à l'ART sync, et son enfant au Daily Mobile (lié par l'échange ⤵, fait)
+    liste.push(
+      pt('acmpt41', { reunion: `art_sync-train:acmtr1-${avant}`, personne: MOI_DEMO, auteur: MOI_DEMO, type: 'information', texte: 'Gel des mises en production du 20 au 24/10', concretisation: 'suivi', responsable: MOI_DEMO, statut: 'en_cours', validateur: MOI_DEMO, echeance: jour, cree_le: `${avant}T11:30:00.000Z` }),
+      pt('acmpt42', { reunion: reunion(veille), personne: nina, auteur: nina, type: 'information', texte: 'Gel des mises en production du 20 au 24/10', concretisation: 'suivi', tache: 'acmx17', echange: 'acmx17', responsable: nina, statut: 'fait', validateur: nina, note: 'Aucune livraison prévue cette semaine-là', cree_le: `${veille}T09:48:00.000Z` }),
+    );
     // Lot 1 de la démo complète (15/10) : notes et suivis manquants
     const julieEO = 'julie.morel@acme.example';
     liste.push(
@@ -975,6 +980,10 @@ const SEEDS_ENTREPRISE: Seeds = {
       ech('acmx13', { de: MOI_DEMO, a: 'tom.faure@acme.example', type: 'question', nature: 'question', titre: 'Qui présente le paiement à la System demo ?', texte: 'Marc cherche quelqu’un pour la démo de vendredi : tu peux ?', choix: 'Moi;Pas disponible', parent: 'acmx12', transmis_par: MOI_DEMO, element: 'acmf2' }),
       ech('acmx14', { de: MOI_DEMO, a: 'emma.roy@acme.example', type: 'question', nature: 'question', titre: 'Qui présente le paiement à la System demo ?', texte: 'Marc cherche quelqu’un pour la démo de vendredi : tu peux ?', choix: 'Moi;Pas disponible', statut: 'repondu', reponse: 'Moi', note: 'Je montre le paiement en un clic', parent: 'acmx12', transmis_par: MOI_DEMO, element: 'acmf2' }),
       ech('acmx15', { de: MOI_DEMO, a: 'nina.dupont@acme.example', type: 'question', nature: 'question', titre: 'Qui présente le paiement à la System demo ?', texte: 'Marc cherche quelqu’un pour la démo de vendredi : tu peux ?', choix: 'Moi;Pas disponible', parent: 'acmx12', transmis_par: MOI_DEMO, element: 'acmf2' }),
+      // Lot 3 (16/10) : communication du RTE à l'ART sync (« Gel des mises en production ») vers Mobile et Web, par
+      // leurs Scrum Masters : Mobile l'a mise au Daily et l'a faite (✓), Web l'a mise en réunion (🔵) → « 1 / 2 »
+      ech('acmx17', { de: MOI_DEMO, a: 'nina.dupont@acme.example', nature: 'action', titre: '⤵ Gel des mises en production du 20 au 24/10', texte: 'Communication du niveau du dessus : gel des mises en production du 20 au 24/10.', point: 'demo-entreprise|acmpt41', niveau: 'equipeagile:acmeqmob', statut: 'repondu', reponse: 'Fait', note: 'Aucune livraison prévue cette semaine-là', suivi_a: 'Daily 👥 Mobile' }),
+      ech('acmx18', { de: MOI_DEMO, a: 'hugo.blanc@acme.example', nature: 'action', titre: '⤵ Gel des mises en production du 20 au 24/10', texte: 'Communication du niveau du dessus : gel des mises en production du 20 au 24/10.', point: 'demo-entreprise|acmpt41', niveau: 'equipeagile:acmeqweb', suivi_a: 'Daily 👥 Web' }),
       ech('acmx16', { de: 'paul.leroy@acme.example', a: 'sara.martin@acme.example', type: 'question', nature: 'action', titre: 'Accès au tableau de bord du train', texte: 'Paul a besoin d’un accès en lecture au tableau de bord du train.', choix: 'Fait;Pas possible (motif)', transmis_par: MOI_DEMO, niveau: 'train:acmtr1' }),
       // 💶 Lot 4 : une demande de budget à décider (Chat) et une information reçue (disparaît à la lecture)
       ech('acmx8', {

@@ -89,6 +89,7 @@ import { FenetreDeReunion, type NiveauReunion, ReunionsView } from './src/compon
 import { BandeauxBas, hauteurBandeaux, type InfoBandeauChat, type InfoBandeauReunion } from './src/components/BandeauReunion';
 import { useReunionsLancees } from './src/components/useReunionsLancees';
 import { estLancee } from './src/etatReunion';
+import { CHOIX_DEMANDE_PARENT, lireDemandeParent } from './src/parentEnfants';
 import { heureReunion, peutModifierSerie, serieVide, reunionsAVenir, reunionsDeSerie, seriesACreer, seriesDe, type SerieVue } from './src/reunions';
 import { arreterSerie, modifierOccurrence } from './src/series';
 import { ModifierReunionContext } from './src/components/FenetreReunion';
@@ -1931,6 +1932,21 @@ function Main() {
       return;
     }
     await saveEntity('echange', e, { reponse, note, statut: 'repondu' });
+    // L4 (16/10) : demande d'un enfant au parent (abandonner, ne plus suivre, détacher) : OK applique, Refuser informe
+    const demandeParent = lireDemandeParent(e.titre);
+    if (demandeParent) {
+      const r = lireRef(e.point ?? '');
+      if (reponse === CHOIX_DEMANDE_PARENT[0] && r && settings) {
+        const pt = (await api.lirePoints(settings, r.espace, '')).find((x) => x.id === r.id);
+        if (pt) {
+          const action = demandeParent === 'abandonner' ? 'abandonner' : 'plus_suivre';
+          const plan = planSuivi({ pt, espace: r.espace, action, note: note || `Accord de ${nomEchange(moiEchange)}`, moi: moiEchange, animateur: pt.validateur || moiEchange, nomDe: nomEchange, echanges: tousHier.echanges ?? [], niveau: e.niveau, horsReunion: true, depuisParent: true });
+          await appliquerPlan(plan, actionsDaily);
+        }
+      }
+      setInfo(reponse === CHOIX_DEMANDE_PARENT[0] ? 'Demande acceptée : le suivi lié change de statut.' : 'Demande refusée : le suivi lié reste suivi.');
+      return;
+    }
     // « Valider ? » d'un point de suivi (08/10) : la réponse agit sur le point, comme en réunion
     const ref = lireRef(e.point ?? '');
     const action = actionDuChoix(reponse);
