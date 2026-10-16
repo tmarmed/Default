@@ -14,6 +14,8 @@ devient automatiquement un point de suivi chez celui qui la reçoit, escalade et
 (spécification P1 et « Changements à vérifier » mises à jour).
 Tableau du périmètre TERMINÉ (16/10) : règle unique P0 = toute variation des points engagés du sprint hors Planification
 (hausse et baisse ; abandon ou suppression d'une story compris ; à la baisse, proposer de compléter avec le backlog).
+Stabilité du sprint VALIDÉE (16/10, B4) : points restés / points engagés, nombre de changements, 90 / 75 %, sprint et PI.
+Reste du brainstorm : CRA et jours par story (plus tard). Prochaine étape : plan en lots.
 Tableau « qui peut faire quoi » validé et ajouté au bloc 16 (16/10), avec Q5 pleins droits du SM / responsable et de
 son suppléant ; sous-tableau « ⏰ Temporiser » (Chat, séance, Point perso, fiche d'un élément) et « Perso ou à
 partager » (note à partager par défaut, case « 🔒 Perso », perso seulement si ça ne touche que moi). Suite :
