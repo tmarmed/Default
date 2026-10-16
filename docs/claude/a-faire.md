@@ -2,7 +2,7 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
-## Développement des 9 lots (16/10, en cours) — l'utilisateur a demandé de les développer tous, en insistant sur la réutilisation des pièces communes
+## Développement des 9 lots (16/10) — LES 9 LOTS SONT CODÉS, À VALIDER PAR L'UTILISATEUR — l'utilisateur a demandé de les développer tous, en insistant sur la réutilisation des pièces communes
 - Lot 1 Notes (N1-N3, V1-V4, D1) — FAIT (16/10, à valider sur captures) : pièce commune `src/notes.ts` (règles) et
   `reunion/Notes.tsx` (`LigneNote`, `usePreparationMoi`, `useCtxImpact`, `optionsDeplacement`), branchées sur le Daily ET
   les autres réunions (`base.tsx`) ; `SaisiePoint` : plusieurs éléments (`LignesElements`, éléments de l'équipe
@@ -42,8 +42,12 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
 - Lot 9 Indicateurs (B3, B4) — FAIT (16/10) : `src/indicateurs.ts`, `reunion/Indicateurs.tsx` dans Rétrospective,
   Revue, Planification, Inspect & Adapt, Affinage (écart), Pilotage ; démo 73 (photo de la Planification au début du
   sprint) ; tests dans `npm run verif:qualite`. Reste : Stabilité du PI au train.
+- Vérifié (16/10) : 11 suites de tests (`verif:notes`, `liens`, `budget`, `calcul`, `perimetre`, `qualite` + les
+  anciennes), typecheck, parcours de toutes les réunions (28 SAFe, 9 Simple) sans erreur ni valeur suspecte, même
+  nombre d'étapes qu'avant. Démo 74.
+- PROCHAINE SESSION : faire valider `docs/claude/decisions-lots.md` ligne par ligne (une question à la fois), puis
+  traiter les « À revoir » et les « Reste » ci-dessus.
 - Décisions prises en l'absence de l'utilisateur : `docs/claude/decisions-lots.md` (à valider à son retour).
-- Lots 3 à 9 : en cours, dans l'ordre (voir plus bas).
 - À DISCUTER (demandé le 16/10) : **historique de l'application** — garder ou pas l'historique des éléments, notes,
   suivis et échanges, et jusqu'à quelle profondeur (durée, nombre de versions, par type ; aujourd'hui : pas
   d'historique, un échange traité est supprimé, un point fini est supprimé à la rétro ; seul le champ `historique` des

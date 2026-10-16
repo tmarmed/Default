@@ -203,7 +203,7 @@
       <li><b>F1 · Filtres</b> (14/10, corrigé par l'utilisateur) : les filtres des écrans (Tâches, Roadmap…) sont la base et ne changent pas ; les filtres des réunions réutilisent leur composant (pastilles « Tous » puis un seul choix).</li>
     </ul></div>
 
-    <div class="bloc large"><h2><i>16</i>Notes, suivis et liens entre niveaux (15/10, décidé ; lot 1 « Notes » codé le 16/10)</h2><div class="exc">Codé le 16/10 (lot 1) : N1 (note « En préparation » gardée dans 🔒 Moi, rappel 🟡 « Pas encore partagée · écrite pour « Daily du 15/10 » »), N2 (suivi imposé dans « Concrétiser » quand la note touche le travail d’un autre, le planning, le périmètre ou un autre niveau), N3 (plusieurs éléments, de l’équipe seulement), V1-V4 (case « 🔒 Perso », retirée si impact ; « Partager avec l’équipe »), D1 (« ➜ Déplacer vers une autre réunion » dans la fiche d’un suivi, historique). Reste : concrétiser une note 🔒 Perso d’une réunion d’équipe ailleurs qu’au Point perso.</div>
+    <div class="bloc large"><h2><i>16</i>Notes, suivis et liens entre niveaux (15/10, décidé ; codé le 16/10, lots 1 à 5 — décisions à valider : docs/claude/decisions-lots.md)</h2><div class="exc">Codé le 16/10 (lot 1) : N1 (note « En préparation » gardée dans 🔒 Moi, rappel 🟡 « Pas encore partagée · écrite pour « Daily du 15/10 » »), N2 (suivi imposé dans « Concrétiser » quand la note touche le travail d’un autre, le planning, le périmètre ou un autre niveau), N3 (plusieurs éléments, de l’équipe seulement), V1-V4 (case « 🔒 Perso », retirée si impact ; « Partager avec l’équipe »), D1 (« ➜ Déplacer vers une autre réunion » dans la fiche d’un suivi, historique). Reste : concrétiser une note 🔒 Perso d’une réunion d’équipe ailleurs qu’au Point perso.</div>
       <h3>But</h3><ul>
       <li>Faire circuler une information ou une demande <b>entre personnes, équipes et niveaux</b> sans rien perdre, en gardant chaque réunion <b>gérée par son équipe</b> et les informations d'une réunion <b>confidentielles</b>.</li></ul>
       <h3>Mots</h3><ul>
@@ -272,7 +272,7 @@
       <li>⚠ <b>Changements à vérifier (non-régression)</b> : les demandes de budget passent par le Chat (aujourd'hui directement dans le bloc de la réunion du dessus) ; « 📌 Suivre à &lt;réunion&gt; » n'est plus précoché ; « Concrétiser » devient « Suivre et concrétiser » ; l'escalade ne crée plus d'office le point « Escalade reçue » dans la réunion du dessus (aujourd'hui Daily.tsx) ; <b>aucune information du Chat ne devient automatiquement un point de suivi chez celui qui la reçoit</b> (escalade, communication, changement de périmètre compris). Tout nouveau cas d'usage découvert en appliquant la relation parent / enfant est validé avec l'utilisateur.</li></ul>
     </div>
 
-    <div class="bloc large"><h2><i>17</i>Calcul automatique, bruit, retouche, changement de périmètre, réimputation (15/10, décidé, pas encore codé)</h2>
+    <div class="bloc large"><h2><i>17</i>Calcul automatique, bruit, retouche, changement de périmètre, réimputation (15/10, décidé ; codé le 16/10, lots 6 à 9 — décisions à valider : docs/claude/decisions-lots.md)</h2>
       <h3>But</h3><ul>
       <li>Que les chiffres (points, dates, jours, budget) se tiennent du bas en haut sans ressaisie, que le travail perdu ou refait se voie, et que le périmètre d'un sprint ne bouge pas sans décision.</li></ul>
       <h3>Mots</h3><ul>

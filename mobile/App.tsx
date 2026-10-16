@@ -90,6 +90,7 @@ import { BandeauxBas, hauteurBandeaux, type InfoBandeauChat, type InfoBandeauReu
 import { useReunionsLancees } from './src/components/useReunionsLancees';
 import { estLancee } from './src/etatReunion';
 import { CHOIX_DEMANDE_PARENT, lireDemandeParent } from './src/parentEnfants';
+import { jourMois } from './src/format';
 import { libellePayePar, payePar, planBruit, planRetouche, traceReimputation } from './src/bruitRetouche';
 import { type ActionsLot8, Lot8Context } from './src/components/FeuilleCause';
 import { CHOIX_PO, demandePerimetre, estPerimetre, etapesPerimetre, libelleImpact, lirePatch, texteLisible, TITRE_PERIMETRE } from './src/perimetre';
@@ -1992,7 +1993,7 @@ function Main() {
       const nomPayeur = (v: string) => libellePayePar(v, (k, id) => (k === 'epic' ? (hv.epicList.find((e) => e.id === id)?.titre ?? id) : (orgReunions.train.get(id)?.nom ?? id)));
       const avant = nomPayeur(t.paye_par || payeParDe(t).valeur);
       const apres = valeur ? nomPayeur(valeur) : 'règle automatique';
-      await actionsDaily.modifierItems?.(t.espace || 'moi', [{ id: t.id, paye_par: valeur, paye_trace: traceReimputation(avant, apres, nomEchange(moiEchange), today, [cause, commentaire].filter(Boolean).join(' — '), t.paye_trace) }]);
+      await actionsDaily.modifierItems?.(t.espace || 'moi', [{ id: t.id, paye_par: valeur, paye_trace: traceReimputation(avant, apres, nomEchange(moiEchange), jourMois(today), [cause, commentaire].filter(Boolean).join(' — '), t.paye_trace) }]);
       setInfo(`💶 « ${t.titre} » : payé par ${apres}.`);
     },
     payeurs: (t) => {
