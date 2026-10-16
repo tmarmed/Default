@@ -3,6 +3,9 @@
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
 ## Brainstorm en cours (15/10) : calcul automatique, bruit, retouche, changement de périmètre — PAS ENCORE CODÉ
+SPÉCIFICATION ÉCRITE ET VALIDÉE (16/10) : docs/regles-reunions.html, blocs 16 et 17 (ils priment sur les lignes
+ci-dessous en cas de différence) ; glossaire mis à jour. Suite : tableau « qui peut faire quoi » complet, puis
+changement de périmètre au train, lignes 5+ du tableau du périmètre, stabilité du sprint, CRA ; ensuite plan en lots.
 Décidé :
 - Vers le bas : seulement les dates (enfant vide → affiche la date du parent en gris et la suit ; enfant rempli → garde
   la sienne, alerte s'il sort). Priorité : sa date > son sprint ou PI > son parent.
