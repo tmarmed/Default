@@ -39,6 +39,7 @@
 | Parent et enfants (communiquer ⤵, ligne « 1 / 2 · Mobile ✓ », demandes au parent OK · Refuser, « lié ») | `messagesCommunication`, `enfantsDe`, `ligneParent`, `propositionParent`, `parentDe`, `titreDemandeParent` ; options d'une réunion : `optionsCommuniquer` | `src/parentEnfants.ts`, `reunion/Notes.tsx` |
 | Rassembler des demandes (budget) : rassembler, sortir, répercuter la réponse, répartir un accord partiel | `rassembler`, `sortir`, `repercuter`, `repartir`, `rassembleesDans` ; écriture groupée `ecrireDemandes` | `src/rassembler.ts`, `src/magasin.ts` |
 | ⏰ Temporiser (date du rappel, temporisé / revenu, libellé, revenus en haut) ; absent → suppléant | `dateRappel`, `estTemporise`, `estRevenu`, `libelleRappel`, `revenusEnHaut`, `remplacantDe` | `src/temporiser.ts` |
+| Calcul automatique (date héritée du parent, points calculés feature / epic, dates des enfants, dépassement des sous-tâches) | `dateHeritee`, `pointsFeature`, `pointsEpic`, `datesDesEnfants`, `depassementSousTaches` | `src/calcul.ts` |
 | Saisie d'une note (types, plusieurs éléments, 🔒 Perso) | `SaisiePoint`, `LignesElements`, `LigneElement` | `reunion/ui.tsx` |
 
 Doublons connus (à unifier quand on y touche) : `useEquipeDaily` (Daily.tsx) et `useEquipe` (base.tsx) ; la

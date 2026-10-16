@@ -1,3 +1,4 @@
+import { pointsEpic } from './calcul';
 import { type Alerte, alertesEpic, alertesObjectif, fmtDate } from './alerts';
 import { addDays, addMonths, parseDate, toDateString } from './dates';
 import { domaineOf, progressObjectif, tasksOfEpic } from './hierarchy';
@@ -872,6 +873,21 @@ function checksPortefeuilleBrut(h: HierarchyValue, today: string): Check[] {
         message: `L'epic « ${e.titre} » est « Terminée », mais ${ouvertes} tâche${ouvertes > 1 ? 's sont' : ' est'} encore ouverte${ouvertes > 1 ? 's' : ''}.`,
         actions: [
           { label: "Remettre l'epic en cours", action: { kind: 'entity', entity: 'epic', id: e.id, patch: { etat: 'en_cours' } }, principal: true },
+          { label: "Ouvrir l'epic", action: { kind: 'open', target: 'epic', id: e.id } },
+        ],
+      });
+    // K2 (16/10) : estimation de l'epic (dossier) ≠ somme de ses features (valeur ou valeur calculée) ; arrêt à l'epic
+    const est = Number(String(e.estimation ?? '').replace(',', '.')) || 0;
+    const fs = h.featureList.filter((f) => f.epic === e.id);
+    const somme = pointsEpic(fs, h.items);
+    if (est > 0 && somme > 0 && Math.abs(est - somme) > 1e-9)
+      out.push({
+        key: `epoints:${e.id}`,
+        niveau: 'rappel',
+        icone: '🔢',
+        message: `« ${e.titre} » : estimation ${est} points, ${somme} dans ses features.`,
+        actions: [
+          { label: `Garder ${est}`, action: { kind: 'ignorer' }, principal: true },
           { label: "Ouvrir l'epic", action: { kind: 'open', target: 'epic', id: e.id } },
         ],
       });

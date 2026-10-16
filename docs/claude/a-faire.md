@@ -30,6 +30,9 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
   et section « ⏰ Temporisés » ; fiche d'un suivi « ⏰ À traiter plus tard » (pointsDeSuivi et aReprendre filtrent) ;
   copie à un suppléant quand le destinataire est absent (`copie_de`) ; animateur = pleins droits ; démo 70.
   Reste : délai « Date » et « Dans X jours » réglable, groupe « ⏰ Temporisés » visible en séance, Point perso, action liée.
+- Lot 6 Calcul automatique (K1-K4) — FAIT (16/10) : `src/calcul.ts` ; date du parent en gris (fiche tâche) ;
+  estimation calculée d'une feature (placeholder) ; alerte epic ≠ features ; K4 : alerte seulement au-delà ;
+  `npm run verif:calcul`. Reste : dates vers le haut affichées (feature, epic), CRA (K5, plus tard).
 - Décisions prises en l'absence de l'utilisateur : `docs/claude/decisions-lots.md` (à valider à son retour).
 - Lots 3 à 9 : en cours, dans l'ordre (voir plus bas).
 - À DISCUTER (demandé le 16/10) : **historique de l'application** — garder ou pas l'historique des éléments, notes,

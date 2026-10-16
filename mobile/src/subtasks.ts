@@ -1,3 +1,4 @@
+import { depassementSousTaches } from './calcul';
 import { pointsOf } from './pi';
 import type { Item, ItemType, Statut } from './types';
 
@@ -59,7 +60,9 @@ const pick = (p: Item) => Object.fromEntries(LIENS.map((k) => [k, p[k]])) as Pic
 export function pointsCheck(parent: Item, enfants: Item[] = []) {
   const p = pointsOf(parent);
   const s = enfants.reduce((n, t) => n + pointsOf(t), 0);
-  return { parent: p, sous: s, alerte: p > 0 && s > 0 && Math.abs(p - s) > 1e-9 };
+  // K4 (16/10) : sous-tâches = organisation perso ; alerte seulement au-delà de l'estimation (calcul : src/calcul.ts)
+  const d = depassementSousTaches(parent, enfants);
+  return { parent: p, sous: s, alerte: d.alerte };
 }
 
 /** Charge d'un élément : un parent dont les sous-tâches ont des points ne compte pas (ses sous-tâches comptent). */

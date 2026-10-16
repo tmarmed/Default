@@ -1,3 +1,4 @@
+import { pointsFeature } from '../calcul';
 import { useEffect, useMemo, useState } from 'react';
 import { decrireChangement, useEnregistrementAuto, BandeauAnnuler } from './EnregistrementAuto';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
@@ -307,7 +308,8 @@ export function FeatureForm({
             onChange={(v) => set('iteration', v)}
           />
         )}
-        <ChampEstimation value={form.points} onChange={(v) => set('points', v)} jours={safe.pointsJours} facteur={facteurJours(form)} placeholder="Facultatif (globale, ex. 8)" />
+        {/* K2 (16/10) : vide → calculée depuis ses tâches, sans rien dire ; remplie → alerte « Passer à n · Garder » si écart */}
+        <ChampEstimation value={form.points} onChange={(v) => set('points', v)} jours={safe.pointsJours} facteur={facteurJours(form)} placeholder={pointsFeature({ points: '' }, tasks).valeur > 0 ? `Calculé : ${fmtPoints(pointsFeature({ points: '' }, tasks).valeur, safe.pointsJours)} (ses tâches)` : 'Facultatif (globale, ex. 8)'} />
       </SectionFiche>
 
       {safe.actif && feature && <SectionDepenses espace={(feature as { espace?: string }).espace || 'moi'} porteur={`feature:${feature.id}`} />}

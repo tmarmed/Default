@@ -18,6 +18,7 @@ import {
 } from '../types';
 import { Chips } from './Chips';
 import { DateField } from './DateField';
+import { dateHeritee, libelleDateHeritee } from '../calcul';
 import { checkRecurrence, RecurrenceFields } from './RecurrenceFields';
 import { LinkPicker } from './LinkPicker';
 import { filtrerEspace, HierarchyContext, useHierarchy } from '../hierarchyContext';
@@ -528,7 +529,8 @@ export function TaskForm({
               {!form.periodicite && (
                 <>
                   <ChampFiche label="Date">
-                    <DateField nu mode="date" value={form.date} onChange={(v) => set('date', v)} placeholder="Choisir une date" />
+                    {/* K1 (16/10) : sans date ni sprint, la date du parent en gris (l'enfant la suit) */}
+                    <DateField nu mode="date" value={form.date} onChange={(v) => set('date', v)} placeholder={libelleDateHeritee(dateHeritee(form, h.items)) || 'Choisir une date'} />
                   </ChampFiche>
                   {aDateFin(form.type) && (
                     <ChampFiche label="Date de fin" sous="La date où la démarche doit être finie (ex. expiration du document).">
