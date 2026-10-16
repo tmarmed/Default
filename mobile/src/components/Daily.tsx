@@ -53,6 +53,7 @@ import { BlocHorsReunion, cheminElement, type CtxSuivi, lienPrive, LignesSuivi, 
 import { FeuilleConcretiser } from './reunion/Concretiser';
 import { LigneNote, optionsDeplacement, patchPartage, useCtxImpact, usePreparationMoi } from './reunion/Notes';
 import { estPerso } from '../notes';
+import { peutEscalader } from '../liens';
 import { estAutre, placeholderNote } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
 import { TitreFiche } from './FormSheet';
@@ -674,7 +675,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const reportes = useMemo(() => aReprendre(serveur, reunion.id).filter(attendConcretisation), [serveur, reunion.id]);
   const aDecider = [...[...tous, ...(anime ? reponsesPO.map((r) => r.pt) : [])].filter((x) => dela(x) && aConcretiser(x) && !x.concretisation), ...(anime ? reportes : [])];
   // Concrétisation (08/10, feuille « Concrétiser ») : les choix du SM sur ceux proposés ; forme d'avant (c, resp, a) en plus
-  const escaladesDaily = [
+  // Q1 / Q2 (16/10) : escalader = un responsable de l'équipe (ou son suppléant)
+  const escalader = peutEscalader(personneParEmail(mail, org)?.id ?? '', equipe ? { kind: 'equipeagile', id: equipe.id } : null, org, aujourdhui);
+  const escaladesDaily = !escalader ? [] : [
     ...(rte?.email ? [{ email: rte.email.toLowerCase(), nom: rte.nom, meta: `RTE du train ${e.train?.nom ?? ''} · obstacle, organisation` }] : []),
     ...(pm?.email ? [{ email: pm.email.toLowerCase(), nom: pm.nom, meta: `PM du train ${e.train?.nom ?? ''} · contenu, priorité` }] : []),
   ];

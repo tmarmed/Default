@@ -354,6 +354,10 @@ export interface Echange {
   parent?: string;
   /** Nature du message : information, question, blocage, décision à prendre ou prise, demande d'action (vide : d'après le type) */
   nature?: NatureEchange;
+  /** R3 (16/10) : où celui qui l'a reçu l'a mis en réunion (« Daily 👥 Mobile ») ; l'envoyeur voit « Suivi à … » */
+  suivi_a?: string;
+  /** T1 (16/10) : temporisé par celui qui l'a reçu jusqu'à cette date (AAAA-MM-JJ) ; l'envoyeur voit « réponse prévue le … » */
+  rappel_le?: string;
 }
 export type NatureEchange = '' | 'information' | 'question' | 'blocage' | 'decision_a_prendre' | 'decision_prise' | 'action';
 export const NATURES_ECHANGE: NatureEchange[] = ['', 'information', 'question', 'blocage', 'decision_a_prendre', 'decision_prise', 'action'];
@@ -872,6 +876,10 @@ export interface DemandeBudget {
   decide_le: string;
   /** Décidée depuis le Chat (« 1 ») : mise en avant à la réunion suivante, jusqu'à « Confirmé » (« 2 ») */
   hors_reunion: string;
+  /** R1 (16/10) : « 1 » = mise en réunion par celui qui l'a reçue au Chat (sinon elle attend au Chat) */
+  en_reunion?: string;
+  /** L3 (16/10) : demande rassemblée dans cette demande (id), envoyée plus haut ; vide sinon */
+  rassemblee_dans?: string;
   cree_le: string;
   modifie_le: string;
 }

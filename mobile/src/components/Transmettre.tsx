@@ -34,7 +34,8 @@ export function FeuilleTransmettre({
   const [texte, setTexte] = useState('');
   const [motif, setMotif] = useState(MOTIFS_TRANSMISSION[0]);
   const [boucle, setBoucle] = useState(true);
-  const [suivre, setSuivre] = useState(!!reunions.length);
+  // R1 (16/10) : plus précoché ; celui qui reçoit choisit lui-même de mettre en réunion
+  const [suivre, setSuivre] = useState(false);
   const [reunion, setReunion] = useState(reunions[0]?.value ?? '');
   const [texteNote, setTexteNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -250,7 +251,7 @@ export function ActionsEchange({ e, moi, hierarchie, nomDe, onFait }: { e: Echan
       {recu && (
         <>
           {bouton('↪ Transmettre', () => setFeuille('transmettre'))}
-          {reunions.length > 0 && bouton('📌 Suivre en réunion', () => setFeuille('suivre'))}
+          {reunions.length > 0 && bouton('📌 Mettre en réunion', () => setFeuille('suivre'))}
           {!seLitSeulement(natureDe(e)) && bouton('✓ Je m’en occupe', () => void agir(() => hierarchie.onMOccuper(e), 'Pris en charge : une tâche à votre nom.'))}
         </>
       )}
@@ -268,8 +269,8 @@ export function ActionsEchange({ e, moi, hierarchie, nomDe, onFait }: { e: Echan
       )}
       {feuille === 'suivre' && (
         <FeuilleTexte
-          titre="Suivre en réunion"
-          explication="Une note reformulée est ajoutée à la réunion, liée à ce message (noms visibles, contenu non). Elle y est concrétisée ; quand elle est validée, la réponse part à l’expéditeur."
+          titre="Mettre en réunion"
+          explication="Une note reformulée est ajoutée à votre réunion (la réunion régulière d’abord), liée à ce message (noms visibles, contenu non). Elle y est concrétisée ; quand elle est validée, la réponse part à l’expéditeur, qui voit « Suivi à … »."
           label="Texte de la note"
           placeholder="Reformulé, visible de toute la réunion (obligatoire)"
           bouton="Ajouter à la réunion"

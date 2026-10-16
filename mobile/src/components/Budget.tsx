@@ -296,13 +296,16 @@ const s = StyleSheet.create({
 export function BlocDemandesBudget({ niveau, espace, reunion, moi, anime, lecture, gerants, gerantsDessus, epics, nomDe = (m: string) => m }: { niveau: string; espace: string; reunion: string; moi: string; anime: boolean; lecture: boolean; gerants: string[]; gerantsDessus: boolean; epics: { id: string; titre: string }[]; nomDe?: (m: string) => string }) {
   const b = useBudget();
   const droit = gerants.includes(moi.toLowerCase());
-  const recues = b.demandes.filter((d) => d.destination === niveau && d.statut === 'soumise');
+  // R1 (16/10) : une demande reçue attend au Chat ; elle n'entre ici qu'une fois « 📌 Mise en réunion »
+  const soumises = b.demandes.filter((d) => d.destination === niveau && d.statut === 'soumise');
+  const recues = soumises.filter((d) => d.en_reunion === '1');
+  const auChat = soumises.length - recues.length;
   const horsReunion = b.demandes.filter((d) => d.destination === niveau && d.hors_reunion === '1');
   const nos = b.demandes.filter((d) => d.demandeur === niveau);
   const [nouvelle, setNouvelle] = useState(false);
   const [err, setErr] = useState('');
   const peutDecider = droit && anime && !lecture;
-  if (!droit && !recues.length && !nos.length && !horsReunion.length) return null;
+  if (!droit && !recues.length && !nos.length && !horsReunion.length && !auChat) return null;
   const agir = (p: Promise<void>) => p.then(() => setErr('')).catch((e: Error) => setErr(e.message));
   return (
     <BlocBrique titre={`💶 Demandes de budget · ${recues.length} à décider`}>
@@ -319,6 +322,11 @@ export function BlocDemandesBudget({ niveau, espace, reunion, moi, anime, lectur
           )}
         </View>
       ))}
+      {auChat > 0 && (
+        <View style={[s.ligne, (horsReunion.length > 0 || recues.length > 0) && s.bord]}>
+          <Text style={s.sous}>{`💬 ${auChat} demande${auChat > 1 ? 's' : ''} reçue${auChat > 1 ? 's' : ''} au Chat, pas encore mise${auChat > 1 ? 's' : ''} en réunion`}</Text>
+        </View>
+      )}
       {recues.map((d, i) => (
         <DecisionDemande key={d.id} d={d} nomDe={nomDe} premiere={!horsReunion.length && i === 0} peutDecider={peutDecider} plusHaut={gerantsDessus} onDecider={(x) => agir(b.deciderDemande(d, x, reunion))} />
       ))}

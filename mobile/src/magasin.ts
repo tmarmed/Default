@@ -94,7 +94,7 @@ export const ONGLETS: Record<TableBase, { nom: string; colonnes: string[] }> = {
   ignoree: { nom: 'Ignorees', colonnes: ['id', 'cle', 'signature', 'cree_le', 'modifie_le'] },
   valuestream: { nom: 'ValueStreams', colonnes: ['id', 'nom', 'type', 'description', 'portfolio', 'trains', 'okrs', 'cree_le', 'modifie_le'] },
   resultat: { nom: 'ResultatsCles', colonnes: ['id', 'objectif', 'titre', 'actuel', 'cible', 'unite', 'cree_le', 'modifie_le'] },
-  echange: { nom: 'Echanges', colonnes: ['id', 'de', 'a', 'type', 'titre', 'texte', 'choix', 'reponse', 'note', 'statut', 'element', 'cree_le', 'modifie_le', 'niveau', 'transmis_par', 'prive', 'pieces_jointes', 'point', 'parent', 'nature'] },
+  echange: { nom: 'Echanges', colonnes: ['id', 'de', 'a', 'type', 'titre', 'texte', 'choix', 'reponse', 'note', 'statut', 'element', 'cree_le', 'modifie_le', 'niveau', 'transmis_par', 'prive', 'pieces_jointes', 'point', 'parent', 'nature', 'suivi_a', 'rappel_le'] },
 };
 export const TABLES = Object.keys(ONGLETS) as TableBase[];
 
@@ -121,7 +121,7 @@ export const ONGLET_SERIES = { nom: 'Reunions', colonnes: [...COLONNES_SERIE] as
 export const ONGLETS_BUDGET: Record<TableBudget, { nom: string; colonnes: string[] }> = {
   depense: { nom: 'Depenses', colonnes: ['id', 'motif', 'categorie', 'montant', 'periode', 'du', 'au', 'porteur', 'cle', 'parts', 'cree_le', 'modifie_le'] },
   cout: { nom: 'CoutsAnnuels', colonnes: ['id', 'cout_annuel', 'cree_le', 'modifie_le'] },
-  demande: { nom: 'DemandesBudget', colonnes: ['id', 'motif', 'montant', 'periode', 'du', 'au', 'pour', 'demandeur', 'destination', 'soumis_par', 'origine', 'statut', 'montant_accorde', 'motif_decision', 'decide_par', 'decide_le', 'hors_reunion', 'cree_le', 'modifie_le'] },
+  demande: { nom: 'DemandesBudget', colonnes: ['id', 'motif', 'montant', 'periode', 'du', 'au', 'pour', 'demandeur', 'destination', 'soumis_par', 'origine', 'statut', 'montant_accorde', 'motif_decision', 'decide_par', 'decide_le', 'hors_reunion', 'cree_le', 'modifie_le', 'en_reunion', 'rassemblee_dans'] },
   dossier: { nom: 'Dossiers', colonnes: ['id', 'hypothese', 'estimation', 'budget_prevu', 'budget_mvp', 'estimation_fin', 'decision', 'decide_le', 'decide_par', 'decide_a', 'hors_reunion', 'modifie_le'] },
   enveloppe: { nom: 'Enveloppes', colonnes: ['id', 'niveau', 'annee', 'montant', 'modifie_le'] },
 };
@@ -301,6 +301,9 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
     out.parent = (out.parent ?? '').trim();
     if (out.parent && !RE_ID.test(out.parent)) throw new Error('Maillon précédent invalide.');
     if (!(NATURES_ECHANGE as string[]).includes(out.nature ?? '')) out.nature = '';
+    // R3 / T1 (16/10) : où il est suivi, temporisé jusqu'à quelle date
+    out.suivi_a = (out.suivi_a ?? '').trim().slice(0, 200);
+    if (out.rappel_le && !/^\d{4}-\d{2}-\d{2}$/.test(out.rappel_le)) out.rappel_le = '';
   } else if (kind === 'resultat') {
     if (!out.titre.trim()) throw new Error('Le titre du résultat clé est obligatoire.');
     if (!out.objectif || !RE_ID.test(out.objectif)) throw new Error('Résultat clé : OKR manquant.');

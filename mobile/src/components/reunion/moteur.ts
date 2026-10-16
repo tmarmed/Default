@@ -103,7 +103,7 @@ export function messagesSuivis(synchros: Decide[], o: { mail: string; quand: str
     de: o.mail,
     a: d.resp,
     type: 'message' as const,
-    titre: `${estSuivi(d) ? '📌 Nouveau suivi' : `✓ ${LIBELLE_TYPE_CREE(d.type)} pour vous`} · ${d.pt.texte}`.slice(0, 200),
+    titre: `${estSuivi(d) ? '📌 Suivi reçu' : `✓ ${LIBELLE_TYPE_CREE(d.type)} pour vous`} · ${d.pt.texte}`.slice(0, 200),
     texte: `${libelleNote(d.pt)} noté ${o.quand} par ${o.nomDe(d.pt.personne)}${story(d.element) ? ` (${story(d.element)})` : ''}. Responsable : ${o.nomDe(d.resp)}${estSuivi(d) ? ` · Validation : ${o.nomDe(d.valid)}${d.ech ? ` · Échéance : ${dateCourte(d.ech)}` : ''}` : ' · sans suivi'}.`,
     choix: '',
     reponse: '',

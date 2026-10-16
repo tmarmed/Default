@@ -15,7 +15,16 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
   les notes 🔒 Perso n'apparaissent plus au tour de table ; « sur 📖 » devient l'icône du vrai type (✓ pour une tâche).
   Reste : concrétiser une note 🔒 Perso d'une réunion d'équipe ailleurs qu'au Point perso ; unifier `useEquipeDaily` /
   `useEquipe` et la préparation du Daily / `useReunion` (doublons notés dans code.md).
-- Lots 2 à 9 : à faire, dans l'ordre (voir plus bas).
+- Lot 2 Règle unique du Chat (R1-R3, Q1-Q3) — FAIT (16/10) : `src/liens.ts` (responsables, droits, liaison, Q3,
+  état chez le receveur) ; « 📌 Mettre en réunion » (note liée, `suivi_a` sur l'échange, demande de budget
+  `en_reunion`) ; bloc 💶 seulement pour les demandes mises en réunion ; escalade réservée aux responsables ; démo 67 ;
+  `npm run verif:liens`.
+- Décisions prises en l'absence de l'utilisateur : `docs/claude/decisions-lots.md` (à valider à son retour).
+- Lots 3 à 9 : en cours, dans l'ordre (voir plus bas).
+- À DISCUTER (demandé le 16/10) : **historique de l'application** — garder ou pas l'historique des éléments, notes,
+  suivis et échanges, et jusqu'à quelle profondeur (durée, nombre de versions, par type ; aujourd'hui : pas
+  d'historique, un échange traité est supprimé, un point fini est supprimé à la rétro ; seul le champ `historique` des
+  notes garde les déplacements et partages).
 
 ## Brainstorm en cours (15/10) : calcul automatique, bruit, retouche, changement de périmètre — PAS ENCORE CODÉ
 SPÉCIFICATION ÉCRITE ET VALIDÉE (16/10) : docs/regles-reunions.html, blocs 16 et 17 (ils priment sur les lignes

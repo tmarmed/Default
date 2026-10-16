@@ -24,6 +24,7 @@ import type { ActionsDaily } from '../Daily';
 import { FeuilleConcretiser, stylesFeuille as s } from './Concretiser';
 import { Ligne, type Ton } from './ui';
 import { TitreGroupe } from './Brique';
+import { etatChezReceveur } from '../../liens';
 import { type CibleDeplacement, deplacement, lignesHistorique } from '../../notes';
 import { FeuilleChoix } from '../Choix';
 
@@ -89,7 +90,8 @@ export function sousSuivi(p: PointReunion, st: StatutSuivi, nomDe: (e: string) =
 export function lienPrive(p: Pick<PointReunion, 'echange'>, echanges: Echange[], nomDe: (e: string) => string): string {
   if (!p.echange) return '';
   const e = echanges.find((x) => x.id === p.echange);
-  return e ? `🔒 Échange privé · ${nomDe(e.de)} → ${nomDe(e.a)}` : '🔒 Échange privé terminé';
+  // R3 (16/10) : chez l'envoyeur, où en est celui qui l'a reçu (Reçu · pas encore traité, Pris en compte, Suivi à …)
+  return e ? [`🔒 Échange privé · ${nomDe(e.de)} → ${nomDe(e.a)}`, etatChezReceveur(e)].filter(Boolean).join(' · ') : '🔒 Échange privé terminé';
 }
 function sousSuiviSansLien(p: PointReunion, st: StatutSuivi, nomDe: (e: string) => string): string {
   const resp = p.responsable || p.personne;

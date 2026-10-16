@@ -2065,6 +2065,19 @@ function Main() {
     },
     onSuivreEnReunion: async (e, reunion, texte) => {
       const [espace, serie] = reunion.split('|');
+      // R3 (16/10) : l'envoyeur voit « Suivi à … » ; une demande de budget n'entre dans le bloc 💶 qu'une fois mise en réunion (R1)
+      const ou = reunionsSuivi.find((r) => r.value === reunion)?.label ?? '';
+      await saveEntity('echange', e, { suivi_a: ou });
+      if (estDemandeBudget(e)) {
+        const d = Object.values(budgets).flatMap((b) => b.demandes ?? []).find((x) => x.id === e.point);
+        if (d) {
+          const esp = d.espace || 'moi';
+          const o = await api.ecrireDemande(esp, titreBudget(esp), { id: d.id, en_reunion: '1' });
+          setBudgets((b) => ({ ...b, [esp]: { ...b[esp], demandes: (b[esp]?.demandes ?? []).map((x) => (x.id === o.id ? { ...o, espace: esp } : x)) } }));
+        }
+        setInfo(`Demande mise en réunion : ${ou}.`);
+        return;
+      }
       const tn = typeNoteDe(e);
       // Note reformulée, liée au message (noms visibles, contenu non) ; validée en réunion, elle répond à l'expéditeur
       await ecrireNotes(espace, [{ reunion: `${serie}${today}`, personne: moiEchange, auteur: moiEchange, type: tn.type, sous_type: tn.sous_type, texte, element: e.element, concretisation: '', tache: e.id, echange: e.id, responsable: '', espace }], []);

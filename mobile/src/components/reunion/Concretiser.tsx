@@ -13,6 +13,7 @@ import { DateField } from '../DateField';
 import { LigneElement } from './ui';
 import { useCtxImpact } from './Notes';
 import { impactConcretisation, texteSuiviImpose } from '../../notes';
+import { sujetDe } from '../../liens';
 
 export interface PersonneChoix {
   email: string;
@@ -33,7 +34,7 @@ export function FeuilleConcretiser({
   valeur,
   moi,
   equipe,
-  dessus,
+  dessus: dessusRecu,
   autres = [],
   nomEquipe = '',
   nomDessus = '',
@@ -49,7 +50,7 @@ export function FeuilleConcretiser({
    * N2 (16/10) : la note concrétisée et le jour de la réunion ; ce qui touche l'équipe (périmètre, planning, travail
    * d'un autre, autre niveau) rend le suivi obligatoire
    */
-  note?: { type: string; element: string; elements?: string; personne?: string };
+  note?: { type: string; element: string; elements?: string; personne?: string; texte?: string };
   jour?: string;
   /** 💶 Demande de budget (13/10) : proposée à qui a le droit « Gérer le budget » ; éléments possibles (epics, niveau) */
   budget?: { pour: { value: string; label: string }[]; decideur: string };
@@ -74,6 +75,10 @@ export function FeuilleConcretiser({
   onFermer: () => void;
 }) {
   const h = useHierarchy();
+  // Q3 (16/10) : contenu (périmètre, priorité, budget) → PO / PM en premier ; déroulement (blocage, dépendance,
+  // capacité) → Scrum Master / RTE en premier ; les deux restent proposés
+  const contenu = note ? sujetDe(note.type, note.texte) === 'contenu' : false;
+  const dessus = [...dessusRecu].sort((x, y) => Number(/contenu/.test(y.meta ?? '') === contenu) - Number(/contenu/.test(x.meta ?? '') === contenu));
   const [c, setC] = useState<ChoixConcret>(valeur);
   const set = (x: Partial<ChoixConcret>) => setC((y) => ({ ...y, ...x }));
   const ratt = c.que === 'creer' ? rattachementPour(c.type, c.element, h) : null;

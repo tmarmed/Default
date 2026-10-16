@@ -35,6 +35,7 @@
 | Règles des notes (plusieurs éléments, 🔒 Perso, impact sur l'équipe, rappel 🟡, Déplacer, historique) | `elementsDe`, `impactNote`, `impactConcretisation`, `rappelPreparation`, `reunionsCibles`, `deplacement` | `src/notes.ts` |
 | Éléments concernés en toutes lettres (« sur 📖 A · ✓ B ») | `surElements`, `libelleElements` | `src/elementConcerne.ts` |
 | Une note (état, éléments, historique) ; notes gardées dans 🔒 Moi ; impact ; « Déplacer » | `LigneNote`, `usePreparationMoi`, `useCtxImpact`, `optionsDeplacement`, `patchPartage` | `reunion/Notes.tsx` |
+| Responsables d'un niveau, droits (escalader, communiquer, liaison, suppléant), PO contenu / SM déroulement, état chez le receveur | `responsablesNiveau`, `estResponsable`, `peutEscalader`, `peutCommuniquer`, `personnesLiaison`, `sujetDe`, `etatChezReceveur` | `src/liens.ts` |
 | Saisie d'une note (types, plusieurs éléments, 🔒 Perso) | `SaisiePoint`, `LignesElements`, `LigneElement` | `reunion/ui.tsx` |
 
 Doublons connus (à unifier quand on y touche) : `useEquipeDaily` (Daily.tsx) et `useEquipe` (base.tsx) ; la

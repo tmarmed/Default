@@ -53,6 +53,7 @@ import { FenetreReunion, type OngletReunion } from '../FenetreReunion';
 import { TitreFiche } from '../FormSheet';
 import { useLive } from '../useLive';
 import { estPerso } from '../../notes';
+import { peutEscalader } from '../../liens';
 import { LigneNote, optionsDeplacement, patchPartage, usePreparationMoi, useCtxImpact } from './Notes';
 import { Compteur, FiltresType, FiltresVue, Ligne, Pastille, PastilleFiltres, Pastilles, pluriel, SaisiePoint, st, TITRE_TYPE, tonType, Vide, type VueSuivi, type PlusNote } from './ui';
 
@@ -946,7 +947,9 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
   // Personnes proposées dans la feuille : vous, votre équipe (transmettre), le niveau du dessus (escalader), les validateurs
   const moi = { email: r.mail, nom: e.nomDe(r.mail), meta: 'vous' };
   const equipe = e.personnes.map((y) => ({ email: y.email.toLowerCase(), nom: y.nom, meta: e.role(y.id) === 'Membre' ? '' : e.role(y.id) }));
-  const dessus = e.escalades.map((x) => ({ email: x.email, nom: e.nomDe(x.email), meta: x.meta }));
+  // Q1 / Q2 (16/10) : escalader = un responsable du niveau (ou son suppléant), jamais au niveau le plus haut
+  const escalader = peutEscalader(personneParEmail(r.mail, r.org)?.id ?? '', e.niveauIci, r.org, toDateString(new Date()));
+  const dessus = escalader ? e.escalades.map((x) => ({ email: x.email, nom: e.nomDe(x.email), meta: x.meta })) : [];
   const animateur = (r.reunion.organisateur || r.mail).toLowerCase();
   const validateurs = [...new Map([...equipe, ...dessus, moi].map((x) => [x.email, x.email === animateur ? { ...x, meta: `anime ${TYPES_REUNION[r.reunion.type].libelle.toLowerCase().startsWith('daily') ? 'le daily' : 'la réunion'}` } : x])).values()];
   const contexte = e.situation.cartes.map((t) => t.id);
