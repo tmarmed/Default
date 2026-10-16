@@ -144,7 +144,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '69';
+const DEMO_DATA_VERSION = '70';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -595,7 +595,7 @@ const SEEDS_ENTREPRISE: Seeds = {
       pt('acmpt7', { reunion: reunion(avant), personne: paul, auteur: nina, type: 'action', texte: 'Clarifier les règles de remboursement', concretisation: 'tache', tache: 'acm12', responsable: paul, cree_le: `${avant}T09:44:00.000Z` }),
       // Points de suivi (08/10) à valider par vous : fait par Emma ; en retard ; escalade revenue avec la réponse du RTE
       pt('acmpt8', { reunion: reunion(avant), personne: emma, auteur: MOI_DEMO, type: 'action', texte: 'Revoir les maquettes du panier', element: 'acm4', concretisation: 'suivi', responsable: emma, statut: 'fait', validateur: MOI_DEMO, echeance: veille, note: 'Maquettes revues avec le PO', cree_le: `${avant}T09:45:00.000Z` }),
-      pt('acmpt9', { reunion: reunion(avant), personne: paul, auteur: MOI_DEMO, type: 'blocage', texte: 'Relancer le service juridique', concretisation: 'suivi', responsable: paul, statut: 'en_cours', validateur: MOI_DEMO, echeance: avant, cree_le: `${avant}T09:46:00.000Z` }),
+      pt('acmpt9', { reunion: reunion(avant), personne: paul, auteur: MOI_DEMO, type: 'blocage', texte: 'Relancer le service juridique', concretisation: 'suivi', responsable: paul, statut: 'en_cours', validateur: MOI_DEMO, echeance: avant, rappel_le: jour, cree_le: `${avant}T09:46:00.000Z` }),
       pt('acmpt10', { reunion: reunion(avant), type: 'blocage', texte: 'API de paiement bloquée', element: 'acm4', concretisation: 'escalade', tache: 'acmx4', echange: 'acmx4', responsable: sara, statut: 'fait', validateur: MOI_DEMO, note: 'Réponse de Sara Martin : accès donné par le prestataire (clé dans le coffre)', cree_le: `${avant}T09:47:00.000Z` }),
       // 📌 Mes suivis (lot 5) : fermés, gardés jusqu'à leur suppression (validé ; abandonné avec son motif)
       pt('acmpt13', { reunion: reunion(avant), personne: nina, auteur: MOI_DEMO, type: 'action', texte: 'Mettre à jour la liste des testeurs', concretisation: 'suivi', responsable: nina, statut: 'valide', validateur: MOI_DEMO, note: 'Liste à jour', cree_le: `${avant}T09:48:00.000Z` }),
@@ -977,13 +977,16 @@ const SEEDS_ENTREPRISE: Seeds = {
       // trois : « 🔔 Relancer », « ⊘ Clôturer chez tous ») ; « Je me retire » (Paul → Sara au nom de Paul, transmis par
       // Vous : « Voir en tant que » Paul ou Sara)
       ech('acmx12', { de: 'marc.petit@acme.example', a: MOI_DEMO, type: 'question', nature: 'question', titre: 'Qui présente le paiement à la System demo ?', texte: 'Il faut une personne de l’équipe Mobile pour la démo de vendredi.', choix: 'Moi;Pas disponible', statut: 'transmis', niveau: 'train:acmtr1', element: 'acmf2' }),
-      ech('acmx13', { de: MOI_DEMO, a: 'tom.faure@acme.example', type: 'question', nature: 'question', titre: 'Qui présente le paiement à la System demo ?', texte: 'Marc cherche quelqu’un pour la démo de vendredi : tu peux ?', choix: 'Moi;Pas disponible', parent: 'acmx12', transmis_par: MOI_DEMO, element: 'acmf2' }),
+      ech('acmx13', { de: MOI_DEMO, a: 'tom.faure@acme.example', type: 'question', nature: 'question', titre: 'Qui présente le paiement à la System demo ?', rappel_le: toDateString(addDays(new Date(), 2)), texte: 'Marc cherche quelqu’un pour la démo de vendredi : tu peux ?', choix: 'Moi;Pas disponible', parent: 'acmx12', transmis_par: MOI_DEMO, element: 'acmf2' }),
       ech('acmx14', { de: MOI_DEMO, a: 'emma.roy@acme.example', type: 'question', nature: 'question', titre: 'Qui présente le paiement à la System demo ?', texte: 'Marc cherche quelqu’un pour la démo de vendredi : tu peux ?', choix: 'Moi;Pas disponible', statut: 'repondu', reponse: 'Moi', note: 'Je montre le paiement en un clic', parent: 'acmx12', transmis_par: MOI_DEMO, element: 'acmf2' }),
       ech('acmx15', { de: MOI_DEMO, a: 'nina.dupont@acme.example', type: 'question', nature: 'question', titre: 'Qui présente le paiement à la System demo ?', texte: 'Marc cherche quelqu’un pour la démo de vendredi : tu peux ?', choix: 'Moi;Pas disponible', parent: 'acmx12', transmis_par: MOI_DEMO, element: 'acmf2' }),
       // Lot 3 (16/10) : communication du RTE à l'ART sync (« Gel des mises en production ») vers Mobile et Web, par
       // leurs Scrum Masters : Mobile l'a mise au Daily et l'a faite (✓), Web l'a mise en réunion (🔵) → « 1 / 2 »
       ech('acmx17', { de: MOI_DEMO, a: 'nina.dupont@acme.example', nature: 'action', titre: '⤵ Gel des mises en production du 20 au 24/10', texte: 'Communication du niveau du dessus : gel des mises en production du 20 au 24/10.', point: 'demo-entreprise|acmpt41', niveau: 'equipeagile:acmeqmob', statut: 'repondu', reponse: 'Fait', note: 'Aucune livraison prévue cette semaine-là', suivi_a: 'Daily 👥 Mobile' }),
       ech('acmx18', { de: MOI_DEMO, a: 'hugo.blanc@acme.example', nature: 'action', titre: '⤵ Gel des mises en production du 20 au 24/10', texte: 'Communication du niveau du dessus : gel des mises en production du 20 au 24/10.', point: 'demo-entreprise|acmpt41', niveau: 'equipeagile:acmeqweb', suivi_a: 'Daily 👥 Web' }),
+      // Lot 5 (16/10, T1) : une question reçue par Vous, temporisée à dans 3 jours (« ⏰ Temporisés »), et la question
+      // de Vous à Tom qu'il a temporisée : Vous voit « Pris en compte · réponse prévue le … »
+      ech('acmx19', { de: 'tom.faure@acme.example', a: MOI_DEMO, type: 'question', nature: 'question', titre: 'Peut-on décaler la démo du paiement ?', texte: 'Le prestataire ne sera prêt que mardi.', choix: 'Oui;Non', rappel_le: toDateString(addDays(new Date(), 3)) }),
       ech('acmx16', { de: 'paul.leroy@acme.example', a: 'sara.martin@acme.example', type: 'question', nature: 'action', titre: 'Accès au tableau de bord du train', texte: 'Paul a besoin d’un accès en lecture au tableau de bord du train.', choix: 'Fait;Pas possible (motif)', transmis_par: MOI_DEMO, niveau: 'train:acmtr1' }),
       // 💶 Lot 4 : une demande de budget à décider (Chat) et une information reçue (disparaît à la lecture)
       ech('acmx8', {

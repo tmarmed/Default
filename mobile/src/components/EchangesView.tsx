@@ -1,4 +1,6 @@
 import { nomDepuisEmail } from '../format';
+import { estRevenu, estTemporise, libelleRappel, revenusEnHaut } from '../temporiser';
+import { toDateString } from '../dates';
 import { Children, cloneElement, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { filElement } from '../choixTravail';
@@ -101,6 +103,8 @@ export interface Hierarchie {
   onSuivreEnReunion: (e: Echange, reunion: string, texte: string) => Promise<void>;
   /** Rappel « 📌 À valider » : valider le suivi d'ici (le même que dans la réunion), avec un mot facultatif */
   onValiderRappel: (e: Echange, mot: string) => Promise<void>;
+  /** ⏰ Me le rappeler (T1, 16/10) : il sort de mes listes et revient le jour venu ; l'envoyeur voit « réponse prévue le … » */
+  onRappeler?: (e: Echange, delai: 'demain' | 'jours' | 'reunion') => Promise<void>;
   /** « ✓ Je m'en occupe » : une tâche à mon nom, l'expéditeur voit « Pris en charge » */
   onMOccuper: (e: Echange) => Promise<void>;
   /** Maillons transmis d'un échange (dans la boucle) */
@@ -130,7 +134,8 @@ export function FilEchange({ id }: { id: string }) {
 }
 
 /** Ce qui attend une action de `moi` dans les échanges (à répondre, à lire, réponses à prendre en compte) */
-export const aTraiter = (moi: string, l: Echange[]) => l.filter((e) => (e.a === moi && e.statut === 'envoye') || (e.de === moi && e.statut === 'repondu'));
+// ⏰ Temporisé (T1, 16/10) : il sort de mes listes jusqu'à sa date
+export const aTraiter = (moi: string, l: Echange[]) => l.filter((e) => ((e.a === moi && e.statut === 'envoye') || (e.de === moi && e.statut === 'repondu')) && !(e.a === moi && estTemporise(e, toDateString(new Date()))));
 
 /** Petite aide de l'application (en attendant le mode assistant, lot 19) */
 const AIDE: { q: string; r: string }[] = [
@@ -151,8 +156,9 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
   const [vue, setVue] = useState<'conversation' | 'afaire'>('conversation');
   const mots = (filtre?.recherche ?? '').toLowerCase().split(/\s+/).filter(Boolean);
   const filtreActif = !!filtre && (!!filtre.espace || !!filtre.element || !!filtre.type || filtre.pj || mots.length > 0);
-  // Échanges avec moi, filtrés, du plus ancien au plus récent
-  const avecMoi = echanges
+  // Échanges avec moi, filtrés, du plus ancien au plus récent ; les ⏰ temporisés à part (T1)
+  const jour = toDateString(new Date());
+  const avecMoiTous = echanges
     .filter((e) => e.de === moi || e.a === moi)
     .filter((e) => {
       if (!filtre) return true;
@@ -164,6 +170,8 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
       return mots.every((m) => texte.includes(m));
     })
     .sort((a, b) => a.cree_le.localeCompare(b.cree_le));
+  const temporises = avecMoiTous.filter((e) => e.a === moi && e.statut === 'envoye' && estTemporise(e, jour));
+  const avecMoi = revenusEnHaut(avecMoiTous.filter((e) => !temporises.includes(e)), jour);
   // Conversations avec des personnes : celles qui ont des échanges en cours, puis les autres connues
   const humains = useMemo(() => {
     const ids = new Set<string>();
@@ -303,6 +311,24 @@ export function EchangesView({ moi, echanges, personnes, espaces, president, onE
           </Pressable>
         </View>
         {actives.length > 0 ? <View style={s.carte}>{actives}</View> : <Text style={s.videTexte}>✓ Rien à traiter. Touchez ＋ pour écrire à quelqu’un (Claude compris).</Text>}
+        {/* ⏰ Temporisés (T1, 16/10) : consultables pour répondre avant la date */}
+        {temporises.length > 0 && (
+          <>
+            <Text style={[s.section, s.sectionBloc]}>⏰ Temporisés · {temporises.length}</Text>
+            <View style={s.carte}>
+              {temporises.map((e, i) => (
+                <Pressable key={e.id} onPress={() => setChat({ titre: nomDe(e.de), elements: [{ kind: 'echange', e, avec: nomDe(e.de) }] })} style={[s.ligne, i > 0 && s.ligneBord]} accessibilityRole="button">
+                  <Text style={s.avatar}>⏰</Text>
+                  <View style={s.corps}>
+                    <Text style={s.titre}>{e.titre || e.texte}</Text>
+                    <Text style={s.meta}>{`${nomDe(e.de)} · ${libelleRappel(e, jour)}`}</Text>
+                  </View>
+                  <Text style={s.chev}>›</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
         {autres.length > 0 && (
           <>
             <Text style={[s.section, s.sectionBloc]}>Conversations · {autres.length}</Text>
@@ -431,7 +457,7 @@ function Conversation({
     return (
       <View style={s.outils}>
         <Text style={s.meta}>
-          {[niveau && `📍 ${niveau}`, !!hierarchie.suivi?.(e) && `📌 Suivi à ${hierarchie.suivi?.(e)}`, e.prive !== '0' && '🔒 Privé à deux', e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`, e.de !== moi && `De ${nomDe(e.de)}`].filter(Boolean).join(' · ')}
+          {[estRevenu(e, toDateString(new Date())) && e.a === moi && libelleRappel(e, toDateString(new Date())), niveau && `📍 ${niveau}`, !!hierarchie.suivi?.(e) && `📌 Suivi à ${hierarchie.suivi?.(e)}`, e.prive !== '0' && '🔒 Privé à deux', e.transmis_par && `Transmis par ${nomDe(e.transmis_par)}`, e.de !== moi && `De ${nomDe(e.de)}`].filter(Boolean).join(' · ')}
         </Text>
         <ActionsEchange e={e} moi={moi} hierarchie={hierarchie} nomDe={nomDe} />
       </View>

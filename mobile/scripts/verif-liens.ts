@@ -6,6 +6,8 @@ import { orgDemo } from '../src/demo';
 import { makeOrgValue } from '../src/organisation';
 import { enfantsDe, etatEnfant, ligneParent, lireDemandeParent, messagesCommunication, parentDe, propositionParent, titreDemandeParent, MARQUE_COMMUNICATION, LIBELLE_LIE } from '../src/parentEnfants';
 import { planSuivi } from '../src/pointsSuivi';
+import { dateRappel, estRevenu, estTemporise, libelleRappel, remplacantDe, revenusEnHaut } from '../src/temporiser';
+import { aReprendre } from '../src/suiviEscalade';
 import type { Echange, PointReunion } from '../src/types';
 import { lienPrive, estResponsable, etatChezReceveur, niveauxDessous, peutCommuniquer, peutEscalader, personnesLiaison, premierDestinataire, responsablesNiveau, sujetDe } from '../src/liens';
 
@@ -72,6 +74,21 @@ const parentPoint = { ...enfantPt, id: 'parent1', echange: '', tache: '', respon
 const ab = planSuivi({ ...base, moi: 'rte@acme.example', animateur: 'rte@acme.example', pt: parentPoint, action: 'abandonner', note: 'Gel annulé' });
 ok(ab.envoyer.filter((x) => x.titre.includes('Parent abandonné')).length === 3, 'L4 : parent abandonné → chaque enfant est prévenu');
 ok(titreDemandeParent('detacher', 'x').includes('Détacher') && lireDemandeParent(titreDemandeParent('plus_suivre', 'x')) === 'plus_suivre', 'L5 : « Demander à détacher » passe par le même circuit (OK · Refuser)');
+
+// ---- Lot 5 · ⏰ Temporiser, absences ----
+ok(dateRappel('demain', { jour: '2026-10-16' }) === '2026-10-19', 'T1 : « Demain » un vendredi → lundi (jour ouvré)');
+ok(dateRappel('jours', { jour: '2026-10-14', jours: 3 }) === '2026-10-19', 'T1 : « Dans 3 jours » tombe un samedi → lundi');
+ok(dateRappel('reunion', { jour: '2026-10-16', prochaineReunion: '2026-10-21' }) === '2026-10-21', 'T1 : « Prochaine réunion » = la date de la prochaine réunion');
+ok(estTemporise({ rappel_le: '2026-10-19' }, '2026-10-16') && !estTemporise({ rappel_le: '2026-10-19' }, '2026-10-19') && estRevenu({ rappel_le: '2026-10-19' }, '2026-10-19'), 'T1 : il sort de mes listes et revient le jour venu');
+ok(libelleRappel({ rappel_le: '2026-10-19' }, '2026-10-19') === '⏰ prévu aujourd’hui' && libelleRappel({ rappel_le: '2026-10-19' }, '2026-10-16') === '⏰ À traiter le 19/10', 'T1 : « ⏰ prévu aujourd’hui » / « ⏰ À traiter le 19/10 »');
+ok(revenusEnHaut([{ id: 'a' }, { id: 'b', rappel_le: '2026-10-16' }], '2026-10-16')[0].id === 'b', 'T1 : revenu, il est en haut');
+const ptT = (x: Partial<PointReunion>) => ({ id: 'p', reunion: 'daily-equipeagile:e-2026-10-14', personne: 'a', auteur: 'a', type: 'action', texte: 't', element: '', concretisation: '', tache: '', responsable: '', cree_le: '', ...x }) as PointReunion;
+ok(aReprendre([ptT({ rappel_le: '2026-10-19' })], 'daily-equipeagile:e-2026-10-16').length === 0 && aReprendre([ptT({ rappel_le: '2026-10-19' })], 'daily-equipeagile:e-2026-10-19').length === 1, 'T1 en séance : une note temporisée revient à la réunion de sa date');
+const absents = new Set(['nina.dupont@acme.example']);
+const abs = (m: string) => absents.has(m);
+ok(remplacantDe('nina.dupont@acme.example', mob, org, '2026-10-16', abs) === 'hugo.blanc@acme.example', 'Q4 : absent → aussi chez son suppléant (Hugo Blanc, cette semaine)');
+ok(remplacantDe('nina.dupont@acme.example', mob, org, '2026-12-01', abs) === 'paul.leroy@acme.example', 'Q4 : sans suppléant → l’autre responsable du niveau (le PO)');
+ok(remplacantDe('paul.leroy@acme.example', mob, org, '2026-10-16', abs) === '', 'Q4 : présent → personne d’autre');
 
 console.log(erreurs ? `${erreurs} erreur(s)` : 'Liens : OK');
 process.exit(erreurs ? 1 : 0);

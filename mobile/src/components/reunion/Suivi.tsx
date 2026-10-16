@@ -25,6 +25,8 @@ import { FeuilleConcretiser, stylesFeuille as s } from './Concretiser';
 import { Ligne, type Ton } from './ui';
 import { TitreGroupe } from './Brique';
 import { lienPrive } from '../../liens';
+import { dateRappel, type DelaiRappel, estTemporise, libelleRappel, revenusEnHaut } from '../../temporiser';
+import { ChoiceSheet } from '../ChoiceSheet';
 import { type CibleDeplacement, deplacement, lignesHistorique } from '../../notes';
 import { type CibleCommunication, enfantsDe, estCommunication, estDemandeParent, LIBELLE_LIE, ligneParent, messagesCommunication, parentDe, propositionParent } from '../../parentEnfants';
 import { FeuilleChoix, FeuilleMulti } from '../Choix';
@@ -69,7 +71,8 @@ export interface CtxSuivi {
 export const pointsDeSuivi = (points: PointReunion[], reunionId: string) => {
   // Un point déplacé (D1, 16/10) change de série : il n'est plus suivi ici (jamais en double)
   const serie = reunionId.slice(0, -10);
-  return points.filter((p) => !!p.statut && p.reunion.startsWith(serie) && p.reunion <= reunionId);
+  // ⏰ Temporisé (T1, 16/10) : il revient à la réunion de sa date (ou la suivante de la série)
+  return points.filter((p) => !!p.statut && p.reunion.startsWith(serie) && p.reunion <= reunionId && !estTemporise(p, reunionId.slice(-10)));
 };
 
 /** Statut affiché : celui du point (Fait si sa tâche est terminée) ; « Fait · réponse reçue » d'une escalade */
@@ -92,7 +95,7 @@ function sousSuiviSansLien(p: PointReunion, st: StatutSuivi, nomDe: (e: string) 
   if (st === 'valide') return `${quoiSuivi(p)} · validé par ${nomDe(p.validateur || resp)}`;
   if ((st === 'fait' && roleEscalade(p) === 'bas') || ((st === 'a_reprendre' || st === 'abandonne') && p.note)) return p.note || '';
   const histo = lignesHistorique(p.historique);
-  return [quoiSuivi(p), `Responsable : ${nomDe(resp)}`, p.validateur ? `Validation : ${nomDe(p.validateur)}` : '', p.echeance ? `Échéance : ${jourCourt(p.echeance)}` : '', p.note && st === 'fait' ? p.note : '', histo[histo.length - 1] ?? ''].filter(Boolean).join(' · ');
+  return [p.rappel_le ? '⏰ prévu aujourd’hui' : '', quoiSuivi(p), `Responsable : ${nomDe(resp)}`, p.validateur ? `Validation : ${nomDe(p.validateur)}` : '', p.echeance ? `Échéance : ${jourCourt(p.echeance)}` : '', p.note && st === 'fait' ? p.note : '', histo[histo.length - 1] ?? ''].filter(Boolean).join(' · ');
 }
 const quoiSuivi = (p: PointReunion) =>
   p.concretisation === 'escalade' ? '📌 Suivi · ↪ Transmis' : p.concretisation === 'suivi' ? '📌 Suivi' : p.type_cree ? LIBELLE_TYPE_CREE(p.type_cree as TypeCree) : p.concretisation === 'sous_tache' ? 'Sous-tâche' : 'Tâche';
@@ -130,9 +133,26 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
   const [conc, setConc] = useState<PointReunion | null>(null);
   /** D1 : point à déplacer (choix de la réunion) */
   const [deplace, setDeplace] = useState<PointReunion | null>(null);
+  /** Lot 5 : point à temporiser (⏰ À traiter plus tard) */
+  const [temporise, setTemporise] = useState<PointReunion | null>(null);
+  const temporiser = async (pt: PointReunion, delai: DelaiRappel) => {
+    setTemporise(null);
+    // « Prochaine réunion » : la suivante de cette série, d'après vos réunions à venir
+    const serie = pt.reunion.slice(0, -10);
+    const prochaine = (ctx.actions.reunionsAVenir?.() ?? []).map((r) => r.id).filter((id) => id.startsWith(serie) && id.slice(-10) > ctx.jour).sort()[0]?.slice(-10);
+    const le = dateRappel(delai, { jour: ctx.jour, jours: 3, prochaineReunion: prochaine });
+    try {
+      const { modifies } = await ctx.actions.ecrirePoints(ctx.espace, [], [{ id: pt.id, rappel_le: le }], []);
+      ctx.onPoints(modifies.map((x) => ({ ...x, espace: ctx.espace })));
+      ctx.onInfo?.(`« ${pt.texte} » : ${libelleRappel({ rappel_le: le }, ctx.jour)} ; il revient à la réunion de cette date.`);
+    } catch (e) {
+      ctx.onInfo?.((e as Error).message);
+    }
+  };
   /** Lot 3 : point à communiquer aux niveaux du dessous */
   const [communique, setCommunique] = useState<PointReunion | null>(null);
-  const liste = points
+  // ⏰ Revenus (temporisés jusqu'à aujourd'hui) en haut (T1)
+  const liste = revenusEnHaut(points, ctx.jour)
     .map((p) => ({ p, a: statutAffiche(p, ctx.items, ctx.jour) }))
     .filter((x) => !aValider || (x.a.s === 'fait' && validateurDe(x.p, ctx.animateur) === ctx.moi.toLowerCase()))
     .filter((x) => !ctx.changements || ctx.changements(x.p).garder);
@@ -184,6 +204,14 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
             setReconc(ouvert);
             setOuvert(null);
           }}
+          onTemporiser={
+            !ctx.lecture && !estFini(statutEffectif(ouvert, ctx.items)) && [ctx.animateur, ouvert.responsable || ouvert.personne].map((x) => x.toLowerCase()).includes(ctx.moi.toLowerCase())
+              ? () => {
+                  setTemporise(ouvert);
+                  setOuvert(null);
+                }
+              : undefined
+          }
           onCommuniquer={
             ctx.communiquer?.cibles.length && !ctx.lecture && !estFini(statutEffectif(ouvert, ctx.items))
               ? () => {
@@ -200,6 +228,19 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
                 }
               : undefined
           }
+        />
+      )}
+      {temporise && (
+        <ChoiceSheet
+          visible
+          title={`⏰ « ${temporise.texte} »`}
+          message="À traiter plus tard : il sort de la réunion et revient à la date choisie, « ⏰ prévu aujourd’hui »."
+          choices={[
+            { label: 'Demain', onPress: () => void temporiser(temporise, 'demain') },
+            { label: 'Dans 3 jours', onPress: () => void temporiser(temporise, 'jours') },
+            { label: 'Prochaine réunion', onPress: () => void temporiser(temporise, 'reunion') },
+          ]}
+          onClose={() => setTemporise(null)}
         />
       )}
       {communique && ctx.communiquer && (
@@ -295,7 +336,7 @@ const peutDeplacer = (pt: PointReunion, ctx: CtxSuivi) => {
   return !ctx.lecture && !estFini(statutEffectif(pt, ctx.items)) && [ctx.animateur, pt.responsable || pt.personne, pt.validateur ?? ''].map((x) => x.toLowerCase()).includes(moi);
 };
 
-function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onDeplacer, onCommuniquer, onFermer }: { pt: PointReunion; ctx: CtxSuivi; onEnregistrer: (a: ActionSuivi, note: string) => Promise<void>; onReconcretiser: () => void; onDeplacer?: () => void; onCommuniquer?: () => void; onFermer: () => void }) {
+function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onDeplacer, onCommuniquer, onTemporiser, onFermer }: { pt: PointReunion; ctx: CtxSuivi; onEnregistrer: (a: ActionSuivi, note: string) => Promise<void>; onReconcretiser: () => void; onDeplacer?: () => void; onCommuniquer?: () => void; onTemporiser?: () => void; onFermer: () => void }) {
   // Lot 3 (L4) : tous les enfants finis → l'application propose au parent « Valider » (ou « Ne plus suivre »)
   const enfants = enfantsDe(refPoint(ctx.espace, pt.id), ctx.echanges);
   const proposition = propositionParent(enfants);
@@ -304,7 +345,8 @@ function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onDeplacer, onC
   const st = statutEffectif(pt, ctx.items);
   const fini = estFini(st);
   const faire = peutFaire(pt, ctx.moi, ctx.animateur) && !fini;
-  const valideur = validateurDe(pt, ctx.animateur) === ctx.moi.toLowerCase();
+  // Q5 (16/10) : pleins droits de celui qui anime (Scrum Master, RTE… ou son suppléant) sur toutes les cartes de sa réunion
+  const valideur = validateurDe(pt, ctx.animateur) === ctx.moi.toLowerCase() || (!ctx.lecture && ctx.animateur.toLowerCase() === ctx.moi.toLowerCase());
   const [statut, setStatut] = useState<'en_cours' | 'fait'>(st === 'fait' ? 'fait' : 'en_cours');
   const [decision, setDecision] = useState<ActionSuivi | ''>(proposition && validateurDe(pt, ctx.animateur) === ctx.moi.toLowerCase() ? proposition : '');
   const [note, setNote] = useState('');
@@ -438,6 +480,12 @@ function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onDeplacer, onC
               <Pressable onPress={onCommuniquer} style={[s.carte, s.ligne, { marginTop: 14 }]} accessibilityRole="button">
                 <Text style={s.lien}>⤵ Communiquer aux équipes</Text>
                 <Text style={[s.aide, { flex: 1 }]}>une ligne par équipe ici, « 1 / 3 · Mobile ✓ »</Text>
+              </Pressable>
+            )}
+            {!!onTemporiser && (
+              <Pressable onPress={onTemporiser} style={[s.carte, s.ligne, { marginTop: 14 }]} accessibilityRole="button">
+                <Text style={s.lien}>⏰ À traiter plus tard</Text>
+                <Text style={[s.aide, { flex: 1 }]}>demain, dans 3 jours, prochaine réunion</Text>
               </Pressable>
             )}
             {!!onDeplacer && (

@@ -358,6 +358,8 @@ export interface Echange {
   suivi_a?: string;
   /** T1 (16/10) : temporisé par celui qui l'a reçu jusqu'à cette date (AAAA-MM-JJ) ; l'envoyeur voit « réponse prévue le … » */
   rappel_le?: string;
+  /** Q4 (16/10) : copie envoyée au suppléant (ou à l'autre responsable) d'un absent : id de l'échange d'origine */
+  copie_de?: string;
 }
 export type NatureEchange = '' | 'information' | 'question' | 'blocage' | 'decision_a_prendre' | 'decision_prise' | 'action';
 export const NATURES_ECHANGE: NatureEchange[] = ['', 'information', 'question', 'blocage', 'decision_a_prendre', 'decision_prise', 'action'];
@@ -696,6 +698,8 @@ export interface PointReunion {
   perso?: string;
   /** D1 : historique (« Déplacé depuis « Revue de sprint du 14/10 » par Sara Martin »), lignes séparées par « ¶ » */
   historique?: string;
+  /** T1 (16/10) : temporisé jusqu'à cette date (AAAA-MM-JJ) ; il revient à la réunion de cette date, « ⏰ prévu aujourd'hui » */
+  rappel_le?: string;
 }
 /** Décision : à prendre, prise ; Proposition : « reportee » (reportée au vote, revient à la rétro suivante) */
 export type SousType = '' | 'a_prendre' | 'prise' | 'reportee';

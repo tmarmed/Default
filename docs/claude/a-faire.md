@@ -26,6 +26,10 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
 - Lot 4 Rassembler et budget (L3) — FAIT (16/10) pour les demandes de budget : `src/rassembler.ts`, bloc 💶
   (🧺 Rassembler, Sortir, Répartir un accord partiel), `ecrireDemandes` groupé ; démo 69 ; `npm run verif:budget`.
   Reste : rassembler aussi escalades, questions, risques, dépendances.
+- Lot 5 ⏰ Temporiser, absences, droits (T1, Q4, Q5) — FAIT (16/10) : `src/temporiser.ts` ; Chat « ⏰ Me le rappeler »
+  et section « ⏰ Temporisés » ; fiche d'un suivi « ⏰ À traiter plus tard » (pointsDeSuivi et aReprendre filtrent) ;
+  copie à un suppléant quand le destinataire est absent (`copie_de`) ; animateur = pleins droits ; démo 70.
+  Reste : délai « Date » et « Dans X jours » réglable, groupe « ⏰ Temporisés » visible en séance, Point perso, action liée.
 - Décisions prises en l'absence de l'utilisateur : `docs/claude/decisions-lots.md` (à valider à son retour).
 - Lots 3 à 9 : en cours, dans l'ordre (voir plus bas).
 - À DISCUTER (demandé le 16/10) : **historique de l'application** — garder ou pas l'historique des éléments, notes,

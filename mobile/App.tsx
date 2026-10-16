@@ -90,6 +90,7 @@ import { BandeauxBas, hauteurBandeaux, type InfoBandeauChat, type InfoBandeauReu
 import { useReunionsLancees } from './src/components/useReunionsLancees';
 import { estLancee } from './src/etatReunion';
 import { CHOIX_DEMANDE_PARENT, lireDemandeParent } from './src/parentEnfants';
+import { dateRappel, libelleRappel, remplacantDe } from './src/temporiser';
 import { rassembler, rassembleesDans, repartir as repartirMontants, repercuter, sortir } from './src/rassembler';
 import { heureReunion, peutModifierSerie, serieVide, reunionsAVenir, reunionsDeSerie, seriesACreer, seriesDe, type SerieVue } from './src/reunions';
 import { arreterSerie, modifierOccurrence } from './src/series';
@@ -127,7 +128,7 @@ import { colors } from './src/theme';
 import { reglerVocabulaire } from './src/vocabulaire';
 import { BudgetContext, type BudgetEspace, CHOIX_DEMANDE, CHOIX_DOSSIER, estQuestionDossier, TITRE_DOSSIER, estDemandeBudget, gerantsBudget, libellePeriode, libelleStatutDemande, niveauDessus, reunionDuNiveau, TITRE_DEMANDE, TITRE_INFO, valeurBudget } from './src/budget';
 import { euros as eurosBudget } from './src/pilotage';
-import { CongesContext, type CongesValue } from './src/conges';
+import { absentsLe, CongesContext, type CongesValue } from './src/conges';
 import { FeuilleMesConges } from './src/components/Conges';
 import type { Conge, JoursReels } from './src/types';
 import { expandRange, listEntries, toggleDone } from './src/recurrence';
@@ -1885,8 +1886,19 @@ function Main() {
     envoyerEchanges: async (espace, inputs) => {
       if (!settings || !inputs.length) return [];
       const { crees } = await api.ecrireLot(settings, espace, 'echange', inputs, []);
+      // Q4 (16/10) : destinataire absent aujourd'hui → une copie à son suppléant (sinon l'autre responsable du niveau,
+      // ou celui du dessus) ; le premier qui traite fait disparaître l'autre
+      const absents = absentsLe(congesValue.conges, today).personnes.map((x) => x.toLowerCase());
+      const copies = crees
+        .map((c) => ({ c, a: remplacantDe(c.a, lireNiveau(c.niveau), orgReunions, today, (m) => absents.includes(m.toLowerCase())) }))
+        .filter((x) => !!x.a && x.a !== x.c.de)
+        .map(({ c, a }) => {
+          const { id: _i, cree_le: _c, modifie_le: _m, espace: _e, ...reste } = c;
+          return { ...reste, a, copie_de: c.id, texte: `${c.texte}\n(Copie : ${nomEchange(c.a)} est absent.)` };
+        });
+      const enCopie = copies.length ? (await api.ecrireLot(settings, espace, 'echange', copies, [])).crees : [];
       setHier((prev) => {
-        const next = { ...prev, echanges: [...(prev.echanges ?? []), ...crees] };
+        const next = { ...prev, echanges: [...(prev.echanges ?? []), ...crees, ...enCopie] };
         saveHierarchyCache(next).catch(() => {});
         return next;
       });
@@ -1967,6 +1979,9 @@ function Main() {
       return;
     }
     await saveEntity('echange', e, { reponse, note, statut: 'repondu' });
+    // Q4 (16/10) : traité ici → la copie (ou l'original) chez l'autre disparaît
+    for (const x of (tousHier.echanges ?? []).filter((y) => y.id !== e.id && y.statut === 'envoye' && ((!!e.copie_de && (y.id === e.copie_de || y.copie_de === e.copie_de)) || y.copie_de === e.id)))
+      await saveEntity('echange', x, { statut: 'pris_en_compte', reponse: `Traité par ${nomEchange(moiEchange)}`, note: '' }).catch(() => {});
     // L4 (16/10) : demande d'un enfant au parent (abandonner, ne plus suivre, détacher) : OK applique, Refuser informe
     const demandeParent = lireDemandeParent(e.titre);
     if (demandeParent) {
@@ -2145,6 +2160,13 @@ function Main() {
       }
       await retirerEchange(e);
       setInfo(`Suivi « ${pt?.texte ?? ''} » validé.`);
+    },
+    // ⏰ Me le rappeler (T1, 16/10) : la date sur l'échange ; « Prochaine réunion » = la prochaine de vos réunions
+    onRappeler: async (e, delai) => {
+      const prochaine = reunionsAVenir(orgReunions, moiEchange, today, safe.actif, 30, seriesStockees).map((r) => r.debut.slice(0, 10)).find((j) => j > today);
+      const le = dateRappel(delai, { jour: today, jours: 3, prochaineReunion: prochaine });
+      await saveEntity('echange', e, { rappel_le: le });
+      setInfo(`${libelleRappel({ rappel_le: le }, today)} : il revient ce jour-là ; ${nomEchange(e.de)} voit « réponse prévue ».`);
     },
     onMOccuper: async (e) => {
       const titre = (e.titre || e.texte).slice(0, 200);

@@ -94,7 +94,7 @@ export const ONGLETS: Record<TableBase, { nom: string; colonnes: string[] }> = {
   ignoree: { nom: 'Ignorees', colonnes: ['id', 'cle', 'signature', 'cree_le', 'modifie_le'] },
   valuestream: { nom: 'ValueStreams', colonnes: ['id', 'nom', 'type', 'description', 'portfolio', 'trains', 'okrs', 'cree_le', 'modifie_le'] },
   resultat: { nom: 'ResultatsCles', colonnes: ['id', 'objectif', 'titre', 'actuel', 'cible', 'unite', 'cree_le', 'modifie_le'] },
-  echange: { nom: 'Echanges', colonnes: ['id', 'de', 'a', 'type', 'titre', 'texte', 'choix', 'reponse', 'note', 'statut', 'element', 'cree_le', 'modifie_le', 'niveau', 'transmis_par', 'prive', 'pieces_jointes', 'point', 'parent', 'nature', 'suivi_a', 'rappel_le'] },
+  echange: { nom: 'Echanges', colonnes: ['id', 'de', 'a', 'type', 'titre', 'texte', 'choix', 'reponse', 'note', 'statut', 'element', 'cree_le', 'modifie_le', 'niveau', 'transmis_par', 'prive', 'pieces_jointes', 'point', 'parent', 'nature', 'suivi_a', 'rappel_le', 'copie_de'] },
 };
 export const TABLES = Object.keys(ONGLETS) as TableBase[];
 
@@ -113,7 +113,7 @@ export const ONGLET_PIECES = { nom: 'PiecesJointes', colonnes: ['id', 'piece', '
 /** Points notés pendant les réunions (daily…) : onglet créé au premier usage, dans le Sheet de l'espace de l'équipe */
 export const ONGLET_POINTS = {
   nom: 'PointsReunion',
-  colonnes: ['id', 'reunion', 'personne', 'auteur', 'type', 'texte', 'element', 'concretisation', 'tache', 'responsable', 'cree_le', 'statut', 'validateur', 'echeance', 'note', 'type_cree', 'rattache', 'echange', 'sous_type', 'hors_reunion', 'elements', 'perso', 'historique'],
+  colonnes: ['id', 'reunion', 'personne', 'auteur', 'type', 'texte', 'element', 'concretisation', 'tache', 'responsable', 'cree_le', 'statut', 'validateur', 'echeance', 'note', 'type_cree', 'rattache', 'echange', 'sous_type', 'hors_reunion', 'elements', 'perso', 'historique', 'rappel_le'],
 };
 /** Séries de réunions (07/10) : une ligne par série (règle + exceptions), onglet créé au premier usage */
 export const ONGLET_SERIES = { nom: 'Reunions', colonnes: [...COLONNES_SERIE] as string[] };
@@ -304,6 +304,7 @@ export function nettoyerEntite<K extends Kind>(kind: K, data: Partial<EntityOf<K
     // R3 / T1 (16/10) : où il est suivi, temporisé jusqu'à quelle date
     out.suivi_a = (out.suivi_a ?? '').trim().slice(0, 200);
     if (out.rappel_le && !/^\d{4}-\d{2}-\d{2}$/.test(out.rappel_le)) out.rappel_le = '';
+    if (out.copie_de && !RE_ID.test(out.copie_de)) out.copie_de = '';
   } else if (kind === 'resultat') {
     if (!out.titre.trim()) throw new Error('Le titre du résultat clé est obligatoire.');
     if (!out.objectif || !RE_ID.test(out.objectif)) throw new Error('Résultat clé : OKR manquant.');
@@ -456,6 +457,7 @@ export function nettoyerPoint(data: Partial<PointReunion>, base?: PointReunion):
   if (out.elements && !out.elements.split(',').every((x) => RE_ID.test(x))) throw new Error('Éléments concernés invalides.');
   if (out.perso !== '1') out.perso = '';
   out.historique = out.historique.trim().slice(-1000);
+  if (out.rappel_le && !/^\d{4}-\d{2}-\d{2}$/.test(out.rappel_le)) out.rappel_le = '';
   return out as unknown as PointReunion;
 }
 

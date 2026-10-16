@@ -1,3 +1,4 @@
+import { ChoiceSheet } from './ChoiceSheet';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { TITRE_RAPPEL } from '../pointsSuivi';
@@ -220,7 +221,7 @@ export function FeuilleTexte({
  * - réponse reçue, à l'origine : ✓ Accepter · ↩ À reprendre. « Valider » est réservé aux réunions.
  */
 export function ActionsEchange({ e, moi, hierarchie, nomDe, onFait }: { e: Echange; moi: string; hierarchie: Hierarchie; nomDe: (id: string) => string; onFait?: (texte: string) => void }) {
-  const [feuille, setFeuille] = useState<'' | 'transmettre' | 'suivre' | 'redescendre' | 'reprendre' | 'accepter' | 'valider'>('');
+  const [feuille, setFeuille] = useState<'' | 'transmettre' | 'suivre' | 'redescendre' | 'reprendre' | 'accepter' | 'valider' | 'rappel'>('');
   const [busy, setBusy] = useState(false);
   // Un rappel de l'application (« 📌 À valider ») : seulement ✅ Valider (le même suivi que la réunion) ou Lu ✓
   const rappel = e.a === moi && e.statut === 'envoye' && e.titre.startsWith(TITRE_RAPPEL) && !!e.point;
@@ -252,6 +253,7 @@ export function ActionsEchange({ e, moi, hierarchie, nomDe, onFait }: { e: Echan
         <>
           {bouton('↪ Transmettre', () => setFeuille('transmettre'))}
           {reunions.length > 0 && bouton('📌 Mettre en réunion', () => setFeuille('suivre'))}
+          {!!hierarchie.onRappeler && bouton('⏰ Me le rappeler', () => setFeuille('rappel'))}
           {!seLitSeulement(natureDe(e)) && bouton('✓ Je m’en occupe', () => void agir(() => hierarchie.onMOccuper(e), 'Pris en charge : une tâche à votre nom.'))}
         </>
       )}
@@ -266,6 +268,15 @@ export function ActionsEchange({ e, moi, hierarchie, nomDe, onFait }: { e: Echan
       )}
       {feuille === 'transmettre' && (
         <FeuilleTransmettre e={parent ?? e} destinataires={hierarchie.destinataires(parent ?? e)} reunions={reunions} onFermer={() => setFeuille('')} onTransmettre={(t) => agir(() => hierarchie.onTransmettre(e, t), `Transmis à ${t.a.map(nomDe).join(', ')}.`)} />
+      )}
+      {feuille === 'rappel' && hierarchie.onRappeler && (
+        <ChoiceSheet
+          visible
+          title="⏰ Me le rappeler"
+          message="Il sort de vos listes et revient le jour venu, en haut ; l’expéditeur voit « Pris en compte · réponse prévue le … »."
+          choices={(['demain', 'jours', 'reunion'] as const).map((d) => ({ label: d === 'demain' ? 'Demain' : d === 'jours' ? 'Dans 3 jours' : 'Prochaine réunion', onPress: () => (setFeuille(''), void agir(() => hierarchie.onRappeler!(e, d), 'Temporisé : il revient le jour venu.')) }))}
+          onClose={() => setFeuille('')}
+        />
       )}
       {feuille === 'suivre' && (
         <FeuilleTexte

@@ -127,5 +127,6 @@ export function parEspace(l: PointAEcrire[]): Map<string, Omit<PointReunion, 'id
  */
 export const aReprendre = (points: PointReunion[], reunionId: string) => {
   const serie = reunionId.slice(0, -10);
-  return points.filter((p) => p.reunion.startsWith(serie) && p.reunion < reunionId && !p.concretisation);
+  // ⏰ Temporisée (T1, 16/10) : elle revient à la réunion de sa date
+  return points.filter((p) => p.reunion.startsWith(serie) && p.reunion < reunionId && !p.concretisation && !(!!p.rappel_le && p.rappel_le > reunionId.slice(-10)));
 };
