@@ -31,7 +31,8 @@
     "verif:organisation": "npx tsx scripts/verif-organisation.ts",
     "verif:reunions": "npx tsx scripts/verif-reunions.ts",
     "verif:notes": "npx tsx scripts/verif-notes.ts",
-    "verif:liens": "npx tsx scripts/verif-liens.ts"
+    "verif:liens": "npx tsx scripts/verif-liens.ts",
+    "verif:budget": "npx tsx scripts/verif-budget.ts"
   },
   "private": true
 }

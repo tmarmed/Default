@@ -23,6 +23,9 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
   dans la fiche d'un suivi (train, portfolio, direction) ; ligne « 1 / 2 · Mobile ✓ · Web 🔵 » ; demandes au parent
   (planSuivi, App.repondreEchange) ; `lienPrive` déplacé dans `src/liens.ts` ; démo 68 (Gel des mises en production).
   Reste : bouton « Détacher », suppression d'un élément rattaché (L5), « Demande de suivre de nouveau ».
+- Lot 4 Rassembler et budget (L3) — FAIT (16/10) pour les demandes de budget : `src/rassembler.ts`, bloc 💶
+  (🧺 Rassembler, Sortir, Répartir un accord partiel), `ecrireDemandes` groupé ; démo 69 ; `npm run verif:budget`.
+  Reste : rassembler aussi escalades, questions, risques, dépendances.
 - Décisions prises en l'absence de l'utilisateur : `docs/claude/decisions-lots.md` (à valider à son retour).
 - Lots 3 à 9 : en cours, dans l'ordre (voir plus bas).
 - À DISCUTER (demandé le 16/10) : **historique de l'application** — garder ou pas l'historique des éléments, notes,

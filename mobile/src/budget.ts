@@ -46,6 +46,12 @@ export interface BudgetValue {
   deciderDemande: (d: DemandeBudget, decision: Decision, reunion: string) => Promise<void>;
   /** Confirmer en séance une décision prise hors réunion */
   confirmerDemande: (d: DemandeBudget) => Promise<void>;
+  /** L3 (16/10) : rassembler plusieurs demandes reçues en une seule vers le haut (`reunion` : où c'est décidé) */
+  rassemblerDemandes: (l: DemandeBudget[], niveau: string, reunion: string) => Promise<void>;
+  /** L3 : sortir une demande d'un rassemblement (tant que le haut n'a rien décidé) */
+  sortirDemande: (parent: DemandeBudget, enfant: DemandeBudget) => Promise<void>;
+  /** L3 : répartir un accord partiel en montants entre les demandes rassemblées */
+  repartirDemande: (parent: DemandeBudget, montants: Record<string, number>) => Promise<void>;
   ecrireDepense: (espace: string, d: Partial<Depense> & { id?: string }) => Promise<Depense>;
   supprimerDepense: (espace: string, id: string) => Promise<void>;
   ecrireCout: (espace: string, personne: string, cout: string) => Promise<void>;
@@ -65,6 +71,9 @@ export const BUDGET_VIDE: BudgetValue = {
   soumettreDemande: async () => {},
   deciderDemande: async () => {},
   confirmerDemande: async () => {},
+  rassemblerDemandes: async () => {},
+  sortirDemande: async () => {},
+  repartirDemande: async () => {},
   ecrireDepense: async () => {
     throw new Error('Budget indisponible.');
   },
@@ -75,7 +84,7 @@ export const BudgetContext = createContext<BudgetValue>(BUDGET_VIDE);
 export const useBudget = () => useContext(BudgetContext);
 
 /** Assemble le contexte à partir des budgets chargés */
-export function valeurBudget(parEspace: Record<string, BudgetEspace>, actions: Pick<BudgetValue, 'ecrireDepense' | 'supprimerDepense' | 'ecrireCout' | 'soumettreDemande' | 'deciderDemande' | 'confirmerDemande' | 'ecrireDossier' | 'soumettreDossier' | 'ecrireEnveloppe'>): BudgetValue {
+export function valeurBudget(parEspace: Record<string, BudgetEspace>, actions: Pick<BudgetValue, 'ecrireDepense' | 'supprimerDepense' | 'ecrireCout' | 'soumettreDemande' | 'deciderDemande' | 'confirmerDemande' | 'rassemblerDemandes' | 'sortirDemande' | 'repartirDemande' | 'ecrireDossier' | 'soumettreDossier' | 'ecrireEnveloppe'>): BudgetValue {
   const all = Object.values(parEspace);
   return {
     parEspace,

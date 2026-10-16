@@ -144,7 +144,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '68';
+const DEMO_DATA_VERSION = '69';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -1125,6 +1125,8 @@ export function budgetDemoEntreprise(): { depense: Depense[]; cout: CoutPersonne
       dem('acmdb6', { motif: 'Audit d’accessibilité du site', montant: '18000', periode: 'ponctuel', du: dans(45), pour: 'epic:acme2', demandeur: 'train:acmtr1', destination: 'portfolio:acmpf1', soumis_par: 'sara.martin@acme.example', origine: 'ART sync du 8/10', en_reunion: '1' }),
       // Lot 2 (16/10, R1) : acmdb1 attend au Chat de Vous (« 📌 Mettre en réunion ») ; celle-ci est déjà mise en réunion
       dem('acmdb7', { motif: 'Casques pour les tests d’accessibilité', montant: '450', periode: 'ponctuel', du: dans(10), pour: 'equipeagile:acmeqweb', demandeur: 'equipeagile:acmeqweb', soumis_par: 'lea.roux@acme.example', origine: 'Rétrospective du 9/10', en_reunion: '1' }),
+      // Lot 4 (16/10, L3) : deux demandes mises en réunion à l'ART sync (avec acmdb7), à rassembler vers le portfolio
+      dem('acmdb8', { motif: 'Tablettes de test', montant: '700', periode: 'ponctuel', du: dans(12), pour: 'equipeagile:acmeqmob', demandeur: 'equipeagile:acmeqmob', soumis_par: 'nina.dupont@acme.example', origine: 'Rétrospective du 9/10', en_reunion: '1' }),
       dem('acmdb3', { motif: 'Formation à l’accessibilité', montant: '2400', periode: 'ponctuel', du: dans(30), pour: 'equipeagile:acmeqmob', demandeur: 'equipeagile:acmeqmob', soumis_par: 'nina.dupont@acme.example', origine: 'Rétrospective du 25/09', statut: 'accordee', montant_accorde: '2000', decide_par: 'marc.petit@acme.example', decide_le: stamp, hors_reunion: '1' }),
     ],
     depense: [

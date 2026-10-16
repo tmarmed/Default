@@ -333,6 +333,11 @@ export async function ecrireDemande(espace: string, titre: string, d: Partial<De
   const m = await routeBudget(espace, titre, true);
   return { ...(await m!.ecrireDemande(d)), espace };
 }
+/** Plusieurs demandes en une écriture (rassembler, répercuter, répartir : lot 4 du 16/10) */
+export async function ecrireDemandes(espace: string, titre: string, l: (Partial<DemandeBudget> & { id?: string })[]): Promise<DemandeBudget[]> {
+  const m = await routeBudget(espace, titre, true);
+  return (await m!.ecrireDemandes(l)).map((o) => ({ ...o, espace }));
+}
 export async function ecrireDepense(espace: string, titre: string, d: Partial<Depense> & { id?: string }): Promise<Depense> {
   const m = await routeBudget(espace, titre, true);
   return { ...(await m!.ecrireDepense(d)), espace };

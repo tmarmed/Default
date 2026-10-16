@@ -90,6 +90,7 @@ import { BandeauxBas, hauteurBandeaux, type InfoBandeauChat, type InfoBandeauReu
 import { useReunionsLancees } from './src/components/useReunionsLancees';
 import { estLancee } from './src/etatReunion';
 import { CHOIX_DEMANDE_PARENT, lireDemandeParent } from './src/parentEnfants';
+import { rassembler, rassembleesDans, repartir as repartirMontants, repercuter, sortir } from './src/rassembler';
 import { heureReunion, peutModifierSerie, serieVide, reunionsAVenir, reunionsDeSerie, seriesACreer, seriesDe, type SerieVue } from './src/reunions';
 import { arreterSerie, modifierOccurrence } from './src/series';
 import { ModifierReunionContext } from './src/components/FenetreReunion';
@@ -1637,8 +1638,15 @@ function Main() {
                   : { statut: decision.choix === 'refuser' ? ('refusee' as const) : ('a_reprendre' as const), motif_decision: decision.motif };
               const o = await api.ecrireDemande(espace, titreBudget(espace), { id: d.id, ...patch, decide_par: moiEchange, decide_le: new Date().toISOString(), hors_reunion: reunion ? '' : '1' });
               setBudgets((b) => ({ ...b, [espace]: { ...b[espace], demandes: (b[espace]?.demandes ?? []).map((x) => (x.id === o.id ? o : x)) } }));
+              // L3 (16/10) : demande rassemblée → la réponse redescend vers chacune (accord partiel : à répartir)
+              const enfants = rassembleesDans(o.id, budgets[espace]?.demandes ?? []);
+              if (enfants.length) {
+                const rep = await api.ecrireDemandes(espace, titreBudget(espace), repercuter(o, enfants));
+                setBudgets((b) => ({ ...b, [espace]: { ...b[espace], demandes: (b[espace]?.demandes ?? []).map((x) => rep.find((y) => y.id === x.id) ?? x) } }));
+                for (const d of rep) if (d.statut === 'accordee') await budgetActions.current.ecrireDepense(espace, { motif: d.motif, categorie: 'autre', montant: d.montant_accorde, periode: d.periode, du: d.du, au: d.au, porteur: d.pour, cle: '', parts: '' });
+              }
               // Accordée : la dépense est créée sur l'élément concerné (elle compte dans le consommé et l'estimation)
-              if (o.statut === 'accordee')
+              if (o.statut === 'accordee' && !enfants.length)
                 await budgetActions.current.ecrireDepense(espace, { motif: o.motif, categorie: 'autre', montant: o.montant_accorde, periode: o.periode, du: o.du, au: o.au, porteur: o.pour, cle: '', parts: '' });
               // Information du demandeur (disparaît à la lecture)
               if (o.soumis_par && o.soumis_par !== moiEchange)
@@ -1646,6 +1654,33 @@ function Main() {
             }
             // Le message « À décider » disparaît une fois la demande traitée (séance ou Chat)
             for (const e of (tousHier.echanges ?? []).filter((x) => x.point === d.id && estDemandeBudget(x))) await retirerEchangeRef.current(e).catch(() => {});
+          },
+          // L3 (16/10) : rassembler, sortir, répartir (une écriture groupée par Sheet Budget)
+          rassemblerDemandes: async (l, niveau, reunion) => {
+            const espace = l[0]?.espace || 'moi';
+            const destination = niveauDessus(niveau, orgReunions, !safe.actif);
+            if (!destination) throw new Error('Pas de niveau au-dessus pour décider.');
+            const r = rassembler(l, { niveau, destination, par: moiEchange, origine: reunion, aujourdhui: today });
+            const [parent] = await api.ecrireDemandes(espace, titreBudget(espace), [r.parent]);
+            const lies = await api.ecrireDemandes(espace, titreBudget(espace), r.lier(parent.id));
+            setBudgets((b) => ({ ...b, [espace]: { ...b[espace], demandes: [...(b[espace]?.demandes ?? []).map((x) => lies.find((y) => y.id === x.id) ?? x), parent] } }));
+            const a = gerantsBudget(destination, orgReunions, !safe.actif).filter((m) => m !== moiEchange);
+            await actionsDaily.envoyerEchanges(espace, a.map((m) => ({ de: moiEchange, a: m, type: 'question', nature: 'decision_a_prendre', titre: `${TITRE_DEMANDE} ${parent.motif}`.slice(0, 200), texte: `${eurosBudget(Number(parent.montant))} · ${l.length} demandes rassemblées par ${nomEchange(moiEchange)}\nÀ traiter à : ${reunionDuNiveau(destination, !safe.actif)}`, choix: CHOIX_DEMANDE.join(';'), reponse: '', note: '', statut: 'envoye', element: '', niveau: destination, transmis_par: moiEchange, prive: '1', pieces_jointes: '', point: parent.id, parent: '', espace })));
+            setInfo(`${l.length} demandes rassemblées (${eurosBudget(Number(parent.montant))}) et envoyées plus haut ; elles attendent la réponse.`);
+          },
+          sortirDemande: async (parent, enfant) => {
+            const espace = parent.espace || 'moi';
+            const o = await api.ecrireDemandes(espace, titreBudget(espace), sortir(parent, enfant));
+            setBudgets((b) => ({ ...b, [espace]: { ...b[espace], demandes: (b[espace]?.demandes ?? []).map((x) => o.find((y) => y.id === x.id) ?? x) } }));
+          },
+          repartirDemande: async (parent, montants) => {
+            const espace = parent.espace || 'moi';
+            const enfants = rassembleesDans(parent.id, budgets[espace]?.demandes ?? []);
+            const o = await api.ecrireDemandes(espace, titreBudget(espace), repartirMontants(parent, enfants, montants, moiEchange, new Date().toISOString()));
+            setBudgets((b) => ({ ...b, [espace]: { ...b[espace], demandes: (b[espace]?.demandes ?? []).map((x) => o.find((y) => y.id === x.id) ?? x) } }));
+            // Chaque équipe ne reçoit que son chiffre
+            for (const d of o) if (d.statut === 'accordee') await budgetActions.current.ecrireDepense(espace, { motif: d.motif, categorie: 'autre', montant: d.montant_accorde, periode: d.periode, du: d.du, au: d.au, porteur: d.pour, cle: '', parts: '' });
+            setInfo('Accord partiel réparti : chaque demande a reçu son montant.');
           },
           confirmerDemande: async (d) => {
             const espace = d.espace || 'moi';

@@ -932,35 +932,48 @@ export function creerMagasin(p: Persistance) {
     },
     /** Crée (sans id) ou modifie (avec id) une demande de budget */
     async ecrireDemande(d: Partial<DemandeBudget> & { id?: string }): Promise<DemandeBudget> {
-      const liste = await p.lire('demande');
-      const base = d.id ? liste.find((x) => x.id === d.id) : undefined;
-      if (d.id && !base) throw new Error('Demande introuvable (peut-être supprimée).');
-      const x = { ...base, ...d } as Partial<DemandeBudget>;
-      const motif = String(x.motif ?? '').trim();
-      const m = String(x.montant ?? '').replace(/\s/g, '').replace(',', '.');
-      const acc = String(x.montant_accorde ?? '').replace(/\s/g, '').replace(',', '.');
-      if (!motif) throw new Error('Le motif est obligatoire.');
-      if (!RE_NOMBRE.test(m)) throw new Error('Montant : nombre en euros attendu.');
-      if (acc && (!RE_NOMBRE.test(acc) || Number(acc) > Number(m))) throw new Error('Montant accordé : au plus le montant demandé.');
-      if (!RE_DATE.test(String(x.du))) throw new Error('Date de début attendue.');
-      if (!RE_PORTEUR.test(String(x.pour)) || !RE_PORTEUR.test(String(x.demandeur)) || !RE_PORTEUR.test(String(x.destination))) throw new Error('Niveau de la demande invalide.');
-      if ((x.statut === 'a_reprendre' || x.statut === 'refusee') && !String(x.motif_decision ?? '').trim()) throw new Error('Motif obligatoire.');
-      const now = new Date().toISOString();
-      const o = {
-        ...(base ?? {}),
-        ...x,
-        motif,
-        montant: m,
-        montant_accorde: acc,
-        periode: (PERIODES_DEPENSE.some((q) => q.value === x.periode) && x.periode !== 'pct' ? x.periode : 'ponctuel') as DemandeBudget['periode'],
-        statut: (['soumise', 'accordee', 'a_reprendre', 'refusee'].includes(String(x.statut)) ? x.statut : 'soumise') as DemandeBudget['statut'],
-        id: base?.id ?? nouvelId(),
-        cree_le: base?.cree_le ?? now,
-        modifie_le: now,
-      } as DemandeBudget;
-      delete (o as { espace?: string }).espace;
-      await p.ecrire('demande', base ? liste.map((y) => (y.id === o.id ? o : y)) : [...liste, o]);
-      return o;
+      return (await this.ecrireDemandes([d]))[0];
+    },
+    /**
+     * Crée ou modifie plusieurs demandes de budget en une lecture et une écriture (rassembler, répercuter une réponse,
+     * répartir un accord partiel : lot 4 du 16/10, règle du quota)
+     */
+    async ecrireDemandes(l: (Partial<DemandeBudget> & { id?: string })[]): Promise<DemandeBudget[]> {
+      let liste = await p.lire('demande');
+      const out: DemandeBudget[] = [];
+      for (const d of l) {
+        const base = d.id ? liste.find((x) => x.id === d.id) : undefined;
+        if (d.id && !base) throw new Error('Demande introuvable (peut-être supprimée).');
+        const x = { ...base, ...d } as Partial<DemandeBudget>;
+        const motif = String(x.motif ?? '').trim();
+        const m = String(x.montant ?? '').replace(/\s/g, '').replace(',', '.');
+        const acc = String(x.montant_accorde ?? '').replace(/\s/g, '').replace(',', '.');
+        if (!motif) throw new Error('Le motif est obligatoire.');
+        if (!RE_NOMBRE.test(m)) throw new Error('Montant : nombre en euros attendu.');
+        if (acc && (!RE_NOMBRE.test(acc) || Number(acc) > Number(m))) throw new Error('Montant accordé : au plus le montant demandé.');
+        if (!RE_DATE.test(String(x.du))) throw new Error('Date de début attendue.');
+        if (!RE_PORTEUR.test(String(x.pour)) || !RE_PORTEUR.test(String(x.demandeur)) || !RE_PORTEUR.test(String(x.destination))) throw new Error('Niveau de la demande invalide.');
+        if ((x.statut === 'a_reprendre' || x.statut === 'refusee') && !String(x.motif_decision ?? '').trim()) throw new Error('Motif obligatoire.');
+        if (x.rassemblee_dans && !RE_ID.test(x.rassemblee_dans)) throw new Error('Demande rassemblée : lien invalide.');
+        const now = new Date().toISOString();
+        const o = {
+          ...(base ?? {}),
+          ...x,
+          motif,
+          montant: m,
+          montant_accorde: acc,
+          periode: (PERIODES_DEPENSE.some((q) => q.value === x.periode) && x.periode !== 'pct' ? x.periode : 'ponctuel') as DemandeBudget['periode'],
+          statut: (['soumise', 'accordee', 'a_reprendre', 'refusee'].includes(String(x.statut)) ? x.statut : 'soumise') as DemandeBudget['statut'],
+          id: base?.id ?? nouvelId(),
+          cree_le: base?.cree_le ?? now,
+          modifie_le: now,
+        } as DemandeBudget;
+        delete (o as { espace?: string }).espace;
+        liste = base ? liste.map((y) => (y.id === o.id ? o : y)) : [...liste, o];
+        out.push(o);
+      }
+      await p.ecrire('demande', liste);
+      return out;
     },
     /** Crée (sans id) ou modifie (avec id) une dépense */
     async ecrireDepense(d: Partial<Depense> & { id?: string }): Promise<Depense> {

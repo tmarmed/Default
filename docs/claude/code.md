@@ -37,6 +37,7 @@
 | Une note (état, éléments, historique) ; notes gardées dans 🔒 Moi ; impact ; « Déplacer » | `LigneNote`, `usePreparationMoi`, `useCtxImpact`, `optionsDeplacement`, `patchPartage` | `reunion/Notes.tsx` |
 | Responsables d'un niveau, droits (escalader, communiquer, liaison, suppléant), PO contenu / SM déroulement, état chez le receveur | `responsablesNiveau`, `estResponsable`, `peutEscalader`, `peutCommuniquer`, `personnesLiaison`, `sujetDe`, `etatChezReceveur` | `src/liens.ts` |
 | Parent et enfants (communiquer ⤵, ligne « 1 / 2 · Mobile ✓ », demandes au parent OK · Refuser, « lié ») | `messagesCommunication`, `enfantsDe`, `ligneParent`, `propositionParent`, `parentDe`, `titreDemandeParent` ; options d'une réunion : `optionsCommuniquer` | `src/parentEnfants.ts`, `reunion/Notes.tsx` |
+| Rassembler des demandes (budget) : rassembler, sortir, répercuter la réponse, répartir un accord partiel | `rassembler`, `sortir`, `repercuter`, `repartir`, `rassembleesDans` ; écriture groupée `ecrireDemandes` | `src/rassembler.ts`, `src/magasin.ts` |
 | Saisie d'une note (types, plusieurs éléments, 🔒 Perso) | `SaisiePoint`, `LignesElements`, `LigneElement` | `reunion/ui.tsx` |
 
 Doublons connus (à unifier quand on y touche) : `useEquipeDaily` (Daily.tsx) et `useEquipe` (base.tsx) ; la

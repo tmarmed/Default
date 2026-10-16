@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { aRepartirPortfolio, montantDemande, repartitionProposee, trainDePersonne, avecDossiers, situationEnveloppe, cleDe, type Decision, libelleDecisionDossier, manquesDossier, depensesDe, iconeCategorie, libellePeriode, libelleStatutDemande, resumeDepense, useBudget } from '../budget';
+import { aRepartirPortfolio, niveauDessus, reunionDuNiveau, montantDemande, repartitionProposee, trainDePersonne, avecDossiers, situationEnveloppe, cleDe, type Decision, libelleDecisionDossier, manquesDossier, depensesDe, iconeCategorie, libellePeriode, libelleStatutDemande, resumeDepense, useBudget } from '../budget';
 import { coutJour, euros, joursOuvresAnnee } from '../pilotage';
 import { colors } from '../theme';
 import { useSafe } from '../safe';
 import { CATEGORIES_DEPENSE, type CleRepartition, type DemandeBudget, type Depense, DECISIONS_DOSSIER, type DecisionDossier, type DossierInvestissement, type Epic, PERIODES_DEPENSE, type PeriodeDepense } from '../types';
-import { ChampFiche, SaisieFiche, SectionFiche } from './Choix';
+import { ChampFiche, FeuilleMulti, SaisieFiche, SectionFiche } from './Choix';
+import { aRepartir, libelleRassemblee, rassembleesDans } from '../rassembler';
 // Blocs des réunions (15/10) : la coque commune des briques (carte blanche, ▸ / ▾) ; les sections des fiches restent SectionFiche
 import { BlocBrique } from './reunion/Brique';
 import { DateField } from './DateField';
@@ -298,7 +299,11 @@ export function BlocDemandesBudget({ niveau, espace, reunion, moi, anime, lectur
   const droit = gerants.includes(moi.toLowerCase());
   // R1 (16/10) : une demande reçue attend au Chat ; elle n'entre ici qu'une fois « 📌 Mise en réunion »
   const soumises = b.demandes.filter((d) => d.destination === niveau && d.statut === 'soumise');
-  const recues = soumises.filter((d) => d.en_reunion === '1');
+  // L3 (16/10) : une demande rassemblée attend la réponse du dessus (elle sort des « à décider »)
+  const rassemblees = soumises.filter((d) => !!d.rassemblee_dans);
+  const recues = soumises.filter((d) => d.en_reunion === '1' && !d.rassemblee_dans);
+  const [choisir, setChoisir] = useState(false);
+  const org = useOrg();
   const auChat = soumises.length - recues.length;
   const horsReunion = b.demandes.filter((d) => d.destination === niveau && d.hors_reunion === '1');
   const nos = b.demandes.filter((d) => d.demandeur === niveau);
@@ -330,17 +335,61 @@ export function BlocDemandesBudget({ niveau, espace, reunion, moi, anime, lectur
       {recues.map((d, i) => (
         <DecisionDemande key={d.id} d={d} nomDe={nomDe} premiere={!horsReunion.length && i === 0} peutDecider={peutDecider} plusHaut={gerantsDessus} onDecider={(x) => agir(b.deciderDemande(d, x, reunion))} />
       ))}
-      {nos.map((d) => (
-        <View key={`n${d.id}`} style={[s.ligne, s.bord]}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.texte}>{d.motif}</Text>
-            <Text style={s.sous}>
-              Notre demande · {eurosTxtC(d.montant)} · {libelleStatutDemande(d)}
-              {d.motif_decision ? ` — ${d.motif_decision}` : ''}
-            </Text>
+      {/* L3 (16/10) : rassembler plusieurs demandes reçues en une seule vers le haut */}
+      {peutDecider && gerantsDessus && recues.length >= 2 && (
+        <Pressable onPress={() => setChoisir(true)} style={[s.ligne, s.bord]} accessibilityRole="button">
+          <Text style={[s.texte, { color: colors.primary, fontWeight: '600' }]}>🧺 Rassembler et envoyer plus haut</Text>
+          <Text style={[s.sous, { flex: 1 }]}>{`une seule demande vers ${reunionDuNiveau(niveauDessus(niveau, org) ?? '') || 'le niveau du dessus'} ; la réponse redescend vers chacune`}</Text>
+        </Pressable>
+      )}
+      {rassemblees.map((d) => {
+        const parent = b.demandes.find((x) => x.id === d.rassemblee_dans);
+        return (
+          <View key={`r${d.id}`} style={[s.ligne, s.bord]}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.texte}>{d.motif} · {eurosTxtC(d.montant)}</Text>
+              <Text style={s.sous}>{`${libelleRassemblee(reunionDuNiveau(parent?.destination ?? ''))} · en attente de la réponse`}</Text>
+            </View>
+            {peutDecider && parent?.statut === 'soumise' && (
+              <Pressable onPress={() => agir(b.sortirDemande(parent, d))} style={s.btn2} accessibilityRole="button">
+                <Text style={s.btn2Texte}>Sortir</Text>
+              </Pressable>
+            )}
           </View>
-        </View>
-      ))}
+        );
+      })}
+      {nos.map((d) => {
+        const enfants = rassembleesDans(d.id, b.demandes);
+        const parent = d.rassemblee_dans ? b.demandes.find((x) => x.id === d.rassemblee_dans) : undefined;
+        return (
+          <View key={`n${d.id}`} style={[s.bord, { paddingBottom: 6 }]}>
+            <View style={s.ligne}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.texte}>{d.motif}</Text>
+                <Text style={s.sous}>
+                  Notre demande · {eurosTxtC(d.montant)} · {parent && d.statut === 'soumise' ? libelleRassemblee(reunionDuNiveau(parent.destination)) : libelleStatutDemande(d)}
+                  {d.motif_decision ? ` — ${d.motif_decision}` : ''}
+                  {enfants.length ? ` · ${enfants.length} demandes rassemblées` : ''}
+                </Text>
+              </View>
+            </View>
+            {peutDecider && aRepartir(d, enfants) && <RepartirAccord parent={d} enfants={enfants.filter((x) => x.statut === 'soumise')} onRepartir={(m) => agir(b.repartirDemande(d, m))} />}
+          </View>
+        );
+      })}
+      {choisir && (
+        <FeuilleMulti
+          titre="Rassembler des demandes"
+          groupes={[{ titre: 'Demandes reçues, mises en réunion', options: recues.map((d) => ({ value: d.id, label: `${d.motif} · ${eurosTxtC(d.montant)}` })) }]}
+          selection={recues.map((d) => d.id)}
+          libelleValider={(n) => (n >= 2 ? `Rassembler ${n} demandes` : 'Au moins deux')}
+          onFermer={() => setChoisir(false)}
+          onValider={(l) => {
+            setChoisir(false);
+            if (l.length >= 2) agir(b.rassemblerDemandes(recues.filter((d) => l.includes(d.id)), niveau, reunion));
+          }}
+        />
+      )}
       {/* 13/10 : une demande naît d'une note (Concrétiser › 💶 Demande de budget), comme un suivi ou une escalade */}
       {droit && anime && !lecture && !nouvelle && (
         <Text style={[s.sous, s.pad, s.bord]}>Pour demander du budget : notez-le, puis « Concrétiser › 💶 Demande de budget ».</Text>
@@ -363,6 +412,26 @@ export function BlocDemandesBudget({ niveau, espace, reunion, moi, anime, lectur
   );
 }
 const eurosTxtC = (m: string) => euros(Number(m) || 0);
+
+/** L3 · Accord partiel d'une demande rassemblée : celui qui a rassemblé répartit en montants (pas de pourcentage) */
+function RepartirAccord({ parent, enfants, onRepartir }: { parent: DemandeBudget; enfants: DemandeBudget[]; onRepartir: (m: Record<string, number>) => void }) {
+  const [m, setM] = useState<Record<string, string>>({});
+  const total = enfants.reduce((t, d) => t + (Number((m[d.id] ?? '').replace(',', '.')) || 0), 0);
+  return (
+    <View style={s.pad}>
+      <Text style={s.sous}>{`Accord partiel : ${eurosTxtC(parent.montant_accorde)} sur ${eurosTxtC(parent.montant)} · à répartir (${eurosTxtC(String(total))} réparti)`}</Text>
+      {enfants.map((d) => (
+        <View key={d.id} style={[s.actions, { alignItems: 'center' }]}>
+          <Text style={[s.texte, { flex: 1 }]}>{`${d.motif} · ${eurosTxtC(d.montant)} demandés`}</Text>
+          <SaisieFiche style={s.pctSaisie} value={m[d.id] ?? ''} placeholder="0" onChangeText={(v) => setM((x) => ({ ...x, [d.id]: v.replace(/[^0-9.,]/g, '') }))} keyboardType="decimal-pad" accessibilityLabel={`Montant pour ${d.motif}`} />
+        </View>
+      ))}
+      <Pressable onPress={() => onRepartir(Object.fromEntries(enfants.map((d) => [d.id, Number((m[d.id] ?? '').replace(',', '.')) || 0])))} style={[s.btn, { alignSelf: 'flex-start', marginTop: 6 }]} accessibilityRole="button">
+        <Text style={s.btnTexte}>Répartir</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 function DecisionDemande({ d, premiere, peutDecider, plusHaut, onDecider, nomDe }: { d: DemandeBudget; premiere: boolean; peutDecider: boolean; plusHaut: boolean; onDecider: (x: Decision) => void; nomDe: (m: string) => string }) {
   const [montant, setMontant] = useState(d.montant);
