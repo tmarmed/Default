@@ -4,7 +4,11 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
 
 ## Brainstorm en cours (15/10) : calcul automatique, bruit, retouche, changement de périmètre — PAS ENCORE CODÉ
 SPÉCIFICATION ÉCRITE ET VALIDÉE (16/10) : docs/regles-reunions.html, blocs 16 et 17 (ils priment sur les lignes
-ci-dessous en cas de différence) ; glossaire mis à jour. Tableau « qui peut faire quoi » validé et ajouté au bloc 16 (16/10), avec Q5 pleins droits du SM / responsable et de
+ci-dessous en cas de différence) ; glossaire mis à jour. Changement de périmètre au train (16/10, en cours) : seulement le PI EN COURS, après le PI Planning (avant : pas de
+fenêtre, le PI se prépare librement) ; seulement une feature qui entre ou sort ; un changement au niveau d'un sprint
+reste au sprint (validé au sprint) ; si un sprint fait sortir ou entrer quelque chose du PI, le train est seulement
+alerté. Objectifs du PI : pas de nouvelle alerte (garder les alertes existantes : dépassement de budget, de date).
+Tableau « qui peut faire quoi » validé et ajouté au bloc 16 (16/10), avec Q5 pleins droits du SM / responsable et de
 son suppléant ; sous-tableau « ⏰ Temporiser » (Chat, séance, Point perso, fiche d'un élément) et « Perso ou à
 partager » (note à partager par défaut, case « 🔒 Perso », perso seulement si ça ne touche que moi). Suite :
 changement de périmètre au train, lignes 5+ du tableau du périmètre, stabilité du sprint, CRA ; ensuite plan en lots.
