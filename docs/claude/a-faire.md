@@ -5,7 +5,8 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
 ## Brainstorm en cours (15/10) : calcul automatique, bruit, retouche, changement de périmètre — PAS ENCORE CODÉ
 SPÉCIFICATION ÉCRITE ET VALIDÉE (16/10) : docs/regles-reunions.html, blocs 16 et 17 (ils priment sur les lignes
 ci-dessous en cas de différence) ; glossaire mis à jour. Tableau « qui peut faire quoi » validé et ajouté au bloc 16 (16/10), avec Q5 pleins droits du SM / responsable et de
-son suppléant, et T2 temporiser en séance. Suite :
+son suppléant ; sous-tableau « ⏰ Temporiser » (Chat, séance, Point perso, fiche d'un élément) et « Perso ou à
+partager » (note à partager par défaut, case « 🔒 Perso », perso seulement si ça ne touche que moi). Suite :
 changement de périmètre au train, lignes 5+ du tableau du périmètre, stabilité du sprint, CRA ; ensuite plan en lots.
 Décidé :
 - Vers le bas : seulement les dates (enfant vide → affiche la date du parent en gris et la suit ; enfant rempli → garde
