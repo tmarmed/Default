@@ -12,6 +12,8 @@ Alerte au train (validé) : information au Chat du PM et du RTE + ligne dans l'A
 le Chat peut en faire un point de suivi (choix de celui qui reçoit). RÈGLE CONFIRMÉE : aucune information du Chat ne
 devient automatiquement un point de suivi chez celui qui la reçoit, escalade et changement de périmètre compris
 (spécification P1 et « Changements à vérifier » mises à jour).
+Tableau du périmètre TERMINÉ (16/10) : règle unique P0 = toute variation des points engagés du sprint hors Planification
+(hausse et baisse ; abandon ou suppression d'une story compris ; à la baisse, proposer de compléter avec le backlog).
 Tableau « qui peut faire quoi » validé et ajouté au bloc 16 (16/10), avec Q5 pleins droits du SM / responsable et de
 son suppléant ; sous-tableau « ⏰ Temporiser » (Chat, séance, Point perso, fiche d'un élément) et « Perso ou à
 partager » (note à partager par défaut, case « 🔒 Perso », perso seulement si ça ne touche que moi). Suite :
