@@ -15,7 +15,18 @@ devient automatiquement un point de suivi chez celui qui la reçoit, escalade et
 Tableau du périmètre TERMINÉ (16/10) : règle unique P0 = toute variation des points engagés du sprint hors Planification
 (hausse et baisse ; abandon ou suppression d'une story compris ; à la baisse, proposer de compléter avec le backlog).
 Stabilité du sprint VALIDÉE (16/10, B4) : points restés / points engagés, nombre de changements, 90 / 75 %, sprint et PI.
-Reste du brainstorm : CRA et jours par story (plus tard). Prochaine étape : plan en lots.
+Reste du brainstorm : CRA et jours par story (plus tard).
+PLAN EN LOTS VALIDÉ (16/10, dans cet ordre ; spécification : docs/regles-reunions.html blocs 16 et 17) :
+1 Notes (N1-N3, V1-V4, D1) · 2 Règle unique du Chat (R1-R3, Q1-Q3) · 3 Parent et enfants (L1, L2, L4, L5, Q2) ·
+4 Rassembler et budget (L3) · 5 ⏰ Temporiser, absences, droits (T1, Q4, Q5) · 6 Calcul automatique (K1-K4) ·
+7 Changement de périmètre (P0, P1) · 8 Bruit, retouche, réimputation (B1, B2, M1) · 9 Indicateurs (B3, B4).
+Chaque lot : skill conception-coherence (point 10 pièces communes : chercher dans docs/claude/code.md, réutiliser,
+créer la pièce commune dès qu'un morceau existe deux fois ; point 12 : lister les régressions), tests verif, données
+de démo, parcours avec captures, commit + push, validation de l'utilisateur.
+
+## Prochaine session (16/10) : développer les 9 lots
+Branche claude/version-safe. Lire : CLAUDE.md, ce fichier, docs/regles-reunions.html blocs 16 et 17, docs/claude/code.md.
+Commencer par le lot 1 (Notes). Un lot à la fois, validé par captures avant le suivant.
 Tableau « qui peut faire quoi » validé et ajouté au bloc 16 (16/10), avec Q5 pleins droits du SM / responsable et de
 son suppléant ; sous-tableau « ⏰ Temporiser » (Chat, séance, Point perso, fiche d'un élément) et « Perso ou à
 partager » (note à partager par défaut, case « 🔒 Perso », perso seulement si ça ne touche que moi). Suite :

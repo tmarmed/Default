@@ -17,7 +17,10 @@ description: Liste de contrôle de cohérence (famille « conception », génér
 6. **Effets de bord** : messages et notifications, confidentialité (ce qui est privé le reste ; reformuler avant de
    rendre public), droits et rôles, données partagées, limites techniques (quotas, écritures groupées).
 7. **Automatique ou choisi ?** Par défaut, l'utilisateur choisit (proposition précochée qu'il peut enlever), rien ne
-   se crée ni ne monte d'un niveau tout seul.
+   se crée ni ne monte d'un niveau tout seul. Ce qu'on **reçoit** d'ailleurs arrive dans une seule salle d'attente
+   (la messagerie) et ne crée jamais rien tout seul chez celui qui le reçoit ; lui choisit (placer, temporiser,
+   répondre). Seul l'envoyeur peut avoir sa trace d'office (16/10). Lister ce qui se crée automatiquement aujourd'hui
+   avant de trancher (en lisant le code).
 8. **Percée de compréhension** : quand un concept nouveau ou un meilleur niveau d'abstraction apparaît (ex. « le plan
    est une intention, le statut est un état »), lister les règles déjà écrites qui en dépendent, les relire avec ce
    concept et les mettre à jour (décisions remplacées notées dans le journal). Les règles ne sont pas figées : elles
@@ -30,6 +33,16 @@ description: Liste de contrôle de cohérence (famille « conception », génér
     (carte du code du projet) et la réutiliser ; si le même morceau existe déjà ailleurs ou va exister deux fois,
     **créer la pièce commune** et y brancher les deux endroits (pas une copie de plus) ; une variante passe par une
     option de la pièce commune, pas par une copie modifiée.
+
+11. **Liens entre niveaux** (16/10) : une seule relation parent → enfants pour tout ce qui circule entre niveaux
+    (messages transmis, escalades, demandes, suivis) : le **parent est au niveau du dessus** (décide, valide,
+    communique), l'**enfant au dessous** (demande, fait, confirme la prise en compte). Vérifier les **cas limites** de
+    la chaîne (le plus haut n'escalade pas, le plus bas ne communique pas), la **visibilité** (le dessus voit le
+    dessous, jamais l'inverse) et la **fin de vie** (ce qui touche un élément lié passe par une demande au parent).
+
+12. **Généraliser sans casser** (16/10) : quand une règle devient générale (une seule mécanique pour plusieurs
+    cas), lister ce qui change dans l'existant (régressions fonctionnelles possibles) et faire valider par
+    l'utilisateur tout nouveau cas d'usage que la généralisation fait apparaître.
 
 ## Après le code
 - Le code nouveau n'a recréé à la main aucune pièce commune (chercher les anciens motifs : style ancien, copie d'une

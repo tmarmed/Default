@@ -17,7 +17,9 @@ nouvelles, des questions et des remarques. Rien ne doit se perdre.
 2. **Mots mal dictés** : les remplacer par le bon terme et le dire une fois, sans insister. Déjà vus :
    « cerises » → skills ; « je vous idéalise tout » → je valide tout ; « maïs, mailles » → maillons ;
    « épicorneurs, peak owners » → Epic Owners ; « pays planning » → PI Planning ; « délit » → daily ;
-   « épis, pics, pépite » → epics ; « Winston » → mot parasite.
+   « épis, pics, pépite » → epics ; « Winston » → mot parasite ; « pays » seul → PI ; « cloche » → coche ;
+   « maillot » → maillon ; « fis, fils » → enfant (suivi enfant) ; « notes d'écrivain » → notes de réunion ;
+   « article » → élément (fiche d'un élément).
 3. **Ambiguïté** : reformuler les deux lectures et demander (« Vous voulez dire A ou B ? ») plutôt que deviner.
 4. **Questions ouvertes** : tenir la liste de mes questions sans réponse et la reposer en fin de réponse
    (« Il reste : … ») jusqu'à ce qu'il réponde ou l'abandonne.

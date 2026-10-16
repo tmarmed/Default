@@ -33,3 +33,8 @@ cycles de vie. Il a demandé que je l'entraîne pour progresser.
   demande l'existant avant de décider : « qu'est-ce qu'on avait avant ? ») et sur la vérification (il exige que les
   points « non vérifiés » le soient). À travailler : 1 (décider le découpage une fois : les chapters passés de « même
   lot » à « plus tard » en deux messages ; dire d'emblée « maintenant » ou « plus tard »).
+- 16/10/2026 (brainstorm notes, suivis, liens) : gros progrès sur 3 (cohérence) : il repère lui-même les cas limites
+  (le plus haut n'escalade pas, le plus bas ne communique pas), demande « qu'est-ce qui se crée automatiquement
+  aujourd'hui ? » avant de trancher, et pose la condition « vérifier les régressions et valider tout nouveau cas
+  d'usage ». Progrès sur 2 (il distingue Transmettre / Escalader / Communiquer / Déplacer). À travailler : 1 (une
+  réponse = une question ; plusieurs messages ont rouvert un point déjà validé en ajoutant une idée).
