@@ -33,7 +33,8 @@
     "verif:notes": "npx tsx scripts/verif-notes.ts",
     "verif:liens": "npx tsx scripts/verif-liens.ts",
     "verif:budget": "npx tsx scripts/verif-budget.ts",
-    "verif:calcul": "npx tsx scripts/verif-calcul.ts"
+    "verif:calcul": "npx tsx scripts/verif-calcul.ts",
+    "verif:perimetre": "npx tsx scripts/verif-perimetre.ts"
   },
   "private": true
 }

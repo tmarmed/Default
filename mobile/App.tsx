@@ -90,6 +90,8 @@ import { BandeauxBas, hauteurBandeaux, type InfoBandeauChat, type InfoBandeauReu
 import { useReunionsLancees } from './src/components/useReunionsLancees';
 import { estLancee } from './src/etatReunion';
 import { CHOIX_DEMANDE_PARENT, lireDemandeParent } from './src/parentEnfants';
+import { CHOIX_PO, demandePerimetre, estPerimetre, etapesPerimetre, libelleImpact, lirePatch, texteLisible, TITRE_PERIMETRE } from './src/perimetre';
+import { type DemandePerimetre, PerimetreContext } from './src/components/Perimetre';
 import { dateRappel, libelleRappel, remplacantDe } from './src/temporiser';
 import { rassembler, rassembleesDans, repartir as repartirMontants, repercuter, sortir } from './src/rassembler';
 import { heureReunion, peutModifierSerie, serieVide, reunionsAVenir, reunionsDeSerie, seriesACreer, seriesDe, type SerieVue } from './src/reunions';
@@ -1948,6 +1950,23 @@ function Main() {
     [settings],
   );
   const nomEchange = (email: string) => nomPersonne(orgEchanges, email);
+  /** P1 (16/10) : proposer un changement de périmètre (fenêtre commune) : au PO, sinon directement au SM, sinon appliqué */
+  const proposerPerimetre = async (d: DemandePerimetre, raison: string) => {
+    const eq = orgReunions.equipe.get(d.item.equipe ?? '');
+    const mail = (id?: string) => (id ? (orgReunions.personne.get(id)?.email ?? '').toLowerCase() : '');
+    const po = mail(eq?.po);
+    const sm = mail(eq?.sm);
+    const etapes = etapesPerimetre(moiEchange, po, sm);
+    const espace = d.item.espace || 'moi';
+    if (!etapes.length) {
+      await actionsDaily.modifierItems?.(espace, [{ id: d.patch.id, ...(d.patch.iteration !== undefined ? { iteration: d.patch.iteration } : {}), ...(d.patch.points !== undefined ? { points: d.patch.points } : {}) }]);
+      setInfo('Vous êtes PO et Scrum Master de l’équipe : changement appliqué.');
+      return;
+    }
+    const a = etapes[0] === 'po' ? po : sm;
+    await actionsDaily.envoyerEchanges(espace, [demandePerimetre({ de: moiEchange, a, etape: etapes[0], item: d.item, impact: `${libelleImpact(d.impact, safe.pointsJours ? 'j' : 'pts')} · ${d.changement}`, raison, patch: d.patch, niveau: eq ? `equipeagile:${eq.id}` : '', espace })]);
+    setInfo(`Changement de périmètre proposé à ${nomEchange(a)} (${etapes[0] === 'po' ? 'PO, valide' : 'Scrum Master, confirme'}) ; rien ne change avant la confirmation.`);
+  };
   /** Points de suivi des escalades (cas d'usage 1 et 2) : une écriture par Sheet concerné */
   const ecrireSuivis = async (l: PointAEcrire[]) => {
     const out: { espace: string; point: PointReunion }[] = [];
@@ -1982,6 +2001,29 @@ function Main() {
     // Q4 (16/10) : traité ici → la copie (ou l'original) chez l'autre disparaît
     for (const x of (tousHier.echanges ?? []).filter((y) => y.id !== e.id && y.statut === 'envoye' && ((!!e.copie_de && (y.id === e.copie_de || y.copie_de === e.copie_de)) || y.copie_de === e.id)))
       await saveEntity('echange', x, { statut: 'pris_en_compte', reponse: `Traité par ${nomEchange(moiEchange)}`, note: '' }).catch(() => {});
+    // P1 (16/10) : changement de périmètre — le PO valide, puis le Scrum Master confirme ; appliqué à la confirmation
+    if (estPerimetre(e)) {
+      const patch = lirePatch(e.texte);
+      const refus = reponse.startsWith('Refuser');
+      const eq = orgReunions.equipe.get(lireNiveau(e.niveau)?.id ?? '');
+      const sm = eq?.sm ? (orgReunions.personne.get(eq.sm)?.email ?? '').toLowerCase() : '';
+      const informer = (texte: string) =>
+        e.de !== moiEchange
+          ? actionsDaily.envoyerEchanges(e.espace || 'moi', [{ de: moiEchange, a: e.de, type: 'message', nature: 'information', titre: `ℹ️ Pour information · ${e.titre}`.slice(0, 200), texte, choix: '', reponse: '', note: '', statut: 'envoye', element: e.element, niveau: e.niveau, transmis_par: '', prive: '1', pieces_jointes: '', point: '', parent: '', espace: e.espace || 'moi' }])
+          : Promise.resolve([]);
+      if (refus || !patch) {
+        await informer(`Changement refusé par ${nomEchange(moiEchange)}${note ? ` : ${note}` : '.'}`);
+        setInfo('Changement de périmètre refusé ; le demandeur est prévenu.');
+      } else if (reponse === CHOIX_PO[0] && sm && sm !== moiEchange && sm !== e.de) {
+        await actionsDaily.envoyerEchanges(e.espace || 'moi', [{ ...demandePerimetre({ de: e.de, a: sm, etape: 'sm', item: { id: patch.id, titre: e.titre.replace(TITRE_PERIMETRE, '').trim() }, impact: texteLisible(e.texte).split('\n')[0], raison: (texteLisible(e.texte).split('\n')[1] ?? '').replace(/^Raison : /, ''), patch, niveau: e.niveau, espace: e.espace || 'moi', avant: `Validé par ${nomEchange(moiEchange)} (PO)` }) }]);
+        setInfo('Validé : le Scrum Master confirme ensuite.');
+      } else {
+        await actionsDaily.modifierItems?.(e.espace || 'moi', [{ id: patch.id, ...(patch.iteration !== undefined ? { iteration: patch.iteration } : {}), ...(patch.points !== undefined ? { points: patch.points } : {}) }]);
+        await informer(`Changement confirmé par ${nomEchange(moiEchange)} : il est appliqué.`);
+        setInfo('Changement de périmètre confirmé : appliqué.');
+      }
+      return;
+    }
     // L4 (16/10) : demande d'un enfant au parent (abandonner, ne plus suivre, détacher) : OK applique, Refuser informe
     const demandeParent = lireDemandeParent(e.titre);
     if (demandeParent) {
@@ -2909,6 +2951,7 @@ function Main() {
     <RechercheContext.Provider value={recherche ?? ''}>
     <PiecesContext.Provider value={chargerPieces}>
     <OrgContext.Provider value={orgValue}>
+    <PerimetreContext.Provider value={proposerPerimetre}>
     <BudgetContext.Provider value={budgetValue}>
     <CongesContext.Provider value={congesValue}>
     <MoiContext.Provider value={moi}>
@@ -4251,6 +4294,7 @@ function Main() {
       />
     </CongesContext.Provider>
     </BudgetContext.Provider>
+    </PerimetreContext.Provider>
     </OrgContext.Provider>
     </PiecesContext.Provider>
     </RechercheContext.Provider>

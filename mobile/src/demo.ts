@@ -2,6 +2,7 @@ import type { Conge, CoutPersonne, DemandeBudget, Depense, DossierInvestissement
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
 import { jourMois } from './format';
+import { encoderPatch } from './perimetre';
 import { iterationOf, piOf, piStart, shiftIteration, shiftPi } from './pi';
 import { FILTRE_TOUT, photoDe, pointsPhoto } from './avancement';
 import { estOuvre, occurrences } from './series';
@@ -144,7 +145,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '70';
+const DEMO_DATA_VERSION = '71';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -987,6 +988,8 @@ const SEEDS_ENTREPRISE: Seeds = {
       // Lot 5 (16/10, T1) : une question reçue par Vous, temporisée à dans 3 jours (« ⏰ Temporisés »), et la question
       // de Vous à Tom qu'il a temporisée : Vous voit « Pris en compte · réponse prévue le … »
       ech('acmx19', { de: 'tom.faure@acme.example', a: MOI_DEMO, type: 'question', nature: 'question', titre: 'Peut-on décaler la démo du paiement ?', texte: 'Le prestataire ne sera prêt que mardi.', choix: 'Oui;Non', rappel_le: toDateString(addDays(new Date(), 3)) }),
+      // Lot 7 (16/10, P1) : Tom propose de faire entrer une story au sprint ; Vous (PO) valide, puis le SM confirme
+      ech('acmx20', { de: 'tom.faure@acme.example', a: MOI_DEMO, type: 'question', nature: 'decision_a_prendre', titre: '🎯 Changement de périmètre · Paiement en un clic', texte: `+5 j · entre dans le sprint · Sprint : sans sprint → sprint en cours\nRaison : le client signe vendredi s’il peut tester le paiement\nLe PO valide, puis le Scrum Master confirme. L’élément ne change qu’après la confirmation.\n${encoderPatch({ id: 'acm11', iteration: iterationOf(new Date()).key })}`, choix: 'Valider;Refuser (motif)', element: 'acm11' }),
       ech('acmx16', { de: 'paul.leroy@acme.example', a: 'sara.martin@acme.example', type: 'question', nature: 'action', titre: 'Accès au tableau de bord du train', texte: 'Paul a besoin d’un accès en lecture au tableau de bord du train.', choix: 'Fait;Pas possible (motif)', transmis_par: MOI_DEMO, niveau: 'train:acmtr1' }),
       // 💶 Lot 4 : une demande de budget à décider (Chat) et une information reçue (disparaît à la lecture)
       ech('acmx8', {

@@ -33,6 +33,9 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
 - Lot 6 Calcul automatique (K1-K4) — FAIT (16/10) : `src/calcul.ts` ; date du parent en gris (fiche tâche) ;
   estimation calculée d'une feature (placeholder) ; alerte epic ≠ features ; K4 : alerte seulement au-delà ;
   `npm run verif:calcul`. Reste : dates vers le haut affichées (feature, epic), CRA (K5, plus tard).
+- Lot 7 Changement de périmètre (P0, P1) — FAIT (16/10) pour la fiche d'une tâche : `src/perimetre.ts`,
+  `components/Perimetre.tsx` ; circuit PO → SM dans `App.repondreEchange` ; démo 71 (Tom propose « Paiement en un
+  clic ») ; `npm run verif:perimetre`. Reste : Backlog, Sprint, PI, train (features), abandon d'une story.
 - Décisions prises en l'absence de l'utilisateur : `docs/claude/decisions-lots.md` (à valider à son retour).
 - Lots 3 à 9 : en cours, dans l'ordre (voir plus bas).
 - À DISCUTER (demandé le 16/10) : **historique de l'application** — garder ou pas l'historique des éléments, notes,

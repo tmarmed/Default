@@ -1,3 +1,4 @@
+import { texteLisible } from '../perimetre';
 import { nomDepuisEmail } from '../format';
 import { estRevenu, estTemporise, libelleRappel, revenusEnHaut } from '../temporiser';
 import { toDateString } from '../dates';
@@ -549,7 +550,7 @@ function CarteMessage({ e, action, onAction, reponse, gris, pied, modifier, libe
       {!!e.element && <FilEchange id={e.element} />}
       <Text style={s.type}>{`${ICONE_NATURE_ECH[natureDe(e)]} ${LIBELLE_NATURE[natureDe(e)]}`}{onOuvrir ? '  ·  Ouvrir ›' : ''}</Text>
       {!!e.titre && <Text style={s.titre}>{e.titre}</Text>}
-      {!!e.texte && <Text style={s.texte}>{e.titre.startsWith('ℹ️ Pour information ·') ? 'Appuyer pour lire' : e.texte}</Text>}
+      {!!e.texte && <Text style={s.texte}>{e.titre.startsWith('ℹ️ Pour information ·') ? 'Appuyer pour lire' : texteLisible(e.texte)}</Text>}
       <PiecesEchange e={e} />
       {e.type === 'question' && !reponse && <Text style={s.meta}>Choix : {e.choix.split(';').filter(Boolean).join(' · ')}</Text>}
       {reponse && !!e.reponse && (
@@ -601,7 +602,7 @@ function CarteQuestion({ e, onRepondre, pied, onOuvrir }: { e: Echange; onRepond
       <Pressable onPress={onOuvrir} disabled={!onOuvrir} accessibilityRole="button">
         <Text style={s.type}>❓ Question{onOuvrir ? '  ·  Ouvrir ›' : ''}</Text>
         {!!e.titre && <Text style={s.titre}>{e.titre}</Text>}
-        {!!e.texte && <Text style={s.texte}>{e.texte}</Text>}
+        {!!e.texte && <Text style={s.texte}>{texteLisible(e.texte)}</Text>}
       </Pressable>
       <PiecesEchange e={e} />
       <View style={s.choix}>

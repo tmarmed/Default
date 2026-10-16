@@ -1,3 +1,4 @@
+import { texteLisible } from '../perimetre';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
@@ -153,7 +154,7 @@ export function ChatEchanges({ visible, titre, moi, elements, onFermer, onRepond
         />
         {!!e.texte && (
           <SectionFiche titre="Message">
-            <Text style={s.texte}>{e.texte}</Text>
+            <Text style={s.texte}>{texteLisible(e.texte)}</Text>
           </SectionFiche>
         )}
         {idsPieces(e).length > 0 && (

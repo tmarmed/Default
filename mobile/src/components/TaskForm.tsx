@@ -18,6 +18,8 @@ import {
 } from '../types';
 import { Chips } from './Chips';
 import { DateField } from './DateField';
+import { type DemandePerimetre, FeuillePerimetre, useProposerPerimetre } from './Perimetre';
+import { changementPerimetre } from '../perimetre';
 import { dateHeritee, libelleDateHeritee } from '../calcul';
 import { checkRecurrence, RecurrenceFields } from './RecurrenceFields';
 import { LinkPicker } from './LinkPicker';
@@ -213,6 +215,9 @@ export function TaskForm({
   const [form, setForm] = useState<ItemInput>(empty(defaultType, defaultDate, defaultIteration));
   const { busy, error, setError, essayer } = useEtatFiche();
   const safe = useSafe();
+  // Lot 7 (16/10) : changement de périmètre proposé (fenêtre commune)
+  const proposerPerimetre = useProposerPerimetre();
+  const [perimetre, setPerimetre] = useState<DemandePerimetre | null>(null);
   const org = useOrg();
   const moi = useMoi();
   // Droits d'après les rôles : calculés sur l'élément enregistré (un nouvel élément est toujours modifiable)
@@ -362,7 +367,22 @@ export function TaskForm({
     form,
     setForm,
     bloque: erreurForm ?? (enAttente ? 'question' : null),
-    enregistrer: (f) => onSave(preparer(f), [], { terminerSousTaches: passeTermine && !!terminerSous, rester: true }),
+    enregistrer: (f) => {
+      // P0 / P1 (16/10) : un changement qui fait varier les points engagés du sprint en cours (hors Planification)
+      // n'est pas enregistré tout de suite : la fenêtre « 🎯 Changement de périmètre » le propose au PO et au SM
+      if (item && proposerPerimetre && safe.actif && item.equipe) {
+        const c = changementPerimetre(item, { ...item, iteration: f.iteration, points: f.points, parent: f.parent }, iterationOf(new Date()).key);
+        if (c.oui) {
+          const patch = { id: item.id, ...(f.iteration !== item.iteration ? { iteration: f.iteration } : {}), ...(f.points !== item.points ? { points: f.points } : {}) };
+          const changement = [patch.iteration !== undefined ? `Sprint : ${iterationNom(item.iteration) || 'sans sprint'} → ${iterationNom(f.iteration) || 'sans sprint'}` : '', patch.points !== undefined ? `Estimation : ${item.points || '0'} → ${f.points || '0'}` : ''].filter(Boolean).join(' · ');
+          setPerimetre({ item, patch, changement, impact: c });
+          const garde = { ...f, iteration: item.iteration, points: item.points };
+          setForm(garde);
+          return onSave(preparer(garde), [], { terminerSousTaches: passeTermine && !!terminerSous, rester: true });
+        }
+      }
+      return onSave(preparer(f), [], { terminerSousTaches: passeTermine && !!terminerSous, rester: true });
+    },
     decrire: (a, b) => decrireTache(a, b),
   });
   /** Texte du bandeau : « Responsable : Nina Dupont », « Titre enregistré », « 2 changements enregistrés » */
@@ -822,6 +842,7 @@ export function TaskForm({
               />
             )}
             </BlocLecture>
+            <FeuillePerimetre demande={perimetre} unite={safe.pointsJours ? 'j' : 'pts'} onFermer={() => setPerimetre(null)} />
     </FormSheet>
     </HierarchyContext.Provider>
   );
