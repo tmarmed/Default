@@ -32,6 +32,13 @@
 | Règles communes (concrétisation, créations, compte rendu, messages) | `moteur.ts` | `reunion/moteur.ts` |
 | Avancement depuis la réunion précédente | `useAvancement`, `FiltreAvancement` | `reunion/Avancement.tsx` |
 | Blocs du budget dans les réunions | `BlocDemandesBudget`, `BlocEnveloppes`, `BlocEcarts`… | `components/Budget.tsx` |
+| Règles des notes (plusieurs éléments, 🔒 Perso, impact sur l'équipe, rappel 🟡, Déplacer, historique) | `elementsDe`, `impactNote`, `impactConcretisation`, `rappelPreparation`, `reunionsCibles`, `deplacement` | `src/notes.ts` |
+| Éléments concernés en toutes lettres (« sur 📖 A · ✓ B ») | `surElements`, `libelleElements` | `src/elementConcerne.ts` |
+| Une note (état, éléments, historique) ; notes gardées dans 🔒 Moi ; impact ; « Déplacer » | `LigneNote`, `usePreparationMoi`, `useCtxImpact`, `optionsDeplacement`, `patchPartage` | `reunion/Notes.tsx` |
+| Saisie d'une note (types, plusieurs éléments, 🔒 Perso) | `SaisiePoint`, `LignesElements`, `LigneElement` | `reunion/ui.tsx` |
+
+Doublons connus (à unifier quand on y touche) : `useEquipeDaily` (Daily.tsx) et `useEquipe` (base.tsx) ; la
+préparation (`prep`, `reprendre`, envoi) du Daily et de `useReunion` ; ils partagent déjà `usePreparationMoi` et `LigneNote`.
 
 Règles : un bloc de réunion passe par `BlocBrique` (le style `SectionFiche` est réservé aux fiches et au Pilotage) ;
 une variante = une option de la pièce commune, pas une copie.

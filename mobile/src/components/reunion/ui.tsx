@@ -8,6 +8,7 @@ import type { Concretisation, Item, SousType, Statut, TypePoint } from '../../ty
 import { LigneChoix, SectionFiche } from '../Choix';
 import { useHierarchy } from '../../hierarchyContext';
 import { elementDe, tousLesElements } from '../../elementConcerne';
+import { avecElements, type CtxImpact, impactNote } from '../../notes';
 import { FormSheet } from '../FormSheet';
 import { vocab } from '../../vocabulaire';
 
@@ -295,7 +296,16 @@ export function SaisiePoint({
   aide,
   onAjouter,
   contexte = [],
+  perso,
+  dansEquipe,
 }: {
+  /**
+   * Lot 1 (16/10) · V1-V2 : case « 🔒 Perso » (la note reste dans 🔒 Moi, visible par vous seul), retirée quand
+   * l'application repère un impact sur l'équipe ; rien = pas de case (réunion déjà perso, notes de l'animateur)
+   */
+  perso?: CtxImpact;
+  /** N3 : « Autre élément… » limité aux éléments de l'équipe (un élément d'une autre équipe : escalade ou Transmettre) */
+  dansEquipe?: (id: string) => boolean;
   /** Éléments du contexte de la réunion (ids), proposés en premier dans « Élément concerné » */
   contexte?: string[];
   /** Ligne d'aide sous le lien */
@@ -314,7 +324,7 @@ export function SaisiePoint({
   /** Point ajouté au Suivi (un oubli) : la fenêtre contient aussi la Concrétisation et le responsable */
   concretiser?: { personnes: { value: string; label: string }[]; respDefaut: string };
   premiere?: boolean;
-  onAjouter: (type: TypePoint, texte: string, element: string, conc?: { c: Concretisation; resp: string }, sous?: SousType) => void;
+  onAjouter: (type: TypePoint, texte: string, element: string, conc?: { c: Concretisation; resp: string }, sous?: SousType, plus?: PlusNote) => void;
 }) {
   // Règle commune (07/10) : un simple « ＋ … » sous la liste, qui ouvre une seule fenêtre
   const [ouvert, setOuvert] = useState(false);
@@ -322,6 +332,9 @@ export function SaisiePoint({
   const [type, setType] = useState<TypePoint>(parDefaut());
   const [texte, setTexte] = useState('');
   const [element, setElement] = useState(elementDefaut);
+  /** N3 : autres éléments concernés (le premier reste `element`) */
+  const [autres, setAutres] = useState<string[]>([]);
+  const [estPerso, setEstPerso] = useState(false);
   const [c, setC] = useState<Concretisation>('tache');
   const [resp, setResp] = useState(concretiser?.respDefaut ?? '');
   // Décision (validation du 08/10) : un seul type, sous-type « à prendre » (par défaut) ou « prise »
@@ -333,6 +346,8 @@ export function SaisiePoint({
     setType(parDefaut());
     setSousType('a_prendre');
     setElement(elementDefaut);
+    setAutres([]);
+    setEstPerso(false);
     setTexte('');
     setC('tache');
     setResp(concretiser?.respDefaut ?? '');
@@ -343,10 +358,13 @@ export function SaisiePoint({
     if (!t) return;
     const cc: Concretisation = c === 'sous_tache' && !element ? 'tache' : c;
     const partagee = type === 'information' && !aConcret;
-    onAjouter(type, t, element, partagee ? { c: 'rien', resp: '' } : concretiser ? { c: cc, resp } : undefined, type === 'decision' ? sousType : '');
+    const { element: el, elements } = avecElements([element, ...autres]);
+    onAjouter(type, t, el, partagee ? { c: 'rien', resp: '' } : concretiser ? { c: cc, resp } : undefined, type === 'decision' ? sousType : '', { elements, perso: !!perso && estPerso && !impact });
     setOuvert(false);
   };
   const libelle = placeholder.replace(/^＋\s*/, '');
+  // V2 : un impact repéré sur l'équipe retire la case « 🔒 Perso »
+  const impact = perso ? impactNote({ type, element, elements: autres.join(',') }, perso) : '';
   return (
     <View style={[st.saisieBloc, !premiere && st.bord]}>
       <Pressable onPress={ouvrir} style={st.saisieLigne} accessibilityRole="button" accessibilityLabel={libelle}>
@@ -368,9 +386,9 @@ export function SaisiePoint({
             </View>
           </SectionFiche>
         )}
-        {/* Élément concerné (08/10) : un seul, ceux du contexte d'abord, puis « Autre élément… » (recherche) */}
+        {/* Éléments concernés (08/10, plusieurs le 16/10 : N3) : ceux du contexte d'abord, puis « Autre élément… » */}
         <SectionFiche titre="Élément concerné">
-          <LigneElement value={element} onChange={setElement} contexte={[...stories.map((t) => t.id), ...contexte]} />
+          <LignesElements premier={element} autres={autres} onPremier={setElement} onAutres={setAutres} contexte={[...stories.map((t) => t.id), ...contexte]} dansEquipe={dansEquipe} />
         </SectionFiche>
         <SectionFiche titre="Note">
           <View style={st.champPoint}>
@@ -388,6 +406,15 @@ export function SaisiePoint({
             />
           </View>
         </SectionFiche>
+        {!!perso && (
+          <SectionFiche titre="Partage">
+            {impact ? (
+              <Ligne premiere texte="À partager avec l’équipe" sous={`« 🔒 Perso » impossible : la note ${impact}.`} pastille={{ texte: 'à partager', ton: 'bleu' }} />
+            ) : (
+              <LigneCase premiere texte="🔒 Perso" sous={estPerso ? 'visible par vous seul, gardée dans 🔒 Moi' : 'à partager : l’équipe la voit quand vous envoyez votre point'} pastille={{ texte: estPerso ? 'perso' : 'à partager', ton: estPerso ? 'gris' : 'bleu' }} coche={estPerso} onBasculer={() => setEstPerso((x) => !x)} />
+            )}
+          </SectionFiche>
+        )}
         {type === 'information' && (
           <SectionFiche titre="Suite">
             <LigneCase premiere texte="À concrétiser" sous={aConcret ? 'à l’étape Concrétisation, comme les autres notes' : 'seulement partagée (compte rendu), close'} pastille={{ texte: aConcret ? 'oui' : 'non', ton: aConcret ? 'bleu' : 'gris' }} coche={aConcret} onBasculer={() => setAConcret((x) => !x)} />
@@ -527,7 +554,7 @@ export const st = StyleSheet.create({
  * « Élément concerné › » d'un point (08/10) : un seul élément ou « Aucun · note générale » ; les éléments du contexte
  * de la réunion d'abord, puis « Autre élément… » (tous, avec recherche)
  */
-export function LigneElement({ value, onChange, contexte }: { value: string; onChange: (v: string) => void; contexte: string[] }) {
+export function LigneElement({ value, onChange, contexte, dansEquipe, label = 'Concerne', sans = 'Aucun · note générale', ouverte, onAnnuler }: { value: string; onChange: (v: string) => void; contexte: string[]; dansEquipe?: (id: string) => boolean; label?: string; sans?: string; ouverte?: boolean; onAnnuler?: () => void }) {
   const h = useHierarchy();
   const vus = new Set<string>();
   const ctx = contexte
@@ -535,20 +562,61 @@ export function LigneElement({ value, onChange, contexte }: { value: string; onC
     .map((id) => elementDe(id, h))
     .filter((x): x is NonNullable<typeof x> => !!x);
   const ids = new Set(ctx.map((x) => x.id));
-  const autres = tousLesElements(h).filter((x) => !ids.has(x.id));
+  const autres = tousLesElements(h).filter((x) => !ids.has(x.id) && (!dansEquipe || dansEquipe(x.id)));
   return (
     <LigneChoix
-      label="Concerne"
+      label={label}
       value={value}
       onChange={onChange}
       groupes={[{ titre: ctx.length ? 'De la réunion' : undefined, options: ctx.map((x) => ({ value: x.id, label: `${x.icone} ${x.titre}` })) }]}
-      autres={{ titre: 'Autre élément…', groupes: [{ options: autres.map((x) => ({ value: x.id, label: `${x.icone} ${x.titre}` })) }] }}
-      sans="Aucun · note générale"
-      vide="Aucun · note générale"
+      autres={{ titre: dansEquipe ? 'Autre élément de l’équipe…' : 'Autre élément…', groupes: [{ options: autres.map((x) => ({ value: x.id, label: `${x.icone} ${x.titre}` })) }] }}
+      sans={sans}
+      vide={sans}
+      ouverte={ouverte}
+      onAnnuler={onAnnuler}
       libelle={(v) => {
         const x = elementDe(v, h);
-        return x ? `${x.icone} ${x.titre}` : 'Aucun · note générale';
+        return x ? `${x.icone} ${x.titre}` : sans;
       }}
     />
+  );
+}
+
+/** Ce que la saisie d'une note ajoute (16/10) : autres éléments concernés, 🔒 Perso */
+export interface PlusNote {
+  elements: string;
+  perso: boolean;
+}
+/**
+ * Éléments concernés d'une note (N3, 16/10) : le premier, puis « ＋ Autre élément concerné » (même ligne de choix,
+ * « Retirer » pour l'enlever) ; un élément d'une autre équipe passe par l'escalade ou « Transmettre »
+ */
+export function LignesElements({ premier, autres, onPremier, onAutres, contexte, dansEquipe }: { premier: string; autres: string[]; onPremier: (v: string) => void; onAutres: (l: string[]) => void; contexte: string[]; dansEquipe?: (id: string) => boolean }) {
+  const pris = new Set([premier, ...autres]);
+  const ctx = contexte.filter((id) => !pris.has(id));
+  return (
+    <>
+      <LigneElement value={premier} onChange={onPremier} contexte={contexte} dansEquipe={dansEquipe} />
+      {autres.map((id, i) => (
+        <LigneElement
+          key={`${i}-${id}`}
+          label="Concerne aussi"
+          sans="Retirer"
+          value={id}
+          onChange={(v) => onAutres(v ? autres.map((x, j) => (j === i ? v : x)) : autres.filter((_, j) => j !== i))}
+          contexte={ctx}
+          dansEquipe={dansEquipe}
+          // « ＋ Autre élément concerné » ouvre directement la liste ; Annuler sans choix retire la ligne
+          ouverte={!id}
+          onAnnuler={!id ? () => onAutres(autres.filter((_, j) => j !== i)) : undefined}
+        />
+      ))}
+      {!!premier && (
+        <Pressable onPress={() => onAutres([...autres, ''])} style={st.saisieLigne} accessibilityRole="button">
+          <Text style={st.ajouterLien}>＋ Autre élément concerné</Text>
+        </Pressable>
+      )}
+      {!!dansEquipe && <Text style={[st.sous, { marginHorizontal: 14, marginBottom: 8 }]}>Éléments de votre équipe ; pour une autre équipe : escaladez ou transmettez.</Text>}
+    </>
   );
 }

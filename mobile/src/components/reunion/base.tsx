@@ -38,7 +38,7 @@ import { BlocBrique, TitreGroupe } from './Brique';
 import { peutAnimer } from '../../transverses';
 import { toDateString } from '../../dates';
 import { focusDe, type Perimetre } from '../../avancement';
-import { libelleElement } from '../../elementConcerne';
+import { libelleElements } from '../../elementConcerne';
 import { echeanceParDefaut, jourCourt, relierEscalades, validateurDe } from '../../pointsSuivi';
 import { cheminElement } from './Suivi';
 import { BlocHorsReunion, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, repartirSuivis, statutAffiche } from './Suivi';
@@ -52,7 +52,9 @@ import { estAutre, placeholderNote } from '../EchangesView';
 import { FenetreReunion, type OngletReunion } from '../FenetreReunion';
 import { TitreFiche } from '../FormSheet';
 import { useLive } from '../useLive';
-import { Compteur, FiltresType, FiltresVue, Ligne, Pastille, PastilleFiltres, Pastilles, pluriel, SaisiePoint, st, TITRE_TYPE, tonType, Vide, type VueSuivi } from './ui';
+import { estPerso } from '../../notes';
+import { LigneNote, optionsDeplacement, patchPartage, usePreparationMoi, useCtxImpact } from './Notes';
+import { Compteur, FiltresType, FiltresVue, Ligne, Pastille, PastilleFiltres, Pastilles, pluriel, SaisiePoint, st, TITRE_TYPE, tonType, Vide, type VueSuivi, type PlusNote } from './ui';
 
 /**
  * Socle commun des réunions d'équipe (07/10) : Planification, Revue, Rétrospective, Affinage (le Daily, validé le
@@ -187,7 +189,8 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
   const [reponses, setReponses] = useState<Record<string, { c: string; note: string }>>({});
   const serveur = useMemo(() => sansTech(lus), [lus]);
   const ici = (x: Pick<PointReunion, 'reunion'>) => x.reunion === reunion.id;
-  const tous = useMemo(() => [...serveur.filter((x) => !(x.id in anciens)), ...prep.filter((x) => !estTechnique(x)), ...locaux] as PointReunion[], [serveur, anciens, prep, locaux]);
+  // 🔒 Perso (V1) : jamais dans la séance (seulement dans « Mes notes » de votre préparation)
+  const tous = useMemo(() => [...serveur.filter((x) => !(x.id in anciens)), ...prep.filter((x) => !estTechnique(x) && !estPerso(x)), ...locaux] as PointReunion[], [serveur, anciens, prep, locaux]);
   const e = useEquipe(reunion, org, aujourdhui, tous, echanges);
   const moiP = personneParEmail(mail, org);
   // Anime : l'organisateur, son Suppléant ou un Coach agile du niveau (rôles transverses, 13/10)
@@ -225,6 +228,8 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
         setLus(l);
         reprendre(l);
         setCharge(true);
+        // Lot 1 (16/10) : vos notes gardées dans 🔒 Moi (En préparation, 🔒 Perso) reviennent dans votre préparation
+        return prepMoi.charger(idLocal).then((m) => actif && m.length && setPrep((p) => [...p, ...m.map((x) => ({ ...x, onglet: 'membre' as Onglet }))]));
       })
       .catch((err) => actif && (setCharge(true), onInfo?.(`Points de la réunion non lus : ${(err as Error).message}`)));
     return () => {
@@ -246,6 +251,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     onPoints: (l) => setLus((avant) => [...avant.filter((x) => !ici(x)), ...l.filter(ici)]),
   });
 
+  const prepMoi = usePreparationMoi({ actions, reunion, mail, onInfo });
   /** Nouveau point (ou donnée) de votre préparation */
   const nouveau = (type: TypePoint, texte: string, element = '', onglet: Onglet = 'membre', tache = ''): Local => ({
     onglet,
@@ -274,11 +280,27 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
       const reste = l.filter((x) => !(x.type === 'donnee' && lireDonnee<{ c?: string }>(x)?.k === k && lireDonnee<{ c?: string }>(x)?.c === cle));
       return valeur ? [...reste, nouveau('donnee', JSON.stringify({ k, c: cle, o: onglet, ...valeur }), element, onglet)] : reste;
     });
-  const ajouterPrep = (type: TypePoint, texte: string, element: string, onglet: Onglet = 'membre', sous_type: SousType = '') => setPrep((l) => [...l, { ...nouveau(type, texte, element, onglet), sous_type }]);
-  const retirerPrep = (id: string) => setPrep((l) => l.filter((y) => y.id !== id));
+  /** Note de votre préparation : gardée aussitôt dans 🔒 Moi (« En préparation » ou « 🔒 Perso ») jusqu'à l'envoi */
+  const ajouterPrep = (type: TypePoint, texte: string, element: string, onglet: Onglet = 'membre', sous_type: SousType = '', plus?: PlusNote) => {
+    const x: Local = { ...nouveau(type, texte, element, onglet), sous_type, elements: plus?.elements ?? '', perso: plus?.perso ? '1' : '' };
+    setPrep((l) => [...l, x]);
+    void prepMoi.garder(x);
+  };
+  const retirerPrep = (id: string) => {
+    setPrep((l) => l.filter((y) => y.id !== id));
+    void prepMoi.oublier([id]);
+  };
+  /** V3 : une note perso devient « à partager » (elle part avec votre point), avec une ligne d'historique */
+  const partagerPrep = (id: string) => {
+    const y = prep.find((x) => x.id === id);
+    if (!y) return;
+    const patch = patchPartage(y, nomPersonne(org, mail), toDateString(new Date()));
+    setPrep((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    void prepMoi.modifier(id, patch);
+  };
   /** Noté en séance par l'animateur, pour une personne */
-  const noter = (x: { personne: string; type: TypePoint; texte: string; element: string; sous_type?: SousType }) => {
-    const pt = { ...nouveau(x.type, x.texte, x.element), personne: x.personne.toLowerCase(), sous_type: x.sous_type ?? '' };
+  const noter = (x: { personne: string; type: TypePoint; texte: string; element: string; sous_type?: SousType; elements?: string }) => {
+    const pt = { ...nouveau(x.type, x.texte, x.element), personne: x.personne.toLowerCase(), sous_type: x.sous_type ?? '', elements: x.elements ?? '' };
     setLocaux((l) => [...l, pt]);
     return pt;
   };
@@ -292,14 +314,17 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
 
   /** Envoi d'un onglet (Mon point, PO) : réponses aux échanges (un lot), puis points et données (un lot) */
   const envoyerPrep = async (o: Onglet) => {
-    const pts = preparation.filter((x) => (x.onglet ?? 'membre') === o);
+    // 🔒 Perso (V1) : jamais envoyé, reste dans 🔒 Moi
+    const pts = preparation.filter((x) => (x.onglet ?? 'membre') === o && !estPerso(x));
     const icic = o === 'po' ? reponsesPO.filter((r) => r.ici) : [];
     if (icic.length) await actions.repondreEchanges(icic.map((r) => ({ e: r.q, reponse: r.q.reponse, note: r.q.note })));
     const retires = Object.keys(anciens).filter((id) => anciens[id] === o);
     const { crees } = await actions.ecrirePoints(espace, pts.map(aEcrire), [], retires);
     setLus((l) => [...l.filter((x) => !retires.includes(x.id)), ...crees]);
     setAnciens((a) => ({ ...Object.fromEntries(Object.entries(a).filter(([id]) => !retires.includes(id))), ...Object.fromEntries(crees.map((x) => [x.id, o])) }));
-    setPrep((l) => [...l.filter((x) => (x.onglet ?? 'membre') !== o), ...crees.map((x) => ({ ...x, id: idLocal(), onglet: o }))]);
+    setPrep((l) => [...l.filter((x) => (x.onglet ?? 'membre') !== o || estPerso(x)), ...crees.map((x) => ({ ...x, id: idLocal(), onglet: o }))]);
+    // Partagées : elles sortent de 🔒 Moi
+    await prepMoi.oublier(pts.map((x) => x.id));
     if (o === 'po') setReponses({});
     const n = pts.filter((x) => !estTechnique(x)).length;
     onInfo?.(
@@ -502,6 +527,7 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     return { moi: moiC, equipe: equipeC, validateurs, contexte: e.situation.cartes.map((t) => t.id) };
   };
   const ctxSuivi: CtxSuivi = {
+    deplacer: optionsDeplacement({ reunion, org, actions, aujourdhui, par: nomPersonne(org, mail) }),
     espace,
     jour: e.jour,
     moi: mail,
@@ -557,6 +583,8 @@ export function useReunion(p: PropsReunion, catalogue: CatalogueParcours, opts: 
     poserDonnee,
     ajouterPrep,
     retirerPrep,
+    partagerPrep,
+    prepMoi,
     noter,
     retirerNote,
     questions,
@@ -815,6 +843,12 @@ export function BlocPoints({
   const liste = points.filter((y) => !estTechnique(y) && y.type !== 'hier' && y.type !== 'aujourdhui');
   const filtres = liste.filter((y) => !filtre || y.type === filtre);
   const vus = arbo ? [...filtres].sort((x, y) => cheminElement(x.element, e.h).localeCompare(cheminElement(y.element, e.h))) : filtres;
+  const impact = useCtxImpact(r.mail, e.jour);
+  /** N3 : éléments de l'équipe seulement (une tâche d'une autre équipe : escalade ou Transmettre) */
+  const dansEquipe = (id: string) => {
+    const t = e.parId.get(id);
+    return !t || e.dansEquipe(t);
+  };
   // Brique Notes (14/10) : coque commune (carte blanche, titre « Notes (3) », 🌳, filtre par type)
   return (
     <BlocBrique
@@ -826,17 +860,11 @@ export function BlocPoints({
     >
       {vus.map((y, i) => {
         const par = y.auteur === r.mail && !pourPrep && r.anime ? 'par le SM' : `par ${e.nomDe(y.personne)}`;
-        const s = y.element ? e.parId.get(y.element)?.titre : '';
         return (
           <View key={y.id}>
             {arbo && (i === 0 || cheminElement(vus[i - 1].element, e.h) !== cheminElement(y.element, e.h)) && <TitreGroupe texte={cheminElement(y.element, e.h)} />}
-            <Ligne
-              premiere={i === 0 && !arbo}
-              texte={y.texte}
-              sous={[par, s && !arbo ? `sur 📖 ${s}` : ''].filter(Boolean).join(' · ')}
-              pastille={{ texte: libelleNote(y), ton: tonType(y.type) }}
-              onRetirer={!lecture && y.id.startsWith('local-') ? () => r.retirerNote(y.id) : undefined}
-            />
+            {/* Ligne commune des notes (16/10) : éléments, En préparation, 🔒 Perso, rappel 🟡, historique */}
+            <LigneNote y={y} par={par} premiere={i === 0 && !arbo} prep={pourPrep ? r.prepMoi : undefined} onPartager={pourPrep ? () => r.partagerPrep(y.id) : undefined} onRetirer={!lecture && y.id.startsWith('local-') ? () => r.retirerNote(y.id) : undefined} />
           </View>
         );
       })}
@@ -853,7 +881,9 @@ export function BlocPoints({
           placeholder={placeholder}
           stories={stories ?? e.situation.cartes}
           elementDefaut={element}
-          onAjouter={(type, texte, el, _c, sous_type) => (pourPrep ? r.ajouterPrep(type, texte, el, onglet, sous_type) : void r.noter({ personne: r.mail, type, texte, element: el, sous_type }))}
+          perso={pourPrep && r.prepMoi.actif ? impact : undefined}
+          dansEquipe={dansEquipe}
+          onAjouter={(type, texte, el, _c, sous_type, plus) => (pourPrep ? r.ajouterPrep(type, texte, el, onglet, sous_type, plus) : void r.noter({ personne: r.mail, type, texte, element: el, sous_type, elements: plus?.elements ?? '' }))}
         />
       )}
     </BlocBrique>
@@ -912,7 +942,7 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
   const [ouvert, setOuvert] = useState<string | null>(null);
   const liste = lecture ? r.serveur.filter((y) => r.ici(y) && aConcretiser(y)) : r.aDecider;
   const nomComplet = (m: string) => e.nomDe(m);
-  const origine = (pt: PointReunion) => [`Notée par ${e.nomDe(pt.personne)}${pt.reunion.slice(-10) < e.jour ? ` le ${jourCourt(pt.reunion.slice(-10))}` : ''}`, libelleElement(pt.element, e.h)].filter(Boolean).join(' · ');
+  const origine = (pt: PointReunion) => [`Notée par ${e.nomDe(pt.personne)}${pt.reunion.slice(-10) < e.jour ? ` le ${jourCourt(pt.reunion.slice(-10))}` : ''}`, libelleElements(pt, e.h)].filter(Boolean).join(' · ');
   // Personnes proposées dans la feuille : vous, votre équipe (transmettre), le niveau du dessus (escalader), les validateurs
   const moi = { email: r.mail, nom: e.nomDe(r.mail), meta: 'vous' };
   const equipe = e.personnes.map((y) => ({ email: y.email.toLowerCase(), nom: y.nom, meta: e.role(y.id) === 'Membre' ? '' : e.role(y.id) }));
@@ -989,6 +1019,8 @@ export function EtapeConcretisation({ r, lecture, iterationCode }: { r: R; lectu
             <FeuilleConcretiser
               sous={`${libelleNote(pt)} · notée par ${e.nomDe(pt.personne)} : « ${pt.texte} »`}
               valeur={r.choixDe(pt)}
+              note={pt}
+              jour={r.e.jour}
               autres={e.equipe ? autresEquipesDuTrain(e.equipe.id, r.org) : []}
               nomEquipe={e.nomNiveau}
               nomDessus={e.niveauSup?.kind === 'portfolio' ? `Portfolio ${e.portfolio?.nom ?? ''}` : e.train ? `Train ${e.train.nom}` : ''}

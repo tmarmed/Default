@@ -113,7 +113,7 @@ export const ONGLET_PIECES = { nom: 'PiecesJointes', colonnes: ['id', 'piece', '
 /** Points notés pendant les réunions (daily…) : onglet créé au premier usage, dans le Sheet de l'espace de l'équipe */
 export const ONGLET_POINTS = {
   nom: 'PointsReunion',
-  colonnes: ['id', 'reunion', 'personne', 'auteur', 'type', 'texte', 'element', 'concretisation', 'tache', 'responsable', 'cree_le', 'statut', 'validateur', 'echeance', 'note', 'type_cree', 'rattache', 'echange', 'sous_type', 'hors_reunion'],
+  colonnes: ['id', 'reunion', 'personne', 'auteur', 'type', 'texte', 'element', 'concretisation', 'tache', 'responsable', 'cree_le', 'statut', 'validateur', 'echeance', 'note', 'type_cree', 'rattache', 'echange', 'sous_type', 'hors_reunion', 'elements', 'perso', 'historique'],
 };
 /** Séries de réunions (07/10) : une ligne par série (règle + exceptions), onglet créé au premier usage */
 export const ONGLET_SERIES = { nom: 'Reunions', colonnes: [...COLONNES_SERIE] as string[] };
@@ -448,6 +448,11 @@ export function nettoyerPoint(data: Partial<PointReunion>, base?: PointReunion):
   const permis = out.type === 'decision' ? ['a_prendre', 'prise'] : out.type === 'proposition' ? ['reportee'] : [];
   if (!permis.includes(out.sous_type)) out.sous_type = '';
   out.type_cree = out.type_cree.replace(/[^a-z_-]/g, '').slice(0, 30);
+  // Lot 1 (16/10) : autres éléments concernés, 🔒 Perso, historique (déplacements, partage)
+  out.elements = out.elements.split(',').map((x) => x.trim()).filter((x) => !!x && x !== out.element).join(',');
+  if (out.elements && !out.elements.split(',').every((x) => RE_ID.test(x))) throw new Error('Éléments concernés invalides.');
+  if (out.perso !== '1') out.perso = '';
+  out.historique = out.historique.trim().slice(-1000);
   return out as unknown as PointReunion;
 }
 

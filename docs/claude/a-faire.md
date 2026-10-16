@@ -2,6 +2,21 @@
 
 Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est fait, ajouter ce qui reste.
 
+## Développement des 9 lots (16/10, en cours) — l'utilisateur a demandé de les développer tous, en insistant sur la réutilisation des pièces communes
+- Lot 1 Notes (N1-N3, V1-V4, D1) — FAIT (16/10, à valider sur captures) : pièce commune `src/notes.ts` (règles) et
+  `reunion/Notes.tsx` (`LigneNote`, `usePreparationMoi`, `useCtxImpact`, `optionsDeplacement`), branchées sur le Daily ET
+  les autres réunions (`base.tsx`) ; `SaisiePoint` : plusieurs éléments (`LignesElements`, éléments de l'équipe
+  seulement) et case « 🔒 Perso » (retirée si impact) ; `FeuilleConcretiser` : suivi imposé (N2, impact calculé pour
+  l'auteur de la note) ; fiche d'un suivi : historique et « ➜ Déplacer vers une autre réunion » ; `pointsDeSuivi` filtre
+  la série (un point déplacé n'est jamais en double). Champs nouveaux du point : `elements`, `perso`, `historique`.
+  Démo 66 : note en préparation du Daily d'hier (🟡), note 🔒 Perso, note sur deux éléments (Emma Roy), suivi déplacé
+  de la Revue de sprint par Nina Dupont. Tests : `npm run verif:notes` (25 règles).
+  Régressions à surveiller : chaque note de préparation coûte une écriture dans 🔒 Moi (et une à l'envoi, groupée) ;
+  les notes 🔒 Perso n'apparaissent plus au tour de table ; « sur 📖 » devient l'icône du vrai type (✓ pour une tâche).
+  Reste : concrétiser une note 🔒 Perso d'une réunion d'équipe ailleurs qu'au Point perso ; unifier `useEquipeDaily` /
+  `useEquipe` et la préparation du Daily / `useReunion` (doublons notés dans code.md).
+- Lots 2 à 9 : à faire, dans l'ordre (voir plus bas).
+
 ## Brainstorm en cours (15/10) : calcul automatique, bruit, retouche, changement de périmètre — PAS ENCORE CODÉ
 SPÉCIFICATION ÉCRITE ET VALIDÉE (16/10) : docs/regles-reunions.html, blocs 16 et 17 (ils priment sur les lignes
 ci-dessous en cas de différence) ; glossaire mis à jour. Changement de périmètre au train (16/10, en cours) : seulement le PI EN COURS, après le PI Planning (avant : pas de

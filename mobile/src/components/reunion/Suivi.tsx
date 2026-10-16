@@ -24,6 +24,8 @@ import type { ActionsDaily } from '../Daily';
 import { FeuilleConcretiser, stylesFeuille as s } from './Concretiser';
 import { Ligne, type Ton } from './ui';
 import { TitreGroupe } from './Brique';
+import { type CibleDeplacement, deplacement, lignesHistorique } from '../../notes';
+import { FeuilleChoix } from '../Choix';
 
 type H = Pick<HierarchyValue, 'items' | 'featureList' | 'epicList' | 'objectifList' | 'objectifsPI' | 'resultats'>;
 
@@ -50,6 +52,8 @@ export interface CtxSuivi {
   /** Ce que la re-concrétisation crée (espace, sprint, équipe…), voir elementACreer */
   ctxCreer: (pt: PointReunion) => Parameters<typeof elementACreer>[2];
   onInfo?: (t: string) => void;
+  /** D1 (16/10) : « Déplacer » vers une autre de mes réunions (responsables de la réunion ou du point) */
+  deplacer?: { cibles: (pt: PointReunion) => CibleDeplacement[]; par: string };
   /** Changements d'un suivi depuis la réunion précédente (14/10, même affichage que l'arbre des éléments) */
   changements?: (p: PointReunion) => { point: boolean; lignes: string[]; garder: boolean };
 }
@@ -58,7 +62,11 @@ export interface CtxSuivi {
  * Points de suivi (08/10) : concrétisés avec un statut, d'une réunion précédente de la série, ou du jour (note suivie
  * depuis le Chat, « 📌 Suivre à », ou concrétisée à un compte rendu déjà envoyé)
  */
-export const pointsDeSuivi = (points: PointReunion[], reunionId: string) => points.filter((p) => !!p.statut && p.reunion <= reunionId);
+export const pointsDeSuivi = (points: PointReunion[], reunionId: string) => {
+  // Un point déplacé (D1, 16/10) change de série : il n'est plus suivi ici (jamais en double)
+  const serie = reunionId.slice(0, -10);
+  return points.filter((p) => !!p.statut && p.reunion.startsWith(serie) && p.reunion <= reunionId);
+};
 
 /** Statut affiché : celui du point (Fait si sa tâche est terminée) ; « Fait · réponse reçue » d'une escalade */
 export function statutAffiche(p: PointReunion, items: Item[], jour: string): { s: StatutSuivi; texte: string; ton: Ton } {
@@ -87,7 +95,8 @@ function sousSuiviSansLien(p: PointReunion, st: StatutSuivi, nomDe: (e: string) 
   const resp = p.responsable || p.personne;
   if (st === 'valide') return `${quoiSuivi(p)} · validé par ${nomDe(p.validateur || resp)}`;
   if ((st === 'fait' && roleEscalade(p) === 'bas') || ((st === 'a_reprendre' || st === 'abandonne') && p.note)) return p.note || '';
-  return [quoiSuivi(p), `Responsable : ${nomDe(resp)}`, p.validateur ? `Validation : ${nomDe(p.validateur)}` : '', p.echeance ? `Échéance : ${jourCourt(p.echeance)}` : '', p.note && st === 'fait' ? p.note : ''].filter(Boolean).join(' · ');
+  const histo = lignesHistorique(p.historique);
+  return [quoiSuivi(p), `Responsable : ${nomDe(resp)}`, p.validateur ? `Validation : ${nomDe(p.validateur)}` : '', p.echeance ? `Échéance : ${jourCourt(p.echeance)}` : '', p.note && st === 'fait' ? p.note : '', histo[histo.length - 1] ?? ''].filter(Boolean).join(' · ');
 }
 const quoiSuivi = (p: PointReunion) =>
   p.concretisation === 'escalade' ? '📌 Suivi · ↪ Transmis' : p.concretisation === 'suivi' ? '📌 Suivi' : p.type_cree ? LIBELLE_TYPE_CREE(p.type_cree as TypeCree) : p.concretisation === 'sous_tache' ? 'Sous-tâche' : 'Tâche';
@@ -123,6 +132,8 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
   const [reconc, setReconc] = useState<PointReunion | null>(null);
   // Notes pas encore concrétisées (mode Simple : même feuille, écrite tout de suite)
   const [conc, setConc] = useState<PointReunion | null>(null);
+  /** D1 : point à déplacer (choix de la réunion) */
+  const [deplace, setDeplace] = useState<PointReunion | null>(null);
   const liste = points
     .map((p) => ({ p, a: statutAffiche(p, ctx.items, ctx.jour) }))
     .filter((x) => !aValider || (x.a.s === 'fait' && validateurDe(x.p, ctx.animateur) === ctx.moi.toLowerCase()))
@@ -174,6 +185,35 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
             setReconc(ouvert);
             setOuvert(null);
           }}
+          onDeplacer={
+            ctx.deplacer && peutDeplacer(ouvert, ctx)
+              ? () => {
+                  setDeplace(ouvert);
+                  setOuvert(null);
+                }
+              : undefined
+          }
+        />
+      )}
+      {deplace && ctx.deplacer && (
+        <FeuilleChoix
+          titre={`Déplacer « ${deplace.texte} »`}
+          value=""
+          groupes={[{ titre: 'Vos réunions où le responsable participe', options: ctx.deplacer.cibles(deplace).map((x) => ({ value: x.value, label: x.label })) }]}
+          onFermer={() => setDeplace(null)}
+          onChoisir={async (v) => {
+            const pt = deplace;
+            const cible = ctx.deplacer?.cibles(pt).find((x) => x.value === v);
+            setDeplace(null);
+            if (!cible || !ctx.deplacer) return;
+            try {
+              const { modifies } = await ctx.actions.ecrirePoints(ctx.espace, [], [deplacement(pt, cible.reunion, ctx.deplacer.par)], []);
+              ctx.onPoints(modifies.map((x) => ({ ...x, espace: ctx.espace })));
+              ctx.onInfo?.(`« ${pt.texte} » déplacé vers ${cible.label} (responsable, validation, échéance et statut inchangés).`);
+            } catch (e) {
+              ctx.onInfo?.((e as Error).message);
+            }
+          }}
         />
       )}
       {(reconc || conc) && (
@@ -186,6 +226,8 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
               : choixParDefaut(conc!, { animateur: ctx.animateur, echeance: ctx.echeance, h: ctx.h, moi: ctx.moi })
           }
           dessus={[]}
+          note={reconc ?? conc ?? undefined}
+          jour={ctx.jour}
           {...ctx.concret}
           onFermer={() => (setReconc(null), setConc(null))}
           onValider={async (c: ChoixConcret) => {
@@ -217,7 +259,13 @@ export function LignesSuivi({ points, ctx, aValider, premiere = true, notes = []
  * Feuille d'un point de suivi (maquette escalade-retour, écran 5) : Statut (En cours · Fait), un mot, et pour le
  * validateur : Valider · Re-concrétiser · À reprendre (motif) · Abandonner (motif).
  */
-function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onFermer }: { pt: PointReunion; ctx: CtxSuivi; onEnregistrer: (a: ActionSuivi, note: string) => Promise<void>; onReconcretiser: () => void; onFermer: () => void }) {
+/** D1 · Déplacer : les responsables de la réunion (l'animateur) ou du point (responsable, validation) */
+const peutDeplacer = (pt: PointReunion, ctx: CtxSuivi) => {
+  const moi = ctx.moi.toLowerCase();
+  return !ctx.lecture && !estFini(statutEffectif(pt, ctx.items)) && [ctx.animateur, pt.responsable || pt.personne, pt.validateur ?? ''].map((x) => x.toLowerCase()).includes(moi);
+};
+
+function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onDeplacer, onFermer }: { pt: PointReunion; ctx: CtxSuivi; onEnregistrer: (a: ActionSuivi, note: string) => Promise<void>; onReconcretiser: () => void; onDeplacer?: () => void; onFermer: () => void }) {
   const st = statutEffectif(pt, ctx.items);
   const fini = estFini(st);
   const faire = peutFaire(pt, ctx.moi, ctx.animateur) && !fini;
@@ -325,6 +373,25 @@ function FeuilleSuivi({ pt, ctx, onEnregistrer, onReconcretiser, onFermer }: { p
                   <TextInput value={note} onChangeText={setNote} multiline placeholder={motif ? 'Pourquoi ?' : 'Facultatif'} placeholderTextColor={colors.muted} style={[s.input, { fontWeight: '400', minHeight: 40 }]} />
                 </View>
               </>
+            )}
+            {/* D1 (16/10) : historique (déplacements, partage) et « Déplacer » vers une autre de mes réunions */}
+            {!!lignesHistorique(pt.historique).length && (
+              <>
+                <Text style={s.section}>HISTORIQUE</Text>
+                <View style={s.carte}>
+                  {lignesHistorique(pt.historique).map((l, i) => (
+                    <View key={`${i}-${l}`} style={[s.ligne, i > 0 && s.bord]}>
+                      <Text style={{ flex: 1, fontSize: 13.5, color: colors.text }}>{l}</Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+            {!!onDeplacer && (
+              <Pressable onPress={onDeplacer} style={[s.carte, s.ligne, { marginTop: 14 }]} accessibilityRole="button">
+                <Text style={s.lien}>➜ Déplacer vers une autre réunion</Text>
+                <Text style={[s.aide, { flex: 1 }]}>responsable, validation, échéance et statut gardés</Text>
+              </Pressable>
             )}
             {!!erreur && <Text style={s.erreur}>{erreur}</Text>}
           </ScrollView>

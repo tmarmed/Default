@@ -11,6 +11,8 @@ import { TYPE_ICONS } from '../../types';
 import { LigneChoix } from '../Choix';
 import { DateField } from '../DateField';
 import { LigneElement } from './ui';
+import { useCtxImpact } from './Notes';
+import { impactConcretisation, texteSuiviImpose } from '../../notes';
 
 export interface PersonneChoix {
   email: string;
@@ -40,7 +42,15 @@ export function FeuilleConcretiser({
   budget,
   onValider,
   onFermer,
+  note,
+  jour,
 }: {
+  /**
+   * N2 (16/10) : la note concrétisée et le jour de la réunion ; ce qui touche l'équipe (périmètre, planning, travail
+   * d'un autre, autre niveau) rend le suivi obligatoire
+   */
+  note?: { type: string; element: string; elements?: string; personne?: string };
+  jour?: string;
   /** 💶 Demande de budget (13/10) : proposée à qui a le droit « Gérer le budget » ; éléments possibles (epics, niveau) */
   budget?: { pour: { value: string; label: string }[]; decideur: string };
   titre?: string;
@@ -70,7 +80,10 @@ export function FeuilleConcretiser({
   // Le rattachement suit le type et l'élément concerné, sauf s'il a été choisi à la main
   const [rattMain, setRattMain] = useState(false);
   const rattId = rattMain ? c.ratt : (ratt?.id ?? '');
-  const choix = { ...c, ratt: rattId };
+  // « Ne touche que moi » : moi = l'auteur de la note (pas celui qui concrétise)
+  const ctxImpact = useCtxImpact(note?.personne || moi.email, jour ?? toDateString(new Date()));
+  const impact = note ? impactConcretisation({ ...c, ratt: rattId }, note, ctxImpact) : '';
+  const choix = { ...c, ratt: rattId, ...(impact && c.que === 'creer' ? { suivi: true } : {}) };
   const erreur = erreurChoix(choix, h) ?? (c.que === 'creer' && (c.type === 'story' || c.type === 'feature') && !rattId ? 'Choisissez à quoi la rattacher.' : null);
   // Responsable (validation du 08/10) : un seul champ groupé ; la façon de transmettre se déduit de la personne
   const autresTous = autres.flatMap((g) => g.personnes);
@@ -292,15 +305,22 @@ export function FeuilleConcretiser({
                   <>
                     <Text style={s.section}>SUIVI</Text>
                     <View style={s.carte}>
-                      {puces<'oui' | 'non'>(
-                        [
-                          { v: 'oui', l: '📌 Suivi', aide: 'jusqu’à validation' },
-                          { v: 'non', l: 'Sans suivi', aide: 'la note est close' },
-                        ],
-                        c.suivi === false ? 'non' : 'oui',
-                        (v) => set({ suivi: v === 'oui' }),
+                      {impact ? (
+                        <View style={[s.ligne]}>
+                          <Text style={[s.valeur, { flex: 1 }]}>📌 Suivi</Text>
+                          <Text style={[s.aide, { flex: 2 }]}>{texteSuiviImpose(impact)}</Text>
+                        </View>
+                      ) : (
+                        puces<'oui' | 'non'>(
+                          [
+                            { v: 'oui', l: '📌 Suivi', aide: 'jusqu’à validation' },
+                            { v: 'non', l: 'Sans suivi', aide: 'la note est close' },
+                          ],
+                          c.suivi === false ? 'non' : 'oui',
+                          (v) => set({ suivi: v === 'oui' }),
+                        )
                       )}
-                      {c.suivi === false && <Text style={[s.aide, s.aideBloc]}>L’élément est créé et vit sa vie ; la note n’est plus suivie en réunion.</Text>}
+                      {c.suivi === false && !impact && <Text style={[s.aide, s.aideBloc]}>L’élément est créé et vit sa vie ; la note n’est plus suivie en réunion.</Text>}
                     </View>
                   </>
                 )}

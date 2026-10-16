@@ -46,11 +46,13 @@ import { texteDirect } from '../etatReunion';
 import { useLive } from './useLive';
 import { FeuilleChoix, SectionFiche } from './Choix';
 import { type ChoixConcret, concretisationDe, resumeChoix as resumeConcret, resumePoint } from '../concretisation';
-import { libelleElement } from '../elementConcerne';
+import { libelleElements, surElements } from '../elementConcerne';
 import { echeanceParDefaut, estFini, jourCourt, LIBELLE_STATUT, relierEscalades, validateurDe } from '../pointsSuivi';
 import { absentsLe, useConges } from '../conges';
 import { BlocHorsReunion, cheminElement, type CtxSuivi, lienPrive, LignesSuivi, pointsDeSuivi, repartirSuivis, statutAffiche } from './reunion/Suivi';
 import { FeuilleConcretiser } from './reunion/Concretiser';
+import { LigneNote, optionsDeplacement, patchPartage, useCtxImpact, usePreparationMoi } from './reunion/Notes';
+import { estPerso } from '../notes';
 import { estAutre, placeholderNote } from './EchangesView';
 import { FenetreReunion, type ModeReunion, type OngletReunion } from './FenetreReunion';
 import { TitreFiche } from './FormSheet';
@@ -89,6 +91,8 @@ import { choixAvecDefauts, creerConcretisations, dernierCompteRendu, ecrituresCo
 export type KindAjout = 'epic' | 'objectif' | 'domaine' | 'feature' | 'objectifpi' | 'resultat';
 export interface ActionsDaily {
   lirePoints: (espace: string, prefixe: string) => Promise<PointReunion[]>;
+  /** D1 (16/10) : vos réunions à venir (« Déplacer » un point vers une autre de vos réunions) */
+  reunionsAVenir?: () => Reunion[];
   /** Points créés, modifiés et retirés en un seul passage ; renvoie les points créés dans l'ordre */
   ecrirePoints: (
     espace: string,
@@ -226,8 +230,16 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** Tout ce qui a été lu (lignes techniques comprises : ligne d'état de chaque daily de la série) */
   const [lus, setLus] = useState<PointReunion[]>([]);
 
-  const tous = useMemo(() => [...serveur.filter((x) => !(x.id in anciens)), ...prep, ...locaux] as PointReunion[], [serveur, anciens, prep, locaux]);
+  // 🔒 Perso (V1) : jamais dans la séance (seulement dans « Mes notes » de votre préparation)
+  const tous = useMemo(() => [...serveur.filter((x) => !(x.id in anciens)), ...prep.filter((x) => !estPerso(x)), ...locaux] as PointReunion[], [serveur, anciens, prep, locaux]);
   const e = useEquipeDaily(reunion, org, aujourdhui, tous, echanges);
+  const prepMoi = usePreparationMoi({ actions, reunion, mail, onInfo });
+  const impact = useCtxImpact(mail, jourReunion(reunion));
+  /** N3 : éléments de l'équipe seulement (une tâche d'une autre équipe : escalade ou Transmettre) */
+  const dansEquipeId = (id: string) => {
+    const t = e.parId.get(id);
+    return !t || e.dansEquipe(t);
+  };
   const { h, equipe, jour, it, situation, personnes, nomDe, rte, pm, parId, subs } = e;
   // 💶 Demande de budget comme concrétisation d'une note (13/10) : pour qui a le droit « Gérer le budget » de l'équipe
   const budgetCtx = useBudget();
@@ -322,6 +334,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         setServeur(sansTech(l));
         reprendre(sansTech(l), ['membre', 'po']);
         setCharge(true);
+        // Lot 1 (16/10) : vos notes gardées dans 🔒 Moi (En préparation, 🔒 Perso) reviennent dans votre préparation
+        return prepMoi.charger(idLocal).then((m) => actif && m.length && setPrep((p) => [...p, ...m.map((x) => ({ ...x, onglet: 'membre' as Prep }))]));
       })
       .catch((err) => actif && (setCharge(true), onInfo?.(`Points du daily non lus : ${(err as Error).message}`)));
     return () => {
@@ -377,14 +391,15 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     responsable: '',
     cree_le: new Date().toISOString(),
   });
-  const retirerPrep = (id: string) => setPrep((l) => l.filter((y) => y.id !== id));
+  const retirerPrep = (id: string) => {
+    setPrep((l) => l.filter((y) => y.id !== id));
+    void prepMoi.oublier([id]);
+  };
   const fmt = (n: number) => fmtPoints(n, safe.pointsJours);
   /** Échange 🔄 Synchro auquel répond une décision du PO */
   const echangeDe = (x: Pick<PointReunion, 'type' | 'tache'>) => (x.type === 'decision' && x.tache ? echanges.find((y) => y.id === x.tache) : undefined);
-  const surStory = (x: { texte: string; element: string }) => {
-    const titre = x.element ? (parId.get(x.element)?.titre ?? 'story') : '';
-    return titre && titre !== x.texte ? `sur 📖 ${titre}` : '';
-  };
+  // Éléments concernés (pièce commune, plusieurs depuis le 16/10)
+  const surStory = (x: { texte: string; element: string; elements?: string }) => surElements(x, h);
   /** Concrétisation déjà décidée d'un point (réponse du PO) : « → tâche à part · 👤 Tom » */
   const concretise = (x: Pick<PointReunion, 'type' | 'concretisation' | 'responsable'>) =>
     x.type === 'decision' && (x.concretisation === 'sous_tache' || x.concretisation === 'tache') ? `→ ${LIBELLE_CONCRETISATION[x.concretisation]} · 👤 ${nomDe(x.responsable)}` : '';
@@ -520,12 +535,38 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   /** Bloc « Mes notes » (13/10) sous Hier et Aujourd'hui : tous les types, Information par défaut (fermée d'office) */
   const blocMesNotes = (stories: Item[], onglet: Prep = 'membre') => {
     const notes = prep.filter((y) => (TYPES_NOTE as string[]).includes(y.type));
+    // Ligne et saisie communes des notes (16/10) : En préparation (gardée dans 🔒 Moi), 🔒 Perso, plusieurs éléments
     return (
       <BlocBrique titre={`Mes notes · ${notes.length}`}>
         {notes.map((y, i) => (
-          <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={surStory(y) || 'sans story'} pastille={{ texte: libelleNote(y), ton: tonType(y.type) }} onRetirer={() => retirerPrep(y.id)} />
+          <LigneNote
+            key={y.id}
+            y={y}
+            premiere={i === 0}
+            prep={prepMoi}
+            onRetirer={() => retirerPrep(y.id)}
+            onPartager={() => {
+              const patch = patchPartage(y, nomPersonne(org, mail), aujourdhui);
+              setPrep((l) => l.map((x) => (x.id === y.id ? { ...x, ...patch } : x)));
+              void prepMoi.modifier(y.id, patch);
+            }}
+          />
         ))}
-        <SaisiePoint premiere={!notes.length} types={TYPES_NOTE} typeDefaut="information" jour={jour} placeholder="＋ Note (information, blocage, décision, action)" stories={stories} onAjouter={(type, texte, element, c, sous_type) => setPrep((l) => [...l, { ...nouveau(type, texte, element, '', onglet), sous_type, ...(c?.c === 'rien' ? { concretisation: 'rien' as const } : {}) }])} />
+        <SaisiePoint
+          premiere={!notes.length}
+          types={TYPES_NOTE}
+          typeDefaut="information"
+          jour={jour}
+          placeholder="＋ Note (information, blocage, décision, action)"
+          stories={stories}
+          perso={prepMoi.actif ? impact : undefined}
+          dansEquipe={dansEquipeId}
+          onAjouter={(type, texte, element, c, sous_type, plus) => {
+            const x: Local = { ...nouveau(type, texte, element, '', onglet), sous_type, elements: plus?.elements ?? '', perso: plus?.perso ? '1' : '', ...(c?.c === 'rien' ? { concretisation: 'rien' as const } : {}) };
+            setPrep((l) => [...l, x]);
+            void prepMoi.garder(x);
+          }}
+        />
       </BlocBrique>
     );
   };
@@ -550,7 +591,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const envoyerPreparation = async (o: Prep) => {
     // Tâches en cours reprises d'office dans Aujourd'hui (pas décochées) : ajoutées au point envoyé
     const reprises = o === 'membre' ? aujListe.filter((t) => parDefautAuj(t) && !decochesAuj.has(t.id)).map((t) => nouveau('aujourdhui', t.titre, t.id, '', o)) : [];
-    const pts = [...preparationDe(o), ...reprises];
+    // 🔒 Perso (V1) : jamais envoyé, reste dans 🔒 Moi
+    const pts = [...preparationDe(o).filter((x) => !estPerso(x)), ...reprises];
     const ici = o === 'po' ? reponsesPO.filter((r) => r.ici) : [];
     if (ici.length) await actions.repondreEchanges(ici.map((r) => ({ e: r.q, reponse: r.q.reponse, note: r.q.note })));
     const retires = Object.keys(anciens).filter((id) => anciens[id] === o);
@@ -563,7 +605,9 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
     }
     setServeur((l) => [...l.filter((x) => !retires.includes(x.id)), ...crees]);
     setAnciens((a) => ({ ...Object.fromEntries(Object.entries(a).filter(([id]) => !retires.includes(id))), ...Object.fromEntries(crees.map((x) => [x.id, o])) }));
-    setPrep((l) => [...l.filter((x) => (x.onglet ?? 'membre') !== o), ...crees.map((x) => ({ ...x, id: idLocal(), onglet: o }))]);
+    setPrep((l) => [...l.filter((x) => (x.onglet ?? 'membre') !== o || estPerso(x)), ...crees.map((x) => ({ ...x, id: idLocal(), onglet: o }))]);
+    // Partagées : elles sortent de 🔒 Moi
+    await prepMoi.oublier(pts.map((x) => x.id));
     if (o === 'po') setReponses({});
     const quoi = o === 'po' ? 'Point PO' : 'Point';
     onInfo?.(
@@ -584,6 +628,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
   const suivisEchanges = useMemo(() => suivisSynchro(serveur.filter((x) => !x.statut), echanges), [serveur, echanges]);
   const [aValider, setAValider] = useState(false);
   const ctxSuivi: CtxSuivi = {
+    deplacer: optionsDeplacement({ reunion, org, actions, aujourdhui, par: nomPersonne(org, mail) }),
     espace,
     jour,
     moi: mail,
@@ -868,7 +913,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
             </BlocBrique>
             <BlocBrique titre={`Mes notes · ${notes.length}`}>
               {TYPES_NOTE.flatMap((ty) => notes.filter((y) => y.type === ty)).map((y, i) => (
-                <Ligne key={y.id} premiere={i === 0} texte={y.texte} sous={surStory(y) || 'sans story'} pastille={{ texte: libelleNote(y), ton: tonType(y.type) }} onRetirer={() => retirerPrep(y.id)} />
+                <LigneNote key={y.id} y={y} premiere={i === 0} prep={prepMoi} onRetirer={() => retirerPrep(y.id)} />
               ))}
               {!notes.length && <Vide texte="Aucune note." />}
             </BlocBrique>
@@ -1171,7 +1216,7 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
         );
       }
       case 'concretisation': {
-        const origine = (pt: PointReunion) => [`Notée par ${nomDe(pt.personne)}${pt.reunion.slice(-10) < jour ? ` le ${jourCourt(pt.reunion.slice(-10))}` : ''}`, libelleElement(pt.element, h)].filter(Boolean).join(' · ');
+        const origine = (pt: PointReunion) => [`Notée par ${nomDe(pt.personne)}${pt.reunion.slice(-10) < jour ? ` le ${jourCourt(pt.reunion.slice(-10))}` : ''}`, libelleElements(pt, h)].filter(Boolean).join(' · ');
         if (lecture) {
           // Lecture seule : le choix déjà fait par le SM (compte rendu envoyé), sinon « à décider »
           const faits = duSheet.filter((pt) => !!pt.concretisation).length;
@@ -1231,6 +1276,8 @@ function Daily({ visible, reunion, mode, org, moi, aujourdhui, fil, actions, onF
                   <FeuilleConcretiser
                     sous={`${libelleNote(pt)} · notée par ${nomDe(pt.personne)} : « ${pt.texte} »`}
                     valeur={choixDe(pt)}
+                    note={pt}
+                    jour={jour}
                     autres={equipe ? autresEquipesDuTrain(equipe.id, org) : []}
                     nomEquipe={equipe?.nom ?? ''}
                     nomDessus={e.train ? `Train ${e.train.nom}` : ''}

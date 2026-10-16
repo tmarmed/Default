@@ -1,6 +1,7 @@
 import type { Conge, CoutPersonne, DemandeBudget, Depense, DossierInvestissement, Enveloppe } from './types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, toDateString } from './dates';
+import { jourMois } from './format';
 import { iterationOf, piOf, piStart, shiftIteration, shiftPi } from './pi';
 import { FILTRE_TOUT, photoDe, pointsPhoto } from './avancement';
 import { estOuvre, occurrences } from './series';
@@ -143,7 +144,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '65';
+const DEMO_DATA_VERSION = '66';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -700,7 +701,10 @@ const SEEDS_ENTREPRISE: Seeds = {
     liste.push(
       // Information fermée d'office (case « À concrétiser » décochée) et Information à concrétiser (cochée)
       pt('acmpt22', { reunion: reunion(veille), personne: emma, auteur: emma, type: 'information', texte: 'Nouvelle version de l’outil de test disponible', concretisation: 'rien', cree_le: `${veille}T09:43:00.000Z` }),
-      pt('acmpt23', { personne: emma, auteur: emma, type: 'information', texte: 'Le prestataire change de contact au 1er novembre', element: 'acm4' }),
+      // Lot 1 des notes (16/10, N3) : une note qui concerne deux éléments de l'équipe
+      pt('acmpt23', { personne: emma, auteur: emma, type: 'information', texte: 'Le prestataire change de contact au 1er novembre', element: 'acm4', elements: 'acm7' }),
+      // D1 : suivi déplacé de la Revue de sprint vers le Daily par Nina Dupont (historique gardé)
+      pt('acmpt40', { reunion: reunion(avant), personne: emma, auteur: nina, type: 'action', texte: 'Montrer le parcours de paiement au client', element: 'acm4', concretisation: 'suivi', responsable: emma, statut: 'en_cours', validateur: nina, echeance: jour, historique: `Déplacé depuis « Revue de sprint du ${jourMois(joursOuvresAvant(jour, 3))} » par Nina Dupont`, cree_le: `${avant}T09:53:00.000Z` }),
       // Décision prise en séance : rien à concrétiser, partagée au compte rendu (Clos)
       pt('acmpt24', { reunion: reunion(veille), personne: nina, auteur: nina, type: 'decision', sous_type: 'prise', texte: 'Garder la connexion Google pour la v1', element: 'acm4', concretisation: 'rien', cree_le: `${veille}T09:45:00.000Z` }),
       // Suivi « À reprendre » : fait par Tom, refusé par Vous avec le motif
@@ -1283,6 +1287,10 @@ function pointsMoi(): PointReunion[] {
     pt('moipl3', { reunion: plan, texte: JSON.stringify({ k: 'evt', h: '17:00', f: '17:45', t: 'Rendez-vous chez le dentiste' }) }),
     pt('moisp1', { reunion: `point_perso-perso-${hier}`, type: 'action', texte: 'Relancer l’assurance pour le devis', concretisation: 'suivi', responsable: MOI_DEMO, statut: 'en_cours', validateur: MOI_DEMO, echeance: jour, cree_le: `${hier}T07:40:00.000Z` }),
     pt('moisp2', { reunion: `point_perso-perso-${hier}`, type: 'blocage', texte: 'Devis du plombier toujours pas reçu', cree_le: `${hier}T07:42:00.000Z` }),
+    // Lot 1 des notes (16/10) : au Daily Mobile, une note « En préparation » écrite pour le Daily précédent et pas
+    // partagée (rappel 🟡, N1), et une note « 🔒 Perso » (V1), gardées dans 🔒 Moi
+    pt('moinp1', { reunion: `daily-equipeagile:acmeqmob-${joursOuvresAvant(prochainDaily(new Date()), 1)}`, type: 'information', texte: 'Présenter la nouvelle maquette du profil', element: 'acm13', cree_le: `${hier}T09:10:00.000Z` }),
+    pt('moinp2', { reunion: `daily-equipeagile:acmeqmob-${prochainDaily(new Date())}`, type: 'action', texte: 'Relire mes notes sur l’API avant la démo', element: 'acm13', perso: '1', cree_le: `${jour}T07:35:00.000Z` }),
   ];
   return [...revue, ...photosSeries([serie('bilan_soir', 1, 0), serie('revue_semaine', 5, 0), serie('revue_trimestre', 63, 3), serie('point_annuel', 250, 3)], actuel, [], 'moi'), ...perso];
 }

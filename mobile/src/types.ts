@@ -686,6 +686,12 @@ export interface PointReunion {
   sous_type?: SousType;
   /** Suivi décidé depuis le Chat (« 1 ») : mis en avant à la réunion suivante jusqu'à « Confirmer » (« 2 »), validé le 09/10 */
   hors_reunion?: string;
+  /** Lot 1 du 16/10 (N3) : autres éléments concernés (ids séparés par des virgules ; le premier reste `element`) */
+  elements?: string;
+  /** V1 : « 1 » = 🔒 Perso (rangé dans l'espace 🔒 Moi, visible par son auteur seul) */
+  perso?: string;
+  /** D1 : historique (« Déplacé depuis « Revue de sprint du 14/10 » par Sara Martin »), lignes séparées par « ¶ » */
+  historique?: string;
 }
 /** Décision : à prendre, prise ; Proposition : « reportee » (reportée au vote, revient à la rétro suivante) */
 export type SousType = '' | 'a_prendre' | 'prise' | 'reportee';

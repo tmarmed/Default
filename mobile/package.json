@@ -29,7 +29,8 @@
     "verif:sheets": "npx tsx scripts/verif-sheets.ts",
     "verif:stockage": "npx tsx scripts/verif-stockage.ts",
     "verif:organisation": "npx tsx scripts/verif-organisation.ts",
-    "verif:reunions": "npx tsx scripts/verif-reunions.ts"
+    "verif:reunions": "npx tsx scripts/verif-reunions.ts",
+    "verif:notes": "npx tsx scripts/verif-notes.ts"
   },
   "private": true
 }

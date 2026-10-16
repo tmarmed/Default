@@ -1,5 +1,6 @@
 import type { HierarchyValue } from './hierarchyContext';
 import { TYPE_ICONS, type Item } from './types';
+import { elementsDe } from './notes';
 
 /**
  * Élément concerné par un point de réunion (08/10) : un seul élément — tâche (tout type), feature, epic, objectif,
@@ -48,3 +49,19 @@ export function tousLesElements(h: Parameters<typeof elementDe>[1]): ElementConc
     ...h.resultats.map((k) => ({ id: k.id, genre: 'resultat' as const, titre: k.titre, icone: '📈' })),
   ];
 }
+
+/**
+ * Éléments concernés d'une note, en toutes lettres (N3, 16/10) : « sur 📖 Écran de connexion · ✓ Obtenir les accès » ;
+ * '' sans élément, ou quand le seul élément porte le texte de la note (une tâche notée telle quelle)
+ */
+export function surElements(p: { texte?: string; element: string; elements?: string }, h: Parameters<typeof elementDe>[1]): string {
+  const l = elementsDe(p).map((id) => elementDe(id, h)).filter((x): x is ElementConcerne => !!x);
+  if (!l.length || (l.length === 1 && l[0].titre === p.texte)) return '';
+  return `sur ${l.map((x) => `${x.icone} ${x.titre}`).join(' · ')}`;
+}
+/** Éléments concernés, sans « sur » (lignes « Notée par … · 📖 … ») */
+export const libelleElements = (p: { element: string; elements?: string }, h: Parameters<typeof elementDe>[1]) =>
+  elementsDe(p)
+    .map((id) => libelleElement(id, h))
+    .filter(Boolean)
+    .join(' · ');

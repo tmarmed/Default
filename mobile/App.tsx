@@ -1750,6 +1750,8 @@ function Main() {
   /** Daily : points notés (onglet PointsReunion du Sheet de l'équipe), tâches et échanges créés en lots */
   const actionsDaily: ActionsDaily = {
     lirePoints: (espace, prefixe) => (settings ? api.lirePoints(settings, espace, prefixe) : Promise.resolve([])),
+    // D1 (16/10) : vos réunions des 30 prochains jours, pour « Déplacer » un point vers une autre de vos réunions
+    reunionsAVenir: () => reunionsAVenir(orgReunions, moiEchange, today, safe.actif, 30, seriesStockees),
     // « ↻ Actualiser » : points, tâches et échanges de l'espace de l'équipe en une lecture groupée ; les tâches et
     // les échanges de cet espace sont remplacés par ceux du Sheet (ce que d'autres ont modifié entre-temps)
     actualiser: async (espace, prefixe) => {
