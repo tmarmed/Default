@@ -145,7 +145,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '72';
+const DEMO_DATA_VERSION = '73';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -778,7 +778,10 @@ const SEEDS_ENTREPRISE: Seeds = {
     const seriesAv: SerieAv[] = [];
     const deja = new Set(['daily-equipeagile:acmeqmob-', 'art_sync-train:acmtr1-', 'revue_portfolio-portfolio:acmpf1-']);
     const ajouterSerie = (prefixe: string, focus: number, recul: number, cles: string[], qui: string) => {
-      if (!deja.has(prefixe)) seriesAv.push({ prefixe, focus, jour: joursOuvresAvant(jour, recul), cles, qui });
+      // Lot 9 (16/10, B4) : la Planification a eu lieu au début du sprint en cours (sa photo = les engagés du sprint)
+      const debutSprint = iterationOf(jour).start;
+      const le = prefixe.startsWith('planification-') && debutSprint < jour ? debutSprint : joursOuvresAvant(jour, recul);
+      if (!deja.has(prefixe)) seriesAv.push({ prefixe, focus, jour: le, cles, qui });
     };
     for (const eq of ['acmeqmob', 'acmeqweb']) {
       const its = items.filter((t) => equipeDe(t) === eq);

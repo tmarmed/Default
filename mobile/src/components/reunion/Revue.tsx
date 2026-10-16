@@ -1,3 +1,4 @@
+import { BlocIndicateurs } from './Indicateurs';
 import { BlocArbre } from './Arbre';
 import { BlocBrique } from './Brique';
 import { useMemo, useState } from 'react';
@@ -127,6 +128,7 @@ export function FenetreRevue(p: PropsReunion) {
           <>
             <TitreFiche icone="📊" titre="Situation" vide="" sous={`${e.it.nom} · du ${e.it.start.slice(8)}/${e.it.start.slice(5, 7)} au ${e.it.end.slice(8)}/${e.it.end.slice(5, 7)}`} />
             <Compteurs l={[{ valeur: String(terminees.length), libelle: 'stories à revoir' }, { valeur: String(nonTerminees.length), libelle: 'non terminées', ton: nonTerminees.length ? 'orange' : undefined }, { valeur: String(r.reponsesPO.length), libelle: 'réponses du PO' }]} />
+            {!!e.equipe && <BlocIndicateurs equipes={[e.equipe.id]} sprint={e.it.key} espace={r.espace} actions={p.actions} />}
             <BlocSuivi r={r} lecture={lecture} onAjouter />
             <BlocBrique titre="Objectifs de la réunion">
               <Ligne premiere texte="🎯 Montrer ce qui est fini" sous="Faire accepter chaque story par le PO, décider du sort des non terminées, recueillir les retours." />

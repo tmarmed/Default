@@ -39,6 +39,9 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
 - Lot 8 Bruit, retouche, réimputation (B1, B2, M1) — FAIT (16/10) dans la fiche d'une tâche : `src/bruitRetouche.ts`,
   `components/FeuilleCause.tsx` ; 4 colonnes de l'onglet Tâches ; consommé suit « Payé par » ; démo 72 ;
   `npm run verif:qualite`. Reste : bruit au déplacement / abandon, retouche au refus en Revue, réimputer en groupe.
+- Lot 9 Indicateurs (B3, B4) — FAIT (16/10) : `src/indicateurs.ts`, `reunion/Indicateurs.tsx` dans Rétrospective,
+  Revue, Planification, Inspect & Adapt, Affinage (écart), Pilotage ; démo 73 (photo de la Planification au début du
+  sprint) ; tests dans `npm run verif:qualite`. Reste : Stabilité du PI au train.
 - Décisions prises en l'absence de l'utilisateur : `docs/claude/decisions-lots.md` (à valider à son retour).
 - Lots 3 à 9 : en cours, dans l'ordre (voir plus bas).
 - À DISCUTER (demandé le 16/10) : **historique de l'application** — garder ou pas l'historique des éléments, notes,

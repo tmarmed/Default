@@ -1,3 +1,4 @@
+import { BlocIndicateurs } from './Indicateurs';
 import { BlocBrique } from './Brique';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
@@ -219,6 +220,8 @@ export function FenetreRetro(p: PropsReunion) {
           <>
             <TitreFiche icone="📈" titre="Indicateurs" vide="" sous={`Calculés · ${v.iterations.map((y) => nomSprintDe(y.key)).join(' à ')}`} />
             <Compteurs l={[{ valeur: String(v.iterations[v.iterations.length - 1]?.points ?? 0), libelle: 'vélocité' }, { valeur: `${prev} %`, libelle: 'prévisibilité', ton: prev < 80 ? 'orange' : 'vert' }, { valeur: String(e.situation.bloquees), libelle: 'stories bloquées', ton: e.situation.bloquees ? 'rouge' : undefined }]} />
+            {/* B3 / B4 (16/10) : bruit, écart d'estimation, retouche, stabilité du sprint */}
+            {!!e.equipe && <BlocIndicateurs equipes={[e.equipe.id]} sprint={e.it.key} espace={r.espace} actions={p.actions} />}
             <BlocBrique titre="Vélocité">
               <Ligne premiere texte={v.iterations.map((y) => nomSprintDe(y.key)).join(' → ')} sous={`moyenne ${v.moyenne} pts`} pastille={{ texte: v.iterations.map((y) => y.points).join(' · '), ton: 'bleu' }} />
             </BlocBrique>

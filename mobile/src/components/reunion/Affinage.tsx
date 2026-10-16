@@ -1,3 +1,4 @@
+import { BlocIndicateurs } from './Indicateurs';
 import { BlocBrique } from './Brique';
 import { BlocArbre } from './Arbre';
 import { useEffect, useMemo, useState } from 'react';
@@ -297,6 +298,8 @@ export function FenetreAffinage(p: PropsReunion) {
                 { valeur: String(v.moyenne * 2), libelle: 'pts visés (2 sprints)' },
               ]}
             />
+            {/* B3 (16/10) : à l'Affinage, seulement l'écart d'estimation (il aide à estimer) */}
+            {!!e.equipe && <BlocIndicateurs seulEcart titre="📏 Écart d’estimation du sprint" equipes={[e.equipe.id]} sprint={e.it.key} espace={r.espace} />}
             <BlocSuivi r={r} lecture={lecture} onAjouter />
             <BlocBrique titre="Objectifs de la réunion">
               <Ligne premiere texte="🎯 Deux sprints de stories prêtes" sous="Estimées, critères écrits, 8 pts au plus, rattachées à une feature." />

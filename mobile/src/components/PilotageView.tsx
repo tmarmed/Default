@@ -1,3 +1,4 @@
+import { BlocIndicateurs } from './reunion/Indicateurs';
 import { useMemo, useState } from 'react';
 import { usePointsLus } from './reunion/usePointsLus';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -188,6 +189,8 @@ export function PilotageView({
             ligneJauge(p.id, p.nom, p.capacite ? `${p.engage} pts sur ${p.capacite}${p.engage > p.capacite ? ' · surcharge' : ''}` : `${p.engage} pts · capacité non renseignée (fiche Personne)`, p.capacite ? (100 * p.engage) / p.capacite : 0, p.capacite && p.engage > p.capacite ? 'rouge' : undefined, false, p.capacite && p.engage > p.capacite ? { texte: `+${Math.round((p.engage - p.capacite) * 10) / 10}`, ton: 'rouge' } : undefined),
           )}
         </SectionFiche>
+        {/* B3 / B4 (16/10) : qualité du sprint en cours (même pièce que les réunions) */}
+        <BlocIndicateurs fiche equipes={[n.id]} sprint={x.it.key} espace={n.espace || 'moi'} points={points} />
         <SectionFiche titre="Prévisibilité">
           <View style={[st.compteurs, s.pad]}>
             <Compteur valeur={x.velocite ? String(x.velocite) : '—'} libelle="vélocité (3 derniers sprints)" />

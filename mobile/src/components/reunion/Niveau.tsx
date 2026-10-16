@@ -1,3 +1,5 @@
+import { BlocIndicateurs } from './Indicateurs';
+import { iterationOf as itDe, shiftIteration as decaler } from '../../pi';
 import { nomPersonne } from '../../organisation';
 import { BlocBrique } from './Brique';
 import { useEffect, useRef, useState } from 'react';
@@ -646,6 +648,10 @@ function Fenetre({ p, config, catalogue, etapes, libelleEtape }: { p: PropsReuni
           <>
             <TitreFiche icone="📊" titre="Situation" vide="" sous={`${TYPES_REUNION[p.reunion.type].libelle} · ${e.nomNiveau}${simple ? '' : ` · PI ${piVise}`}`} />
             <Compteurs l={et.compteurs(c)} />
+            {/* B3 / B4 (16/10) : qualité du dernier sprint du train, à l'Inspect & Adapt */}
+            {p.reunion.type === 'inspect_adapt' && e.train && (
+              <BlocIndicateurs titre="📏 Qualité du dernier sprint (train)" equipes={r.org.equipes.filter((q) => q.train === e.train!.id).map((q) => q.id)} sprint={decaler(itDe(e.jour).key, -1)} espace={r.espace} actions={p.actions} />
+            )}
             <BlocSuivi r={r} lecture={lecture} onAjouter />
             <BlocBrique titre="Objectifs de la réunion">
               <Ligne premiere texte={`🎯 ${et.objectif}`} sous={et.sousObjectif} />

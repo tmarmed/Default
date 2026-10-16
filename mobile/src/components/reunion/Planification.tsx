@@ -1,3 +1,4 @@
+import { BlocIndicateurs } from './Indicateurs';
 import { nomPersonne } from '../../organisation';
 import { BlocBrique } from './Brique';
 import { useMemo, useState } from 'react';
@@ -140,6 +141,7 @@ export function FenetrePlanification(p: PropsReunion) {
           <>
             <TitreFiche icone="📊" titre="Situation" vide="" sous={`${nomSprintDe(precedente)} terminé · ${e.it.nom} du ${dateCourte(e.it.start)} au ${dateCourte(e.it.end)}`} />
             <Compteurs l={[{ valeur: String(vp), libelle: `vélocité ${nomSprintDe(precedente)}` }, { valeur: String(v.moyenne), libelle: 'moyenne 3 sprints' }, { valeur: String(reportees.length), libelle: 'reportées', ton: reportees.length ? 'orange' : undefined }]} />
+            {!!e.equipe && <BlocIndicateurs titre={`📏 Qualité de ${nomSprintDe(precedente)}`} equipes={[e.equipe.id]} sprint={precedente} espace={r.espace} actions={p.actions} />}
             <BlocSuivi r={r} lecture={lecture} onAjouter />
             <BlocBrique titre={`Reportées de ${nomSprintDe(precedente)} · ${reportees.length}`}>
               {reportees.length ? reportees.map((t, i) => <Ligne key={t.id} premiere={i === 0} texte={t.titre} sous={`${fmt(pointsOf(t))}${t.responsable ? ` · 👤 ${nomPersonne(r.org, t.responsable)}` : ''}`} pastille={{ texte: 'à reprendre', ton: 'orange' }} />) : <Vide texte="✓ Rien de reporté." />}
