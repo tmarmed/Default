@@ -81,6 +81,14 @@ export interface Item {
   responsable?: string;
   /** Backlog (lot 4) : rang de priorité dans son backlog (plus petit = plus prioritaire), vide = non classé */
   rang?: string;
+  /** Lot 8 (16/10) : « bruit » (travail perdu, B1) ou « retouche » (travail refait, B2) ; vide sinon */
+  nature?: string;
+  /** B1 / B2 : cause (choix rapide — commentaire) */
+  cause?: string;
+  /** M1 : qui paie (« epic:<id> », « tma:<train> ») ; vide = règle automatique */
+  paye_par?: string;
+  /** M1 : trace datée des réimputations, lignes séparées par « ¶ » */
+  paye_trace?: string;
 
   // --- Champs calculés par l'application (non enregistrés) ---
   /** Occurrence affichée d'un élément répété : clé de sa période */

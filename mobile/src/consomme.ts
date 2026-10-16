@@ -53,6 +53,9 @@ const nb = (v?: string) => Number(String(v ?? '').replace(/\s/g, '').replace(','
 
 /** Epic d'un élément (directement, par sa feature, ou par sa tâche parente) */
 function epicDeItem(t: Item, items: Map<string, Item>, features: Map<string, string>): string {
+  // M1 (16/10) : réimputé à la main (« Payé par ») : l'epic choisie, ou la TMA du train (hors epics)
+  if (t.paye_par?.startsWith('epic:')) return t.paye_par.slice(5);
+  if (t.paye_par?.startsWith('tma:')) return HORS;
   const p = t.parent ? items.get(t.parent) : undefined;
   return t.epic || features.get(t.feature) || (p ? p.epic || features.get(p.feature) || '' : '');
 }

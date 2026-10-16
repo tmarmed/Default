@@ -41,6 +41,7 @@
 | ⏰ Temporiser (date du rappel, temporisé / revenu, libellé, revenus en haut) ; absent → suppléant | `dateRappel`, `estTemporise`, `estRevenu`, `libelleRappel`, `revenusEnHaut`, `remplacantDe` | `src/temporiser.ts` |
 | Calcul automatique (date héritée du parent, points calculés feature / epic, dates des enfants, dépassement des sous-tâches) | `dateHeritee`, `pointsFeature`, `pointsEpic`, `datesDesEnfants`, `depassementSousTaches` | `src/calcul.ts` |
 | Changement de périmètre (règle P0, circuit PO → SM, fenêtre commune) | `changementPerimetre`, `demandePerimetre`, `etapesPerimetre`, `lirePatch` ; `FeuillePerimetre`, `PerimetreContext` | `src/perimetre.ts`, `components/Perimetre.tsx` |
+| Bruit, retouche, réimputation (règles ; fenêtre commune « cause » : bruit, retouche, payé par) | `planBruit`, `planRetouche`, `payePar`, `traceReimputation` ; `FeuilleCause`, `Lot8Context` | `src/bruitRetouche.ts`, `components/FeuilleCause.tsx` |
 | Saisie d'une note (types, plusieurs éléments, 🔒 Perso) | `SaisiePoint`, `LignesElements`, `LigneElement` | `reunion/ui.tsx` |
 
 Doublons connus (à unifier quand on y touche) : `useEquipeDaily` (Daily.tsx) et `useEquipe` (base.tsx) ; la

@@ -84,6 +84,7 @@ export const ONGLETS: Record<TableBase, { nom: string; colonnes: string[] }> = {
       'id', 'titre', 'type', 'date', 'heure', 'lieu', 'description', 'priorite', 'statut', 'cree_le', 'modifie_le',
       'periodicite', 'echeance', 'debut', 'fin', 'faits', 'epic', 'objectif', 'domaine', 'points', 'iteration', 'feature',
       'telephone', 'parent', 'heure_fin', 'date_fin', 'termine_le', 'statut_avant', 'equipe', 'responsable', 'rang',
+      'nature', 'cause', 'paye_par', 'paye_trace',
     ],
   },
   epic: { nom: 'Epics', colonnes: ['id', 'titre', 'description', 'debut', 'fin', 'couleur', 'cree_le', 'modifie_le', 'objectif', 'domaine', 'etat', 'portfolio', 'value_streams', 'okrs', 'rang', 'budget', 'consomme'] },
@@ -245,6 +246,11 @@ export function nettoyerItem(input: Partial<Item>, base?: Item): Item {
   if (out.debut && !RE_DATE.test(out.debut)) throw new Error('Date de début invalide (AAAA-MM-JJ).');
   if (out.fin && !RE_DATE.test(out.fin)) throw new Error('Date de fin invalide (AAAA-MM-JJ).');
   if (!/^[0-9A-Za-z;-]*$/.test(out.faits)) throw new Error('Liste des périodes faites invalide.');
+  // Lot 8 (16/10) : bruit / retouche, cause, payé par (epic:<id>, tma:<train>), trace
+  if (!['', 'bruit', 'retouche'].includes(out.nature)) out.nature = '';
+  out.cause = out.cause.trim().slice(0, 500);
+  if (out.paye_par && !/^(epic|tma):[0-9A-Za-z-]+$/.test(out.paye_par)) throw new Error('« Payé par » invalide.');
+  out.paye_trace = out.paye_trace.slice(-1000);
   verifierLiens(out);
   verifierSafe(out);
   if (!out.periodicite) Object.assign(out, { echeance: '', debut: '', fin: '', faits: '' });

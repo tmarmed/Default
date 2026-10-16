@@ -145,7 +145,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '71';
+const DEMO_DATA_VERSION = '72';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -525,6 +525,12 @@ const SEEDS_ENTREPRISE: Seeds = {
       ['Relire le compte rendu du client', 'tache', SANS_DATE, { equipe: 'acmeqmob', responsable: `${ID_VOUS_DEMO}-demo-entreprise`, iteration: iterationOf(new Date()).key }],
       // Plan commun (R5b) : tâche de l'équipe Web cochée par Vous au Daily Web du jour
       ['Relire la page d’accueil', 'tache', SANS_DATE, { equipe: 'acmeqweb', responsable: `${ID_VOUS_DEMO}-demo-entreprise`, iteration: iterationOf(new Date()).key }],
+      // Lot 8 (16/10) : 🧹 Bruit de la feature Connexion (acm16, une sous-tâche acm17), 🔧 Retouche d'une story terminée
+      // (acm18, la story reste terminée), et un bug réimputé à la TMA du train Clients (acm19, « Payé par »)
+      ['🧹 Bruit', 'tache', SANS_DATE, { nature: 'bruit', feature: 'acmf2', equipe: 'acmeqmob', statut: 'termine', termine_le: toDateString(new Date()), description: 'Travail commencé puis supprimé, déplacé ou abandonné (calculé par l’application).' }],
+      ['🧹 Connexion par code SMS (supprimé)', 'tache', SANS_DATE, { nature: 'bruit', parent: 'acm16', feature: 'acmf2', equipe: 'acmeqmob', responsable: 'acmp8', points: '1', statut: 'termine', termine_le: toDateString(new Date()), iteration: iterationOf(new Date()).key, cause: 'Besoin abandonné — le client garde la connexion Google' }],
+      ['🔧 Retouche · Inscription par e-mail', 'tache', SANS_DATE, { nature: 'retouche', parent: 'acm9', feature: 'acmf2', equipe: 'acmeqmob', responsable: 'acmp9', points: '1', iteration: iterationOf(new Date()).key, cause: 'Refusée à la revue — le lien de confirmation expire trop vite' }],
+      ['Corriger l’export des factures', 'bug', SANS_DATE, { equipe: 'acmeqmob', responsable: 'acmp8', points: '2', iteration: iterationOf(new Date()).key, paye_par: 'tma:acmtr1', paye_trace: `${toDateString(new Date())} · Nina Dupont : Epic Paiement → TMA du train Clients · Maintenance (TMA) — epic close` }],
       // Historique (13/10) : stories terminées aux trois sprints précédents (environ 18 points par sprint pour Mobile,
       // 10 pour Web), pour un coût d'un point réaliste (≈ 500 €) et des estimations à la fin crédibles
       ...[1, 2, 3].flatMap((n): [string, Item['type'], number, Partial<Item>][] => {
@@ -989,7 +995,7 @@ const SEEDS_ENTREPRISE: Seeds = {
       // de Vous à Tom qu'il a temporisée : Vous voit « Pris en compte · réponse prévue le … »
       ech('acmx19', { de: 'tom.faure@acme.example', a: MOI_DEMO, type: 'question', nature: 'question', titre: 'Peut-on décaler la démo du paiement ?', texte: 'Le prestataire ne sera prêt que mardi.', choix: 'Oui;Non', rappel_le: toDateString(addDays(new Date(), 3)) }),
       // Lot 7 (16/10, P1) : Tom propose de faire entrer une story au sprint ; Vous (PO) valide, puis le SM confirme
-      ech('acmx20', { de: 'tom.faure@acme.example', a: MOI_DEMO, type: 'question', nature: 'decision_a_prendre', titre: '🎯 Changement de périmètre · Paiement en un clic', texte: `+5 j · entre dans le sprint · Sprint : sans sprint → sprint en cours\nRaison : le client signe vendredi s’il peut tester le paiement\nLe PO valide, puis le Scrum Master confirme. L’élément ne change qu’après la confirmation.\n${encoderPatch({ id: 'acm11', iteration: iterationOf(new Date()).key })}`, choix: 'Valider;Refuser (motif)', element: 'acm11' }),
+      ech('acmx20', { de: 'tom.faure@acme.example', a: MOI_DEMO, type: 'question', nature: 'decision_a_prendre', titre: '🎯 Changement de périmètre · Notifications de livraison', texte: `+5 j · entre dans le sprint · Sprint : sans sprint → sprint en cours\nRaison : le client signe vendredi s’il peut tester le paiement\nLe PO valide, puis le Scrum Master confirme. L’élément ne change qu’après la confirmation.\n${encoderPatch({ id: 'acm11', iteration: iterationOf(new Date()).key })}`, choix: 'Valider;Refuser (motif)', element: 'acm11' }),
       ech('acmx16', { de: 'paul.leroy@acme.example', a: 'sara.martin@acme.example', type: 'question', nature: 'action', titre: 'Accès au tableau de bord du train', texte: 'Paul a besoin d’un accès en lecture au tableau de bord du train.', choix: 'Fait;Pas possible (motif)', transmis_par: MOI_DEMO, niveau: 'train:acmtr1' }),
       // 💶 Lot 4 : une demande de budget à décider (Chat) et une information reçue (disparaît à la lecture)
       ech('acmx8', {

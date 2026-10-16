@@ -20,13 +20,15 @@ import { Chips } from './Chips';
 import { DateField } from './DateField';
 import { type DemandePerimetre, FeuillePerimetre, useProposerPerimetre } from './Perimetre';
 import { changementPerimetre } from '../perimetre';
+import { FeuilleCause, useLot8, type VarianteCause } from './FeuilleCause';
+import { estCommence } from '../bruitRetouche';
 import { dateHeritee, libelleDateHeritee } from '../calcul';
 import { checkRecurrence, RecurrenceFields } from './RecurrenceFields';
 import { LinkPicker } from './LinkPicker';
 import { filtrerEspace, HierarchyContext, useHierarchy } from '../hierarchyContext';
 import { espaceParId, ICONE_ESPACE, libelleEspace, useEspaces } from '../espaces';
 import { useSafe } from '../safe';
-import { iterationNom, iterationOf, facteurJours } from '../pi';
+import { iterationNom, iterationOf, facteurJours, pointsOf } from '../pi';
 import { callNumber } from '../phone';
 import { fmtPoints } from '../pi';
 import { canHaveSubtasks, PARENT_TYPES, pointsCheck, subtaskMap } from '../subtasks';
@@ -218,6 +220,9 @@ export function TaskForm({
   // Lot 7 (16/10) : changement de périmètre proposé (fenêtre commune)
   const proposerPerimetre = useProposerPerimetre();
   const [perimetre, setPerimetre] = useState<DemandePerimetre | null>(null);
+  // Lot 8 (16/10) : bruit, retouche, réimputation (fenêtre commune « cause »)
+  const lot8 = useLot8();
+  const [cause, setCause] = useState<VarianteCause | null>(null);
   const org = useOrg();
   const moi = useMoi();
   // Droits d'après les rôles : calculés sur l'élément enregistré (un nouvel élément est toujours modifiable)
@@ -370,6 +375,13 @@ export function TaskForm({
     enregistrer: (f) => {
       // P0 / P1 (16/10) : un changement qui fait varier les points engagés du sprint en cours (hors Planification)
       // n'est pas enregistré tout de suite : la fenêtre « 🎯 Changement de périmètre » le propose au PO et au SM
+      // B2 (16/10) : rouvrir une story terminée → elle reste terminée, une « 🔧 Retouche » est proposée
+      if (item && lot8 && item.type === 'story' && item.statut === 'termine' && f.statut !== 'termine') {
+        setCause({ kind: 'retouche', t: item });
+        const garde = { ...f, statut: item.statut };
+        setForm(garde);
+        return onSave(preparer(garde), [], { terminerSousTaches: false, rester: true });
+      }
       if (item && proposerPerimetre && safe.actif && item.equipe) {
         const c = changementPerimetre(item, { ...item, iteration: f.iteration, points: f.points, parent: f.parent }, iterationOf(new Date()).key);
         if (c.oui) {
@@ -662,6 +674,14 @@ export function TaskForm({
                 // Sans estimation : celle des sous-tâches, en gris (elle compte déjà, rien à décider)
                 placeholder={check.sous > 0 ? `${fmtPoints(check.sous, safe.pointsJours)} d'après les sous-tâches` : undefined}
               />
+              {/* M1 (16/10) : qui paie (automatique, ou réimputé par un gestionnaire du budget, avec une trace) */}
+              {item && lot8 && safe.actif && (() => {
+                const p = lot8.payeurs(item);
+                const actuel = item.paye_par ? (p.options.find((o) => o.value === item.paye_par)?.label ?? item.paye_par) : `${p.auto} (automatique)`;
+                return <LigneFiche label="Payé par" valeur={actuel} sous={item.paye_trace ? item.paye_trace.split(' ¶ ').pop() : undefined} onPress={p.peut ? () => setCause({ kind: 'reimputation', t: item, valeur: item.paye_par ?? '' }) : undefined} />;
+              })()}
+              {/* B2 (16/10) : « ＋ Retouche » sur une story terminée (elle reste terminée) */}
+              {item && lot8 && item.type === 'story' && item.statut === 'termine' && <LigneFiche label="Retouche" valeur="🔧 ＋ Retouche" onPress={() => setCause({ kind: 'retouche', t: item })} />}
             </SectionFiche>
 
             {!!enfants.length && <Text style={styles.hint}>Les sous-tâches suivent le rattachement de cette tâche.</Text>}
@@ -838,10 +858,14 @@ export function TaskForm({
                     : { conserve: 'Sa sous-tâche sera conservée comme tâche normale.', supprime: 'Sa sous-tâche sera aussi supprimée.' }
                 }
                 disabled={busy}
-                onDelete={(cascade) => void doDelete(cascade)}
+                onDelete={(cascade) =>
+                  // B1 (16/10) : un élément commencé garde ses jours en 🧹 Bruit (cause obligatoire) avant d'être supprimé
+                  lot8 && safe.actif && estCommence(item) && !item.nature ? setCause({ kind: 'bruit', t: item, jours: pointsOf(item) }) : void doDelete(cascade)
+                }
               />
             )}
             </BlocLecture>
+            <FeuilleCause v={cause} onFermer={() => setCause(null)} onFait={() => cause?.kind === 'bruit' && void doDelete(false)} />
             <FeuillePerimetre demande={perimetre} unite={safe.pointsJours ? 'j' : 'pts'} onFermer={() => setPerimetre(null)} />
     </FormSheet>
     </HierarchyContext.Provider>

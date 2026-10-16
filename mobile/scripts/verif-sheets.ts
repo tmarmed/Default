@@ -438,7 +438,7 @@ const ok = (cond: unknown, msg: string) => {
   largeurs.set(`${idV}|Taches`, 28);
   let erreurV = '';
   await magasinSheets(idV).list().catch((e) => (erreurV = e.message));
-  ok(!erreurV && fv.feuilles.get('Taches')![0].length === 31, `fichier ancien (grille de 28 colonnes) : colonnes ajoutées sans refus${erreurV ? ` — ${erreurV}` : ''}`);
+  ok(!erreurV && fv.feuilles.get('Taches')![0].length === ONGLETS.items.colonnes.length, `fichier ancien (grille de 28 colonnes) : colonnes ajoutées sans refus${erreurV ? ` — ${erreurV}` : ''}`);
 
   // Erreur de règle
   let refus = '';

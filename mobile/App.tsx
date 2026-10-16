@@ -42,7 +42,7 @@ import { type Action, type Check, checksDatesDomaine, checksParEcran, signatures
 import { AlertsCard, CheckActionContext, IgnoreContext, nbAlertes } from './src/components/AlertsCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio } from './src/components/Portfolio';
-import { definirCalendrier, lireCalendrier, iterationNom, iterationOf, iterationOfItem, piLabel, piOf, reglerConversion } from './src/pi';
+import { definirCalendrier, lireCalendrier, iterationNom, iterationOf, iterationOfItem, piLabel, piOf, reglerConversion, facteurJours, shiftIteration, pointsOf } from './src/pi';
 import { calendrierEquipe as calendrierPilotage } from './src/pilotage';
 import { Roadmap } from './src/components/Roadmap';
 import { LoginScreen } from './src/components/LoginScreen';
@@ -90,6 +90,8 @@ import { BandeauxBas, hauteurBandeaux, type InfoBandeauChat, type InfoBandeauReu
 import { useReunionsLancees } from './src/components/useReunionsLancees';
 import { estLancee } from './src/etatReunion';
 import { CHOIX_DEMANDE_PARENT, lireDemandeParent } from './src/parentEnfants';
+import { libellePayePar, payePar, planBruit, planRetouche, traceReimputation } from './src/bruitRetouche';
+import { type ActionsLot8, Lot8Context } from './src/components/FeuilleCause';
 import { CHOIX_PO, demandePerimetre, estPerimetre, etapesPerimetre, libelleImpact, lirePatch, texteLisible, TITRE_PERIMETRE } from './src/perimetre';
 import { type DemandePerimetre, PerimetreContext } from './src/components/Perimetre';
 import { dateRappel, libelleRappel, remplacantDe } from './src/temporiser';
@@ -1967,6 +1969,45 @@ function Main() {
     await actionsDaily.envoyerEchanges(espace, [demandePerimetre({ de: moiEchange, a, etape: etapes[0], item: d.item, impact: `${libelleImpact(d.impact, safe.pointsJours ? 'j' : 'pts')} · ${d.changement}`, raison, patch: d.patch, niveau: eq ? `equipeagile:${eq.id}` : '', espace })]);
     setInfo(`Changement de périmètre proposé à ${nomEchange(a)} (${etapes[0] === 'po' ? 'PO, valide' : 'Scrum Master, confirme'}) ; rien ne change avant la confirmation.`);
   };
+  /** Lot 8 (16/10) : bruit (B1), retouche (B2), réimputation (M1) — fenêtre commune « cause » */
+  const actionsLot8: ActionsLot8 = {
+    bruit: async (t, jours, cause, commentaire) => {
+      const espace = t.espace || 'moi';
+      const plan = planBruit(t, items, { jours, joursParPoint: facteurJours(t), cause, commentaire, aujourdhui: today, quoi: 'supprimé' });
+      const parentId = plan.parentExistant?.id ?? (await actionsDaily.creerTaches(espace, [plan.parent]))[0]?.id ?? '';
+      await actionsDaily.creerTaches(espace, [{ ...plan.sous, parent: parentId } as ItemInput]);
+      setInfo(`🧹 ${jours} j gardés en bruit (« ${cause} ») ; l’élément est supprimé.`);
+    },
+    retouche: async (story, estimation, cause, commentaire, quand) => {
+      const espace = story.espace || 'moi';
+      const courant = iterationOf(today).key;
+      const iteration = quand === 'en_cours' ? courant : quand === 'suivant' ? shiftIteration(courant, 1) : '';
+      // Estimée et dans le sprint en cours : changement de périmètre (créée hors sprint, entre après la confirmation)
+      const perimetre = quand === 'en_cours' && Number(estimation) > 0;
+      const [r] = await actionsDaily.creerTaches(espace, [planRetouche(story, { estimation, cause, commentaire, iteration: perimetre ? '' : iteration })]);
+      if (perimetre && r) await proposerPerimetre({ item: r, patch: { id: r.id, iteration: courant }, changement: `Retouche de « ${story.titre} » dans le sprint en cours`, impact: { delta: pointsOf(r), quoi: 'entre dans le sprint' } }, `Retouche : ${cause}${commentaire ? ` — ${commentaire}` : ''}`);
+      else setInfo(`🔧 Retouche créée${iteration ? ` (${iterationNom(iteration)})` : ' (plus tard)'} ; « ${story.titre} » reste terminée.`);
+    },
+    reimputer: async (t, valeur, cause, commentaire) => {
+      const nomPayeur = (v: string) => libellePayePar(v, (k, id) => (k === 'epic' ? (hv.epicList.find((e) => e.id === id)?.titre ?? id) : (orgReunions.train.get(id)?.nom ?? id)));
+      const avant = nomPayeur(t.paye_par || payeParDe(t).valeur);
+      const apres = valeur ? nomPayeur(valeur) : 'règle automatique';
+      await actionsDaily.modifierItems?.(t.espace || 'moi', [{ id: t.id, paye_par: valeur, paye_trace: traceReimputation(avant, apres, nomEchange(moiEchange), today, [cause, commentaire].filter(Boolean).join(' — '), t.paye_trace) }]);
+      setInfo(`💶 « ${t.titre} » : payé par ${apres}.`);
+    },
+    payeurs: (t) => {
+      const niveau = t.equipe ? `equipeagile:${t.equipe}` : '';
+      const train = t.equipe ? orgReunions.equipe.get(t.equipe)?.train ?? '' : '';
+      const peut = !!niveau && [niveau, train ? `train:${train}` : ''].filter(Boolean).some((n) => gerantsBudget(n, orgReunions, !safe.actif).includes(moiEchange));
+      const options = [
+        ...hv.epicList.filter((e) => (e.espace || 'moi') === (t.espace || 'moi')).map((e) => ({ value: `epic:${e.id}`, label: `Epic ${e.titre}` })),
+        ...orgReunions.trains.map((x) => ({ value: `tma:${x.id}`, label: `TMA du train ${x.nom}` })),
+      ];
+      const auto = payeParDe({ ...t, paye_par: '' }).valeur;
+      return { peut, options, auto: options.find((o) => o.value === auto)?.label ?? 'Aucun' };
+    },
+  };
+  const payeParDe = (t: Item) => payePar(t, { items, features: hv.featureList, epics: hv.epicList, trainDe: (e) => orgReunions.equipe.get(e)?.train ?? '' });
   /** Points de suivi des escalades (cas d'usage 1 et 2) : une écriture par Sheet concerné */
   const ecrireSuivis = async (l: PointAEcrire[]) => {
     const out: { espace: string; point: PointReunion }[] = [];
@@ -2952,6 +2993,7 @@ function Main() {
     <PiecesContext.Provider value={chargerPieces}>
     <OrgContext.Provider value={orgValue}>
     <PerimetreContext.Provider value={proposerPerimetre}>
+    <Lot8Context.Provider value={actionsLot8}>
     <BudgetContext.Provider value={budgetValue}>
     <CongesContext.Provider value={congesValue}>
     <MoiContext.Provider value={moi}>
@@ -4294,6 +4336,7 @@ function Main() {
       />
     </CongesContext.Provider>
     </BudgetContext.Provider>
+    </Lot8Context.Provider>
     </PerimetreContext.Provider>
     </OrgContext.Provider>
     </PiecesContext.Provider>
