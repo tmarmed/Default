@@ -9,7 +9,9 @@ fenêtre, le PI se prépare librement) ; seulement une feature qui entre ou sort
 reste au sprint (validé au sprint) ; si un sprint fait sortir ou entrer quelque chose du PI, le train est seulement
 alerté. Objectifs du PI : pas de nouvelle alerte (garder les alertes existantes : dépassement de budget, de date).
 Alerte au train (validé) : information au Chat du PM et du RTE + ligne dans l'Avancement de l'ART sync, rien à valider ;
-le Chat peut en faire un point de suivi (choix de celui qui reçoit).
+le Chat peut en faire un point de suivi (choix de celui qui reçoit). RÈGLE CONFIRMÉE : aucune information du Chat ne
+devient automatiquement un point de suivi chez celui qui la reçoit, escalade et changement de périmètre compris
+(spécification P1 et « Changements à vérifier » mises à jour).
 Tableau « qui peut faire quoi » validé et ajouté au bloc 16 (16/10), avec Q5 pleins droits du SM / responsable et de
 son suppléant ; sous-tableau « ⏰ Temporiser » (Chat, séance, Point perso, fiche d'un élément) et « Perso ou à
 partager » (note à partager par défaut, case « 🔒 Perso », perso seulement si ça ne touche que moi). Suite :
