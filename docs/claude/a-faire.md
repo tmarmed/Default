@@ -44,7 +44,7 @@ Lire en premier. Mettre à jour avant de fermer une session : rayer ce qui est f
   sprint) ; tests dans `npm run verif:qualite`. Reste : Stabilité du PI au train.
 - Vérifié (16/10) : 11 suites de tests (`verif:notes`, `liens`, `budget`, `calcul`, `perimetre`, `qualite` + les
   anciennes), typecheck, parcours de toutes les réunions (28 SAFe, 9 Simple) sans erreur ni valeur suspecte, même
-  nombre d'étapes qu'avant. Démo 74.
+  nombre d'étapes qu'avant. Démo 75.
 - PROCHAINE SESSION : faire valider `docs/claude/decisions-lots.md` ligne par ligne (une question à la fois), puis
   traiter les « À revoir » et les « Reste » ci-dessus.
 - Décisions prises en l'absence de l'utilisateur : `docs/claude/decisions-lots.md` (à valider à son retour).

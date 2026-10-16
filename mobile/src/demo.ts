@@ -145,7 +145,7 @@ const KEY = 'mes-taches:demo';
  * Version des données d'exemple : à augmenter quand leur forme change (nouveaux champs, nouveaux niveaux).
  * Des données enregistrées par une version plus ancienne de la démo sont remplacées par les nouvelles.
  */
-const DEMO_DATA_VERSION = '74';
+const DEMO_DATA_VERSION = '75';
 const VERSION_KEY = `${KEY}-version`;
 let versionChecked: Promise<void> | null = null;
 
@@ -530,7 +530,7 @@ const SEEDS_ENTREPRISE: Seeds = {
       ['🧹 Bruit', 'tache', SANS_DATE, { nature: 'bruit', feature: 'acmf2', equipe: 'acmeqmob', statut: 'termine', termine_le: toDateString(new Date()), description: 'Travail commencé puis supprimé, déplacé ou abandonné (calculé par l’application).' }],
       ['🧹 Connexion par code SMS (supprimé)', 'tache', SANS_DATE, { nature: 'bruit', parent: 'acm16', feature: 'acmf2', equipe: 'acmeqmob', responsable: 'acmp8', points: '1', statut: 'termine', termine_le: toDateString(new Date()), iteration: iterationOf(new Date()).key, cause: 'Besoin abandonné — le client garde la connexion Google' }],
       ['🔧 Retouche · Inscription par e-mail', 'tache', SANS_DATE, { nature: 'retouche', parent: 'acm9', feature: 'acmf2', equipe: 'acmeqmob', responsable: 'acmp9', points: '1', cause: 'Refusée à la revue — le lien de confirmation expire trop vite', iteration: shiftIteration(iterationOf(new Date()).key, 1) }],
-      ['Corriger l’export des factures', 'bug', SANS_DATE, { equipe: 'acmeqmob', responsable: 'acmp8', points: '2', iteration: iterationOf(new Date()).key, paye_par: 'tma:acmtr1', paye_trace: `${jourMois(toDateString(new Date()))} · Nina Dupont : Epic Paiement → TMA du train Clients · Maintenance (TMA) — epic close` }],
+      ['Corriger l’export des factures', 'bug', SANS_DATE, { equipe: 'acmeqmob', responsable: 'acmp8', points: '2', paye_par: 'tma:acmtr1', paye_trace: `${jourMois(toDateString(new Date()))} · Nina Dupont : Epic Paiement → TMA du train Clients · Maintenance (TMA) — epic close` }],
       // Historique (13/10) : stories terminées aux trois sprints précédents (environ 18 points par sprint pour Mobile,
       // 10 pour Web), pour un coût d'un point réaliste (≈ 500 €) et des estimations à la fin crédibles
       ...[1, 2, 3].flatMap((n): [string, Item['type'], number, Partial<Item>][] => {
