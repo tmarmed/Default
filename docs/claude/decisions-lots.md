@@ -47,7 +47,7 @@
 - L5 Enfant rouvert reconfirmé par l'utilisateur (parent En cours, à confirmer par le responsable du dessus, qui peut le garder validé).
 - T1 Chat VALIDÉ : « ⏰ Me le rappeler », groupe replié « ⏰ Temporisés », retour en haut le jour venu ; l'expéditeur voit « Pris en compte · réponse prévue le … » (comme codé).
 - T1 séance VALIDÉ + ajouter un groupe replié « ⏰ Temporisés · n » en bas de la Situation (« à traiter le 20/10 »), visible par tous.
-- T1 autres : Point perso VALIDÉ (⏰ sur ses propres notes) ; fiche d'un élément et action liée : en discussion.
+- T1 autres : Point perso VALIDÉ (⏰ sur ses propres notes) ; fiche d'un élément VALIDÉE (« ⏰ Me le rappeler », remonte en haut de Mes tâches le jour choisi) ; action liée sans estimation : ÉCARTÉE pour l'instant.
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
