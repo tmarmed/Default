@@ -41,6 +41,8 @@
   « Pas concerné » ou « Doublon » (à tout moment tant que l'enfant n'est pas fini). Enfant rouvert après validation du
   parent : VALIDÉ — le parent repasse automatiquement « En cours », à confirmer par l'animateur de sa réunion
   (responsable du niveau du dessus), qui peut aussi le garder validé.
+- L3 Rassembler VALIDÉ pour le budget ; à étendre ensuite aux escalades (même blocage de plusieurs équipes), avec le fil lié vers chaque équipe.
+- L3 Réponse du haut VALIDÉE telle quelle (refus : même motif ; accord total : chacune son montant ; accord partiel : répartition à la main, 0 € = refusée, chaque équipe ne voit que son chiffre).
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
