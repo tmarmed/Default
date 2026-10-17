@@ -37,6 +37,9 @@
   enfants traités » (« dont 1 abandonné » le cas échéant), à confirmer par l'animateur de la réunion du parent (RTE,
   responsable du niveau), qui choisit Valider, Ne plus suivre ou À reprendre. Abandon de l'enfant = demande au parent
   dans le fil (OK · Refuser) ; parent abandonné → enfants prévenus dans le fil, sans changement automatique.
+- L5 « Détacher » FUSIONNÉ avec « Abandonner » : pas de bouton à part ; on demande à abandonner avec la raison
+  « Pas concerné » ou « Doublon » (à tout moment tant que l'enfant n'est pas fini). Enfant rouvert après validation du
+  parent : EN ATTENTE de réponse.
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
