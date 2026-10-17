@@ -33,6 +33,10 @@
   … le … », le « 💬 nouveau » disparaît. Une décision prise au Chat (Fait, Valider, À reprendre, OK à une demande)
   s'applique, « décidé hors réunion », confirmée par l'animateur (Scrum Master) en séance. Chaque message est recopié
   dans le point de suivi : l'historique reste après la disparition du message du Chat, jusqu'à la fin de vie du suivi.
+- L4 VALIDÉ avec un changement : tous les enfants traités → le parent passe automatiquement à « Fait · tous les
+  enfants traités » (« dont 1 abandonné » le cas échéant), à confirmer par l'animateur de la réunion du parent (RTE,
+  responsable du niveau), qui choisit Valider, Ne plus suivre ou À reprendre. Abandon de l'enfant = demande au parent
+  dans le fil (OK · Refuser) ; parent abandonné → enfants prévenus dans le fil, sans changement automatique.
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
