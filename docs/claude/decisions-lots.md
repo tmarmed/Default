@@ -49,6 +49,7 @@
 - T1 séance VALIDÉ + ajouter un groupe replié « ⏰ Temporisés · n » en bas de la Situation (« à traiter le 20/10 »), visible par tous.
 - T1 autres : Point perso VALIDÉ (⏰ sur ses propres notes) ; fiche d'un élément VALIDÉE (« ⏰ Me le rappeler », remonte en haut de Mes tâches le jour choisi) ; action liée sans estimation : ÉCARTÉE pour l'instant.
 - Q4 MODIFIÉ : copie au suppléant, sinon au responsable du niveau, et on s'arrête là (plus de montée automatique). Personne de présent → le message attend, l'expéditeur voit « Nina Dupont est absente jusqu'au 24/10 » et un bouton « Envoyer au responsable du dessus ». Le premier qui répond traite pour les deux (« Traité par … »).
+- Q5 VALIDÉ : l'animateur (ou son suppléant) valide, reprend ou abandonne tout suivi de sa réunion ; trace « Validé par Sara Martin (animatrice) ».
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
