@@ -26,6 +26,7 @@
   écrite sur les deux points de suivi (l'enfant garde la référence de son parent, le parent la liste de ses enfants) ;
   la ligne « 1 / 2 · Mobile ✓ » se calcule depuis les suivis ; le message du Chat peut disparaître sans casser le lien.
   Toutes les équipes précochées, un message par équipe à son SM, un seul bouton (communiquer = répartir).
+- R3 parent VALIDÉ avec ajout : « 1 / 2 » puis une étiquette par équipe (✓ fait, 🔵 en réunion, ⏳ au Chat, ⊘ abandonné, 🔴 bloqué ou en retard).
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
