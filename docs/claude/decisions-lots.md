@@ -43,6 +43,7 @@
   (responsable du niveau du dessus), qui peut aussi le garder validé.
 - L3 Rassembler VALIDÉ pour le budget ; à étendre ensuite aux escalades (même blocage de plusieurs équipes), avec le fil lié vers chaque équipe.
 - L3 Réponse du haut VALIDÉE telle quelle (refus : même motif ; accord total : chacune son montant ; accord partiel : répartition à la main, 0 € = refusée, chaque équipe ne voit que son chiffre).
+- T1 Délais VALIDÉS + ajouter « Choisir une date » (calendrier) en plus de Demain, Dans 3 jours, Prochaine réunion.
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
