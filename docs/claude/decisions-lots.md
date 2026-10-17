@@ -18,6 +18,9 @@
   une flèche « → » pour une étape ou un chemin (« Reçu → Suivi à Daily 👥 Mobile ») ; chaque détail devient une petite
   étiquette grise séparée ([👤 Emma Roy] [✅ Nina Dupont] [📅 16/10]). Pièce commune à créer (Ligne / sous-ligne), puis
   à brancher partout ; vérifier tous les écrans par captures.
+- Q1-Q2 VALIDÉ avec un changement : celui qui anime prend la casquette de Scrum Master (RTE au train…) et a tous
+  ses droits, escalader compris, même s'il est Coach agile ou suppléant, démo comprise. Un Coach agile qui n'anime
+  pas n'a pas ces droits.
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
