@@ -27,6 +27,12 @@
   la ligne « 1 / 2 · Mobile ✓ » se calcule depuis les suivis ; le message du Chat peut disparaître sans casser le lien.
   Toutes les équipes précochées, un message par équipe à son SM, un seul bouton (communiquer = répartir).
 - R3 parent VALIDÉ avec ajout : « 1 / 2 » puis une étiquette par équipe (✓ fait, 🔵 en réunion, ⏳ au Chat, ⊘ abandonné, 🔴 bloqué ou en retard).
+- NOUVEAU « Fil lié » VALIDÉ : entre deux suivis liés, un seul fil par lien, visible au Chat (conversation rangée sous
+  le suivi) et dans la fiche du suivi (« 💬 1 nouveau » sur la ligne en réunion) ; réponse possible aux deux endroits.
+  Un simple échange (information, question) n'est pas à confirmer : lu au Chat, il est rangé dans le fil avec « lu par
+  … le … », le « 💬 nouveau » disparaît. Une décision prise au Chat (Fait, Valider, À reprendre, OK à une demande)
+  s'applique, « décidé hors réunion », confirmée par l'animateur (Scrum Master) en séance. Chaque message est recopié
+  dans le point de suivi : l'historique reste après la disparition du message du Chat, jusqu'à la fin de vie du suivi.
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
