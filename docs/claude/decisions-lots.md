@@ -51,6 +51,7 @@
 - Q4 MODIFIÉ : copie au suppléant, sinon au responsable du niveau, et on s'arrête là (plus de montée automatique). Personne de présent → le message attend, l'expéditeur voit « Nina Dupont est absente jusqu'au 24/10 » et un bouton « Envoyer au responsable du dessus ». Le premier qui répond traite pour les deux (« Traité par … »).
 - Q5 VALIDÉ : l'animateur (ou son suppléant) valide, reprend ou abandonne tout suivi de sa réunion ; trace « Validé par Sara Martin (animatrice) ».
 - K1 VALIDÉ : date du parent affichée en gris, jamais recopiée dans le Sheet.
+- K2 VALIDÉ + MODIFIÉ : feature sans estimation → « Calculé : 8 points » en gris ; alerte « 🔢 estimation dépassée » (pièce commune, Garder · Ouvrir) sur l'epic ET sur la feature, dans leur fiche et dans les écrans et réunions où on en parle (Portefeuille pour l'epic ; Itération, PI, Affinage pour la feature). Pas de message dans le Chat.
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
