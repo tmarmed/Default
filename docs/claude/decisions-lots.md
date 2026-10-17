@@ -1,5 +1,21 @@
 # Décisions fonctionnelles prises pendant le développement des 9 lots (16/10, en l'absence de l'utilisateur)
 
+## Revue avec l'utilisateur (16/10, une par une) — changements à coder après la revue
+- N1 MODIFIÉ : toute note de préparation est partagée d'office dans sa réunion, sauf si elle est ⏰ temporisée (non
+  partagée, elle revient à la date choisie). Visible par son auteur seul pendant la préparation (corriger, retirer),
+  partagée automatiquement quand l'animateur lance la séance. Plus de rappel 🟡 « Pas encore partagée ».
+- N2 VALIDÉ avec un changement : quand la concrétisation touche l'équipe, « 📌 Point de suivi » est **précoché**
+  (décochable), avec la raison ; plus le mot « imposé » / « obligatoire ».
+- N3 VALIDÉ.
+- V1-V2 VALIDÉ. Ajout : les notes 🔒 Perso se voient aussi dans un bloc « 🔒 Mes notes perso » du Point perso
+  (toutes réunions, pour les concrétiser ou les partager) et dans « 📌 Mes suivis » (filtre « Perso »).
+- V3 VALIDÉ. Une note perso partagée s'affiche au tour de table comme une note normale (pas de mention « était
+  perso » en séance ; l'historique reste visible en ouvrant la note).
+- D1 VALIDÉ avec un changement : seul l'animateur de la réunion (ou son suppléant) peut déplacer un suivi (plus le responsable ni le validateur) ; même espace.
+- R1 « Mettre en réunion » (note à concrétiser) VALIDÉ.
+- R1 budget (demande au Chat, entre dans le bloc 💶 après « Mettre en réunion ») VALIDÉ.
+
+
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
 (docs/regles-reunions.html, blocs 16 et 17) laissait un choix, et la raison. « À revoir » = je recommande d'en reparler.
 
