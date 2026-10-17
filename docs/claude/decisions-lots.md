@@ -14,6 +14,10 @@
 - D1 VALIDÉ avec un changement : seul l'animateur de la réunion (ou son suppléant) peut déplacer un suivi (plus le responsable ni le validateur) ; même espace.
 - R1 « Mettre en réunion » (note à concrétiser) VALIDÉ.
 - R1 budget (demande au Chat, entre dans le bloc 💶 après « Mettre en réunion ») VALIDÉ.
+- R3 VALIDÉ. NOUVELLE RÈGLE D'AFFICHAGE (toute l'application) : plus de « · » ni de « : » dans les sous-lignes ;
+  une flèche « → » pour une étape ou un chemin (« Reçu → Suivi à Daily 👥 Mobile ») ; chaque détail devient une petite
+  étiquette grise séparée ([👤 Emma Roy] [✅ Nina Dupont] [📅 16/10]). Pièce commune à créer (Ligne / sous-ligne), puis
+  à brancher partout ; vérifier tous les écrans par captures.
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
