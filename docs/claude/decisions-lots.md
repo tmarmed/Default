@@ -48,6 +48,7 @@
 - T1 Chat VALIDÉ : « ⏰ Me le rappeler », groupe replié « ⏰ Temporisés », retour en haut le jour venu ; l'expéditeur voit « Pris en compte · repris le 25/10 » ; MODIFIÉ : deux dates — Rappel (obligatoire, jour où le message revient) et Réponse prévue (facultative) ; si donnée, l'expéditeur voit « réponse prévue le 28/10 » ; dépassée sans réponse → orange chez le receveur, qui peut la repousser (l'expéditeur voit la nouvelle date).
 - T1 séance VALIDÉ + ajouter un groupe replié « ⏰ Temporisés · n » en bas de la Situation (« à traiter le 20/10 »), visible par tous.
 - T1 autres : Point perso VALIDÉ (⏰ sur ses propres notes) ; fiche d'un élément VALIDÉE (« ⏰ Me le rappeler », remonte en haut de Mes tâches le jour choisi) ; action liée sans estimation : ÉCARTÉE pour l'instant.
+- Q4 MODIFIÉ : copie au suppléant, sinon au responsable du niveau, et on s'arrête là (plus de montée automatique). Personne de présent → le message attend, l'expéditeur voit « Nina Dupont est absente jusqu'au 24/10 » et un bouton « Envoyer au responsable du dessus ». Le premier qui répond traite pour les deux (« Traité par … »).
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
