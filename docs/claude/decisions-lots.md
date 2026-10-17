@@ -45,7 +45,7 @@
 - L3 Réponse du haut VALIDÉE telle quelle (refus : même motif ; accord total : chacune son montant ; accord partiel : répartition à la main, 0 € = refusée, chaque équipe ne voit que son chiffre).
 - T1 Délais VALIDÉS + ajouter « Choisir une date » (calendrier) en plus de Demain, Dans 3 jours, Prochaine réunion.
 - L5 Enfant rouvert reconfirmé par l'utilisateur (parent En cours, à confirmer par le responsable du dessus, qui peut le garder validé).
-- T1 Chat VALIDÉ : « ⏰ Me le rappeler », groupe replié « ⏰ Temporisés », retour en haut le jour venu ; rien ne change chez l'expéditeur.
+- T1 Chat VALIDÉ : « ⏰ Me le rappeler », groupe replié « ⏰ Temporisés », retour en haut le jour venu ; l'expéditeur voit « Pris en compte · réponse prévue le … » (comme codé).
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
