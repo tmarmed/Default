@@ -39,7 +39,8 @@
   dans le fil (OK · Refuser) ; parent abandonné → enfants prévenus dans le fil, sans changement automatique.
 - L5 « Détacher » FUSIONNÉ avec « Abandonner » : pas de bouton à part ; on demande à abandonner avec la raison
   « Pas concerné » ou « Doublon » (à tout moment tant que l'enfant n'est pas fini). Enfant rouvert après validation du
-  parent : EN ATTENTE de réponse.
+  parent : VALIDÉ — le parent repasse automatiquement « En cours », à confirmer par l'animateur de sa réunion
+  (responsable du niveau du dessus), qui peut aussi le garder validé.
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
