@@ -54,6 +54,7 @@
 - K2 VALIDÉ + MODIFIÉ : feature sans estimation → « Calculé : 8 points » en gris ; alerte « 🔢 estimation dépassée » (pièce commune, Garder · Ouvrir) sur l'epic ET sur la feature, dans leur fiche et dans les écrans et réunions où on en parle (Portefeuille pour l'epic ; Itération, PI, Affinage pour la feature). Pas de message dans le Chat.
 - K4 VALIDÉ : alerte des sous-tâches seulement au-delà de l'estimation de la story. K3 (pas de jours réels sur story, feature, epic) : vérifié, rien à changer.
 - P0 VALIDÉ + MODIFIÉ (même logique que K4) : une sous-tâche n'est pas un changement de périmètre si elle n'est pas estimée ou si la somme des sous-tâches reste ≤ l'estimation de la story ; si elle fait dépasser l'estimation de la story, c'est un changement de périmètre (le dépassement compte). Élément sans estimation : jamais.
+- P1 VALIDÉ + MODIFIÉ : une seule action « Déplacer » (pièce commune) dans la fiche, le Backlog, le Sprint et le PI : Remettre au backlog · Un sprint du PI · Une date (sprint déduit). Contrôle de périmètre unique dans cette pièce : entrée/sortie d'une story estimée du sprint en cours → fenêtre « 🎯 Changement de périmètre » ; sinon enregistré tout de suite.
 
 
 À valider au retour de l'utilisateur. Chaque ligne : la règle, la décision prise quand la spécification
